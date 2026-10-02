@@ -301,7 +301,7 @@ describe('ProfilePage', () => {
     ['account', ['profile.settingsRows.editName', 'profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
-    ['notifications', ['profile.settingsRows.alertsOnThisDevice', 'profile.marketingEmails.question', 'profile.settingsRows.remindersNote']],
+    ['notifications', ['profile.marketingEmails.question', 'profile.settingsRows.alertsOnThisDevice', 'profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
     const top = render(<ProfilePage />)
     const entry = screen.getAllByRole('link').find((link) => link.getAttribute('href') === `/profile/${destination}`)!
@@ -1012,6 +1012,26 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
+  it.each([true, false])('renders answered email consent %s before the matching device row and reminders note', (consent) => {
+    mockProfileState.current.profile = createMockProfile({ marketingEmailConsent: consent })
+    render(<ProfileSubscreen screen="notifications" />)
+
+    const group = screen.getByTestId('profile-settings-group-notifications')
+    const titles = [...group.querySelectorAll('[data-slot="list-row-title"]')]
+    expect(titles.map((title) => title.textContent)).toEqual([
+      'profile.marketingEmails.title',
+      'profile.settingsRows.alertsOnThisDevice',
+    ])
+    expect(group.querySelectorAll('svg')).toHaveLength(0)
+    expect(within(group).getAllByRole('switch').map((control) => control.getAttribute('aria-label'))).toEqual([
+      'profile.marketingEmails.title',
+      'profile.settingsRows.alertsOnThisDevice',
+    ])
+    expect(within(group).getByRole('switch', { name: 'profile.marketingEmails.title' })).toHaveAttribute('aria-checked', String(consent))
+    const note = within(group).getByText('profile.settingsRows.remindersNote')
+    expect(titles[1]!.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('renders only the drawn Notifications rows and the recorded deviations, in order', () => {
     render(<ProfileSubscreen screen="notifications" />)
 
@@ -1023,16 +1043,16 @@ describe('ProfilePage', () => {
       .map((element) => element.textContent)
 
     expect(controls).toEqual([
-      'switch: profile.settingsRows.alertsOnThisDevice',
       'button: profile.marketingEmails.accept',
       'button: profile.marketingEmails.decline',
+      'switch: profile.settingsRows.alertsOnThisDevice',
     ])
     expect(textLines).toEqual([
-      'profile.settingsRows.alertsOnThisDevice',
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
       'profile.marketingEmails.accept',
       'profile.marketingEmails.decline',
+      'profile.settingsRows.alertsOnThisDevice',
       'profile.settingsRows.remindersNote',
     ])
   })

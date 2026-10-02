@@ -16,6 +16,7 @@ export function ProfileNotificationsContent() {
     await pushSubscriptions.refresh()
   }
   return <div className="flex flex-col" style={{ gap: 12 }}>
+      <MarketingConsentSection showSectionLabel={false} contained acceptVariant="secondary" />
       <PushDevicesRow
         count={pushSubscriptions.count}
         max={pushSubscriptions.max}
@@ -28,7 +29,6 @@ export function ProfileNotificationsContent() {
         onToggle={() => void toggleThisDevice()}
         onRetry={() => void pushSubscriptions.refresh()}
       />
-      <MarketingConsentSection showSectionLabel={false} contained acceptVariant="secondary" />
       <p className="m-0 text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">{t('profile.settingsRows.remindersNote')}</p>
     </div>
 }
