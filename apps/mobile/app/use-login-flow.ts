@@ -13,7 +13,7 @@ import { clearStoredAuthReturnUrl, clearStoredReferralCode, createAuthReturnUrlA
   isSafeReturnUrl, isValidReferralCode, isValidVerificationCode,
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
-import { usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
+import { clearPendingGoogleAuthSession, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useOffline } from '@/hooks/use-offline'
 import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
@@ -31,9 +31,9 @@ function getOrCreateReturnUrlAttempt(
   if (!attemptRef.current || attemptRef.current.returnUrl !== returnUrl ||
     !isAuthReturnUrlAttemptCurrent(attemptRef.current.id)) {
     const id = createAuthReturnUrlAttempt()
-    const ready = returnUrl && isSafeReturnUrl(returnUrl)
+    const ready = clearPendingGoogleAuthSession().then(() => returnUrl && isSafeReturnUrl(returnUrl)
       ? storeAuthReturnUrl(returnUrl, id)
-      : clearStoredAuthReturnUrl(id)
+      : clearStoredAuthReturnUrl(id))
     attemptRef.current = { returnUrl, id, ready }
   }
   return attemptRef.current
