@@ -170,6 +170,9 @@ for (const width of [412, 1352]) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list && url.searchParams.get('search') === 'Read' && url.searchParams.get('page') === String(pageNumber), (route) => route.fulfill({ json: response }))
         }
         await page.goto('/search')
+        const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
+        await expect(consent).toHaveCount(0)
         await page.getByRole('combobox', { name: messages.habits.search.title }).fill('Read')
         const main = page.getByRole('main')
         const next = main.getByRole('button', { name: messages.habits.search.next, exact: true })
@@ -181,7 +184,7 @@ for (const width of [412, 1352]) {
         await expect(main.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
         await expect(previous).toBeEnabled()
         await expect(next).toBeEnabled()
-        await expect(main.locator('[data-slot="action-row"]').filter({ has: previous }).locator('.orbit-pill-action')).toHaveCount(2)
+        await expect(main.locator('[data-slot="action-row"]').filter({ has: page.getByRole('button', { name: messages.habits.search.previous, exact: true }) }).locator('.orbit-pill-action')).toHaveCount(2)
         await assertActionGeometry(page, main)
       })
 
