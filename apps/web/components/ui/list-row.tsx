@@ -51,7 +51,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
 export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, expanded, controls, action, chevron = true, compact = !props.description, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 24 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24 } : { width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm)
 

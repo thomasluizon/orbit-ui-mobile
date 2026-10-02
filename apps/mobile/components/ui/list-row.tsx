@@ -61,7 +61,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
       ) : null}
       <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
       {trailing && props.textMode !== 'label' ? <View style={styles.trailing}>{trailing}</View> : null}
-      {!readOnly && chevron ? <View style={styles.chevron}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
+      {!readOnly && chevron ? <View style={props.textMode ? styles.chevron : styles.control}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
   )
 
