@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { getTrialDaysLeft } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
@@ -52,6 +52,24 @@ async function mount(profile = mocks.profile) {
 }
 
 describe('Onboarding final Pro step', () => {
+  it.each(['en', 'pt-BR'])('exposes both loaded paywall cards to geometry checks in %s', async (locale) => {
+    mocks.locale = locale
+    const view = await mount()
+    const step = view.container.querySelector('[data-onboarding-step="paywall"]')!
+    const cards = step.querySelectorAll<HTMLElement>('[data-tier-content]')
+    expect(cards).toHaveLength(2)
+    expect(Array.from(cards, (card) => card.dataset.tierContent)).toEqual(['yearly', 'monthly'])
+    for (const card of cards) {
+      expect(card).toHaveAttribute('data-tier', card.dataset.tierContent)
+      expect(within(card).getByRole('button', { name: /Subscribe|Assinar/ })).toBeEnabled()
+      const outcomes = within(card).getByRole('list', { name: translate('upgrade.outcomes.label') })
+      expect(within(outcomes).getAllByRole('listitem')).toHaveLength(4)
+      for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+        expect(within(outcomes).getByText(translate(`upgrade.outcomes.${key}`))).toBeInTheDocument()
+      }
+    }
+  })
+
   it.each(['en', 'pt-BR'])('shows trial facts and one action in %s', async (locale) => {
     mocks.locale = locale
     const end = new Date(Date.now() + 7 * 86400000).toISOString()

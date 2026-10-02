@@ -278,6 +278,7 @@ function TierCard({
   return (
     <section
       data-tier={tier.interval}
+      data-tier-content={tier.interval}
       data-selected={selected || undefined}
       className="flex min-w-0 flex-col gap-2 rounded-[var(--r-card)] p-6"
       style={{

@@ -18,5 +18,19 @@ export function measureOnboardingProStep(root: HTMLElement) {
   const column = root.parentElement!.parentElement!.getBoundingClientRect()
   const main = root.closest('main')!.getBoundingClientRect()
   const horizontalOffset = Math.abs(column.x + column.width / 2 - main.x - main.width / 2)
-  return { overflow, wrappedActions, horizontalOffset }
+  const tiers = Array.from(root.querySelectorAll<HTMLElement>('[data-tier][data-tier-content]')).filter(visible).map((card) => {
+    const bounds = card.getBoundingClientRect()
+    const button = card.querySelector('button')!.getBoundingClientRect()
+    const clone = card.cloneNode(true) as HTMLElement
+    clone.style.width = `${bounds.width}px`
+    clone.style.height = 'auto'
+    clone.style.minHeight = '0'
+    clone.style.position = 'absolute'
+    card.parentElement!.append(clone)
+    const contentHeight = clone.getBoundingClientRect().height
+    clone.remove()
+    return { interval: card.dataset.tierContent, height: bounds.height, contentHeight,
+      belowButton: bounds.bottom - button.bottom, padding: parseFloat(getComputedStyle(card).paddingBottom) }
+  })
+  return { overflow, wrappedActions, horizontalOffset, tiers }
 }
