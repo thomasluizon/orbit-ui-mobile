@@ -5,8 +5,10 @@ import {
   PROFILE_NAV_ITEMS,
   PROFILE_SETTINGS_GROUPS,
   PROFILE_SUBMENUS,
+  getProfileProEntry,
   shouldRedirectProfileNavItem,
 } from '../utils/profile-navigation'
+import { createMockProfile } from './factories'
 
 describe('profile-navigation', () => {
   it('keeps navigation before More of Orbit and sign out', () => {
@@ -98,5 +100,47 @@ describe('profile-navigation', () => {
         subscriptionInterval: null,
       }),
     ).toBe(false)
+  })
+
+  describe.each([
+    ['en', en],
+    ['pt-BR', ptBR],
+  ] as const)('the Orbit Pro entry in %s', (locale, messages) => {
+    const translate = (key: string, values?: Record<string, string>) => {
+      const message = key.split('.').reduce<unknown>(
+        (node, segment) => (node && typeof node === 'object' ? (node as Record<string, unknown>)[segment] : undefined),
+        messages,
+      )
+      if (typeof message !== 'string') throw new Error(`missing ${key}`)
+      return message.replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? '')
+    }
+    const expected = locale === 'en'
+      ? { free: 'Free', pro: 'Pro', lifetime: 'Lifetime Pro', trial: 'Pro Trial', trialUntil: 'Pro Trial until Oct 9, 2099' }
+      : { free: 'Grátis', pro: 'Pro', lifetime: 'Pro Vitalício', trial: 'Teste Pro', trialUntil: 'Teste Pro até 9 de out. de 2099' }
+
+    it('opens the pitch for a free account', () => {
+      const profile = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false })
+      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.free, href: '/upgrade' })
+    })
+
+    it('names the trial end date and opens the pitch for a trial account', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, isLifetimePro: false, trialEndsAt: '2099-10-09T12:00:00Z' })
+      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.trialUntil, href: '/upgrade' })
+    })
+
+    it('keeps the plain trial label when the trial has no end date', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, isLifetimePro: false, trialEndsAt: null })
+      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.trial, href: '/upgrade' })
+    })
+
+    it('opens the subscription for a paid Pro account', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false, isLifetimePro: false })
+      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.pro, href: '/upgrade' })
+    })
+
+    it('shows lifetime Pro read-only', () => {
+      const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false, isLifetimePro: true })
+      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.lifetime, href: undefined })
+    })
   })
 })
