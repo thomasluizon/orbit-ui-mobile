@@ -12,8 +12,8 @@ This session is the nominated successor of a context relay: adopt the run with `
 ## First: the open pull requests and the half-built worker
 
 1. `ui#1500` (`#1126`, relay threshold after tool calls) at `57202c39`: Pullfrog requested changes. Read the threads with `node tools/list-bot-threads.mjs --pr 1500 --repo ui --wait-seconds 0 --no-request`, fix them as a review fix, run both harness suites, merge on the bar. Until it lands, measure the transcript before long work in a turn.
-2. `ui#1501` (`#1125`, Calendário fetch bar) at `a0be373f`: APPROVED, one check failed. Read `gh run list --commit a0be373f`, fix a real red or rerun an infra one, merge on the bar.
-3. `ui#1502` (`#1124`, proactive line today only) at `5c342ef8`: APPROVED; merge on the bar once its checks settle green.
+2. `ui#1501` (`#1125`, Calendário fetch bar) at `a0be373f`: APPROVED; `Surface Manifest Drift` failed (the deleted Android `CalendarLoadingBar` changes the surface manifest): regenerate it with `node tools/surface-manifest.mjs` in the worktree as a review fix, push, and merge on the bar after a fresh approval.
+3. `ui#1502` (`#1124`, proactive line today only) at `5c342ef8`: APPROVED with every check green; merge on the bar (it is behind the base by three file-disjoint merges).
 4. `orbit-api#691` (`#1121`, achievement streak window, on `main`) at `caa4438c`: read CI with `gh run list --commit caa4438c` (a body edit re-ran Guards, so cancelled twins may show beside passing runs) and the Pullfrog review, drive it to the bar, merge to `main`, release the production API, measure queryid 2057064764435677686 again (before: 2,542.6 rows per call over 435 calls; the before read is in the spec), record both on the pull request, then carry it through `#746` and close `#1121`.
 5. `#1123` (every pill at the drawn size, every pill group one action row): delivered as `ui#1503` at `45eec686` (5 commits, worker exited cleanly after handoff). Run `verify-delivery.mjs`, read the worker log tail for NEEDS_DECISION and the body's Assumptions, prove its layout spec red on the unfixed base, check the diff against `DESIGN.md` and the canvas, approve its new copy with `/second-opinion`, clear the review, merge on the bar.
 6. `#961`: the owner's license-tester purchase on Orbit Staging succeeded. Confirm the staging API verified and acknowledged it, then close the ticket.
@@ -62,8 +62,8 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | item | disposition |
 |---|---|
 | `ui#1500` (`#1126`) at `57202c39` | CHANGES_REQUESTED; clear the review, merge on the bar |
-| `ui#1501` (`#1125`) at `a0be373f` | APPROVED, one failed check; read the run, fix or rerun, merge |
-| `ui#1502` (`#1124`) at `5c342ef8` | APPROVED, checks settling; merge on the bar |
+| `ui#1501` (`#1125`) at `a0be373f` | APPROVED, Surface Manifest Drift red; regenerate the manifest, merge |
+| `ui#1502` (`#1124`) at `5c342ef8` | APPROVED, all green; merge on the bar |
 | `orbit-api#691` (`#1121`) at `caa4438c` | on `main`, body links `Refs`; read CI and review, merge, release, measure, carry |
 | `ui#1503` (`#1123`) at `45eec686` | delivered after handoff, review not read; verify, prove red, drive to the bar |
 | `#1127` | filed and placed; worktree `ticket-1127-perfil-top-inset` at `a24d3cea` prepared, not launched |
