@@ -266,6 +266,27 @@ function openRescueGate() {
 }
 
 describe('HabitDetailScreen', () => {
+  it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
+    mocks.detail = { ...makeDetail(), children: [] }
+    mocks.scopedLoading = state === 'loading'
+    mocks.scopedError = state === 'error'
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByText('habits.detail.inside')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('detail-children')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.detail.dayHabitsLoading')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.detail.dayHabitsLoadError')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.addSubHabit' }))
+    expect(screen.getByRole('dialog', { name: 'Create habit' })).toBeVisible()
+  })
+
+  it('groups a parent label, populated child card and creation row without empty status text', () => {
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const section = screen.getByRole('heading', { name: 'habits.detail.inside' }).closest('section')!
+    expect(within(section).getByTestId('detail-children')).toContainElement(screen.getByTestId('child-child-1'))
+    expect(within(section).getByRole('button', { name: 'habits.detail.addSubHabit' })).toBeVisible()
+    expect(Array.from(section.querySelectorAll('p')).filter((paragraph) => !paragraph.textContent.trim())).toHaveLength(0)
+  })
+
   it('exposes the habit name as its only page heading and a route focus target', () => {
     render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     const headings = screen.getAllByRole('heading', { level: 1 })
