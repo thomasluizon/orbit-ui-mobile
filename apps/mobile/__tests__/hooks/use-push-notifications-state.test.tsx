@@ -618,7 +618,7 @@ describe('usePushNotifications', () => {
     expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(latestResult!.isEnabled).toBe(false)
-    expect(latestResult!.error).toBe('Turn off alerts on another device to use this one.')
+    expect(latestResult!.error).toBe('Turn off notifications on another device to use this one.')
   })
 
   it('does not prompt after focus was lost while checking capacity', async () => {

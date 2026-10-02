@@ -1757,7 +1757,7 @@
       "remindersNote": "Os lembretes de cada hábito ficam no próprio hábito.",
       "alertsOnThisDevice": "Notificações neste aparelho",
       "devicesUnavailable": "Não foi possível carregar os aparelhos.",
-      "pushDeviceLimit": "Desligue os avisos em outro aparelho para usar este."
+      "pushDeviceLimit": "Desligue as notificações em outro aparelho para usar este."
     },
     "allowance": {
       "title": "Mensagens de hoje",
