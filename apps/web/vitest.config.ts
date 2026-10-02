@@ -46,7 +46,6 @@ export default defineConfig({
         'components/calendar/calendar-week-view.tsx',
         'components/ui/parent-ring.tsx',
         'components/onboarding/retained-onboarding-overlay.tsx',
-        'components/habits/habit-form-fields/habit-tag-chip.tsx',
         'stores/version-gate-store.ts',
       ],
       thresholds: {

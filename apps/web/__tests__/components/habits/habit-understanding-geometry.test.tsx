@@ -1,3 +1,4 @@
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -13,7 +14,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const cases = [412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
-  ['fixed', 'flexible', 'unresolved', 'proposed'].map((cadence) => ({ width, locale, cadence })),
+  ['fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence })),
 ))
 
 describe('habit understanding geometry', () => {
@@ -23,7 +24,8 @@ describe('habit understanding geometry', () => {
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
-    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
@@ -33,7 +35,7 @@ describe('habit understanding geometry', () => {
     const phrases = locale === 'en'
       ? { fixed: 'Read every Monday and Thursday at 08:00', flexible: 'Run 3 times a week', unresolved: 'Read', proposed: 'Read every Monday and Thursday at 08:00' }
       : { fixed: 'Ler toda segunda e quinta às 08:00', flexible: 'Correr 3 vezes por semana', unresolved: 'Ler', proposed: 'Ler toda segunda e quinta às 08:00' }
-    const value = phrases[cadence as keyof typeof phrases]
+    const value = phrases[(cadence === 'locked' ? 'flexible' : cadence) as keyof typeof phrases]
     const parsed = readHabitPhrase(value, locale)
     const dayOptions = Object.entries(messages.dates.daysShort).map(([day, label]) => ({
       value: day.charAt(0).toUpperCase() + day.slice(1), label,
@@ -44,7 +46,7 @@ describe('habit understanding geometry', () => {
       parsed.cadence === 'fixed' ? 'Day' : flexible ? 'Week' : null, parsed.frequencyQuantity ?? 1,
       parsed.dueTime ?? '', locale, translate)
     const view = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><HabitUnderstanding value={value} emoji="" days={parsed.days} dayOptions={dayOptions}
-      proposed={cadence === 'proposed'} quantity={parsed.frequencyQuantity ?? 3} mode={flexible ? 'flexible' : 'fixed'} sentence={sentence}
+      proposed={cadence === 'proposed'} scheduleLocked={cadence === 'locked'} quantity={parsed.frequencyQuantity ?? 3} mode={flexible ? 'flexible' : 'fixed'} sentence={sentence}
       consumed={parsed.consumed} labels={buildHabitUnderstandingLabels(translate)}
       onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 1000 } })
@@ -70,6 +72,23 @@ describe('habit understanding geometry', () => {
       expect(new Set(measured.dayTargets.map((target) => target.top)).size).toBe(1)
       for (const target of measured.dayTargets) {
         expect(target).toMatchObject({ width: 44, height: 44, contained: true })
+      }
+      for (const control of await page.locator('main button:not([aria-haspopup])').all()) {
+        expect(await control.isDisabled()).toBe(cadence === 'locked')
+        await page.mouse.move(0, 0)
+        const resting = await control.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return { fill: style.backgroundColor, color: style.color }
+        })
+        const bounds = (await control.boundingBox())!
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        await page.waitForTimeout(300)
+        const hovered = await control.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return { fill: style.backgroundColor, color: style.color }
+        })
+        if (cadence === 'locked') expect(hovered).toEqual(resting)
+        else expect(hovered.fill).not.toBe(resting.fill)
       }
     } finally { await page.close() }
   })

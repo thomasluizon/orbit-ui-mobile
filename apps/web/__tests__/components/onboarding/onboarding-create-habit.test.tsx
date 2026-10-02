@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
+import type { OnboardingSchedule } from '@orbit/shared/utils'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import en from '@orbit/shared/i18n/en.json'
@@ -15,6 +18,21 @@ const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, interva
 const base = { title: 'Walk outside', emoji: '🚶', days: [], dueTime: '', schedule, proposed: false, correcting: true, canSaveRepeatWeeks: true, atLimit: false, allowance: 5, onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn() }
 
 const everyThirdMonday = { ...schedule, frequencyUnit: 'Day' as const, frequencyQuantity: 1, intervalWeeks: 3, days: ['Monday'], isFlexible: false }
+
+function EditableSchedule({ initialSchedule, onQuantityChange = () => {}, onIntervalWeeksChange = () => {} }: Readonly<{
+  initialSchedule: OnboardingSchedule
+  onQuantityChange?: (quantity: number) => void
+  onIntervalWeeksChange?: (weeks: number) => void
+}>) {
+  const [currentSchedule, setSchedule] = useState(initialSchedule)
+  return <>
+    <OnboardingCreateHabit {...base} schedule={currentSchedule}
+      onQuantityChange={(frequencyQuantity) => { setSchedule({ ...currentSchedule, frequencyQuantity }); onQuantityChange(frequencyQuantity) }}
+      onIntervalWeeksChange={(intervalWeeks) => { setSchedule({ ...currentSchedule, intervalWeeks }); onIntervalWeeksChange(intervalWeeks) }} />
+    <output aria-label="Saved quantity">{currentSchedule.frequencyQuantity}</output>
+    <output aria-label="Saved repeat weeks">{currentSchedule.intervalWeeks}</output>
+  </>
+}
 
 describe('OnboardingCreateHabit', () => {
   beforeAll(async () => {
@@ -170,4 +188,44 @@ describe('OnboardingCreateHabit', () => {
     )
     expect(screen.getByRole('radio', { name: 'Once' })).toBeChecked()
   })
+  it.each([
+    ['flexible', schedule, 'Fewer times', 'More times'],
+    ['interval', { ...schedule, frequencyQuantity: 3, isFlexible: false }, 'Repeat sooner', 'Repeat later'],
+  ] as const)('updates the %s quantity and blocks the minimum', (_mode, initialSchedule, lessLabel, moreLabel) => {
+    const onQuantityChange = vi.fn()
+    render(<EditableSchedule initialSchedule={initialSchedule} onQuantityChange={onQuantityChange} />)
+    fireEvent.click(screen.getByRole('button', { name: lessLabel }))
+    expect(screen.getByLabelText('Saved quantity')).toHaveTextContent('2')
+    fireEvent.click(screen.getByRole('button', { name: moreLabel }))
+    expect(screen.getByLabelText('Saved quantity')).toHaveTextContent('3')
+    fireEvent.click(screen.getByRole('button', { name: lessLabel }))
+    fireEvent.click(screen.getByRole('button', { name: lessLabel }))
+    expect(screen.getByLabelText('Saved quantity')).toHaveTextContent('1')
+    onQuantityChange.mockClear()
+    const less = screen.getByRole('button', { name: lessLabel })
+    expect(less).toBeDisabled()
+    fireEvent.click(less)
+    expect(onQuantityChange).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Saved quantity')).toHaveTextContent('1')
+  })
+
+  it.each([1, MAX_HABIT_INTERVAL_WEEKS])('updates repeat weeks and blocks the bound at %s', (intervalWeeks) => {
+    const onIntervalWeeksChange = vi.fn()
+    render(<EditableSchedule initialSchedule={{ ...everyThirdMonday, intervalWeeks }} onIntervalWeeksChange={onIntervalWeeksChange} />)
+    const atMinimum = intervalWeeks === 1
+    const blockedLabel = atMinimum ? en.onboarding.flow.when.intervalLess : en.onboarding.flow.when.intervalMore
+    const allowedLabel = atMinimum ? en.onboarding.flow.when.intervalMore : en.onboarding.flow.when.intervalLess
+    const blocked = screen.getByRole('button', { name: blockedLabel })
+    expect(blocked).toBeDisabled()
+    fireEvent.click(blocked)
+    expect(onIntervalWeeksChange).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Saved repeat weeks')).toHaveTextContent(String(intervalWeeks))
+    fireEvent.click(screen.getByRole('button', { name: allowedLabel }))
+    expect(screen.getByLabelText('Saved repeat weeks')).toHaveTextContent(String(intervalWeeks + (atMinimum ? 1 : -1)))
+    expect(blocked).toBeEnabled()
+    fireEvent.click(blocked)
+    expect(screen.getByLabelText('Saved repeat weeks')).toHaveTextContent(String(intervalWeeks))
+    expect(onIntervalWeeksChange).toHaveBeenCalledTimes(2)
+  })
+
 })
