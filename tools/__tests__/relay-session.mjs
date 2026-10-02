@@ -1,9 +1,9 @@
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { relaySession } from "../relay-session.mjs"
 import { adoptRelayRun, openSessionChain } from "../lib/session-chain.mjs"
-import { processStartIdentity, readRunState, registerWakeSource, writeRunState } from "../lib/run-state.mjs"
+import { processStartIdentity, readRunState, readWakeSourceStates, registerWakeSource, writeRunState } from "../lib/run-state.mjs"
 import { T, realOrchestratorConfig, stageRepo, toolPath } from "./_harness.mjs"
 
 const usage = JSON.parse(readFileSync(new URL("./fixtures/session-usage.json", import.meta.url), "utf8"))
@@ -98,4 +98,21 @@ export const cases = async () => {
   const options = { repoRoot: concurrent.checkout, sessionId: "predecessor", execute: executeFor(concurrent.checkout, { commands: concurrentCommands }), wait: async () => {}, confirmMilliseconds: 10 }
   const attempts = await Promise.allSettled([relaySession(options), relaySession(options)])
   T("relay-session: simultaneous attempts create only one successor", attempts.filter((attempt) => attempt.status === "fulfilled").length === 1 && concurrentCommands.filter((args) => args[1] === "create").length === 1)
+  const waiters = fixture("ci-waiters")
+  const currentWaiter = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+  const otherWaiter = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+  const currentExited = new Promise((resolve) => currentWaiter.once("exit", resolve))
+  const otherExited = new Promise((resolve) => otherWaiter.once("exit", resolve))
+  try {
+    registerWakeSource({ pid: currentWaiter.pid, sessionId: "predecessor", what: "CI ui pull requests #1" }, waiters.checkout)
+    registerWakeSource({ pid: otherWaiter.pid, sessionId: "other-session", what: "CI ui pull requests #2" }, waiters.checkout)
+    await relaySession({ repoRoot: waiters.checkout, sessionId: "predecessor", execute: executeFor(waiters.checkout), wait: async () => {}, confirmMilliseconds: 10 })
+    await currentExited
+    const liveWaiters = readWakeSourceStates(waiters.checkout).live
+    T("relay-session: stops only this session's CI waiters", liveWaiters.length === 1 && liveWaiters[0].pid === otherWaiter.pid)
+  } finally {
+    currentWaiter.kill()
+    otherWaiter.kill()
+    await otherExited
+  }
 }

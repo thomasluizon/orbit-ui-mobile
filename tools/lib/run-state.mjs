@@ -312,7 +312,7 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     merged: row.merged,
     closed: row.closed,
   }))
-  const pullRequests = preserveLedger
+  const pullRequests = relaySuccessor
     ? [...new Map([...(previous.pullRequests ?? []), ...(state.pullRequests ?? [])].map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
     : state.pullRequests
   writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger }, null, 2)}\n`)
