@@ -187,6 +187,44 @@ describe('HabitRow menu (mobile)', () => {
     TestRenderer.act(() => renderer!.unmount())
   })
 
+  it('keeps the active row owner when an unmounted row finishes exiting', () => {
+    const completions: ((result: { finished: boolean; value: number; offset: number }) => void)[] = []
+    vi.spyOn(Animated, 'timing').mockImplementation(() => ({
+      start: (callback?: (result: { finished: boolean; value: number; offset: number }) => void) => {
+        if (callback) completions.push(callback)
+      },
+      stop: () => {},
+    }))
+    function Rows({ showFirst }: { showFirst: boolean }) {
+      return <>
+        {showFirst ? <HabitRow key="a" habit={createMockHabit({ id: 'a', title: 'Read' })} actions={{ onEdit: vi.fn() }} /> : null}
+        <HabitRow key="b" habit={createMockHabit({ id: 'b', title: 'Run' })} actions={{ onDelete: vi.fn() }} />
+        <HabitRow key="c" habit={createMockHabit({ id: 'c', title: 'Walk' })} actions={{ onDuplicate: vi.fn() }} />
+      </>
+    }
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { renderer = TestRenderer.create(<Rows showFirst />) })
+    const menuTriggers = () => renderer!.root.findAllByType('Pressable').filter(
+      (node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'habits.actions.more',
+    )
+    try {
+      TestRenderer.act(() => menuTriggers()[0].props.onPress())
+      TestRenderer.act(() => renderer!.root.findByType('Modal').props.onRequestClose())
+      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
+      TestRenderer.act(() => renderer!.update(<Rows showFirst={false} />))
+      expect(renderer!.root.findAllByType('Modal')).toHaveLength(0)
+      TestRenderer.act(() => menuTriggers()[0].props.onPress())
+      expect(collectStrings(renderer!.toJSON())).toContain('habits.deleteHabit')
+      TestRenderer.act(() => completions[0]!({ finished: true, value: 0, offset: 0 }))
+      TestRenderer.act(() => menuTriggers()[1].props.onPress())
+      expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
+      expect(collectStrings(renderer!.toJSON())).toContain('habits.actions.duplicate')
+      expect(collectStrings(renderer!.toJSON())).not.toContain('habits.deleteHabit')
+    } finally {
+      TestRenderer.act(() => renderer!.unmount())
+    }
+  })
+
   it('keeps the card padding inside the row press target', () => {
     const renderer = renderRowWithMenu()
 

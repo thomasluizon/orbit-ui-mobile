@@ -81,6 +81,7 @@ export function useAnchoredMenu(): AnchoredMenuController {
 
   useEffect(() => () => {
     if (ownsActiveMenu.current) activeMenuClose = null
+    ownsActiveMenu.current = false
   }, [])
 
   const finishClose = useCallback(() => {
