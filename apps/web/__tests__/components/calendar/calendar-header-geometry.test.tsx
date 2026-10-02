@@ -5,12 +5,26 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { format } from 'date-fns'
+import { ptBR as dateLocale } from 'date-fns/locale'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
+import { CalendarHeader, CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
+import { buildCalendarRangeModel, formatCalendarWeekLabel } from '@orbit/shared/utils'
+import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+
+function seededDayMap(prefix: string) {
+  const completed: CalendarDayEntry = { habitId: 'walk', title: 'Caminhar', status: 'completed', isBadHabit: false, dueTime: null, isOneTime: false }
+  const missed: CalendarDayEntry = { ...completed, habitId: 'read', title: 'Ler', status: 'missed' }
+  return new Map([[`${prefix}-02`, [completed]], [`${prefix}-03`, [completed, missed]], [`${prefix}-04`, [missed]]])
+}
 
 const options = [
   { value: 'month', label: ptBR.calendar.view.month },
@@ -75,6 +89,67 @@ describe('Calendar header geometry in Chromium', () => {
           expect(Math.abs(geometry.checkTop - geometry.firstLineTop), JSON.stringify(geometry)).toBeLessThan(geometry.lineHeight / 2)
         }
         process.stdout.write(`Calendar menu geometry ${JSON.stringify({ width, textScale, ...geometry })}\n`)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([false, true])('fits a seven-column month grid at 320 (loading=%s)', async (isLoading) => {
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const geometry = await page.evaluate(() => ({
+        page: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth,
+        card: document.querySelector('[data-testid="calendar-grid-card"]')!.getBoundingClientRect().width,
+        gridScroll: document.querySelector('[data-testid="calendar-grid"]')!.scrollWidth,
+        gridWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth,
+        targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
+      }))
+      expect(geometry.scroll).toBe(geometry.page)
+      expect(geometry.gridScroll).toBeLessThanOrEqual(geometry.gridWidth)
+      expect(geometry.card).toBeLessThanOrEqual(312)
+      for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44) }
+    } finally { await page.close() }
+  })
+
+  it('reflows a cross-month Portuguese week label at 200% without clipping', async () => {
+    const weekLabel = formatCalendarWeekLabel(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
+    const { container } = render(<CalendarWeekNav weekLabel={weekLabel} previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      const geometry = await page.evaluate(() => ({ page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, buttons: [...document.querySelectorAll('button')].map((button) => ({ left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, overflow: button.scrollWidth > button.clientWidth })) }))
+      expect(geometry.scroll, JSON.stringify(geometry)).toBe(geometry.page)
+      for (const button of geometry.buttons) { expect(button.left).toBeGreaterThanOrEqual(16); expect(button.right).toBeLessThanOrEqual(304); expect(button.width).toBeGreaterThanOrEqual(48); expect(button.height).toBeGreaterThanOrEqual(48); expect(button.overflow).toBe(false) }
+    } finally { await page.close() }
+  })
+
+  it.each([false, true])('contains the range header and grid at 320 and 200% (loading=%s)', async (isLoading) => {
+    const model = buildCalendarRangeModel(new Date(2026, 9, 6), seededDayMap('2026-10'), 1, '2026-10-06')
+    const rangeLabel = ptBR.calendar.range.label.replace('{start}', format(model.start, 'd MMM', { locale: dateLocale })).replace('{end}', format(model.end, 'd MMM', { locale: dateLocale }))
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <CalendarRangeView model={model} weekdayLabels={['S', 'T', 'Q', 'Q', 'S', 'S', 'D']} rangeLabel={rangeLabel} previousRangeLabel="Previous range" nextRangeLabel="Next range" onPreviousRange={vi.fn()} onNextRange={vi.fn()} nextRangeDisabled={false} isLoading={isLoading} loadingLabel={ptBR.calendar.loading}
+        stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: ptBR.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: ptBR.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: ptBR.calendar.missedCount }]} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const geometry = await page.evaluate(() => {
+          const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
+          return { gridWidth: frame.clientWidth, gridScroll: frame.scrollWidth, label: document.querySelector('p')!.getBoundingClientRect().left, targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right })) }
+        })
+        expect(geometry.gridScroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.gridWidth)
+        expect(geometry.label).toBe(16)
+        for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(48); expect(target.height).toBeGreaterThanOrEqual(48); expect(target.left).toBeGreaterThanOrEqual(16); expect(target.right).toBeLessThanOrEqual(304) }
       }
     } finally { await page.close() }
   })

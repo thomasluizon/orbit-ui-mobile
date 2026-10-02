@@ -148,7 +148,8 @@ describe('CalendarGrid (mobile)', () => {
     })
     const selectedSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-10' })
     expect(StyleSheet.flatten(selectedSlot.props.style)).toMatchObject({
-      width: 44,
+      width: '100%',
+      minWidth: 44,
       height: 44,
       backgroundColor: tokens.selectionBg,
     })

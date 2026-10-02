@@ -82,7 +82,7 @@ describe('CalendarRangeView', () => {
     expect(screen.getByRole('region', { name: 'Jun 1 to Jun 14' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('progressbar', { name: 'Loading range' })).toBeInTheDocument()
     expect(screen.getByTestId('month-grid-days').children).toHaveLength(14)
-    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: 'var(--calendar-grid-gap)' })
     expect(screen.queryAllByRole('img')).toHaveLength(0)
     expect(screen.queryByText('Logs')).not.toBeInTheDocument()
     const loadingStats = screen.getByTestId('calendar-stats')

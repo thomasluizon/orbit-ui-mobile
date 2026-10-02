@@ -6,6 +6,7 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import {
@@ -313,6 +314,7 @@ function CalendarProfileState({
   view,
   setView,
 }: Readonly<{ failed: boolean; onRetry: () => void; currentMonth: Date; setSelectedDay: Dispatch<SetStateAction<string>>; view: CalendarView; setView: Dispatch<SetStateAction<CalendarView>> }>) {
+  const { width } = useWindowDimensions();
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -358,7 +360,7 @@ function CalendarProfileState({
                 rows={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns}
                 cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
                 cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-                gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+                gap={width < 340 ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap}
                 label={t('calendar.loading')}
               />
             </View>

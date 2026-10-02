@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
@@ -26,19 +26,22 @@ const headerButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justif
 function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, setChoosingYear, year, setYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; setChoosingYear: (choosing: boolean) => void; year: number; setYear: (year: number) => void }>) {
   const t = useTranslations()
   const locale = useLocale()
+  const yearPickerId = useId()
   return <div className="flex flex-col gap-4">
     <button type="button" className={`${headerButton} self-center px-3`} onClick={() => setChoosingYear(!choosingYear)}
-      aria-label={t('common.selectYear')} aria-expanded={choosingYear}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>
-    {choosingYear ? <YearPicker selectedYear={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} /> :
+      aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={yearPickerId}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>
+    {choosingYear ? <div id={yearPickerId}><YearPicker selectedYear={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} /></div> :
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 6em), 1fr))' }}>
         {Array.from({ length: 12 }, (_, month) => <button key={month} type="button"
           className={`${headerButton} rounded-[12px] px-2`} aria-pressed={month === currentMonth.getMonth() && year === currentMonth.getFullYear()}
+          style={{ boxShadow: month === currentMonth.getMonth() && year === currentMonth.getFullYear() ? 'inset 0 0 0 2px var(--fg-1)' : undefined }}
           onClick={() => onSelectMonth(month, year)}>{formatLocaleDate(new Date(year, month, 1), locale, { month: 'short' })}</button>)}
       </div>}
   </div>
 }
 
 export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, viewSelector, showMonthNavigation = true }: Readonly<CalendarHeaderProps>) {
+  const pickerId = useId()
   const t = useTranslations()
   const locale = useLocale()
   const [year, setYear] = useState(currentMonth.getFullYear())
@@ -51,7 +54,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
     {showMonthNavigation ? <div data-testid="calendar-month-navigation" className="flex flex-wrap items-center justify-center gap-2">
       <button type="button" className={headerButton} aria-label={previousMonthLabel} onClick={onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
       <button type="button" className={`${headerButton} gap-1 px-3 whitespace-nowrap`} style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--fg-1)' }}
-        aria-label={t('calendar.monthPicker')} aria-haspopup="dialog" aria-expanded={pickerOpen} onClick={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
+        aria-label={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId} onClick={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
         <span>{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-3)' }}>{heading.year}</span></> : null}</span>
         <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
       </button>
@@ -60,7 +63,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open title={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       actions={<PillButton size="sm" variant="ghost" onClick={() => closeSheet(() => { setPickerOpen(false); onCurrentMonth() })}>{t('calendar.thisMonth')}</PillButton>}>
-      <CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} setChoosingYear={setChoosingYear} year={year} setYear={setYear} />
+      <div id={pickerId}><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} setChoosingYear={setChoosingYear} year={year} setYear={setYear} /></div>
     </Sheet> : null}
   </div>
 }
@@ -78,7 +81,7 @@ interface CalendarWeekNavProps {
 export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, currentWeekLabel, onPreviousWeek, onNextWeek, onCurrentWeek }: Readonly<CalendarWeekNavProps>) {
   return <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-3">
     <button type="button" className={headerButton} aria-label={previousWeekLabel} onClick={onPreviousWeek}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
-    <button type="button" className={`${headerButton} px-3 whitespace-nowrap`} aria-label={currentWeekLabel} onClick={onCurrentWeek}>{weekLabel}</button>
+    <button type="button" className={`${headerButton} max-w-full px-3 py-2 text-center`} aria-label={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</button>
     <button type="button" className={headerButton} aria-label={nextWeekLabel} onClick={onNextWeek}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
   </div>
 }
@@ -134,7 +137,7 @@ function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 16,
+          fontSize: '1rem',
           color: 'var(--fg-3)',
         }}
       >

@@ -22,7 +22,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 
 const DEFAULT_WIDE_FROM = 900
-const PANEL_WIDTH = 280
+const PANEL_WIDTH = 320
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
 let activeMenuClose: (() => void) | null = null
 
@@ -126,12 +126,13 @@ export function Menu({
     )
   }
 
+  const panelWidth = Math.min(PANEL_WIDTH, width - 16)
   const estimatedHeight = Math.min(orderedItems.length * 48 + 16, height - 16)
   const position = getPopoverPosition({
     anchorRect: anchorRect ?? getFallbackPopoverAnchorRect(width),
     viewportWidth: width,
     viewportHeight: height,
-    popoverWidth: PANEL_WIDTH,
+    popoverWidth: panelWidth,
     popoverHeight: estimatedHeight,
   })
 
@@ -149,7 +150,7 @@ export function Menu({
           accessibilityRole="menu"
           style={[
             styles.panel,
-            { backgroundColor: tokens.bgSheet, left: position.left, top: position.top },
+            { width: panelWidth, backgroundColor: tokens.bgSheet, left: position.left, top: position.top },
           ]}
         >
           <MenuItems

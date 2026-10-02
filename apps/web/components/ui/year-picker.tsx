@@ -46,11 +46,11 @@ export function YearPicker({
               aria-pressed={isSelected}
               data-focus-on-primary={isSelected ? '' : undefined}
               onClick={() => onSelectYear(year)}
-              className={`min-h-12 w-full rounded-full appearance-none border-0 cursor-pointer p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] ${isSelected ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[var(--bg-field)] hover:bg-[var(--bg-hover)]'}`}
+              className={`min-h-12 w-full rounded-full appearance-none border-0 cursor-pointer p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] ${isSelected ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-field)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]'}`}
               style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.875rem',
-                fontWeight: isSelected ? 700 : 500,
+                fontWeight: 500,
                 fontVariantNumeric: 'tabular-nums',
                 color: isSelected ? 'var(--fg-on-primary)' : 'var(--fg-1)',
               }}

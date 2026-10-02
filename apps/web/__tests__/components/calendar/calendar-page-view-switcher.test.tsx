@@ -484,7 +484,7 @@ describe('CalendarPage view switcher', () => {
 
     expect(calendarDataCalls).toHaveBeenCalledTimes(1)
     expect(screen.getAllByRole('progressbar', { name: 'calendar.loading' })).toHaveLength(2)
-    expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '4')
+    expect(screen.getByTestId('calendar-grid-card').querySelector('[role="progressbar"]')).toHaveAttribute('data-cols', '7')
   })
 
   it('does not enable the calendar event request for a free profile', () => {
@@ -524,8 +524,7 @@ describe('CalendarPage view switcher', () => {
     vi.setSystemTime(now)
     profileQueryState.profile = undefined
     const { rerender } = render(<CalendarPage />)
-    const loadingRows = Number(document.querySelector('[data-variant="grid"] > [data-rows]')?.getAttribute('data-rows'))
-    const loadingHeight = loadingRows * 44 + (loadingRows - 1) * 4
+    const loadingRows = Number(screen.getByTestId('calendar-grid-card').querySelector('[role="progressbar"]')?.getAttribute('data-rows'))
 
     profileQueryState.profile = { weekStartDay, timeZone: 'UTC', hasProAccess: false }
     rerender(<CalendarPage />)
@@ -540,7 +539,7 @@ describe('CalendarPage view switcher', () => {
 
     expect(loadedRows).toBe(expectedRows)
     const expectedLoadingRows = buildCalendarMonthModel(loadedMonth, new Map(), 1, formatAPIDate(now)).gridDays.length / 7
-    expect(loadingHeight).toBe(expectedLoadingRows * 44 + (expectedLoadingRows - 1) * 4)
+    expect(loadingRows).toBe(expectedLoadingRows)
     expect(loadedHeight).toBe('')
   })
 
@@ -731,7 +730,7 @@ describe('CalendarPage view switcher', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
     const { container } = render(<div style={{ width: 412 }}><CalendarPage /></div>)
     const gridTrack = screen.getByTestId('calendar-grid-card') as HTMLElement
-    expect(Number.parseInt(gridTrack.style.width, 10)).toBeLessThanOrEqual(412)
+    expect(gridTrack).toHaveClass('orbit-calendar-grid-card')
     fireEvent.click(screen.getByTestId('month-view'))
     expect(container.querySelector('[data-testid="day-detail"]')).not.toBeNull()
     expect(calendarDayDetailProps.dateStr).toBe(calendarGridSelectionDate)

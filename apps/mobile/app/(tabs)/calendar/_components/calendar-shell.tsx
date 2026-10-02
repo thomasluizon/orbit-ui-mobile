@@ -30,7 +30,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   const { fontScale } = useWindowDimensions()
   const styles = createStyles(tokens)
   return <View style={styles.picker}>
-    <Pressable accessibilityRole="button" accessibilityLabel={t('common.selectYear')} accessibilityState={{ expanded: choosingYear }}
+    <Pressable accessibilityRole="button" accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }}
       style={({ pressed }) => [styles.titleButton, styles.pickerYear, pressed && styles.pressed]} onPress={() => setChoosingYear(!choosingYear)}>
       <Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
     </Pressable>
@@ -39,7 +39,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
         {Array.from({ length: 12 }, (_, month) => <View key={month} style={{ width: fontScale > 1.3 ? '50%' : '33.333333%', padding: 4 }}><Pressable accessibilityRole="button"
           accessibilityLabel={formatLocaleDate(new Date(year, month, 1), i18n.language, { month: 'long' })}
           accessibilityState={{ selected: month === currentMonth.getMonth() && year === currentMonth.getFullYear() }}
-          style={({ pressed }) => [styles.month, pressed && styles.pressed]} onPress={() => onSelectMonth(month, year)}>
+          style={({ pressed }) => [styles.month, month === currentMonth.getMonth() && year === currentMonth.getFullYear() && styles.selectedMonth, pressed && styles.pressed]} onPress={() => onSelectMonth(month, year)}>
           <Text style={styles.label}>{formatLocaleDate(new Date(year, month, 1), i18n.language, { month: 'short' })}</Text>
         </Pressable></View>)}
       </View>}
@@ -58,7 +58,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
   return <View testID="calendar-header-group" style={styles.header}>
     {showMonthNavigation ? <View testID="calendar-month-navigation" style={styles.navigation}>
       <Pressable accessibilityRole="button" accessibilityLabel={previousMonthLabel} onPress={onPreviousMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('calendar.monthPicker')} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}>
         <Text style={styles.title} numberOfLines={1}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>
         <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
       </Pressable>
@@ -87,7 +87,7 @@ export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, c
   const styles = createStyles(tokens)
   return <View style={styles.weekHeader}>
     <Pressable accessibilityRole="button" accessibilityLabel={previousWeekLabel} onPress={onPreviousWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel={currentWeekLabel} onPress={onCurrentWeek} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}><Text style={styles.label} numberOfLines={1}>{weekLabel}</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${weekLabel}, ${currentWeekLabel}`} onPress={onCurrentWeek} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}><Text style={[styles.label, styles.weekLabel]}>{weekLabel}</Text></Pressable>
     <Pressable accessibilityRole="button" accessibilityLabel={nextWeekLabel} onPress={onNextWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
   </View>
 }
@@ -119,18 +119,20 @@ function createStyles(tokens: Tokens) {
     navigation: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
     weekHeader: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.bgField },
-    titleButton: { minWidth: 48, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgField },
+    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgField },
     pressed: { backgroundColor: tokens.bgHover },
     title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, color: tokens.fg1 },
     year: { color: tokens.fg3 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
+    weekLabel: { flexShrink: 1, textAlign: 'center' },
+    selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
     picker: { gap: 16 },
     pickerYear: { alignSelf: 'center' },
     months: { flexDirection: 'row', flexWrap: 'wrap' },
     month: { minHeight: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.bgField },
     legend: { gap: 16 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    legendLabel: { fontFamily: 'Geist_400Regular', fontSize: 16, color: tokens.fg2 },
+    legendLabel: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16, color: tokens.fg2 },
     legendFull: { width: 12, height: 12, borderRadius: 999, backgroundColor: tokens.fg1 },
     legendNone: { width: 12, height: 12, borderRadius: 999, borderWidth: 2, borderColor: tokens.statusEmpty },
     legendLoggable: { width: 12, height: 12, borderRadius: 999, borderWidth: 2, borderColor: tokens.fg3, backgroundColor: tokens.bgWell },

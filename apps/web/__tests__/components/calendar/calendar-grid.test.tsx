@@ -173,11 +173,9 @@ describe('CalendarGrid', () => {
       <CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} isLoading />,
     )
 
-    const skeleton = container.querySelector('[data-variant="grid"] > [data-cols="7"]')
-    expect(skeleton).toHaveAttribute('data-cell', '44')
-    expect(skeleton).toHaveAttribute('data-gap', '4')
+    const skeleton = screen.getByRole('progressbar')
+    expect(skeleton).toHaveAttribute('data-cols', '7')
     expect(skeleton).toHaveAttribute('data-rows', '6')
-    expect(screen.getByTestId('calendar-grid')).toHaveStyle({ overflowX: 'auto' })
     expect(screen.queryByTestId('month-grid-header')).not.toBeInTheDocument()
     expect(container.querySelector('[data-outcome]')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
@@ -191,11 +189,10 @@ describe('CalendarGrid', () => {
     expect(screen.getByTestId('calendar-grid-card')).not.toHaveStyle({ background: 'var(--bg-card)' })
     expect(screen.getByTestId('calendar-grid-card')).not.toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--hairline)' })
     expect((screen.getByTestId('calendar-grid-card') as HTMLElement).style.borderRadius).toBe('')
-    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
-    expect(screen.getByTestId('calendar-grid')).toHaveStyle({ overflowX: 'auto' })
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: 'var(--calendar-grid-gap)' })
     const firstRowTargets = [...document.querySelectorAll('[data-calendar-date]')].slice(0, 7)
     expect(firstRowTargets).toHaveLength(7)
-    expect(firstRowTargets.every((target) => (target as HTMLElement).style.width === '44px')).toBe(true)
+    expect(firstRowTargets.every((target) => (target as HTMLElement).style.width === '100%')).toBe(true)
     expect(7 * 44 + 6 * 4).toBeLessThanOrEqual(window.innerWidth - 8)
   })
 

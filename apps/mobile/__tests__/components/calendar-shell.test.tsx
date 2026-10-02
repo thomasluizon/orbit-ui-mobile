@@ -146,15 +146,15 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     expect(hostTextValues(tree)).not.toContain(2026);
     const title = tree.root.findAll((node) => node.type === "Text" && Array.isArray(node.props.children) && node.props.children[0] === "April")[0];
     expect(StyleSheet.flatten(title?.props.style).fontSize).toBe(22);
-    for (const label of ['Previous month', 'Next month', 'calendar.monthPicker']) expectPressFill(tree, label, tokens.bgHover, 999);
+    for (const label of ['Previous month', 'Next month', 'April, calendar.monthPicker']) expectPressFill(tree, label, tokens.bgHover, 999);
   });
 
   it("keeps year browsing local and reports a chosen month after native dismissal", () => {
     const onSelectMonth = vi.fn();
     const tree = renderHeader(onSelectMonth);
-    pressByAccessibilityLabel(tree, "calendar.monthPicker");
+    pressByAccessibilityLabel(tree, "April, calendar.monthPicker");
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
-    pressByAccessibilityLabel(tree, "common.selectYear");
+    pressByAccessibilityLabel(tree, "2026, common.selectYear");
     expect(tree.root.findAll((node) => node.type === "ScrollView")).toHaveLength(1);
     expect(tree.root.findAll((node) => node.props.testID === "sheet-body-scroll")).toHaveLength(0);
     pressByAccessibilityLabel(tree, "2030");
@@ -170,11 +170,11 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
   it("preserves the date on cancellation and recovers from rejected dismissal", async () => {
     const onSelectMonth = vi.fn();
     const tree = renderHeader(onSelectMonth);
-    pressByAccessibilityLabel(tree, "calendar.monthPicker");
+    pressByAccessibilityLabel(tree, "April, calendar.monthPicker");
     pressByAccessibilityLabel(tree, "common.close");
     finishNativeDismissal(tree);
     expect(onSelectMonth).not.toHaveBeenCalled();
-    pressByAccessibilityLabel(tree, "calendar.monthPicker");
+    pressByAccessibilityLabel(tree, "April, calendar.monthPicker");
     nativeSheet.dismiss.mockRejectedValueOnce(new Error("Dismissal rejected"));
     await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
     expect(onSelectMonth).not.toHaveBeenCalled();
@@ -209,10 +209,10 @@ describe("CalendarWeekNav (mobile)", () => {
     });
 
     expect(hostTextValues(tree!)).toContain("Apr 6 – 12");
-    for (const label of ['Previous week', 'Next week', 'Go to current week']) expectPressFill(tree!, label, tokens.bgHover, 999);
+    for (const label of ['Previous week', 'Next week', 'Apr 6 – 12, Go to current week']) expectPressFill(tree!, label, tokens.bgHover, 999);
     pressByAccessibilityLabel(tree!, "Previous week");
     pressByAccessibilityLabel(tree!, "Next week");
-    pressByAccessibilityLabel(tree!, "Go to current week");
+    pressByAccessibilityLabel(tree!, "Apr 6 – 12, Go to current week");
     expect(onPreviousWeek).toHaveBeenCalledTimes(1);
     expect(onNextWeek).toHaveBeenCalledTimes(1);
     expect(onCurrentWeek).toHaveBeenCalledTimes(1);

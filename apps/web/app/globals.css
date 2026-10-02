@@ -1888,3 +1888,20 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     --streak-count-color: var(--fg-2);
   }
 }
+
+.orbit-calendar-grid-frame {
+  container-type: inline-size;
+}
+
+.orbit-calendar-grid-card {
+  --calendar-grid-gap: 4px;
+  width: 100%;
+  max-width: 332px;
+  margin-inline: auto;
+}
+
+@container (max-width: 331px) {
+  .orbit-calendar-grid-card {
+    --calendar-grid-gap: 0px;
+  }
+}

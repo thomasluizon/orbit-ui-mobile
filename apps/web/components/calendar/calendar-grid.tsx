@@ -8,7 +8,6 @@ import {
   buildDayCellAccessibleName,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
-  CALENDAR_MONTH_GRID_GEOMETRY,
   type CalendarMonthDay,
 } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -167,7 +166,8 @@ function CalendarGridDay({
         position: 'relative',
         display: 'grid',
         placeItems: 'center',
-        width: 44,
+        width: '100%',
+        minWidth: 44,
         height: 44,
         borderRadius: 999,
         background: calendarDayBackground(selected, inRange, raised),
@@ -222,26 +222,12 @@ export function CalendarGrid({
 
   if (isLoading) {
     return (
-      <div
-        data-testid="calendar-grid"
-        style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
-      >
-        <div
-          data-testid="calendar-grid-card"
-          style={{
-            width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
-              + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
-            marginInline: 'auto',
-          }}
-        >
-          <Skeleton
-            variant="grid"
-            rows={Math.ceil(gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns)}
-            cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
-            cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-            gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
-            label={t('calendar.loading')}
-          />
+      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '16px 4px 8px' }}>
+        <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
+          <div role="progressbar" aria-label={t('calendar.loading')} aria-busy="true" data-rows={Math.ceil(gridDays.length / 7)} data-cols={7}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(44px, 1fr))', gap: 'var(--calendar-grid-gap)' }}>
+            {gridDays.map((cell) => <Skeleton key={cell.dateStr} variant="grid" rows={1} cols={1} cell={44} gap={0} grouped />)}
+          </div>
         </div>
       </div>
     )
@@ -250,19 +236,15 @@ export function CalendarGrid({
   return (
     <div
       data-testid="calendar-grid"
-      style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
+      className="orbit-calendar-grid-frame" style={{ padding: '16px 4px 8px' }}
     >
       <div
         data-testid="calendar-grid-card"
-        style={{
-          width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
-            + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
-          marginInline: 'auto',
-        }}
+        className="orbit-calendar-grid-card"
       >
         <MonthGrid
           weekdayLabels={weekdayLabels}
-          gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+          gap="var(--calendar-grid-gap)"
           label={displayMonthYear(currentMonth)}
         >
           {gridDays.map((cell) => {

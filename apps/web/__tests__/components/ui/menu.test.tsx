@@ -124,8 +124,8 @@ describe('Menu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('moves focus with the arrow keys, Home and End, and wraps at both ends', async () => {
-    setWide(true)
+  it.each([true, false])('moves focus with the arrow keys, Home and End, and wraps at both ends (wide=%s)', async (wide) => {
+    setWide(wide)
     const anchorRef = createRef<HTMLButtonElement>()
     render(
       <>
@@ -137,7 +137,8 @@ describe('Menu', () => {
     const menu = await screen.findByRole('menu')
     const edit = screen.getByRole('menuitem', { name: 'Edit' })
     const remove = screen.getByRole('menuitem', { name: 'Delete' })
-    await waitFor(() => expect(edit).toHaveFocus())
+    if (wide) await waitFor(() => expect(edit).toHaveFocus())
+    else edit.focus()
 
     fireEvent.keyDown(menu, { key: 'ArrowDown' })
     expect(remove).toHaveFocus()
