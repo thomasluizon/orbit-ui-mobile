@@ -184,8 +184,8 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "ff02235ba5f8393d",
-      "calibratedAt": "2026-09-30",
+      "digest": "2d17ca52e122c4ff",
+      "calibratedAt": "2026-10-01",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
@@ -233,8 +233,8 @@
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "35aa2a87bbe433a9",
-      "calibratedAt": "2026-09-30",
+      "digest": "a4cb13a5cb9d9ee4",
+      "calibratedAt": "2026-10-01",
       "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
     },
     ".claude/skills/validate/SKILL.md": {
