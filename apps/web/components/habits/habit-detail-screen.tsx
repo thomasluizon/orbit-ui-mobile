@@ -127,8 +127,8 @@ function LogDateError({ visible }: Readonly<{ visible: boolean }>) {
 
 function DayHabitsStatus({ reasonKey, onRetry }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void }>) {
   const t = useTranslations()
-  const status = reasonKey === 'calendar.dayCell.notScheduled' ? '' : t(reasonKey)
-  return <div className={status ? 'flex flex-wrap items-center gap-3 py-3' : undefined}><p className="text-sm text-[var(--fg-2)]">{status}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</div>
+  if (reasonKey === 'calendar.dayCell.notScheduled') return null
+  return <div className="flex flex-wrap items-center gap-3 py-3"><p className="text-sm text-[var(--fg-2)]">{t(reasonKey)}</p>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</div>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason }: Readonly<{ reason?: string; notScheduledReason: string }>) {
@@ -601,6 +601,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }
     })
 
+  const subHabitCreation = <div className={showCreateRefusal ? 'flex flex-col gap-3' : undefined}><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
+
   return (
     <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <div>
@@ -613,7 +615,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <DetailChecklist editing={detailsOpen} items={habit.checklistItems} interactive onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
       <MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} />
       <ReminderReadout habit={habit} />
-      <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.inside')}</SectionTitle></div><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} /><div className="mt-3 flex flex-col gap-2"><div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col gap-2 overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true" className="mt-3">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div></Surface>
+      {children.length > 0 ? <Surface>
+        <SectionTitle>{t('habits.detail.inside')}</SectionTitle>
+        <DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} />
+        <div data-testid="detail-children" aria-busy={habitsQuery.isLoading} className="flex flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">{children.map(({ habit: child, completed: childCompleted, canLog, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <div key={child.id}><HabitRow habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} /></div>)}</div>
+        {subHabitCreation}
+      </Surface> : subHabitCreation}
       <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} />
       <AskAstraRow habit={habit} />
       <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patch) => { void patchHabit(patch).then((saved) => { if (saved) setScheduleOpen(false) }) }} />

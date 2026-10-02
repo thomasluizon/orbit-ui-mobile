@@ -106,8 +106,8 @@ function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
 
 function DayHabitsStatus({ reasonKey, onRetry, tokens }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
-  const status = reasonKey === 'calendar.dayCell.notScheduled' ? '' : t(reasonKey)
-  return <View style={status ? styles.dayHabitsStatus : undefined}><Text style={[styles.muted, { color: tokens.fg2 }]}>{status}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</View>
+  if (reasonKey === 'calendar.dayCell.notScheduled') return null
+  return <View style={styles.dayHabitsStatus}><Text style={[styles.muted, { color: tokens.fg2 }]}>{t(reasonKey)}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</View>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason, tokens }: Readonly<{ reason?: string; notScheduledReason: string; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -559,6 +559,8 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         completionStatusUnavailable: scopedChild === undefined,
       }
     })
+  const subHabitCreation = <ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} />
+
   return (
     <FlowShell nav={false} header={appBar}>
       <View testID="habit-detail-content" style={styles.content}>
@@ -572,7 +574,12 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <DetailChecklist editing={detailsOpen} items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
       <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
       <ReminderReadout habit={habit} tokens={tokens} />
-      <Surface><View style={styles.sectionHeading}><SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle></View><DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} /><View testID="detail-children" style={{ backgroundColor: tokens.bgCard, borderRadius: 20, borderColor: tokens.hairlineGhost, borderWidth: 1 }} accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View><ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} /></Surface>
+      {children.length > 0 ? <Surface>
+        <SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle>
+        <DayHabitsStatus reasonKey={childUnavailableReasonKey} onRetry={() => { void habitsQuery.refetch() }} tokens={tokens} />
+        <View testID="detail-children" style={{ backgroundColor: tokens.bgCard, borderRadius: 20, borderColor: tokens.hairlineGhost, borderWidth: 1 }} accessibilityState={{ busy: habitsQuery.isLoading }}>{children.map(({ habit: child, completionReadOnly, completionReason: childCompletionReason, completionStatusUnavailable }) => <View key={child.id}><HabitRow habit={child} selectedDate={selectedDate} today={todayStr} completionReadOnly={completionReadOnly} completionReason={childCompletionReason} completionStatusUnavailable={completionStatusUnavailable} depth={1} actions={{ onLog: () => { void writeLog(child.id, 'log') }, onUnlog: () => { void writeLog(child.id, 'unlog') }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} /><LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === child.id} tokens={tokens} /><UnscheduledChildReason reason={childCompletionReason} notScheduledReason={t('calendar.dayCell.notScheduled')} tokens={tokens} /></View>)}</View>
+        {subHabitCreation}
+      </Surface> : subHabitCreation}
       <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
       <AskAstraRow habit={habit} tokens={tokens} />
       <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} tokens={tokens} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patchValue) => { void patch(patchValue).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
@@ -616,7 +623,6 @@ const styles = StyleSheet.create({
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 24 },
   sectionHeader: { gap: 8 },
-  sectionHeading: { gap: 4 },
   dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: 12 },
   childReason: { alignSelf: 'flex-end', paddingRight: 12, paddingBottom: 8 },
   disclosureTitle: { fontSize: 17 },

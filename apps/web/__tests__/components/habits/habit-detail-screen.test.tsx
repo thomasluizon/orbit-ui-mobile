@@ -266,6 +266,27 @@ function openRescueGate() {
 }
 
 describe('HabitDetailScreen', () => {
+  it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
+    mocks.detail = { ...makeDetail(), children: [] }
+    mocks.scopedLoading = state === 'loading'
+    mocks.scopedError = state === 'error'
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByText('habits.detail.inside')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('detail-children')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.detail.dayHabitsLoading')).not.toBeInTheDocument()
+    expect(screen.queryByText('habits.detail.dayHabitsLoadError')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.addSubHabit' }))
+    expect(screen.getByRole('dialog', { name: 'Create habit' })).toBeVisible()
+  })
+
+  it('groups a parent label, populated child card and creation row without empty status text', () => {
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const section = screen.getByRole('heading', { name: 'habits.detail.inside' }).closest('section')!
+    expect(within(section).getByTestId('detail-children')).toContainElement(screen.getByTestId('child-child-1'))
+    expect(within(section).getByRole('button', { name: 'habits.detail.addSubHabit' })).toBeVisible()
+    expect(Array.from(section.querySelectorAll('p')).filter((paragraph) => !paragraph.textContent.trim())).toHaveLength(0)
+  })
+
   it('exposes the habit name as its only page heading and a route focus target', () => {
     render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     const headings = screen.getAllByRole('heading', { level: 1 })
@@ -1806,7 +1827,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toBeInTheDocument()
   })
 
-  describe('drawn header geometry', () => {
+  describe('drawn detail geometry', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
     let stylesheet: string
@@ -1819,6 +1840,42 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([
+      [412, 'leaf'],
+      [1280, 'leaf'],
+      [412, 'parent'],
+      [1280, 'parent'],
+    ])('reserves offline refusal clearance only while visible at %ipx for a %s', async (width, kind) => {
+      vi.useRealTimers()
+      mocks.detail = kind === 'leaf' ? { ...makeDetail(), children: [] } : makeDetail()
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+        const measureClearance = async () => {
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          return page.getByTestId('list-row-habits.detail.addSubHabit').evaluate((element) => {
+            const live = element.parentElement!.querySelector('[aria-live="polite"]')!
+            return live.getBoundingClientRect().top - element.getBoundingClientRect().bottom
+          })
+        }
+        expect(await measureClearance()).toBe(0)
+        if (kind === 'parent') {
+          const gaps = await page.getByTestId('detail-children').evaluate((element) => ({
+            before: element.getBoundingClientRect().top - element.previousElementSibling!.getBoundingClientRect().bottom,
+            after: element.nextElementSibling!.getBoundingClientRect().top - element.getBoundingClientRect().bottom,
+          }))
+          expect(gaps).toEqual({ before: 8, after: 8 })
+        }
+        fireEvent.click(screen.getByTestId('list-row-habits.detail.addSubHabit'))
+        expect(screen.getByText('offline.create.reason')).toBeVisible()
+        expect(await measureClearance()).toBe(12)
+      } finally {
+        Reflect.deleteProperty(navigator, 'onLine')
+        await page.close()
+      }
+    })
 
     it.each([
       [412, 'Read'],

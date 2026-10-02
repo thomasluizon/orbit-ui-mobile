@@ -333,7 +333,7 @@ vi.mock('@/components/dates/day-strip', () => ({ DayStrip: ({ size, days }: { si
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children, label }: { children: React.ReactNode; label: string }) => React.createElement('MonthGrid', { label }, children),
 }))
-vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
+vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: ({ open }: { open: boolean }) => open ? React.createElement('CreateHabitModal', { testID: 'create-sub-habit' }) : null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => React.createElement('GoalLinkingField', { testID: 'goal-linking-field', atGoalLimit, onToggleGoal: () => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2') }),
 }))
@@ -377,6 +377,32 @@ vi.mock('@/components/habits/habit-row', () => ({
 }))
 
 describe('HabitDetailScreen', () => {
+  it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
+    mocks.detail = { ...makeDetail(), children: [] }
+    mocks.scopedLoading = state === 'loading'
+    mocks.scopedError = state === 'error'
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const labels = tree.root.findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children)
+    expect(labels).not.toContain('habits.detail.inside')
+    expect(labels).not.toContain('habits.detail.dayHabitsLoading')
+    expect(labels).not.toContain('habits.detail.dayHabitsLoadError')
+    expect(tree.root.findAllByProps({ testID: 'detail-children' })).toHaveLength(0)
+    TestRenderer.act(() => { tree.root.findByProps({ title: 'habits.detail.addSubHabit' }).props.onClick() })
+    expect(tree.root.findByProps({ testID: 'create-sub-habit' })).toBeDefined()
+  })
+
+  it('groups a parent label, populated child card and creation row without empty status text', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const section = tree.root.findByProps({ testID: 'detail-children' }).parent
+    expect(section.findByProps({ testID: 'child-child-1' })).toBeDefined()
+    expect(section.findByProps({ title: 'habits.detail.addSubHabit' })).toBeDefined()
+    const labels = section.findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children)
+    expect(labels).toContain('habits.detail.inside')
+    expect(labels).not.toContain('')
+  })
+
   it('exposes the habit name as the page header instead of the navigation title', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
