@@ -1167,6 +1167,10 @@ T("relay post-tool: below threshold preserves state", readRunState(wakeCheckout)
 const transcriptPadding = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024) } }) + "\n"
 writeFileSync(relayTranscript, transcriptPadding.repeat(12) + JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n" + transcriptPadding)
 T("relay post-tool: performance fixture exceeds ten MiB", statSync(relayTranscript).size > 10 * 1024 * 1024, true)
+const subagentCrossing = isolatedRelayHook("relay-at-threshold.mjs", { ...postToolPayload, agent_id: "review-subagent", agent_type: "Explore" })
+T("relay post-tool: a subagent tool call at the threshold prints nothing", subagentCrossing.stdout, "")
+T("relay post-tool: a subagent tool call leaves the parent relay state", readRunState(wakeCheckout).relay, undefined)
+T("relay post-tool: a subagent tool call records no handoff request", readHandoffRequest("relay-parent", wakeCheckout), stopRelayRequest)
 const relayCheckStarted = performance.now()
 const postToolCrossing = postToolRelay()
 const relayCheckMilliseconds = performance.now() - relayCheckStarted

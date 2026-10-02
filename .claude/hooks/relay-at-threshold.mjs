@@ -12,7 +12,9 @@ try {
   const input = readStdinJson()
   let state = readRunState()
   const config = readOrchestratorConfig()
-  if (config.relay.enabled && state?.sleep === true && state.sessionId === input?.session_id) {
+  // A subagent's tool hooks carry the parent session id; only the owning conversation may begin or hear its relay.
+  const insideSubagent = typeof input?.agent_id === "string" && input.agent_id !== ""
+  if (!insideSubagent && config.relay.enabled && state?.sleep === true && state.sessionId === input?.session_id) {
     const measuredTokens = readSessionContext(input.transcript_path)
     if (measuredTokens >= config.relay.thresholdTokens) {
       releaseLock = acquireRelayLock()
