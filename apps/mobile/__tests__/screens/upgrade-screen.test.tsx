@@ -1,4 +1,6 @@
 import React from 'react'
+import { createRequire } from 'node:module'
+import appJson from '../../app.json'
 import type { AppStateStatus } from 'react-native'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -9,10 +11,13 @@ import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
 
+const requireConfig = createRequire(import.meta.url)
+const createConfig = requireConfig('../../app.config.js') as () => typeof appJson.expo
+
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
-afterEach(() => vi.useRealTimers())
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs() })
 
 const TestRenderer = require('react-test-renderer')
 
@@ -23,6 +28,7 @@ type TestNode = {
 }
 
 const mocks = vi.hoisted(() => ({
+  expoConfig: null as typeof appJson.expo | null,
   apiClient: vi.fn(),
   openURL: vi.fn(),
   appStateListeners: new Set<(state: AppStateStatus) => void>(),
@@ -76,6 +82,8 @@ vi.mock('react-i18next', () => ({
     i18n: { language: mocks.locale },
   }),
 }))
+
+vi.mock('expo-constants', () => ({ default: { get expoConfig() { return mocks.expoConfig } } }))
 
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ from: mocks.from }),
@@ -207,6 +215,8 @@ describe('UpgradeScreen', () => {
     mocks.isOnline = true
     mocks.renderComposition = false
     mocks.locale = 'en'
+    vi.stubEnv('ORBIT_APP_VARIANT', 'production')
+    mocks.expoConfig = createConfig()
     mocks.from = undefined
     mocks.hasProAccess = false
     mocks.trialDaysLeft = 5
@@ -533,7 +543,13 @@ describe('UpgradeScreen', () => {
     expect(mocks.openURL).not.toHaveBeenCalled()
   })
 
-  it('opens the Play management URL for a play-sourced subscriber', async () => {
+  it.each([
+    ['staging', 'org.useorbit.app.staging'],
+    ['production', 'org.useorbit.app'],
+  ])('opens the Play management URL for the %s installed app', async (variant, packageName) => {
+    vi.stubEnv('ORBIT_APP_VARIANT', variant)
+    mocks.expoConfig = createConfig()
+    mocks.renderComposition = true
     mocks.hasProAccess = true
     mocks.profile = createMockProfile({
       isTrialActive: false,
@@ -541,12 +557,29 @@ describe('UpgradeScreen', () => {
     })
     mocks.openURL.mockResolvedValue(undefined)
     const tree = await renderScreen()
-    const dashboard = findByType(tree.root, 'PlayBillingDashboard')
+    const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-md')[0]!
     await TestRenderer.act(async () => {
-      ;(dashboard.props.onManagePlay as () => void)()
+      ;(action.props.onPress as () => void)()
       await Promise.resolve()
     })
-    expect(mocks.openURL).toHaveBeenCalledTimes(1)
+    expect(mocks.openURL).toHaveBeenCalledExactlyOnceWith(
+      `https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=${packageName}`,
+    )
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('shows a retry without navigating when the installed app config is missing', async () => {
+    mocks.expoConfig = null
+    mocks.renderComposition = true
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: 'play' })
+    const tree = await renderScreen()
+    const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-md')[0]!
+    await TestRenderer.act(() => { (action.props.onPress as () => void)() })
+    expect(mocks.openURL).not.toHaveBeenCalled()
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === testI18n.t('upgrade.billing.portalFailed'))).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === testI18n.t('upgrade.billing.retry'))).toHaveLength(1)
+    await TestRenderer.act(() => tree.unmount())
   })
 
   it.each(['stripe', 'play'] as const)('recovers the %s foreground return before the link promise settles and refreshes once', async (source) => {
