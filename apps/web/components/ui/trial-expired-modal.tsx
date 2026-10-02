@@ -12,7 +12,7 @@ import { useTrialExpired } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useUIStore } from '@/stores/ui-store'
@@ -93,7 +93,7 @@ export function TrialExpiredModal() {
       onClose={hide}
       title={t('trial.expired.heading')}
       actions={
-        <DialogActionPair>
+        <ActionRow>
           <PromptQuietAction onClick={() => closeSheet()}>
             {t('trial.expired.continueFree')}
           </PromptQuietAction>
@@ -109,7 +109,7 @@ export function TrialExpiredModal() {
           >
             {t('trial.expired.subscribe')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       }
     >
       <div className="flex flex-col gap-6">

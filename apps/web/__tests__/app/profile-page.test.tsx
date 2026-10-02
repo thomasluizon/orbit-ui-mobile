@@ -1043,15 +1043,15 @@ describe('ProfilePage', () => {
       .map((element) => element.textContent)
 
     expect(controls).toEqual([
-      'button: profile.marketingEmails.accept',
       'button: profile.marketingEmails.decline',
+      'button: profile.marketingEmails.accept',
       'switch: profile.settingsRows.alertsOnThisDevice',
     ])
     expect(textLines).toEqual([
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
-      'profile.marketingEmails.accept',
       'profile.marketingEmails.decline',
+      'profile.marketingEmails.accept',
       'profile.settingsRows.alertsOnThisDevice',
       'profile.settingsRows.remindersNote',
     ])

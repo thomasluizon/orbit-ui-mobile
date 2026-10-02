@@ -68,7 +68,7 @@ function SupportSuccessState({
       <Text style={[styles.successHint, { color: tokens.fg2 }]}>
         {t('profile.support.successHint', { email })}
       </Text>
-      <PillButton variant="ghost" onClick={onBack}>
+      <PillButton size="md" variant="ghost" onClick={onBack}>
         {t('profile.support.backToAbout')}
       </PillButton>
     </View>
@@ -224,7 +224,7 @@ function SupportForm({
         </Text>
       ) : null}
       <View>
-        <PillButton
+        <PillButton size="md"
           onClick={onSend}
           disabled={!canSend}
           loading={sending}

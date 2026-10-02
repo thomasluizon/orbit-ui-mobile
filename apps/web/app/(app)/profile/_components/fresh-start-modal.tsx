@@ -15,7 +15,7 @@ import {
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { resetAccount } from '@/lib/actions/profile'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -249,14 +249,14 @@ function FreshStartActions({
 
   if (step === 'info') {
     return (
-      <DialogActionPair>
+      <ActionRow>
         <PillButton size="sm" variant="ghost" onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
         <PillButton size="sm" variant="caution" onClick={onContinue}>
           {t('profile.freshStart.reviewDeletion')}
         </PillButton>
-      </DialogActionPair>
+      </ActionRow>
     )
   }
 
@@ -277,7 +277,7 @@ function FreshStartActions({
           {error}
         </p>
       ) : null}
-      <DialogActionPair>
+      <ActionRow>
         <PillButton size="sm" variant="ghost" disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
@@ -290,7 +290,7 @@ function FreshStartActions({
         >
           {t('profile.freshStart.deleteData')}
         </PillButton>
-      </DialogActionPair>
+      </ActionRow>
     </>
   )
 }

@@ -8,7 +8,7 @@ import {
   type ReviewMomentKey,
 } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
@@ -132,7 +132,7 @@ export function ReviewMomentSheet() {
       onClose={hideAndSnooze}
       title={title}
       actions={(
-        <DialogActionPair>
+        <ActionRow>
           <PromptQuietAction
             accessibleName={t('reviewMoment.notNow')}
             onClick={requestSnooze}
@@ -147,7 +147,7 @@ export function ReviewMomentSheet() {
           >
             {t('reviewMoment.cta')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       )}
     >
       <View style={styles.content}>

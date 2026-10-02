@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import type { ReactNode } from 'react'
 import { Mail } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -65,15 +67,15 @@ export function MarketingConsentSection({
       <fieldset
         disabled={mutation.isPending}
         className="m-0 flex flex-wrap gap-2 border-0 p-0"
-      >
+      ><ActionRow>
+        <PillButton size="sm" variant="ghost" onClick={() => mutation.mutate(false)}>
+          {t('profile.marketingEmails.decline')}
+        </PillButton>
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
         <PillButton size="sm" variant={acceptVariant} onClick={() => mutation.mutate(true)}>
           {t('profile.marketingEmails.accept')}
         </PillButton>
-        <PillButton size="sm" variant="ghost" onClick={() => mutation.mutate(false)}>
-          {t('profile.marketingEmails.decline')}
-        </PillButton>
-      </fieldset>
+      </ActionRow></fieldset>
     </div>
   ) : contained ? (
     // eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42.

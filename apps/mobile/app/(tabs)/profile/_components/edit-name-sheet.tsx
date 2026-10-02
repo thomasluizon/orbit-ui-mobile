@@ -6,7 +6,7 @@ import { API } from '@orbit/shared/api'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
@@ -90,14 +90,14 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       onClose={onClose}
       title={t('profile.editName.title')}
       actions={(
-        <DialogActionPair>
+        <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
           <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       )}
     >
       <View style={styles.body}>

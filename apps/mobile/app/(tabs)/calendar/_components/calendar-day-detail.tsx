@@ -15,13 +15,13 @@ import { CheckRow } from '@/components/ui/check-row'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
 import { Input } from '@/components/ui/input'
 import { useOffline } from '@/hooks/use-offline'
-import { plural } from '@/lib/plural'
 import { createTokensV2, radius } from '@/lib/theme'
 import { CalendarSyncBoundary } from './calendar-sync-boundary'
 
@@ -71,29 +71,21 @@ function CalendarReadyEvents({ calendarEvents, onOpenImport, displayTime, t, tok
     {calendarEvents.length > 20 ? (
       <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" />
     ) : null}
-    {visibleEvents.map((event) => (
-      <View key={event.id} style={styles.eventList}>
-        {event.startTime ? (
-          <EventRow time={displayTime(event.startTime)} title={event.title} source={event.calendarName || t('calendar.title')} />
-        ) : (
-          <EventRow allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={event.calendarName || t('calendar.title')} />
-        )}
-        {!event.isImported ? <PillButton variant="ghost" accessibleName={`${plural(t('calendar.importButton', { count: 1 }), 1)}: ${event.title}`} onClick={() => onOpenImport(event.id)}>
-          {plural(t('calendar.importButton', { count: 1 }), 1)}
-        </PillButton> : null}
-      </View>
+    {visibleEvents.map((event) => event.startTime ? (
+      <EventRow key={event.id} time={displayTime(event.startTime)} title={event.title} source={event.calendarName || t('calendar.title')} />
+    ) : (
+      <EventRow key={event.id} allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={event.calendarName || t('calendar.title')} />
     ))}
-    {matchingEvents.length === 0 ? <View style={styles.eventList}><Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</Text><PillButton variant="ghost" size="sm" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></View> : null}
-    {calendarEvents.length >= 8 ? (
-      <View style={styles.eventPager}>
-        <Text style={[styles.eventCount, { color: tokens.fg3 }]}>{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</Text>
-        {matchingEvents.length > 20 ? <View style={styles.eventPageActions}>
-          <PillButton variant="ghost" size="sm" disabled={currentPage === 0} onClick={() => setEventPage(currentPage - 1)}>{t('common.previous')}</PillButton>
-          <PillButton variant="ghost" size="sm" disabled={(currentPage + 1) * 20 >= matchingEvents.length} onClick={() => setEventPage(currentPage + 1)}>{t('common.next')}</PillButton>
-        </View> : null}
-      </View>
-    ) : null}
-    <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton>
+    {matchingEvents.length === 0 ? <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</Text> : null}
+    {calendarEvents.length >= 8 ? <Text style={[styles.eventCount, { color: tokens.fg3 }]}>{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</Text> : null}
+    <ActionRow>
+      {matchingEvents.length > 20 ? <>
+        <PillButton variant="ghost" disabled={currentPage === 0} onClick={() => setEventPage(currentPage - 1)}>{t('common.previous')}</PillButton>
+        <PillButton variant="ghost" disabled={(currentPage + 1) * 20 >= matchingEvents.length} onClick={() => setEventPage(currentPage + 1)}>{t('common.next')}</PillButton>
+      </> : null}
+      {matchingEvents.length === 0 ? <PillButton variant="ghost" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton> : null}
+      <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.dayDetail.importEvents')}</PillButton>
+    </ActionRow>
   </View>
 }
 
@@ -170,7 +162,7 @@ function CalendarEventsSection({
       {state === 'ready' && calendarEvents.length === 0 ? (
         <View style={styles.reconnectState}>
           <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text>
-          <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.calendars.title')}</PillButton>
+          <ActionRow><PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.dayDetail.importEvents')}</PillButton></ActionRow>
         </View>
       ) : null}
       {state === 'ready' && calendarEvents.length > 0 ? (
@@ -431,16 +423,8 @@ function createStyles(tokens: Tokens) {
       lineHeight: 20,
     },
     eventList: {
-      gap: 4,
+      gap: 12,
     },
-    eventPager: {
-      alignItems: 'center',
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      justifyContent: 'space-between',
-    },
-    eventPageActions: { flexDirection: 'row', gap: 8 },
     eventCount: { fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
     reconnectState: {
       alignItems: 'center',

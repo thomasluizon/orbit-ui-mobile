@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -68,10 +70,10 @@ export default function SearchScreen() {
         {habits.length === 0 && search.query.length > 0 && commandPage === null && <SearchEmpty query={search.query} onCreate={() => createHabit(search.query)} />}
       </>}
       {!commandPage && <CommandGroups hideCreate={hideCreate} query={search.text} onSelect={selectCommand} />}
-      <View style={styles.pagination}>
+      <View style={styles.pagination}><ActionRow>
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
         {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
-      </View>
+      </ActionRow></View>
     </ScrollView>
   </View>
 }

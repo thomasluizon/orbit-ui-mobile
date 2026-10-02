@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -118,10 +120,10 @@ function ScopeSheet({
       title={t('profile.apiKeys.scopeTitle')}
       onClose={onClose}
       actions={(
-        <>
+        <ActionRow>
           <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" disabled={!scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
-        </>
+        </ActionRow>
       )}
     >
       <Input
@@ -288,7 +290,11 @@ function ApiKeyCreateControls({
     return <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.maxKeysReached')}</p>
   }
   return (
-    <div className="flex flex-wrap" style={{ gap: 8 }}>
+    <div className="flex flex-wrap" style={{ gap: 8 }}><ActionRow>
+      {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
+        {t('profile.apiKeys.createScoped')}
+      </PillButton>
       <PillButton
         variant="secondary"
         size="sm"
@@ -297,11 +303,7 @@ function ApiKeyCreateControls({
       >
         {t('profile.apiKeys.create')}
       </PillButton>
-      {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
-        {t('profile.apiKeys.createScoped')}
-      </PillButton>
-    </div>
+    </ActionRow></div>
   )
 }
 

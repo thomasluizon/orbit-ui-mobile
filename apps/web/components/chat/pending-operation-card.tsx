@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { TimeField } from '@/components/ui/time-field'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -87,10 +89,10 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
     ref={sheetRef}
     title={`${labels.editTitle}: ${item.entityName}`}
     onClose={() => { if (!busy) onClose() }}
-    actions={<>
+    actions={<ActionRow>
       <Button size="sm" variant="ghost" disabled={busy} onClick={() => closeSheet(onClose)}>{labels.cancel}</Button>
       <Button size="sm" disabled={busy} onClick={() => void save()}>{labels.save}</Button>
-    </>}
+    </ActionRow>}
   >
     <div className="flex flex-col gap-4">
       {editableItems.length > 1 ? <div className="flex flex-col gap-2">{showSearch ? <Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /> : null}<RadioGroup aria-label={labels.editTitle}>{editableItems.filter((entry) => !showSearch || entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
@@ -153,10 +155,10 @@ function StepUpVerificationSheet({
       ref={sheetRef}
       title={t('stepUp.title')}
       onClose={open ? onClose : onClosed}
-      actions={<>
+      actions={<ActionRow>
         <Button size="sm" variant="ghost" disabled={!open} onClick={() => { if (open) closeSheet() }}>{t('common.cancel')}</Button>
         <Button size="sm" loading={verifying} disabled={!open || code.length !== 6} onClick={() => { if (open) void verify() }}>{t('stepUp.confirm')}</Button>
-      </>}
+      </ActionRow>}
     >
       <OtpInput label={t('stepUp.codeLabel')} value={code} onChange={setCode} error={error} hint={t('stepUp.codeHint')} disabled={verifying || !open} />
       <p className="text-sm text-[var(--fg-3)]">{t('stepUp.neverShare')}</p>

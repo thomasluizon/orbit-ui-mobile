@@ -42,6 +42,11 @@ function pressableHeight(tree: any): number | undefined {
 }
 
 describe('PillButton (mobile)', () => {
+
+  it('defaults ordinary pills to small', () => {
+    const tree = renderPill(<PillButton>Continue</PillButton>)
+    expect(pressableHeight(tree)).toBe(44)
+  })
   it.each([false, true])('paints the small target in a real 44px box (iconOnly: %s)', (iconOnly) => {
     const tree = renderPill(iconOnly
       ? <PillButton size="sm" iconOnly label="Small"><span /></PillButton>
@@ -67,7 +72,7 @@ describe('PillButton (mobile)', () => {
   })
 
   it('keeps the standard target at its existing 50px size', () => {
-    const tree = renderPill(<PillButton>Medium</PillButton>)
+    const tree = renderPill(<PillButton size="md">Medium</PillButton>)
     expect(pressableHeight(tree)).toBe(50)
     expect(tree.root.findByType('Pressable').props.hitSlop).toBeUndefined()
   })
@@ -157,7 +162,7 @@ describe('PillButton (mobile)', () => {
 
   it('drives the pill height from the two-size scale', () => {
     expect(pressableHeight(renderPill(<PillButton size="sm" onClick={() => {}}>Small</PillButton>))).toBe(44)
-    expect(pressableHeight(renderPill(<PillButton onClick={() => {}}>Medium</PillButton>))).toBe(50)
+    expect(pressableHeight(renderPill(<PillButton size="md" onClick={() => {}}>Medium</PillButton>))).toBe(50)
   })
 
   it('changes the destructive fill on press instead of dimming opacity (web parity)', () => {

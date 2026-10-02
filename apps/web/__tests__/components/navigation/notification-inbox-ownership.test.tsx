@@ -97,7 +97,7 @@ it('renders clear-all actions with small ghost cancel before destructive confirm
   fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
 
   const actions = within(screen.getByRole('dialog')).getAllByRole('button').filter(
-    (button) => button.closest('[data-slot="dialog-action-pair"]'),
+    (button) => button.closest('[data-slot="action-row"]'),
   )
   expect.soft(actions.map((button) => button.textContent)).toEqual(['Cancel', 'Delete notifications'])
   expect.soft(actions.map((button) => button.dataset.variant)).toEqual(['ghost', 'destructive'])

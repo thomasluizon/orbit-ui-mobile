@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -121,9 +121,9 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <DialogActionPair inline={inlineActions}>
+        <ActionRow>
           {cancelButton}{confirmButton}
-        </DialogActionPair>
+        </ActionRow>
       }
     >
       <p className="break-words text-sm text-[var(--fg-2)]">{message}</p>

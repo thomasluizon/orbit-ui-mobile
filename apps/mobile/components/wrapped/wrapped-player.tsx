@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo } from 'react'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { BackHandler, Pressable, ScrollView, Text, View } from 'react-native'
@@ -233,12 +234,7 @@ interface ShareActionsProps {
 
 function ShareActions(props: Readonly<ShareActionsProps>) {
   return (
-    <View testID="wrapped-share-actions" style={styles.shareActions}>
-      {props.canShareFiles ? (
-        <PillButton loading={props.isSharing} disabled={props.isSharing} onClick={props.onShare}>
-          {props.shareLabel}
-        </PillButton>
-      ) : null}
+    <>
       <PillButton
         variant={props.canShareFiles ? 'ghost' : 'primary'}
         loading={props.isSharing}
@@ -247,6 +243,11 @@ function ShareActions(props: Readonly<ShareActionsProps>) {
       >
         {props.downloadLabel}
       </PillButton>
-    </View>
+      {props.canShareFiles ? (
+        <PillButton loading={props.isSharing} disabled={props.isSharing} onClick={props.onShare}>
+          {props.shareLabel}
+        </PillButton>
+      ) : null}
+    </>
   )
 }

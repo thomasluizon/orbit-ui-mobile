@@ -47,7 +47,7 @@ export function SupportSuccessState({ email, onBack }: Readonly<{ email: string;
       >
         {t('profile.support.successHint', { email })}
       </p>
-      <PillButton variant="ghost" onClick={onBack}>
+      <PillButton size="md" variant="ghost" onClick={onBack}>
         {t('profile.support.backToAbout')}
       </PillButton>
     </div>

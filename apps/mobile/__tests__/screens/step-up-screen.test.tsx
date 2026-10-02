@@ -488,7 +488,7 @@ describe('mobile step up screen', () => {
 
     expect(findInput(tree.root).props.editable).toBe(false)
     const busyAction = tree.root.findAll(
-      (node) => node.props.testID === 'button-primary-md',
+      (node) => node.props.testID === 'button-primary-sm',
     ).at(0)
     if (!busyAction) throw new Error('Expected the busy shell action')
     expect(busyAction.props.accessibilityState).toEqual({
@@ -588,7 +588,7 @@ describe('mobile step up screen', () => {
   it('disables an expired code and uses one filled action for a new code', async () => {
     const tree = await renderScreen(liveRecord(STEP_UP_CHALLENGE_DURATION_MS))
     expect(findInput(tree.root).props.editable).toBe(false)
-    expect(findButton(tree.root, 'stepUp.resend').props.testID).toBe('button-primary-md')
+    expect(findButton(tree.root, 'stepUp.resend').props.testID).toBe('button-primary-sm')
     expect(queryButton(tree.root, 'stepUp.confirm')).toBeUndefined()
   })
 

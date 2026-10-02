@@ -6,7 +6,7 @@ import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
@@ -392,7 +392,7 @@ export function EditHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('habits.editHabit')}
         actions={(
-          <DialogActionPair>
+          <ActionRow>
             <PillButton
               size="sm"
               variant="ghost"
@@ -409,7 +409,7 @@ export function EditHabitModal({
             >
               {t('common.save')}
             </PillButton>
-          </DialogActionPair>
+          </ActionRow>
         )}
       >
         <p className="mb-4 text-sm text-[var(--fg-3)]">

@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useRef, useState, type Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -99,12 +101,12 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
       <GoalDerivedProgress goal={goal} />
       {active && !derived ? <View style={styles.manual} accessibilityState={{ busy }}>
         <Text style={[styles.body, { color: tokens.fg2 }]}>{t('goals.detail.manualProgress')}</Text>
-        <View style={styles.stepper}>
+        <View style={styles.stepper}><ActionRow>
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.decrease')} disabled={busy || goal.currentValue <= 0} onClick={() => void step(-1)}><Minus size={16} color={tokens.fg1} /></PillButton>
         <Text style={[styles.value, { color: tokens.fg1 }]}>{goal.currentValue}</Text>
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.increase')} disabled={busy || goal.currentValue >= goal.targetValue} onClick={() => void step(1)}><Plus size={16} color={tokens.fg1} /></PillButton>
         <Text style={[styles.body, { color: tokens.fg3 }]}>{goal.unit}</Text>
-        </View>
+        </ActionRow></View>
       </View> : null}
       <Text accessibilityLiveRegion="polite" style={error ? [styles.body, { color: tokens.fg2 }] : styles.screenReader}>{error}</Text>
       <Text accessibilityLiveRegion="polite" style={styles.screenReader}>{announcement}</Text>

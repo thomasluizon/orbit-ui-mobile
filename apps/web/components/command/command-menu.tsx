@@ -1,4 +1,6 @@
-"use client"
+'use client'
+
+import { ActionRow } from '@/components/ui/action-row'
 
 import { type KeyboardEvent, useEffect, useState } from 'react'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
@@ -94,10 +96,10 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
       <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />
       {!search.busy && !search.isError && entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>}
       {page === null && <CommandGroups query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal} />}
-      <div className="flex gap-3">
+      <div className="flex gap-3"><ActionRow>
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
         {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
-      </div>
+      </ActionRow></div>
     </CommandList>
     <div className="flex flex-wrap items-center gap-4 px-4 py-3 shadow-[inset_0_1px_0_var(--hairline)]">
       <CommandKeyHint keys={['↑↓']} label={t('command.hints.navigate')} />

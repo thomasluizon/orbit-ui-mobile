@@ -1453,15 +1453,15 @@ describe('ProfileScreen', () => {
     expect(textLines).toEqual([
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
-      'profile.marketingEmails.accept',
       'profile.marketingEmails.decline',
+      'profile.marketingEmails.accept',
       'profile.settingsRows.alertsOnThisDevice',
       'profile.settingsRows.remindersNote',
     ])
     expect(controls.map((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
       `${node.props.accessibilityRole}: ${node.props.accessibilityLabel ?? nodeText(node)}`)).toEqual([
-      'button: profile.marketingEmails.accept',
       'button: profile.marketingEmails.decline',
+      'button: profile.marketingEmails.accept',
       'switch: profile.settingsRows.alertsOnThisDevice',
     ])
   })

@@ -10,7 +10,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -110,7 +110,7 @@ export function AstraImportPrompt() {
       }}
       title={t('onboarding.wizard.importTitle')}
       actions={(
-        <DialogActionPair>
+        <ActionRow>
           <PromptQuietAction
             accessibleName={t('onboarding.wizard.importNotNow')}
             onClick={() =>
@@ -126,7 +126,7 @@ export function AstraImportPrompt() {
           <PillButton size="sm" onClick={() => void handleImport()}>
             {t('onboarding.wizard.importButton')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       )}
     >
       <View>

@@ -495,7 +495,7 @@ describe('mobile alerts', () => {
       notification={createMockNotification({ url: '/progress', isRead: false })}
       onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
     const slot = testId(tree, 'sheet-actions-slot')[0]!
-    const row = slot.findAll((node) => node.type === 'View' && node.props.testID === 'dialog-action-pair')[0]
+    const row = slot.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')[0]
     expect(row).toBeDefined()
     expect(StyleSheet.flatten(row!.props.style as StyleProp<ViewStyle>)).toMatchObject({
       flexDirection: 'row', justifyContent: 'flex-end', gap: 12,

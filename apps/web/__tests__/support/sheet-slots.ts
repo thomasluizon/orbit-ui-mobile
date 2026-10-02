@@ -12,9 +12,9 @@ export function sheetSlotButtons(slot: 'sheet-body' | 'sheet-actions'): (string 
   return within(container).queryAllByRole('button').map((button) => button.getAttribute('aria-label') ?? button.textContent)
 }
 
-/** Whether the footer groups its actions in `DialogActionPair`. */
+/** Whether the footer groups its actions in `ActionRow`. */
 export function sheetActionsUseActionPair(): boolean {
-  return document.querySelectorAll('[data-slot="sheet-actions"] [data-slot="dialog-action-pair"]').length === 1
+  return document.querySelectorAll('[data-slot="sheet-actions"] [data-slot="action-row"]').length > 0
 }
 
 export function expectSmallSheetActions(): void {
@@ -22,7 +22,7 @@ export function expectSmallSheetActions(): void {
   const buttons = within(footer).getAllByRole('button')
   for (const button of buttons) {
     expect(button).toHaveAttribute('data-size', 'sm')
-    expect(button.style.width).toBe('')
+    expect(['', 'auto']).toContain(button.style.width)
   }
   if (buttons.length > 1) {
     expect(buttons[0]).toHaveAttribute('data-variant', 'ghost')

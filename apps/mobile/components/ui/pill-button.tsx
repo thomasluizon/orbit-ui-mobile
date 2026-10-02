@@ -1,3 +1,5 @@
+import { useContext } from 'react'
+import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
   ActivityIndicator,
@@ -14,7 +16,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   variant = 'primary',
-  size = 'md',
+  size: requestedSize = 'sm',
   onClick,
   disabled = false,
   loading = false,
@@ -30,6 +32,7 @@ export function Button({
 }: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
   const prefersReducedMotion = usePrefersReducedMotion()
 

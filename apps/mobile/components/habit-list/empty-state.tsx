@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -16,11 +18,7 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
-/**
- * InicioEmpty kit state: 104px satellite glyph, 22/500 title, 15 fg-2 body,
- * then a stacked full-width Astra pill + ghost create pill. Mirrors the web
- * habit-list empty state.
- */
+
 export function HabitListEmptyState({
   title,
   description,
@@ -36,22 +34,13 @@ export function HabitListEmptyState({
   const hasDistinctDescription = Boolean(description) && description !== title
   const showAstraAction =
     isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
-  const showStackedActions =
+  const showActions =
     showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
   let emptyActions: ReactNode = null
-  if (showStackedActions) {
+  if (showActions) {
     emptyActions = (
-      <View style={styles.actions}>
-        {showAstraAction && askAstraLabel ? (
-          <PillButton
-
-            onClick={onAskAstra}
-
-          >
-            {askAstraLabel}
-          </PillButton>
-        ) : null}
+      <View style={styles.actions}><ActionRow>
         {actionLabel ? (
           <PillButton
             variant="ghost"
@@ -62,7 +51,16 @@ export function HabitListEmptyState({
             {actionLabel}
           </PillButton>
         ) : null}
-      </View>
+        {showAstraAction && askAstraLabel ? (
+          <PillButton
+
+            onClick={onAskAstra}
+
+          >
+            {askAstraLabel}
+          </PillButton>
+        ) : null}
+      </ActionRow></View>
     )
   } else if (actionLabel) {
     emptyActions = (

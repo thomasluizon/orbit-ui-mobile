@@ -491,10 +491,10 @@ describe('HabitDetailScreen', () => {
       'dates.daysShort.tuesday, dates.daysShort.thursday',
       'Walk before work.',
       'habits.detail.rescheduleFinePrint',
-      'habits.detail.rescheduleAccept',
       'habits.reschedule.dismiss',
+      'habits.detail.rescheduleAccept',
     ])
-    expect(within(proposal).getAllByRole('button').map((button) => [button.dataset.variant, button.dataset.size])).toEqual([['primary', 'sm'], ['ghost', 'sm']])
+    expect(within(proposal).getAllByRole('button').map((button) => [button.dataset.variant, button.dataset.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
     expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
     expect(screen.getByText('habits.detail.slippingLine:9:0:50')).toBeVisible()
 
@@ -565,8 +565,8 @@ describe('HabitDetailScreen', () => {
     expect(within(card).getByTestId('astra-glyph')).toHaveAttribute('data-size', '20')
     expect(within(card).getByTestId('badge')).toHaveTextContent('habits.detail.proGate')
     expect(Array.from(card.querySelectorAll<HTMLElement>('a, button')).map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
-      ['habits.reschedule.upgrade', 'primary', 'sm'],
       ['habits.reschedule.dismiss', 'ghost', 'sm'],
+      ['habits.reschedule.upgrade', 'primary', 'sm'],
     ])
     expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
