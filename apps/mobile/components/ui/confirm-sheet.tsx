@@ -13,6 +13,7 @@ interface ConfirmSheetProps {
   message: string
   confirmLabel: string
   cancelLabel?: string
+  minimumActionHeight?: number
   /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
@@ -33,6 +34,7 @@ export function ConfirmSheet({
   message,
   confirmLabel,
   cancelLabel,
+  minimumActionHeight,
   destructive = false,
   confirmImmediately = false,
   loading = false,
@@ -89,7 +91,7 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton variant="ghost" size="sm" disabled={actionsDisabled} onClick={cancel}>
+    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} disabled={actionsDisabled} onClick={cancel}>
       {cancelLabel ?? t('common.cancel')}
     </PillButton>
   )
@@ -97,6 +99,7 @@ export function ConfirmSheet({
     <PillButton
       variant={destructive ? 'destructive' : 'primary'}
       size="sm"
+      minimumHeight={minimumActionHeight}
       disabled={actionsDisabled}
       loading={loading}
       onClick={confirm}

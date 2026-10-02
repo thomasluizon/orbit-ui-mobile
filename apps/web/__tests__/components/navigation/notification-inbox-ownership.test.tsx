@@ -50,6 +50,11 @@ function shell(inbox: boolean) {
   </QueryClientProvider>
 }
 
+function chooseInboxAction(label: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Alert options' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: label }))
+}
+
 function deferredResult() {
   let resolve!: (value: { ok: false; error: string; status: number; sessionRefreshFailed: false }) => void
   const promise = new Promise<{ ok: false; error: string; status: number; sessionRefreshFailed: false }>(
@@ -94,12 +99,12 @@ afterEach(() => {
 
 it('renders clear-all actions with small ghost cancel before destructive confirm', () => {
   render(shell(true))
-  fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+  chooseInboxAction('Clear all')
 
   const actions = within(screen.getByRole('dialog')).getAllByRole('button').filter(
     (button) => button.closest('[data-slot="action-row"]'),
   )
-  expect.soft(actions.map((button) => button.textContent)).toEqual(['Cancel', 'Delete notifications'])
+  expect.soft(actions.map((button) => button.textContent)).toEqual(['Cancel', 'Delete'])
   expect.soft(actions.map((button) => button.dataset.variant)).toEqual(['ghost', 'destructive'])
   expect.soft(actions.map((button) => button.dataset.size)).toEqual(['sm', 'sm'])
 })
@@ -117,10 +122,10 @@ it.each([
     fireEvent.click(screen.getByRole('button', { name: /unread/ }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Mark as read' }))
   } else if (actionName === 'markAllNotificationsRead') {
-    fireEvent.click(screen.getByRole('button', { name: 'Mark all read' }))
+    chooseInboxAction('Mark all read')
   } else {
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete notifications' }))
+    chooseInboxAction('Clear all')
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
   }
 
   deferred.reject()
@@ -201,7 +206,7 @@ it('takes the replaced account notification off the screen instead of holding it
 
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Mark as read' })).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Clear all' }))
+  chooseInboxAction('Clear all')
   expect(screen.getByRole('dialog')).toBeInTheDocument()
   respondWithAccount('user-3')
   await act(async () => { await useAuthStore.getState().checkSession() })
@@ -294,7 +299,7 @@ it.each([false, true])('deletes only the selected row with Undo when read is %s'
   expect(screen.queryByRole('button', { name: /^Selected\./ })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: /^Sibling\./ })).toHaveFocus()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  expect(screen.getAllByRole('img', { name: 'Alerts, 1 unread' })).toHaveLength(2)
+  expect(screen.getAllByRole('img', { name: 'Alerts, 1 unread' })).toHaveLength(1)
   expect(actionMocks.deleteNotification).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
   expect(screen.getByRole('button', { name: /^Selected\./ })).toBeInTheDocument()

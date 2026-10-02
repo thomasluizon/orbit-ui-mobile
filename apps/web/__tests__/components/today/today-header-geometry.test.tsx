@@ -7,6 +7,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -115,6 +116,42 @@ describe('Hoje header geometry', () => {
       }
       expect(geometry.close.width).toBeGreaterThanOrEqual(48)
       expect(geometry.close.height).toBeGreaterThanOrEqual(48)
+    } finally { await page.close() }
+  })
+
+  it.each(['en', 'pt-BR'] as const)('fits the %s clear confirmation at 320 pixels and 200 percent text', async (locale) => {
+    const messages = locale === 'en' ? en : ptBr
+    render(<NextIntlClientProvider locale={locale} messages={messages}><ConfirmSheet open destructive
+      title={messages.notifications.deleteAllAction} minimumActionHeight={48} message={messages.notifications.deleteAllConfirmDescription}
+      confirmLabel={messages.notifications.deleteAllAction} onCancel={noop} onConfirm={noop} /></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
+      await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '32px' })
+      const geometry = await page.evaluate(() => {
+        const heading = document.querySelector('.orbit-sheet-title')!
+        const range = document.createRange()
+        range.selectNodeContents(heading)
+        const actions = Array.from(document.querySelectorAll('[data-slot="action-row"] button')).map((button) => {
+          const bounds = button.getBoundingClientRect()
+          const text = document.createRange()
+          text.selectNodeContents(button.querySelector('span')!)
+          return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height, lines: text.getClientRects().length }
+        })
+        return { headingWidth: range.getBoundingClientRect().width, available: heading.getBoundingClientRect().width, lines: range.getClientRects().length, actions }
+      })
+      expect(geometry.headingWidth).toBeLessThanOrEqual(geometry.available)
+      expect(geometry.lines).toBe(1)
+      expect(geometry.actions).toHaveLength(2)
+      for (const action of geometry.actions) {
+        expect(action.left).toBeGreaterThanOrEqual(0)
+        expect(action.right).toBeLessThanOrEqual(320)
+        expect(action.width).toBeGreaterThanOrEqual(48)
+        expect(action.height).toBeGreaterThanOrEqual(48)
+        expect(action.lines).toBe(1)
+      }
+      const [cancel, confirm] = geometry.actions
+      expect(cancel!.right <= confirm!.left || cancel!.bottom <= confirm!.top).toBe(true)
     } finally { await page.close() }
   })
 

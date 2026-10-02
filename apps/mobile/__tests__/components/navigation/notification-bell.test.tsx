@@ -1,4 +1,6 @@
 import React from 'react'
+import { Resvg } from '@resvg/resvg-js'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
@@ -453,6 +455,19 @@ describe('mobile alerts', () => {
     const tree = render()
     press(tree, messages.notifications.deleteAll)
     expect(text(tree, confirmBody)).toHaveLength(1)
+    const confirmation = tree.root.findAll((node) => node.type === ConfirmSheet)[0]!
+    const title = confirmation.props.title!
+    const glyphs = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="100"><text x="0" y="44" font-family="Geist" font-size="44">${title}</text></svg>`, {
+      font: { fontFiles: [require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')], loadSystemFonts: false },
+    }).getBBox()
+    expect(glyphs).not.toBeNull()
+    expect(glyphs!.width).toBeLessThanOrEqual(320 - 2 * 24 - 16 - 48)
+    for (const action of confirmation.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith('button-') === true)) {
+      const style = action.props.style
+      const bounds = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+      expect(bounds.minHeight).toBeGreaterThanOrEqual(48)
+      expect(bounds.height).toBeUndefined()
+    }
     expect(state.clear).not.toHaveBeenCalled()
     press(tree, messages.common.cancel)
     expect(testId(tree, 'notification-unread')).toHaveLength(50)
