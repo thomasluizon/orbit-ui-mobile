@@ -1,0 +1,56 @@
+{
+  "id": "<string>",
+  "ok": true,
+  "result": {
+    "terminals": [
+      {
+        "handle": "term_predecessor",
+        "ptyId": "<string>",
+        "incarnationId": "<string>",
+        "orphaned": false,
+        "worktreeId": "<string>",
+        "worktreePath": "<string>",
+        "branch": "<string>",
+        "tabId": "tab_0",
+        "leafId": "<string>",
+        "title": "<string>",
+        "connected": true,
+        "writable": true,
+        "lastOutputAt": 42,
+        "preview": "<string>",
+        "executionHostId": "<string>"
+      },
+      {
+        "handle": "term_successor",
+        "ptyId": "<string>",
+        "incarnationId": "<string>",
+        "orphaned": false,
+        "worktreeId": "<string>",
+        "worktreePath": "<string>",
+        "branch": "<string>",
+        "tabId": "tab_1",
+        "leafId": "<string>",
+        "title": "<string>",
+        "connected": true,
+        "writable": true,
+        "lastOutputAt": 42,
+        "preview": "<string>",
+        "executionHostId": "<string>"
+      }
+    ],
+    "hostScope": {
+      "hostIds": [
+        "<string>"
+      ],
+      "omittedHostIds": []
+    },
+    "topologyRevisions": {
+      "<worktree id>": 42
+    },
+    "totalCount": 2,
+    "truncated": false
+  },
+  "_meta": {
+    "runtimeId": "<string>"
+  }
+}

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
-import type { PendingOperationExecutionResult, PendingOperationStepUpPreparationResult } from '@orbit/shared/hooks'
+import type { PendingOperationExecutionResult, PendingOperationRevisionResponse, PendingOperationStepUpPreparationResult } from '@orbit/shared/hooks'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { sheetTestControls } from '../../support/sheet-double'
 
@@ -247,12 +247,15 @@ describe('PendingOperationCard', () => {
     await waitFor(() => expect(confirm).toHaveBeenCalledOnce())
   })
 
-  it('edits one item and sends only the changed field before approval', async () => {
-    const editedItem = { ...firstItem, fields: [{ ...firstItem.fields[0], newValue: '2026-09-27' }] }
-    revise.mockResolvedValue({ ok: true, result: {
+  it.each(['immediate', 'deferred'])('edits one item and sends only the changed field before approval with %s revision', async (timing) => {
+    const editedItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, newValue: '2026-09-27' }] }
+    const revision: PendingOperationRevisionResponse = { ok: true, result: {
       isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false,
       preview: { changes: [], changeTargetCount: 2, items: [editedItem, secondItem], previewFingerprint: 'preview-2' },
-    } })
+    } }
+    let resolveRevision!: (result: PendingOperationRevisionResponse) => void
+    revise.mockReturnValue(timing === 'immediate' ? Promise.resolve(revision)
+      : new Promise<PendingOperationRevisionResponse>((resolve) => { resolveRevision = resolve }))
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)
     fireEvent.change(screen.getByRole('textbox', { name: 'chat.operation.field.date' }), { target: { value: '2026-09-27' } })
@@ -262,8 +265,14 @@ describe('PendingOperationCard', () => {
       items: [{ itemId: 'habit-1', edits: { date: '2026-09-27' } }, { itemId: 'habit-2' }],
     }))
     expect(confirm).not.toHaveBeenCalled()
-    expect(screen.getByText(/chat.operation.edited/)).toBeInTheDocument()
+    if (timing === 'deferred') {
+      expect(screen.queryByText(/chat.operation.edited/)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'common.save' })).toBeDisabled()
+      resolveRevision(revision)
+    }
+    expect(await screen.findByText(/chat.operation.edited/)).toBeInTheDocument()
     expect(screen.getAllByRole('group', { name: 'chat.preview.proposed' })).toHaveLength(1)
+    expect(confirm).not.toHaveBeenCalled()
   })
 
   it('collapses the rejected preview with no approval action', async () => {
