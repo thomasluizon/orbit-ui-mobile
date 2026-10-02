@@ -1,9 +1,11 @@
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
-import { createMockCalendarSyncEvent, createMockNotification, createMockRescheduleSuggestion } from '@orbit/shared/__tests__/factories'
+import { createMockCalendarSyncEvent, createMockGamificationProfile, createMockGoal, createMockNotification, createMockRescheduleSuggestion, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarAutoSyncStateSchema, calendarEventsResponseSchema, userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema, rescheduleSuggestionResponseSchema } from '@orbit/shared/types/habit'
+import { gamificationProfileSchema, retrospectiveResponseSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
+import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { profileSchema } from '@orbit/shared/types/profile'
 import en from '@orbit/shared/i18n/en.json'
@@ -17,14 +19,15 @@ const today = '2026-09-04'
 const habitId = 'habit-1'
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), children: [], dueDate: today, dueTime: '08:00:00' })
 const schedule = makeHabitScheduleItem({ ...habit, children: [], hasSubHabits: false, scheduledDates: [today], isOverdue: true })
-const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: [schedule], page: 1, pageSize: 20, totalPages: 2, totalCount: 21 })
+const schedules = Array.from({ length: 20 }, (_, index) => makeHabitScheduleItem({ ...schedule, id: index === 0 ? habitId : `habit-${index + 1}`, title: index === 0 ? habit.title : `Read ${index + 1}`, position: index }))
+const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: schedules, page: 1, pageSize: 20, totalPages: 3, totalCount: 41 })
 const event = createMockCalendarSyncEvent({ title: 'Team meeting', startDate: today, startTime: '09:00', isImported: false })
-const events = calendarEventsResponseSchema.parse([event])
+const events = calendarEventsResponseSchema.parse([event, createMockCalendarSyncEvent({ id: 'event-2', title: 'Planning', startDate: today, startTime: '13:00' }), createMockCalendarSyncEvent({ id: 'event-3', title: 'Review', startDate: today, startTime: '16:00' })])
 const notifications = notificationsResponseSchema.parse({ items: [createMockNotification({ isRead: false })], unreadCount: 1 })
 const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
 
 async function installActionFixtures(context: BrowserContext, locale: 'en' | 'pt-BR') {
-  const profile = profileSchema.parse({ ...profileFixture, plan: 'pro', hasProAccess: true, language: locale, googleCalendarAutoSyncEnabled: true })
+  const profile = profileSchema.parse({ ...profileFixture, plan: 'pro', hasProAccess: true, language: locale, googleCalendarAutoSyncEnabled: true, canViewGamification: true, marketingEmailConsent: null })
   await setLayoutProfileSession(context, profile)
   const responses: ReadonlyArray<readonly [string, unknown]> = [
     [API.profile.get, profile],
@@ -32,13 +35,17 @@ async function installActionFixtures(context: BrowserContext, locale: 'en' | 'pt
     [API.habits.get(habitId), habit],
     [API.habits.metrics(habitId), metrics],
     [API.habits.logs(habitId), []],
-    [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [schedule], logs: {} })],
+    [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: schedules, logs: {} })],
+    [API.goals.list, paginatedGoalResponseSchema.parse({ items: [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Walk each week', position: 1 })], page: 1, pageSize: 100, totalCount: 2, totalPages: 1 })],
+    [API.gamification.profile, gamificationProfileSchema.parse(createMockGamificationProfile({ lastActiveDate: today }))],
+    [API.gamification.streak, streakInfoSchema.parse({ currentStreak: 7, longestStreak: 14, lastActiveDate: today, freezesUsedThisMonth: 0, freezesAvailable: 1, maxFreezesPerMonth: 3, isFrozenToday: false, recentFreezeDates: [] })],
+    [API.habits.retrospective, retrospectiveResponseSchema.parse({ period: 'month', metrics: createMockRetrospectiveMetrics(), narrative: { highlights: 'A steady month.', missed: 'Keep reading.', trends: 'Consistent weeks.', suggestion: 'Continue.' }, fromCache: false })],
     [API.calendar.events, events],
     [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ hasGoogleConnection: true, enabled: true, status: 'Idle', lastSyncedAt: null })],
     [API.calendar.calendars, userCalendarsSchema.parse([{ id: 'calendar-1', name: 'Work', accessRole: 'owner', primary: true, backgroundColor: null, isSynced: true }])],
     [API.calendar.autoSyncSuggestions, []],
     [API.notifications.list, notifications],
-    [API.habits.rescheduleSuggestion(habitId), rescheduleSuggestionResponseSchema.parse({ suggestion: createMockRescheduleSuggestion(), fromCache: false })],
+    [API.habits.rescheduleSuggestion(habitId), rescheduleSuggestionResponseSchema.parse({ suggestion: createMockRescheduleSuggestion({ dueDate: '2026-09-05' }), fromCache: false })],
   ]
   for (const [path, response] of responses) {
     await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path, (route) => route.fulfill({ json: response }))
@@ -95,11 +102,30 @@ for (const width of [412, 1352]) {
       test.use({ viewport: { width, height: 915 }, appLocale: locale, subscriptionState: 'stripe' })
       test.beforeEach(async ({ context }) => { await installActionFixtures(context, locale) })
 
+      const readySelectors: Readonly<Record<string, string>> = {
+        '/': '[data-testid="habit-row"]',
+        '/progress': '[data-testid="progress-xp-summary"]',
+        '/profile/account': '[data-testid="profile-settings-group-account"] [data-slot="list-row-title"]',
+        '/profile/preferences': '[data-testid="profile-settings-group-preferences"] [data-slot="list-row-title"]',
+        '/profile/astra': '[data-testid="profile-api-keys"]',
+        '/profile/notifications': '[role="switch"]',
+        '/habits/new': '[data-habit-create-action] .orbit-pill-action',
+        [`/habits/${habitId}`]: '[data-habit-detail-content] h1',
+        '/upgrade': '.orbit-pill-action',
+        '/notifications': '.orbit-pill-action',
+        '/about': '[data-testid="about-content"]',
+        '/support': 'form .orbit-pill-action',
+      }
+
       for (const route of ['/', '/progress', '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications', '/habits/new', `/habits/${habitId}`, '/upgrade', '/notifications', '/about', '/support']) {
         test(`${route} keeps adjacent pills in one size with sufficient clearance`, async ({ page }) => {
           await page.goto(route)
-          await expect(page.locator('#orbit-main')).toBeVisible()
+          const main = page.locator('#orbit-main')
+          await expect(main.locator(readySelectors[route]!).first()).toBeVisible()
+          await expect(main.locator('[aria-busy="true"], .skeleton-pulse')).toHaveCount(0)
           if (route === '/habits/new') await expect(page.locator('[data-habit-create-action] .orbit-pill-action')).toHaveAttribute('data-size', 'md')
+          if (route === '/upgrade') await expect(page.getByRole('button', { name: messages.upgrade.billing.payment.change, exact: true })).toBeVisible()
+          if (route === '/progress') await expect(page.locator('[data-goal-id]')).toHaveCount(2)
           if (route === '/notifications') await expect(page.getByRole('button', { name: messages.notifications.deleteAll, exact: true })).toBeVisible()
           if (route === '/habits/'+habitId) await expect(page.getByRole('heading', { name: habit.title, exact: true })).toBeVisible()
           await assertActionGeometry(page)
@@ -119,13 +145,18 @@ for (const width of [412, 1352]) {
         await importAction.click()
         const sheet = page.getByRole('dialog')
         await expect(sheet).toBeVisible()
+        await expect(sheet.locator('.orbit-pill-action')).not.toHaveCount(0)
+        await expect(sheet.locator('[aria-busy="true"], .skeleton-pulse')).toHaveCount(0)
         await assertActionGeometry(page, sheet)
       })
 
       test('search pagination uses one action row', async ({ page }) => {
         await page.goto('/search')
         await page.getByRole('combobox', { name: messages.habits.search.title }).fill('Read')
-        await expect(page.getByRole('button', { name: messages.common.next, exact: true })).toBeVisible()
+        await expect(page.getByRole('button', { name: messages.habits.search.next, exact: true })).toBeVisible()
+        await page.getByRole('button', { name: messages.habits.search.next, exact: true }).click()
+        await expect(page.getByRole('button', { name: messages.habits.search.previous, exact: true })).toBeVisible()
+        await expect(page.locator('#orbit-main [aria-busy="true"]')).toHaveCount(0)
         await assertActionGeometry(page)
       })
 
@@ -140,7 +171,7 @@ for (const width of [412, 1352]) {
 
       test('reschedule sheet keeps one small action row', async ({ page }) => {
         await page.goto('/')
-        const row = page.getByTestId('habit-row').filter({ hasText: habit.title })
+        const row = page.getByTestId('habit-row').filter({ hasText: habit.title }).first()
         await row.locator('[data-habit-row-control="menu"]').click()
         await page.getByRole('menuitem', { name: messages.habits.actions.reschedule, exact: true }).click()
         const sheet = page.getByRole('dialog')

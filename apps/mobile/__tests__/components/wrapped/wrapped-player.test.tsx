@@ -219,9 +219,9 @@ describe('WrappedPlayer', () => {
 
   it('pages forward and back through the Pager controls', () => {
     const { tree } = renderPlayer()
-    press(byTestId(tree, 'button-primary-md'))
+    press(byTestId(tree, 'button-primary-sm'))
     expect(byTestId(tree, 'wrapped-slide-completions')).toBeTruthy()
-    press(byTestId(tree, 'button-ghost-md'))
+    press(byTestId(tree, 'button-ghost-sm'))
     expect(byTestId(tree, 'wrapped-slide-intro')).toBeTruthy()
   })
 
@@ -236,10 +236,10 @@ describe('WrappedPlayer', () => {
     const { tree } = renderPlayer()
     expect(hasText(tree, back)).toBe(true)
     expect(hasText(tree, forward)).toBe(true)
-    expect(byTestId(tree, 'button-ghost-md')?.props.accessibilityState).toMatchObject({ disabled: true })
-    press(byTestId(tree, 'button-primary-md'))
+    expect(byTestId(tree, 'button-ghost-sm')?.props.accessibilityState).toMatchObject({ disabled: true })
+    press(byTestId(tree, 'button-primary-sm'))
     expect(byTestId(tree, 'wrapped-slide-completions')).toBeTruthy()
-    press(byTestId(tree, 'button-ghost-md'))
+    press(byTestId(tree, 'button-ghost-sm'))
     expect(byTestId(tree, 'wrapped-slide-intro')).toBeTruthy()
   })
 
@@ -267,15 +267,15 @@ describe('WrappedPlayer', () => {
     expect(hasText(tree, 'wrapped.next')).toBe(false)
     expect(hasText(tree, 'shareCard.share')).toBe(true)
     expect(hasText(tree, 'shareCard.download')).toBe(true)
-    expect(byTestId(tree, 'button-primary-md')).toBeTruthy()
-    expect(byTestId(tree, 'button-ghost-md')).toBeTruthy()
+    expect(byTestId(tree, 'button-primary-sm')).toBeTruthy()
+    expect(byTestId(tree, 'button-ghost-sm')).toBeTruthy()
     expect(byTestId(tree, 'wrapped-next-zone')).toBeUndefined()
   })
 
   it.each([
     ['en', en],
     ['pt-BR', ptBR],
-  ] as const)('keeps localized closing actions stacked beside Back in %s', (_locale, messages) => {
+  ] as const)('keeps localized closing actions in one trailing row in %s', (_locale, messages) => {
     translationMock.labels = {
       'wrapped.previous': messages.wrapped.previous,
       'shareCard.share': messages.shareCard.share,
@@ -283,25 +283,15 @@ describe('WrappedPlayer', () => {
     }
     const { slides, tree } = renderPlayer()
     advanceToLastSlide(tree, slides.length)
-
-    const actions = byTestId(tree, 'wrapped-share-actions')
-    expect(hasText(tree, messages.wrapped.previous)).toBe(true)
-    expect(hasText(tree, messages.shareCard.share)).toBe(true)
-    expect(hasText(tree, messages.shareCard.download)).toBe(true)
-    expect(StyleSheet.flatten(actions?.props.style)).toMatchObject({
-      flexDirection: 'column',
-      alignItems: 'stretch',
-      gap: 8,
+    const actions = byTestId(tree, 'action-row')!
+    expect(StyleSheet.flatten(actions.props.style)).toMatchObject({
+      flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 12,
     })
-    expect(
-      hosts(tree).some((node) => {
-        const style = StyleSheet.flatten(node.props.style) as Record<string, unknown> | undefined
-        return style?.flexDirection === 'row'
-          && style.justifyContent === 'space-between'
-          && node.findAll((child) => child === actions).length > 0
-          && node.findAll((child) => child.props.children === messages.wrapped.previous).length > 0
-      }),
-    ).toBe(true)
+    const buttons = actions.findAll((node) => String(node.type) === 'Pressable')
+    expect(buttons.map((button) => button.findAll((node) => String(node.type) === 'Text')[0]?.props.children)).toEqual([
+      messages.wrapped.previous, messages.shareCard.download, messages.shareCard.share,
+    ])
+    expect(buttons.map((button) => button.props.testID)).toEqual(['button-ghost-sm', 'button-ghost-sm', 'button-primary-sm'])
   })
 
   it('shows both final actions as busy while the card renders', () => {
@@ -310,12 +300,12 @@ describe('WrappedPlayer', () => {
     advanceToLastSlide(tree, slides.length)
 
     expect(
-      allByTestId(tree, 'button-primary-md').some(
+      allByTestId(tree, 'button-primary-sm').some(
         (node) => (node.props.accessibilityState as { busy?: boolean }).busy,
       ),
     ).toBe(true)
     expect(
-      allByTestId(tree, 'button-ghost-md').some(
+      allByTestId(tree, 'button-ghost-sm').some(
         (node) => (node.props.accessibilityState as { busy?: boolean }).busy,
       ),
     ).toBe(true)
@@ -328,14 +318,14 @@ describe('WrappedPlayer', () => {
 
     expect(hasText(tree, 'shareCard.share')).toBe(false)
     expect(hasText(tree, 'shareCard.download')).toBe(true)
-    expect(byTestId(tree, 'button-primary-md')).toBeTruthy()
-    expect(allByTestId(tree, 'button-ghost-md')).toHaveLength(1)
+    expect(byTestId(tree, 'button-primary-sm')).toBeTruthy()
+    expect(allByTestId(tree, 'button-ghost-sm')).toHaveLength(1)
   })
 
   it('hands the composed image to the platform share sheet', () => {
     const { slides, tree } = renderPlayer()
     advanceToLastSlide(tree, slides.length)
-    press(byTestId(tree, 'button-primary-md'))
+    press(byTestId(tree, 'button-primary-sm'))
 
     expect(shareCardMock.share).toHaveBeenCalledWith({
       shareTitle: 'shareCard.shareTitle',

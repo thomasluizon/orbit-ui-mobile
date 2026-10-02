@@ -34,6 +34,7 @@ import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Toast } from '@/components/ui/toast'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
@@ -67,8 +68,8 @@ function DoneContent({ step, proContent, doneContent }: Readonly<{ step: number;
 
 type ReminderDecision = 'idle' | 'allowing' | 'declining'
 
-function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; secondary?: ReactNode }>) {
-  return <div className="flex w-full flex-col gap-2">{primary}{secondary}</div>
+function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNode; secondary?: ReactNode; reason?: ReactNode }>) {
+  return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
 }
 
 const DONE_TAB_ROUTES: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
@@ -138,25 +139,30 @@ function DecisionAction(props: Readonly<DecisionProps>) {
   const declining = props.reminderDecision === 'declining'
   if (props.step === ONBOARDING_WHAT_STEP) {
     const empty = !props.sentence.trim()
-    return <ActionStack primary={<>
+    return <FlowActions primary={<>
       <PillButton disabled={empty} loading={props.suggestionPending} descriptionId={empty ? 'onboarding-continue-reason' : undefined} onClick={props.onContinueWhat}>{t('continue')}</PillButton>
-      {empty ? <p id="onboarding-continue-reason" className="m-0 text-center text-sm text-[var(--fg-3)]">{t('what.continueReason')}</p> : null}
-    </>} secondary={!props.isLive ? <>
+    </>} reason={empty ? <p id="onboarding-continue-reason" className="m-0 text-center text-sm text-[var(--fg-3)]">{t('what.continueReason')}</p> : null} secondary={!props.isLive ? <>
       {/* eslint-disable-next-line local/max-button-words -- The granted onboarding drawing uses this account action label. */}
       <PillButton variant="ghost" onClick={props.onAccount}>{t('what.haveAccount')}</PillButton>
     </> : undefined} />
   }
   if (props.step === ONBOARDING_WHEN_STEP) return <PillButton loading={props.creating} onClick={props.onSave}>{props.createFailed ? t('retry') : t('create')}</PillButton>
-  if (props.reminderState === 'ask') return <ActionStack primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('remind.allow')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.deny')}</PillButton>} />
-  if (props.reminderState === 'failed') return <ActionStack primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('retry')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} />
-  if (props.reminderState === 'no-time' || props.reminderState === 'no-day') return <ActionStack primary={<PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onEditSchedule}>{t(props.reminderState === 'no-day' ? 'remind.setDays' : 'remind.setTime')}</PillButton>} />
+  if (props.reminderState === 'ask') return <FlowActions primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('remind.allow')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.deny')}</PillButton>} />
+  if (props.reminderState === 'failed') return <FlowActions primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('retry')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} />
+  if (props.reminderState === 'no-time' || props.reminderState === 'no-day') return <FlowActions primary={<PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onEditSchedule}>{t(props.reminderState === 'no-day' ? 'remind.setDays' : 'remind.setTime')}</PillButton>} />
   return <PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
 }
 
 function OnboardingHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: () => void; onSkip?: () => void }>) {
   const t = useTranslations('onboarding.flow')
   const displayStep = getOnboardingDisplayStep(step)
-  return <div className="flex min-h-14 items-center justify-between px-4 min-[1024px]:px-0"><div className="flex items-center gap-4">{onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" onClick={onBack}>{t('back')}</PillButton> : null}<span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>{onSkip ? <PillButton variant="ghost" size="sm" onClick={onSkip}>{t('skip')}</PillButton> : null}</div>
+  return <div className="flex min-h-14 items-center gap-4 px-4 min-[1024px]:px-0">
+    <div className="shrink-0"><span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>
+    <ActionRow>
+      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" onClick={onBack}>{t('back')}</PillButton> : null}
+      {onSkip ? <PillButton variant="ghost" size="sm" onClick={onSkip}>{t('skip')}</PillButton> : null}
+    </ActionRow>
+  </div>
 }
 
 export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOnly?: boolean }>) {

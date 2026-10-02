@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
+import { View } from 'react-native'
 
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -13,6 +14,13 @@ function ConditionalActions() {
 }
 
 describe('ActionRow', () => {
+  it('retains its geometry inside a column under another row', () => {
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(<ActionRow><View style={{ flexDirection: 'column' }}><ActionRow><ConditionalActions /></ActionRow></View></ActionRow>) })
+    const rows = tree.root.findAll((node: any) => node.type === 'View' && node.props.testID === 'action-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[1].props.style).toEqual(expect.objectContaining({ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }))
+  })
   it('owns trailing alignment, wrapping, a twelve pixel gap and one small size through compositions', () => {
     let tree: any
     TestRenderer.act(() => { tree = TestRenderer.create(<ActionRow><ConditionalActions /></ActionRow>) })

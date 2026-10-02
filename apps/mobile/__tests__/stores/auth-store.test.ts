@@ -452,7 +452,7 @@ describe('mobile auth store security paths', () => {
       node.props.accessibilityLabel === 'stepUp.codeLabel' && typeof node.props.onChangeText === 'function',
     )[0]
     const confirmButton = () => tree.root.findAll((node: { props: Record<string, unknown> }) =>
-      node.props.testID === 'button-primary-md',
+      node.props.testID === 'button-primary-sm',
     )[0]
     expect(codeInput()).toBeDefined()
     TestRenderer.act(() => {

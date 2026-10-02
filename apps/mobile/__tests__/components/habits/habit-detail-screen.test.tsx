@@ -623,10 +623,10 @@ describe('HabitDetailScreen', () => {
       'dates.daysShort.tuesday, dates.daysShort.thursday',
       'Walk before work.',
       'habits.detail.rescheduleFinePrint',
-      'habits.detail.rescheduleAccept',
       'habits.reschedule.dismiss',
+      'habits.detail.rescheduleAccept',
     ])
-    expect(proposal.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['primary', 'sm'], ['ghost', 'sm']])
+    expect(proposal.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
     expect(textsOf(tree.root)).not.toContain('habits.detail.slipping')
     expect(textsOf(tree.root)).toContain('habits.detail.slippingLine:9:0:50')
 
@@ -2267,8 +2267,8 @@ describe('HabitDetailScreen', () => {
     const card = tree.root.findByProps({ testID: 'rescue-free-card' })
     expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
     expect(card.findByType('AstraGlyph').props.size).toBe(20)
-    expect(textsOf(card)).toEqual(['habits.detail.proGate', 'habits.reschedule.freePrompt', 'habits.reschedule.upgrade', 'habits.reschedule.dismiss'])
-    expect(card.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['primary', 'sm'], ['ghost', 'sm']])
+    expect(textsOf(card)).toEqual(['habits.detail.proGate', 'habits.reschedule.freePrompt', 'habits.reschedule.dismiss', 'habits.reschedule.upgrade'])
+    expect(card.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
     expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
     expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
 

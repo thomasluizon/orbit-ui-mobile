@@ -91,28 +91,29 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await expect(page.getByTestId('wrapped-slide-share')).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
 
-        const narrowActions = pager.getByTestId('wrapped-share-actions-narrow')
-        const wideActions = pager.getByTestId('wrapped-share-actions-wide')
-        const activeActions = width < 640 ? narrowActions : wideActions
+        const activeActions = pager.locator('[data-slot="action-row"]')
         await expect(activeActions).toBeVisible()
-        await expect(width < 640 ? wideActions : narrowActions).toBeHidden()
-        await expect(pager.getByRole('button', { name: messages.wrapped.previous, exact: true })).toBeVisible()
+        await expect(activeActions.getByRole('button', { name: messages.wrapped.previous, exact: true })).toBeVisible()
         await expect(activeActions.getByRole('button', { name: messages.shareCard.share, exact: true })).toBeVisible()
         await expect(activeActions.getByRole('button', { name: messages.shareCard.download, exact: true })).toBeVisible()
+        await expect(activeActions.locator('[data-size="md"]')).toHaveCount(0)
 
-        const actionBounds = await activeActions.locator('button').evaluateAll((buttons) =>
-          buttons.map((button) => {
-            const { left, right, top, bottom } = button.getBoundingClientRect()
-            return { left, right, top, bottom }
-          }),
-        )
-        expect(actionBounds).toHaveLength(2)
-        if (width < 640) {
-          expect(actionBounds[1]!.top, `share actions stack at ${width}px`)
-            .toBeGreaterThanOrEqual(actionBounds[0]!.bottom)
-        } else {
-          expect(actionBounds[1]!.left, `share actions form a row at ${width}px`)
-            .toBeGreaterThanOrEqual(actionBounds[0]!.right)
+        const geometry = await activeActions.evaluate((row) => {
+          const bounds = row.getBoundingClientRect()
+          const buttons = [...row.querySelectorAll('button')].map((button) => {
+            const { left, right, top, bottom, width: buttonWidth } = button.getBoundingClientRect()
+            return { left, right, top, bottom, width: buttonWidth }
+          })
+          return { width: bounds.width, right: bounds.right, buttons }
+        })
+        expect(geometry.buttons).toHaveLength(3)
+        expect(geometry.buttons.at(-1)!.right).toBeCloseTo(geometry.right, 1)
+        const requiredWidth = geometry.buttons.reduce((sum, button) => sum + button.width, 24)
+        if (requiredWidth <= geometry.width) {
+          expect(new Set(geometry.buttons.map((button) => button.top)).size).toBe(1)
+          for (let index = 1; index < geometry.buttons.length; index += 1) {
+            expect(geometry.buttons[index]!.left - geometry.buttons[index - 1]!.right).toBeCloseTo(12, 1)
+          }
         }
 
         const header = page.getByTestId('wrapped-header')

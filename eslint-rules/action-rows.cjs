@@ -19,6 +19,8 @@ function countPills(node, pillNames) {
   if (node.type === 'ConditionalExpression') return Math.max(countPills(node.consequent, pillNames), countPills(node.alternate, pillNames))
   if (node.type === 'LogicalExpression') return countPills(node.right, pillNames)
   if (node.type === 'ArrayExpression') return node.elements.reduce((sum, child) => sum + countPills(child, pillNames), 0)
+  if (node.type === 'ReturnStatement') return countPills(node.argument, pillNames)
+  if (node.type === 'BlockStatement') return Math.max(0, ...node.body.map((statement) => countPills(statement, pillNames)))
   if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression' && node.callee.property.name === 'map') {
     const callback = node.arguments[0]
     return callback?.type === 'ArrowFunctionExpression' && countPills(callback.body, pillNames) > 0 ? 2 : 0

@@ -32,11 +32,11 @@ export function sheetSlotButtons(root: unknown, slot: 'SheetBody' | 'SheetAction
     .map((node) => (typeof node.props.accessibilityLabel === 'string' ? node.props.accessibilityLabel : textOf(node)))
 }
 
-/** Whether the footer groups its actions in `DialogActionPair`. */
+/** Whether the footer groups its actions in `ActionRow`. */
 export function sheetActionsUseActionPair(root: unknown): boolean {
   const container = (root as SlotNode).findAll((node) => node.type === 'SheetActions')[0]
   if (!container) throw new Error('Expected the SheetActions slot')
-  return container.findAll((node) => typeof node.type === 'string' && node.props.testID === 'dialog-action-pair').length === 1
+  return container.findAll((node) => typeof node.type === 'string' && node.props.testID === 'action-row').length > 0
 }
 
 export function expectSmallSheetActions(root: unknown): void {

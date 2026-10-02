@@ -399,7 +399,7 @@ describe('UpgradeScreen', () => {
       expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostCalendar')).toHaveLength(1)
       expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostRetrospective')).toHaveLength(1)
       expect(tree.root.findAll((node) => node.type === 'PricingSection')).toHaveLength(0)
-      const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-md')[0]!
+      const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-sm')[0]!
       TestRenderer.act(() => { (action.props.onPress as () => void)() })
       expect(findByType(tree.root, 'PricingSection').props.focusOnMount).toBe(true)
     },

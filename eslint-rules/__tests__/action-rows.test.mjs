@@ -21,6 +21,7 @@ tester.run('action-rows', require('../action-rows.cjs'), {
     { code: `${imports} const actions = <div><Pill>Save</Pill><Pill variant="ghost">Cancel</Pill></div>`, errors: [{ messageId: 'row' }] },
     { code: `${imports} const actions = <div>{ready ? <><Pill>Save</Pill><PillLink href="/">Back</PillLink></> : null}</div>`, errors: [{ messageId: 'row' }] },
     { code: `${imports} const actions = <div>{items.map(item => <Pill>{item}</Pill>)}</div>`, errors: [{ messageId: 'row' }] },
+    { code: `${imports} const actions = <div>{items.map(item => { const label = item.name; return <Pill>{label}</Pill> })}</div>`, errors: [{ messageId: 'row' }] },
     { code: `${imports} const action = <Pill size="md">Save</Pill>`, errors: [{ messageId: 'medium' }] },
     { code: `${imports} const action = <Pill size={size}>Save</Pill>`, errors: [{ messageId: 'medium' }] },
     { code: `${imports} const actions = <Row><Pill size="md">Save</Pill></Row>`, filename: '/repo/apps/web/components/habits/habit-create-actions.tsx', errors: [{ messageId: 'rowSize' }] },

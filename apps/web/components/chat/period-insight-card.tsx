@@ -68,10 +68,11 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
             label={t('chat.insight.title')}
             backLabel={t('chat.insight.previous')}
             onBack={index > 0 ? () => setIndex(index - 1) : undefined}
-            forwardSlot={<Button variant="ghost" size="sm" disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>{t('chat.insight.next')}</Button>}
+            forwardSlot={<>
+              <Button variant="ghost" size="sm" disabled={index === pages.length - 1} onClick={() => setIndex(index + 1)}>{t('chat.insight.next')}</Button>
+              <PillLink variant="ghost" size="sm" href="/progress">{t('chat.insight.progressLink')}</PillLink>
+            </>}
           />
-          { }
-          <PillLink variant="ghost" size="sm" href="/progress">{t('chat.insight.progressLink')}</PillLink>
         </div>}
       />
     </div>

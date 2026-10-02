@@ -12,7 +12,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 describe('ActionRow (web)', () => {
-  it.each([false, true])('keeps intrinsic actions trailing with inline=%s', (inline) => {
+  it.each([false, true])('keeps intrinsic actions trailing with fullWidthAncestor=%s', (fullWidthAncestor) => {
     render(<ActionRow><button type="button">Cancel</button><button type="button">Confirm</button></ActionRow>)
     const pair = screen.getByRole('button', { name: 'Confirm' }).parentElement!
 
@@ -43,13 +43,13 @@ describe('ActionRow (web)', () => {
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([en, ptBR].flatMap((catalog) => [240, 320, 412, 740, 1352].flatMap((width) => [false, true].map((inline) => ({ catalog, width, inline })))))('keeps import actions within a $width px footer with inline=$inline', async ({ catalog, width, inline }) => {
+    it.each([en, ptBR].flatMap((catalog) => [240, 320, 412, 740, 1352].flatMap((width) => [false, true].map((fullWidthAncestor) => ({ catalog, width, fullWidthAncestor })))))('keeps import actions within a $width px footer with fullWidthAncestor=$fullWidthAncestor', async ({ catalog, width, fullWidthAncestor }) => {
       const { container } = render(
-        <footer className="orbit-sheet-actions" style={{ width }}>
-          <ActionRow>
+        <footer className={`orbit-sheet-actions ${fullWidthAncestor ? "[&_button]:w-full" : ""}`} style={{ width }}>
+          <ActionRow><div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}><ActionRow>
             <PillButton size="sm" variant="ghost">{catalog.onboarding.wizard.importNotNow}</PillButton>
             <PillButton size="sm">{catalog.onboarding.wizard.importButton}</PillButton>
-          </ActionRow>
+          </ActionRow></div></ActionRow>
         </footer>,
       )
       const page = await browser.newPage()

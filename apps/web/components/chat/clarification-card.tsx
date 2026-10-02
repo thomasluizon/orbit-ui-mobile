@@ -7,6 +7,7 @@ import type { MessageBubbleProps, PendingOperationMessageState } from '@orbit/sh
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { safeT } from '@/lib/i18n'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { ActionRow } from '@/components/ui/action-row'
 import { Button } from '@/components/ui/pill-button'
 import { PendingOperationCard } from './pending-operation-card'
 
@@ -42,10 +43,10 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
     {showPreview ? <PendingOperationCard pendingOperation={pendingOperation} savedState={savedState} onStateChange={(patch) => onStateChange?.(pendingOperation.id, patch)} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} /> : <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
       <div className="flex flex-col items-start gap-3">
         {resolvedLabel ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</p> : (
-          <div className="flex flex-wrap gap-2">{clarificationRequest.quickActions.map((action) => {
+          <ActionRow>{clarificationRequest.quickActions.map((action) => {
             const label = safeT(t, action.label)
             return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
-          })}</div>
+          })}</ActionRow>
         )}
         {errorKey ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t(errorKey)}</p> : null}
       </div>
