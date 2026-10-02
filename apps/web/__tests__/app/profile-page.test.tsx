@@ -1,5 +1,11 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { ShellWide } from '@/components/shell/shell-wide'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -225,6 +231,38 @@ import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscr
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfilePage', () => {
+  describe('destination top inset', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+    registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([320, 412, 600, 840, 1023, 1024, 1352])('insets the first account card at %ipx and preserves the wide shell', async (width) => {
+      const { container } = render(
+        <ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
+          <ProfilePage />
+        </ShellWide>,
+      )
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
+          const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
+          const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
+          return { columnInset: card.top - column.top, scrollerInset: card.top - scroller.top }
+        })
+        expect(geometry.columnInset).toBe(width < 1024 ? 16 : 32)
+        expect(geometry.scrollerInset).toBe(width < 1024 ? 16 : 0)
+      } finally { await page.close() }
+    })
+  })
+
   const proPlans = [
     { state: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false, en: 'Free', pt: 'Grátis' },
     { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Pro Trial until Oct 9, 2099', pt: 'Teste Pro até 9 de out. de 2099' },

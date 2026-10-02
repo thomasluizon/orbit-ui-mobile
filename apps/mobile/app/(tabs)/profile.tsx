@@ -34,6 +34,7 @@ export default function ProfileScreen() {
     >
       <ScreenReaderHeading title={t('nav.profile')} />
       <ScrollView
+        testID="profile-scroller"
         style={styles.container}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
         showsVerticalScrollIndicator={false}
