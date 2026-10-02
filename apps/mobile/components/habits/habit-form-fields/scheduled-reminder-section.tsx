@@ -126,7 +126,7 @@ export function ScheduledReminderSection({
   }
 
   return (
-    <View style={nested ? sectionStyles.body : sectionStyles.container}>
+    <View style={nested ? sectionStyles.body : inline ? { gap: 12 } : sectionStyles.container}>
       {nested ? <Text style={sectionStyles.hintText}>{t("habits.form.scheduledReminderFixedTimes")}</Text> : null}
       {!nested && <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>

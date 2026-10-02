@@ -29,6 +29,7 @@ import { HabitChecklist } from './habit-checklist'
 import { ChecklistTemplates } from './checklist-templates'
 import { HabitDetailTags } from './habit-detail-tags'
 import { GoalLinkingField } from './goal-linking-field'
+import { FormSectionLabel } from './habit-form-fields/form-section-label'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 
@@ -112,13 +113,13 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
     <div className="flex flex-col gap-6">
       <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
       <section>
-        {!habit.dueTime ? <p className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.reminders')}</p> : null}
+        {!habit.dueTime ? <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel> : null}
         {habit.dueTime ? <ReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => changeReminders({ offsets })} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError} t={t}>
           <ScheduledReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => changeReminders({ scheduled })} onValidationError={showError} offsetReminderCount={reminderHabit.reminderTimes.length} nested t={t} />
         </ReminderSection> : <ScheduledReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => changeReminders({ scheduled })} onValidationError={showError} t={t} />}
       </section>
       <section>
-        <p className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.checklist')}</p>
+        <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
         <HabitChecklist items={habit.checklistItems} editable onItemsChange={onItemsChange} />
         <ChecklistTemplates items={habit.checklistItems} onLoad={onItemsChange} />
       </section>
@@ -130,7 +131,7 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
       {relationshipControlsAvailable ? <HabitDetailTags habit={habit} /> : null}
       {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
       <section>
-        <p className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.endDate')}</p>
+        <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
         <DateField label={t('habits.form.endDate')} value={habit.endDate ?? ''} placeholder={t('habits.form.endDatePlaceholder')} onChange={(endDate) => { void onPatch({ endDate: endDate || null }) }} />
         {habit.endDate ? <PillButton variant="ghost" size="sm" iconOnly label={t('habits.form.removeEndDate')} onClick={() => { void onPatch({ endDate: null }) }}><X size={20} /></PillButton> : null}
       </section>

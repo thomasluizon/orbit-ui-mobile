@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 
 interface SlipAlertSectionProps {
+  inline?: boolean
   hasProAccess: boolean
   slipAlertEnabled: boolean
   onToggle: () => void
@@ -13,12 +14,12 @@ interface SlipAlertSectionProps {
 }
 
 export function SlipAlertSection({
-  hasProAccess, slipAlertEnabled, onToggle, t,
+  inline = false, hasProAccess, slipAlertEnabled, onToggle, t,
 }: Readonly<SlipAlertSectionProps>) {
   const router = useRouter()
 
   return (
-    <div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className={inline ? "flex flex-col gap-3" : "flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]"}>
       {hasProAccess ? (
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col gap-1">

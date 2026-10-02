@@ -5,7 +5,7 @@ for (const width of [412, 1280] as const) {
   test.describe(`checklist templates row at ${width}px`, () => {
     test.use({ viewport: { width, height: 915 } })
 
-    test('keeps its hover fill rounded, inset, and below the checklist input', async ({ page }) => {
+    test('keeps its hover fill rounded, aligned, and below the checklist input', async ({ page }) => {
       await page.goto('/habits/new')
       const screen = page.locator('[data-habit-create-screen]')
       await expect(screen).toBeVisible()
@@ -17,7 +17,6 @@ for (const width of [412, 1280] as const) {
       const button = disclosure.getByRole('button', { name: messages.habits.form.useTemplate })
       const row = button.locator('xpath=..')
       await expect(input).toBeVisible()
-      await expect(row).toHaveClass(/orbit-list-row-form/)
       await expect(button).not.toContainText(/\d/)
       await button.hover()
 
@@ -28,11 +27,10 @@ for (const width of [412, 1280] as const) {
       expect(inputBlockBox).not.toBeNull()
       expect(rowBox).not.toBeNull()
       if (!inputBox || !inputBlockBox || !rowBox) return
-      expect(rowBox.x).toBeGreaterThan(inputBlockBox.x)
-      expect(rowBox.x + rowBox.width).toBeLessThan(inputBlockBox.x + inputBlockBox.width)
+      expect(rowBox.x).toBeCloseTo(inputBlockBox.x, 1)
+      expect(rowBox.x + rowBox.width).toBeCloseTo(inputBlockBox.x + inputBlockBox.width, 1)
       expect(rowBox.y - (inputBox.y + inputBox.height)).toBeGreaterThanOrEqual(8)
       expect(rowBox.height).toBe(52)
-      await expect(row).toHaveCSS('border-radius', '12px')
       await expect(button).toHaveCSS('border-radius', '12px')
       const buttonBox = await button.boundingBox()
       expect(buttonBox).toEqual(rowBox)

@@ -38,7 +38,7 @@ import { Input } from '@/components/ui/input'
 import { DateField } from '@/components/ui/date-field'
 import { ListRow } from '@/components/ui/list-row'
 import { Proposed } from '@/components/ui/proposed'
-import { SectionLabel } from '@/components/ui/section-label'
+import { FormSectionLabel } from './habit-form-fields/form-section-label'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
@@ -148,7 +148,7 @@ function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorPr
   if (!visible) return null
   return (
     <View>
-      <SectionLabel>{t('habits.form.endDate')}</SectionLabel>
+      <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
       <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
     </View>
   )
@@ -176,8 +176,8 @@ function SlipAlertEditor({
   if (!visible) return null
   return (
     <View>
-      <SectionLabel>{t('habits.form.slipAlert')}</SectionLabel>
-      <SlipAlertSection tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
+      <FormSectionLabel>{t('habits.form.slipAlert')}</FormSectionLabel>
+      <SlipAlertSection inline tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
     </View>
   )
 }
@@ -191,13 +191,13 @@ function SubHabitSection({
 }: Readonly<SubHabitSectionProps>) {
   return (
     <View>
-      <SectionLabel>{t('habits.form.subHabits')}</SectionLabel>
+      <FormSectionLabel>{t('habits.form.subHabits')}</FormSectionLabel>
       {canUseSubHabits ? (
         <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
           {children}
         </Proposed>
       ) : (
-        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} inForm onClick={onUpgrade} />
+        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} inset={false} onClick={onUpgrade} />
       )}
     </View>
   )
@@ -216,11 +216,11 @@ function ReminderEditors({
   t,
 }: Readonly<ReminderEditorsProps>) {
   if (!dueTime) {
-    return <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} />
+    return <ScheduledReminderSection inline tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} />
   }
   return (
-    <ReminderSection tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError}>
-      <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} offsetReminderCount={reminderTimes.length} nested />
+    <ReminderSection inline tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError}>
+      <ScheduledReminderSection inline tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} offsetReminderCount={reminderTimes.length} nested />
     </ReminderSection>
   )
 }
@@ -446,7 +446,7 @@ export function HabitFormFields({
               />
             </View>
             <View>
-              <SectionLabel>{t('habits.form.reminders')}</SectionLabel>
+              <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
                 reminderEnabled={reminderEnabled}
@@ -461,7 +461,7 @@ export function HabitFormFields({
               />
             </View>
             <View>
-              <SectionLabel>{t('habits.form.checklist')}</SectionLabel>
+              <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
               <HabitChecklist items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
               <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
             </View>
