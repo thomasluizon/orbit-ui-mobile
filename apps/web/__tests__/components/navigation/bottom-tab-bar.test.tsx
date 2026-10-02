@@ -53,7 +53,7 @@ describe('BottomTabBar', () => {
     expect(onTab).toHaveBeenCalledWith('calendario')
   })
 
-  it.each(['dark', 'light'])('keeps the selected label legible while the tab fills on hover in %s mode', (mode) => {
+  it.each(['dark', 'light'])('keeps the selected label in the canvas text role on hover in %s mode', (mode) => {
     document.documentElement.dataset.theme = mode
     render(
       <BottomTabBar
@@ -67,14 +67,13 @@ describe('BottomTabBar', () => {
     const activeLabel = screen.getByText('Calendário')
     const inactiveLabel = screen.getByText('Hoje')
     expect(activeLabel).toHaveClass('text-[var(--primary-soft)]')
-    expect(activeLabel).toHaveClass('group-hover:text-[var(--primary-text)]')
-    expect(activeLabel.parentElement).toHaveClass('rounded-full', 'hover:bg-[var(--bg-hover)]')
+    expect(activeLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')
     expect(inactiveLabel).toHaveClass('text-[var(--fg-3)]')
     expect(inactiveLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')
     delete document.documentElement.dataset.theme
   })
 
-  it('paints hover on the rounded tab hit area behind its icon', () => {
+  it('contains the icon in a separate indicator inside the tab target', () => {
     render(
       <BottomTabBar
         activeId="hoje"
@@ -85,7 +84,7 @@ describe('BottomTabBar', () => {
     )
 
     const iconLayer = screen.getByTestId('today-icon').parentElement
-    expect(iconLayer?.parentElement).toHaveClass('rounded-full', 'overflow-hidden', 'hover:bg-[var(--bg-hover)]')
+    expect(iconLayer).toHaveAttribute('data-tab-indicator')
     expect(iconLayer?.previousElementSibling).toBeNull()
   })
 

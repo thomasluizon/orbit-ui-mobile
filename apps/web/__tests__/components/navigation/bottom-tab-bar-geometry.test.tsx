@@ -1,0 +1,102 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { render } from '@testing-library/react'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { Home, CalendarDays, ChartLine, User } from '@/components/ui/icons'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+const destinations = ['today', 'calendar', 'progress', 'profile'] as const
+const icons = [Home, CalendarDays, ChartLine, User]
+
+describe('Bottom tab geometry in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([en, ptBR].flatMap((messages) => [1, 2].map((textScale) => ({ messages, textScale }))))(
+    'keeps complete labels and separated targets at 320 with $textScale text scale in $messages.nav.calendar',
+    async ({ messages, textScale }) => {
+      const { container } = render(<BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
+        items={destinations.map((id, index) => ({ id, label: messages.nav[id], icon: () => {
+          const Icon = icons[index]!
+          return <Icon size={24} />
+        } }))} />)
+      const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+      try {
+        await page.setContent(`<style>${stylesheet}html{font-size:${16 * textScale}px}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const bar = await page.locator('nav').boundingBox()
+        expect(bar).not.toBeNull()
+        if (textScale === 1) expect(bar!.height).toBe(80)
+        const buttons = page.getByRole('button')
+        expect(await buttons.count()).toBe(4)
+        for (const button of await buttons.all()) {
+          const measured = await button.evaluate((element) => {
+            const bounds = element.getBoundingClientRect()
+            const icon = element.querySelector('svg')!
+            const iconBounds = icon.getBoundingClientRect()
+            const indicator = icon.parentElement!
+            const indicatorBounds = indicator.getBoundingClientRect()
+            const label = element.querySelector('span:last-child')!
+            const labelBounds = label.getBoundingClientRect()
+            const labelStyle = getComputedStyle(label)
+            const text = document.createRange()
+            text.selectNodeContents(label)
+            const textBounds = text.getBoundingClientRect()
+            return {
+              width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right,
+              top: bounds.top, bottom: bounds.bottom, iconTop: iconBounds.top,
+              indicatorWidth: indicatorBounds.width, indicatorHeight: indicatorBounds.height,
+              indicatorTop: indicatorBounds.top, indicatorBottom: indicatorBounds.bottom,
+              gap: labelBounds.top - indicatorBounds.bottom,
+              lineHeight: parseFloat(labelStyle.lineHeight), labelHeight: labelBounds.height,
+              textWidth: textBounds.width, labelWidth: labelBounds.width, whiteSpace: labelStyle.whiteSpace,
+              textOverflow: labelStyle.textOverflow,
+            }
+          })
+          expect(measured.width).toBeGreaterThanOrEqual(48)
+          expect(measured.height).toBeGreaterThanOrEqual(48)
+          expect(measured.iconTop - bar!.y).toBeGreaterThanOrEqual(16)
+          expect(measured.indicatorWidth).toBe(56)
+          expect(measured.indicatorHeight).toBe(32)
+          expect(measured.gap).toBe(4)
+          expect(measured.lineHeight).toBe(16 * textScale)
+          expect(measured.labelHeight).toBe(measured.lineHeight)
+          expect(measured.textWidth).toBeLessThanOrEqual(measured.labelWidth)
+          expect(measured.whiteSpace).toBe('nowrap')
+          expect(measured.textOverflow).not.toBe('ellipsis')
+          expect(measured.indicatorTop).toBeGreaterThan(bar!.y)
+          await button.hover()
+          expect(await button.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+          expect(await button.locator('svg').evaluate((element) => getComputedStyle(element.parentElement!).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+          await button.focus()
+          expect(await button.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none')
+        }
+        const bounds = await buttons.evaluateAll((elements) => elements.map((element) => {
+          const { left, right, top, bottom } = element.getBoundingClientRect()
+          return { left, right, top, bottom }
+        }))
+        for (let index = 1; index < bounds.length; index++) {
+          const current = bounds[index]!
+          const previous = bounds[index - 1]!
+          expect(current.left >= previous.right || current.top >= previous.bottom).toBe(true)
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+      } finally { await page.close() }
+    },
+  )
+})

@@ -4,7 +4,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { createTokensV2 } from '@/lib/theme'
@@ -60,16 +60,15 @@ describe('BottomTabBar', () => {
     tree.unmount()
   })
 
-  it('paints a pressed tab on its rounded, clipped hit area', () => {
-    const renderer = require('react-test-renderer')
-    type TabTree = { root: { findAllByType: (type: typeof Pressable) => { props: { testID?: string; style: (state: { pressed: boolean }) => unknown } }[] }; unmount: () => void }
-    let tree!: TabTree
-    renderer.act(() => { tree = renderer.create(<BottomTabBar items={items} activeId="today" onSelect={vi.fn()} label="Navigation" />) })
-    const tab = tree.root.findAllByType(Pressable).find((node) => node.props.testID === 'tab-progress-inactive')
-    if (!tab) throw new Error('Progress tab was not rendered')
-    const pressed = StyleSheet.flatten(tab.props.style({ pressed: true }))
-    expect(pressed).toMatchObject({ borderRadius: 999, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
-    renderer.act(() => tree.unmount())
+  it('keeps the press fill on the icon indicator with room below the hairline', () => {
+    const tree = renderNavigation(<BottomTabBar items={items.map((item) => ({ ...item, icon: () => <Text>Icon</Text> }))} activeId="today" onSelect={vi.fn()} label="Navigation" />)
+    const destinations = tree.hosts().find((node) => node.props.testID === 'bottom-tab-destinations')
+    expect(StyleSheet.flatten(destinations?.props.style)).toMatchObject({ minHeight: 80 })
+    const tab = tree.hosts().find((node) => node.props.testID === 'tab-progress-inactive')
+    expect(StyleSheet.flatten(tab?.props.style)).not.toHaveProperty('backgroundColor')
+    const indicator = tree.hosts().find((node) => node.props.testID === 'tab-indicator-progress')
+    expect(StyleSheet.flatten(indicator?.props.style)).toMatchObject({ width: 56, height: 32 })
+    tree.unmount()
   })
 
   it.each(['dark', 'light'] as const)('uses resting and pressed label roles in %s mode', (mode) => {
@@ -90,7 +89,7 @@ describe('BottomTabBar', () => {
     expect(StyleSheet.flatten(getTabLabelStyle(inactiveTab, false))).toMatchObject({ color: tokens.fg3 })
     expect(StyleSheet.flatten(getTabLabelStyle(inactiveTab, true))).toMatchObject({ color: tokens.fg3 })
     expect(StyleSheet.flatten(getTabLabelStyle(activeTab, false))).toMatchObject({ color: tokens.primarySoft })
-    expect(StyleSheet.flatten(getTabLabelStyle(activeTab, true))).toMatchObject({ color: tokens.primaryText })
+    expect(StyleSheet.flatten(getTabLabelStyle(activeTab, true))).toMatchObject({ color: tokens.primarySoft })
     tree.unmount()
   })
 })
