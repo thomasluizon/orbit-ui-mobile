@@ -653,7 +653,7 @@ export default function CalendarSyncScreen() {
               <SettingsRow key={habit.id} label={habit.title} accessory="none" />
             ))}
             <View style={styles.actionPad}>
-              <PillButton fullWidth onPress={() => router.replace('/')}>
+              <PillButton fullWidth onPress={() => router.replace('/(tabs)')}>
                 {t('calendar.goToHabits')}
               </PillButton>
             </View>

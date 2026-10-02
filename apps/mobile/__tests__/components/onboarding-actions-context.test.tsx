@@ -22,14 +22,14 @@ const mocks = vi.hoisted(() => ({
     bufferColorScheme: vi.fn(),
     markOnboardingLocallyDone: vi.fn(),
   },
-  createHabitMutateAsync: vi.fn(async () => ({ id: 'server-id' })),
-  bulkCreateHabitsMutateAsync: vi.fn(async () => ({ results: [] })),
-  logHabitMutateAsync: vi.fn(async () => undefined),
-  createGoalMutateAsync: vi.fn(async () => ({ id: 'goal-id' })),
-  performQueuedApiMutation: vi.fn(async () => undefined),
+  createHabitMutateAsync: vi.fn(() => Promise.resolve({ id: 'server-id' })),
+  bulkCreateHabitsMutateAsync: vi.fn(() => Promise.resolve({ results: [] })),
+  logHabitMutateAsync: vi.fn(() => Promise.resolve(undefined)),
+  createGoalMutateAsync: vi.fn(() => Promise.resolve({ id: 'goal-id' })),
+  performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   patchProfile: vi.fn(),
   applyScheme: vi.fn(),
-  setItem: vi.fn(async () => undefined),
+  setItem: vi.fn(() => Promise.resolve(undefined)),
   setQueryData: vi.fn(),
 }))
 
@@ -192,7 +192,7 @@ describe('onboarding action provider factories', () => {
     expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'completeOnboarding' }),
     )
-    expect(mocks.replace).toHaveBeenCalledWith('/')
+    expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
 
     const updater = mocks.setQueryData.mock.calls.at(-1)?.[1] as (
       old: Profile | undefined,
@@ -208,7 +208,7 @@ describe('onboarding action provider factories', () => {
 
     await actions.finishOnboarding()
 
-    expect(mocks.replace).toHaveBeenCalledWith('/')
+    expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
   })
 
   it('imports the onboarding prompt into the chat draft in live mode', async () => {
@@ -227,7 +227,7 @@ describe('onboarding action provider factories', () => {
 })
 
 const stubActions: OnboardingActions = {
-  createHabit: vi.fn(async () => ({ id: '1', title: 'x' })),
+  createHabit: vi.fn(() => Promise.resolve({ id: '1', title: 'x' })),
   createHabitsBulk: vi.fn(async () => {}),
   logHabit: vi.fn(async () => {}),
   createGoal: vi.fn(async () => {}),

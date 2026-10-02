@@ -29,12 +29,12 @@ describe('ReferralRedirectScreen', () => {
     mocks.router.replace.mockClear()
   })
 
-  it('redirects an authenticated referral visit to Today at the root route', async () => {
+  it('redirects an authenticated referral visit to Today in the explicit tabs group', async () => {
     await TestRenderer.act(async () => {
       TestRenderer.create(<ReferralRedirectScreen />)
       await Promise.resolve()
     })
 
-    expect(mocks.router.replace).toHaveBeenCalledWith('/')
+    expect(mocks.router.replace).toHaveBeenCalledWith('/(tabs)')
   })
 })

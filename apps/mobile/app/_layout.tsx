@@ -348,7 +348,7 @@ function AppBottomTabBar({
   const handleTab = (id: BottomTabId) => {
     if (id === 'today') {
       setActiveView('today')
-      router.navigate('/')
+      router.navigate('/(tabs)')
       return
     }
     if (id === 'chat') router.navigate('/chat')

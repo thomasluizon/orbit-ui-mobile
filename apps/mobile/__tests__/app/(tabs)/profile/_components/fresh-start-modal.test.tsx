@@ -181,7 +181,7 @@ describe('FreshStartModal', () => {
     await TestRenderer.act(() => {
       ;(animation.props as { onComplete: () => void }).onComplete()
     })
-    expect(replace).toHaveBeenCalledWith('/')
+    expect(replace).toHaveBeenCalledWith('/(tabs)')
   })
 
   it('enqueues the reset when it is queued offline', async () => {

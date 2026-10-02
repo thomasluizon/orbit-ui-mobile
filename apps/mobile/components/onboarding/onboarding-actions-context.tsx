@@ -198,7 +198,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
-        router.replace('/')
+        router.replace('/(tabs)')
       },
       onImport: () => {
         void (async () => {
