@@ -196,6 +196,7 @@ describe('UpgradePage subscription management', () => {
       observe() {}
       disconnect() {}
     })
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
     mockProfile = {
       id: 'u1',
       hasProAccess: false,
@@ -231,6 +232,7 @@ describe('UpgradePage subscription management', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
   })
 
   it.each(['offline', 'portal-opening'] as const)('exposes %s on the upgrade content measured by the layout guard', async (state) => {
@@ -714,16 +716,31 @@ describe('UpgradePage subscription management', () => {
     expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
   })
 
-  it('hands a web Play subscriber to Play without opening a Stripe portal', async () => {
+  it.each(['org.useorbit.app.staging', 'org.useorbit.app'])('hands a web Play subscriber to %s without opening a Stripe portal', async (packageName) => {
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', packageName)
     mockHasProAccess = true
     mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: 'play' }
     const location = { href: '' }
     vi.stubGlobal('location', location)
     render(<UpgradePage />)
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.managePlay' }))
-    await waitFor(() => expect(location.href).toBe('https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=org.useorbit.app'))
+    await waitFor(() => expect(location.href).toBe(`https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=${packageName}`))
     expect(mockOpenCustomerPortal).not.toHaveBeenCalled()
     expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('u1')
+  })
+
+  it('shows a retry without navigating when the Play package is missing', async () => {
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', undefined)
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: 'play' }
+    const location = { href: '' }
+    vi.stubGlobal('location', location)
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.managePlay' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'upgrade.billing.retry' })).toBeEnabled())
+    expect(location.href).toBe('')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
+    expect(mockOpenCustomerPortal).not.toHaveBeenCalled()
   })
 
   it.each(['stripe', 'play'])('recovers the %s handoff after Back restores the page from bfcache', async (source) => {
