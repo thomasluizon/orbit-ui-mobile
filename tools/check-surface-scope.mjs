@@ -365,25 +365,29 @@ function expressionSurfaces(expression, sourceFile, state) {
   return [...surfaces]
 }
 
+function outermostGroup(node) {
+  let group
+  for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
+    if (!ts.isJsxElement(current)) continue
+    const className = current.openingElement.attributes.properties.find((attribute) =>
+      ts.isJsxAttribute(attribute) && propertyName(attribute.name) === "className")
+    if (className && /(?:["'`\s])group(?:["'`\s])/.test(className.getText())) group = current.openingElement
+  }
+  return group
+}
+
 function webForegroundStates(node, matchIndex, sourceFile) {
   const literal = ancestor(node, ts.isStringLiteralLike)
   if (!literal) return ["rest", "hover"]
   const before = sourceFile.text.slice(literal.getStart() + 1, matchIndex)
   const utility = before.match(/(?:^|\s)([^\s]*)$/)?.[1] ?? ""
-  const hasGroup = () => {
-    for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
-      if (!ts.isJsxElement(current)) continue
-      const className = current.openingElement.attributes.properties.find((attribute) =>
-        ts.isJsxAttribute(attribute) && propertyName(attribute.name) === "className")
-      if (className && /(?:["'`\s])group(?:["'`\s])/.test(className.getText())) return true
-    }
-    return false
-  }
-  if (utility.startsWith("hover:") || (utility.startsWith("group-hover:") && hasGroup())) return ["hover"]
+  const group = outermostGroup(node)
+  if (utility.startsWith("hover:") || (utility.startsWith("group-hover:") && group)) return ["hover"]
   const role = utility.match(/^(text|bg|border|fill|stroke)-/)?.[1]
   if (role && new RegExp(`(?:^|\\s)hover:${role}-\\[var\\(--`).test(literal.text)
     && !ancestorHoverSurface(node, sourceFile)) return ["rest"]
-  if (role && hasGroup() && new RegExp(`(?:^|\\s)group-hover:${role}-\\[var\\(--`).test(literal.text)) return ["rest"]
+  if (role && group && new RegExp(`(?:^|\\s)group-hover:${role}-\\[var\\(--`).test(literal.text)
+    && !ancestorHoverSurface(group, sourceFile)) return ["rest"]
   return ["rest", "hover"]
 }
 
