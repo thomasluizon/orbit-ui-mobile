@@ -114,6 +114,8 @@ describe.each(['dark', 'light'] as const)('field hover in Chromium, %s', (mode) 
     try {
       const rest = await paint(page)
       await page.locator('input, textarea').first().hover()
+      const transitions = await page.locator('[data-focus-perimeter], [data-otp-cell]').evaluateAll((perimeters) => perimeters.flatMap((perimeter) => perimeter.getAnimations({ subtree: true }).map((animation) => animation instanceof CSSTransition ? animation.transitionProperty : 'animation')))
+      expect(transitions).toContain('box-shadow')
       await expect.poll(async () => (await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.hover, width: 1 }])
       for (const perimeter of await paint(page)) {
         expect(perimeter.rings).toEqual([{ color: perimeter.colors.hover, width: 1 }])
@@ -163,6 +165,32 @@ describe.each(['dark', 'light'] as const)('field hover in Chromium, %s', (mode) 
       await page.locator('input, textarea').focus()
       await expect.poll(async () => (await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.focus, width: 2 }])
       expect((await paint(page))[0]!.extraStroke).toBe(0)
+      await session.detach()
+    } finally { await page.close() }
+  })
+
+  it.each(surfaces)('withdraws %s hover immediately when the control becomes disabled', async (surface) => {
+    const page = await open(surface)
+    try {
+      const rest = await paint(page)
+      await page.locator('input, textarea').first().hover()
+      await expect.poll(async () => (await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.hover, width: 1 }])
+      await page.locator('input, textarea').first().evaluate((control) => { (control as HTMLInputElement | HTMLTextAreaElement).disabled = true })
+      for (const perimeter of await paint(page)) {
+        expect(perimeter.rings).toEqual([{ color: perimeter.colors.rest, width: 1 }])
+        expect(perimeter.extraStroke).toBe(0)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each(['input', 'multiline'] as const)('withdraws the %s overlay hover immediately when autofill starts', async (surface) => {
+    const page = await open(surface)
+    try {
+      const rest = await paint(page)
+      await page.locator('input, textarea').hover()
+      await expect.poll(async () => (await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.hover, width: 1 }])
+      const session = await forceAutofill(page)
+      expect((await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.rest, width: 1 }])
       await session.detach()
     } finally { await page.close() }
   })
@@ -217,7 +245,9 @@ describe.each(['dark', 'light'] as const)('field hover in Chromium, %s', (mode) 
     const page = await open(surface)
     try {
       await page.emulateMedia({ reducedMotion: 'reduce' })
+      const rest = await paint(page)
       await page.locator('input, textarea').hover()
+      await expect.poll(async () => (await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.hover, width: 1 }])
       for (const perimeter of await paint(page)) {
         expect(perimeter.rings).toEqual([{ color: perimeter.colors.hover, width: 1 }])
         expect(Number.parseFloat(perimeter.duration)).toBeLessThanOrEqual(0.001)

@@ -1050,15 +1050,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @layer utilities {
+  .orbit-field-hover:where(:not([aria-invalid="true"])),
+  .orbit-field-hover-overlay:where(:not(:has([aria-invalid="true"])))::after,
+  .orbit-otp-hover [data-otp-cell]:where(:not([data-error], [data-active])) {
+    box-shadow: inset 0 0 0 1px var(--border-control);
+  }
+
   .orbit-field-hover,
   .orbit-field-hover-overlay::after,
   .orbit-otp-hover [data-otp-cell] {
     transition: box-shadow var(--dur-hover-control) var(--ease-standard);
   }
 
-  .orbit-field-hover:focus-within,
-  .orbit-field-hover-overlay:focus-within::after,
-  .orbit-otp-hover:focus-within [data-otp-cell] {
+  .orbit-field-hover:is(:focus-within, :disabled, :has(:disabled)),
+  .orbit-field-hover-overlay:is(:focus-within, :has(:disabled, :autofill))::after,
+  .orbit-otp-hover:is(:focus-within, :has(:disabled)) [data-otp-cell] {
     transition: none;
   }
 
