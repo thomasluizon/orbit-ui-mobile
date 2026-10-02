@@ -254,6 +254,20 @@ export const cases = async () => {
   cpSync(toolPath("lib"), join(live.checkout, "tools", "lib"), { recursive: true })
   const cli = spawnSync(process.execPath, [join(live.checkout, "tools", "relay-session.mjs")], { encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "predecessor" } })
   T("relay-session: real CLI refuses a live launcher by pid", cli.status === 1 && cli.stderr.includes(String(process.pid)))
+  const background = fixture("background-runs")
+  const directory = join(background.checkout, ".git", "orbit-background-runs", "predecessor")
+  mkdirSync(directory, { recursive: true })
+  const identity = processStartIdentity(process.pid)
+  for (const type of ["workflow", "subagent"]) writeFileSync(join(directory, `${type}-task.json`), JSON.stringify({
+    id: `${type}-task`, type, sessionId: "predecessor", pid: process.pid, processStartIdentity: identity,
+  }))
+  mkdirSync(join(background.checkout, "tools"), { recursive: true })
+  cpSync(toolPath("relay-session.mjs"), join(background.checkout, "tools", "relay-session.mjs"))
+  cpSync(toolPath("lib"), join(background.checkout, "tools", "lib"), { recursive: true })
+  const backgroundCli = spawnSync(process.execPath, [join(background.checkout, "tools", "relay-session.mjs")], {
+    encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "predecessor" },
+  })
+  T("relay-session: real CLI refuses and names every background run", backgroundCli.status === 1 && backgroundCli.stderr.includes("workflow-task") && backgroundCli.stderr.includes("subagent-task"), backgroundCli.stderr)
   const release = fixture("release")
   registerWakeSource({ pid: process.pid, what: "Release ui run 1" }, release.checkout)
   T("relay-session: release watcher blocks handoff", (await failure({ repoRoot: release.checkout, sessionId: "predecessor" })).includes(String(process.pid)))

@@ -4,6 +4,7 @@ import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
 import { acquireRelayLock, readRunState, readWakeSourceStates, writeRunState } from "../../tools/lib/run-state.mjs"
 import { recordHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
 import { appendChainEntry } from "../../tools/lib/session-chain.mjs"
+import { observeBackgroundRuns, readBackgroundRuns } from "../../tools/lib/background-runs.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 
@@ -15,6 +16,7 @@ try {
   // A subagent's tool hooks carry the parent session id; only the owning conversation may begin or hear its relay.
   const insideSubagent = typeof input?.agent_id === "string" && input.agent_id !== ""
   if (!insideSubagent && config.relay.enabled && state?.sleep === true && state.sessionId === input?.session_id) {
+    observeBackgroundRuns(input)
     const measuredTokens = readSessionContext(input.transcript_path)
     if (measuredTokens >= config.relay.thresholdTokens) {
       releaseLock = acquireRelayLock()
@@ -26,7 +28,7 @@ try {
     }
     const sources = readWakeSourceStates()
     const verdict = checkRelayStop({ ...config.relay, state, sessionId: input.session_id, measuredTokens,
-      wakeSources: sources.live, orphaned: sources.orphaned, stopHookActive: input.stop_hook_active === true })
+      wakeSources: sources.live, orphaned: sources.orphaned, backgroundRuns: readBackgroundRuns(input.session_id), stopHookActive: input.stop_hook_active === true })
     if (verdict?.begin) {
       const now = new Date().toISOString()
       writeRunState({ ...state, relay: { pending: true, from: input.session_id, measuredTokens,
