@@ -46,11 +46,14 @@ Prints one JSON object on stdout when the worker is gone: issue, engine, tier, p
 startedAt, endedAt, exitCode, outcome, plus what the run left in the tree: commitsSinceLaunch,
 commits and treeClean. Progress goes to stderr, so stdout stays pipeable.
 outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY or SPAWN_FAILED.
+Research prints research, outputFile, published, engine, model, pid, logFile, startedAt, endedAt,
+exitCode and outcome. It publishes only a non-empty final response from an engine that exits 0.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, 3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
-            8 admission refused new ticket work before reservation`
+            8 admission refused new ticket work before reservation
+Research exits 0 only after publishing findings, or 1 on engine, supervision or publication failure.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
