@@ -15,6 +15,8 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useUIStore } from '@/stores/ui-store'
+import { Composer } from '@/components/shell/composer'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 interface TodayAstraMocks {
   portuguese: boolean
@@ -94,6 +96,20 @@ describe('web Today Astra', () => {
     document.body.append(slot)
     return slot
   }
+
+  it('keeps exactly one conversation glyph target beside the proactive sentence', () => {
+    mocks.portuguese = true
+    mocks.notifications = [createMockNotification({
+      url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: '2026-08-29T10:00:00Z',
+    })]
+    renderTodayAstra()
+    render(<Composer state="idle" value="" suggestions={[]} words={ptBr.shell.composer}
+      onChangeValue={vi.fn()} onSend={vi.fn()} onOpenConversation={vi.fn()}
+      conversationLabel={ptBr.todayAstra.openConversation} />)
+
+    expect(screen.getAllByRole('button', { name: ptBr.todayAstra.openConversation })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Sua rotina mudou. Vamos conversar?' })).toHaveAccessibleDescription(ptBr.todayAstra.openConversation)
+  })
 
   it('leaves the retired Today composer slot empty', () => {
     const slot = appendComposerSlot()
@@ -220,54 +236,64 @@ describe('web Today Astra', () => {
       const browser = await launch
       const page = await browser.newPage()
       await page.setViewportSize({ width: 320, height: 800 })
-        mocks.profile.lastCompletionDate = variant === 'proactive' ? null
-          : new Date(Date.now() - (variant === 'elapsed' ? 3 : 31) * 86_400_000).toISOString().slice(0, 10)
-        mocks.notifications = variant === 'proactive' ? [createMockNotification({
-          url: '/chat', body: 'Sua rotina mudou. Vamos conversar sobre os hábitos que você quer retomar e organizar os próximos passos?',
-          createdAtUtc: new Date().toISOString(),
-        })] : []
-        mocks.portuguese = true
-        const { container, unmount } = renderTodayAstra()
-        for (const mode of ['dark', 'light'] as const) {
-          const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
-          for (const fontSize of [16, 32]) {
-            await page.setContent(`<html class="${mode}" lang="pt-BR"><style>${stylesheet.css}:root{${variables}font-size:${fontSize}px}body{padding:16px}</style><body>${container.innerHTML}</body></html>`)
-            await loadAppFonts(page)
-            const action = page.getByRole(variant === 'proactive' ? 'button' : 'link')
-            const appearance = await action.evaluate((element) => {
-              const style = getComputedStyle(element)
-              const sentence = element.querySelector('.today-astra-sentence')!
-              const sentenceStyle = getComputedStyle(sentence)
-              const reference = document.createElement('span')
-              reference.style.background = 'var(--bg-well)'
-              document.body.append(reference)
-              const target = element.getBoundingClientRect()
-              const prose = sentence.getBoundingClientRect()
-              return {
-                height: target.height, width: target.width, right: target.right,
-                paddingStart: style.paddingInlineStart, paddingEnd: style.paddingInlineEnd,
-                radius: style.borderRadius, background: style.backgroundColor,
-                expectedBackground: getComputedStyle(reference).backgroundColor,
-                proseHeight: prose.height, lineHeight: parseFloat(sentenceStyle.lineHeight),
-                clamp: sentenceStyle.webkitLineClamp,
-                fullText: sentence.textContent, name: element.textContent,
-                extraTarget: getComputedStyle(element, '::before').content,
-                overflow: document.documentElement.scrollWidth > window.innerWidth,
-              }
-            })
-            expect(appearance).toMatchObject({
-              width: 288, paddingStart: '16px', paddingEnd: '16px', radius: '12px',
-              background: appearance.expectedBackground, clamp: '2', extraTarget: 'none', overflow: false,
-            })
-            expect(appearance.height).toBeGreaterThanOrEqual(48)
-            expect(appearance.proseHeight).toBeLessThanOrEqual(appearance.lineHeight * 2)
-            expect(appearance.name).toBe(appearance.fullText)
-            if (fontSize === 32) expect(appearance.height).toBeGreaterThan(48)
-            await action.focus()
-            expect(await action.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('solid')
-          }
+      mocks.profile.lastCompletionDate = variant === 'proactive' ? null
+        : new Date(Date.now() - (variant === 'elapsed' ? 3 : 31) * 86_400_000).toISOString().slice(0, 10)
+      mocks.notifications = variant === 'proactive' ? [createMockNotification({
+        url: '/chat', body: 'Sua rotina mudou. Vamos conversar sobre os hábitos que você quer retomar e organizar os próximos passos?',
+        createdAtUtc: new Date().toISOString(),
+      })] : []
+      mocks.portuguese = true
+      const { container, unmount } = renderTodayAstra()
+      for (const mode of ['dark', 'light'] as const) {
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
+        for (const fontSize of [16, 32]) {
+          await page.mouse.move(0, 0)
+          await page.setContent(`<html class="${mode}" lang="pt-BR"><style>${stylesheet.css}:root{${variables}font-size:${fontSize}px}body{padding:16px}</style><body>${container.innerHTML}</body></html>`)
+          await loadAppFonts(page)
+          const action = page.getByRole(variant === 'proactive' ? 'button' : 'link')
+          const appearance = await action.evaluate((element) => {
+            const style = getComputedStyle(element)
+            const sentence = element.querySelector('.today-astra-sentence')!
+            const sentenceStyle = getComputedStyle(sentence)
+            const reference = document.createElement('span')
+            reference.style.background = 'var(--bg-well)'
+            document.body.append(reference)
+            const target = element.getBoundingClientRect()
+            const prose = sentence.getBoundingClientRect()
+            return {
+              height: target.height, width: target.width, right: target.right,
+              paddingStart: style.paddingInlineStart, paddingEnd: style.paddingInlineEnd,
+              radius: style.borderRadius, background: style.backgroundColor,
+              textColor: sentenceStyle.color, glyphColor: getComputedStyle(element.querySelector('svg')!).color,
+              canvas: getComputedStyle(document.body).backgroundColor,
+              expectedBackground: getComputedStyle(reference).backgroundColor,
+              proseHeight: prose.height, lineHeight: parseFloat(sentenceStyle.lineHeight),
+              clamp: sentenceStyle.webkitLineClamp,
+              fullText: sentence.textContent, name: element.textContent,
+              extraTarget: getComputedStyle(element, '::before').content,
+              overflow: document.documentElement.scrollWidth > window.innerWidth,
+            }
+          })
+          expect(appearance).toMatchObject({
+            width: 288, paddingStart: '16px', paddingEnd: '16px', radius: '12px',
+            background: appearance.expectedBackground, clamp: '2', extraTarget: 'none', overflow: false,
+          })
+          expect(appearance.height).toBeGreaterThanOrEqual(48)
+          expect(appearance.proseHeight).toBeLessThanOrEqual(appearance.lineHeight * 2)
+          expect(appearance.name).toBe(appearance.fullText)
+          if (fontSize === 32) expect(appearance.height).toBeGreaterThan(48)
+          expect(contrastOnSurface(appearance.textColor, [appearance.canvas, appearance.background])).toBeGreaterThanOrEqual(4.5)
+          expect(contrastOnSurface(appearance.glyphColor, [appearance.canvas, appearance.background])).toBeGreaterThanOrEqual(3)
+          await page.keyboard.press('Tab')
+          expect(await action.evaluate((element) => document.activeElement === element)).toBe(true)
+          expect(await action.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('solid')
+          await action.hover()
+          const hoveredFill = await action.evaluate((element) => getComputedStyle(element).backgroundColor)
+          expect(hoveredFill).not.toBe(appearance.background)
+          expect(contrastOnSurface(appearance.textColor, [appearance.canvas, hoveredFill])).toBeGreaterThanOrEqual(4.5)
         }
-        unmount()
+      }
+      unmount()
       await page.close()
     } finally {
       await closeChrome(launch)

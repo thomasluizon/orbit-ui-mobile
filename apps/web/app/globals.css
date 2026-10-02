@@ -1250,6 +1250,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   text-align: start;
   text-decoration: none;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .today-astra-line > svg {
