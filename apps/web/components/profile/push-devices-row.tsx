@@ -36,6 +36,7 @@ export function PushDevicesRow({
   const t = useTranslations()
   const [limitReached, setLimitReached] = useState(false)
   const canEnable = count !== undefined && max !== undefined && count < max
+  const showLimit = limitReached && !error && !currentDeviceRegistered && !canEnable
   const checking = status === 'checking'
   const disabled = checking || loading || error || !supported || count === undefined || max === undefined
   return (
@@ -58,9 +59,7 @@ export function PushDevicesRow({
           <RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />
         </PillButton>
       </div> : null}
-      {limitReached && !error && !currentDeviceRegistered && !canEnable ? (
-        <p role="status" className="m-0 px-4 pb-3 text-sm text-[var(--fg-3)]">{t('profile.settingsRows.pushDeviceLimit')}</p>
-      ) : null}
+      <p role="status" className={`m-0 text-sm text-[var(--fg-3)]${showLimit ? ' px-4 pb-3' : ''}`}>{showLimit ? t('profile.settingsRows.pushDeviceLimit') : ''}</p>
       <PushDeviceStatus status={status} permission={permission} />
     </RowList>
     </div>

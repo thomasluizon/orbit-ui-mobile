@@ -6,6 +6,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
 import { listRowValueCases } from '@orbit/shared/test-support/list-row-values'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { PushDevicesRow } from '@/components/profile/push-devices-row'
+import { createTokensV2 } from '@/lib/theme'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { ListRow } from '@/components/ui/list-row'
 import { i18n } from '@/lib/i18n'
@@ -170,4 +172,23 @@ it.each(['en', 'pt-BR'])('keeps every value caller inside its Android row at 412
       } else if (!props.wrapValue) expect(value.node.getComputedWidth(), surface).toBeGreaterThanOrEqual(value.width)
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
   }
+})
+
+
+it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1440].map((width) => ({ locale, width }))))('keeps the Android notification label readable in $locale at $width px', async ({ locale, width }) => {
+  await i18n.changeLanguage(locale)
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<PushDevicesRow tokens={createTokensV2()} count={5} max={5} currentDeviceRegistered={false} supported loading={false} error={false} permissionStatus="undetermined" registrationStatus="idle" onToggle={() => {}} onOpenSettings={() => {}} onRetry={() => {}} />) })
+  const texts = new Map<string, { node: YogaNode; width: number }>()
+  const layout = layoutHost(tree.toJSON(), texts)
+  try {
+    layout.calculateLayout(width - 32, 'auto', Yoga.DIRECTION_LTR)
+    const label = i18n.t('profile.settingsRows.alertsOnThisDevice')
+    const title = texts.get(label)!
+    expect(title.node.getComputedWidth()).toBeGreaterThanOrEqual(title.width)
+    expect(position(title.node).right).toBeLessThanOrEqual(width - 32 - 48)
+    const switches = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
+    expect(switches).toHaveLength(1)
+    expect(switches[0].props.accessibilityState).toMatchObject({ checked: false })
+  } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
 })

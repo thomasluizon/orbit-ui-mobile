@@ -50,11 +50,9 @@ function PushDevicesFeedback({
           <RotateCcw size={16} color={tokens.fg2} strokeWidth={1.8} />
         </PillButton>
       </View> : null}
-      {full ? (
-        <Text style={{ color: tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>
-          {t('profile.settingsRows.pushDeviceLimit')}
-        </Text>
-      ) : null}
+      <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg3, paddingHorizontal: full ? 16 : 0, paddingBottom: full ? 12 : 0, fontSize: 14 }}>
+        {full ? t('profile.settingsRows.pushDeviceLimit') : ''}
+      </Text>
       {showPushStatus ? (
         <Text accessibilityRole="alert" style={{ color: pushStatus.tone === 'critical' ? tokens.statusBadText : tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>
           {t(pushStatus.messageKey)}

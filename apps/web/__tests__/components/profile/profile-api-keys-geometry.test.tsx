@@ -13,6 +13,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 
 const settings = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR' }))
@@ -121,4 +122,24 @@ describe('Profile API key row geometry', () => {
       }
     } finally { await page.close() }
   })
+  it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1440].map((width) => ({ locale, width }))))('keeps the notification label and switch readable in $locale at $width px', async ({ locale, width }) => {
+    settings.locale = locale as 'en' | 'pt-BR'
+    const { container } = render(<div style={{ padding: 16 }}><PushDevicesRow count={5} max={5} currentDeviceRegistered={false} supported loading={false} error={false} permission="default" status="not-registered" onToggle={() => {}} onRetry={() => {}} /></div>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(() => {
+        const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+        const control = document.querySelector<HTMLElement>('[role="switch"]')!
+        const titleBox = title.getBoundingClientRect()
+        const switchBox = control.getBoundingClientRect()
+        return { titleFits: title.scrollWidth <= title.clientWidth, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
+      })
+      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 44, switches: 1 })
+      expect(measured.text).not.toContain('5 of 5')
+      expect(measured.text).not.toContain('5 de 5')
+    } finally { await page.close() }
+  })
+
 })
