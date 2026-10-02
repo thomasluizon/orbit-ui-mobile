@@ -4,7 +4,7 @@ import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { REPO_ROOT, gitDirectoryOf, isWakeSourceAlive, processStartIdentity } from "./run-state.mjs"
 
-const TERMINAL_WORKFLOW_STATES = new Set(["completed", "failed", "killed", "paused"])
+const TERMINAL_WORKFLOW_STATES = new Set(["completed", "failed", "killed"])
 const directoryOf = (repoRoot, sessionId) => join(gitDirectoryOf(repoRoot), "orbit-background-runs", encodeURIComponent(sessionId))
 const recordPath = (directory, id) => join(directory, `${encodeURIComponent(id)}.json`)
 const entries = (directory) => {

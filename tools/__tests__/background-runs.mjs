@@ -23,7 +23,7 @@ export const cases = async () => {
   T("background-runs: a subagent Stop is not parent completion evidence", readBackgroundRuns("parent", repoRoot).length === 2)
   const workflowDirectory = join(claudeDirectory, "parent", "workflows")
   mkdirSync(workflowDirectory, { recursive: true })
-  for (const status of ["completed", "failed", "killed", "paused"]) {
+  for (const status of ["completed", "failed", "killed"]) {
     observeBackgroundRuns({ ...input, tool_name: "Workflow", tool_response: launches.workflow }, options)
     writeFileSync(join(workflowDirectory, "wf_fixture.json"), JSON.stringify({ status }))
     T(`background-runs: persisted ${status} workflow does not strand the drain`, readBackgroundRuns("parent", repoRoot).map((run) => run.type).join() === "subagent")
