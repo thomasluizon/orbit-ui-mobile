@@ -1,7 +1,16 @@
 import { expect, type Locator } from '@playwright/test'
+import { API } from '@orbit/shared/api'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
+import { LAYOUT_ORIGIN } from '../support/env'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
+
+const goals = paginatedGoalResponseSchema.parse({
+  items: Array.from({ length: 3 }, (_, index) => createMockGoal({ id: `inset-goal-${index}` })),
+  page: 1, pageSize: 100, totalCount: 3, totalPages: 1,
+})
 
 async function measureTopInset(content: Locator) {
   return content.evaluate((element) => {
@@ -18,7 +27,11 @@ for (const locale of ['en', 'pt-BR'] as const) {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
       const words = locale === 'pt-BR' ? ptBR : en
 
-      test('insets Perfil and preserves Progresso spacing', async ({ page }) => {
+      test('insets Perfil and preserves Progresso spacing', async ({ page, context }) => {
+        await context.route(
+          (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
+          (route) => route.fulfill({ json: goals }),
+        )
         await page.goto('/profile')
         const firstCard = page.getByTestId('profile-settings-group-you').locator('.orbit-row-list')
         await expect(firstCard).toBeVisible()
