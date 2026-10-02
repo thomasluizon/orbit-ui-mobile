@@ -1151,7 +1151,10 @@ const postToolRelayHooks = settings.hooks.PostToolUse
   .filter((entry) => new RegExp(entry.matcher ?? ".*").test("Bash"))
   .flatMap((entry) => entry.hooks)
   .filter((hook) => hook.command.includes("relay-at-threshold.mjs"))
-T("relay post-tool: every tool matches exactly one relay check", postToolRelayHooks.length, 1)
+T("relay post-tool: Bash matches exactly one relay check", postToolRelayHooks.length, 1)
+T("relay post-tool: reads, edits, agents and MCP tools each match once", ["Read", "Edit", "Write", "Agent", "mcp__server__tool"].map((toolName) =>
+  settings.hooks.PostToolUse.filter((entry) => new RegExp(entry.matcher ?? ".*").test(toolName))
+    .flatMap((entry) => entry.hooks).filter((hook) => hook.command.includes("relay-at-threshold.mjs")).length), [1, 1, 1, 1, 1])
 const postToolPayload = { session_id: relayPayload.session_id, transcript_path: relayTranscript, cwd: wakeCheckout,
   permission_mode: relayPayload.permission_mode, hook_event_name: "PostToolUse", tool_name: "Bash",
   tool_input: { command: "true" }, tool_response: { stdout: "", stderr: "", interrupted: false }, tool_use_id: "tool-call", duration_ms: 1 }
@@ -1213,6 +1216,7 @@ fs.readFileSync = function (path, ...args) {
     while (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2 && Date.now() < deadline) {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5)
     }
+    if (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2) process.exit(1)
   }
   return contents
 }
