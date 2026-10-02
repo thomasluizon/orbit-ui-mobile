@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useDocumentTitle } from '@/hooks/use-document-title'
 import {
   getTrialDaysLeft,
   resolveSubscriptionScreen,
@@ -84,6 +85,7 @@ export default function UpgradePage() {
   })
   const screenState = heldAccountId === null ? 'loading' : model.state
   const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch, heldAccountId !== null)
+  useDocumentTitle(t(titleKey ?? 'upgrade.pitchTitle'))
 
   const usagePercent = useMemo(() => {
     if (!status || status.aiMessagesLimit === 0) return 0

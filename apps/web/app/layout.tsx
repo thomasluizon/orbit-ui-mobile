@@ -144,10 +144,10 @@ export default async function RootLayout({
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <PostHogProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
+            <RouteContext />
             <Suspense fallback={null}>
               <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
               <NavigationHistoryTracker />
-              <RouteContext />
             </Suspense>
             <KeyboardPlatformProvider applePlatform={applePlatform}>
               {children}

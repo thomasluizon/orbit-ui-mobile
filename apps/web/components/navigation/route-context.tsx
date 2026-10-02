@@ -10,7 +10,7 @@ export function RouteContext() {
   const pathname = usePathname()
   const route = resolveTitledRoute(pathname)
   const t = useTranslations()
-  useDocumentTitle(route === '/habits/[id]' ? null : t(ROUTE_TITLE_KEYS[route]))
+  useDocumentTitle(t(ROUTE_TITLE_KEYS[route]), pathname)
   useRouteFocus(pathname)
   return null
 }

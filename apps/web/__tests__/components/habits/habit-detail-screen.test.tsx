@@ -22,11 +22,13 @@ import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { DestinationShell } from '@/components/shell/destination-shell'
+import { RouteContext } from '@/components/navigation/route-context'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => ({
+  pathname: '/habits/habit-1',
   realTimeField: false,
   realReminderSections: false,
   logs: [] as HabitLog[],
@@ -81,7 +83,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
-  usePathname: () => '/habits/habit-1',
+  usePathname: () => mocks.pathname,
   useParams: () => ({}),
 }))
 
@@ -277,6 +279,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
   })
   beforeEach(() => {
+    mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
     mocks.realReminderSections = false;
     vi.useFakeTimers()
@@ -639,6 +642,18 @@ describe('HabitDetailScreen', () => {
     mocks.detailLoading = false
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
+  })
+
+  it('keeps a loaded habit name over the route fallback on locale and habit changes', () => {
+    const view = render(<><RouteContext /><HabitDetailScreen habitId="habit-1" /></>)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
+    mocks.language = 'pt-BR'
+    view.rerender(<><RouteContext /><HabitDetailScreen habitId="habit-1" /></>)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
+    mocks.pathname = '/habits/habit-2'
+    mocks.detail = { ...mocks.detail!, id: 'habit-2' }
+    view.rerender(<><RouteContext /><HabitDetailScreen habitId="habit-2" /></>)
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
 

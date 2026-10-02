@@ -9,6 +9,9 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { Profile } from '@orbit/shared/types/profile'
 import { setAccountId } from '@/lib/account-scope'
 import * as apiFetch from '@/lib/api-fetch'
+import { RouteContext } from '@/components/navigation/route-context'
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade' }))
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -218,6 +221,19 @@ describe('UpgradePage', () => {
     { locale: 'en', messages: en, trialHeading: 'The 50 a day stay, or go back to 5.' },
     { locale: 'pt-BR', messages: ptBR, trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
+    it('names the pitch and subscription management before Orbit', () => {
+      mockLocale.value = locale
+      const view = render(<><RouteContext /><UpgradePage /></>)
+      expect(document.title).toBe(`${messages.upgrade.pitchTitle} · Orbit`)
+      mockHasProAccess = true
+      mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false, subscriptionSource: 'play' }
+      view.rerender(<><RouteContext /><UpgradePage /></>)
+      expect(document.title).toBe(`${messages.upgrade.title} · Orbit`)
+      mockLocale.value = locale === 'en' ? 'pt-BR' : 'en'
+      view.rerender(<><RouteContext /><UpgradePage /></>)
+      expect(document.title).toBe(`${(mockLocale.value === 'en' ? en : ptBR).upgrade.title} · Orbit`)
+    })
+
     it.each([4, 1, 0, null])('uses the trial heading with %s days left', (daysLeft) => {
       mockLocale.value = locale
       mockHasProAccess = true

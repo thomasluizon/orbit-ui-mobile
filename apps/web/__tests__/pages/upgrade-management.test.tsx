@@ -288,6 +288,7 @@ describe('UpgradePage subscription management', () => {
     expect(screen.queryAllByText('upgrade.billing.actions.providerNote')).toHaveLength(Number(hasProviderGuidance))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
+    expect(document.title).toBe('upgrade.title · Orbit')
     if (!['loading', 'load-failed'].includes(state)) {
       expect(screen.getByRole('heading', {
         level: 2,
@@ -302,6 +303,7 @@ describe('UpgradePage subscription management', () => {
     mockIsStatusLoading = true
     const view = render(<UpgradePage />)
     expect(screen.getByRole('heading', { level: 1 })).toBeEmptyDOMElement()
+    expect(document.title).toBe('upgrade.pitchTitle · Orbit')
     expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
 
     mockProfile = { id: 'u1', hasProAccess: true, isTrialActive: false, subscriptionSource: 'stripe', aiMessagesUsed: 0, aiMessagesLimit: 20 }
@@ -309,6 +311,7 @@ describe('UpgradePage subscription management', () => {
     mockIsStatusLoading = false
     view.rerender(<UpgradePage />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
+    expect(document.title).toBe('upgrade.title · Orbit')
     expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
   })
 

@@ -405,7 +405,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const t = useTranslations()
   const router = useRouter()
   const { profile, isError, refetch } = useProfile()
-  useDocumentTitle(profile ? null : t('habits.detail.screenTitle'))
+  useDocumentTitle(profile ? null : t('habits.detail.screenTitle'), habitId)
   if (!profile) {
     return <HabitDetailFrame navigationKey={`${parentId ?? ''}:${date ?? ''}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} titleIsHeading onBack={() => {
       if (parentId || fromToday) router.back()
@@ -472,7 +472,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     const merged = mergeHabitDetailWithScopedHabit(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), dateStr, habitsQuery.data?.habitsById.get(habitId))
     return parentId ? { ...merged, parentId } : merged
   }, [allHabitsQuery.data, detailQuery.data, habitId, dateStr, habitsQuery.data, parentId])
-  useDocumentTitle(detailQuery.isLoading || allHabitsQuery.isLoading ? t('habits.detail.screenTitle') : habit?.title ?? t('habits.detail.screenTitle'))
+  useDocumentTitle(detailQuery.isLoading || allHabitsQuery.isLoading ? t('habits.detail.screenTitle') : habit?.title ?? t('habits.detail.screenTitle'), habitId)
   const relationshipControlsAvailable = detailQuery.data ? hasAuthoritativeHabitRelationshipState(detailQuery.data, allHabitsQuery.data?.habitsById.get(habitId), habitsQuery.data?.habitsById.get(habitId)) : false
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)

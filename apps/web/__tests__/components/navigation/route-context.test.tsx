@@ -6,10 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { RouteContext } from '@/components/navigation/route-context'
+import AppError from '@/app/(app)/error'
 import { formatRouteTitle, resolveTitledRoute, ROUTE_TITLE_KEYS } from '@/lib/route-titles'
 
 const navigation = vi.hoisted(() => ({ pathname: '/' }))
 vi.mock('next/navigation', () => ({ usePathname: () => navigation.pathname }))
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 
 function pageRoutes(directory: string, segments: string[] = []): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -48,8 +50,8 @@ it('covers every page in the web route table with a surface name in both locales
 })
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('route titles in $locale', ({ locale, messages }) => {
-  it.each(Object.entries(ROUTE_TITLE_KEYS).filter(([route]) => route !== '/habits/[id]'))('names %s before Orbit', (route, key) => {
-    navigation.pathname = route === '/[...missing]' ? '/unknown/page' : route === '/r/[code]' ? '/r/invitation' : route
+  it.each(Object.entries(ROUTE_TITLE_KEYS))('names %s before Orbit', (route, key) => {
+    navigation.pathname = route === '/[...missing]' ? '/unknown/page' : route === '/r/[code]' ? '/r/invitation' : route === '/habits/[id]' ? '/habits/habit-1' : route
     render(<NextIntlClientProvider locale={locale} messages={messages}><RouteContext /></NextIntlClientProvider>)
     expect(document.title).toBe(`${messageAt(messages, key)} · Orbit`)
   })
@@ -71,13 +73,21 @@ it('updates the title when the locale changes without navigation', () => {
   expect(document.title).toBe(`${ptBR.about.title} · Orbit`)
 })
 
-it('leaves habit detail titles to the loaded screen', () => {
+it('installs a generic habit title before the screen mounts', () => {
   navigation.pathname = '/habits/habit-1'
   document.title = 'Read · Orbit'
   render(<NextIntlClientProvider locale="en" messages={en}><RouteContext /></NextIntlClientProvider>)
-  expect(document.title).toBe('Read · Orbit')
+  expect(document.title).toBe(`${en.habits.detail.screenTitle} · Orbit`)
   expect(resolveTitledRoute('/habits/new')).toBe('/habits/new')
   expect(resolveTitledRoute('/habits/habit-1/invalid')).toBe('/[...missing]')
+})
+
+it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('names a habit route reaching the error boundary in $locale', ({ locale, messages }) => {
+  navigation.pathname = '/habits/habit-2'
+  document.title = 'Previous habit · Orbit'
+  render(<NextIntlClientProvider locale={locale} messages={messages}><RouteContext /><main><AppError error={new Error('Route load failed')} reset={() => {}} /></main></NextIntlClientProvider>)
+  expect(document.title).toBe(`${messages.habits.detail.screenTitle} · Orbit`)
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(messages.errorScreen.title)
 })
 
 describe('client navigation focus', () => {

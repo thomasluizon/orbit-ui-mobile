@@ -9,7 +9,7 @@ import { RouteContext } from '@/components/navigation/route-context'
 
 const route = vi.hoisted(() => ({ params: new URLSearchParams(), replace: vi.fn(), form: null as ComponentProps<typeof CreateHabitModal> | null }))
 vi.mock('next/navigation', () => ({ usePathname: () => '/habits/new', useRouter: () => ({ replace: route.replace }), useSearchParams: () => route.params }))
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: ComponentProps<typeof CreateHabitModal>) => {
   route.form = props
   return <button type="button" onClick={() => props.onOpenChange(false)}>back</button>
