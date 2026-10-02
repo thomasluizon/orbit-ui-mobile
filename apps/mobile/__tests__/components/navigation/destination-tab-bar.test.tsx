@@ -27,7 +27,7 @@ describe('DestinationTabBar', () => {
     expect(tabs.map((node) => node.props.accessibilityLabel)).toEqual(['nav.today', 'nav.calendar', 'nav.progress', 'nav.profile'])
     expect(tabs.filter((node) => node.props.accessibilityState?.selected)).toEqual([tabs[1]])
     for (const tab of tabs) press(tab)
-    expect(mocks.navigate.mock.calls).toEqual([['/'], ['/calendar'], ['/progress'], ['/profile']])
+    expect(mocks.navigate.mock.calls).toEqual([['/(tabs)'], ['/calendar'], ['/progress'], ['/profile']])
     tree.unmount()
   })
 

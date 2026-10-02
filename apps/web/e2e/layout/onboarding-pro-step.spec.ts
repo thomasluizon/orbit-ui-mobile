@@ -27,6 +27,20 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.goto('/')
         const step = page.locator(`[data-onboarding-step="${branch}"]`)
         await expect(step).toBeVisible()
+        if (branch === 'paywall') {
+          const cards = step.locator('[data-tier-content]')
+          await expect(cards).toHaveCount(2)
+          await expect(step.getByRole('list', { name: messages.upgrade.outcomes.label, exact: true })).toHaveCount(2)
+          for (const interval of ['yearly', 'monthly'] as const) {
+            const card = cards.filter({ has: page.getByRole('heading', { name: messages.upgrade.plans[interval].name, exact: true }) })
+            await expect(card).toHaveAttribute('data-tier-content', interval)
+            const outcomes = card.getByRole('list', { name: messages.upgrade.outcomes.label, exact: true })
+            await expect(outcomes.getByRole('listitem')).toHaveCount(4)
+            for (const key of ['astra', 'calendar', 'retrospective', 'noticing'] as const) {
+              await expect(outcomes.getByText(messages.upgrade.outcomes[key], { exact: true })).toBeVisible()
+            }
+          }
+        }
         await page.evaluate(() => document.fonts.ready)
         const bounds = await step.boundingBox()
         expect(bounds).not.toBeNull()
@@ -38,9 +52,15 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         if (branch === 'trial') {
           await expect(step.getByRole('button', { name: messages.onboarding.flow.done.seeDay, exact: true })).toHaveCount(1)
           await expect(step.locator('[data-tier-content]')).toHaveCount(0)
+          expect(geometry.tiers).toEqual([])
         } else {
           await expect(step.getByRole('link', { name: messages.upgrade.convert.stayFree })).toBeVisible()
           await expect(step.locator('[data-tier-content]')).toHaveCount(2)
+          expect(geometry.tiers.map((tier) => tier.interval)).toEqual(['yearly', 'monthly'])
+          for (const tier of geometry.tiers) {
+            expect(tier.height).toBeCloseTo(tier.contentHeight, 0)
+            expect(tier.belowButton).toBeCloseTo(tier.padding, 0)
+          }
         }
       })
     }

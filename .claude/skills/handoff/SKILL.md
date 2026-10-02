@@ -1,7 +1,7 @@
 ---
 name: handoff
 description: Carry a long-running effort into a fresh session. Updates the effort's spec file in this repo with everything durable the session established, then writes a short prompt that points at it. Use at the end of a session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. Pass --sleep to prepare NEXT.md for an unattended next session entered through /sleep. It writes a spec and a prompt, then ends the session without doing the work they describe.
-argument-hint: "[--sleep] [extra instructions for the NEXT session]"
+argument-hint: "[--sleep] [--relay] [extra instructions for the NEXT session]"
 effort: high
 ---
 
@@ -11,6 +11,38 @@ effort: high
 `--sleep` or `/sleep` anywhere in it means `NEXT.md` must be a complete prompt for an unattended
 next session whose entry point is `/sleep`. Nobody has to add anything before it runs. Anything else
 is extra work for the NEXT session. You never do that work now.
+
+## Context relay mode
+
+`--relay` is the unattended context transition requested by `relay-at-threshold.mjs`.
+It includes `--sleep`. It never invokes `/questions`, asks the owner anything, or ends the
+session before a successor is confirmed. This is the exception to the owner handoff's ending
+rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
+
+Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this
+session's exact id. Carry every chain entry's complete decisions and open owner questions,
+along with the current decision log. Put every unresolved owner question in the spec's
+`## Open questions` and the run state's `openOwnerQuestions` array. Record who must answer and
+what it blocks; defer it without asking. Retain questions from earlier chain entries even if
+the current session did not discover them.
+
+Add this one timeless line to the spec: `The session chain ledger lives untracked at .git/orbit-session-chain.json.`
+Keep session ids, timestamps, terminal handles and timed decision logs in that ledger.
+
+After committing and pushing both files in the orchestrating checkout, run
+`node tools/relay-session.mjs`. It remeasures the transcript and checks the actual launchers,
+release watchers and remote handoff before starting the successor. Only its confirmed
+successor result ends this session. Adoption transfers ownership and durably fences this
+session immediately, even if reporting confirmation is interrupted; the successor reconciles
+the open chain. Before adoption, a failed launch leaves the predecessor responsible: end the
+turn with `node tools/relay-session.mjs --retry-wake` as a background task and retry when it
+exits, at least ten minutes later. Launch nothing during that wait. After two failures near
+the auto compact point, the hook records the fallback and permits ordinary continuation.
+
+An owner-origin `/handoff` clears a pending drain through `record-handoff-request.mjs`.
+After an owner handoff has finished its committed and pushed outputs, run
+`node tools/relay-session.mjs --close-chain` before the final reply. This records the current
+session and closes the reporting chain. An automatic relay leaves it open.
 
 Two outputs, both committed files in this repo:
 

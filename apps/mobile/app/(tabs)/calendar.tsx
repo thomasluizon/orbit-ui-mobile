@@ -1125,7 +1125,7 @@ function CalendarScreenContent({
           onClose={() => closeImportSheet()}
           onGoToHabits={() => closeImportSheet(() => {
             setIsImportOpen(false);
-            router.push('/');
+            router.push('/(tabs)');
           })}
         />
       </Sheet>) : null}

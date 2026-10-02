@@ -19,8 +19,6 @@ function singleLineLabels(messages: typeof en, trial: boolean): string[] {
     messages.upgrade.convert.freeAllowance,
     messages.upgrade.convert.proAllowance,
     messages.upgrade.convert.perDay,
-    ...Object.values(messages.upgrade.outcomes).flatMap((outcome) =>
-      typeof outcome === 'string' ? [] : [outcome.title]),
     messages.upgrade.plans.interval.monthly,
     messages.upgrade.plans.interval.annual,
     messages.upgrade.plans.monthly.name,

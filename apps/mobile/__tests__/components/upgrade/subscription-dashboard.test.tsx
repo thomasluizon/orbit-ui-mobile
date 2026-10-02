@@ -531,7 +531,7 @@ describe('subscription dashboards (mobile)', () => {
 
   })
 
-  it('renders the arithmetic pitch and exactly three outcome rows', () => {
+  it('renders the arithmetic pitch and four outcomes per tier', () => {
     const onStayFree = vi.fn()
     const tree = renderPricing({ plans, onStayFree })
     const text = renderedText(tree)
@@ -546,7 +546,13 @@ describe('subscription dashboards (mobile)', () => {
     )).toHaveLength(0)
     const outcomes = tree.root.findAll((node) => node.type === 'View'
       && node.props.accessibilityLabel === 'upgrade.outcomes.label')
-    expect(outcomes).toHaveLength(0)
+    expect(outcomes).toHaveLength(2)
+    for (const interval of ['yearly', 'monthly']) {
+      const card = tree.root.findAll((node) => node.type === 'View' && node.props.testID === `upgrade-tier-${interval}`)[0]
+      expect(card).toBeDefined()
+      const renderedCard = card as unknown as { findAll: (predicate: (node: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }
+      expect(renderedCard.findAll((node) => node.type === 'View' && node.props.accessibilityLabel === 'upgrade.outcomes.label')).toHaveLength(1)
+    }
     expect(text).toContain('upgrade.convert.promise')
     expect(text).toContain('upgrade.convert.trustLine')
     expect(text).toContain('upgrade.convert.cancelAnytime')
@@ -562,20 +568,20 @@ describe('subscription dashboards (mobile)', () => {
       (node) => node.type === 'View'
         && node.props.accessibilityElementsHidden === true
         && node.props.importantForAccessibility === 'no-hide-descendants',
-    )).toHaveLength(4)
+    )).toHaveLength(9)
     expect(tree.root.findAll(
       (node) => node.type === 'Text'
         && node.props.accessibilityRole === 'header'
         && typeof node.props.children === 'string'
         && node.props.children.startsWith('upgrade.outcomes.'),
-    )).toHaveLength(3)
+    )).toHaveLength(0)
     const decline = tree.root.findAll(
       (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
     ).at(-1)
     expect(decline).toBeDefined()
     TestRenderer.act(() => (decline?.props.onPress as (() => void) | undefined)?.())
     expect(onStayFree).toHaveBeenCalledTimes(1)
-    expect(text.match(/upgrade\.outcomes\.(calendar|retrospective|noticing)\.title/g)).toHaveLength(3)
+    expect(text.match(/upgrade\.outcomes\.(astra|calendar|retrospective|noticing)/g)).toHaveLength(8)
     expect(text).not.toContain('upgrade.features.')
     expect(text).not.toContain('upgrade.matrix.')
   })

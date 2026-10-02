@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
@@ -229,6 +229,19 @@ describe('PlanSelection', () => {
     expect(loadedMotion.transition).toEqual({ duration: 0 })
   })
 
+  it('puts the same four outcomes inside each loaded tier', () => {
+    const view = renderSelection()
+    for (const interval of ['yearly', 'monthly']) {
+      const card = tierNamed(`upgrade.plans.${interval}.name`)
+      const outcomes = within(card).getByRole('list', { name: 'upgrade.outcomes.label' })
+      expect(within(outcomes).getAllByRole('listitem')).toHaveLength(4)
+      for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+        expect(within(outcomes).getByText(`upgrade.outcomes.${key}`)).toBeInTheDocument()
+      }
+    }
+    expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
+  })
+
   it('renders annual arithmetic from the payload', () => {
     renderSelection()
 
@@ -291,29 +304,21 @@ describe('PlanSelection', () => {
     expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(2)
     expect(screen.queryByRole('button', { name: /upgrade\.plans\.checkoutLabel/ })).toBeNull()
     view.rerender(<PlanSelection {...view} plans={{ ...plans, couponPercentOff: 23 }} isLoading={false} />)
-    expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(2)
+    expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
   })
 
-  it.each(['yearly', 'monthly'] as const)('reserves the measured %s height through loading and coupon arrival', (interval) => {
-    let measuredHeight = 317
-    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
-      return this.hasAttribute('data-tier-measurement') ? measuredHeight : 0
-    })
+  it.each(['yearly', 'monthly'] as const)('reserves %s only while prices load', (interval) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(317)
     const view = renderSelection({ plans: null, isLoading: true })
     const reservation = () => view.container.querySelector(`[data-tier-reservation="${interval}"]`)
     expect(reservation()).toHaveStyle({ minHeight: '317px' })
     expect(view.container.querySelector(`[data-tier-measurement="${interval}"]`)).toHaveAttribute('inert')
     expect(screen.queryAllByRole('button', { name: /checkoutLabel/ })).toHaveLength(0)
-
-    view.rerender(<PlanSelection {...view} plans={{ ...plans, couponPercentOff: 23 }} isLoading={false} />)
-    expect(reservation()).toHaveStyle({ minHeight: '317px' })
-    measuredHeight = 389
-    act(() => observers.forEach(({ measure }) => measure()))
-    expect(reservation()).toHaveStyle({ minHeight: '389px' })
-    view.rerender(<PlanSelection {...view} plans={plans} isLoading />)
-    expect(reservation()).toHaveStyle({ minHeight: '389px' })
-    view.unmount()
+    view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
+    expect(reservation()).toBeNull()
     expect(observers.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true)
+    view.rerender(<PlanSelection {...view} plans={null} isLoading />)
+    expect(reservation()).toHaveStyle({ minHeight: '317px' })
   })
 
   it('checks out from either tier with the same CTA verb', () => {

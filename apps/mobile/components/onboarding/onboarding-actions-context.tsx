@@ -169,7 +169,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
-        router.replace('/')
+        router.replace('/(tabs)')
       },
       onImport: () => {
         void (async () => {
@@ -178,7 +178,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
             t('onboarding.flow.meetAstra.importPrompt'),
           )
           useUIStore.getState().setAstraConversationOpen(true)
-          router.replace('/')
+          router.replace('/(tabs)')
         })()
       },
     }),

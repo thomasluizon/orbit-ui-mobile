@@ -111,12 +111,12 @@ export function CalendarSyncEventRow({
           </Text>
           <View style={styles.eventMetaRow}>
             {event.startDate ? (
-              <Text style={[styles.eventMeta, { color: tokens.fg3 }]}>
+              <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                 {event.startDate}
               </Text>
             ) : null}
             {timeLabel ? (
-              <Text style={[styles.eventMeta, { color: tokens.fg3 }]}>
+              <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                 {timeLabel}
               </Text>
             ) : null}
@@ -127,15 +127,15 @@ export function CalendarSyncEventRow({
             ) : null}
             {event.reminders.length > 0 ? (
               <View style={styles.eventReminders}>
-                <Bell size={16} color={tokens.fg3} />
-                <Text style={[styles.eventMeta, { color: tokens.fg3 }]}>
+                <Bell size={16} color={tokens.fg2} />
+                <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
                   {event.reminders.length}
                 </Text>
               </View>
             ) : null}
             {event.calendarName ? (
               <Text
-                style={[styles.eventTagText, { color: tokens.fg3 }]}
+                style={[styles.eventTagText, { color: tokens.fg2 }]}
               >
                 {event.calendarName}
               </Text>
@@ -143,7 +143,7 @@ export function CalendarSyncEventRow({
           </View>
           {event.description ? (
             <Text
-              style={[styles.eventDescription, { color: tokens.fg3 }]}
+              style={[styles.eventDescription, { color: tokens.fg2 }]}
             >
               {event.description}
             </Text>

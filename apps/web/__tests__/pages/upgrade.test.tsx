@@ -322,9 +322,6 @@ describe('UpgradePage', () => {
     }))).toEqual([
       { level: 1, name: 'upgrade.pitchTitle' },
       { level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading' },
-      { level: 3, name: 'upgrade.outcomes.calendar.title' },
-      { level: 3, name: 'upgrade.outcomes.retrospective.title' },
-      { level: 3, name: 'upgrade.outcomes.noticing.title' },
       { level: 3, name: 'upgrade.plans.yearly.name' },
       { level: 3, name: 'upgrade.plans.monthly.name' },
     ])
@@ -366,7 +363,7 @@ describe('UpgradePage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  it('renders the arithmetic pitch and exactly three outcome rows', () => {
+  it('renders the arithmetic pitch and four outcomes per tier', () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -380,7 +377,15 @@ describe('UpgradePage', () => {
     expect(screen.getByText('upgrade.convert.freeAllowance')).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.proAllowance')).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.allowanceNote')).toBeInTheDocument()
-    expect(screen.getByLabelText('upgrade.outcomes.label').children).toHaveLength(3)
+    const lists = screen.getAllByRole('list', { name: 'upgrade.outcomes.label' })
+    expect(lists).toHaveLength(2)
+    for (const list of lists) {
+      expect(list.closest('[data-tier]')).not.toBeNull()
+      expect(list.children).toHaveLength(4)
+    }
+    for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+      expect(screen.getAllByText(`upgrade.outcomes.${key}`)).toHaveLength(2)
+    }
     expect(document.body.textContent).toContain('upgrade.convert.cancelAnytime')
     expect(document.body.textContent).toContain('upgrade.plans.renewalNote')
     expect(document.body.textContent).toContain('upgrade.convert.handOff')

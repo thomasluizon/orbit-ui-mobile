@@ -20,6 +20,12 @@ sources rather than your memory of them: the opening prompt of this session, the
 `questions.md`, each relevant ticket's body and comments, and any "blocked" or "needs the owner" note
 anywhere in the run.
 
+Read `openSessionChain` from `tools/lib/session-chain.mjs` with the current session id.
+Add every entry's `openOwnerQuestions` to the candidate list, plus the current run state's
+questions. Deduplicate identical questions while retaining every source and what it blocks.
+Apply the same filter and give every surviving chain question a disposition. Keep the chain
+open until the owner's `/handoff` completes. Context relays never invoke this skill.
+
 A question you never wrote down cannot be filtered, cannot be asked, and disappears silently. That
 is the failure this list exists to prevent.
 

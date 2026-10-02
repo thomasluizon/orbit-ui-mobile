@@ -166,10 +166,12 @@ function UsageStatsWithoutProfile() {
 }
 
 describe('UpgradePage subscription management', () => {
-  it('exposes each outcome as a heading in the pitch', () => {
+  it('keeps outcomes inside the plan cards', () => {
+    mockPlans = { monthly: { unitAmount: 999 }, yearly: { unitAmount: 6999 }, currency: 'usd', savingsPercent: 42, couponPercentOff: null }
     render(<UpgradePage />)
-    for (const outcome of ['calendar', 'retrospective', 'noticing']) {
-      expect(screen.getByRole('heading', { name: `upgrade.outcomes.${outcome}.title`, level: 3 })).toBeInTheDocument()
+    for (const list of screen.getAllByRole('list', { name: 'upgrade.outcomes.label' })) {
+      expect(list.closest('[data-tier]')).not.toBeNull()
+      expect(list.children).toHaveLength(4)
     }
   })
 

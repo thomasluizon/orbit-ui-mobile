@@ -58,20 +58,6 @@ a:hover{color:var(--fg-1)}
             <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ arithmeticNote }}</p>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <sc-for list="{{ outcomes }}" as="o" hint-placeholder-count="3">
-              <div style="display:flex;align-items:flex-start;gap:12px">
-                <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;margin-top:2px;color:var(--fg-3)">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ o.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                </span>
-                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
-                  <p style="font-size:17px;line-height:1.4;font-weight:500">{{ o.title }}</p>
-                  <p style="font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty">{{ o.body }}</p>
-                </div>
-              </div>
-            </sc-for>
-          </div>
-
           <div style="display:flex;flex-direction:column;gap:16px">
             <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SegmentedControl" options="{{ intervalOptions }}" value="{{ intervalValue }}" on-change="{{ onInterval }}" label="{{ intervalLabel }}" hint-size="100%,52px"></x-import>
 
@@ -101,6 +87,14 @@ a:hover{color:var(--fg-1)}
                     <sc-if value="{{ p.hasCoupon }}" hint-placeholder-val="{{ false }}">
                       <p style="font-size:14px;line-height:1.5;color:var(--fg-2)">{{ p.couponLine }}</p>
                     </sc-if>
+                    <ul aria-label="{{ outcomesLabel }}" style="display:flex;flex-direction:column;gap:12px;padding-block:8px;list-style:none">
+                      <sc-for list="{{ outcomes }}" as="o" hint-placeholder-count="4">
+                        <li style="display:flex;align-items:flex-start;gap:12px">
+                          <span aria-hidden="true" style="flex:0 0 auto;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ o.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import></span>
+                          <p translate="no" style="min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ o.title }}</p>
+                        </li>
+                      </sc-for>
+                    </ul>
                     <div style="padding-top:8px">
                       <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" hint-size="auto,50px">{{ ctaVerb }}</x-import>
                     </div>
@@ -152,20 +146,6 @@ a:hover{color:var(--fg-1)}
               <p style="font-size:14px;line-height:1.55;color:var(--fg-3);text-wrap:pretty">{{ arithmeticNote }}</p>
             </div>
 
-            <div style="display:flex;flex-direction:column;gap:12px">
-              <sc-for list="{{ outcomes }}" as="o" hint-placeholder-count="3">
-                <div style="display:flex;align-items:flex-start;gap:12px">
-                  <span aria-hidden="true" style="flex:0 0 auto;display:grid;place-items:center;width:24px;height:24px;margin-top:2px;color:var(--fg-3)">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ o.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-                  </span>
-                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
-                    <p style="font-size:17px;line-height:1.4;font-weight:500">{{ o.title }}</p>
-                    <p style="font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty">{{ o.body }}</p>
-                  </div>
-                </div>
-              </sc-for>
-            </div>
-
             <div style="display:flex;flex-direction:column;gap:16px">
               <div style="max-width:320px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SegmentedControl" options="{{ intervalOptions }}" value="{{ intervalValue }}" on-change="{{ onInterval }}" label="{{ intervalLabel }}" hint-size="100%,52px"></x-import>
@@ -182,7 +162,7 @@ a:hover{color:var(--fg-1)}
               <sc-if value="{{ hasPrices }}" hint-placeholder-val="{{ true }}">
                 <div style="display:flex;gap:12px;align-items:flex-start">
                   <sc-for list="{{ tiers }}" as="p" hint-placeholder-count="2">
-                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;padding:24px;border-radius:var(--r-card);background:{{ p.bg }};box-shadow:{{ p.ring }}">
+                    <div style="flex:1;min-width:0;align-self:flex-start;display:flex;flex-direction:column;gap:8px;padding:24px;border-radius:var(--r-card);background:{{ p.bg }};box-shadow:{{ p.ring }}">
                       <div style="display:flex;align-items:center;gap:8px">
                         <p style="flex:1;min-width:0;font-size:17px;line-height:1.3;font-weight:500">{{ p.name }}</p>
                         <sc-if value="{{ p.recommended }}" hint-placeholder-val="{{ false }}">
@@ -197,6 +177,14 @@ a:hover{color:var(--fg-1)}
                       <sc-if value="{{ p.hasCoupon }}" hint-placeholder-val="{{ false }}">
                         <p style="font-size:14px;line-height:1.5;color:var(--fg-2)">{{ p.couponLine }}</p>
                       </sc-if>
+                      <ul aria-label="{{ outcomesLabel }}" style="display:flex;flex-direction:column;gap:12px;padding-block:8px;list-style:none">
+                      <sc-for list="{{ outcomes }}" as="o" hint-placeholder-count="4">
+                        <li style="display:flex;align-items:flex-start;gap:12px">
+                          <span aria-hidden="true" style="flex:0 0 auto;color:var(--fg-3)"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="{{ o.icon }}" size="{{ n20 }}" hint-size="20px,20px"></x-import></span>
+                          <p translate="no" style="min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ o.title }}</p>
+                        </li>
+                      </sc-for>
+                    </ul>
                       <div style="padding-top:8px">
                         <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" hint-size="auto,50px">{{ ctaVerb }}</x-import>
                       </div>
@@ -225,7 +213,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The pitch is one sentence: ten times more Astra, the true multiple of 50 over 5. That sentence is the screen, at display size, directly above the card that proves it. It is not a feature matrix: there is no table, no tick column, and no list of everything Pro touches.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>annual, monthly, in trial, trial last day, coupon, price loading, price error, decline. Hover, focus-visible and press are live. There is no start your trial state, because nothing in either repository can start, extend or restart one. There is no plan axis either: this screen has no gate, it IS where the gates lead, and a Pro account that opens this route gets the billing dashboard instead (upgrade/page.tsx:95 against :123), which is Orbit Assinatura; the two documents are the two halves of one route, so this one does not grow a dead switch.</p>
       <p><span style="color:var(--fg-3)">arithmetic&nbsp;&nbsp;</span>the honest comparison is two numbers side by side, 5 a day against 50 a day, at display size on one card with a hairline between them. The note underneath says what the free number buys rather than what it costs, and nothing here is phrased as a lack.</p>
-      <p><span style="color:var(--fg-3)">outcomes&nbsp;&nbsp;</span>three, and no more: the calendar, the periodic retrospective, and Astra noticing without being asked. Each is one line of what happens, not a feature name. Goals are not Pro any more, so no copy sells them, and nothing on the screen mentions them. Calendar sync is the one integration named, because it is the one that is gated.</p>
+      <p><span style="color:var(--fg-3)">outcomes&nbsp;&nbsp;</span>four in each tier card: 50 Astra messages a day instead of 5, Google Calendar commitments beside habits, what happened and what to change each week and month, and Astra noticing without being asked. Both tiers carry the same compact outcome rows; no separate list repeats them above the plans. Loaded cards hug their content; price-loading reservations apply only while prices load. Goals remain free and are not sold here.</p>
       <p><span style="color:var(--fg-3)">prices&nbsp;&nbsp;</span>no price is typed anywhere in this document. The server asks the billing provider at request time and returns two amounts, a currency, a savings percent and an optional coupon percent, and every figure on the screen is fed from that response: the amounts, the currency symbol, the per interval word, the derived saving and the coupon. The saving is not computed here and not hardcoded, because it arrives already derived from the two amounts. A missing response is a state, not a blank: the tiers carry their own loading shape and their own error with a retry.</p>
       <p><span style="color:var(--fg-3)">interval&nbsp;&nbsp;</span>a segmented control chooses monthly or annual, so choosing an interval is not the same gesture as choosing a plan. Annual is the visual default and carries the one recommended badge. The monthly to annual arithmetic is visible on the annual tier: the annual amount, what it works out to per month, and the saving, all from the response.</p>
       <p><span style="color:var(--fg-3)">tiers&nbsp;&nbsp;</span>at most three, and this draws two, because two is what the product sells: the interval the person has chosen, and the other one. Annual alone is marked recommended; selection independently follows the segmented control. The CTA verb is identical on every tier, so the tiers differ by price and not by how hard they ask.</p>
@@ -286,13 +274,12 @@ const T = {
     heroAnnual: 'O jeito mais barato de ter o Astra o ano inteiro.',
     freeWord: 'Grátis', proWord: 'Pro', perDay: 'mensagens por dia',
     arithmetic: 'As 5 do plano grátis dão para registrar o dia e pedir um ajuste. As 50 dão para reorganizar a semana quantas vezes precisar.',
+    outcomesLabel: "O que muda com o Pro",
     outcomes: [
-      { icon: 'calendar', title: 'A sua agenda ao lado dos hábitos',
-        body: 'Sincronizar com o Google Calendar mostra os seus compromissos junto do dia.' },
-      { icon: 'file-text', title: 'A retrospectiva do período',
-        body: 'O Astra fecha a semana e o mês com o que aconteceu e o que mudar.' },
-      { icon: 'eye', title: 'O Astra percebe sem você pedir',
-        body: 'Ele avisa quando algo escapa em vez de esperar você abrir o app.' },
+      { icon: "message-circle", title: "Reorganize sua rotina com 50 mensagens da Astra por dia" },
+      { icon: "calendar", title: "Veja os compromissos do Google Calendar ao lado dos hábitos" },
+      { icon: "file-text", title: "Veja o que aconteceu e o que mudar a cada semana e mês" },
+      { icon: "eye", title: "A Astra percebe quando algo escapa sem você pedir" },
     ],
     intervalLabel: 'Como pagar',
     monthly: 'Mensal', annual: 'Anual',
@@ -325,13 +312,12 @@ const T = {
     heroAnnual: 'The cheapest way to have Astra all year.',
     freeWord: 'Free', proWord: 'Pro', perDay: 'messages a day',
     arithmetic: 'The free 5 cover logging the day and asking for one change. The 50 cover rearranging the week as often as you need to.',
+    outcomesLabel: "What changes with Pro",
     outcomes: [
-      { icon: 'calendar', title: 'Your calendar beside your habits',
-        body: 'Syncing with Google Calendar puts your commitments next to the day.' },
-      { icon: 'file-text', title: 'The periodic retrospective',
-        body: 'Astra closes the week and the month with what happened and what to change.' },
-      { icon: 'eye', title: 'Astra notices without being asked',
-        body: 'It tells you when something slips instead of waiting for you to open the app.' },
+      { icon: "message-circle", title: "Rearrange your routine with 50 Astra messages a day" },
+      { icon: "calendar", title: "See Google Calendar commitments beside your habits" },
+      { icon: "file-text", title: "See what happened and what to change each week and month" },
+      { icon: "eye", title: "Astra notices when something slips without being asked" },
     ],
     intervalLabel: 'How to pay',
     monthly: 'Monthly', annual: 'Annual',
@@ -444,6 +430,7 @@ class Component extends DCLogic {
 
       freeCount: p.freePerDay, proCount: p.proPerDay,
       outcomes: t.outcomes,
+      outcomesLabel: t.outcomesLabel,
 
       intervalOptions: [{ id: 'monthly', label: t.monthly }, { id: 'annual', label: t.annual }],
       intervalValue: interval,

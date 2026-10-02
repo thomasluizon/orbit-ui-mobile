@@ -56,34 +56,18 @@ export const styles = StyleSheet.create({
   },
   outcomes: {
     gap: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   outcomeRow: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 12,
   },
-  outcomeIcon: {
-    alignItems: 'center',
-    height: 24,
-    justifyContent: 'center',
-    marginTop: 4,
-    width: 24,
-  },
-  outcomeCopy: {
-    flex: 1,
-    gap: 4,
-    minWidth: 0,
-  },
-  outcomeTitle: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 17,
-    lineHeight: 24,
-  },
   outcomeBody: {
+    flex: 1,
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
   },
   planState: {
     gap: 16,
@@ -172,6 +156,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   tierAction: {
+    alignItems: 'flex-start',
     paddingTop: 8,
   },
   renewalNote: {

@@ -156,8 +156,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "c711e8347223fb2f",
-      "calibratedAt": "2026-09-30",
+      "digest": "8b3b70e27790becc",
+      "calibratedAt": "2026-10-02",
       "verdict": "current: high effort; the skill decides which durable rules enter the spec and when handoff must end the session."
     },
     ".claude/skills/investigate/SKILL.md": {
@@ -184,7 +184,7 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "4f6008682b1af2cf",
+      "digest": "dcc42ea865866b84",
       "calibratedAt": "2026-10-02",
       "verdict": "current: high effort; the skill plans the queue, verifies each pull request disposition and merge commit, interprets gate results, and controls merge authority."
     },
@@ -198,15 +198,15 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "900a91c87c9e208a",
-      "calibratedAt": "2026-09-30",
+      "digest": "a2ba6d7cde72ae36",
+      "calibratedAt": "2026-10-02",
       "verdict": "current: medium effort; it reads live git and ticket state, resolves integration per repository, and distinguishes ancestry from stacked squash boundaries."
     },
     ".claude/skills/questions/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "4582a634fe14f04d",
-      "calibratedAt": "2026-10-01",
+      "digest": "02c39d450f1a3180",
+      "calibratedAt": "2026-10-02",
       "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes the owner's attention or ships a guess as a decision."
     },
     ".claude/skills/release/SKILL.md": {
@@ -226,8 +226,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "df2f0b5cd2c8342c",
-      "calibratedAt": "2026-09-30",
+      "digest": "4dcdb9b411154e99",
+      "calibratedAt": "2026-10-02",
       "verdict": "undeclared, inherits the session: it makes overnight queue decisions, including whether configured lanes are available."
     },
     ".claude/skills/ticket/SKILL.md": {
@@ -247,8 +247,8 @@
     ".claude/skills/wrap-up/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "60139724e22eccfd",
-      "calibratedAt": "2026-10-01",
+      "digest": "148e2736e990a754",
+      "calibratedAt": "2026-10-02",
       "verdict": "current: medium effort; the skill invokes three steps in order and waits for the owner between handovers, including under --sleep."
     },
     ".agents/skills/merge-prs/SKILL.md": {

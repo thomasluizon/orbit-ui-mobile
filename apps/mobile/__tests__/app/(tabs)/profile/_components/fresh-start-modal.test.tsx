@@ -251,7 +251,7 @@ await Promise.resolve()
     })
 
     expect(onClose).toHaveBeenCalledTimes(1)
-    expect(replace).toHaveBeenCalledWith('/')
+    expect(replace).toHaveBeenCalledWith('/(tabs)')
     expect(replace).toHaveBeenCalledTimes(1)
   })
 

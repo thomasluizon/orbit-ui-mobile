@@ -1,6 +1,6 @@
 // The handoff prompt gate: a commit or a stop that leaves NEXT.md out of step with the mode the owner
-// asked for is refused. The requested mode comes from the owner's own prompt, recorded by
-// record-handoff-request.mjs, so the model cannot talk its way past it.
+// asked for is refused. The requested mode comes from the owner's prompt or the machine-origin
+// context relay request, so the model cannot talk its way past it.
 
 import { HANDOFF_PROMPT_PATH, validateHandoffPrompt } from "../../../tools/lib/handoff-prompt.mjs"
 
@@ -19,7 +19,7 @@ const describe = (missing, mode) =>
   `Missing:\n${missing.map((item) => `- ${item}`).join("\n")}\n\n` +
   "Fix the prompt, then commit again. The requirements come from .claude/skills/handoff/SKILL.md.\n"
 
-const modeOf = (request) => (request?.sleep ? "--sleep" : request ? "attended" : "unrecorded")
+const modeOf = (request) => (request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded")
 
 /**
  * Every NEXT.md version a commit could record must comply with the recorded request.

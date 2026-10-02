@@ -3,7 +3,7 @@
  * `isWakeSourceAlive(source)` must compare the persisted identity with a fresh OS observation.
  * @returns `{ block, message }` when an unattended run is about to go quiet, else null
  */
-export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = [], sessionId = "", stopHookActive = false, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
+export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = [], sessionId = "", stopHookActive = false, relayEnabled = true, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
   // A blocked stop that blocks again is an infinite loop, and Claude Code sets this flag on the
   // second pass for exactly that reason.
   if (stopHookActive) return null
@@ -11,6 +11,7 @@ export function checkSleepStop({ state, wakeSources = [], orphanedWakeSources = 
   // A record from a PREVIOUS run must never block today's session. The session id is exact, so
   // staleness needs no timestamp heuristic.
   if (typeof state.sessionId === "string" && state.sessionId !== "" && sessionId !== "" && state.sessionId !== sessionId) return null
+  if (relayEnabled && state.relay?.pending === true) return { block: false, terminal: "RELAY_DRAIN", message: "Launch nothing; wait for the live launchers and release watchers, or relay when drained." }
 
   const remaining = Array.isArray(state.remaining) ? state.remaining.filter((entry) => typeof entry === "string" && entry !== "") : []
   const rawPullRequests = [

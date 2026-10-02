@@ -2560,18 +2560,10 @@
     },
     "outcomes": {
       "label": "What changes with Pro",
-      "calendar": {
-        "title": "Your calendar beside your habits",
-        "body": "Syncing with Google Calendar puts your commitments next to the day."
-      },
-      "retrospective": {
-        "title": "The periodic retrospective",
-        "body": "Astra closes the week and the month with what happened and what to change."
-      },
-      "noticing": {
-        "title": "Astra notices without being asked",
-        "body": "It tells you when something slips instead of waiting for you to open the app."
-      }
+      "astra": "Rearrange your routine with 50 Astra messages a day",
+      "calendar": "See Google Calendar commitments beside your habits",
+      "retrospective": "See what happened and what to change each week and month",
+      "noticing": "Astra notices, without you asking, when something slips"
     },
     "plans": {
       "intervalLabel": "How to pay",
