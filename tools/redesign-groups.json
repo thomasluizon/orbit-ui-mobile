@@ -157,11 +157,15 @@
       "m-overlay-components-delete-account-modal",
       "m-overlay-components-edit-name-sheet",
       "m-overlay-components-fresh-start-modal",
-      "m-overlay-components-profile-settings-content",
+      "m-overlay-components-profile-preferences-content",
       "m-overlay-marketing-consent-marketing-consent-prompt",
       "m-overlay-profile-advanced-sections",
       "m-overlay-profile-preferences-sections",
       "m-overlay-profile-profile-api-keys",
+      "m-route-profile-account",
+      "m-route-profile-astra",
+      "m-route-profile-notifications",
+      "m-route-profile-preferences",
       "m-route-tabs-profile",
       "overlay-advanced-advanced-sections",
       "overlay-components-delete-account-modal",
@@ -171,7 +175,11 @@
       "overlay-marketing-consent-marketing-consent-prompt",
       "overlay-profile-profile-api-keys",
       "route-delete-account",
-      "route-profile"
+      "route-profile",
+      "route-profile-account",
+      "route-profile-astra",
+      "route-profile-notifications",
+      "route-profile-preferences"
     ],
     "Orbit Pro": [
       "m-overlay-ui-trial-expired-modal",
@@ -238,6 +246,10 @@
     ]
   },
   "deleted": [
+    {
+      "surfaceId": "m-overlay-components-profile-settings-content",
+      "decision": "Ticket #1105: Perfil grouped sub-menus replace the inline settings content."
+    },
     {
       "surfaceId": "route-calendar-sync",
       "decision": "Calendário owns Google Calendar connection, import, and review in a sheet."
