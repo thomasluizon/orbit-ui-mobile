@@ -264,6 +264,8 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
         "starts through `node tools/launch-worker.mjs`, which creates the worktree, composes the\n" +
         "work order, supervises the two clocks and records the worker PID. None of that happens\n" +
         "for a raw `codex` or `claude` invocation, so its worker is unsupervised.\n" +
+        "Research starts through `node tools/launch-worker.mjs --research --order <file>\n" +
+        "--out <scratchpad file>`, without a ticket worktree or finishing contract.\n" +
         "The refusal is scoped to the CALLER, not the flag: the launcher itself, any command run\n" +
         "from inside a launcher-created worktree, version or help queries, and the read-only\n" +
         "`codex cloud list|status|diff` subcommands are permitted. Submit cloud work through\n" +

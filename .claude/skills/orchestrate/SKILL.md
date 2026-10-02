@@ -160,6 +160,7 @@ node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
 node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
@@ -751,9 +752,22 @@ a non-empty remote diff keeps the task unresolved.
 
 ```bash
 node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--allow-subagents] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --research --order <scratchpad order> --out <scratchpad findings>
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
+
+For research without a ticket, use `launch-worker.mjs --research --order <file> --out <file>`.
+Both paths live in the session scratchpad outside every repository; the output must be a new file.
+The configured engine and default model run in a fresh empty temporary directory. Codex uses its
+read-only sandbox with live web search; Claude exposes only WebSearch and WebFetch. Ticket engine
+arguments that grant writes are replaced by the research restrictions. The order arrives on stdin,
+and only a successful non-empty final response reaches the output file. No branch, commit, pull
+request, ticket admission reservation or parallel ticket slot is created. Both clocks, log caps and
+wake registration still apply. Start research through the same scratchpad launch gate as workers:
+wait for the one-minute load below 20 and 90 seconds since the previous launch, under its lock.
+Background the gated launcher as a harness task so its completion wakes the session. Raw model
+commands remain forbidden.
 
 `launch-worker.mjs` runs in the FOREGROUND as its own watchdog and owns both clocks: the hard
 ceiling and the no-progress cap from `.claude/orchestrator.json` (currently 45 and 10 minutes),

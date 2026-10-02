@@ -162,9 +162,9 @@ describe('PlanSelection (mobile)', () => {
     ])
     expect(visibleJson(tree).match(/upgrade\.plans\.recommended/g)).toHaveLength(1)
     expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-      isVisible(node) && node.type === 'Pressable' && node.props.testID === 'button-primary-md')).toHaveLength(1)
+      isVisible(node) && node.type === 'Pressable' && node.props.testID === 'button-primary-sm')).toHaveLength(1)
     expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-      isVisible(node) && node.type === 'Pressable' && node.props.testID === 'button-ghost-md')).toHaveLength(1)
+      isVisible(node) && node.type === 'Pressable' && node.props.testID === 'button-ghost-sm')).toHaveLength(1)
     expect(visibleJson(tree)).toContain(
       formatPrice(plans.yearly.unitAmount, plans.currency),
     )
@@ -266,8 +266,8 @@ describe('PlanSelection (mobile)', () => {
       )
       const selectedTier = selectedInterval === 'yearly' ? annualTier : monthlyTier
       const unselectedTier = selectedInterval === 'yearly' ? monthlyTier : annualTier
-      expect(selectedTier.findByProps({ testID: 'button-primary-md' })).toBeTruthy()
-      expect(unselectedTier.findByProps({ testID: 'button-ghost-md' })).toBeTruthy()
+      expect(selectedTier.findByProps({ testID: 'button-primary-sm' })).toBeTruthy()
+      expect(unselectedTier.findByProps({ testID: 'button-ghost-sm' })).toBeTruthy()
     },
   )
 

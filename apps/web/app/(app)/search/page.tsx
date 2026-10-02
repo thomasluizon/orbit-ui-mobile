@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Command, CommandList } from 'cmdk'
@@ -46,10 +48,10 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
       {!search.busy && !search.isError && (entries.length > 0
         ? <SearchResults totalCount={search.data?.totalCount ?? 0} habits={entries.map(({ habit }) => habit)} query={search.query} onOpen={(id) => router.push(`/habits/${id}`)} />
         : <SearchEmpty query={search.query} onCreate={createHabit} createRefusal={!isOnline && createRefusal} />)}
-      <div className="flex gap-3">
+      <div className="flex gap-3"><ActionRow>
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
         {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
-      </div>
+      </ActionRow></div>
     </CommandList>}
   </Command>
 }

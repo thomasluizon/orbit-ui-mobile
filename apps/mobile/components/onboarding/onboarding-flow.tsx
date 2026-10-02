@@ -34,6 +34,7 @@ import { Shell412 } from '@/components/shell/shell-412'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { Toast } from '@/components/ui/app-toast'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
@@ -56,7 +57,7 @@ import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-
 
 type ReminderDecision = 'idle' | 'allowing' | 'declining'
 
-function ActionStack({ primary, secondary }: Readonly<{ primary: ReactNode; secondary?: ReactNode }>) { return <View style={styles.actions}>{primary}{secondary}</View> }
+function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNode; secondary?: ReactNode; reason?: ReactNode }>) { return <View style={styles.actions}><ActionRow>{secondary}{primary}</ActionRow>{reason}</View> }
 
 const DONE_TAB_ROUTES = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' } as const
 type DoneTabRoute = (typeof DONE_TAB_ROUTES)[keyof typeof DONE_TAB_ROUTES]
@@ -109,18 +110,17 @@ function DecisionAction(props: Readonly<DecisionProps>) {
   if (props.step === ONBOARDING_WHAT_STEP) {
     const empty = !props.sentence.trim()
     const reason = t('onboarding.flow.what.continueReason')
-    return <ActionStack primary={<>
+    return <FlowActions primary={<>
       <PillButton disabled={empty} loading={props.suggestionPending} hint={empty ? reason : undefined} onClick={props.onContinueWhat}>{t('onboarding.flow.continue')}</PillButton>
-      {empty ? <Text style={[styles.reason, { color: tokens.fg3 }]}>{reason}</Text> : null}
-    </>} secondary={!props.isLive ? <>
+    </>} reason={empty ? <Text style={[styles.reason, { color: tokens.fg3 }]}>{reason}</Text> : null} secondary={!props.isLive ? <>
       {/* eslint-disable-next-line local/max-button-words -- The granted onboarding drawing uses this account action label. */}
       <PillButton variant="ghost" onClick={props.onAccount}>{t('onboarding.flow.what.haveAccount')}</PillButton>
     </> : undefined} />
   }
   if (props.step === ONBOARDING_WHEN_STEP) return <PillButton loading={props.creating} onClick={props.onSave}>{t(`onboarding.flow.${props.createFailed ? 'retry' : 'create'}`)}</PillButton>
-  if (props.reminderState === 'ask') return <ActionStack primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('onboarding.flow.remind.allow')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.deny')}</PillButton>} />
-  if (props.reminderState === 'failed') return <ActionStack primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('onboarding.flow.retry')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>} />
-  if (props.reminderState === 'no-time' || props.reminderState === 'no-day') return <ActionStack primary={<PillButton loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onEditSchedule}>{t(props.reminderState === 'no-day' ? 'onboarding.flow.remind.setDays' : 'onboarding.flow.remind.setTime')}</PillButton>} />
+  if (props.reminderState === 'ask') return <FlowActions primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('onboarding.flow.remind.allow')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.deny')}</PillButton>} />
+  if (props.reminderState === 'failed') return <FlowActions primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('onboarding.flow.retry')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>} />
+  if (props.reminderState === 'no-time' || props.reminderState === 'no-day') return <FlowActions primary={<PillButton loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onEditSchedule}>{t(props.reminderState === 'no-day' ? 'onboarding.flow.remind.setDays' : 'onboarding.flow.remind.setTime')}</PillButton>} />
   return <PillButton loading={declining} onClick={props.onContinueWithout}>{t('onboarding.flow.remind.continue')}</PillButton>
 }
 
@@ -129,7 +129,13 @@ function FlowHeader({ step, onBack, onSkip }: Readonly<{ step: number; onBack?: 
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const displayStep = getOnboardingDisplayStep(step)
-  return <View style={styles.header}><View style={styles.headerStart}>{onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" onClick={onBack}>{t('onboarding.flow.back')}</PillButton> : null}<Text style={[styles.counter, { color: tokens.fg3 }]}>Orbit · <Text style={{ color: tokens.fg1 }}>{String(displayStep).padStart(2, '0')}</Text> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</Text><Text accessibilityLiveRegion="polite" style={styles.srOnly}>{t('onboarding.flow.step', { current: displayStep, total: getOnboardingDisplayTotal() })}</Text></View>{onSkip ? <PillButton variant="ghost" size="sm" onClick={onSkip}>{t('onboarding.flow.skip')}</PillButton> : null}</View>
+  return <View style={styles.header}>
+    <View style={styles.headerStart}><Text style={[styles.counter, { color: tokens.fg3 }]}>Orbit · <Text style={{ color: tokens.fg1 }}>{String(displayStep).padStart(2, '0')}</Text> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</Text><Text accessibilityLiveRegion="polite" style={styles.srOnly}>{t('onboarding.flow.step', { current: displayStep, total: getOnboardingDisplayTotal() })}</Text></View>
+    <View style={{ flex: 1, minWidth: 0 }}><ActionRow>
+      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <PillButton variant="ghost" size="sm" onClick={onBack}>{t('onboarding.flow.back')}</PillButton> : null}
+      {onSkip ? <PillButton variant="ghost" size="sm" onClick={onSkip}>{t('onboarding.flow.skip')}</PillButton> : null}
+    </ActionRow></View>
+  </View>
 }
 
 export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOnly?: boolean }>) {
@@ -320,4 +326,4 @@ export function OnboardingFlow({ finalStepOnly = false }: Readonly<{ finalStepOn
   return <Modal visible animationType="none" onRequestClose={() => runStepTransition(() => { if (resolvingDeferredPush) void finishDeferredPushRecovery(); else if (step > 0) setStep(step - 1) })}><FlowShell nav={false} header={<FlowHeader step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : skip} />} action={<DecisionAction {...decisionProps} />} notice={createFailed ? <Toast kind="neutral" message={t('onboarding.flow.createFailed')} /> : undefined}><View style={styles.content}><DecisionContent {...decisionProps} /></View></FlowShell></Modal>
 }
 
-const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 56, paddingHorizontal: 12 }, headerStart: { alignItems: 'center', flexDirection: 'row', gap: 12 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: 24, width: '100%' } })
+const styles = StyleSheet.create({ header: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between', minHeight: 56, paddingHorizontal: 12 }, headerStart: { alignItems: 'center', flexDirection: 'row', gap: 12 }, counter: { fontFamily: 'GeistMono_500Medium', fontSize: 12, fontVariant: ['tabular-nums'], letterSpacing: 0.48 }, srOnly: { height: 1, opacity: 0, position: 'absolute', width: 1 }, content: { flexGrow: 1, justifyContent: 'center', maxWidth: 440, width: '100%' }, actions: { gap: 8 }, reason: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' }, doneScroll: { flex: 1 }, done: { alignSelf: 'center', flexGrow: 1, justifyContent: 'center', maxWidth: 440, paddingHorizontal: 24, width: '100%' } })

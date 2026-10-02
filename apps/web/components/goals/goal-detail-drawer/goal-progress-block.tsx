@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Goal } from '@orbit/shared/types/goal'
@@ -93,12 +95,12 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
       <GoalDerivedProgress goal={goal} />
       {active && !derived ? <div className="flex flex-col gap-2" aria-busy={busy}>
         <p className="text-[14px] text-[var(--fg-2)]">{t('goals.detail.manualProgress')}</p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2"><ActionRow>
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.decrease')} disabled={busy || goal.currentValue <= 0} onClick={() => void step(-1)}><Minus size={16} aria-hidden="true" /></PillButton>
         <span className="font-[var(--font-mono)] min-w-8 text-center text-[20px] tabular-nums text-[var(--fg-1)]">{goal.currentValue}</span>
         <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.increase')} disabled={busy || goal.currentValue >= goal.targetValue} onClick={() => void step(1)}><Plus size={16} aria-hidden="true" /></PillButton>
         <span className="text-[14px] text-[var(--fg-3)]">{goal.unit}</span>
-        </div>
+        </ActionRow></div>
       </div> : null}
       <p role="alert" className={error ? 'text-[14px] text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
       <p role="status" aria-live="polite" className="sr-only">{announcement}</p>

@@ -5,7 +5,7 @@ import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -136,14 +136,14 @@ export function MoveParentDialog({
       onClose={isPending ? undefined : hideDialog}
       title={t('habits.moveParent.title')}
       actions={
-        <DialogActionPair>
+        <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={isPending} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
           <PillButton size="sm" disabled={!canSubmit} loading={isPending} onClick={onConfirm}>
             {t('habits.moveParent.confirm')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       }
     >
       <View>

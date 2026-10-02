@@ -6,7 +6,7 @@ import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -224,14 +224,14 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         onAttemptDismiss={dismissGuard.requestDismiss}
         title={t('goals.create')}
         actions={(
-          <DialogActionPair>
+          <ActionRow>
             <PillButton size="sm" variant="ghost" disabled={isSubmitting} onClick={dismissGuard.requestDismiss}>
               {t('common.cancel')}
             </PillButton>
             <PillButton size="sm" formId={formId} disabled={isSubmitting} loading={isSubmitting}>
               {t('goals.create')}
             </PillButton>
-          </DialogActionPair>
+          </ActionRow>
         )}
       >
         <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>

@@ -13,7 +13,7 @@ import {
 } from '@orbit/shared/stores'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -129,12 +129,12 @@ export function ReferralPrompt() {
           onClose={() => setVisibleKey(null)}
           title={title}
           actions={(
-            <DialogActionPair>
+            <ActionRow>
               <PromptQuietAction onClick={() => closeSheet()}>
                 {t('referral.prompt.later')}
               </PromptQuietAction>
               <PillButton size="sm" onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
-            </DialogActionPair>
+            </ActionRow>
           )}
         >
           <div className="flex flex-col items-center text-center">

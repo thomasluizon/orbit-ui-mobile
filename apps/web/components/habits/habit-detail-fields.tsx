@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
@@ -45,7 +47,7 @@ interface HabitDetailFieldsProps {
 
 function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onSave: () => void }>) {
   const t = useTranslations()
-  return <div className="flex justify-end gap-2"><PillButton variant="ghost" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></div>
+  return <div className="flex justify-end gap-2"><ActionRow><PillButton variant="ghost" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></ActionRow></div>
 }
 
 function FieldWell({ children }: Readonly<{ children: React.ReactNode }>) {

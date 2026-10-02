@@ -1,7 +1,8 @@
 'use client'
 
 import Link, { type LinkProps } from 'next/link'
-import type { CSSProperties, Ref } from 'react'
+import { useContext, type CSSProperties, type Ref } from 'react'
+import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
 import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
@@ -51,12 +52,13 @@ function inlineStartPadding(paddingX: number, iconOnly: boolean, leadingIcon: bo
   return leadingIcon ? paddingX - 2 : paddingX
 }
 
-function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false): CSSProperties {
+function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false, hugLabel = false): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
   return {
+    flexShrink: 0,
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
-    width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : undefined,
+    width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : hugLabel ? 'auto' : undefined,
     paddingInlineStart: inlineStartPadding(sizeSpec.paddingX, iconOnly, leadingIcon),
     paddingInlineEnd: iconOnly ? 0 : sizeSpec.paddingX,
     fontSize: sizeSpec.fontSize,
@@ -67,7 +69,7 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   variant = 'primary',
-  size = 'md',
+  size: requestedSize = 'sm',
   onClick,
   disabled = false,
   loading = false,
@@ -82,6 +84,8 @@ export function Button({
   buttonRef,
   quiet = false,
 }: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean }>) {
+  const withinRow = useContext(ActionRowContext)
+  const size = withinRow ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
@@ -98,7 +102,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading, quiet)}
-      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon)), color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
+      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow), color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />
@@ -112,7 +116,7 @@ export function Button({
 export function PillLink({
   href,
   variant = 'primary',
-  size = 'md',
+  size: requestedSize = 'sm',
   children,
   accessibleName,
 }: Readonly<{
@@ -122,6 +126,8 @@ export function PillLink({
   children: string
   accessibleName?: string
 }>) {
+  const withinRow = useContext(ActionRowContext)
+  const size = withinRow ? 'sm' : requestedSize
   return (
     <Link
       href={href}
@@ -129,7 +135,7 @@ export function PillLink({
       data-variant={variant}
       data-size={size}
       className={actionClasses(variant, size, 'link')}
-      style={actionStyle(size)}
+      style={actionStyle(size, false, false, false, withinRow)}
     >
       <span>{children}</span>
     </Link>

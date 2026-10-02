@@ -7,7 +7,7 @@ import { hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -92,7 +92,7 @@ export function CalendarImportPrompt() {
       }}
       title={t('onboarding.wizard.calendarTitle')}
       actions={(
-        <DialogActionPair>
+        <ActionRow>
           <PromptQuietAction
             accessibleName={t('common.later')}
             onClick={() =>
@@ -107,7 +107,7 @@ export function CalendarImportPrompt() {
           <PillButton size="sm" onClick={handleImport}>
             {t('onboarding.wizard.calendarButton')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       )}
     >
       <View>

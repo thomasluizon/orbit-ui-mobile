@@ -968,6 +968,7 @@
       "completionSummary": "{done} of {total} logged",
       "nothingDue": "nothing due",
       "eventsTitle": "On your calendar",
+      "importEvents": "Import events",
       "searchEvents": "Search events",
       "noMatchingEvents": "No events match \"{query}\".",
       "clearEventSearch": "Clear search",

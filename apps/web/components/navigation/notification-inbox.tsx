@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -42,7 +44,7 @@ export function NotificationInbox() {
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
         onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
         refreshKey={`${inbox.visibleUnreadCount}:${inbox.visibleNotifications.length}`}
-        footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
+        footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <div className="flex flex-wrap items-center gap-2 px-2 pb-2"><ActionRow>
           {inbox.visibleUnreadCount > 0 ? (
             /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:206 (D42) */
             <Button variant="ghost" size="sm"
@@ -50,7 +52,7 @@ export function NotificationInbox() {
           ) : null}
           {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm"
             onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
-        </div> : undefined}
+        </ActionRow></div> : undefined}
       />
       <div className="lg:ms-12 lg:ps-3">
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}

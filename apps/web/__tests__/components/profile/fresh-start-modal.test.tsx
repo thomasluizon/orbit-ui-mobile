@@ -116,13 +116,13 @@ describe('FreshStartModal', () => {
     render(<FreshStartModal open onOpenChange={vi.fn()} />)
     const review = screen.getByRole('button', { name: 'profile.freshStart.reviewDeletion' })
     const cancel = screen.getByRole('button', { name: 'common.cancel' })
-    expect(review.style.width).toBe('')
-    expect(cancel.style.width).toBe('')
+    expect(review.style.width).toBe('auto')
+    expect(cancel.style.width).toBe('auto')
 
     fireEvent.click(review)
     const deleteData = screen.getByRole('button', { name: 'profile.freshStart.deleteData' })
-    expect(deleteData.style.width).toBe('')
-    expect(screen.getByRole('button', { name: 'common.cancel' }).style.width).toBe('')
+    expect(deleteData.style.width).toBe('auto')
+    expect(screen.getByRole('button', { name: 'common.cancel' }).style.width).toBe('auto')
   })
 
   it('transitions to confirm step on continue click', () => {

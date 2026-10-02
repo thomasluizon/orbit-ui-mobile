@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { PillButton } from '@/components/ui/pill-button'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,10 +33,7 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
-/** InicioEmpty kit state — 104px satellite glyph, 22/500 title, 15 fg-2 body,
- *  then a stacked full-width Astra pill + ghost create pill. Description
- *  renders only when it's a distinct sentence from the title (avoids the
- *  legacy "title and description share the same key" double-render). */
+
 export function HabitListEmptyState({
   title,
   description,
@@ -50,7 +49,7 @@ export function HabitListEmptyState({
   const hasDistinctDescription =
     Boolean(description) && description !== title
   const showAstraAction = isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
-  const showStackedActions = showAstraAction || (isAstraPrompt && Boolean(actionLabel))
+  const showActions = showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
   return (
     <div
@@ -83,20 +82,11 @@ export function HabitListEmptyState({
           {description}
         </div>
       )}
-      {showStackedActions ? (
+      {showActions ? (
         <div
           className="flex w-full max-w-[300px] flex-col items-stretch"
           style={{ marginTop: 8, gap: 12 }}
-        >
-          {showAstraAction && askAstraLabel && (
-            <PillButton
-
-              onClick={onAskAstra}
-
-            >
-              {askAstraLabel}
-            </PillButton>
-          )}
+        ><ActionRow>
           {actionLabel && (
             <PillButton
               variant="ghost"
@@ -107,7 +97,16 @@ export function HabitListEmptyState({
               {actionLabel}
             </PillButton>
           )}
-        </div>
+          {showAstraAction && askAstraLabel && (
+            <PillButton
+
+              onClick={onAskAstra}
+
+            >
+              {askAstraLabel}
+            </PillButton>
+          )}
+        </ActionRow></div>
       ) : (
         actionLabel && (
           <button

@@ -429,7 +429,8 @@ describe('OnboardingFlow state model', () => {
     expect(reason).toHaveClass('text-sm', 'text-[var(--fg-3)]', 'text-center')
     expect(continueButton.parentElement).toContainElement(accountButton)
     expect(accountButton).toHaveAttribute('data-variant', 'ghost')
-    expect(reason.nextElementSibling).toBe(accountButton)
+    expect(reason.previousElementSibling).toContainElement(accountButton)
+    expect(accountButton.nextElementSibling).toBe(continueButton)
 
     fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk' } })
     expect(screen.queryByText('what.continueReason')).not.toBeInTheDocument()

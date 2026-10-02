@@ -440,13 +440,13 @@ describe('alerts', () => {
     showInbox()
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
     const row = screen.getByRole('dialog').querySelector('[data-slot="sheet-actions"]')!.firstElementChild as HTMLElement
-    expect(row).toHaveAttribute('data-slot', 'dialog-action-pair')
+    expect(row).toHaveAttribute('data-slot', 'action-row')
     expect(row.style.justifyContent).toBe('flex-end')
     expect([...row.children].map((button) => button.textContent))
       .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
     for (const button of row.querySelectorAll('button')) {
       expect(button).toHaveAttribute('data-size', 'sm')
-      expect(button.style.width).toBe('')
+      expect(button.style.width).toBe('auto')
     }
   })
 

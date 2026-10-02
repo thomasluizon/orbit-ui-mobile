@@ -6,7 +6,7 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
 import { useProfile } from '@/hooks/use-profile'
 import { updateName } from '@/lib/actions/profile'
@@ -79,14 +79,14 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       onClose={() => onOpenChange(false)}
       title={t('profile.editName.title')}
       actions={(
-        <DialogActionPair>
+        <ActionRow>
           <PillButton size="sm" variant="ghost" disabled={mutation.isPending} onClick={() => closeSheet()}>
             {t('common.cancel')}
           </PillButton>
           <PillButton size="sm" onClick={handleSave} disabled={mutation.isPending} loading={mutation.isPending}>
             {t('common.save')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       )}
     >
       <div className="flex flex-col" style={{ gap: 16 }}>

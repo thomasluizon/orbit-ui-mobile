@@ -6,7 +6,7 @@ import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -113,14 +113,14 @@ export function MarketingConsentPrompt() {
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
       actions={(
-        <DialogActionPair>
+        <ActionRow>
           <PromptQuietAction onClick={() => answer(false)}>
             {t('marketingConsent.prompt.decline')}
           </PromptQuietAction>
           <PillButton size="sm" onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       )}
     >
         <div className="flex flex-col items-center text-center">

@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -40,10 +42,10 @@ function VersionUpdateSheet({
 
   return (
     <Sheet ref={sheetRef} open onClose={onLater} title={title} actions={
-      <View style={styles.buttons}>
+      <View style={styles.buttons}><ActionRow>
         <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('versionUpdate.laterCta')}</PillButton>
         <PillButton size="sm" onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
-      </View>
+      </ActionRow></View>
     }>
       <Text style={styles.description}>{description}</Text>
     </Sheet>

@@ -291,11 +291,11 @@ describe('CalendarDayDetail (mobile)', () => {
       }),
     ])
     const importButtons = nodes(tree, 'PillButtonMock').filter((button) =>
-      typeof button.props.accessibleName === 'string' && button.props.accessibleName.includes('Team meeting'))
+      button.props.children === 'calendar.dayDetail.importEvents')
     expect(importButtons).toHaveLength(1)
     const openImport = importButtons[0]?.props.onClick as () => void
     openImport()
-    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-1')
+    expect(onOpenCalendarImport).toHaveBeenCalledWith(null)
     expect(nodes(tree, 'PillButtonMock').some((button) =>
       typeof button.props.accessibleName === 'string' && button.props.accessibleName.includes('Company holiday'))).toBe(false)
   })

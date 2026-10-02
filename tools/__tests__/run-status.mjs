@@ -204,6 +204,9 @@ export const cases = async () => {
   registerWakeSource({ pid: process.pid, workerPid: null, repositoryKey: "ui", prNumbers: [number], what: "CI ui pull requests #1459" }, repo.path)
   T("run-status: a CI waiter never occupies a parallel worker slot", (await snapshot({ config: atCap })).nextActions.some((entry) => entry.type === "SLOT_FREE"))
   clearWakeSource(process.pid, repo.path)
+  registerWakeSource({ pid: process.pid, workerPid: process.pid, research: true, what: "research" }, repo.path)
+  T("run-status: research wakes the session without occupying a ticket slot", (await snapshot({ config: atCap })).nextActions.some((entry) => entry.type === "SLOT_FREE"))
+  clearWakeSource(process.pid, repo.path)
 
   const worker = stageRepo("run-status-transition-worker")
   const baseSha = worker.git(["rev-parse", "HEAD"]).stdout.trim()

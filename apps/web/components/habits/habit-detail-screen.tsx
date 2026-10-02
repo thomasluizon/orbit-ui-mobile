@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -216,11 +218,11 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
     <Surface>
       <div className="flex flex-col gap-2">
         <SectionTitle>{t('history')}</SectionTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2"><ActionRow>
           <PillButton variant="ghost" size="sm" iconOnly label={t('previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} /></PillButton>
           <p className="min-w-0 flex-1 text-center font-mono text-xs tabular-nums text-[var(--fg-3)]">{capitalizeFirstLetter(monthLabel)}</p>
           <PillButton variant="ghost" size="sm" iconOnly label={t('nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} /></PillButton>
-        </div>
+        </ActionRow></div>
       </div>
       <div><MonthGrid weekdayLabels={weekdayLabels} label={t('calendarLabel', { month: monthLabel })} gap={4}>
         {days.map((day) => {
@@ -344,10 +346,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
       <div ref={cardRef} className={rescueCardClass}>
         <div className="flex items-center gap-2"><AstraGlyph size={20} color="var(--fg-1)" /><Badge>{t('habits.detail.proGate')}</Badge></div>
         <p className="text-sm leading-[1.55] text-[var(--fg-2)]">{t('habits.reschedule.freePrompt')}</p>
-        <div className="flex flex-wrap gap-2">
-          <PillLink variant={actionVariant} size="sm" href="/upgrade">{t('habits.reschedule.upgrade')}</PillLink>
+        <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}
-        </div>
+          <PillLink variant={actionVariant} size="sm" href="/upgrade">{t('habits.reschedule.upgrade')}</PillLink>
+        </ActionRow></div>
       </div>
     )
   }
@@ -366,10 +368,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasProAccess, locale,
         <div role="status" className="flex flex-col gap-3">{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint')) : <>
           <p className="text-sm text-[var(--fg-3)]">{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</p>
         </>}</div>
-        <div className="flex flex-wrap gap-2">
-          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
+        <div className="flex flex-wrap gap-2"><ActionRow>
           {notNow}
-        </div>
+          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
+        </ActionRow></div>
       </div>
     </Proposed>
   )

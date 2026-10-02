@@ -1,3 +1,4 @@
+import { ActionRow } from './action-row'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
@@ -230,7 +231,7 @@ function renderSheetFooter(
   return (
     <View style={[styles.footer, { paddingBottom: bottomInset }]} onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}>
       {showSheetToast ? <View style={styles.notice}><AppToast placement="sheet" sheetId={sheetId} /></View> : null}
-      {actions ? <View style={styles.actions}>{actions}</View> : null}
+      {actions ? <View style={styles.actions}><ActionRow>{actions}</ActionRow></View> : null}
     </View>
   )
 }

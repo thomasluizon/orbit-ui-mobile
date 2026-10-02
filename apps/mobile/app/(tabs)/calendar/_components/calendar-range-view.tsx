@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { StyleSheet, Text, View } from 'react-native'
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -70,7 +72,7 @@ export function CalendarRangeView({
       accessibilityState={{ busy: isLoading }}
       style={styles.container}
     >
-      <View style={styles.header}>
+      <View style={styles.header}><ActionRow>
         <Text numberOfLines={1} style={[styles.rangeLabel, { color: tokens.fg2 }]}>
           {rangeLabel}
         </Text>
@@ -93,7 +95,7 @@ export function CalendarRangeView({
         >
           <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
         </PillButton>
-      </View>
+      </ActionRow></View>
       <View style={styles.toggleRow}>
         <ShowRecurringToggle
           checked={showRecurring}

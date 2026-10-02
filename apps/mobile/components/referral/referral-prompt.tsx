@@ -12,7 +12,7 @@ import {
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -121,7 +121,7 @@ export function ReferralPrompt() {
           title={title}
           key={visibleKey}
           actions={(
-            <DialogActionPair>
+            <ActionRow>
               <PromptQuietAction
                 accessibleName={t('referral.prompt.later')}
                 onClick={() => closeSheet()}
@@ -129,7 +129,7 @@ export function ReferralPrompt() {
                 {t('referral.prompt.later')}
               </PromptQuietAction>
               <PillButton size="sm" onClick={openDrawer}>{t('referral.prompt.cta')}</PillButton>
-            </DialogActionPair>
+            </ActionRow>
           )}
         >
           <View style={styles.content}>
