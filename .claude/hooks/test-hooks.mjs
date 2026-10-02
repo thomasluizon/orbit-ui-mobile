@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
+import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -1099,7 +1100,7 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, readWakeSourceStates, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
+const { PENDING_WAKE_SOURCE_MAX_AGE_MS, acquireRelayLock, clearWakeSource, readWakeSources, readWakeSourceStates, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 // Exercise the real adapter in an isolated checkout so another run cannot mask a bad identity.
 const wakeCheckout = join(root, "wake-identity")
@@ -1147,6 +1148,100 @@ T("relay adapter: 400000 emits documented Stop feedback", feedback.hookSpecificO
 T("relay adapter: feedback names relay", feedback.hookSpecificOutput.additionalContext.includes("relay"), true)
 T("relay adapter: machine origin enforces sleep prompt", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
 T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, 400000)
+const stopRelayState = readRunState(wakeCheckout)
+const stopRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
+const postToolRelayHooks = settings.hooks.PostToolUse
+  .filter((entry) => new RegExp(entry.matcher ?? ".*").test("Bash"))
+  .flatMap((entry) => entry.hooks)
+  .filter((hook) => hook.command.includes("relay-at-threshold.mjs"))
+T("relay post-tool: Bash matches exactly one relay check", postToolRelayHooks.length, 1)
+T("relay post-tool: reads, edits, agents and MCP tools each match once", ["Read", "Edit", "Write", "Agent", "mcp__server__tool"].map((toolName) =>
+  settings.hooks.PostToolUse.filter((entry) => new RegExp(entry.matcher ?? ".*").test(toolName))
+    .flatMap((entry) => entry.hooks).filter((hook) => hook.command.includes("relay-at-threshold.mjs")).length), [1, 1, 1, 1, 1])
+const postToolPayload = { session_id: relayPayload.session_id, transcript_path: relayTranscript, cwd: wakeCheckout,
+  permission_mode: relayPayload.permission_mode, hook_event_name: "PostToolUse", tool_name: "Bash",
+  tool_input: { command: "true" }, tool_response: { stdout: "", stderr: "", interrupted: false }, tool_use_id: "tool-call", duration_ms: 1 }
+const postToolRelay = () => postToolRelayHooks.length === 1
+  ? isolatedRelayHook("relay-at-threshold.mjs", postToolPayload) : { status: 0, stdout: "", stderr: "" }
+writeRunState(relayState, wakeCheckout)
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
+T("relay post-tool: below threshold prints nothing", postToolRelay().stdout, "")
+T("relay post-tool: below threshold preserves state", readRunState(wakeCheckout).relay, undefined)
+const transcriptPadding = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024) } }) + "\n"
+writeFileSync(relayTranscript, transcriptPadding.repeat(12) + JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n" + transcriptPadding)
+T("relay post-tool: performance fixture exceeds ten MiB", statSync(relayTranscript).size > 10 * 1024 * 1024, true)
+const subagentCrossing = isolatedRelayHook("relay-at-threshold.mjs", { ...postToolPayload, agent_id: "review-subagent", agent_type: "Explore" })
+T("relay post-tool: a subagent tool call at the threshold prints nothing", subagentCrossing.stdout, "")
+T("relay post-tool: a subagent tool call leaves the parent relay state", readRunState(wakeCheckout).relay, undefined)
+T("relay post-tool: a subagent tool call records no handoff request", readHandoffRequest("relay-parent", wakeCheckout), stopRelayRequest)
+const relayCheckStarted = performance.now()
+const postToolCrossing = postToolRelay()
+const relayCheckMilliseconds = performance.now() - relayCheckStarted
+console.log(`relay post-tool timing: ${statSync(relayTranscript).size} bytes in ${relayCheckMilliseconds.toFixed(1)} ms`)
+T("relay post-tool: large transcript finishes inside half its timeout", relayCheckMilliseconds < (postToolRelayHooks[0]?.timeout ?? 1) * 500, true)
+T("relay post-tool: crossing succeeds without diagnostics", { status: postToolCrossing.status, stderr: postToolCrossing.stderr }, { status: 0, stderr: "" })
+T("relay post-tool: mid-turn crossing emits the same drain instruction", JSON.parse(postToolCrossing.stdout || "{}").hookSpecificOutput,
+  { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext })
+const midTurnState = readRunState(wakeCheckout)
+T("relay post-tool: pending state equals Stop state except trigger time",
+  { ...midTurnState, relay: { ...midTurnState.relay, triggeredAt: stopRelayState.relay.triggeredAt } }, stopRelayState)
+T("relay post-tool: handoff request equals Stop request with its trigger time",
+  readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
+registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
+T("relay post-tool: pending worker drain injects nothing", postToolRelay().stdout, "")
+T("relay post-tool: Stop does not re-begin a mid-turn relay", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
+T("relay post-tool: pending checks preserve relay state", readRunState(wakeCheckout), midTurnState)
+T("relay post-tool: pending checks preserve handoff request", readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
+clearWakeSource(process.pid, wakeCheckout)
+T("relay post-tool: drained workers receive completion context", JSON.parse(postToolRelay().stdout || "{}").hookSpecificOutput,
+  { hookEventName: "PostToolUse", additionalContext: checkRelayStop({ ...relayOptions, state: midTurnState }).message })
+writeRunState({ ...midTurnState, relay: { ...midTurnState.relay, lastAttemptAt: new Date().toISOString() } }, wakeCheckout)
+T("relay post-tool: retry cooldown injects nothing", postToolRelay().stdout, "")
+writeRunState(relayState, wakeCheckout)
+const releaseRelayLock = acquireRelayLock(wakeCheckout)
+try {
+  T("relay post-tool: occupied relay lock cannot begin another drain", postToolRelay().stdout, "")
+  T("relay post-tool: occupied relay lock preserves state", readRunState(wakeCheckout).relay, undefined)
+} finally { releaseRelayLock() }
+writeRunState(relayState, wakeCheckout)
+registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
+const crossingBarrier = join(wakeCheckout, ".git", "crossing-barrier")
+mkdirSync(crossingBarrier)
+const concurrentRelayPreload = join(wakeCheckout, "concurrent-relay.mjs")
+writeFileSync(concurrentRelayPreload, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+import { join } from "node:path"
+const originalRead = fs.readFileSync
+let synchronized = false
+fs.readFileSync = function (path, ...args) {
+  const contents = originalRead.call(this, path, ...args)
+  if (!synchronized && path === process.env.RELAY_STATE_PATH) {
+    synchronized = true
+    fs.writeFileSync(join(process.env.RELAY_BARRIER_PATH, String(process.pid)), "ready")
+    const deadline = Date.now() + 500
+    while (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2 && Date.now() < deadline) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5)
+    }
+    if (fs.readdirSync(process.env.RELAY_BARRIER_PATH).length < 2) process.exit(1)
+  }
+  return contents
+}
+syncBuiltinESMExports()
+`)
+const concurrentRelayHook = () => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, ["--import", pathToFileURL(concurrentRelayPreload).href, join(wakeHooks, "relay-at-threshold.mjs")],
+    { env: { ...process.env, RELAY_STATE_PATH: runStatePath(wakeCheckout), RELAY_BARRIER_PATH: crossingBarrier } })
+  let stdout = ""
+  child.stdout.on("data", (chunk) => { stdout += chunk })
+  child.on("error", reject)
+  child.on("close", (status) => resolve({ status, stdout }))
+  child.stdin.end(JSON.stringify(postToolPayload))
+})
+const parallelCrossings = await Promise.all([concurrentRelayHook(), concurrentRelayHook()])
+T("relay post-tool: concurrent hooks both exit successfully", parallelCrossings.map((result) => result.status), [0, 0])
+T("relay post-tool: concurrent crossings begin exactly once", parallelCrossings.filter((result) => result.stdout.includes(feedback.hookSpecificOutput.additionalContext)).length, 1)
+clearWakeSource(process.pid, wakeCheckout)
 const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "/handoff --sleep" }
 isolatedRelayHook("record-handoff-request.mjs", ownerPrompt)
 T("relay adapter: owner handoff clears drain", readRunState(wakeCheckout).relay.pending, false)
