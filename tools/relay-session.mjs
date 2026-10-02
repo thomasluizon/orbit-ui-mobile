@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 import { pathToFileURL } from "node:url"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession } from "./lib/session-chain.mjs"
 import { HANDOFF_PROMPT_PATH, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
@@ -28,7 +29,10 @@ const cleanEnvironment = (environment) => Object.fromEntries(Object.entries(envi
 
 const run = (binary, args, cwd, environment = process.env) => {
   const result = spawnSync(binary, args, { cwd, env: environment, encoding: "utf8", timeout: 30_000, windowsHide: true })
-  if (result.error || result.status !== 0) throw new Error(`${binary} failed (${result.status ?? result.error.code})`)
+  if (result.error || result.status !== 0) {
+    const detail = redactSecrets((result.stderr || result.stdout || result.error?.message || "").trim()).slice(0, 2000)
+    throw new Error(`${binary} ${args.slice(0, 2).join(" ")} failed (${result.status ?? result.error.code}): ${detail}`)
+  }
   return result.stdout.trim()
 }
 

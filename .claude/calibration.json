@@ -220,8 +220,8 @@
       "model": null,
       "effort": null,
       "digest": "71b26b5a75febeb6",
-      "calibratedAt": "2026-10-02",
-      "verdict": "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call."
+      "calibratedAt": "2026-10-01",
+      "verdict": "current: the helper calls claude-opus-5-5 for hard, high-value claims without tools and degrades to unavailable; the independent same-vendor read has correlated blind spots and is weaker than a cross-vendor read. Model and effort remain undeclared here because they would tune the invoking session rather than the separate verdict call."
     },
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
