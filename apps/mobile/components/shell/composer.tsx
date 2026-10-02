@@ -439,6 +439,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     justifyContent: 'center',
     borderRadius: 8,
+    overflow: 'hidden',
   },
   fullAttachmentName: {
     fontFamily: 'Geist_400Regular',

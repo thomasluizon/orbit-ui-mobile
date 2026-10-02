@@ -179,13 +179,10 @@ describe('ChatPage', () => {
   })
 
   it('marks the feed busy without adding a typing animation', () => {
-    mocks.composer.isOnline = false
-    mocks.composer.sendError = 'send failed sentinel'
     mocks.composer.isTyping = true
 
     render(<ChatPage />)
 
-    expect(screen.getByRole('alert')).toHaveTextContent('send failed sentinel')
     expect(screen.getByRole('log', { name: 'chat.title' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
   })

@@ -75,14 +75,14 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /errorKey[\s\S]*?text-\[var\(--status-bad-text\)\]/,
   },
   {
-    name: 'web conversation send error',
-    path: 'apps/web/components/chat/conversation.tsx',
-    pattern: /sendError[\s\S]*?text-\[var\(--status-bad-text\)\]/,
+    name: 'web composer error',
+    path: 'apps/web/components/shell/composer.tsx',
+    pattern: /props\.errorMessage[\s\S]*?text-\[var\(--status-bad-text\)\]/,
   },
   {
-    name: 'mobile conversation send error',
-    path: 'apps/mobile/components/chat/conversation.tsx',
-    pattern: /color: tokens\.statusBadText,[\s\S]*?fontSize: 14/,
+    name: 'mobile composer error',
+    path: 'apps/mobile/components/shell/composer.tsx',
+    pattern: /props\.errorMessage[\s\S]*?color: tokens\.statusBadText/,
   },
   {
     name: 'mobile clarification error',
