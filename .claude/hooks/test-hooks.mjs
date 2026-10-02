@@ -1213,6 +1213,11 @@ for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
   T(`relay adapter: live ${type} Stop cannot complete drain`, backgroundHook(waiting).stdout, "")
   T(`relay adapter: live ${type} PostToolUse cannot complete drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout, "")
   T(`relay adapter: finished ${type} completes on authoritative empty Stop`, backgroundHook(relayPayload).stdout.includes("drain is complete"), true)
+  backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: response })
+  const recordPath = join(wakeCheckout, ".git", "orbit-background-runs", relayPayload.session_id, `${id}.json`)
+  const record = JSON.parse(readFileSync(recordPath, "utf8"))
+  writeFileSync(recordPath, JSON.stringify({ ...record, processStartIdentity: "previous process" }))
+  T(`relay adapter: stale ${type} does not strand the pending drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout.includes("drain is complete"), true)
 }
 writeRunState(midTurnState, wakeCheckout)
 writeRunState({ ...midTurnState, relay: { ...midTurnState.relay, lastAttemptAt: new Date().toISOString() } }, wakeCheckout)

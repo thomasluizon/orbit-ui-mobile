@@ -268,6 +268,12 @@ export const cases = async () => {
     encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: "predecessor" },
   })
   T("relay-session: real CLI refuses and names every background run", backgroundCli.status === 1 && backgroundCli.stderr.includes("workflow-task") && backgroundCli.stderr.includes("subagent-task"), backgroundCli.stderr)
+  for (const type of ["workflow", "subagent"]) writeFileSync(join(directory, `${type}-task.json`), JSON.stringify({
+    id: `${type}-task`, type, sessionId: "predecessor", pid: process.pid, processStartIdentity: "previous process",
+  }))
+  T("relay-session: stale background records allow the successor to proceed", await failure({
+    repoRoot: background.checkout, sessionId: "predecessor", execute: executeFor(background.checkout), wait: async () => {}, confirmMilliseconds: 10,
+  }) === null)
   const release = fixture("release")
   registerWakeSource({ pid: process.pid, what: "Release ui run 1" }, release.checkout)
   T("relay-session: release watcher blocks handoff", (await failure({ repoRoot: release.checkout, sessionId: "predecessor" })).includes(String(process.pid)))

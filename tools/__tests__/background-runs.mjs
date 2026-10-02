@@ -1,6 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { spawn } from "node:child_process"
 import { join } from "node:path"
 import { observeBackgroundRuns, readBackgroundRuns } from "../lib/background-runs.mjs"
+import { processStartIdentity } from "../lib/run-state.mjs"
 import { T, stageRepo } from "./_harness.mjs"
 
 const launches = JSON.parse(readFileSync(new URL("./fixtures/claude-background-launches.json", import.meta.url), "utf8"))
@@ -33,4 +35,17 @@ export const cases = async () => {
   observeBackgroundRuns({ ...input, tool_name: "Agent", tool_response: launches.subagent }, options)
   observeBackgroundRuns({ ...input, hook_event_name: "Stop", background_tasks: [] }, options)
   T("background-runs: empty owning Stop clears the remaining work", readBackgroundRuns("parent", repoRoot).length === 0)
+  let invalidLaunch = false
+  try { observeBackgroundRuns({ ...input, tool_name: "Agent", tool_response: { ...launches.subagent, agentId: "" } }, options) }
+  catch (error) { invalidLaunch = /no task id/.test(error.message) }
+  T("background-runs: a launch with no id is rejected", invalidLaunch)
+  const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+  const exited = new Promise((resolve) => child.once("exit", resolve))
+  const childIdentity = processStartIdentity(child.pid)
+  try {
+    T("background-runs: stale-process fixture starts with a real live owner", childIdentity !== null)
+    writeFileSync(recordPath, JSON.stringify({ ...record, pid: child.pid, processStartIdentity: childIdentity }))
+    T("background-runs: real running owner holds the drain", readBackgroundRuns("parent", repoRoot).length === 1)
+  } finally { child.kill(); await exited }
+  T("background-runs: exited owning process clears a stale run", readBackgroundRuns("parent", repoRoot).length === 0)
 }
