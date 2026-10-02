@@ -1262,6 +1262,7 @@ for (const [index, prompt] of [
   "```text\n/wrap-up --sleep\n```",
   '<pasted_content source="NEXT.md">\n/handoff --relay --sleep\n</pasted_content>',
   ".claude/skills/handoff/SKILL.md",
+  "<pasted_content>\n<pasted_content>\nquoted\n</pasted_content>\n/handoff --sleep\n</pasted_content>",
 ].entries()) {
   const sessionId = `handoff-mention-${index}`
   writeRunState({ sessionId, sleep: true, relay: { pending: true } }, wakeCheckout)
@@ -1269,6 +1270,10 @@ for (const [index, prompt] of [
   T(`handoff adapter: mention ${index} records nothing`, readHandoffRequest(sessionId, wakeCheckout), null)
   T(`handoff adapter: mention ${index} preserves the unattended drain`, { sleep: readRunState(wakeCheckout).sleep, pending: readRunState(wakeCheckout).relay.pending }, { sleep: true, pending: true })
 }
+writeRunState({ sessionId: "handoff-parenthesized", sleep: true, relay: { pending: true } }, wakeCheckout)
+isolatedRelayHook("record-handoff-request.mjs", { ...ownerPrompt, session_id: "handoff-parenthesized", prompt: "please (/handoff --sleep)" })
+const parenthesizedRequest = readHandoffRequest("handoff-parenthesized", wakeCheckout)
+T("handoff adapter: a parenthesized sleep handoff records an unattended owner request", { command: parenthesizedRequest?.command, sleep: parenthesizedRequest?.sleep, origin: parenthesizedRequest?.origin }, { command: "handoff", sleep: true, origin: "owner" })
 writeRunState({ ...relayState, relay: { pending: true } }, wakeCheckout)
 const unreadable = isolatedRelayHook("relay-at-threshold.mjs", { ...relayPayload, transcript_path: join(wakeCheckout, "absent.jsonl") })
 T("relay adapter: unreadable transcript fails open with one stderr line", { status: unreadable.status, stdout: unreadable.stdout, lines: unreadable.stderr.trim().split("\n").length }, { status: 0, stdout: "", lines: 1 })
