@@ -534,22 +534,29 @@ describe('mobile step up screen', () => {
     await confirm(tree)
 
     expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
-    expect(findButton(tree.root, 'stepUp.backToProfile')).toBeDefined()
+    const back = findButton(tree.root, 'common.backToDestination:{"destination":"profile.submenus.account"}')
+    await TestRenderer.act(() => { (back.props.onPress as () => void)() })
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
     expect(queryButton(tree.root, 'stepUp.confirm')).toBeUndefined()
     expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
     expect(queryButton(tree.root, 'stepUp.cancel')).toBeUndefined()
   })
 
-  it('mounts an active lock without requesting another code', async () => {
+  it.each(['delete', 'keys'] as const)('mounts an active %s lock without requesting another code', async (operation) => {
+    mocks.operation = operation
     const now = Date.now()
     const tree = await renderScreen({
-      operation: 'delete',
+      operation,
       sentAt: now,
       exhaustedAt: now - STEP_UP_ATTEMPT_WINDOW_MS + 10_000,
     })
     expect(findText(tree.root, 'stepUp.exhaustedNotice').length).toBeGreaterThan(0)
     expect(queryButton(tree.root, 'stepUp.resend')).toBeUndefined()
     expect(mocks.apiClient).not.toHaveBeenCalled()
+    const destination = operation === 'keys' ? 'profile.groups.astra' : 'profile.submenus.account'
+    const back = findButton(tree.root, `common.backToDestination:${JSON.stringify({ destination })}`)
+    await TestRenderer.act(() => { (back.props.onPress as () => void)() })
+    expect(mocks.router.replace).toHaveBeenCalledWith(operation === 'keys' ? '/profile/astra' : '/profile/account')
   })
 
   it('shows the arrival cooldown with no resend control', async () => {
@@ -613,7 +620,7 @@ describe('mobile step up screen', () => {
       ;(findButton(tree.root, 'stepUp.cancel').props.onPress as () => void)()
       await Promise.resolve()
     })
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account')
   })
 
   it('confirms API key creation and returns to its creation handoff', async () => {
@@ -628,6 +635,6 @@ describe('mobile step up screen', () => {
     )
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys', 'user-1')
     expect(mocks.markVerified).toHaveBeenCalledWith('keys')
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile/astra')
   })
 })

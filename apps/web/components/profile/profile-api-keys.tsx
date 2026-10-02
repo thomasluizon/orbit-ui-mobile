@@ -397,9 +397,9 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
       style={{ gap: 8 }}
     >
       <div className="flex items-center" style={{ gap: 8 }}>
-        <h3 className="font-sans text-[14px] font-medium text-[var(--fg-2)]">
+        <h2 className="font-sans text-[14px] font-medium text-[var(--fg-2)]">
           {t('profile.settingsRows.apiKeysMcp')}
-        </h3>
+        </h2>
         <ProBadge alwaysVisible label={t('common.proBadge')} />
       </div>
       <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)] [text-wrap:pretty]">
@@ -413,7 +413,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         error={stepUp.error}
         hasProAccess={hasProAccess}
         onStartStepUp={stepUp.start}
-        onUpgrade={() => router.push('/upgrade')}
+        onUpgrade={() => router.push('/upgrade?from=%2Fprofile%2Fastra')}
         unlocked={unlocked}
       >
         <>

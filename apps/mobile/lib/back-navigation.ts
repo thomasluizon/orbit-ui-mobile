@@ -47,6 +47,10 @@ export function getAndroidBackFallbackRoute(
     case '/chat':
     case '/profile':
       return '/'
+    case '/profile/account':
+    case '/profile/preferences':
+    case '/profile/astra':
+    case '/profile/notifications':
     case '/about':
     case '/support':
       return '/profile'

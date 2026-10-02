@@ -11,7 +11,7 @@ import { setAccountId } from '@/lib/account-scope'
 import * as apiFetch from '@/lib/api-fetch'
 import { RouteContext } from '@/components/navigation/route-context'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade' }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade', useSearchParams: () => new URLSearchParams(globalThis.location.search) }))
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -214,6 +214,7 @@ describe('UpgradePage', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    history.replaceState({}, '', '/')
     setAccountId(null)
   })
 
@@ -221,6 +222,20 @@ describe('UpgradePage', () => {
     { locale: 'en', messages: en, trialHeading: 'The 50 a day stay, or go back to 5.' },
     { locale: 'pt-BR', messages: ptBR, trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
+    it('returns a directly linked Astra upgrade to its originating sub-screen', () => {
+      mockLocale.value = locale
+      history.replaceState({}, '', '/upgrade?from=%2Fprofile%2Fastra')
+      try {
+        render(<UpgradePage />)
+        const backLabel = messages.common.backToDestination.replace('{destination}', messages.profile.groups.astra)
+        fireEvent.click(screen.getByRole('button', { name: backLabel }))
+        expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile/astra')
+        expect(screen.getByRole('link', { name: messages.upgrade.convert.stayFree })).toHaveAttribute('href', '/profile/astra')
+      } finally {
+        history.replaceState({}, '', '/')
+      }
+    })
+
     it('names the pitch and subscription management before Orbit', () => {
       mockLocale.value = locale
       const view = render(<RouteContext><UpgradePage /></RouteContext>)
@@ -384,6 +399,7 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).not.toContain('upgrade.matrix.')
   })
 
+  describe.each(['/profile', '/profile/astra'])('decline destination %s', (destination) => {
   it.each([
     { metaKey: true },
     { ctrlKey: true },
@@ -399,13 +415,17 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
+    history.replaceState({}, '', destination === '/profile/astra' ? '/upgrade?from=%2Fprofile%2Fastra' : '/upgrade')
     render(<UpgradePage />)
     const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
     const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })
     fireEvent(decline, event)
     expect(event.defaultPrevented).toBe(false)
     expect(mockGoBackOrFallback).not.toHaveBeenCalled()
-    expect(decline).toHaveAttribute('href', '/profile')
+    expect(decline).toHaveAttribute('href', destination)
+    history.replaceState({}, '', '/')
+  })
+
   })
 
   it.each([

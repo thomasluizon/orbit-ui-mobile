@@ -24,6 +24,7 @@ const {
   mockShellNoticeSlot,
   mockUseGamificationProfile,
   mockPatchProfile,
+  mockRefetchProfile,
   mockProfileState,
   mockRouterPush,
   mockSearchParams,
@@ -49,6 +50,7 @@ const {
   mockShellNoticeSlot: vi.fn(),
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockPatchProfile: vi.fn(),
+  mockRefetchProfile: vi.fn(),
   mockRouterPush: vi.fn(),
   mockSearchParams: { current: '' },
   mockStepUpVerified: { current: false },
@@ -129,7 +131,7 @@ vi.mock('@/hooks/use-color-scheme', () => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockRouterPush,
-    replace: vi.fn(),
+    replace: mockRouterPush,
     back: vi.fn(),
     refresh: vi.fn(),
   }),
@@ -153,7 +155,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
+  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile, refetch: mockRefetchProfile }),
   useTrialExpired: () => true,
 }))
 
@@ -214,7 +216,79 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 
 import ProfilePage from '@/app/(app)/profile/page'
 
+import ProfileAccountRoute from '@/app/(app)/profile/account/page'
+import ProfilePreferencesRoute from '@/app/(app)/profile/preferences/page'
+import ProfileAstraRoute from '@/app/(app)/profile/astra/page'
+import ProfileNotificationsRoute from '@/app/(app)/profile/notifications/page'
+import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscreen'
+
+const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
+
 describe('ProfilePage', () => {
+  it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', (destination) => {
+    mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
+    const Destination = PROFILE_ROUTES[destination]
+    render(<Destination />)
+    expect(screen.getByRole('alert')).toHaveTextContent('errors.loadProfile')
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(mockRefetchProfile).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
+    expect(screen.queryByTestId('profile-api-keys')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['account', ['profile.settingsRows.editName', 'profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
+    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
+    ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
+    ['notifications', ['profile.settingsRows.devices', 'profile.marketingEmails.question', 'profile.settingsRows.remindersNote']],
+  ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
+    const top = render(<ProfilePage />)
+    const entry = screen.getAllByRole('link').find((link) => link.getAttribute('href') === `/profile/${destination}`)!
+    fireEvent.click(entry)
+    expect(entry).toHaveAttribute('href', `/profile/${destination}`)
+    top.unmount()
+    const Destination = PROFILE_ROUTES[destination]
+    const content = render(<Destination />)
+    const group = screen.getByTestId(`profile-settings-group-${destination}`)
+    for (const label of labels.filter((key) => key !== 'profile.settingsRows.editName')) expect(group.textContent).toContain(label)
+    if (destination === 'account') expect(within(group).getByRole('button', { name: /profile.settingsRows.editName/ })).toBeInTheDocument()
+    const ordered = labels.filter((label) => label !== 'profile.settingsRows.editName')
+    expect(ordered.map((label) => group.textContent.indexOf(label))).toEqual(ordered.map((label) => group.textContent.indexOf(label)).sort((left, right) => left - right))
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'common.backToProfile' }))
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile')
+    for (const other of ['account', 'preferences', 'astra', 'notifications']) {
+      if (other !== destination) expect(screen.queryByTestId(`profile-settings-group-${other}`)).not.toBeInTheDocument()
+    }
+    content.unmount()
+  })
+
+  it('forwards a checkout return to Astra without dropping settlement parameters', () => {
+    mockSearchParams.current = 'subscription=success&keep=1'
+    render(<ProfilePage />)
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile/astra?subscription=success&keep=1')
+  })
+
+  it.each([['#you', '/profile/preferences'], ['#astra', '/profile/astra'], ['#api-keys', '/profile/astra'], ['#notifications', '/profile/notifications'], ['#ending', '/profile/account']])('forwards the saved %s section to %s', (hash, destination) => {
+    history.replaceState({}, '', `/profile${hash}`)
+    try {
+      render(<ProfilePage />)
+      expect(mockRouterPush).toHaveBeenCalledWith(destination)
+    } finally {
+      history.replaceState({}, '', '/')
+    }
+  })
+
+  it('opens settings through four sub-menu entries instead of rendering their controls on Perfil', () => {
+    render(<ProfilePage />)
+    for (const path of ['/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications']) {
+      expect(screen.getAllByRole('link').some((link) => link.getAttribute('href') === path)).toBe(true)
+    }
+    expect(screen.queryByRole('button', { name: /profile.settingsRows.timezone/ })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('profile-api-keys')).not.toBeInTheDocument()
+  })
+
   beforeEach(() => {
     mockPushPreferenceState.current = { supported: true, subscribed: false, permission: 'default', status: 'not-registered' }
     mockTranslate.current = (key, params) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key
@@ -224,6 +298,7 @@ describe('ProfilePage', () => {
     mockUpdateAiSummary.mockReset()
     mockUpdateProactiveAstra.mockReset()
     mockShellNoticeSlot.mockReset()
+    mockRefetchProfile.mockReset()
     mockPatchProfile.mockReset()
     Object.defineProperties(URL, {
       createObjectURL: { configurable: true, value: vi.fn(() => 'blob:export') },
@@ -256,72 +331,11 @@ describe('ProfilePage', () => {
     }
   })
 
-  it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', () => {
-    mockLocale.current = 'pt-BR'
-    mockPushPreferenceState.current = { supported: true, subscribed: false, permission: 'default', status: 'not-registered' }
-    mockTranslate.current = (key, params) => {
-      let message: unknown = ptBR
-      for (const segment of key.split('.')) {
-        message = message && typeof message === 'object'
-          ? (message as Record<string, unknown>)[segment]
-          : undefined
-      }
-      return typeof message === 'string'
-        ? message.replace('{count}', String(params?.count ?? '')).replace('{max}', String(params?.max ?? ''))
-        : key
-    }
-    mockProfileState.current = {
-      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR', weekStartDay: 1 }),
-      isLoading: false,
-      error: null,
-    }
-    render(<ProfilePage />)
-
-    expect(screen.getByRole('button', { name: /Semana começa em/ })).toHaveTextContent('segunda')
-
-    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
-      'Você', 'Astra', 'Notificações', 'Mais do Orbit', 'Encerrar',
-    ])
-    const inOrder = (group: string, labels: string[]) => {
-      const content = screen.getByTestId(`profile-settings-group-${group}`).textContent
-      let previous = -1
-      for (const label of labels) {
-        const position = content.indexOf(label, previous + 1)
-        expect(position, `${label} in ${group}`).toBeGreaterThan(previous)
-        previous = position
-      }
-    }
-    inOrder('you', [
-      'Fuso horário', 'Semana começa em', 'Idioma', 'Português do Brasil',
-      'Tema', 'Exportar os meus dados',
-    ])
-    inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
-    const apiKeys = within(screen.getByTestId('profile-api-keys'))
-    expect(apiKeys.getByText('Pro')).toBeInTheDocument()
-    expect(apiKeys.queryByText('Período de teste')).not.toBeInTheDocument()
-    inOrder('notifications', [
-      'Podemos mandar email sobre o produto?', 'Pode mandar', 'Não mandar',
-      'Análise de uso', 'Aparelhos com aviso', 'Este aparelho',
-      'Os lembretes de cada hábito ficam no próprio hábito.',
-    ])
-    inOrder('more', [
-      'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
-      'Ajuda e suporte', 'Sobre o Orbit',
-    ])
-    inOrder('ending', ['Sair da conta', 'Começar de novo', 'Apagar a conta'])
-    expect(screen.getByTestId('profile-settings-group-you')).not.toHaveTextContent('Plano')
-    expect(screen.queryByText('Compartilhar progresso')).not.toBeInTheDocument()
-  })
-
   it('renders the remaining phone feature sections in order', () => {
     render(<ProfilePage />)
 
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
-      'profile.groups.you',
-      'profile.groups.astra',
-      'profile.groups.notifications',
       'profile.groups.more',
-      'profile.groups.ending',
     ])
     expect(screen.getByText('profile.settingsRows.wrapped')).toBeInTheDocument()
     expect(screen.queryByText('profile.wrappedHint')).not.toBeInTheDocument()
@@ -342,91 +356,9 @@ describe('ProfilePage', () => {
     }
   })
 
-  it('keeps every profile setting reachable by its accessible name', () => {
-    render(<ProfilePage />)
-
-    expect(screen.queryByRole('button', { name: 'profile.subscription.plan' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'shareCard.entry' })).not.toBeInTheDocument()
-
-    const accessibleNames = [
-      'profile.settingsRows.editName',
-      'profile.language.title',
-      'profile.settingsRows.timezone',
-      'profile.settingsRows.weekStart',
-      'settings.clock.title',
-      'profile.settingsRows.export',
-      'profile.settingsRows.signOut',
-      'profile.settingsRows.startOver',
-      'profile.settingsRows.deleteAccount',
-    ]
-
-    for (const name of accessibleNames) {
-      expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
-    }
-    expect(screen.getByRole('group', { name: 'profile.settingsRows.theme' })).toBeInTheDocument()
-    for (const name of [
-      'profile.settingsRows.wrapped',
-      'profile.calendarSync.title',
-      'profile.aboutRow',
-      'profile.support.rowTitle',
-    ]) {
-      expect(screen.getByRole('link', { name: new RegExp(name, 'i') })).toBeInTheDocument()
-    }
-    expect(
-      screen.getByRole('button', { name: 'profile.marketingEmails.accept' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
-    ).toBeInTheDocument()
-  })
-
-  it.each([
-    ['en', false, 'ready'], ['en', true, 'ready'], ['pt-BR', false, 'ready'], ['pt-BR', true, 'ready'],
-    ['en', false, 'no timezone'], ['pt-BR', false, 'no timezone'],
-    ['en', false, 'unavailable'], ['pt-BR', false, 'unavailable'],
-  ] as const)('starts each %s profile row name with its visible label (Pro: %s, %s)', (locale, hasProAccess, profileState) => {
-    mockLocale.current = locale
-    mockTranslate.current = (key, params) => {
-      let message: unknown = locale === 'en' ? en : ptBR
-      for (const segment of key.split('.')) {
-        message = (message as Record<string, unknown>)[segment]
-      }
-      return String(message).replace(/\{(\w+)\}/g, (_, parameter: string) => String(params?.[parameter] ?? ''))
-    }
-    mockProfileState.current.profile = createMockProfile({
-      name: 'Voice user', language: locale, timeZone: profileState === 'no timezone' ? null : 'America/Sao_Paulo', hasProAccess,
-      plan: hasProAccess ? 'pro' : 'free',
-    })
-    if (profileState === 'unavailable') mockProfileState.current.profile = undefined
-    render(<ProfilePage />)
-
-    for (const group of ['you', 'astra', 'notifications', 'more', 'ending']) {
-      const section = screen.getByTestId(`profile-settings-group-${group}`)
-      const controls = within(section).queryAllByRole('button').concat(within(section).queryAllByRole('link'))
-      expect(controls.length, group).toBeGreaterThan(0)
-      for (const control of controls) {
-        const visibleLabel = document.createTreeWalker(control, NodeFilter.SHOW_TEXT).nextNode()?.textContent?.trim()
-        expect(visibleLabel, group).toBeTruthy()
-        expect.soft(control).toHaveAccessibleName(new RegExp(`^${visibleLabel?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
-      }
-    }
-    for (const control of screen.getAllByRole('switch')) {
-      const accessibleLabel = control.getAttribute('aria-label')
-      const visibleLabel = accessibleLabel === mockTranslate.current('profile.settingsRows.alertsOnThisDevice')
-        ? mockTranslate.current('profile.settingsRows.currentDevice')
-        : accessibleLabel
-      expect(visibleLabel).toBeTruthy()
-      expect(screen.getAllByText(visibleLabel ?? '').length).toBeGreaterThan(0)
-      expect.soft(control).toHaveAccessibleName(new RegExp(`^${visibleLabel}`))
-    }
-    const themeLabel = mockTranslate.current('profile.settingsRows.theme')
-    expect(screen.getAllByText(themeLabel).length).toBeGreaterThan(0)
-    expect(screen.getByRole('group', { name: themeLabel })).toBeInTheDocument()
-  })
-
   it('places the clock choice between week start and language', () => {
     mockProfileState.current.profile = createMockProfile({ uses24HourClock: true })
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="preferences" />)
     const week = screen.getByRole('button', { name: /profile.settingsRows.weekStart/i })
     const clock = screen.getByRole('button', { name: /settings.clock.title/i })
     const language = screen.getByRole('button', { name: /profile.language.title/i })
@@ -437,24 +369,25 @@ describe('ProfilePage', () => {
 
   it('opens each inline preference directly and sends Support to its form', () => {
     for (const label of ['profile.language.title', 'profile.settingsRows.weekStart', 'settings.clock.title']) {
-      const view = render(<ProfilePage />)
+      const view = render(<ProfileSubscreen screen="preferences" />)
       mockRouterPush.mockClear()
       fireEvent.click(screen.getByRole('button', { name: new RegExp(label, 'i') }))
       expect(mockRouterPush).not.toHaveBeenCalled()
       expect(screen.getByRole('dialog')).toBeInTheDocument()
       view.unmount()
     }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="preferences" />)
     const themeChoices = screen.getByRole('group', { name: 'profile.settingsRows.theme' })
     expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeDark' }))
     expect(themeChoices).toContainElement(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
     expect(themeChoices).toHaveClass('flex-wrap', 'max-w-full')
+    render(<ProfilePage />)
     expect(screen.getByRole('link', { name: /profile\.support\.rowTitle/i })).toHaveAttribute('href', '/support')
   })
 
   it('changes the inline theme and general habits preference', () => {
     const write = vi.spyOn(Storage.prototype, 'setItem')
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="preferences" />)
     fireEvent.click(screen.getByRole('button', { name: 'preferences.themeModeLight' }))
     expect(mockApplyTheme).toHaveBeenCalledWith('light')
 
@@ -472,28 +405,28 @@ describe('ProfilePage', () => {
   })
 
   it('commits a week start choice from the inline picker', () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="preferences" />)
     fireEvent.click(screen.getByRole('button', { name: /profile\.settingsRows\.weekStart/i }))
     fireEvent.click(screen.getByRole('radio', { name: 'settings.weekStartDay.sunday' }))
     expect(mockUpdateWeekStartDay).toHaveBeenCalledWith({ weekStartDay: 0 }, 'account-a')
   })
 
   it('submits a language choice from the inline picker', async () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="preferences" />)
     fireEvent.click(screen.getByRole('button', { name: /profile\.language\.title/i }))
     fireEvent.click(screen.getByRole('radio', { name: 'Português' }))
     await waitFor(() => expect(mockUpdateLanguage).toHaveBeenCalledWith({ language: 'pt-BR' }, 'account-a'))
   })
 
   it('uses the current device switch to enable browser push', () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     fireEvent.click(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' }))
     expect(mockTogglePush).toHaveBeenCalledWith(true)
   })
 
   it.each([0, 1, 5])('shows %i devices against the cap', (count) => {
     mockDeviceState.current.count = count
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     expect(screen.getByText(`${count} of 5`)).toBeInTheDocument()
     expect(screen.getByText('profile.settingsRows.devices')).toBeInTheDocument()
     expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
@@ -503,7 +436,7 @@ describe('ProfilePage', () => {
   it('names this device when its endpoint is registered and turns it off', () => {
     mockDeviceState.current.count = 1
     mockDeviceState.current.isCurrentDeviceRegistered = true
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
     expect(control).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
@@ -515,14 +448,14 @@ describe('ProfilePage', () => {
   it('reserves the count while devices load', () => {
     mockDeviceState.current.count = undefined
     mockDeviceState.current.isLoading = true
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     const placeholder = screen.getByRole('status', { name: 'profile.loading' })
     expect(placeholder.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
   })
 
   it('keeps browser push status empty and reserves the switch while checking', () => {
     mockPushPreferenceState.current = { supported: false, subscribed: false, permission: '', status: 'checking' }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     expect(screen.queryByText('settings.notifications.unsupported')).not.toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).not.toBeInTheDocument()
     expect(screen.getByTestId('push-status')).toHaveTextContent(/^\s*$/)
@@ -531,21 +464,21 @@ describe('ProfilePage', () => {
 
   it('reports unsupported after browser push checking finishes', () => {
     mockPushPreferenceState.current = { supported: false, subscribed: false, permission: '', status: 'unsupported' }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     expect(screen.getByTestId('push-status')).toHaveTextContent('settings.notifications.unsupported')
     expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
   })
 
   it('explains the full device cap and keeps this device off', () => {
     mockDeviceState.current.count = 5
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     expect(screen.getByText('profile.settingsRows.pushDeviceLimit')).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
   })
 
   it('offers retry when the device list fails', () => {
     mockDeviceState.current.isError = true
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(mockDeviceState.current.refresh).toHaveBeenCalledOnce()
   })
@@ -560,52 +493,6 @@ describe('ProfilePage', () => {
     const ending = screen.getByTestId('profile-settings-group-ending')
 
     expect(within(ending).getAllByRole('button')[0]).toHaveTextContent('profile.settingsRows.signOut')
-  })
-
-  it('puts Fresh Start directly after Sign out', () => {
-    render(<ProfilePage />)
-    const ending = screen.getByTestId('profile-settings-group-ending')
-    const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
-
-    expect(labels.slice(0, 2)).toEqual(['profile.settingsRows.signOut', 'profile.settingsRows.startOver'])
-  })
-
-  it('keeps Delete account last in the three-row ending group', () => {
-    render(<ProfilePage />)
-    const ending = screen.getByTestId('profile-settings-group-ending')
-    const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
-
-    expect(labels).toEqual([
-      'profile.settingsRows.signOut',
-      'profile.settingsRows.startOver',
-      'profile.settingsRows.deleteAccount',
-    ])
-  })
-
-  it('renders the account chevron and undecorated preference rows in You', () => {
-    render(<ProfilePage />)
-    const group = within(screen.getByTestId('profile-settings-group-you'))
-    const rows = group.getAllByRole('button').filter((row) => row.textContent !== 'preferences.themeModeDark' && row.textContent !== 'preferences.themeModeLight')
-    expect(rows[0]!.querySelectorAll('svg')).toHaveLength(1)
-    for (const key of ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title']) {
-      const row = group.getByText(key).closest('button')!
-      expect(row.querySelectorAll('svg')).toHaveLength(0)
-    }
-    expect(group.getByText('profile.settingsRows.export').closest('button')!.querySelectorAll('svg')).toHaveLength(1)
-  })
-
-  it('lets Perfil rows set the stroke color of ordinary and danger icons', () => {
-    render(<ProfilePage />)
-    const ending = within(screen.getByTestId('profile-settings-group-ending'))
-    for (const [label, color] of [
-      ['profile.settingsRows.signOut', 'var(--fg-1)'],
-      ['profile.settingsRows.deleteAccount', 'var(--status-bad)'],
-    ]) {
-      const row = ending.getByRole('button', { name: label })
-      const icon = row.querySelector('svg')
-      expect(icon).toHaveAttribute('stroke', 'currentColor')
-      expect(icon?.parentElement).toHaveStyle({ color })
-    }
   })
 
   it('routes every More of Orbit row', () => {
@@ -635,7 +522,7 @@ describe('ProfilePage', () => {
   })
 
   it('shows the free daily allowance as an enabled route to Pro', () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     const progress = astra.getByRole('progressbar', { name: 'profile.allowance.title' })
@@ -646,12 +533,12 @@ describe('ProfilePage', () => {
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
 
     const allowanceGate = astra.getByRole('link', { name: 'profile.allowance.seePro' })
-    expect(allowanceGate).toHaveAttribute('href', '/upgrade')
+    expect(allowanceGate).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     expect(allowanceGate).not.toHaveAttribute('aria-disabled', 'true')
   })
 
   it('shows both free Astra switch gates as enabled routes to Pro', () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     const proactiveGate = astra.getByRole('button', { name: /profile\.proactiveAstra\.title/i })
@@ -661,8 +548,8 @@ describe('ProfilePage', () => {
     expect(summaryGate).toBeEnabled()
     fireEvent.click(proactiveGate)
     fireEvent.click(summaryGate)
-    expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
-    expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fastra')
+    expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fastra')
   })
 
   it.each([
@@ -685,7 +572,7 @@ describe('ProfilePage', () => {
     mockProfileState.current.profile = createMockProfile({
       plan: hasProAccess ? 'pro' : 'free', hasProAccess, language: locale,
     })
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     if (hasProAccess) {
@@ -698,13 +585,13 @@ describe('ProfilePage', () => {
         expect(row).toBeEnabled()
         fireEvent.click(row)
       }
-      expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
-      expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+      expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fastra')
+      expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fastra')
     }
   })
 
   it('shows only the API key description and upgrade row to free accounts', () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.getByText('profile.apiKeys.description')).toBeInTheDocument()
@@ -713,7 +600,7 @@ describe('ProfilePage', () => {
     expect(upgradeRow).toBeEnabled()
 
     fireEvent.click(upgradeRow)
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
   })
 
   it('badges the locked API keys section Pro, never with the trial label', () => {
@@ -722,7 +609,7 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     const badges = apiKeys.getAllByText('common.proBadge')
@@ -739,14 +626,14 @@ describe('ProfilePage', () => {
       keyPrefix: 'orb_live_1234',
     }]
 
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     const upgradeRow = apiKeys.getByRole('button', { name: 'profile.apiKeys.unlock' })
     expect(upgradeRow).toBeEnabled()
     expect(apiKeys.queryByText('Work key')).not.toBeInTheDocument()
     fireEvent.click(upgradeRow)
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
   })
 
   it('puts the step up before the API key list for Pro accounts', () => {
@@ -755,7 +642,7 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
@@ -780,7 +667,7 @@ describe('ProfilePage', () => {
       keyPrefix: 'orb_live_1234',
     }]
 
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.getByRole('button', { name: 'profile.apiKeys.open' })).toBeInTheDocument()
@@ -813,7 +700,7 @@ describe('ProfilePage', () => {
         key: 'orb_secret',
       },
     })
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     expect(apiKeys.getByText('Work key')).toBeInTheDocument()
@@ -852,7 +739,7 @@ describe('ProfilePage', () => {
         success: true,
         response: { id: 'key-2', key: 'orb_secret' },
       })
-    const firstView = render(<ProfilePage />)
+    const firstView = render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
@@ -881,7 +768,7 @@ describe('ProfilePage', () => {
 
     firstView.unmount()
     mockCreateGrant.consumed = false
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
     fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
     expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
   })
@@ -906,7 +793,7 @@ describe('ProfilePage', () => {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     })
-    const firstView = render(<ProfilePage />)
+    const firstView = render(<ProfileSubscreen screen="astra" />)
 
     const create = screen.getByRole('button', { name: 'profile.apiKeys.create' })
     fireEvent.click(create)
@@ -925,7 +812,7 @@ describe('ProfilePage', () => {
     firstView.unmount()
     mockStepUpVerified.current = true
     mockCreateGrant.consumed = false
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
     fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
     await screen.findByText('orb_second')
     expect(screen.getByRole('button', { name: 'orbitMcp.copy' })).toBeInTheDocument()
@@ -939,7 +826,7 @@ describe('ProfilePage', () => {
     }
     mockStepUpVerified.current = true
     mockCreateApiKey.mockResolvedValue({ success: false, challengeRequired: true })
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
 
@@ -962,11 +849,11 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     expect(astra.getByText('profile.subscription.trial')).toBeInTheDocument()
-    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade')
+    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
   })
 
@@ -981,7 +868,7 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     const progress = astra.getByRole('progressbar', { name: 'profile.allowance.title' })
@@ -991,7 +878,7 @@ describe('ProfilePage', () => {
     expect(astra.getByText('profile.allowance.spent')).toBeInTheDocument()
     expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
 
-    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade')
+    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     const proactiveSwitch = astra.getByRole('switch', { name: 'profile.proactiveAstra.title' })
     const summarySwitch = astra.getByRole('switch', { name: 'profile.aiSummary.title' })
     const proactiveRow = proactiveSwitch.closest('[data-testid="profile-value-row"]')
@@ -1017,23 +904,12 @@ describe('ProfilePage', () => {
       isLoading: false,
       error: null,
     }
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="astra" />)
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     expect(astra.getByText('profile.allowance.pro')).toBeInTheDocument()
     expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
-  })
-
-  it('places export last in You instead of Ending things', () => {
-    render(<ProfilePage />)
-
-    const youGroup = screen.getByTestId('profile-settings-group-you')
-    const endingGroup = screen.getByTestId('profile-settings-group-ending')
-    const youButtons = Array.from(youGroup.querySelectorAll('button'))
-
-    expect(youButtons.at(-1)).toHaveAccessibleName(/profile\.settingsRows\.export/i)
-    expect(endingGroup).not.toHaveTextContent('profile.settingsRows.export')
   })
 
   it('shows Preparing on the row and registers completion in the shell notice slot', async () => {
@@ -1043,7 +919,7 @@ describe('ProfilePage', () => {
         finishExport = resolve
       }),
     )
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="account" />)
 
     const exportRow = screen.getByRole('button', { name: /profile\.settingsRows\.export/i })
     fireEvent.click(exportRow)
@@ -1061,7 +937,7 @@ describe('ProfilePage', () => {
   })
 
   it('opens the timezone picker from the timezone row', () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="preferences" />)
 
     fireEvent.click(
       screen.getByRole('button', { name: /profile.settingsRows.timezone/ }),
@@ -1072,36 +948,8 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('places usage analytics beside product email consent in Notifications', () => {
-    render(<ProfilePage />)
-
-    const notificationsGroup = screen.getByTestId('profile-settings-group-notifications')
-    expect(
-      within(notificationsGroup).getByRole('button', {
-        name: 'profile.marketingEmails.accept',
-      }),
-    ).toBeInTheDocument()
-    expect(
-      within(notificationsGroup).getByRole('button', {
-        name: 'profile.marketingEmails.decline',
-      }),
-    ).toBeInTheDocument()
-    expect(within(notificationsGroup).queryByText('profile.analytics.description')).not.toBeInTheDocument()
-    expect(within(notificationsGroup).getByRole('switch', {
-      name: 'profile.analytics.title',
-    })).toHaveAttribute('aria-checked', 'true')
-    expect(
-      within(notificationsGroup).getByText('profile.settingsRows.remindersNote'),
-    ).toBeInTheDocument()
-    expect(
-      within(notificationsGroup).getByRole('switch', {
-        name: 'profile.settingsRows.alertsOnThisDevice',
-      }),
-    ).toBeInTheDocument()
-  })
-
   it('renders only the drawn Notifications rows and the recorded deviations, in order', () => {
-    render(<ProfilePage />)
+    render(<ProfileSubscreen screen="notifications" />)
 
     const notificationsGroup = screen.getByTestId('profile-settings-group-notifications')
     const controls = [...notificationsGroup.querySelectorAll('button, a, input')].map((control) =>
@@ -1111,21 +959,18 @@ describe('ProfilePage', () => {
       .map((element) => element.textContent)
 
     expect(controls).toEqual([
+      'switch: profile.settingsRows.alertsOnThisDevice',
       'button: profile.marketingEmails.accept',
       'button: profile.marketingEmails.decline',
-      'switch: profile.analytics.title',
-      'switch: profile.settingsRows.alertsOnThisDevice',
     ])
     expect(textLines).toEqual([
-      'profile.groups.notifications',
+      'profile.settingsRows.devices',
+      '0 of 5',
+      'profile.settingsRows.currentDevice',
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
       'profile.marketingEmails.accept',
       'profile.marketingEmails.decline',
-      'profile.analytics.title',
-      'profile.settingsRows.devices',
-      '0 of 5',
-      'profile.settingsRows.currentDevice',
       'profile.settingsRows.remindersNote',
     ])
   })
@@ -1135,7 +980,7 @@ describe('ProfilePage', () => {
       throw new Error('storage failed')
     })
     try {
-      render(<ProfilePage />)
+      render(<ProfileSubscreen screen="account" />)
       const control = screen.getByRole('switch', { name: 'profile.analytics.title' })
       fireEvent.click(control)
       await waitFor(() => expect(control).toHaveAttribute('aria-checked', 'true'))

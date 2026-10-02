@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 199,
-  "cellCount": 852,
+  "surfaceCount": 207,
+  "cellCount": 884,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -685,23 +685,171 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "route-profile-account",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/account/page.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/account/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-account",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/account/page.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/account/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile-account",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/account/page.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/account/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-account",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/account/page.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/account/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile-astra",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/astra/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-astra",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/astra/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile-astra",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/astra/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-astra",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/astra/page.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/astra/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile-notifications",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/notifications/page.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/notifications/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-notifications",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/notifications/page.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/notifications/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile-notifications",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/notifications/page.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/notifications/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-notifications",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/notifications/page.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/notifications/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-profile",
       "platform": "web",
       "kind": "route",
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/astra-allowance-panel.tsx",
-        "apps/web/components/profile/astra-settings-controller.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/profile/push-devices-row.tsx",
-        "apps/web/hooks/use-push-subscriptions.ts"
+        "apps/web/components/profile/profile-nav-icon.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -714,17 +862,9 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/astra-allowance-panel.tsx",
-        "apps/web/components/profile/astra-settings-controller.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/profile/push-devices-row.tsx",
-        "apps/web/hooks/use-push-subscriptions.ts"
+        "apps/web/components/profile/profile-nav-icon.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -737,17 +877,9 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/astra-allowance-panel.tsx",
-        "apps/web/components/profile/astra-settings-controller.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/profile/push-devices-row.tsx",
-        "apps/web/hooks/use-push-subscriptions.ts"
+        "apps/web/components/profile/profile-nav-icon.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -760,17 +892,61 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
-        "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx",
-        "apps/web/app/(app)/preferences/_components/use-preference-controls.ts",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/_components/use-data-export.ts",
         "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/astra-allowance-panel.tsx",
-        "apps/web/components/profile/astra-settings-controller.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx",
-        "apps/web/components/profile/profile-settings-frame.tsx",
-        "apps/web/components/profile/push-devices-row.tsx",
-        "apps/web/hooks/use-push-subscriptions.ts"
+        "apps/web/components/profile/profile-nav-icon.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile-preferences",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/preferences/page.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/preferences/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-preferences",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/preferences/page.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/preferences/page.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile-preferences",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/preferences/page.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/preferences/page.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile-preferences",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/preferences/page.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/preferences/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -1016,7 +1192,6 @@
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
         "apps/web/hooks/use-billing.ts",
-        "apps/web/hooks/use-stripe-checkout-return.ts",
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
@@ -1040,7 +1215,6 @@
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
         "apps/web/hooks/use-billing.ts",
-        "apps/web/hooks/use-stripe-checkout-return.ts",
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
@@ -1064,7 +1238,6 @@
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
         "apps/web/hooks/use-billing.ts",
-        "apps/web/hooks/use-stripe-checkout-return.ts",
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
@@ -1088,7 +1261,6 @@
         "apps/web/components/upgrade/subscription-notice.tsx",
         "apps/web/components/upgrade/usage-stats.tsx",
         "apps/web/hooks/use-billing.ts",
-        "apps/web/hooks/use-stripe-checkout-return.ts",
         "apps/web/hooks/use-subscription-status.ts",
         "apps/web/lib/actions/subscription.ts"
       ],
@@ -6576,7 +6748,9 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-nav-icon.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -6590,7 +6764,9 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-nav-icon.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -6604,7 +6780,9 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-nav-icon.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -6618,7 +6796,9 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-nav-icon.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7147,6 +7327,214 @@
       "href": "/privacy",
       "ownedFiles": [
         "apps/mobile/app/privacy.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-account",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/account.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/mobile/app/profile/account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-account",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/account.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/mobile/app/profile/account.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-account",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/account.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/mobile/app/profile/account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-account",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/account.tsx",
+      "href": "/profile/account",
+      "ownedFiles": [
+        "apps/mobile/app/profile/account.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-astra",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/astra.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/mobile/app/profile/astra.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-astra",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/astra.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/mobile/app/profile/astra.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-astra",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/astra.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/mobile/app/profile/astra.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-astra",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/astra.tsx",
+      "href": "/profile/astra",
+      "ownedFiles": [
+        "apps/mobile/app/profile/astra.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-notifications",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/notifications.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/mobile/app/profile/notifications.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-notifications",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/notifications.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/mobile/app/profile/notifications.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-notifications",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/notifications.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/mobile/app/profile/notifications.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-notifications",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/notifications.tsx",
+      "href": "/profile/notifications",
+      "ownedFiles": [
+        "apps/mobile/app/profile/notifications.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-preferences",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/preferences.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/mobile/app/profile/preferences.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-preferences",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/preferences.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/mobile/app/profile/preferences.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-profile-preferences",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/preferences.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/mobile/app/profile/preferences.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-profile-preferences",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/profile/preferences.tsx",
+      "href": "/profile/preferences",
+      "ownedFiles": [
+        "apps/mobile/app/profile/preferences.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9233,52 +9621,52 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-components-profile-settings-content",
+      "surfaceId": "m-overlay-components-profile-preferences-content",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-components-profile-settings-content",
+      "surfaceId": "m-overlay-components-profile-preferences-content",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx"
       ],
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-components-profile-settings-content",
+      "surfaceId": "m-overlay-components-profile-preferences-content",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx"
       ],
       "state": "default",
       "theme": "dark",
       "locale": "en"
     },
     {
-      "surfaceId": "m-overlay-components-profile-settings-content",
+      "surfaceId": "m-overlay-components-profile-preferences-content",
       "platform": "mobile",
       "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx",
       "href": null,
       "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-preferences-content.tsx"
       ],
       "state": "default",
       "theme": "dark",

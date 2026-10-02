@@ -4,17 +4,19 @@ import ptBR from '../i18n/pt-BR.json'
 import {
   PROFILE_NAV_ITEMS,
   PROFILE_SETTINGS_GROUPS,
+  PROFILE_SUBMENUS,
   shouldRedirectProfileNavItem,
 } from '../utils/profile-navigation'
 
 describe('profile-navigation', () => {
-  it('defines the five profile groups in display order', () => {
+  it('keeps navigation before More of Orbit and sign out', () => {
     expect(PROFILE_SETTINGS_GROUPS).toEqual([
-      { id: 'you', labelKey: 'profile.groups.you' },
-      { id: 'astra', labelKey: 'profile.groups.astra' },
-      { id: 'notifications', labelKey: 'profile.groups.notifications' },
+      { id: 'you', labelKey: null },
       { id: 'more', labelKey: 'profile.groups.more' },
-      { id: 'ending', labelKey: 'profile.groups.ending' },
+      { id: 'ending', labelKey: null },
+    ])
+    expect(PROFILE_SUBMENUS.map(({ route }) => route)).toEqual([
+      '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications',
     ])
   })
 

@@ -1,11 +1,20 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { getProfileSectionDestination } from '@orbit/shared/utils/profile-routes'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { ProfileSettingsContent } from './_components/profile-settings-content'
 
 export default function ProfilePage() {
   const t = useTranslations()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    const destination = getProfileSectionDestination(searchParams.toString(), globalThis.location.hash)
+    if (destination) router.replace(destination)
+  }, [router, searchParams])
   const { profile, isLoading, error, patchProfile } = useProfile()
 
   return (

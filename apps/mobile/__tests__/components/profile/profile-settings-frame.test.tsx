@@ -22,7 +22,7 @@ vi.mock('@/lib/motion', () => ({
 }))
 
 describe('ProfileSettingsFrame', () => {
-  it('keeps the five groups in one 32px stack', () => {
+  it('keeps the navigation and More of Orbit in one 32px stack', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -30,12 +30,8 @@ describe('ProfileSettingsFrame', () => {
           isLoading={false}
           loadingLabel="Loading profile"
           labels={{
-            you: 'You',
-            astra: 'Astra',
-            notifications: 'Notifications',
-            more: 'More of Orbit',
-            ending: 'Ending things',
-          }}
+                  more: 'More of Orbit',
+            }}
           rows={{ more: <Text>About Orbit</Text> }}
         />,
       )
@@ -45,7 +41,7 @@ describe('ProfileSettingsFrame', () => {
       expect.objectContaining({ gap: 32 }),
     )
     expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) =>
-      node.type === 'Text' && node.props.accessibilityRole === 'header')).toHaveLength(5)
+      node.type === 'Text' && node.props.accessibilityRole === 'header')).toHaveLength(1)
   })
 
   it('pads a value and control row on the row grid', () => {

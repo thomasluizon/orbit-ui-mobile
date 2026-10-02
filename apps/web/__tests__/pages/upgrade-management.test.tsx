@@ -7,7 +7,7 @@ import { UsageStats } from '@/components/upgrade/usage-stats'
 import { ProviderHandoff } from '@/components/upgrade/provider-handoff'
 import { RouteContext } from '@/components/navigation/route-context'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade' }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade', useSearchParams: () => new URLSearchParams(globalThis.location.search) }))
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
 const mockGoBackOrFallback = vi.hoisted(() => vi.fn())

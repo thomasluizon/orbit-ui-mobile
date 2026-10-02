@@ -57,6 +57,10 @@ export function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="profile/account" />
+        <Stack.Screen name="profile/preferences" />
+        <Stack.Screen name="profile/astra" />
+        <Stack.Screen name="profile/notifications" />
         <Stack.Screen name="habits/new" options={{ animation: captureBuildEnabled || reducedMotion ? 'none' : 'slide_from_right' }} />
         <Stack.Screen name="search" />
         <Stack.Screen name="notifications" />

@@ -1724,6 +1724,11 @@
     }
   },
   "profile": {
+    "submenus": {
+      "accountLabel": "{name}, {email}, account",
+      "account": "Account",
+      "preferences": "Preferences"
+    },
     "analytics": {
       "title": "Usage analytics",
       "saveError": "Change not saved. Try again."

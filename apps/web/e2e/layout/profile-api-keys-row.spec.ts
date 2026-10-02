@@ -15,7 +15,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       test(`keeps the title and meta separated for ${count} keys`, async ({ page, context }) => {
         const profile = profileSchema.parse({ ...profileFixture, language: locale, hasProAccess: true, activeApiKeyCount: count })
         await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-        await page.goto('/profile')
+        await page.goto('/profile/astra')
         const keys = page.getByTestId('profile-api-keys')
         const messages = locale === 'en' ? en : ptBR
         const title = keys.locator('[data-slot="list-row-title"]')

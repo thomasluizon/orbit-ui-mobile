@@ -41,23 +41,27 @@ for (const width of [412, 1280]) {
         }
       })
 
-      test('Perfil shows the account chevron and plain preference rows', async ({ page }) => {
+      test('Perfil opens plain preference rows and keeps export in Conta', async ({ page }) => {
         await page.goto('/profile')
-        const group = page.getByTestId('profile-settings-group-you')
+        const navigation = page.getByTestId('profile-settings-group-you')
+        await expect(navigation.getByRole('link')).toHaveCount(4)
+        await expect(navigation.locator('svg')).toHaveCount(4)
+        await navigation.getByRole('link', { name: messages.profile.submenus.preferences, exact: true }).click()
+        const group = page.getByTestId('profile-settings-group-preferences')
         const rows = group.locator('.orbit-list-row-shell')
-        await expect(rows).toHaveCount(6)
-        await expect(rows.first().locator('svg')).toHaveCount(1)
+        await expect(rows).toHaveCount(4)
         const labels = [messages.profile.settingsRows.timezone, messages.profile.settingsRows.weekStart, messages.settings.clock.title, messages.profile.language.title]
         for (const [index, label] of labels.entries()) {
-          const row = rows.nth(index + 1).getByRole('button')
+          const row = rows.nth(index).getByRole('button')
           await expect(row).toContainText(label)
           await expect(row.locator('svg')).toHaveCount(0)
           await row.scrollIntoViewIfNeeded()
           await expect(row).toBeVisible()
           await assertCompactTarget(row)
         }
-        const exportRow = rows.last().getByRole('button')
-        await expect(exportRow).toContainText(messages.profile.settingsRows.export)
+        await page.getByRole('button', { name: messages.common.backToProfile, exact: true }).click()
+        await page.locator('a[href="/profile/account"]').click()
+        const exportRow = page.getByTestId('profile-settings-group-account').getByRole('button', { name: messages.profile.settingsRows.export, exact: true })
         await expect(exportRow.locator('svg')).toHaveCount(1)
         await assertCompactTarget(exportRow)
       })

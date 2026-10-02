@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import {
@@ -39,6 +40,8 @@ const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
 export default function UpgradePage() {
   const t = useTranslations()
   const locale = useLocale()
+  const from = useSearchParams().get('from')
+  const fallbackRoute = from === '/profile/astra' ? from : '/profile'
   const goBackOrFallback = useGoBackOrFallback()
   const { showSuccess, showPersistentError } = useAppToast()
   const { isOnline } = useOffline()
@@ -193,7 +196,8 @@ export default function UpgradePage() {
           checkoutError={checkoutError}
           discountedAmount={discountedAmount}
           onCheckout={(interval) => void handleCheckout(interval)}
-          onStayFree={() => goBackOrFallback('/profile')}
+          stayFreeHref={fallbackRoute}
+          onStayFree={() => goBackOrFallback(fallbackRoute)}
           onRetryPlans={() => void refetchPlans()}
           t={t}
         />
@@ -234,8 +238,8 @@ export default function UpgradePage() {
   return (
     <div className="flex flex-col">
       <PageHeader
-        backLabel={t('common.backToProfile')}
-        onBack={() => goBackOrFallback('/profile')}
+        backLabel={fallbackRoute === '/profile/astra' ? t('common.backToDestination', { destination: t('profile.groups.astra') }) : t('common.backToProfile')}
+        onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />

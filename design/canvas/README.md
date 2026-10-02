@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
-> Twenty-one screens plus the design system tokens. Build from these. The eleven documents in
+> Twenty-one screens plus the design system tokens, with the Perfil sub-menu amendment. Build from these. The eleven documents in
 > `superseded/` are a record of an earlier pass and are not a target.
 
 ## The authority
@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
 | Hoje composer | The shell composer, Astra glyph button and suggestion chips appear on Hoje only on web and Android, at every width; Calendário, Progresso and Perfil clear navigation or the column bottom | The owner limits the conversation front door to Hoje. An open conversation keeps its existing presentation and state when destinations change. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |

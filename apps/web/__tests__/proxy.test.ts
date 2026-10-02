@@ -240,6 +240,10 @@ describe('proxy', () => {
 
   it.each([
     '/profile',
+    '/profile/account',
+    '/profile/preferences',
+    '/profile/astra',
+    '/profile/notifications',
     '/manifest.webmanifest/private',
     '/manifest.webmanifest.json',
     ...manifest().icons!.map(({ src }) => `${src}/private`),
@@ -261,6 +265,29 @@ describe('proxy', () => {
     expect(redirectUrl.pathname).toBe('/login')
     expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
   })
+
+  it.each(['account', 'preferences', 'astra', 'notifications'])(
+    'allows the signed-in Perfil %s submenu and redirects after session rejection', async (submenu) => {
+      const path = `/profile/${submenu}`
+      vi.mocked(resolveSessionTokens).mockResolvedValueOnce({
+        token: 'valid-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+        refreshFailed: false,
+      }).mockResolvedValueOnce({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: true,
+      })
+
+      expect(await proxy(createRequest(path))).toMatchObject({ type: 'next' })
+      expect(await proxy(createRequest(path))).toMatchObject({ type: 'redirect' })
+      const redirectUrl = vi.mocked(NextResponse.redirect).mock.calls[0]![0] as URL
+      expect(redirectUrl.pathname).toBe('/login')
+      expect(redirectUrl.searchParams.get('returnUrl')).toBe(path)
+    },
+  )
 
   it('permanently redirects the service host to the public site before resolving a session', async () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://staging.useorbit.org')

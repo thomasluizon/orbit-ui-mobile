@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type GroupLabels = Record<ProfileSettingsGroupId, string>
+type GroupLabels = Partial<Record<ProfileSettingsGroupId, string>>
 type GroupRows = Partial<Record<ProfileSettingsGroupId, ReactNode>>
 
 interface ProfileSettingsFrameProps {
@@ -17,7 +17,6 @@ interface ProfileSettingsFrameProps {
   loadingLabel: string
   labels: GroupLabels
   rows: GroupRows
-  uncontainedGroups?: readonly ProfileSettingsGroupId[]
 }
 
 interface ProfileValueRowProps {
@@ -44,7 +43,6 @@ export function ProfileSettingsFrame({
   loadingLabel,
   labels,
   rows,
-  uncontainedGroups = [],
 }: Readonly<ProfileSettingsFrameProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -61,14 +59,10 @@ export function ProfileSettingsFrame({
           testID={`profile-settings-group-${group.id}`}
           style={styles.group}
         >
-          <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>
+          {labels[group.id] ? <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>
             {labels[group.id]}
-          </Text>
-          {rows[group.id] == null
-            ? null
-            : uncontainedGroups.includes(group.id)
-              ? rows[group.id]
-              : <RowList>{rows[group.id]}</RowList>}
+          </Text> : null}
+          {rows[group.id] == null ? null : <RowList>{rows[group.id]}</RowList>}
         </View>
       ))}
     </View>
