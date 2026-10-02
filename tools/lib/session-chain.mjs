@@ -19,10 +19,22 @@ export const writeSessionChain = (ledger, repoRoot = REPO_ROOT) => {
   renameSync(unpublished, path)
 }
 
-export const openSessionChain = (sessionId, repoRoot = REPO_ROOT) => readSessionChain(repoRoot).chains.find((chain) =>
-  !chain.closedAt && (chain.currentSessionId === sessionId || chain.entries.some((entry) => entry.sessionId === sessionId))) ?? null
+/** A successor can finish reporting a transfer even if the launching process was interrupted. */
+const reconcileAdoptedChain = (repoRoot) => {
+  const state = readRunState(repoRoot)
+  if (!state?.relay?.from || state.sessionId === state.relay.from || !state.relay.successorTerminal) return
+  const chain = readSessionChain(repoRoot).chains.find((row) => !row.closedAt && row.currentSessionId === state.relay.from)
+  if (chain) confirmChainSuccessor(state.relay.from, state.sessionId, state.relay.successorTerminal, null, repoRoot)
+}
+
+export const openSessionChain = (sessionId, repoRoot = REPO_ROOT) => {
+  reconcileAdoptedChain(repoRoot)
+  return readSessionChain(repoRoot).chains.find((chain) =>
+    !chain.closedAt && (chain.currentSessionId === sessionId || chain.entries.some((entry) => entry.sessionId === sessionId))) ?? null
+}
 
 export const appendChainEntry = (entry, repoRoot = REPO_ROOT) => {
+  reconcileAdoptedChain(repoRoot)
   const ledger = readSessionChain(repoRoot)
   let chain = ledger.chains.find((row) => !row.closedAt && row.currentSessionId === entry.sessionId)
   if (!chain) {
@@ -38,23 +50,29 @@ export const appendChainEntry = (entry, repoRoot = REPO_ROOT) => {
 
 export const confirmChainSuccessor = (sessionId, successorSessionId, terminal, seconds, repoRoot = REPO_ROOT) => {
   const ledger = readSessionChain(repoRoot)
-  const chain = ledger.chains.find((row) => !row.closedAt && row.currentSessionId === sessionId)
+  const chain = ledger.chains.find((row) => !row.closedAt && (row.currentSessionId === sessionId ||
+    row.currentSessionId === successorSessionId && row.entries.some((entry) => entry.sessionId === sessionId && entry.successorSessionId === successorSessionId)))
   if (!chain) throw new Error("relay chain disappeared before successor confirmation")
   const entry = chain.entries.find((row) => row.sessionId === sessionId)
-  Object.assign(entry, { superseded: true, successorSessionId, successorTerminal: terminal, successorStartSeconds: seconds, endedAt: new Date().toISOString() })
+  Object.assign(entry, { superseded: true, successorSessionId, successorTerminal: terminal, successorStartSeconds: seconds ?? entry.successorStartSeconds ?? null, endedAt: entry.superseded ? entry.endedAt : new Date().toISOString() })
   chain.currentSessionId = successorSessionId
   writeSessionChain(ledger, repoRoot)
 }
 
 /** Archived chains still guard their old terminals after the owner closes the report window. */
 export const supersededSession = (sessionId, repoRoot = REPO_ROOT) => {
+  const state = readRunState(repoRoot)
+  const transferred = state?.relay?.from && state.sessionId !== state.relay.from
+  if (transferred && state.relay.from === sessionId) return { sessionId: state.sessionId, terminal: state.relay.successorTerminal }
   const chain = readSessionChain(repoRoot).chains.find((row) => row.entries.some((entry) => entry.sessionId === sessionId && entry.superseded))
   if (!chain) return null
+  if (transferred && chain.currentSessionId === state.relay.from) return { sessionId: state.sessionId, terminal: state.relay.successorTerminal }
   const latest = chain.entries.filter((entry) => entry.superseded).at(-1)
   return { sessionId: chain.currentSessionId, terminal: latest.successorTerminal }
 }
 
 export const closeSessionChain = (sessionId, repoRoot = REPO_ROOT) => {
+  reconcileAdoptedChain(repoRoot)
   const ledger = readSessionChain(repoRoot)
   const chain = ledger.chains.find((row) => !row.closedAt && row.currentSessionId === sessionId)
   if (!chain) return
@@ -65,9 +83,16 @@ export const closeSessionChain = (sessionId, repoRoot = REPO_ROOT) => {
 /** Only the launcher's nominated successor can adopt the predecessor's run. */
 export const adoptRelayRun = (sessionId, repoRoot = REPO_ROOT) => {
   const previous = readRunState(repoRoot)
+  if (previous?.relay?.successorSessionId === sessionId && previous.relay.canceledByOwner) {
+    throw new Error("owner canceled this relay nominee; do not enter sleep")
+  }
+  if (previous?.sessionId === sessionId && previous.relay?.from) {
+    reconcileAdoptedChain(repoRoot)
+    return true
+  }
   if (!previous?.relay?.pending || previous.relay.successorSessionId !== sessionId) return false
   writeRunState({ ...previous, sessionId, sleep: true, decisionLogPath: null, openOwnerQuestions: [],
-    relay: { from: previous.sessionId, pending: false } }, repoRoot)
+    relay: { from: previous.sessionId, pending: false, successorTerminal: previous.relay.successorTerminal } }, repoRoot)
   return true
 }
 

@@ -32,7 +32,9 @@ Keep session ids, timestamps, terminal handles and timed decision logs in that l
 After committing and pushing both files in the orchestrating checkout, run
 `node tools/relay-session.mjs`. It remeasures the transcript and checks the actual launchers,
 release watchers and remote handoff before starting the successor. Only its confirmed
-successor result ends this session. On failure, the predecessor remains responsible: end the
+successor result ends this session. Adoption transfers ownership and durably fences this
+session immediately, even if reporting confirmation is interrupted; the successor reconciles
+the open chain. Before adoption, a failed launch leaves the predecessor responsible: end the
 turn with `node tools/relay-session.mjs --retry-wake` as a background task and retry when it
 exits, at least ten minutes later. Launch nothing during that wait. After two failures near
 the auto compact point, the hook records the fallback and permits ordinary continuation.

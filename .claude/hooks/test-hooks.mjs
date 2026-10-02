@@ -21,7 +21,7 @@ import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
-import { appendChainEntry, confirmChainSuccessor } from "../../tools/lib/session-chain.mjs"
+import { adoptRelayRun, appendChainEntry, confirmChainSuccessor } from "../../tools/lib/session-chain.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -1098,26 +1098,6 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
 const WAKE_HOOK = "require-wake-source.mjs"
 const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, readWakeSourceStates, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
-const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
-// The reader and the final predicate each prove the persisted process identity.
-const liveWakeSources = readWakeSources().length
-try {
-  writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
-  // A live wake source is a legitimate reason NOT to block, so assert the blocking case only when
-  // this checkout genuinely has none. A conditional that silently passes would be vacuous, so it
-  // reports which arm it took.
-  T(
-    liveWakeSources === 0 ? "adapter wake-source: a sleeping queue with nothing live -> 2" : "adapter wake-source: a live wake source allows the stop -> 0",
-    runHook(WAKE_HOOK, stopPayload),
-    liveWakeSources === 0 ? 2 : 0,
-  )
-  writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }))
-  T("adapter wake-source: an exhausted queue -> 0", runHook(WAKE_HOOK, stopPayload), 0)
-  T("adapter wake-source: another session's record -> 0", runHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }), 0)
-} finally {
-  if (priorState === null) rmSync(runStatePath(), { force: true })
-  else writeFileSync(runStatePath(), priorState)
-}
 // Exercise the real adapter in an isolated checkout so another run cannot mask a bad identity.
 const wakeCheckout = join(root, "wake-identity")
 const wakeHooks = join(wakeCheckout, ".claude", "hooks")
@@ -1147,6 +1127,12 @@ const relayUsage = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", 
 const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
 const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
 const isolatedRelayHook = (name, payload = relayPayload) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8" })
+writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
+T("adapter wake-source: a sleeping queue with nothing live -> 2", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 2)
+writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }, wakeCheckout)
+T("adapter wake-source: an exhausted queue -> 0", isolatedRelayHook(WAKE_HOOK, stopPayload).status, 0)
+writeRunState({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }, wakeCheckout)
+T("adapter wake-source: another session's record -> 0", isolatedRelayHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }).status, 0)
 writeRunState(relayState, wakeCheckout)
 writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
 T("relay adapter: 399999 prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
@@ -1168,6 +1154,13 @@ const unreadable = isolatedRelayHook("relay-at-threshold.mjs", { ...relayPayload
 T("relay adapter: unreadable transcript fails open with one stderr line", { status: unreadable.status, stdout: unreadable.stdout, lines: unreadable.stderr.trim().split("\n").length }, { status: 0, stdout: "", lines: 1 })
 T("relay adapter: unreadable transcript explains the skipped relay", unreadable.stderr.startsWith("Context relay skipped:"), true)
 appendChainEntry({ sessionId: "relay-parent" }, wakeCheckout)
+writeRunState({ ...relayState, relay: { pending: true, successorSessionId: "relay-child", successorTerminal: "term_live" } }, wakeCheckout)
+adoptRelayRun("relay-child", wakeCheckout)
+const interruptedTool = JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", { ...relayPayload, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "true" } }).stdout || "{}")
+T("superseded adapter: adopted transfer denies Bash before chain confirmation", interruptedTool.hookSpecificOutput?.permissionDecision, "deny")
+T("superseded adapter: adopted transfer names successor terminal", interruptedTool.hookSpecificOutput?.permissionDecisionReason?.includes("term_live"), true)
+T("superseded adapter: adopted transfer blocks typed prompt before confirmation", JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", ownerPrompt).stdout || "{}").decision, "block")
+T("superseded adapter: adopted successor remains usable before confirmation", isolatedRelayHook("forbid-superseded-session.mjs", { ...ownerPrompt, session_id: "relay-child" }).stdout, "")
 confirmChainSuccessor("relay-parent", "relay-child", "term_live", 1, wakeCheckout)
 const deniedTool = JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", { ...relayPayload, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "true" } }).stdout)
 T("superseded adapter: Bash is denied", deniedTool.hookSpecificOutput.permissionDecision, "deny")

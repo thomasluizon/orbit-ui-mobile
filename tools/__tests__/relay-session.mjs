@@ -63,10 +63,39 @@ export const cases = async () => {
   const entry = openSessionChain(result.successorSessionId, successful.checkout).entries[0]
   T("relay-session: chain records measured metrics, complete decisions and questions", entry.measuredTokens === 400000 && entry.assistantCalls === 20 && entry.decisions === "Decision and reasoning copied in full.\n" && entry.openOwnerQuestions[0] === "An owner question." && entry.superseded === true)
   T("relay-session: no terminal operation uses an empty handle", commands.filter((args) => ["send", "wait", "close"].includes(args[1])).every((args) => args[args.indexOf("--terminal") + 1] === "term_successor"))
-  const encoded = commands.find((args) => args[1] === "create").at(-2).match(/Buffer.from\('([^']+)'/)[1]
-  const source = Buffer.from(encoded, "base64").toString()
-  T("relay-session: child scrubs the three forbidden environment keys", ["CLAUDE_CONFIG_DIR", "GH_TOKEN", "ORBIT_LAUNCH_WORKER"].every((key) => source.includes(key)) && source.includes("delete env[key]"))
-  T("relay-session: model and permission mode come from observations", source.includes("claude-opus-5-5") && source.includes("bypassPermissions"))
+  const command = commands.find((args) => args[1] === "create").at(-2)
+  T("relay-session: successor command contains no evaluated source", !/eval|node -e|Buffer.from/.test(command))
+  let launchPayload
+  try { launchPayload = JSON.parse(Buffer.from(command.split(" ").at(-1), "base64").toString()) } catch { launchPayload = null }
+  T("relay-session: model, permission, session and cwd are passed as data", launchPayload?.model === "claude-opus-5-5" && launchPayload?.permissionMode === "bypassPermissions" && launchPayload?.sessionId === result.successorSessionId && launchPayload?.repoRoot === successful.checkout)
+
+  const canceled = fixture("owner-cancel")
+  mkdirSync(join(canceled.checkout, ".claude", "hooks"), { recursive: true })
+  cpSync(toolPath("lib"), join(canceled.checkout, "tools", "lib"), { recursive: true })
+  cpSync(new URL("../../.claude/hooks/_lib", import.meta.url), join(canceled.checkout, ".claude", "hooks", "_lib"), { recursive: true })
+  cpSync(new URL("../../.claude/hooks/record-handoff-request.mjs", import.meta.url), join(canceled.checkout, ".claude", "hooks", "record-handoff-request.mjs"))
+  const cancellationCommands = []
+  const cancelExecute = executeFor(canceled.checkout, { confirm: false, commands: cancellationCommands })
+  let rejectedEntry = false
+  let rejectedOrdinaryWrite = false
+  let ownerHookSucceeded = false
+  const canceledError = await failure({ repoRoot: canceled.checkout, sessionId: "predecessor", confirmMilliseconds: 1, wait: async () => {},
+    execute: (binary, args, cwd, environment) => {
+      if (args[1] === "send" && args.includes("--text")) {
+        const nominated = readRunState(canceled.checkout).relay.successorSessionId
+        const hook = spawnSync(process.execPath, [join(canceled.checkout, ".claude", "hooks", "record-handoff-request.mjs")], {
+          input: JSON.stringify({ session_id: "predecessor", prompt: "/handoff --sleep", transcript_path: canceled.transcriptPath }), encoding: "utf8" })
+        ownerHookSucceeded = hook.status === 0 && readRunState(canceled.checkout).relay.canceledByOwner === true
+        try { adoptRelayRun(nominated, canceled.checkout) } catch (error) { rejectedEntry = /cancel/i.test(error.message) }
+        try { writeRunState({ sessionId: nominated, sleep: false, relay: { from: "predecessor" } }, canceled.checkout) }
+        catch (error) { rejectedOrdinaryWrite = /cancel/i.test(error.message) }
+      }
+      return cancelExecute(binary, args, cwd, environment)
+    } })
+  T("relay-session: real owner hook cancels a nominated relay", ownerHookSucceeded)
+  T("relay-session: canceled nominee cannot enter sleep or replace the stopped run", rejectedEntry && rejectedOrdinaryWrite)
+  const canceledState = readRunState(canceled.checkout)
+  T("relay-session: timeout cleanup preserves owner cancellation", /did not confirm/.test(canceledError) && canceledState.sessionId === "predecessor" && canceledState.sleep === false && canceledState.relay.pending === false && canceledState.relay.canceledByOwner === true)
 
   for (const wrongMode of [false, true]) {
     const staged = fixture(wrongMode ? "wrong-mode" : "stall")
@@ -93,6 +122,23 @@ export const cases = async () => {
   mkdirSync(join(locked.checkout, ".git", "orbit-relay-lock"))
   writeFileSync(join(locked.checkout, ".git", "orbit-relay-lock", "owner.json"), JSON.stringify({ pid: process.pid, processStartIdentity: processStartIdentity(process.pid) }))
   T("relay-session: occupied lock prevents a second launch", /EEXIST/.test(await failure({ repoRoot: locked.checkout, sessionId: "predecessor" })))
+  const dead = fixture("dead-lock")
+  const lockOwner = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+  const ownerExited = new Promise((resolve) => lockOwner.once("exit", resolve))
+  mkdirSync(join(dead.checkout, ".git", "orbit-relay-lock"))
+  writeFileSync(join(dead.checkout, ".git", "orbit-relay-lock", "owner.json"), JSON.stringify({ pid: lockOwner.pid, processStartIdentity: processStartIdentity(lockOwner.pid) }))
+  lockOwner.kill()
+  await ownerExited
+  T("relay-session: terminated lock owner can be reclaimed and relay succeeds", await failure({ repoRoot: dead.checkout, sessionId: "predecessor", execute: executeFor(dead.checkout), wait: async () => {}, confirmMilliseconds: 10 }) === null)
+  const interrupted = fixture("unpublished-lock-owner")
+  mkdirSync(join(interrupted.checkout, ".git", "orbit-relay-lock"))
+  T("relay-session: interruption before owner publication does not strand the drain", await failure({ repoRoot: interrupted.checkout, sessionId: "predecessor", execute: executeFor(interrupted.checkout), wait: async () => {}, confirmMilliseconds: 10 }) === null)
+  const retry = fixture("recovered-failure")
+  mkdirSync(join(retry.checkout, ".git", "orbit-relay-lock"))
+  writeFileSync(join(retry.checkout, ".git", "orbit-relay-lock", "owner.json"), JSON.stringify({ pid: lockOwner.pid, processStartIdentity: "terminated identity" }))
+  writeFileSync(join(retry.checkout, ".claude", "specs", "relay.md"), "uncommitted\n")
+  const retryError = await failure({ repoRoot: retry.checkout, sessionId: "predecessor", execute: executeFor(retry.checkout) })
+  T("relay-session: recovered attempt still records failures and retry cooldown", /not committed/.test(retryError) && readRunState(retry.checkout).relay.failures === 1 && /ten minutes/.test(await failure({ repoRoot: retry.checkout, sessionId: "predecessor" })))
   const concurrent = fixture("concurrent")
   const concurrentCommands = []
   const options = { repoRoot: concurrent.checkout, sessionId: "predecessor", execute: executeFor(concurrent.checkout, { commands: concurrentCommands }), wait: async () => {}, confirmMilliseconds: 10 }

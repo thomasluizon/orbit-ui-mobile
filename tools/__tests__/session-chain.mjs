@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 import { T, root } from "./_harness.mjs"
-import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, supersededSession, adoptRelayRun } from "../lib/session-chain.mjs"
+import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, supersededSession, adoptRelayRun, readSessionChain } from "../lib/session-chain.mjs"
 import { readRunState, writeRunState } from "../lib/run-state.mjs"
 
 export const cases = async () => {
@@ -18,7 +18,14 @@ export const cases = async () => {
   closeSessionChain("s4", checkout)
   T("session-chain: owner closure removes the open reporting window", openSessionChain("s4", checkout) === null)
   T("session-chain: closure preserves superseded guards", supersededSession("s1", checkout).sessionId === "s4")
-  writeRunState({ sessionId: "old", sleep: true, remaining: ["#1091"], relay: { pending: true, successorSessionId: "new" } }, checkout)
+  writeRunState({ sessionId: "old", sleep: true, remaining: ["#1091"], relay: { pending: true, successorSessionId: "new", successorTerminal: "term_new" } }, checkout)
+  appendChainEntry({ sessionId: "old", decisions: "preserved decision" }, checkout)
   T("session-chain: an unrelated session cannot adopt a run", adoptRelayRun("unrelated", checkout) === false)
   T("session-chain: successor adopts queue without hand-copied state", adoptRelayRun("new", checkout) && readRunState(checkout).remaining[0] === "#1091" && readRunState(checkout).relay.from === "old")
+  T("session-chain: durable adoption fences predecessor before chain finalization", supersededSession("old", checkout)?.terminal === "term_new")
+  const recovered = openSessionChain("new", checkout)
+  T("session-chain: successor reconciles interrupted chain finalization", recovered?.currentSessionId === "new" && recovered.entries[0].decisions === "preserved decision" && readSessionChain(checkout).chains.at(-1).entries[0].superseded === true)
+  confirmChainSuccessor("old", "new", "term_new", 2, checkout)
+  appendChainEntry({ sessionId: "new", decisions: "next decision" }, checkout)
+  T("session-chain: recovered confirmation is idempotent and keeps one chain", openSessionChain("new", checkout).entries.length === 2 && readSessionChain(checkout).chains.length === 2)
 }

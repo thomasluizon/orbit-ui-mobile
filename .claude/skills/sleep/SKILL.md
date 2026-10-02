@@ -31,8 +31,10 @@ confirm the session id and `sleep: true` before the first turn ends.
 First call `adoptRelayRun(sessionId)` from `tools/lib/session-chain.mjs`. When it returns true,
 the relay tool nominated this successor and the function already wrote the inherited run
 with `sleep: true` and `relay.from` equal to the predecessor. Read it back and continue the
-existing admitted queue. Do not replan or hand-copy predecessor state. If it returns false,
-perform the ordinary first write above.
+existing admitted queue. Adoption durably fences the predecessor immediately; reading the
+open chain reconciles an interrupted reporting write. Do not replan or hand-copy predecessor
+state. If adoption throws because the owner canceled this nominee, end without queue work
+or an ordinary run-state write. Only a false return permits the ordinary first write above.
 
 If an `/orchestrate` run is active, change that run to `--sleep` in place. Do not enter the
 orchestrator again, and do not plan the queue again. Keep its admitted `remaining` queue. Preserve

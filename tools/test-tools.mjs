@@ -99,6 +99,7 @@ const CASE_MODULES = [
   ["plan-queue.mjs", "plan-queue"],
   ["record-readiness.mjs", "record-readiness"],
   ["run-status.mjs", "run-status"],
+  ["start-relay-successor.mjs", "start-relay-successor"],
   ["record-gh-fixtures.mjs", "record-gh-fixtures"],
   ["record-classifier-fixtures.mjs", "record-classifier-fixtures"],
   ["release-plan.mjs", "release-plan"],
@@ -178,6 +179,7 @@ for (const [file, module] of requestedSet.size === 0 ? REPOSITORY_CASE_MODULES :
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "start-relay-successor.mjs": { argv: ["--launch", "invalid"], status: 2 },
   "relay-session.mjs": { argv: ["--model", "untrusted"], status: 2 },
   "add-ticket-to-project.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

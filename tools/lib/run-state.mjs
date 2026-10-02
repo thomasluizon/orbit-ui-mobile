@@ -144,6 +144,35 @@ const removeStaleReclaim = (path) => {
   }
 }
 
+/** The directory is only a container; a complete, exclusive owner file is the lock. */
+export const acquireRelayLock = (repoRoot = REPO_ROOT) => {
+  const directory = join(gitDirectoryOf(repoRoot), "orbit-relay-lock")
+  mkdirSync(directory, { recursive: true })
+  const path = join(directory, "owner.json")
+  const reclaimPath = `${path}.reclaim`
+  const identity = processStartIdentity(process.pid)
+  if (identity === null) throw new Error("cannot prove relay lock owner identity")
+  const owner = { pid: process.pid, processStartIdentity: identity, claimId: randomUUID() }
+  const occupied = () => { throw new Error("EEXIST: relay lock has a live or unproven owner") }
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (existsSync(reclaimPath) && !removeStaleReclaim(reclaimPath)) occupied()
+    const claim = claimLaunchFile(path, owner)
+    if (claim.claimed) return () => {
+      if (JSON.parse(readFileSync(path, "utf8")).claimId === owner.claimId) rmSync(path)
+    }
+    if (!claim.occupied) throw new Error("cannot publish relay lock owner")
+    const contents = readFileSync(path, "utf8")
+    const previous = JSON.parse(contents)
+    if (!Number.isInteger(previous.pid) || previous.pid <= 0 || !processDefinitelyGone(previous.pid, previous.processStartIdentity)) occupied()
+    const reclaim = claimLaunchFile(reclaimPath, { launcherPid: process.pid, launcherProcessStartIdentity: identity })
+    if (!reclaim.claimed) occupied()
+    try {
+      if (readFileSync(path, "utf8") === contents) rmSync(path)
+    } finally { rmSync(reclaimPath) }
+  }
+  occupied()
+}
+
 /** Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. */
 export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   const directory = workerLaunchDirectory(repoRoot)
@@ -269,6 +298,9 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
 export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
+  if (previous?.relay?.canceledByOwner && previous.relay.successorSessionId === state?.sessionId) {
+    throw new Error("owner canceled this relay nominee; ordinary sleep entry is forbidden")
+  }
   const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
   const relaySuccessor = typeof previous?.sessionId === "string" && state?.relay?.from === previous.sessionId
   const preserveLedger = sameSession || relaySuccessor

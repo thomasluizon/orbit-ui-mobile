@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 import { pathToFileURL } from "node:url"
@@ -9,7 +9,7 @@ import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession } from "./lib/session-chain.mjs"
 import { HANDOFF_PROMPT_PATH, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
-import { REPO_ROOT, clearWakeSource, gitDirectoryOf, isWakeSourceAlive, processStartIdentity, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
+import { REPO_ROOT, acquireRelayLock, clearWakeSource, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: relay-session.mjs [--retry-wake | --close-chain]
 
@@ -49,18 +49,19 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   if (metrics.calls < 20) throw new Error(`session has ${metrics.calls} assistant calls; relay requires at least 20`)
   if (previous.relay.lastAttemptAt && Date.now() - Date.parse(previous.relay.lastAttemptAt) < 600_000) throw new Error("relay retry is not due for ten minutes")
   assertDrained(repoRoot)
-  const releaseLock = acquireLock(repoRoot)
+  let releaseLock
   try {
+    releaseLock = acquireRelayLock(repoRoot)
     return await launchSuccessor({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds })
   } catch (error) {
     const state = readRunState(repoRoot)
-    if (state?.sessionId === sessionId && state.relay?.pending) {
+    if (releaseLock && state?.sessionId === sessionId && state.relay?.pending) {
       const failed = { ...state, relay: { ...state.relay, lastAttemptAt: new Date().toISOString(), failures: (state.relay.failures ?? 0) + 1 } }
       writeRunState(failed, repoRoot)
       appendChainEntry({ ...(await sessionChainEntry(failed, previous.relay.transcriptPath)), failure: error.message }, repoRoot)
     }
     throw error
-  } finally { releaseLock() }
+  } finally { releaseLock?.() }
 }
 
 const assertDrained = (repoRoot) => {
@@ -69,13 +70,6 @@ const assertDrained = (repoRoot) => {
   const launchers = readWorkerLaunches(repoRoot).filter((launch) => isWakeSourceAlive({ pid: launch.launcherPid, processStartIdentity: launch.launcherProcessStartIdentity }))
   const pids = [...new Set([...blockers.map((source) => source.workerPid ?? source.pid), ...launchers.map((launch) => launch.launcherPid)])]
   if (pids.length) throw new Error(`relay drain has live pid ${pids.join(", ")}`)
-}
-
-const acquireLock = (repoRoot) => {
-  const directory = join(gitDirectoryOf(repoRoot), "orbit-relay-lock")
-  mkdirSync(directory)
-  writeFileSync(join(directory, "owner.json"), JSON.stringify({ pid: process.pid, processStartIdentity: processStartIdentity(process.pid) }))
-  return () => rmSync(directory, { recursive: true })
 }
 
 const provePromptPublished = (repoRoot, execute) => {
@@ -109,9 +103,8 @@ const successorCommand = (model, permissionMode, successorSessionId, repoRoot) =
   const modes = new Set(["default", "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions"])
   if (!modes.has(permissionMode)) throw new Error("relay permission mode is unconfirmed")
   if (typeof model !== "string" || !model) throw new Error("transcript has no measured model")
-  const args = ["--model", model, "--permission-mode", permissionMode === "default" ? "manual" : permissionMode, "--session-id", successorSessionId]
-  const source = `const cp=require('node:child_process');const env={...process.env};for(const key of ['CLAUDE_CONFIG_DIR','GH_TOKEN','ORBIT_LAUNCH_WORKER'])delete env[key];const result=cp.spawnSync('claude',${JSON.stringify(args)},{cwd:${JSON.stringify(repoRoot)},env,stdio:'inherit'});process.exit(result.status??1);`
-  return `node -e "eval(Buffer.from('${Buffer.from(source).toString("base64")}','base64').toString())"`
+  const payload = Buffer.from(JSON.stringify({ model, permissionMode, sessionId: successorSessionId, repoRoot })).toString("base64")
+  return `node tools/start-relay-successor.mjs --launch ${payload}`
 }
 
 const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute, wait, confirmMilliseconds }) => {
@@ -134,6 +127,9 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     const response = JSON.parse(execute(orca, ["terminal", "create", "--worktree", `path:${repoRoot}`, "--title", "Context relay", "--command", command, "--json"], repoRoot, environment))
     terminal = response.result?.terminal?.handle
     if (typeof terminal !== "string" || !terminal) throw new Error("Orca returned no terminal handle")
+    const nominated = readRunState(repoRoot)
+    if (nominated?.sessionId !== sessionId || !nominated.relay?.pending || nominated.relay.successorSessionId !== successorSessionId) throw new Error("owner canceled the relay drain")
+    writeRunState({ ...nominated, relay: { ...nominated.relay, successorTerminal: terminal } }, repoRoot)
     const started = Date.now()
     try { execute(orca, ["terminal", "wait", "--terminal", terminal, "--for", "tui-idle", "--timeout-ms", "10000", "--json"], repoRoot, environment) }
     catch { execute(orca, ["terminal", "wait", "--terminal", terminal, "--for", "tui-idle", "--timeout-ms", "20000", "--json"], repoRoot, environment) }
@@ -150,8 +146,16 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     throw new Error("successor did not confirm sleep state; sent one Enter for composer stall")
   } catch (error) {
     const state = readRunState(repoRoot)
-    const restored = { ...attempting, relay: { ...attempting.relay, successorSessionId: null } }
-    if (state?.sessionId === successorSessionId || state?.sessionId === sessionId && state.relay?.pending) writeRunState(restored, repoRoot)
+    const adopted = state?.sessionId === successorSessionId && state.relay?.from === sessionId && state.relay.successorTerminal === terminal
+    if (adopted) {
+      confirmChainSuccessor(sessionId, successorSessionId, terminal, null, repoRoot)
+      return { successorSessionId, terminal }
+    }
+    if (state?.sessionId === sessionId && state.relay?.pending && state.relay.successorSessionId === successorSessionId) {
+      writeRunState({ ...state, relay: { ...state.relay, successorSessionId: null, successorTerminal: null } }, repoRoot)
+    } else if (state?.sessionId === successorSessionId && state.relay?.from === sessionId && !state.relay.canceledByOwner) {
+      writeRunState({ ...attempting, relay: { ...attempting.relay, successorSessionId: null } }, repoRoot)
+    }
     if (terminal) {
       const orca = process.env.ORCA_CLI_COMMAND || (process.env.ORCA_DEV_REPO_ROOT ? "orca-dev" : process.platform === "linux" ? "orca-ide" : "orca")
       execute(orca, ["terminal", "close", "--terminal", terminal, "--json"], repoRoot, cleanEnvironment(process.env))

@@ -1486,8 +1486,9 @@ wake this session; finish the drain without introducing another wakeup status sc
 When neither remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
 Never run `/questions` or ask the owner during this transition. Record unresolved owner
 questions in the spec and run state. The tool verifies the pushed spec and prompt, stops this
-session's CI waiters and confirms a nominated successor from its run-state write before
-marking this session superseded. The successor enters through `/sleep`, adopts the run with
+session's CI waiters and confirms a nominated successor from its run-state write. That
+adoption durably fences the predecessor before the reporting chain is finalized; reading
+the open chain reconciles interrupted finalization. The successor enters through `/sleep`, adopts the run with
 `adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain
 retains every session's decisions, questions and shipping ledger until an owner handoff.
 
