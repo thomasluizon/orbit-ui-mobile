@@ -9,34 +9,32 @@ This session is the nominated successor of a context relay: adopt the run with `
 
 `/sleep` is the only entry point. It enters `/orchestrate --sleep` itself; do not start `/orchestrate` separately.
 
-## Priority: the owner's mobile review, research first
+## Priority: the owner's mobile review, research done, Codex arm and questions next
 
-The owner reviewed Orbit Staging on his phone and found the redesign crowded and desktop-like. The spec's Batch R section "The owner's mobile review on his phone" lists every defect (screenshots in the brain vault at `0 Inbox/raw/orbit-mobile-review/`), and its new standing rule states the principle: a native mobile feel, less on each screen, sheets, menus, sub-menus, drawers, modals and toasts for secondary content, breathing room, padded hover and press fills, and no wrapped or ellipsized labels. Every fix lands on Android and web. This outranks everything below except merging pull requests that are already approved.
+The owner reviewed Orbit Staging on his phone and found the redesign crowded and desktop-like. The spec's Batch R section "The owner's mobile review on his phone" lists every defect and its standing rule states the principle (native mobile feel, less on each screen, sheets and menus for secondary content, breathing room, padded hover and press fills, no wrapped or ellipsized labels). Every fix lands on Android and web. This outranks everything below except merging pull requests that are already approved.
 
-1. Run a multi-agent research Workflow on UI and UX best practice, mobile design philosophy first (native Android and iOS patterns, progressive disclosure, sheets and menus instead of crowded screens, spacing rhythm, touch targets, label length, tab bars, composers). The owner asked for this Workflow and for sub-agents, which is the explicit opt-in. Use Codex for research as well, through a sanctioned path: the guardrail refuses a raw `codex exec`, so add a research-only launcher path (order in, findings to the scratchpad, no pull request) if none exists, as a harness fix first. The research also reads the brain through `/brain` and the Obsidian MCP before any web source: first the note on the whole redesign conversation, titled `Orbit debloat and redesign master plan` in `2 Areas/20-29 Orbit Engineering/` (find it with `mcp__obsidian__obsidian_search_notes`; it holds the meetings and the reasoning behind the redesign), then the design direction ADR (`Design spacious black and maximum contrast with warmth in one hand-drawn mark rather than dense and warm`), the redesign ADRs under `Decisions/` and the `The ui-skills shortlist for the Orbit redesign` note. Findings must reconcile with that record or say plainly where they depart from it. Record the research result in the brain.
-2. Then run one `/questions` round with the owner on what the research changes (`DESIGN.md` rules, drawings, composer, navigation, where each moved control goes). The owner asked for this round even in a sleep run; it overrides the sleep skill's never-ask rule for this round only. Keep workers busy on unaffected tickets while it waits.
-3. Then correct `DESIGN.md` and the affected drawings to his answers, file one ticket per coherent defect, place each in Batch R, and fix every item in the review on both platforms.
-4. Then a full sweep of every screen and every component, every line of UI code on both platforms, against the corrected rules, fixing everything it finds, then rendered sweeps (phone, foldable, desktop) until a full pass finds nothing.
+1. The research Workflow is done; its full synthesis is in the brain vault at `0 Inbox/raw/orbit-mobile-review/research-final.json` and, if the workflow agent finished it, in the note `2 Areas/20-29 Orbit Engineering/Research - native mobile feel for the Orbit redesign.md`. Read the JSON first. If the note is missing, write it from the JSON through the Obsidian MCP (report, then the DESIGN.md changes, drawing changes, tickets, owner questions, sweep checklist and departures).
+2. Once `ui#1507` (`#1128`, the research-only launcher mode) merges, run the Codex research arm through it on the same question (mobile design philosophy first, the brain record first), then reconcile its findings with the JSON and record the reconciliation in the brain note.
+3. Then run one `/questions` round with the owner (his instruction; it overrides the sleep skill's never-ask rule for this round only, and never during a relay) on the three questions in the spec's `## Open questions`, recommendation first. Keep workers busy on unaffected tickets while it waits.
+4. Then correct `DESIGN.md` and the affected drawings to his answers, file the tickets the JSON proposes (one per coherent defect, adjusted to the answers), place each in Batch R, and fix every item on both platforms.
+5. Then a full sweep of every screen and every component, every line of UI code on both platforms, against the corrected rules, fixing everything it finds, then rendered sweeps (phone, foldable, desktop) until a full pass finds nothing.
 
-## First: the open pull requests and the half-built worker
+## First: the open pull requests
 
-1. `ui#1500` (`#1126`, relay threshold after tool calls) at `57202c39`: Pullfrog requested changes. Read the threads with `node tools/list-bot-threads.mjs --pr 1500 --repo ui --wait-seconds 0 --no-request`, fix them as a review fix, run both harness suites, merge on the bar. Until it lands, measure the transcript before long work in a turn.
-2. `ui#1501` (`#1125`, Calendário fetch bar) at `a0be373f`: APPROVED; `Surface Manifest Drift` failed (the deleted Android `CalendarLoadingBar` changes the surface manifest): regenerate it with `node tools/surface-manifest.mjs` in the worktree as a review fix, push, and merge on the bar after a fresh approval.
-3. `ui#1502` (`#1124`, proactive line today only) at `5c342ef8`: APPROVED with every check green; merge on the bar (it is behind the base by three file-disjoint merges).
-4. `orbit-api#691` (`#1121`, achievement streak window, on `main`) at `caa4438c`: read CI with `gh run list --commit caa4438c` (a body edit re-ran Guards, so cancelled twins may show beside passing runs) and the Pullfrog review, drive it to the bar, merge to `main`, release the production API, measure queryid 2057064764435677686 again (before: 2,542.6 rows per call over 435 calls; the before read is in the spec), record both on the pull request, then carry it through `#746` and close `#1121`.
-5. `#1123` (every pill at the drawn size, every pill group one action row): delivered as `ui#1503` at `45eec686` (5 commits, worker exited cleanly after handoff). Run `verify-delivery.mjs`, read the worker log tail for NEEDS_DECISION and the body's Assumptions, prove its layout spec red on the unfixed base, check the diff against `DESIGN.md` and the canvas, approve its new copy with `/second-opinion`, clear the review, merge on the bar.
-6. `#961`: the owner's license-tester purchase on Orbit Staging succeeded. Confirm the staging API verified and acknowledged it, then close the ticket.
-7. Close each ticket with `node tools/complete-ticket.mjs --issue "#N"` after its merge into `redesign/main`.
-8. Harness: `parseHandoffRequest` in `tools/lib/handoff-prompt.mjs` returns null for an owner prompt that puts a word before the command ("RUN /wrap-up --sleep"), so that owner handoff was recorded as a context relay and `node tools/relay-session.mjs --close-chain` refused to close the chain. File it, fix the parser to find the command anywhere in the owner's prompt, prove it with a hook case red first, run both harness suites, then close the open chain with the next owner handoff.
+1. `ui#1503` (`#1123`): its worktree `ticket-1123-action-rows` holds a local merge of `redesign/main` plus three review-fix commits ending at `81b5cf2b`, all unpushed; the hermetic `action-rows.spec.ts` passes 65 of 65 locally on that tree. A red proof of the spec on the unfixed base was running at handoff (scratch worktree `red-p1503` under the old session scratchpad; rerun `red-spec.sh p1503 81b5cf2b action-rows.spec.ts msgs` if it is gone). Then merge the three workers' final reports into the body with `merge-review-batch-body.mjs` (`--ui-scope`), push once, clear the fresh review, check the diff against `DESIGN.md` and the canvas, approve its new copy with `/second-opinion`, merge on the bar.
+2. `ui#1501` (`#1125`) at `53251411`: every check green; Pullfrog posted no review of this head, so a plain `@pullfrog review` comment asked for one. Read it with `--wait-seconds 0 --no-request`, merge on the bar.
+3. `ui#1504` (`#1129`), `ui#1505` (`#1127`, red proven), `ui#1506` (`#1130`), `ui#1507` (`#1128`): delivered, assumptions accepted; read CI and review, clear findings, merge on the bar (combined merge check when behind; `ui#1504` and `ui#1507` change tools and hooks, so run both harness suites).
+4. `ui#1508` (`#1131`, on `main`): two `release.yml` lines passing `NEXT_PUBLIC_PLAY_PACKAGE_NAME` per environment. Merge to `main` on the bar before the next staging web release.
+5. `#1121`: measure queryid 2057064764435677686 again (before: 445 calls, 1,147,845 rows at the release), compute the delta, record before and after on `orbit-api#691`, close `#1121`.
+6. Close each ticket with `node tools/complete-ticket.mjs --issue "#N"` after its merge into `redesign/main`.
+7. When `#1129` merges, the open session chain can close at the next owner handoff.
 
 ## Then: the owner's review, the sweep, the gate
 
-1. File the Orbit Staging "Ver na Google Play" defect (owner instruction 11; `repo:ui`, Bug, `needs:no-conversation`), place it in Batch R, and launch it.
-2. `#1127` (Perfil top inset in the compact shell): run `npm ci` in its prepared worktree `ticket-1127-perfil-top-inset`, recompose its order after the fast-forward (`--layout-guard`), launch with `--allow-subagents --hard-ceiling-minutes 75`, prove its layout case red, merge on the bar.
-3. Release `redesign/main` web to staging after each batch of merges and ship an Orbit Staging internal build (the next is 1.3.60 (119)).
-4. Finish the rendered sweep of staging: the foldable widths (840, 1100) for the Perfil sub-screens, Avisos, Busca, Sobre, Orbit Pro, habit create and habit detail, plus the rest of the spec's Sweep coverage list, filing and fixing until a full pass finds nothing. Recheck the production content rating certificate code once Google's review finishes.
-5. When the redesign is done, tell the owner (instruction 1) and stop the redesign at THE REDESIGN GATE.
-6. Then the spec's order: Batch 0c, Batch E, Batch 0b. Free worker slots may take independent tickets from later batches when every Batch R ticket is blocked on an open pull request.
+1. Release `redesign/main` web to staging after each batch of merges (after `#1131` is on `main`) and ship an Orbit Staging internal build (the next is 1.3.60 (119)).
+2. Finish the rendered sweep of staging: the foldable widths (840, 1100) for the Perfil sub-screens, Avisos, Busca, Sobre, Orbit Pro, habit create and habit detail, plus the rest of the spec's Sweep coverage list, filing and fixing until a full pass finds nothing. Recheck the production content rating certificate code once Google's review finishes.
+3. When the redesign is done, tell the owner (instruction 1) and stop the redesign at THE REDESIGN GATE.
+4. Then the spec's order: Batch 0c, Batch E, Batch 0b. Free worker slots may take independent tickets from later batches when every Batch R ticket is blocked on an open pull request.
 
 ## Sleep
 
@@ -65,51 +63,56 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's mobile review (research, questions, `DESIGN.md` corrected, every defect fixed on both platforms), the four open pull requests and `#1123` merged, `#961` closed, `#1127` and the Play manage-link defect delivered and merged, a staging release and internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff the board had 135 open tickets, all 135 placed in the spec's `## The order` (0 unplaced, 0 closed tickets leading a bullet, 0 placed twice as a bullet's leading ticket); the Play manage-link defect is not filed yet.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's mobile review (Codex research arm, one `/questions` round, `DESIGN.md` corrected, every defect fixed on both platforms), the seven open pull requests merged, `#1121` measured and closed, a staging release and internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). This run filed `#1128` to `#1131` and placed them in Batch R; the research's proposed tickets are not filed yet (they wait for the owner's answers).
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| `ui#1500` (`#1126`) at `57202c39` | CHANGES_REQUESTED; clear the review, merge on the bar |
-| `ui#1501` (`#1125`) at `a0be373f` | APPROVED, Surface Manifest Drift red; regenerate the manifest, merge |
-| `ui#1502` (`#1124`) at `5c342ef8` | APPROVED, all green; merge on the bar |
-| `orbit-api#691` (`#1121`) at `caa4438c` | on `main`, body links `Refs`; read CI and review, merge, release, measure, carry |
-| `ui#1503` (`#1123`) at `45eec686` | delivered after handoff, review not read; verify, prove red, drive to the bar |
-| `#1127` | filed and placed; worktree `ticket-1127-perfil-top-inset` at `a24d3cea` prepared, not launched |
-| Play manage-link defect | owner report, not filed yet |
-| Merged this session | `ui#1495` (`182efc34`), `ui#1498` (`496954c8`), `ui#1499` (`a24d3cea`) |
-| Closed this session | `#1118`, `#1119`, `#1122` |
-| Production | API `140d9f93`, web `b84bdc9e`, landing `ebbebb2a`, Android 1.3.57 (116) open; content rating change sent to Google for review |
+| `ui#1501` (`#1125`) at `53251411` | green; review requested; merge on the bar |
+| `ui#1503` (`#1123`) | three unpushed review-fix commits to `81b5cf2b`, spec 65/65 locally; red proof, body merge, push, review, merge |
+| `ui#1504` (`#1129`) | waiting on CI and review |
+| `ui#1505` (`#1127`) | red proven; waiting on CI and review |
+| `ui#1506` (`#1130`) | waiting on CI and review |
+| `ui#1507` (`#1128`) | waiting on CI and review |
+| `ui#1508` (`#1131`, `main`) | waiting on CI and review |
+| `#1121` | released and carried; after measurement, then close |
+| Research | done; synthesis in `0 Inbox/raw/orbit-mobile-review/research-final.json`; Codex arm after `#1128`; questions round after |
+| Merged this run | `ui#1502` (`447185f6`), `ui#1500` (`3500e4f7`), `orbit-api#691` (`822f3038`, `main`), `orbit-api#692` (`7821c3f2`) |
+| Closed this run | `#1124`, `#1126`, `#961` |
+| Production | API `822f3038` (released this run), web `b84bdc9e`, landing `ebbebb2a`, Android 1.3.57 (116) open |
 | Staging | web `2ffd2b9c`, API `b36bf45d`; Orbit Staging 1.3.59 (118) internal |
-| Waiters | the CI waiter on `ui#1500` to `ui#1502` dies with this session |
-| Open pull requests in `orbit-landing-page` | none |
-| Stashes | none in any repository |
-| Uncommitted work | none in the main checkouts (the spec and this prompt are committed with this handoff) |
-| Unpushed commits | none on any ticket branch |
-| Branches with no pull request | `fix/ticket-1127-perfil-top-inset` (no commits beyond `a24d3cea`) |
-| Detached HEADs | scratch merge-check worktrees under the session scratchpads (merge commits only); `git worktree prune` clears them |
-| Chrome | the automation tab sits in the owner's window 57, restored to 1352 by 849 |
+| Waiters | the CI waiters die with this session; restart them |
+| Open pull requests in `orbit-api` and `orbit-landing-page` | none |
+| Stashes | none |
+| Uncommitted work | none in the main checkouts; `ticket-1123-action-rows` has unpushed commits only |
+| Unpushed commits | `fix/ticket-1123-action-rows` (base merge plus `3c6999a8`, `7a798256`, `81b5cf2b`) |
+| Branches with no pull request | none |
+| Detached HEADs | scratch merge-check and red-proof worktrees in the old session scratchpad (`mc-1502`, `red-p1505`, `red-p1503`); `git worktree prune` clears them once gone |
+| Chrome | not used this run |
 | Throwaway AVD | `Orbit_Repro_Throwaway` still exists; delete it once no repro needs it |
-| Ignored files | the session decision log stayed in the scratchpad; every durable rule and fact is in the spec |
-| Session chain | still open: the owner's wrap-up prompt was not parsed as an owner handoff (First 8), so this chain closes at the next owner handoff |
-| Owner questions | none open |
+| Ignored files | the session decision log stayed in the scratchpad; durable facts are in the spec and the brain inbox JSON |
+| Session chain | still open; it closes at the first owner handoff after `#1129` merges |
+| Owner questions | the three research questions in the spec's `## Open questions` |
 
-Workers launched by a session die when it ends: read each worktree before relaunching.
+Workers launched by a session die when it ends: read each worktree before relaunching. The gate, red-proof and merge-check helper scripts live in the previous session's scratchpad; copy them with the session id replaced.
 
 ## Previous prompt, disposition
 
-- The owner's mobile review after the wrap-up: added as the Priority section and owner instruction 12.
-- Opening, entry point, sleep contract, authorization, relay paragraph and owner instructions 1 to 6 and 8 to 10: carried. Owner instruction 7 updated: the `#961` purchase is done. Owner instruction 11 added from the owner's report.
-- First 1 (`#1126`): done as `ui#1500`; its review is carried as First 1.
-- First 2 (`ui#1498`): done, merged as `496954c8` after the combined merge check with both harness suites.
-- First 3 (`ui#1495`): done, merged as `182efc34`.
-- First 4 (`ui#1499`): done, merged as `a24d3cea`.
-- First 5 (close tickets): done for `#1118`, `#1119`, `#1122`; carried as First 7.
-- Then 1 (`#1123`): delivered as `ui#1503`; carried as First 5.
-- Then 2 (`#1125`, `#1124`): delivered as `ui#1501` and `ui#1502`; carried as First 2 and 3.
-- Then 3 (staging release and internal build): carried as Then 3.
-- Then 4 (sweep and content rating): sweep partly done (phone width complete, foldable partly), the content rating change sent for review; carried as Then 4.
-- Then 5 (gate) and Then 6 (Batch 0c, E, 0b): carried. `#1121` from Batch E was taken into a free slot and is First 4.
+- Opening reading list, entry point, Sleep section, the authorization paragraph, the relay paragraph and owner instructions 1 to 12: carried verbatim.
+- Priority 1 (research Workflow): done for the Claude arm (synthesis saved to the brain inbox JSON); the Codex arm is carried as Priority 2, because its sanctioned launcher (`#1128`) was built this run and is in review.
+- Priority 2 (one `/questions` round): carried as Priority 3; never asked during a relay.
+- Priority 3 and 4 (`DESIGN.md`, tickets, full sweep): carried as Priority 4 and 5.
+- First 1 (`ui#1500`): done, merged as `3500e4f7` after a review fix that keeps subagent tool calls out of the relay.
+- First 2 (`ui#1501`): manifest regenerated and pushed; carried as First 2.
+- First 3 (`ui#1502`): done, merged as `447185f6`.
+- First 4 (`orbit-api#691`): merged, released to production and carried (`orbit-api#692`); the after measurement is carried as First 5.
+- First 5 (`ui#1503`): carried as First 1 with three review fixes made.
+- First 6 (`#961`): done, closed with the staging log evidence.
+- First 7 (close tickets): carried as First 6.
+- First 8 (handoff parser): filed as `#1129`, delivered as `ui#1504`; carried as First 3 and 7.
+- Then 1 (Play manage-link defect): filed as `#1130`, delivered as `ui#1506`, plus `#1131` (`ui#1508`) for the `main` workflow; carried as First 3 and 4.
+- Then 2 (`#1127`): delivered as `ui#1505`, red proven; carried as First 3.
+- Then 3 to 6: carried as Then 1 to 4.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
