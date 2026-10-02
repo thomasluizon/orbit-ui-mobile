@@ -46,6 +46,7 @@ export function Popover({
 
   const {
     isOpen: hookIsOpen,
+    isDismissed,
     presenceRevision,
     open: hookOpen,
     close: hookClose,
@@ -56,7 +57,7 @@ export function Popover({
   } = usePopoverMenu({ placement, offset, margin })
   const wasOpenRef = useRef(false)
 
-  const isOpen = isControlled ? controlledOpen : hookIsOpen
+  const isOpen = !isDismissed && (isControlled ? controlledOpen : hookIsOpen)
 
   const close = isControlled
     ? () => onOpenChange?.(false)

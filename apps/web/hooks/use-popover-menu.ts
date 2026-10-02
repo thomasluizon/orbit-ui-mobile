@@ -27,6 +27,7 @@ export interface UsePopoverMenuOptions {
 
 export interface UsePopoverMenuReturn {
   isOpen: boolean
+  isDismissed: boolean
   presenceRevision: number
   open: () => void
   close: () => void
@@ -42,7 +43,8 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
   const triggerRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const ownsActiveMenu = useRef(false)
-  const [isOpen, setIsOpen] = useState(false)
+  const [phase, setPhase] = useState<'closed' | 'open' | 'dismissed'>('closed')
+  const isOpen = phase === 'open'
   const [presenceRevision, setPresenceRevision] = useState(0)
   const [position, setPosition] = useState<PopoverPosition>({ top: 0, left: 0 })
 
@@ -107,12 +109,12 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
   }, [placement, offset, margin])
 
   const close = useCallback(() => {
-    setIsOpen(false)
+    setPhase((current) => current === 'dismissed' ? current : 'closed')
   }, [])
 
   const dismissImmediately = useCallback(() => {
     ownsActiveMenu.current = false
-    setIsOpen(false)
+    setPhase('dismissed')
     setPresenceRevision((revision) => revision + 1)
   }, [])
 
@@ -121,7 +123,7 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     ownsActiveMenu.current = true
     activeMenuClose = dismissImmediately
     computePosition()
-    setIsOpen(true)
+    setPhase('open')
   }, [dismissImmediately, computePosition])
 
   const toggle = useCallback(() => {
@@ -175,5 +177,5 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     }
   }, [isOpen, close])
 
-  return { isOpen, presenceRevision, open, close, toggle, triggerRef, panelRef, position }
+  return { isOpen, isDismissed: phase === 'dismissed', presenceRevision, open, close, toggle, triggerRef, panelRef, position }
 }
