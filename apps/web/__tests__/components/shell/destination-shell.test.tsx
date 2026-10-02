@@ -4,6 +4,8 @@ import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { Composer } from '@/components/shell/composer'
+import en from '@orbit/shared/i18n/en.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
@@ -81,7 +83,7 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
@@ -98,6 +100,8 @@ vi.mock('@/components/shell/shell-wide', () => ({
     paletteLabel?: string
     tabBar?: ReactNode
     fab?: ReactNode
+    conversation?: ReactNode
+    conversationOpen?: boolean
   }) => (
     <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
       {header ? <div data-shell-header="">{header}</div> : null}
@@ -112,6 +116,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {mocks.wide && onCreate ? <button type="button" onClick={onCreate}>{createLabel}</button> : null}
       {mocks.wide ? createRefusal : null}
       {!mocks.wide ? fab : null}
+      {conversationOpen && <div data-testid="conversation">{conversation}</div>}
     </div>
   ),
 }))
@@ -754,6 +759,43 @@ describe('DestinationShell', () => {
       )
       view.unmount()
     }
+  })
+
+  it.each([false, true])('shows input and chips only on Hoje and preserves the conversation at wide=%s', (wide) => {
+    mocks.wide = wide
+    function App() {
+      const [open, setOpen] = useState(false)
+      return <DestinationShell onCreate={() => {}} conversation={<button type="button" onClick={() => setOpen(false)}>Close conversation</button>}
+        conversationOpen={open} conversationLabel="Conversation" composer={<Composer words={en.shell.composer} value="" state="idle"
+          suggestions={[
+            { id: 'first', label: 'First suggestion', onSelect: () => {} },
+            { id: 'second', label: 'Second suggestion', onSelect: () => {} },
+            { id: 'third', label: 'Third suggestion', onSelect: () => {} },
+          ]} onChangeValue={() => {}} onSend={() => {}} onOpenConversation={() => setOpen(true)} conversationLabel="Open conversation" />}>
+        <h1>Destination</h1>
+      </DestinationShell>
+    }
+    const view = render(<App />)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }))
+    expect(screen.getByTestId('conversation')).toBeInTheDocument()
+    for (const pathname of ['/calendar', '/progress', '/profile']) {
+      mocks.pathname = pathname
+      view.rerender(<App />)
+      expect(screen.getByTestId('conversation')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: en.shell.composer.suggestionsLabel })).not.toBeInTheDocument()
+      expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
+      expect(screen.getByRole('button', { name: 'nav.today' })).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Close conversation' }))
+    expect(screen.queryByTestId('conversation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    mocks.pathname = '/'
+    view.rerender(<App />)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
   })
 
   it.each([false, true])('retains Calendar on Search at wide=%s', (wide) => {
