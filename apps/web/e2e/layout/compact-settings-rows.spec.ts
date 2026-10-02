@@ -44,8 +44,11 @@ for (const width of [412, 1280]) {
       test('Perfil opens plain preference rows and keeps export in Conta', async ({ page }) => {
         await page.goto('/profile')
         const navigation = page.getByTestId('profile-settings-group-you')
-        await expect(navigation.getByRole('link')).toHaveCount(4)
-        await expect(navigation.locator('svg')).toHaveCount(4)
+        await expect(navigation.getByRole('link')).toHaveCount(5)
+        await expect(navigation.locator('svg')).toHaveCount(5)
+        const proEntry = navigation.getByRole('link', { name: new RegExp(`^${messages.upgrade.pitchTitle}`) })
+        await expect(proEntry).toHaveAttribute('href', '/upgrade')
+        await assertCompactTarget(proEntry)
         await navigation.getByRole('link', { name: messages.profile.submenus.preferences, exact: true }).click()
         const group = page.getByTestId('profile-settings-group-preferences')
         const rows = group.locator('.orbit-list-row-shell')
