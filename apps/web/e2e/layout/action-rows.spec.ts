@@ -23,7 +23,7 @@ const schedules = Array.from({ length: 20 }, (_, index) => makeHabitScheduleItem
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: schedules, page: 1, pageSize: 20, totalPages: 3, totalCount: 41 })
 const event = createMockCalendarSyncEvent({ title: 'Team meeting', startDate: today, startTime: '09:00', isImported: false })
 const events = calendarEventsResponseSchema.parse([event, createMockCalendarSyncEvent({ id: 'event-2', title: 'Planning', startDate: today, startTime: '13:00' }), createMockCalendarSyncEvent({ id: 'event-3', title: 'Review', startDate: today, startTime: '16:00' })])
-const notifications = notificationsResponseSchema.parse({ items: [createMockNotification({ isRead: false })], unreadCount: 1 })
+const notifications = notificationsResponseSchema.parse({ items: [createMockNotification({ isRead: false }), createMockNotification({ id: 'notif-2', title: 'Weekly summary', isRead: true })], unreadCount: 1 })
 const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
 
 async function installActionFixtures(context: BrowserContext, locale: 'en' | 'pt-BR') {
@@ -54,7 +54,7 @@ async function installActionFixtures(context: BrowserContext, locale: 'en' | 'pt
 
 async function assertActionGeometry(page: Page, surface?: Locator) {
   await page.evaluate(() => document.fonts.ready)
-  const owner = surface ?? page.locator('#orbit-main')
+  const owner = surface ?? page.locator('[data-shell-column]')
   const geometry = await owner.evaluate((root) => {
     const visible = (element: Element) => {
       const box = element.getBoundingClientRect()
@@ -109,7 +109,7 @@ for (const width of [412, 1352]) {
         '/profile/preferences': '[data-testid="profile-settings-group-preferences"] [data-slot="list-row-title"]',
         '/profile/astra': '[data-testid="profile-api-keys"]',
         '/profile/notifications': '[role="switch"]',
-        '/habits/new': '[data-habit-create-action] .orbit-pill-action',
+        '/habits/new': '[data-habit-create-screen] form',
         [`/habits/${habitId}`]: '[data-habit-detail-content] h1',
         '/upgrade': '.orbit-pill-action',
         '/notifications': '.orbit-pill-action',
@@ -121,12 +121,25 @@ for (const width of [412, 1352]) {
         test(`${route} keeps adjacent pills in one size with sufficient clearance`, async ({ page }) => {
           await page.goto(route)
           const main = page.locator('#orbit-main')
-          await expect(main.locator(readySelectors[route]!).first()).toBeVisible()
+          const column = page.locator('[data-shell-column]')
+          await expect(column.locator(readySelectors[route]!).first()).toBeVisible()
           await expect(main.locator('[aria-busy="true"], .skeleton-pulse')).toHaveCount(0)
-          if (route === '/habits/new') await expect(page.locator('[data-habit-create-action] .orbit-pill-action')).toHaveAttribute('data-size', 'md')
+          if (route === '/habits/new') {
+            const submit = column.locator('[data-shell-pinned-slot] [data-habit-create-action] .orbit-pill-action')
+            await expect(submit).toBeVisible()
+            await expect(submit).toBeDisabled()
+            await expect(submit).toHaveAttribute('data-size', 'md')
+          }
           if (route === '/upgrade') await expect(page.getByRole('button', { name: messages.upgrade.billing.payment.change, exact: true })).toBeVisible()
           if (route === '/progress') await expect(page.locator('[data-goal-id]')).toHaveCount(2)
-          if (route === '/notifications') await expect(page.getByRole('button', { name: messages.notifications.deleteAll, exact: true })).toBeVisible()
+          if (route === '/notifications') {
+            const header = column.locator('[data-shell-header]')
+            await expect(header.getByRole('button', { name: messages.notifications.markAllRead, exact: true })).toBeVisible()
+            await expect(header.getByRole('button', { name: messages.notifications.deleteAll, exact: true })).toBeVisible()
+            await expect(header.locator('[data-slot="action-row"] .orbit-pill-action')).toHaveCount(2)
+            await expect(main.getByText(notifications.items[0]!.title, { exact: true })).toBeVisible()
+            await expect(main.getByText(notifications.items[1]!.title, { exact: true })).toBeVisible()
+          }
           if (route === '/habits/'+habitId) await expect(page.getByRole('heading', { name: habit.title, exact: true })).toBeVisible()
           await assertActionGeometry(page)
         })
@@ -150,13 +163,25 @@ for (const width of [412, 1352]) {
         await assertActionGeometry(page, sheet)
       })
 
-      test('search pagination uses one action row', async ({ page }) => {
+      test('search pagination uses one action row', async ({ page, context }) => {
+        const matches = Array.from({ length: 41 }, (_, index) => makeHabitScheduleItem({ ...schedule, id: `search-${index + 1}`, title: `Read ${index + 1}`, position: index, searchMatches: [{ field: 'title', value: null }] }))
+        for (const pageNumber of [1, 2, 3]) {
+          const response = createPaginatedSchema(habitScheduleItemSchema).parse({ items: matches.slice((pageNumber - 1) * 20, pageNumber * 20), page: pageNumber, pageSize: 20, totalPages: 3, totalCount: matches.length })
+          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list && url.searchParams.get('search') === 'Read' && url.searchParams.get('page') === String(pageNumber), (route) => route.fulfill({ json: response }))
+        }
         await page.goto('/search')
         await page.getByRole('combobox', { name: messages.habits.search.title }).fill('Read')
-        await expect(page.getByRole('button', { name: messages.habits.search.next, exact: true })).toBeVisible()
-        await page.getByRole('button', { name: messages.habits.search.next, exact: true }).click()
-        await expect(page.getByRole('button', { name: messages.habits.search.previous, exact: true })).toBeVisible()
-        await expect(page.locator('#orbit-main [aria-busy="true"]')).toHaveCount(0)
+        const main = page.locator('#orbit-main')
+        const next = main.getByRole('button', { name: messages.habits.search.next, exact: true })
+        const previous = main.getByRole('button', { name: messages.habits.search.previous, exact: true })
+        await expect(main.getByRole('option')).toHaveCount(20)
+        await expect(next).toBeEnabled()
+        await next.click()
+        await expect(main.getByText('Read 21', { exact: true })).toBeVisible()
+        await expect(main.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+        await expect(previous).toBeEnabled()
+        await expect(next).toBeEnabled()
+        await expect(main.locator('[data-slot="action-row"]').filter({ has: previous }).locator('.orbit-pill-action')).toHaveCount(2)
         await assertActionGeometry(page)
       })
 
