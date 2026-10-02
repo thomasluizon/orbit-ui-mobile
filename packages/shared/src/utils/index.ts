@@ -772,3 +772,6 @@ export * from './proposed-tint-core'
 export { buildSearchEntries, buildSearchMatchLines, type SearchMatchLine } from './search-presentation'
 
 export { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitCreateReturnPath, type HabitCreateRouteInput } from './habit-create-navigation'
+
+export { DESTINATION_ICONS, SHELL_DESTINATION_IDS, getDestinationForLabel, getDestinationForCommand } from './destination-icons'
+export type { DestinationIconName } from './destination-icons'

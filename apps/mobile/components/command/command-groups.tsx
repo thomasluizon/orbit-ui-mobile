@@ -1,11 +1,12 @@
+import { getDestinationIcon } from '@/components/navigation/destination-icon'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { searchCommands, type SearchCommandId } from '@orbit/shared/utils'
+import { getDestinationForCommand, searchCommands, type SearchCommandId } from '@orbit/shared/utils'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { CalendarDays, ChartLine, Check, Home, Plus, SkipForward, User } from '@/components/ui/icons'
+import { Check, Plus, SkipForward } from '@/components/ui/icons'
 
-const ICONS = { create: Plus, log: Check, skip: SkipForward, today: Home, calendar: CalendarDays, progress: ChartLine, profile: User }
+const ACTION_ICONS = { create: Plus, log: Check, skip: SkipForward }
 const GROUP_KEYS = { create: 'command.groups.create', actions: 'command.groups.actions', destinations: 'command.groups.destinations' } as const
 
 export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<{ hideCreate?: boolean; query: string; onSelect: (id: SearchCommandId) => void }>) {
@@ -18,7 +19,7 @@ export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<
     if (!entries.length) return null
     return <View key={group} style={styles.group}>
       <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg3 }]}>{t(GROUP_KEYS[group])}</Text>
-      {entries.map((entry) => { const Icon = ICONS[entry.id]; return <Pressable key={entry.id} role="button" accessibilityRole="button" onPress={() => onSelect(entry.id)} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Icon size={20} color={tokens.fg3} /><Text style={[styles.label, { color: tokens.fg1 }]}>{t(entry.label)}</Text></Pressable> })}
+      {entries.map((entry) => { const destination = getDestinationForCommand(entry.id); const Icon = destination ? getDestinationIcon(destination) : ACTION_ICONS[entry.id as keyof typeof ACTION_ICONS]; return <Pressable key={entry.id} role="button" accessibilityRole="button" onPress={() => onSelect(entry.id)} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Icon size={20} color={tokens.fg3} /><Text style={[styles.label, { color: tokens.fg1 }]}>{t(entry.label)}</Text></Pressable> })}
     </View>
   })
 }

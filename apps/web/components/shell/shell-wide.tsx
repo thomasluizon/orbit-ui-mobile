@@ -5,20 +5,14 @@ import {
   useEffect,
   useRef,
   useSyncExternalStore,
-  type ComponentType,
   type ReactNode,
   type RefCallback,
 } from 'react'
 import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
-import {
-  CalendarDays,
-  ChartLine,
-  Home,
-  Search,
-  User,
-  type IconProps,
-} from '@/components/ui/icons'
+import { Search } from '@/components/ui/icons'
+import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
 import { Button } from '@/components/ui/pill-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
@@ -38,13 +32,6 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
 }
 
 type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; createRefusal?: ReactNode }
-
-const ICONS: Record<string, ComponentType<IconProps>> = {
-  home: Home,
-  calendar: CalendarDays,
-  'chart-line': ChartLine,
-  user: User,
-}
 
 function subscribeToSidePanel(callback: () => void) {
   const query = window.matchMedia(SIDE_PANEL_QUERY)
@@ -69,15 +56,15 @@ function SidebarItem({
   active: boolean
   onSelect?: (id: string) => void
 }>) {
-  const Icon = item.icon ? ICONS[item.icon] : undefined
+  const destination = SHELL_DESTINATION_IDS.find((id) => id === item.icon)
   const content = (
     <>
-      {Icon ? (
-        <Icon
+      {destination ? (
+        <DestinationIcon
+          destination={destination}
+          active={active}
           size={20}
-          strokeWidth={active ? 2 : 1.5}
           color={active ? 'var(--primary)' : 'var(--fg-3)'}
-          aria-hidden="true"
         />
       ) : null}
       <span className="min-w-0 truncate">{item.label}</span>

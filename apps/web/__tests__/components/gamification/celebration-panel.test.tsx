@@ -68,7 +68,7 @@ describe('CelebrationPanel', () => {
     const user = userEvent.setup()
     const { container } = render(
       <ShellWide
-        items={[{ id: 'hoje', label: 'Today', icon: 'home' }]}
+        items={[{ id: 'hoje', label: 'Today', icon: 'hoje' }]}
         activeId="hoje"
         navLabel="Main navigation"
         notice={<CelebrationPanel />}

@@ -16,10 +16,10 @@ vi.mock('@/components/ui/pill-button', () => ({
 import { ShellWide } from '@/components/shell/shell-wide'
 
 const items = [
-  { id: 'hoje', label: 'Hoje', icon: 'home' },
-  { id: 'calendario', label: 'Calendário', icon: 'calendar' },
-  { id: 'progresso', label: 'Progresso', icon: 'chart-line' },
-  { id: 'perfil', label: 'Perfil', icon: 'user' },
+  { id: 'hoje', label: 'Hoje', icon: 'hoje' },
+  { id: 'calendario', label: 'Calendário', icon: 'calendario' },
+  { id: 'progresso', label: 'Progresso', icon: 'progresso' },
+  { id: 'perfil', label: 'Perfil', icon: 'perfil' },
 ]
 
 function BlurFocusedElement() {
@@ -147,7 +147,7 @@ describe('ShellWide', () => {
     const inactive = screen.getByRole('button', { name: 'Hoje' })
     expect(active).toHaveClass('text-[var(--primary-soft)]')
     expect(active).toHaveClass('hover:text-[var(--primary-text)]')
-    expect(active.querySelector('svg')).toHaveAttribute('stroke', 'var(--primary)')
+    expect(active.querySelector('svg')).toHaveAttribute('fill', 'var(--primary)')
     expect(inactive).toHaveClass('text-[var(--fg-3)]')
     expect(inactive.querySelector('svg')).toHaveAttribute('stroke', 'var(--fg-3)')
     delete document.documentElement.dataset.theme

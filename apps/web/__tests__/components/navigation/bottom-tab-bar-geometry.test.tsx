@@ -8,12 +8,11 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { Home, CalendarDays, ChartLine, User } from '@/components/ui/icons'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-const destinations = ['today', 'calendar', 'progress', 'profile'] as const
-const icons = [Home, CalendarDays, ChartLine, User]
 
 describe('Bottom tab geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -30,11 +29,8 @@ describe('Bottom tab geometry in Chromium', () => {
   it.each([en, ptBR].flatMap((messages) => [1, 2].map((textScale) => ({ messages, textScale }))))(
     'keeps complete labels and separated targets at 320 with $textScale text scale in $messages.nav.calendar',
     async ({ messages, textScale }) => {
-      const { container } = render(<BottomTabBar label={messages.nav.mainNavigation} activeId="today" onSelect={vi.fn()}
-        items={destinations.map((id, index) => ({ id, label: messages.nav[id], icon: () => {
-          const Icon = icons[index]!
-          return <Icon size={24} />
-        } }))} />)
+      const { container } = render(<BottomTabBar label={messages.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
+        items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: messages.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />)
       const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
       try {
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * textScale}px}</style>${container.innerHTML}`)

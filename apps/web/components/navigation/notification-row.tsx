@@ -1,17 +1,20 @@
 'use client'
 
+import { DestinationIcon } from '@/components/navigation/destination-icon'
+
 import { useTranslations } from 'next-intl'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
-import { Calendar, ChartLine, CircleDot, Gift, Home, Trash2, User } from '@/components/ui/icons'
+import { formatNotificationRelativeTime, getNotificationTargetKey, getDestinationForLabel } from '@orbit/shared/utils'
+import { CircleDot, Gift, Trash2 } from '@/components/ui/icons'
 
-const TARGET_ICONS = {
-  'nav.today': Home,
-  'nav.calendar': Calendar,
-  'nav.progress': ChartLine,
-  'nav.profile': User,
-  'profile.wrappedTitle': Gift,
-  'notifications.habit': CircleDot,
+function NotificationTargetIcon({ targetKey, color }: Readonly<{
+  targetKey: NonNullable<ReturnType<typeof getNotificationTargetKey>>
+  color: string
+}>) {
+  const destination = getDestinationForLabel(targetKey)
+  if (destination) return <DestinationIcon destination={destination} size={16} color={color} />
+  const Icon = targetKey === 'profile.wrappedTitle' ? Gift : CircleDot
+  return <Icon size={16} color={color} aria-hidden="true" />
 }
 
 export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
@@ -21,7 +24,6 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
 }>) {
   const t = useTranslations()
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
-  const TargetIcon = targetKey ? TARGET_ICONS[targetKey] : null
   return (
     <li data-read={item.isRead} className="flex items-stretch gap-1 rounded-[var(--r-well)]"
       style={item.isRead ? undefined : { background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
@@ -41,8 +43,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
             </span>
           </span>
           <span className="text-sm text-[var(--fg-2)]" style={{ lineHeight: 1.5, overflowWrap: 'anywhere' }}>{item.body}</span>
-          {targetKey && TargetIcon ? <span className="flex items-center gap-2 font-mono text-xs text-[var(--fg-2)]">
-            <TargetIcon size={16} className="text-[var(--fg-3)]" aria-hidden="true" />{t(targetKey)}
+          {targetKey ? <span className="flex items-center gap-2 font-mono text-xs text-[var(--fg-2)]">
+            <NotificationTargetIcon targetKey={targetKey} color="var(--fg-3)" />{t(targetKey)}
           </span> : null}
         </span>
       </button>
