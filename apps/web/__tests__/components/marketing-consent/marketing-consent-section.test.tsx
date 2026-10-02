@@ -22,13 +22,13 @@ vi.mock('@/lib/actions/profile', () => ({
 
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
 
-function renderSection() {
+function renderSection(contained = false) {
   const client = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={client}>
-      <MarketingConsentSection />
+      <MarketingConsentSection contained={contained} />
     </QueryClientProvider>,
   )
 }
@@ -47,12 +47,19 @@ describe('MarketingConsentSection', () => {
 
   afterEach(() => cleanup())
 
-  it('asks for an explicit answer when consent has never been decided', () => {
+  it.each([false, true])('asks for an explicit answer when consent has never been decided with contained %s', (contained) => {
     profileValue = { marketingEmailConsent: null }
-    renderSection()
+    renderSection(contained)
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'profile.marketingEmails.accept' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'profile.marketingEmails.decline' })).toBeInTheDocument()
+  })
+
+  it('keeps the default answered presentation with its mail icon', () => {
+    profileValue = { marketingEmailConsent: false }
+    const { container } = renderSection()
+    expect(container.querySelectorAll('svg')).toHaveLength(1)
+    expect(container.querySelector('[data-slot="list-row-title"]')).not.toBeInTheDocument()
   })
 
   it('reflects explicit consent off', () => {
@@ -67,9 +74,9 @@ describe('MarketingConsentSection', () => {
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('opts in and optimistically patches the profile on toggle', async () => {
+  it.each([false, true])('opts in and optimistically patches the profile on toggle with contained %s', async (contained) => {
     profileValue = { marketingEmailConsent: false }
-    renderSection()
+    renderSection(contained)
 
     await act(async () => {
       fireEvent.click(screen.getByRole('switch'))
@@ -80,10 +87,10 @@ describe('MarketingConsentSection', () => {
     expect(patchProfile).toHaveBeenCalledWith({ marketingEmailConsent: true })
   })
 
-  it('rolls the optimistic patch back when the mutation fails', async () => {
+  it.each([false, true])('rolls the optimistic patch back when the mutation fails with contained %s', async (contained) => {
     profileValue = { marketingEmailConsent: true }
     updateMarketingConsent.mockRejectedValueOnce(new Error('network'))
-    renderSection()
+    renderSection(contained)
 
     await act(async () => {
       fireEvent.click(screen.getByRole('switch'))
