@@ -260,9 +260,9 @@ function createStyles(tokens: Tokens) {
       alignItems: 'center',
       borderRadius: 999,
       overflow: 'hidden',
-      height: 44,
+      minHeight: 48,
       justifyContent: 'center',
-      width: 44,
+      width: 48,
     },
     pressed: {
       backgroundColor: tokens.bgHover,

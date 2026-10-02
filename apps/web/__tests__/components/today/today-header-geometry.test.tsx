@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -14,6 +15,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 
 const noop = () => {}
 const props = {
+  menuTitle: ptBr.common.options,
   dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.', isTodaySelected: false, nextDisabled: false,
   previousLabel: ptBr.dates.previousDay, nextLabel: ptBr.dates.nextDay, todayLabel: ptBr.dates.today,
   goToTodayLabel: ptBr.dates.goToToday, moreLabel: ptBr.habits.listOptions, searchLabel: ptBr.habits.search.title,
@@ -86,4 +88,34 @@ describe('Hoje header geometry', () => {
       }
     } finally { await page.close() }
   })
+  it.each(['en', 'pt-BR'] as const)('fits the open %s menu at 320 pixels and 200 percent text', async (locale) => {
+    const messages = locale === 'en' ? en : ptBr
+    render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
+      menuTitle={messages.common.options} moreLabel={messages.habits.listOptions}
+      selectLabel={messages.common.select} collapseLabel={messages.habits.collapseAll}
+      refreshLabel={messages.habits.refresh} completedLabel={messages.habits.showCompletedMenu} /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
+      await page.evaluate(async () => { await document.fonts.ready; document.documentElement.style.fontSize = '32px' })
+      const geometry = await page.evaluate(() => {
+        const labels = Array.from(document.querySelectorAll('.orbit-menu-label, .orbit-sheet-title')).map((label) => {
+          const range = document.createRange()
+          range.selectNodeContents(label)
+          return { text: label.textContent, textWidth: range.getBoundingClientRect().width, available: label.getBoundingClientRect().width, lines: range.getClientRects().length }
+        })
+        const close = document.querySelector('.orbit-sheet-close')!.getBoundingClientRect()
+        return { labels, close: { width: close.width, height: close.height } }
+      })
+      expect(geometry.labels).toHaveLength(5)
+      for (const label of geometry.labels) {
+        expect(label.textWidth, label.text).toBeLessThanOrEqual(label.available)
+        expect(label.lines).toBe(1)
+      }
+      expect(geometry.close.width).toBeGreaterThanOrEqual(48)
+      expect(geometry.close.height).toBeGreaterThanOrEqual(48)
+    } finally { await page.close() }
+  })
+
 })

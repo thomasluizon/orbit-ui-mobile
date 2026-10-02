@@ -652,3 +652,18 @@ it('fills the real sheet header close target with the neutral interaction token'
   TestRenderer.act(() => { headerTree = TestRenderer.create(tree!.root.findByType(TrueSheet).props.header) })
   expectPressFill(headerTree, 'common.close', createTokensV2().bgHover, 999)
 })
+
+it('keeps the sheet dismiss target at least 48 dp', async () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    tree = TestRenderer.create(<Sheet open title="Options" onClose={vi.fn()}><Text>Content</Text></Sheet>)
+    await Promise.resolve()
+  })
+  let headerTree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { headerTree = TestRenderer.create(tree.root.findByType(TrueSheet).props.header) })
+  const close = headerTree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityLabel === 'common.close')[0]
+  const bounds = StyleSheet.flatten(typeof close.props.style === 'function' ? close.props.style({ pressed: false }) : close.props.style)
+  expect(bounds.width).toBeGreaterThanOrEqual(48)
+  expect(bounds.minHeight ?? bounds.height).toBeGreaterThanOrEqual(48)
+  TestRenderer.act(() => { headerTree.unmount(); tree.unmount() })
+})

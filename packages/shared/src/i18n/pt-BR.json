@@ -92,6 +92,7 @@
     "openIn": "Abrir em {target}"
   },
   "common": {
+    "options": "Opções",
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",
     "backToDestination": "Voltar para {destination}",
@@ -500,7 +501,9 @@
     "searchPlaceholder": "Buscar hábitos...",
     "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
+    "showCompletedMenu": "Mostrar feitos",
     "hideCompleted": "Ocultar concluídos",
+    "hideCompletedMenu": "Ocultar feitos",
     "collapseAll": "Recolher tudo",
     "expandAll": "Expandir tudo",
     "refresh": "Atualizar",

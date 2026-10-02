@@ -12,6 +12,7 @@ const DATE_ICON_BUTTON_CLASS_NAME =
   'grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
 
 export interface TodayDateControlProps {
+  menuTitle?: string
   shortDayName?: string
   headerActive?: boolean
   dayName: string
@@ -57,7 +58,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
     </button>
     {!wide ? <NotificationBell /> : null}
-    <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={props.moreLabel}
+    <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={props.menuTitle ?? props.moreLabel}
       items={[
         { id: 'select', label: props.selectLabel, icon: 'checkbox' },
         { id: 'collapse', label: props.collapseLabel, icon: props.allCollapsed ? 'chevrons-down' : 'chevrons-up' },

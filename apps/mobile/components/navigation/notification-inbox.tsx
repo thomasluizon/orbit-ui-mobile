@@ -47,7 +47,7 @@ export function NotificationInbox() {
             <MoreVertical size={20} color={tokens.fg2} />
           </Pressable>
         </MenuAnchorHost> : undefined} />
-      <Menu open={menu.visible} anchorRef={menu.anchorRef} title={t('notifications.options')}
+      <Menu open={menu.visible} anchorRef={menu.anchorRef} title={t('common.options')}
         items={[
           ...(inbox.visibleUnreadCount > 0 ? [{ id: 'read', label: t('notifications.markAllReadMenu'), icon: 'check' }] : []),
           ...(inbox.visibleNotifications.length > 0 ? [{ id: 'clear', label: t('notifications.deleteAll'), icon: 'trash', destructive: true }] : []),

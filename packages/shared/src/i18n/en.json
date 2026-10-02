@@ -92,6 +92,7 @@
     "openIn": "Open in {target}"
   },
   "common": {
+    "options": "Options",
     "backToToday": "Back to today",
     "backToParentHabit": "Back to parent habit",
     "backToDestination": "Back to {destination}",
@@ -500,7 +501,9 @@
     "searchPlaceholder": "Search habits...",
     "closeSearch": "Close search",
     "showCompleted": "Show completed",
+    "showCompletedMenu": "Show done",
     "hideCompleted": "Hide completed",
+    "hideCompletedMenu": "Hide done",
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
     "refresh": "Refresh",
