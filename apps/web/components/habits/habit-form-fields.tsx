@@ -202,7 +202,7 @@ function ReminderEditors({
     return <ScheduledReminderSection inline reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} t={t} />
   }
   return (
-    <ReminderSection inline reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError} t={t}>
+    <ReminderSection inline toggleLabel={t('habits.form.reminder')} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError} t={t}>
       <ScheduledReminderSection inline reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} offsetReminderCount={reminderTimes.length} nested t={t} />
     </ReminderSection>
   )
