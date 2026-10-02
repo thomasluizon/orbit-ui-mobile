@@ -1,4 +1,5 @@
 const { spawn } = require("node:child_process")
+const { writeSync } = require("node:fs")
 
 let released = false
 process.on("disconnect", () => { if (!released) process.exit(0) })
@@ -6,9 +7,15 @@ process.once("message", ({ executable, args, directory, input, reportDescriptor 
   released = true
   const worker = spawn(executable, args, {
     cwd: directory,
-    stdio: [input === undefined ? "ignore" : "pipe", reportDescriptor ?? "inherit", "inherit"],
+    stdio: [input === undefined ? "ignore" : "pipe", reportDescriptor == null ? "inherit" : "pipe", "inherit"],
     windowsHide: true,
   })
+  if (reportDescriptor != null) {
+    worker.stdout.on("data", (chunk) => {
+      writeSync(reportDescriptor, chunk)
+      writeSync(1, chunk)
+    })
+  }
   if (input !== undefined) {
     worker.stdin.on("error", (error) => { if (error.code !== "EPIPE") throw error })
     worker.stdin.end(input)

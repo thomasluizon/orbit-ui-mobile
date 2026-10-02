@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { chmodSync, existsSync, readFileSync, readdirSync, rmSync, symlinkSync, watch } from "node:fs"
+import { chmodSync, existsSync, readFileSync, rmSync, symlinkSync, watch } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { T, check, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -122,4 +122,9 @@ export const cases = async () => {
   const killed = await running.result
   const killedReport = discardLog(killed)
   T("research: the shared hard ceiling kills the run and clears the wake source", killed.status === 1 && killedReport.outcome === "KILLED_HARD_CEILING" && readWakeSourceStates(supervised.base).live.length === 0 && !existsSync(supervised.output))
+  const flooder = engineStub("report-flooder", "setInterval(() => process.stdout.write('x'.repeat(4096)), 5)")
+  const flooding = fixture("report-flood", flooder, { worker: "claude", timeouts: { ...real.timeouts, hardCeilingMinutes: 0.02, pollSeconds: 0.05 }, caps: { ...real.caps, workerLogMegabytes: 0.01 } })
+  const floodingResult = run(TOOL, flooding.argv, { path: flooding.path })
+  const floodingReport = discardLog(floodingResult)
+  T("research: findings streamed on stdout obey the shared log cap", floodingResult.status === 1 && floodingReport.outcome === "KILLED_LOG_RUNAWAY" && !existsSync(flooding.output), floodingReport.outcome)
 }
