@@ -5,6 +5,7 @@ import React from 'react'
 import { useConfig, isFeatureEnabled } from '@/hooks/use-config'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import type { AppConfig } from '@orbit/shared/types/config'
+import './session-query-setup'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -42,6 +43,7 @@ describe('useConfig', () => {
     })
 
     await waitFor(() => expect(result.current.config.limits.maxTagsPerHabit).toBe(10))
+    expect(result.current.isFetching).toBe(false)
     expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(true)
   })
 
@@ -55,7 +57,8 @@ describe('useConfig', () => {
       wrapper: createWrapper(),
     })
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    await waitFor(() => expect(result.current.isFetching).toBe(false))
+    expect(result.current.isSuccess).toBe(true)
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
     expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(false)
   })

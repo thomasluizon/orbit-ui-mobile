@@ -5,6 +5,7 @@ import React from 'react'
 import { useGoals, useGoalDetail, useGoalMetrics } from '@/hooks/use-goal-queries'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { Goal, GoalDetailWithMetrics, GoalMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
+import './session-query-setup'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -52,7 +53,9 @@ describe('useGoals', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(result.current.data).toBeDefined()
+    expect(result.current.data?.allGoals).toEqual([goals[1], goals[0]])
+    expect(result.current.data?.goalsById).toEqual(new Map(goals.map((goal) => [goal.id, goal])))
+    expect(result.current.data?.totalCount).toBe(2)
   })
 
   it('passes status filter to API', async () => {
