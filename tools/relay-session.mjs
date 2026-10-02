@@ -88,21 +88,24 @@ export const closeRelayTerminal = (request, execute = run) => {
   const receipt = { handle: request.terminalHandle, report: { successorSessionId: request.successorSessionId, terminal: request.terminal } }
   try { assertTerminalFence(request) }
   catch (error) { recordTerminalClose(request, { ...receipt, status: "refused", failure: error.message }); return }
+  recordTerminalClose(request, { ...receipt, status: "closing", path: "orca-cli" })
+  let cliFailure
   try {
-    recordTerminalClose(request, { ...receipt, status: "closing", path: "orca-cli" })
     execute(orcaCommand(), ["terminal", "close", "--terminal", request.terminalHandle, "--json"], request.repoRoot, cleanEnvironment(process.env))
+  } catch (error) { cliFailure = redactSecrets(error.message) }
+  if (cliFailure === undefined) {
     recordTerminalClose(request, { ...receipt, status: "closed", path: "orca-cli" })
-  } catch (error) {
-    const cliFailure = redactSecrets(error.message)
-    try {
-      assertTerminalFence(request)
-      recordTerminalClose(request, { ...receipt, status: "closing", path: "computer-use", cliFailure })
-      closeWithComputer(request, execute)
-      recordTerminalClose(request, { ...receipt, status: "closed", path: "computer-use", cliFailure })
-    } catch (fallbackError) {
-      recordTerminalClose(request, { ...receipt, status: "failed", cliFailure, failure: redactSecrets(fallbackError.message) })
-    }
+    return
   }
+  try {
+    assertTerminalFence(request)
+    recordTerminalClose(request, { ...receipt, status: "closing", path: "computer-use", cliFailure })
+    closeWithComputer(request, execute)
+  } catch (fallbackError) {
+    recordTerminalClose(request, { ...receipt, status: "failed", cliFailure, failure: redactSecrets(fallbackError.message) })
+    return
+  }
+  recordTerminalClose(request, { ...receipt, status: "closed", path: "computer-use", cliFailure })
 }
 
 const queueTerminalClose = (request) => new Promise((resolve, reject) => {
