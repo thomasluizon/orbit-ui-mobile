@@ -33,13 +33,36 @@ He is not asking which tickets closed. Numbers are how the work is tracked, not 
 The default is deliberately narrow. Mid-run he is asking what just happened, and a whole-effort
 summary buries that under work he already knows about.
 
-Before gathering evidence, call `openSessionChain` from `tools/lib/session-chain.mjs` with
-the exact current session id. An open chain's entries plus `currentSessionId` define the
-default reporting window. Read every entry's shipped rows, complete decisions and owner
-questions together with the current run. Recheck every shipping identifier against live git
-and ticket state through the existing procedure below. Deduplicate repository and pull
-request pairs without dropping a session's decisions. Three relays plus the current session
-are one report. Do not close the chain here; the owner's handoff closes it after reporting.
+First get the exact current session id from `currentRunIdentifier()` in
+`tools/lib/identifier-ledger.mjs`, then run:
+
+```bash
+node tools/progress-window.mjs --session <current-session-id> --transcript <current-transcript-path>
+```
+
+The transcript flag is optional when the run record names it or an open chain supplies the
+window. The helper resolves `openSessionChain` and reads live merges in every configured
+repository, release runs, Android uploads and closed tickets for the first entry's `startedAt`
+through now. Its `entries` carry the full decisions and owner questions for each relay, with
+the current session last. Work outside every shipped or readiness row still belongs in the
+report when its time falls in that window. This is evidence of work during the window, not
+proof that the orchestrator authored every change.
+
+Read every predecessor entry's merges, releases, closed tickets and decisions with equal
+weight, then the current session. Do not compress earlier relays to a token line while giving
+the current session the whole report. Gather every entry before the ancestry checks below.
+Deduplicate repository and pull request pairs without dropping decisions or owner questions.
+Use the helper's merges alongside ledger identities for those checks. Three relays plus the
+current session are one report, expressed in the existing product answer shape below.
+Do not close the chain here; the owner's handoff closes it after reporting.
+
+Release `time` is dispatch creation, so a run finishing after a relay stays with the entry that
+launched it. `branch` is the source named in the title; `dispatchBranch` is the workflow ref.
+Null environment, track or version means the run did not carry that metadata. Say it could not
+be read, never infer it from the dispatch ref. A successful run is release evidence; a failed
+or unfinished run is not live. A closed ticket alone never proves shipped behaviour.
+A source error or incomplete pagination makes the window unverifiable; report that limitation
+instead of treating missing evidence as an empty relay.
 
 ## Read live state first
 
@@ -114,11 +137,15 @@ For the default session or chain scope:
 
 1. Get the live session id from `currentRunIdentifier()` in
    `tools/lib/identifier-ledger.mjs`. Use `readRunState()` only when its `sessionId` exactly matches.
-   With no matching record, there is no session baseline. State "No session baseline is available."
+   The helper's chain or exact transcript establishes the time baseline even without a matching
+   run record. When it returns `baseline: "unavailable"`, there is no session baseline.
+   State "No session baseline is available."
    Then report the effort scope instead by following the full-scope procedure once. Do not silently
    turn an absent baseline into an empty session or call all visible work session-owned.
-2. Enumerate the matching record's append-only `readinessLedger` and every open chain entry's
-   `shipped` rows. A shipped row's `repository` is the repository key and `pullRequest` is its
+2. Start with every helper entry's `merges`, whose `repository` is the repository key and `id`
+   is the pull request number. Add the matching record's append-only `readinessLedger` and
+   every open chain entry's `shipped` rows, retaining mid-flight work as well as merges.
+   A shipped row's `repository` is the repository key and `pullRequest` is its
    pull request number. Union those identities before the live reads below. Each ledger row's `repositoryKey` maps to
    a repository path in `.claude/orchestrator.json`; `prNumber` identifies the session-owned pull
    request; `receiptPath` is provenance, not merge status. Ignore any undeclared top-level key.
@@ -135,7 +162,8 @@ For the default session or chain scope:
      claim the work will reach integration or already did.
    If a required field is absent, the fetch fails, or the ancestry check errors, say arrival could
    not be verified for that repository. Read the pull request and its ticket for the behaviour it
-   carries. The ledger establishes session ownership; direct-base ancestry establishes what landed.
+   carries. The live window includes work regardless of ledger ownership; direct-base ancestry
+   establishes what landed.
 
 The standing orchestrator practice retargets a stacked child onto the integration branch before merging
 its parent. `.claude/specs/orbit-redesign.md` and `/merge-prs` own that rule.
