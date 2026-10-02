@@ -1,5 +1,6 @@
 /** Last line of the compact header group, centred across the content column with equal segments.
- * Labels are one word, never wrap or truncate at 320 in either locale; restructure at 200% text. */
+ * Labels are one word, never wrap or truncate at 320 in either locale at the default text size;
+ * above font scale 1.3 a label may wrap inside a taller segment, never truncated or clipped. */
 /** N options in a well, one selected. FOR VIEWS OF THE SAME THING ONLY: monthly against annual pricing of
  *  one plan, week against month of one chart. The options are presentations of one subject, so switching
  *  loses nothing and asks nothing.

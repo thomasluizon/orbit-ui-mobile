@@ -761,7 +761,7 @@ price response does not shift the layout.
 - **Cap body and prose measure at 45 to 75 characters, target about 65ch.** A paragraph never spans the full container. Tune line-height with the measure: a wider line needs more leading.
 - **Break an unbroken token only when running prose cannot otherwise fit.** Paragraphs, links and inline code use `overflow-wrap: anywhere`. Labels, row titles, tile captions and headings never break inside a word; a label that does not fit is a copy or layout defect.
 - `text-wrap: balance` on headings, `text-wrap: pretty` on body and description copy. Skip both in long-form. **Never hand-break with `<br>`.**
-- **App-authored headings stay on one line.** Test both locales at every compact width and 200% text; shorten copy, restructure the layout or move secondary content to disclosure. Never shrink the text to make it fit.
+- **App-authored headings stay on one line at the default text size.** Test both locales at every compact width; shorten copy, restructure the layout or move secondary content to disclosure. Never shrink the text to make it fit. Large accessibility text follows the large-text rule in **Voice**.
 - **Ration eyebrows: at most one per three sections, hero included.** An eyebrow labels a section, it never enumerates one. Numbered meta-labels are banned outright.
 - **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap to at most two lines, then use an ellipsis with the full text one tap away. App-authored labels never truncate.
 - **Text aligns to the start edge.** Numbers in a table align to the trailing edge. Justified text does not exist in this interface.
@@ -770,7 +770,7 @@ price response does not shift the layout.
 ## Layout & spacing
 
 - **In the compact shell (Android at every width, web below 1024), a screen shows one primary task.** Name it before building. Filters, sync status, legends, attachments and per-item extras go behind one visible, labelled entry into a sheet or menu. Each view keeps one primary view switch inline (for example Mês, Semana, Período, Agenda). Each group gets 24 of space from the next. Before a new element joins a compact screen, answer: what does the person lose if it leaves?
-- **Row heights are minimum heights, never fixed heights.** Rows grow with text size; every screen works at 200% text without clipping or overlap. Restructure labels into separate rows or move controls to disclosure instead of wrapping or shrinking labels.
+- **Row heights are minimum heights, never fixed heights.** Rows grow with text size; every screen works at 200% text without clipping or overlap. At the default text size, restructure labels into separate rows or move controls to disclosure instead of wrapping or shrinking them; at large accessibility text a label may wrap inside the taller row, as the large-text rule in **Voice** says.
 - **Disclosure preserves selection.** Closing a sheet or menu keeps the selected date, view mode, scroll position and draft.
 
 - **A card is not a layout primitive.** Group with space and alignment first. A card earns its place only when its content is a genuinely separable, actionable object. This is the upstream rule that stops eight identical rectangles.
@@ -1019,7 +1019,8 @@ A collection whose item count can exceed 20 declares its "too many" behaviour be
 ### Rules
 
 - **Strings stay short:** 1 to 2 words on buttons, chips, tabs and labels. Sentences live only in body, description and empty-state copy.
-- **Labels at compact width.** A tab or segment label is one word. A tile caption fits its measured column (about 90 at 320 for three columns). Write pt-BR first. Every app-authored label holds one line with no ellipsis at 320, 360, 384 and 412, in both locales, at font scale 1.0. At 200% restructure the layout into separate rows or disclosure; labels still never wrap, ellipsize or clip.
+- **Labels at compact width.** A tab or segment label is one word. A tile caption fits its measured column (about 90 at 320 for three columns). Write pt-BR first. Every app-authored label holds one line with no ellipsis at 320, 360, 384 and 412, in both locales, at font scale 1.0.
+- **Large accessibility text.** Above Android font scale 1.3 or web text zoom 130%, up to 200%, an app-authored label may wrap to more lines inside a taller row. It never ends in an ellipsis and is never clipped, and its icon and trailing control align to the first line. Keeping one line there would mean clipping or shrinking text the person asked to be large.
 - **Say it once.** No header restating the intro beneath it. Each element does exactly one job.
 - **Ban supporting copy by default.** Do not add a subtitle, a helper line, or a descriptive sentence beneath a heading, a label, a card, or a settings row. Prefer one concise, self-explanatory heading. Add supporting copy only when the owner asks for it, or when it genuinely prevents a misunderstanding or an error, and **never** to restate the heading above it. **The form-field carve-out is explicit and survives unchanged:** an input still carries a visible, persistent label, and its helper text still lives in the markup, per "a placeholder is never a field's only label" in **Accessibility**. The two rules are not in conflict, because a field label is not supporting copy.
 - **Name every control by what the person controls**, never by how the system is built.
@@ -1334,7 +1335,7 @@ The same test governs any future external component, from any source. Nothing en
 - No fabricated numbers in a shipped UI.
 - No numeric design score.
 
-- **No app-authored label, title, caption, chip, tab, segment or button text that wraps or ends in an ellipsis**, in either locale, at 320, 360, 384 or 412, including 200% text. Person-typed and Google-provided text follows the full-width, two-line rule in Type roles.
+- **No app-authored label, title, caption, chip, tab, segment or button text that wraps or ends in an ellipsis**, in either locale, at 320, 360, 384 or 412, at the default text size; at large accessibility text a label may wrap but never ellipsizes or clips. Person-typed and Google-provided text follows the full-width, two-line rule in Type roles.
 - **No hover, press or focus fill that touches its content.**
 - **No screen-level setting, sync status or legend inline on a destination root in the compact shell.** It lives in a sheet or menu with one visible entry. The one primary view switch of a view is exempt.
 - **No two floating controls in one screen position, no floating control that covers content at the end of a scroll, and no back-to-top control outside Hoje.**

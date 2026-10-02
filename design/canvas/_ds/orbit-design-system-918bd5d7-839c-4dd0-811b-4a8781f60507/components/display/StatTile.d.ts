@@ -1,7 +1,8 @@
 /** Compact padding 16, value 22/600 tabular, label 14/20 on one line without clamp or word break.
  * Keep only as many columns as fit whole labels at 320 in both locales, at most three. Long values
  * use a short form or become a list row. Prefer plain figures when the values are not separate objects.
- * At 200% text, grow or restructure the layout without shrinking, wrapping or clipping labels. */
+ * Above font scale 1.3, up to 200% text, a label may wrap inside a taller tile; never shrink,
+ * ellipsize or clip it, and prefer restructuring the layout first. */
 /** Stat tile: Space Grotesk tabular numeral over a quiet label. Ships its full state set, so a screen
  *  never swaps a tile row out for a hand-built loading version.
  *  States: default · loading (a skeleton SHAPED LIKE THE TILE that holds its exact dimensions - same
