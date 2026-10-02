@@ -86,10 +86,6 @@ describe('main backlog ports', () => {
       ...productionSources(`${ROOT}packages/shared/src`),
     ]
     const offenders = sources.filter((path) => {
-      const normalizedPath = path.replaceAll('\\', '/')
-      if (normalizedPath.endsWith('/apps/mobile/app/(tabs)/calendar/_components/calendar-loading-bar.tsx')) {
-        return false
-      }
       return /GradientTop|gradient-header|gradientHeader(?:From|To)|(?:linear|radial|conic)-gradient|(?:Linear|Radial)Gradient/.test(
         readFileSync(path, 'utf8'),
       )

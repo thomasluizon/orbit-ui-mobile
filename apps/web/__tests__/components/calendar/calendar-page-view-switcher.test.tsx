@@ -470,7 +470,9 @@ describe('CalendarPage view switcher', () => {
     monthQueryState.isFetching = view === 'month'
     rangeFetching = view === 'range'
     rerender(<CalendarPage />)
-    expect(screen.queryByTestId('calendar-loading-bar')).toBeNull()
+    expect(screen.getByTestId('calendar-header-group').nextElementSibling).toContainElement(
+      screen.getByTestId(view === 'month' ? 'day-detail' : 'range-view'),
+    )
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.getByTestId(view === 'month' ? 'day-detail' : 'range-view')).toBeInTheDocument()
     expect(screen.getByTestId('month-stats')).not.toHaveAttribute('data-state', 'loading')
