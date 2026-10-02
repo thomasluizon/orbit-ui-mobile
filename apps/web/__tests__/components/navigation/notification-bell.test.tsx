@@ -446,7 +446,7 @@ describe('alerts', () => {
       .toEqual([en.notifications.markAsRead, 'Open in Progress', en.notifications.delete])
     for (const button of row.querySelectorAll('button')) {
       expect(button).toHaveAttribute('data-size', 'sm')
-      expect(button.style.width).toBe('')
+      expect(button.style.width).toBe('auto')
     }
   })
 
