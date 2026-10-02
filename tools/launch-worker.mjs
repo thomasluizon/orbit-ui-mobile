@@ -90,6 +90,10 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
+if (config.relay.enabled && readRunState()?.relay?.pending === true) {
+  console.log(JSON.stringify({ admitted: false, reason: "ADMISSION_REFUSED", refusalReason: "RELAY_DRAIN", error: "RELAY_DRAIN" }))
+  process.exit(ADMISSION_REFUSED_EXIT)
+}
 
 /**
  * This launcher starts implementers only. The harness runs no reviewer of its own: Pullfrog reviews

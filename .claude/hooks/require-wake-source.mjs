@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs"
 
 import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
+import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
 import { isWakeSourceAlive, readRunState, readWakeSourceStates } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
@@ -22,6 +23,7 @@ try {
   const wakeSourceStates = readWakeSourceStates()
   const verdict = checkSleepStop({
     state: readRunState(),
+    relayEnabled: readOrchestratorConfig().relay.enabled,
     wakeSources: wakeSourceStates.live,
     orphanedWakeSources: wakeSourceStates.orphaned,
     sessionId: input?.session_id ?? "",

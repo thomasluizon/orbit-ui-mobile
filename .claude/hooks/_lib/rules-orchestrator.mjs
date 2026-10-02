@@ -247,6 +247,13 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   for (const segment of segmentsOf(command)) {
     const binary = invokedBinary(segment)
     if (binary === null) return unclassifiableRedirect(command)
+    if (["orca", "orca-dev", "orca-ide"].includes(binary) && /\bterminal\s+create\b/.test(segment)) {
+      const commandArgument = /--command(?:\s+|=)(?:"([^"]*)"|'([^']*)'|(\S+))/.exec(segment)
+      const terminalCommand = commandArgument?.[1] ?? commandArgument?.[2] ?? commandArgument?.[3] ?? ""
+      if (ENGINE_BINARIES.has(invokedBinary(terminalCommand))) {
+        return blocked(command, "Fresh orchestrator sessions must start through `node tools/relay-session.mjs`. Worker sessions must start through `node tools/launch-worker.mjs`.")
+      }
+    }
     if (!ENGINE_BINARIES.has(binary)) continue
     const safeWords = safeEngineWords(segment)
     if (isSafeCloudRead(safeWords) && !heredocRunsCommand) continue

@@ -90,6 +90,8 @@ const CASE_MODULES = [
   ["lib/review-harness.mjs", "review-harness"],
   ["lib/run-state.mjs", "run-state"],
   ["lib/session-context.mjs", "session-context"],
+  ["lib/session-chain.mjs", "session-chain"],
+  ["relay-session.mjs", "relay-session"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
   ["lib/win-spawn-target.mjs", "win-spawn-target"],
   ["list-bot-threads.mjs", "list-bot-threads"],
@@ -176,6 +178,7 @@ for (const [file, module] of requestedSet.size === 0 ? REPOSITORY_CASE_MODULES :
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "relay-session.mjs": { argv: ["--model", "untrusted"], status: 2 },
   "add-ticket-to-project.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

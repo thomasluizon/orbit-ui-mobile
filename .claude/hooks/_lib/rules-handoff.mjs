@@ -19,7 +19,7 @@ const describe = (missing, mode) =>
   `Missing:\n${missing.map((item) => `- ${item}`).join("\n")}\n\n` +
   "Fix the prompt, then commit again. The requirements come from .claude/skills/handoff/SKILL.md.\n"
 
-const modeOf = (request) => (request?.sleep ? "--sleep" : request ? "attended" : "unrecorded")
+const modeOf = (request) => (request?.origin === "context-relay" ? "context-relay --sleep" : request?.sleep ? "--sleep" : request ? "attended" : "unrecorded")
 
 /**
  * Every NEXT.md version a commit could record must comply with the recorded request.

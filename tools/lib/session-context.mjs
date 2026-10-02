@@ -42,7 +42,7 @@ export const readSessionMetrics = async (transcriptPath) => {
   let startedAt = null
   const stream = createReadStream(transcriptPath, { encoding: "utf8" })
   const lines = createInterface({ input: stream, crlfDelay: Infinity })
-  stream.on("error", (error) => lines.close())
+  stream.on("error", () => lines.close())
   for await (const line of lines) {
     const record = parseLine(line)
     if (!record) continue
@@ -56,5 +56,5 @@ export const readSessionMetrics = async (transcriptPath) => {
   if (stream.errored) throw stream.errored
   const entries = [...calls.values()]
   const growthPerCall = entries.slice(1).map((entry, index) => entry.contextTokens - entries[index].contextTokens)
-  return { startedAt, calls: entries.length, lastCall: entries.at(-1) ?? null, maximumContextTokens: Math.max(0, ...entries.map((entry) => entry.contextTokens)), growthPerCall, compactions }
+  return { startedAt, calls: entries.length, callTimestamps: entries.map((entry) => entry.timestamp), lastCall: entries.at(-1) ?? null, maximumContextTokens: Math.max(0, ...entries.map((entry) => entry.contextTokens)), growthPerCall, compactions }
 }

@@ -20,6 +20,8 @@ import { checkDependencyCommand, checkDependencyFileWrite } from "./_lib/rules-d
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
 import { readRunState, writeRunState } from "../../tools/lib/run-state.mjs"
+import { checkRelayStop } from "./_lib/rules-relay.mjs"
+import { appendChainEntry, confirmChainSuccessor } from "../../tools/lib/session-chain.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -62,6 +64,8 @@ const onDisk = readdirSync(hooksDir).filter((name) => name.endsWith(".mjs") && n
 T("wiring: every hook settings.json names exists on disk", [...wired].filter((name) => !existsSync(join(hooksDir, name))), [])
 T("wiring: every hook on disk is wired in settings.json", onDisk.filter((name) => !wired.has(name)), [])
 T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
+const staleMatchers = settings.hooks.PreToolUse.filter((entry) => entry.hooks.some((hook) => hook.command.includes("forbid-stale-text.mjs"))).map((entry) => entry.matcher)
+T("wiring: stale text hook is registered once per matcher", staleMatchers.length, new Set(staleMatchers).size)
 
 const guardsWorkflow = readFileSync(join(repoRoot, ".github", "workflows", "guards.yml"), "utf8")
 const parityGuidance = "a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
@@ -125,6 +129,9 @@ T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .
 T("git-worktree: force on a later chained command allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x && npm test -- --force"), null)
 
 console.log("\n# orchestrator-guardrails (_lib/rules-orchestrator.mjs)")
+T("engine: Orca terminal create cannot bypass launcher", blocks(checkEngineInvocation('orca terminal create --command "claude --model opus"')), true)
+T("engine: Orca Codex terminal cannot bypass launcher", blocks(checkEngineInvocation("orca terminal create --command='codex exec'")), true)
+T("engine: Orca shell terminal remains permitted", checkEngineInvocation('orca terminal create --command "node tools/run-status.mjs"'), null)
 // The admin-merge prohibition is absolute for every agent and takes no context:
 // banning only the CLI flag would leave both raw API paths open, which is the
 // exact bypass shape it exists to close. (The rule lives in rules-orchestrator,
@@ -1119,6 +1126,50 @@ mkdirSync(wakeHooks, { recursive: true })
 cpSync(join(repoRoot, "tools", "lib"), join(wakeCheckout, "tools", "lib"), { recursive: true })
 cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
 cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
+cpSync(join(repoRoot, ".claude", "orchestrator.json"), join(wakeCheckout, ".claude", "orchestrator.json"))
+for (const name of ["relay-at-threshold.mjs", "forbid-superseded-session.mjs", "record-handoff-request.mjs"]) cpSync(join(hooksDir, name), join(wakeHooks, name))
+const relayState = { sessionId: "relay-parent", sleep: true, remaining: ["#1091"] }
+const relayOptions = { enabled: true, thresholdTokens: 400000, state: relayState, sessionId: relayState.sessionId, measuredTokens: 400000 }
+T("relay: below threshold is inert", checkRelayStop({ ...relayOptions, measuredTokens: 399999 }), null)
+T("relay: kill switch is inert", checkRelayStop({ ...relayOptions, enabled: false }), null)
+T("relay: attended sessions are inert", checkRelayStop({ ...relayOptions, state: { ...relayState, sleep: false } }), null)
+T("relay: another session is inert", checkRelayStop({ ...relayOptions, sessionId: "other" }), null)
+for (const count of [0, 1, 6]) {
+  const wakeSources = Array.from({ length: count }, (_, index) => ({ pid: index + 1, what: "Worker launcher" }))
+  T(`relay: first crossing with ${count} launchers starts drain`, checkRelayStop({ ...relayOptions, wakeSources }).begin, true)
+  T(`relay: pending drain with ${count} launchers injects only when empty`, Boolean(checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources })), count === 0)
+}
+T("relay: release watcher keeps drain waiting", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources: [{ pid: 1, what: "Release ui run 1" }] }), null)
+T("relay: retry cooldown injects nothing", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true, lastAttemptAt: new Date().toISOString() } } }), null)
+T("relay: two failures near auto compact permit fallback", checkRelayStop({ ...relayOptions, measuredTokens: 950000, state: { ...relayState, relay: { pending: true, failures: 2 } } }).fallback, true)
+T("sleep: drain guidance never launches more work", checkSleepStop({ state: { ...relayState, relay: { pending: true } } }).message.includes("Launch nothing"), true)
+const relayUsage = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "session-usage.json"), "utf8"))
+const relayTranscript = join(wakeCheckout, ".git", "relay-transcript.jsonl")
+const relayPayload = { session_id: "relay-parent", transcript_path: relayTranscript, cwd: wakeCheckout, permission_mode: "bypassPermissions", hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "", background_tasks: [], session_crons: [] }
+const isolatedRelayHook = (name, payload = relayPayload) => spawnSync(process.execPath, [join(wakeHooks, name)], { input: JSON.stringify(payload), encoding: "utf8" })
+writeRunState(relayState, wakeCheckout)
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
+T("relay adapter: 399999 prints nothing", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n")
+const crossing = isolatedRelayHook("relay-at-threshold.mjs")
+const feedback = JSON.parse(crossing.stdout)
+T("relay adapter: 400000 emits documented Stop feedback", feedback.hookSpecificOutput.hookEventName, "Stop")
+T("relay adapter: feedback names relay", feedback.hookSpecificOutput.additionalContext.includes("relay"), true)
+T("relay adapter: machine origin enforces sleep prompt", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
+T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, 400000)
+const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "/handoff --sleep" }
+isolatedRelayHook("record-handoff-request.mjs", ownerPrompt)
+T("relay adapter: owner handoff clears drain", readRunState(wakeCheckout).relay.pending, false)
+T("relay adapter: owner origin supersedes machine request", readHandoffRequest("relay-parent", wakeCheckout).origin, "owner")
+const unreadable = isolatedRelayHook("relay-at-threshold.mjs", { ...relayPayload, transcript_path: join(wakeCheckout, "absent.jsonl") })
+T("relay adapter: unreadable transcript fails open with one stderr line", { status: unreadable.status, stdout: unreadable.stdout, lines: unreadable.stderr.trim().split("\n").length }, { status: 0, stdout: "", lines: 1 })
+appendChainEntry({ sessionId: "relay-parent" }, wakeCheckout)
+confirmChainSuccessor("relay-parent", "relay-child", "term_live", 1, wakeCheckout)
+const deniedTool = JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", { ...relayPayload, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "true" } }).stdout)
+T("superseded adapter: Bash is denied", deniedTool.hookSpecificOutput.permissionDecision, "deny")
+T("superseded adapter: refusal names live terminal", deniedTool.hookSpecificOutput.permissionDecisionReason.includes("term_live"), true)
+T("superseded adapter: typed prompt is blocked", JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", ownerPrompt).stdout).decision, "block")
+T("superseded adapter: live successor remains usable", isolatedRelayHook("forbid-superseded-session.mjs", { ...ownerPrompt, session_id: "relay-child" }).stdout, "")
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
 const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
 const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
