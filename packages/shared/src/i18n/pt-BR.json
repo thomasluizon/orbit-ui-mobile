@@ -221,7 +221,7 @@
         "transcribing": "Transcrevendo"
       },
       "attach": {
-        "trayLabel": "Arquivos anexados",
+        "trayLabel": "Anexos",
         "remove": "Remover {name}",
         "file": "Documento",
         "image": "Foto"
@@ -279,7 +279,7 @@
         }
       },
       "inputLabel": "Peça à Astra",
-      "actions": "Adicionar à mensagem"
+      "actions": "Adicionar"
     }
   },
   "todayAstra": {

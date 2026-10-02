@@ -219,7 +219,7 @@
   min-width: 0;
   flex: 1;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -231,8 +231,8 @@
 
 .orbit-sheet-close {
   display: inline-flex;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  min-height: 48px;
   flex: 0 0 auto;
   cursor: pointer;
   align-items: center;
@@ -252,9 +252,8 @@
 
 .orbit-sheet-close:active { background: var(--bg-hover); }
 
-.orbit-sheet-close:active,
-.orbit-menu-item:active:not([data-destructive]) {
-  transform: scale(0.96);
+.orbit-menu-item:active:not(:disabled) {
+  background: var(--bg-hover);
 }
 
 .orbit-sheet-body {
@@ -324,7 +323,7 @@
 
 .orbit-menu-item {
   display: flex;
-  min-height: 44px;
+  min-height: 48px;
   width: 100%;
   cursor: pointer;
   align-items: center;
@@ -334,7 +333,7 @@
   background: transparent;
   padding: 8px 12px;
   color: var(--fg-1);
-  font: 500 14px/1.4 var(--font-sans);
+  font: 500 0.875rem/1.4 var(--font-sans);
   text-align: start;
   transition: background-color var(--dur-hover) var(--ease-standard), color var(--dur-hover) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
 }

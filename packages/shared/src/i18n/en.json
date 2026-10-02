@@ -221,7 +221,7 @@
         "transcribing": "Transcribing"
       },
       "attach": {
-        "trayLabel": "Attached files",
+        "trayLabel": "Files",
         "remove": "Remove {name}",
         "file": "Document",
         "image": "Photo"
@@ -279,7 +279,7 @@
         }
       },
       "inputLabel": "Ask Astra",
-      "actions": "Add to message"
+      "actions": "Add"
     }
   },
   "todayAstra": {

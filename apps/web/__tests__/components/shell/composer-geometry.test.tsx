@@ -1,7 +1,7 @@
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
@@ -13,6 +13,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 const cases = [320, 360, 384, 412].flatMap((width) =>
   [en, ptBR].flatMap((messages) => [1, 2].map((fontScale) => ({ width, messages, fontScale }))),
@@ -31,7 +33,7 @@ function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpen
     onChangeValue: vi.fn(), onSend: vi.fn(),
     onVoice: vi.fn(), voiceWords: messages.shell.composer.voice,
     onAttachFile: vi.fn(), onAttachImage: vi.fn(),
-    attachWords: { ...messages.shell.composer.attach, remove: (name: string) => name },
+    attachWords: { ...messages.shell.composer.attach, remove: (name: string) => messages.shell.composer.attach.remove.replace('{name}', name) },
     attachments: Array.from({ length: scenario.startsWith('tray') ? Number(scenario.at(-1)) : 0 }, (_, index) => ({ id: String(index), kind: index === 0 ? 'image' : 'file', name: `attachment-${index}.txt` })),
     onAttachRemove: vi.fn(),
     ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation } : {}),
@@ -98,6 +100,45 @@ describe('Composer compact geometry in Chromium', () => {
       expect(glyphWidth).toBeCloseTo(reducedMotion === 'reduce' ? 20 : 19.2, 1)
       await page.mouse.up()
     } finally { await page.close(); view.unmount() }
+  })
+
+  it.each([en, ptBR])('keeps composer sheet titles whole and close targets at 48 with doubled text', async (messages) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      for (const surface of ['actions', 'attachment'] as const) {
+        const props = geometryProps('tray1', messages, true)
+        const view = render(<Composer {...props} />)
+        fireEvent.click(screen.getByRole('button', { name: surface === 'actions' ? messages.shell.composer.actions : props.attachments![0]!.name }))
+        const dialog = await screen.findByRole('dialog')
+        const markup = dialog.outerHTML
+        view.unmount()
+        await page.setContent(`<style>${stylesheet}html{font-size:32px}</style>${markup}`)
+        await loadAppFonts(page)
+        const header = await page.locator('.orbit-sheet-title').evaluate((title) => {
+          const font = getComputedStyle(title).font
+          const canvas = document.createElement('canvas').getContext('2d')!
+          canvas.font = font
+          const text = canvas.measureText(title.textContent!).width
+          canvas.font = '500 44px Geist'
+          return { available: title.clientWidth, text, nativeText: canvas.measureText(title.textContent!).width, fontSize: getComputedStyle(title).fontSize }
+        })
+        expect(header.fontSize).toBe('44px')
+        expect(header.text, JSON.stringify({ surface, header })).toBeLessThanOrEqual(header.available)
+        expect(header.nativeText, JSON.stringify({ surface, header })).toBeLessThanOrEqual(header.available)
+        const close = page.getByRole('button', { name: 'common.close' })
+        const bounds = (await close.boundingBox())!
+        expect(bounds.width).toBeGreaterThanOrEqual(48)
+        expect(bounds.height).toBeGreaterThanOrEqual(48)
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        await page.mouse.down()
+        await page.waitForTimeout(250)
+        expect((await close.boundingBox())!.width).toBeGreaterThanOrEqual(48)
+        await page.mouse.up()
+        for (const item of await page.getByRole('menuitem').all()) {
+          expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(48)
+        }
+      }
+    } finally { await page.close() }
   })
 
   it.each(cases)('keeps controls inside one pill at $width and $fontScale text size in both locales', async ({ width, messages, fontScale }) => {
