@@ -10,7 +10,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch } from "./lib/run-state.mjs"
+import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -273,8 +273,12 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
 }
 
 const timestamp = new Date().toISOString()
+const launchSessionId = readRunState()?.sessionId ?? null
 const reservation = reserveWorkerLaunch({
   launcherPid: process.pid,
+  sessionId: launchSessionId,
+  issue,
+  runDirectory,
   repositoryKey,
   branch,
   headSha: startHead,
@@ -341,7 +345,13 @@ const finish = (outcome, exitCode) => {
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
   const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
-  const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome, commitsSinceLaunch: commits.length, commits, treeClean }
+  const result = { launcherPid: process.pid, sessionId: launchSessionId, repositoryKey, runDirectory, branch, issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome, commitsSinceLaunch: commits.length, commits, treeClean }
+  const directory = join(workerLaunchDirectory(), "results")
+  mkdirSync(directory, { recursive: true })
+  const resultPath = join(directory, `${process.pid}.json`)
+  const unpublished = `${resultPath}.unpublished`
+  writeFileSync(unpublished, `${JSON.stringify(result)}\n`, { flag: "wx" })
+  renameSync(unpublished, resultPath)
   console.log(JSON.stringify(result, null, 2))
   if (outcome === "EXITED") process.exit(0)
   process.exit(commits.length > 0 ? 4 : 1)

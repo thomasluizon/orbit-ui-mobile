@@ -1,0 +1,1221 @@
+{
+  "producer": "gh api graphql -F owner=<repository-owner> -F name=<repository-name> -f query=<statusQuery([1462,1459]) from tools/run-status.mjs>",
+  "response": {
+    "data": {
+      "repository": {
+        "pullRequests": {
+          "totalCount": 7,
+          "nodes": [
+            {
+              "headRefName": "feature/ticket-1092-fixture"
+            },
+            {
+              "headRefName": "feature/ticket-1092-fixture"
+            },
+            {
+              "headRefName": "feature/ticket-1092-fixture"
+            },
+            {
+              "headRefName": "feature/ticket-1092-fixture"
+            },
+            {
+              "headRefName": "feature/ticket-1092-fixture"
+            },
+            {
+              "headRefName": "feature/ticket-1092-fixture"
+            },
+            {
+              "headRefName": "feature/ticket-1092-fixture"
+            }
+          ]
+        },
+        "pr1462": {
+          "number": 1462,
+          "state": "OPEN",
+          "isDraft": false,
+          "headRefName": "feature/ticket-1092-fixture",
+          "headRefOid": "a38bcc12581c69c65e02237fa10d6ea5c260d960",
+          "baseRefName": "redesign/main",
+          "baseRefOid": "65475a19a05e436af4f168cac8cda498da62e345",
+          "mergeStateStatus": "UNSTABLE",
+          "statusCheckRollup": {
+            "contexts": {
+              "pageInfo": {
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "__typename": "CheckRun",
+                  "name": "Upgrade layout geometry",
+                  "status": "COMPLETED",
+                  "conclusion": "FAILURE",
+                  "startedAt": "2026-10-01T21:24:07Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Android release build",
+                  "status": "IN_PROGRESS",
+                  "conclusion": null,
+                  "startedAt": "2026-10-01T21:27:43Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "SonarCloud Analysis",
+                  "status": "IN_PROGRESS",
+                  "conclusion": null,
+                  "startedAt": "2026-10-01T21:25:44Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "approve",
+                  "status": "COMPLETED",
+                  "conclusion": "SKIPPED",
+                  "startedAt": "2026-10-01T21:18:40Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Analyze (javascript-typescript)",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:29:11Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Dependency Review",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:30:20Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Timeless Text",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:36:52Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Web image build",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:30:32Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Authed Today Lighthouse budget",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:20:50Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "React Doctor",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:31:56Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Architecture map drift",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:27:58Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Analyze (actions)",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:26:26Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Mobile StyleSheet Guard",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:20Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Build",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:24:33Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Root Allowlist",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:32:25Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Type Check",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:35:48Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Dash Ban",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:35:16Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Lint",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:26:31Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Sonar Paths",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:39:06Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Dependency Audit",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:38:33Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Mobile Font Guard",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:40:28Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Design Token Guard",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:27:31Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Copy Register",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:34:22Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Surface Scope Report",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:25:56Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "i18n key usage",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:32Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Contract Drift",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:27:58Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Unit Tests",
+                  "status": "IN_PROGRESS",
+                  "conclusion": null,
+                  "startedAt": "2026-10-01T21:40:26Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Lint Severity",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:32Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Harness Calibration",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:29Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Cross-Platform Parity",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:26Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Expo SDK Pin",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:46Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Redesign Review Harness",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:35:54Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Performance Workflow Drift",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:18Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Surface Manifest Drift",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:05Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Gate Charter",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:46Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "pullfrog-approval",
+                  "status": "COMPLETED",
+                  "conclusion": "FAILURE",
+                  "startedAt": "2026-10-01T21:46:02Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 1768019
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "CodeQL",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:26:59Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 57789
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "GitGuardian Security Checks",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:18:37Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 46505
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "reviews": {
+            "pageInfo": {
+              "hasPreviousPage": false
+            },
+            "nodes": [
+              {
+                "state": "CHANGES_REQUESTED",
+                "submittedAt": "2026-10-01T21:43:31Z",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "a38bcc12581c69c65e02237fa10d6ea5c260d960"
+                }
+              }
+            ]
+          },
+          "reviewThreads": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
+            "nodes": [
+              {
+                "isResolved": false,
+                "comments": {
+                  "nodes": [
+                    {
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "pr1459": {
+          "number": 1459,
+          "state": "OPEN",
+          "isDraft": false,
+          "headRefName": "feature/ticket-1092-fixture",
+          "headRefOid": "866fea293be8c44df88b35a0320fdbb44cc55bd9",
+          "baseRefName": "main",
+          "baseRefOid": "983e17ee0e3a92236841862d3074210a262aeeef",
+          "mergeStateStatus": "CLEAN",
+          "statusCheckRollup": {
+            "contexts": {
+              "pageInfo": {
+                "hasNextPage": false
+              },
+              "nodes": [
+                {
+                  "__typename": "CheckRun",
+                  "name": "approve",
+                  "status": "COMPLETED",
+                  "conclusion": "SKIPPED",
+                  "startedAt": "2026-10-01T21:10:44Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Analyze (javascript-typescript)",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:33:33Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Dependency Review",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:23:27Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Timeless Text",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:39:47Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Incremental (per-PR, report-only)",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:15:51Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Web image build",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:38:00Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Authed Today Lighthouse budget",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:16:37Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "React Doctor",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:32:04Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "SonarCloud Analysis",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:22:05Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Architecture map drift",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:33:09Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Analyze (actions)",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:29:06Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Root Allowlist",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:15Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Build",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:29:10Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Dash Ban",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:40:57Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Type Check",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:34:03Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Copy Register",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:16Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Lint",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:38:01Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Suppressions Ratchet",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:40:13Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Dependency Audit",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:33:23Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Cross-Platform Parity",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:38:25Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Design Token Guard",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:26:59Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Expo SDK Pin",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:12Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Contract Drift",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:34:52Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Redesign Review Harness",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:41:18Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Unit Tests",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:39:20Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "Performance Workflow Drift",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:40:55Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 15368
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "CodeQL",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:29:42Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 57789
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "GitGuardian Security Checks",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:10:42Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 46505
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "SonarCloud Code Analysis",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:31:55Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 12526
+                    }
+                  }
+                },
+                {
+                  "__typename": "CheckRun",
+                  "name": "pullfrog-approval",
+                  "status": "COMPLETED",
+                  "conclusion": "SUCCESS",
+                  "startedAt": "2026-10-01T21:24:26Z",
+                  "checkSuite": {
+                    "app": {
+                      "databaseId": 1768019
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "reviews": {
+            "pageInfo": {
+              "hasPreviousPage": false
+            },
+            "nodes": [
+              {
+                "state": "CHANGES_REQUESTED",
+                "submittedAt": "2026-10-01T19:08:24Z",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "b5b67ace4a13473936c868a006be377beb48b2b3"
+                }
+              },
+              {
+                "state": "APPROVED",
+                "submittedAt": "2026-10-01T21:24:11Z",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "pullfrog"
+                },
+                "commit": {
+                  "oid": "866fea293be8c44df88b35a0320fdbb44cc55bd9"
+                }
+              }
+            ]
+          },
+          "reviewThreads": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
+            "nodes": [
+              {
+                "isResolved": true,
+                "comments": {
+                  "nodes": [
+                    {
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "isResolved": true,
+                "comments": {
+                  "nodes": [
+                    {
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "pullfrog"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "rateLimitProducer": "gh api rate_limit",
+  "rateLimit": {
+    "resources": {
+      "core": {
+        "limit": 5000,
+        "used": 0,
+        "remaining": 5000,
+        "reset": 1790894671
+      },
+      "search": {
+        "limit": 30,
+        "used": 0,
+        "remaining": 30,
+        "reset": 1790891131
+      },
+      "graphql": {
+        "limit": 5000,
+        "used": 6,
+        "remaining": 4994,
+        "reset": 1790892402
+      },
+      "integration_manifest": {
+        "limit": 5000,
+        "used": 0,
+        "remaining": 5000,
+        "reset": 1790894671
+      },
+      "source_import": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1790891131
+      },
+      "code_scanning_autofix": {
+        "limit": 10,
+        "used": 0,
+        "remaining": 10,
+        "reset": 1790891131
+      },
+      "actions_runner_registration": {
+        "limit": 10000,
+        "used": 0,
+        "remaining": 10000,
+        "reset": 1790894671
+      },
+      "scim": {
+        "limit": 15000,
+        "used": 0,
+        "remaining": 15000,
+        "reset": 1790894671
+      },
+      "dependency_snapshots": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1790891131
+      },
+      "dependency_sbom": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1790891131
+      },
+      "audit_log": {
+        "limit": 1750,
+        "used": 0,
+        "remaining": 1750,
+        "reset": 1790894671
+      },
+      "audit_log_streaming": {
+        "limit": 15,
+        "used": 0,
+        "remaining": 15,
+        "reset": 1790894671
+      },
+      "code_search": {
+        "limit": 10,
+        "used": 0,
+        "remaining": 10,
+        "reset": 1790891131
+      },
+      "copilot_usage_records": {
+        "limit": 1750,
+        "used": 0,
+        "remaining": 1750,
+        "reset": 1790894671
+      },
+      "enterprise_token_inventory": {
+        "limit": 1750,
+        "used": 0,
+        "remaining": 1750,
+        "reset": 1790894671
+      }
+    },
+    "rate": {
+      "limit": 5000,
+      "used": 0,
+      "remaining": 5000,
+      "reset": 1790894671
+    }
+  },
+  "enums": {
+    "PullRequestState": {
+      "enumValues": [
+        {
+          "name": "OPEN"
+        },
+        {
+          "name": "CLOSED"
+        },
+        {
+          "name": "MERGED"
+        }
+      ]
+    },
+    "MergeStateStatus": {
+      "enumValues": [
+        {
+          "name": "DIRTY"
+        },
+        {
+          "name": "UNKNOWN"
+        },
+        {
+          "name": "BLOCKED"
+        },
+        {
+          "name": "BEHIND"
+        },
+        {
+          "name": "UNSTABLE"
+        },
+        {
+          "name": "HAS_HOOKS"
+        },
+        {
+          "name": "CLEAN"
+        }
+      ]
+    },
+    "CheckStatusState": {
+      "enumValues": [
+        {
+          "name": "REQUESTED"
+        },
+        {
+          "name": "QUEUED"
+        },
+        {
+          "name": "IN_PROGRESS"
+        },
+        {
+          "name": "COMPLETED"
+        },
+        {
+          "name": "WAITING"
+        },
+        {
+          "name": "PENDING"
+        }
+      ]
+    },
+    "CheckConclusionState": {
+      "enumValues": [
+        {
+          "name": "ACTION_REQUIRED"
+        },
+        {
+          "name": "TIMED_OUT"
+        },
+        {
+          "name": "CANCELLED"
+        },
+        {
+          "name": "FAILURE"
+        },
+        {
+          "name": "SUCCESS"
+        },
+        {
+          "name": "NEUTRAL"
+        },
+        {
+          "name": "SKIPPED"
+        },
+        {
+          "name": "STARTUP_FAILURE"
+        },
+        {
+          "name": "STALE"
+        }
+      ]
+    },
+    "StatusState": {
+      "enumValues": [
+        {
+          "name": "EXPECTED"
+        },
+        {
+          "name": "ERROR"
+        },
+        {
+          "name": "FAILURE"
+        },
+        {
+          "name": "PENDING"
+        },
+        {
+          "name": "SUCCESS"
+        }
+      ]
+    },
+    "PullRequestReviewState": {
+      "enumValues": [
+        {
+          "name": "PENDING"
+        },
+        {
+          "name": "COMMENTED"
+        },
+        {
+          "name": "APPROVED"
+        },
+        {
+          "name": "CHANGES_REQUESTED"
+        },
+        {
+          "name": "DISMISSED"
+        }
+      ]
+    }
+  }
+}
