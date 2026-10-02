@@ -7,21 +7,21 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-describe('DialogActionPair (web)', () => {
-  it.each([false, true])('keeps intrinsic actions trailing with inline=%s', (inline) => {
-    render(<DialogActionPair inline={inline}><button type="button">Cancel</button><button type="button">Confirm</button></DialogActionPair>)
+describe('ActionRow (web)', () => {
+  it.each([false, true])('keeps intrinsic actions trailing with fullWidthAncestor=%s', (fullWidthAncestor) => {
+    render(<ActionRow><button type="button">Cancel</button><button type="button">Confirm</button></ActionRow>)
     const pair = screen.getByRole('button', { name: 'Confirm' }).parentElement!
 
-    expect(pair).toHaveAttribute('data-slot', 'dialog-action-pair')
+    expect(pair).toHaveAttribute('data-slot', 'action-row')
     expect(pair.style.flexDirection).toBe('row')
     expect(pair.style.justifyContent).toBe('flex-end')
     expect(pair.style.alignItems).toBe('center')
     expect(pair.style.maxWidth).toBe('100%')
-    expect(pair.style.width).toBe('')
+    expect(pair.style.width).toBe('100%')
     expect(pair.style.marginInline).toBe('')
   })
 
@@ -43,13 +43,13 @@ describe('DialogActionPair (web)', () => {
 
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([en, ptBR].flatMap((catalog) => [320, 412, 740].flatMap((width) => [false, true].map((inline) => ({ catalog, width, inline })))))('keeps import actions within a $width px footer with inline=$inline', async ({ catalog, width, inline }) => {
+    it.each([en, ptBR].flatMap((catalog) => [240, 320, 412, 740, 1352].flatMap((width) => [false, true].map((fullWidthAncestor) => ({ catalog, width, fullWidthAncestor })))))('keeps import actions within a $width px footer with fullWidthAncestor=$fullWidthAncestor', async ({ catalog, width, fullWidthAncestor }) => {
       const { container } = render(
-        <footer className="orbit-sheet-actions" style={{ width }}>
-          <DialogActionPair inline={inline}>
+        <footer className={`orbit-sheet-actions ${fullWidthAncestor ? "[&_button]:w-full" : ""}`} style={{ width }}>
+          <ActionRow><div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}><ActionRow>
             <PillButton size="sm" variant="ghost">{catalog.onboarding.wizard.importNotNow}</PillButton>
             <PillButton size="sm">{catalog.onboarding.wizard.importButton}</PillButton>
-          </DialogActionPair>
+          </ActionRow></div></ActionRow>
         </footer>,
       )
       const page = await browser.newPage()
@@ -75,9 +75,13 @@ describe('DialogActionPair (web)', () => {
           expect(button.width).toBeLessThan(measured.right - measured.left)
         }
         expect(measured.buttons.at(-1)!.right).toBeCloseTo(measured.right, 1)
-        if (width === 740) {
+        expect(measured.buttons[0]!.height).toBe(measured.buttons[1]!.height)
+        if (measured.buttons[0]!.width + measured.buttons[1]!.width + 12 <= measured.right - measured.left) {
           expect(measured.buttons[0]!.top).toBe(measured.buttons[1]!.top)
           expect(measured.buttons[1]!.left - measured.buttons[0]!.right).toBeCloseTo(12, 1)
+        } else {
+          expect(measured.buttons[0]!.right).toBeCloseTo(measured.right, 1)
+          expect(measured.buttons[1]!.top - measured.buttons[0]!.top - measured.buttons[0]!.height).toBeCloseTo(12, 1)
         }
       } finally {
         await page.close()

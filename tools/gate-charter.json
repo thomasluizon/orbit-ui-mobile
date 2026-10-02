@@ -164,6 +164,16 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "eslint-rules/action-rows.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "medium flow-ending owners",
+        "source": "DESIGN.md Buttons"
+      }
+    ]
+  },
   "eslint-rules/animate-presence-exit.cjs": {
     "scope": "changed-files",
     "snapshot": "none",

@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useMemo, type ReactNode } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Mail } from '@/components/ui/icons'
@@ -46,11 +48,7 @@ function MarketingConsentContent({
         <Text style={styles.questionDescription}>
           {t('profile.marketingEmails.questionDescription')}
         </Text>
-        <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}>
-          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
-          <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
-            {t('profile.marketingEmails.accept')}
-          </PillButton>
+        <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}><ActionRow>
           <PillButton
             size="sm"
             variant="ghost"
@@ -59,7 +57,11 @@ function MarketingConsentContent({
           >
             {t('profile.marketingEmails.decline')}
           </PillButton>
-        </View>
+          {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42. */}
+          <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
+            {t('profile.marketingEmails.accept')}
+          </PillButton>
+        </ActionRow></View>
       </View>
     )
   }

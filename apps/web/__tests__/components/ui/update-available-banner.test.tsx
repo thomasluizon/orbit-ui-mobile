@@ -96,7 +96,7 @@ describe('UpdateAvailableBanner', () => {
     const versionLabel = locale === 'en' ? `Version ${minVersion}` : `Versão ${minVersion}`
     expect(notice.textContent).toBe(
       messages.forceUpdate.banner + (minVersion ? versionLabel : '') +
-      messages.forceUpdate.refresh + messages.versionUpdate.laterCta,
+      messages.versionUpdate.laterCta + messages.forceUpdate.refresh,
     )
     expect(screen.getByRole('button', { name: messages.forceUpdate.refresh })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: messages.forceUpdate.refresh }))

@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useTranslations } from 'next-intl'
 import type { CalendarRangeModel } from '@orbit/shared/utils'
 import { DayCell } from '@/components/dates/day-cell'
@@ -63,7 +65,7 @@ export function CalendarRangeView({
       className="flex flex-col"
       style={{ gap: 16, maxWidth: 420, padding: '12px 4px 24px' }}
     >
-      <div className="flex items-center" style={{ gap: 8 }}>
+      <div className="flex items-center" style={{ gap: 8 }}><ActionRow>
         <p
           className="min-w-0 flex-1"
           style={{
@@ -94,7 +96,7 @@ export function CalendarRangeView({
         >
           <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
         </PillButton>
-      </div>
+      </ActionRow></div>
       <div className="flex justify-end" style={{ padding: '0 12px' }}>
         <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
       </div>

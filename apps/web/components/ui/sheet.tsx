@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from './action-row'
+
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
@@ -162,7 +164,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
             </div>
             {actions == null ? null : (
               <footer className="orbit-sheet-actions" data-slot="sheet-actions">
-                {actions}
+                <ActionRow>{actions}</ActionRow>
               </footer>
             )}
           </Dialog.Popup>

@@ -5,6 +5,7 @@ import type { ClarificationRequest, PendingAgentOperation } from '@orbit/shared/
 import type { MessageBubbleProps, PendingOperationMessageState } from '@orbit/shared/chat'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { ActionRow } from '@/components/ui/action-row'
 import { Button } from '@/components/ui/pill-button'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -46,10 +47,10 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
     <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={t(clarificationRequest.question, { defaultValue: clarificationRequest.question })} items={[]} actions={(
       <View style={{ alignItems: 'flex-start', gap: 12 }}>
         {resolvedLabel ? <Text accessibilityLiveRegion="polite" style={{ color: tokens.fg2 }}>{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</Text> : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{clarificationRequest.quickActions.map((action) => {
+          <ActionRow>{clarificationRequest.quickActions.map((action) => {
             const label = t(action.label, { defaultValue: action.label })
             return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
-          })}</View>
+          })}</ActionRow>
         )}
         {errorKey ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{t(errorKey)}</Text> : null}
       </View>

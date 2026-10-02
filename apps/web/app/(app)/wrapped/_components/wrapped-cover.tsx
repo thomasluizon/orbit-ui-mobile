@@ -104,7 +104,7 @@ function CoverBody({
           </p>
         </div>
         <div className="w-full [&>button]:w-full">
-          <Button disabled>{t('wrapped.start')}</Button>
+          <Button size="md" disabled>{t('wrapped.start')}</Button>
         </div>
       </div>
     )
@@ -112,7 +112,7 @@ function CoverBody({
 
   return (
     <div className="w-full sm:w-auto [&>button]:w-full">
-      <Button onClick={onStart}>{t('wrapped.start')}</Button>
+      <Button size="md" onClick={onStart}>{t('wrapped.start')}</Button>
     </div>
   )
 }

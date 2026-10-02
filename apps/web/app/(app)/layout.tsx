@@ -14,7 +14,7 @@ import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
@@ -526,14 +526,14 @@ function GlobalOverlays({
         onClose={() => (onCalendarPromptOpenChange)(false)}
         title={t('onboarding.wizard.calendarTitle')}
         actions={(
-          <DialogActionPair>
+          <ActionRow>
             <PromptQuietAction onClick={onDismissCalendarPrompt}>
               {t('common.later')}
             </PromptQuietAction>
             <PillButton size="sm" onClick={onCalendarImport}>
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
-          </DialogActionPair>
+          </ActionRow>
         )}
       >
         <div className="flex flex-col items-center text-center">
@@ -548,7 +548,7 @@ function GlobalOverlays({
         onClose={() => (onImportPromptOpenChange)(false)}
         title={t('onboarding.wizard.importTitle')}
         actions={(
-          <DialogActionPair>
+          <ActionRow>
             <PromptQuietAction onClick={onDismissImportPrompt}>
               {t('onboarding.wizard.importNotNow')}
             </PromptQuietAction>
@@ -556,7 +556,7 @@ function GlobalOverlays({
             <PillButton size="sm" onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}
             </PillButton>
-          </DialogActionPair>
+          </ActionRow>
         )}
       >
         <div className="flex flex-col items-center text-center">

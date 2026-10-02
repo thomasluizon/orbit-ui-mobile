@@ -185,6 +185,7 @@ export const cases = async () => {
     T(`${TOOL}: a real git worktree fixture is available`, false, "could not stage a git repository")
     return
   }
+  check(TOOL, "research refuses an output inside a repository", ["--research", "--order", fixture.prompt, "--out", join(fixture.worktree, "findings.md")], { status: 2, stderr: /output.*repository/ }, { path: fixture.path })
   const admissionFixture = launch("admission-refusal", launchConfig(stubEngine(IMMEDIATE)))
   const refusedArgs = ["--issue", "ORB-201", "--worktree", admissionFixture.worktree, "--prompt", admissionFixture.prompt]
   const refusedResult = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ pulls: [1, 2, 3, 4].map((number) => ({ number })) }) })

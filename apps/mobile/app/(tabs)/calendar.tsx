@@ -90,7 +90,6 @@ import {
   CalendarHeader,
   CalendarLegend,
 } from "./calendar/_components/calendar-shell";
-import { CalendarLoadingBar } from "./calendar/_components/calendar-loading-bar";
 import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content';
@@ -546,7 +545,7 @@ function CalendarScreenContent({
     resultStatus: calendarEventsResult?.status,
   });
 
-  const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
+  const { dayMap, isLoading, error, refresh } = monthQuery;
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
@@ -580,7 +579,6 @@ function CalendarScreenContent({
   const {
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
-    isFetching: rangeFetching,
     error: rangeError,
     refresh: rangeRefresh,
   } = useCalendarRange(
@@ -732,15 +730,13 @@ function CalendarScreenContent({
 
   const {
     dayMap: activeDayMap,
-    isFetching: activeFetching,
     error: activeError,
     refresh: activeRefresh,
   } =
     view === "month"
-      ? { dayMap, isFetching, error, refresh }
+      ? { dayMap, error, refresh }
       : {
           dayMap: rangeDayMap,
-          isFetching: rangeFetching,
           error: rangeError,
           refresh: rangeRefresh,
         };
@@ -965,8 +961,6 @@ function CalendarScreenContent({
         showMonthNavigation={view === 'month'}
         viewSelector={<SegmentedControl<CalendarView> options={viewOptions} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
       />
-
-      <CalendarLoadingBar active={activeFetching} tokens={tokens} />
 
       {activeError && (
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>

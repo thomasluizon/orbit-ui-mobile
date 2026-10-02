@@ -272,7 +272,7 @@
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 12px;
   padding: 16px 24px 24px;
 }
 
@@ -950,27 +950,6 @@ button {
 
 .skeleton-pulse {
   animation: skeleton-pulse 1.1s ease-in-out var(--skeleton-pulse-iterations);
-}
-
-.loading-bar {
-  position: relative;
-  height: 2px;
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.loading-bar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 33.333%;
-  background: var(--primary);
-  animation: loading-slide 1.5s linear infinite;
-}
-
-@keyframes loading-slide {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(300%); }
 }
 
 /* ═══════════════════════════════════════════════════════

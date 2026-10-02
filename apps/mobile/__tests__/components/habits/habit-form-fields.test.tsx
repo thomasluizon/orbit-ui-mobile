@@ -351,7 +351,7 @@ describe('HabitFormFields mobile', () => {
       tree.update(renderNode())
       await Promise.resolve()
     })
-    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -469,7 +469,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     expect(ask.props.disabled).toBe(true)
     expect(ask.props.accessibilityState.disabled).toBe(true)
 
@@ -494,7 +494,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     expect(ask.props.disabled).toBe(true)
   })
 
@@ -508,7 +508,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -524,7 +524,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    let ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    let ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -535,7 +535,7 @@ describe('HabitFormFields mobile', () => {
       tree.root.findByType(HabitUnderstanding).props.onValueChange('Build a calmer routine')
       await Promise.resolve()
     })
-    ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -561,7 +561,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
@@ -588,13 +588,13 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()
     })
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(1)
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')).toHaveLength(0)
 
     TestRenderer.act(() => tree.root.findByProps({ testID: 'checklist' }).props.onItemsChange([{ text: 'Edited', isChecked: false }]))
     expect(tree.root.findByProps({ testID: 'checklist' }).props.proposedItemCount).toBe(0)
@@ -625,7 +625,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')[0]
+    const ask = tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-sm')[0]
     await TestRenderer.act(async () => {
       ask.props.onPress()
       await Promise.resolve()

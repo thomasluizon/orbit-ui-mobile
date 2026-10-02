@@ -9,7 +9,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { InfoCard } from '@/components/ui/info-card'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -179,12 +179,12 @@ function ReferralDrawerContent({
                   {t('referral.drawer.actionFailed')}
                 </p>
               ) : null}
-              <DialogActionPair>
+              <ActionRow>
                 <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
                 <PillButton size="sm" onClick={() => void shareLink()}>
                   {t('referral.drawer.share')}
                 </PillButton>
-              </DialogActionPair>
+              </ActionRow>
             </>
           ) : undefined
       }

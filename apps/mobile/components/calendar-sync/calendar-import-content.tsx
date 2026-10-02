@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useImperativeHandle, useMemo, type Ref } from 'react'
 import {
   Pressable,
@@ -606,12 +608,12 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             <Text style={[styles.stateText, { color: tokens.fg2 }]}>
               {autoSyncStateQuery.isError ? t('calendar.fetchError') : displayedErrorMessage}
             </Text>
-            <View style={styles.errorActions}>
-              <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
+            <View style={styles.errorActions}><ActionRow>
               <PillButton variant="ghost" onClick={handleBack}>
                 {t('common.goBack')}
               </PillButton>
-            </View>
+              <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
+            </ActionRow></View>
           </View>
         )}
 

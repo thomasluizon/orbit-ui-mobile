@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -79,7 +81,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     const filledVariant = wide ? 'secondary' : 'primary'
     if (!hasProAccess) {
       return (
-        <>
+        <ActionRow>
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
@@ -96,23 +98,23 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-        </>
+        </ActionRow>
       )
     }
     if (error) {
       return (
-        <>
+        <ActionRow>
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
           <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-        </>
+        </ActionRow>
       )
     }
     return (
-      <>
+      <ActionRow>
         <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={() => closeSheet()}>
           {t('habits.reschedule.dismiss')}
         </PillButton>
@@ -126,7 +128,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         >
           {t('habits.reschedule.accept')}
         </PillButton>
-      </>
+      </ActionRow>
     )
   }
 

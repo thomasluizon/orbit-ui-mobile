@@ -182,18 +182,7 @@ function ShareActions(props: Readonly<ShareActionsProps>) {
     </PillButton>
   )
 
-  return (
-    <>
-      <div data-testid="wrapped-share-actions-narrow" className="flex flex-col items-stretch gap-2 sm:hidden">
-        {shareButton}
-        {downloadButton}
-      </div>
-      <div data-testid="wrapped-share-actions-wide" className="hidden items-center gap-2 sm:flex">
-        {downloadButton}
-        {shareButton}
-      </div>
-    </>
-  )
+  return <>{downloadButton}{shareButton}</>
 }
 
 function TapZones({ isFirst, onPage }: Readonly<{ isFirst: boolean; onPage: (direction: PageDirection) => void }>) {

@@ -5,7 +5,7 @@ import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { MARKETING_CONSENT_MILESTONE_KEY, hasOpenPromptBlockingOverlay } from '@orbit/shared/stores'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { createTokensV2 } from '@/lib/theme'
@@ -115,7 +115,7 @@ export function MarketingConsentPrompt() {
       onClose={() => setVisible(false)}
       title={t('marketingConsent.prompt.title')}
       actions={(
-        <DialogActionPair>
+        <ActionRow>
           <PromptQuietAction
             accessibleName={t('marketingConsent.prompt.decline')}
             onClick={() => answer(false)}
@@ -125,7 +125,7 @@ export function MarketingConsentPrompt() {
           <PillButton size="sm" onClick={() => answer(true)}>
             {t('marketingConsent.prompt.accept')}
           </PillButton>
-        </DialogActionPair>
+        </ActionRow>
       )}
     >
       <View style={styles.content}>
