@@ -223,6 +223,12 @@ export const cases = async () => {
   T(`${TOOL}: a closure from another session is not inherited`, readRunState(closed)?.readinessLedger?.[0]?.closed === false)
 
 
+  const beforeRelay = readRunState(repoRoot)
+  writeRunState({ sessionId: "successor", sleep: true, relay: { from: beforeRelay.sessionId }, pullRequests: [] }, repoRoot)
+  T(`${TOOL}: relay carries every readiness row`, readRunState(repoRoot).readinessLedger.length === beforeRelay.readinessLedger.length)
+  T(`${TOOL}: relay carries pull request identities`, JSON.stringify(readRunState(repoRoot).pullRequests) === JSON.stringify(beforeRelay.pullRequests))
+  writeRunState({ sessionId: "successor", sleep: true, remaining: [], pullRequests: [] }, repoRoot)
+  T(`${TOOL}: same session can clear its active list while retaining readiness debt`, readRunState(repoRoot).pullRequests.length === 0 && readRunState(repoRoot).readinessLedger.length === beforeRelay.readinessLedger.length)
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 

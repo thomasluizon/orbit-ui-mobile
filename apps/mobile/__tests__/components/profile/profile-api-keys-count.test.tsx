@@ -1,5 +1,7 @@
 import React from 'react'
 import { expect, it, vi } from 'vitest'
+import { Pressable, StyleSheet, Text } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
 import type { Profile } from '@orbit/shared/types/profile'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { ListRow } from '@/components/ui/list-row'
@@ -70,4 +72,32 @@ it('uses a small intrinsic acknowledgement for the revealed key', async () => {
   await TestRenderer.act(async () => { await create.props.onClick() })
   expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['orbitMcp.done'])
   expectSmallSheetActions(tree.root)
+})
+
+it.each([0, 1, 3])('uses the meta role for %i active keys', (count) => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true, activeApiKeyCount: count } as Profile} unlocked={false} />)
+  })
+  const row = tree.root.findByType(ListRow)
+  const value = row.findAllByType(Text).find((node: { props: { children: string } }) => node.props.children === row.props.value)!
+  expect(StyleSheet.flatten(value.props.style)).toMatchObject({
+    fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'],
+  })
+  expect(value.props.numberOfLines).toBeUndefined()
+  TestRenderer.act(() => tree.unmount())
+})
+
+it('keeps key metadata legible on the pressed card surface', () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfileApiKeys profile={{ hasProAccess: true, activeApiKeyCount: 0 } as Profile} unlocked={false} />) })
+  const row = tree.root.findByType(ListRow)
+  const value = () => row.findAllByType(Text).find((node: { props: { children: string } }) => node.props.children === row.props.value)!
+  const tokens = createTokensV2('purple', 'dark')
+  expect(StyleSheet.flatten(value().props.style).color).toBe(tokens.fg3)
+  TestRenderer.act(() => row.findByType(Pressable).props.onPressIn())
+  expect(StyleSheet.flatten(value().props.style).color).toBe(tokens.fg2)
+  TestRenderer.act(() => row.findByType(Pressable).props.onPressOut())
+  expect(StyleSheet.flatten(value().props.style).color).toBe(tokens.fg3)
+  TestRenderer.act(() => tree.unmount())
 })

@@ -99,7 +99,7 @@ export function CalendarSyncEventRow({
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
-                  color: 'var(--fg-3)',
+                  color: 'var(--fg-2)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -111,7 +111,7 @@ export function CalendarSyncEventRow({
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
-                  color: 'var(--fg-3)',
+                  color: 'var(--fg-2)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -133,7 +133,7 @@ export function CalendarSyncEventRow({
                   gap: 4,
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
-                  color: 'var(--fg-3)',
+                  color: 'var(--fg-2)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -147,7 +147,7 @@ export function CalendarSyncEventRow({
                 style={{
                   fontFamily: 'var(--font-sans)',
                   fontSize: 12,
-                  color: 'var(--fg-3)',
+                  color: 'var(--fg-2)',
                 }}
               >
                 {event.calendarName}
@@ -160,7 +160,7 @@ export function CalendarSyncEventRow({
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
-                color: 'var(--fg-3)',
+                color: 'var(--fg-2)',
                 marginTop: 4,
               }}
             >

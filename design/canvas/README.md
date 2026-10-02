@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
 | Hoje composer | The shell composer, Astra glyph button and suggestion chips appear on Hoje only on web and Android, at every width; Calendário, Progresso and Perfil clear navigation or the column bottom | The owner limits the conversation front door to Hoje. An open conversation keeps its existing presentation and state when destinations change. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Opaque control hover | Added `--bg-hover-opaque`: dark reuses `--p-hover`, light uses `--p-l-hover-opaque` at `rgba(9,9,11,0.11)` | Layered over the resting elevated fill, the hover step measures 1.477:1 dark and 1.271:1 light, clearing the 1.25:1 floor. |
@@ -62,6 +63,18 @@ build.
 | `Orbit Sobre.dc.html` | sobre |
 | `Orbit Sobreposicoes.dc.html` | the overlay set |
 | `Orbit Widget Android.dc.html` | the Android home screen widget |
+
+### Pro plan-card surfaces
+
+1. `/upgrade` on web and Android: the free and trial pitch, including the last trial day,
+   annual or monthly selection, coupon arithmetic and checkout pending or failed.
+2. The final onboarding paywall on web and Android: the same annual and monthly cards,
+   with price loading, price failure, retry and offline states shared with `/upgrade`.
+3. The final onboarding trial step on web and Android: the pitch and 5 against 50 comparison,
+   with outcomes owned by purchasable tier cards rather than a standalone pitch list.
+
+Both card owners cover loaded prices, loading reservations, absent prices, retry and offline
+states in English and Brazilian Portuguese. Card geometry covers compact and desktop widths.
 
 ## The design system, under `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`
 

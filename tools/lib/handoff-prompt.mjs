@@ -69,7 +69,7 @@ const readRequests = (repoRoot) => {
   }
 }
 
-/** Records the owner's handoff request for one session; the prompt text is the owner's, never the model's. */
+/** Records a handoff request from the owner's prompt or the machine's context relay hook and tool. */
 export const recordHandoffRequest = (sessionId, request, recordedAt, repoRoot = REPO_ROOT) => {
   if (!sessionId || !request) return
   const requests = readRequests(repoRoot)

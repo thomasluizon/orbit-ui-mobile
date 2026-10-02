@@ -23,7 +23,16 @@ function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasD
 }
 
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
-  return <Text style={[styles.value, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
+  return <Text style={[styles.value, wrap ? styles.wrappedValue : null, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
+}
+
+function RowTextContent({ title, wrapTitle, description, value, wrapValue, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'value' | 'wrapValue'> & { titleColor: string; valueColor: string }>) {
+  const text = <View style={[styles.textBlock, wrapValue ? styles.wrappedTextBlock : null]}>
+    <Text numberOfLines={wrapTitle ? undefined : 1} style={[styles.title, { color: titleColor }]}>{title}</Text>
+    {description ? <Text style={[styles.description, { color: valueColor }]}>{description}</Text> : null}
+  </View>
+  const rowValue = value ? <RowValue value={value} wrap={wrapValue === true} color={valueColor} /> : null
+  return wrapValue ? <View style={styles.wrappedContent}>{text}{rowValue}</View> : <>{text}{rowValue}</>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -38,7 +47,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { ref, accessibilityLabel, expanded, icon, title, wrapTitle, description, value, wrapValue, trailing, danger = false, action, chevron = true, compact = !description, inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
+  const { ref, accessibilityLabel, expanded, icon, description, trailing, danger = false, action, chevron = true, compact = !description, inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const compactForm = inForm && props.compact === true
@@ -50,11 +59,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
           {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}
-      <View style={styles.textBlock}>
-        <Text numberOfLines={wrapTitle ? undefined : 1} style={[styles.title, { color: titleColor }]}>{title}</Text>
-        {description ? <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text> : null}
-      </View>
-      {value ? <RowValue value={value} wrap={wrapValue === true} color={tokens.fg3} /> : null}
+      <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
@@ -92,10 +97,13 @@ const styles = StyleSheet.create({
   bodyWithAction: { paddingEnd: 0 },
   action: { width: 44, height: 44, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },
-  textBlock: { flex: 1, minWidth: 0, gap: 4 },
+  textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
+  wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
+  wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
-  value: { fontFamily: 'GeistMono_400Regular', fontSize: 13, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
+  value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
+  wrappedValue: { flexShrink: 0, maxWidth: '100%' },
   trailing: { flexShrink: 0, paddingHorizontal: 8 },
   control: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   disabled: { opacity: 0.5 },

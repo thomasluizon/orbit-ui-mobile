@@ -80,36 +80,12 @@ describe('upgrade utils', () => {
       proAllowance: '50',
       perDay: 'mensagens por dia',
     })
-    expect(en.upgrade.outcomes).toEqual({
-      label: 'What changes with Pro',
-      calendar: {
-        title: 'Your calendar beside your habits',
-        body: 'Syncing with Google Calendar puts your commitments next to the day.',
-      },
-      retrospective: {
-        title: 'The periodic retrospective',
-        body: 'Astra closes the week and the month with what happened and what to change.',
-      },
-      noticing: {
-        title: 'Astra notices without being asked',
-        body: 'It tells you when something slips instead of waiting for you to open the app.',
-      },
-    })
-    expect(ptBR.upgrade.outcomes).toEqual({
-      label: 'O que muda com o Pro',
-      calendar: {
-        title: 'A sua agenda ao lado dos hábitos',
-        body: 'Sincronizar com o Google Calendar mostra os seus compromissos junto do dia.',
-      },
-      retrospective: {
-        title: 'A retrospectiva do período',
-        body: 'A Astra fecha a semana e o mês com o que aconteceu e o que mudar.',
-      },
-      noticing: {
-        title: 'A Astra percebe sem você pedir',
-        body: 'Ela avisa quando algo escapa em vez de esperar você abrir o app.',
-      },
-    })
+    for (const messages of [en, ptBR]) {
+      expect(Object.keys(messages.upgrade.outcomes)).toEqual(['label', 'astra', 'calendar', 'retrospective', 'noticing'])
+      expect(messages.upgrade.outcomes.astra).toContain('50')
+      expect(messages.upgrade.outcomes.calendar).toContain('Google Calendar')
+      expect(messages.upgrade.outcomes.noticing).toContain('Astra')
+    }
   })
 
   it('has matching locale entries for the allowance pitch and no matrix copy', () => {
@@ -132,12 +108,10 @@ describe('upgrade utils', () => {
       'upgrade.convert.perDay',
       'upgrade.convert.allowanceNote',
       'upgrade.outcomes.label',
-      'upgrade.outcomes.calendar.title',
-      'upgrade.outcomes.calendar.body',
-      'upgrade.outcomes.retrospective.title',
-      'upgrade.outcomes.retrospective.body',
-      'upgrade.outcomes.noticing.title',
-      'upgrade.outcomes.noticing.body',
+      'upgrade.outcomes.astra',
+      'upgrade.outcomes.calendar',
+      'upgrade.outcomes.retrospective',
+      'upgrade.outcomes.noticing',
       'upgrade.plans.loading',
       'upgrade.plans.intervalLabel',
       'upgrade.plans.interval.monthly',

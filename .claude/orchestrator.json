@@ -1,5 +1,6 @@
 {
   "worker": "codex",
+  "relay": { "enabled": true, "thresholdTokens": 400000 },
   "workers": {
     "codex": {
       "command": "codex",

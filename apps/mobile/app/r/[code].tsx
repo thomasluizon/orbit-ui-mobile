@@ -13,7 +13,7 @@ export default function ReferralRedirectScreen() {
     const validCode = code && isValidReferralCode(code) ? code : undefined
 
     if (isAuthenticated) {
-      router.replace('/')
+      router.replace('/(tabs)')
       return
     }
 

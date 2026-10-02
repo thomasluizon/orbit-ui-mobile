@@ -66,6 +66,24 @@ async function mount() {
 }
 
 describe('Android final Pro step', () => {
+  it.each(['en', 'pt-BR'])('keeps both loaded paywall card hooks and outcomes in %s', async (locale) => {
+    mocks.locale = locale
+    const { tree } = await mount()
+    const step = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'onboarding-step-paywall')[0]!
+    const cards = step.findAll((node) => String(node.type) === 'View' && /^upgrade-tier-(yearly|monthly)$/.test(String(node.props.testID)))
+    expect(cards.map((card) => card.props.testID)).toEqual(['upgrade-tier-yearly', 'upgrade-tier-monthly'])
+    const outcomes = step.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))
+    expect(outcomes).toHaveLength(2)
+    for (const card of cards) {
+      expect(all(card, 'PillButton')).toHaveLength(1)
+      expect(all(card, 'PillButton')[0]!.props.disabled).toBe(false)
+      const list = card.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))[0]!
+      for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+        expect(text(list).filter((value) => value === translate(`upgrade.outcomes.${key}`))).toHaveLength(1)
+      }
+    }
+  })
+
   it.each(['en', 'pt-BR'])('shows the running trial and one action in %s', async (locale) => {
     mocks.locale = locale
     mocks.profile = createMockProfile({ isTrialActive: true, hasProAccess: true, plan: 'pro', trialEndsAt: new Date(Date.now() + 7 * 86400000).toISOString() })
@@ -85,6 +103,16 @@ describe('Android final Pro step', () => {
     mocks.plansState = state === 'offline' ? 'loaded' : state; mocks.online = state !== 'offline'
     const { tree, finish } = await mount()
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-step-paywall')).toHaveLength(1)
+    if (state === 'loaded') {
+      const outcomes = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))
+      expect(outcomes).toHaveLength(2)
+      for (const interval of ['yearly', 'monthly']) {
+        const tier = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === `upgrade-tier-${interval}`)[0]!
+        for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+          expect(text(tier)).toContain(translate(`upgrade.outcomes.${key}`))
+        }
+      }
+    }
     const decline = action(tree.root, en.upgrade.convert.stayFree)
     expect(decline.props.disabled).toBe(false)
     if (state === 'offline') expect(all(tree.root, 'PillButton').every((button) => button.props.disabled)).toBe(true)

@@ -1,16 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { AccessibilityInfo, Text, View, useWindowDimensions } from 'react-native'
 import { responsiveTypeStyle } from '@/lib/theme'
-import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
-const OUTCOMES = [
-  { key: 'calendar', Icon: Calendar },
-  { key: 'retrospective', Icon: FileText },
-  { key: 'noticing', Icon: Eye },
-] as const
-
 export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount = false, titleKey, bodyKey, headingId, dateHint, tokens }: Readonly<{ inset?: boolean; profile: { isTrialActive?: boolean } | null; trialDaysLeft: number | null; t: UpgradeTextFn; tokens: Tokens; focusOnMount?: boolean; titleKey?: string; bodyKey?: string; headingId?: string; dateHint?: string }>) {
   const headingRef = useRef<Text>(null)
   useEffect(() => {
@@ -54,27 +47,7 @@ export function ProPitch({ inset = true, profile, trialDaysLeft, t, focusOnMount
         <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
       </View>
 
-      <View style={[styles.outcomes, !inset && { paddingHorizontal: 0 }]}>
-        {OUTCOMES.map(({ key, Icon }) => (
-          <View key={key} style={styles.outcomeRow}>
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={styles.outcomeIcon}
-            >
-              <Icon size={20} strokeWidth={1.8} color={tokens.fg3} />
-            </View>
-            <View style={styles.outcomeCopy}>
-              <Text accessibilityRole="header" style={[styles.outcomeTitle, { color: tokens.fg1 }]}>
-                {t(`upgrade.outcomes.${key}.title`)}
-              </Text>
-              <Text style={[styles.outcomeBody, { color: tokens.fg3 }]}>
-                {t(`upgrade.outcomes.${key}.body`)}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </View>
+
 
   </View>)
 }

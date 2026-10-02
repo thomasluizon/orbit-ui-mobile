@@ -1,6 +1,6 @@
 ---
 name: progress
-description: Answer "what happened" in product terms: what a person can now do, what is half built, and what the owner has to decide. Reads live state, never a remembered summary. Defaults to THIS SESSION; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
+description: Answer "what happened" in product terms from live state. Defaults to the open session chain when this session belongs to one, otherwise this session; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
 argument-hint: "[--full] [optional area, for example \"calendar\" or \"perfil\"]"
 effort: medium
 ---
@@ -22,16 +22,24 @@ number, a pull request number or a commit SHA belongs in this answer only when h
 
 He is not asking which tickets closed. Numbers are how the work is tracked, not what it is.
 
-## Two scopes, and the default is the session
+## Two scopes, and the default follows the open chain
 
 | invocation | what it answers |
 |---|---|
-| `/progress` | what THIS SESSION changed, and nothing else |
-| `/progress --full` | this session first, then the whole effort below it |
+| `/progress` | what this open chain changed, or this session when no chain is open |
+| `/progress --full` | the default scope first, then the whole effort below it |
 | `/progress <area>` | the same, narrowed to one screen or surface |
 
 The default is deliberately narrow. Mid-run he is asking what just happened, and a whole-effort
 summary buries that under work he already knows about.
+
+Before gathering evidence, call `openSessionChain` from `tools/lib/session-chain.mjs` with
+the exact current session id. An open chain's entries plus `currentSessionId` define the
+default reporting window. Read every entry's shipped rows, complete decisions and owner
+questions together with the current run. Recheck every shipping identifier against live git
+and ticket state through the existing procedure below. Deduplicate repository and pull
+request pairs without dropping a session's decisions. Three relays plus the current session
+are one report. Do not close the chain here; the owner's handoff closes it after reporting.
 
 ## Read live state first
 
@@ -102,14 +110,16 @@ repository whose work you report, using one base-chain rule:
    `origin/<integration-branch>` there. A failed fetch makes arrival unverifiable for that repository
    only; it does not affect the other repositories.
 
-For the session scope:
+For the default session or chain scope:
 
 1. Get the live session id from `currentRunIdentifier()` in
    `tools/lib/identifier-ledger.mjs`. Use `readRunState()` only when its `sessionId` exactly matches.
    With no matching record, there is no session baseline. State "No session baseline is available."
    Then report the effort scope instead by following the full-scope procedure once. Do not silently
    turn an absent baseline into an empty session or call all visible work session-owned.
-2. Enumerate the matching record's append-only `readinessLedger`. Each row's `repositoryKey` maps to
+2. Enumerate the matching record's append-only `readinessLedger` and every open chain entry's
+   `shipped` rows. A shipped row's `repository` is the repository key and `pullRequest` is its
+   pull request number. Union those identities before the live reads below. Each ledger row's `repositoryKey` maps to
    a repository path in `.claude/orchestrator.json`; `prNumber` identifies the session-owned pull
    request; `receiptPath` is provenance, not merge status. Ignore any undeclared top-level key.
 3. In each mapped repository, run
@@ -163,8 +173,8 @@ Three things, in this order:
 2. What is half built, and what is missing from it.
 3. What is waiting on the owner, phrased as the decision, not the ticket.
 
-With `--full`, answer those three for the session, then the same three for the whole effort
-underneath, clearly separated and clearly labelled. The session part comes first and stays first,
+With `--full`, answer those three for the default session or chain scope, then the same three for the whole effort
+underneath, clearly separated and clearly labelled. The default scope comes first and stays first,
 even when the effort part is larger.
 
 Keep it under his writing contract: 12 lines, 200 words. If that will not fit, you are including

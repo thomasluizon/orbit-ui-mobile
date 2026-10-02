@@ -21,7 +21,7 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
   const handleTab = (id: string) => {
     if (id === 'hoje') {
       setActiveView('today')
-      router.navigate('/')
+      router.navigate('/(tabs)')
       return
     }
     if (id === 'calendario') router.navigate('/calendar')
