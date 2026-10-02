@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   type View as NativeView,
 } from 'react-native'
+import { Check } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import {
@@ -155,8 +156,8 @@ export function Menu({
             items={orderedItems}
             sheetPresentation={false}
             onActivate={(id) => {
-              onSelect?.(id)
               onClose?.()
+              onSelect?.(id)
             }}
           />
         </View>
@@ -205,8 +206,8 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
     return (
       <Pressable
         key={item.id}
-        accessibilityRole="menuitem"
-        accessibilityState={{ disabled }}
+        accessibilityRole={item.checked === undefined ? "menuitem" : "checkbox"}
+        accessibilityState={{ disabled, checked: item.checked }}
         disabled={disabled}
         onPress={() => onActivate(item.id)}
         style={({ pressed }) => [
@@ -224,6 +225,7 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
         >
           {item.label}
         </Text>
+        {item.checked ? <Check size={20} color={tokens.fg1} strokeWidth={2} /> : null}
         {item.badge ? (
           <View style={[styles.badge, { backgroundColor: tokens.bgElev }]}>
             <Text style={[styles.badgeText, { color: tokens.fg2 }]}>{item.badge}</Text>

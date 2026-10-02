@@ -5,6 +5,7 @@ export interface MenuItem {
   icon?: string
   destructive?: boolean
   disabled?: boolean
+  checked?: boolean
   badge?: string
 }
 

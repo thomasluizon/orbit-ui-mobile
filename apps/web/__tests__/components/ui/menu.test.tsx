@@ -33,6 +33,17 @@ describe('Menu', () => {
     document.body.innerHTML = ''
   })
 
+  it.each([true, false])('announces a checked menu row as %s and closes before selecting', async (checked) => {
+    setWide(false)
+    const events: string[] = []
+    render(<Menu open items={[{ id: 'recurring', label: 'Recurring habits', checked }]}
+      onClose={() => events.push('close')} onSelect={() => events.push('select')} />)
+    const row = await screen.findByRole('menuitemcheckbox', { name: 'Recurring habits' })
+    expect(row).toHaveAttribute('aria-checked', String(checked))
+    fireEvent.click(row)
+    expect(events).toEqual(['close', 'select'])
+  })
+
   it('uses the sheet presentation at 412 and orders the destructive item last', async () => {
     setWide(false)
     render(<Menu open title="Habit actions" items={items} />)

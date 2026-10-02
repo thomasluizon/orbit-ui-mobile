@@ -71,6 +71,18 @@ describe('Menu (mobile)', () => {
     },
   )
 
+  it.each([true, false])('announces a checked menu row as %s', async (checked) => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Menu open items={[{ id: 'recurring', label: 'Recurring habits', checked }]} />)
+      await Promise.resolve()
+    })
+    const rows = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.props.accessibilityState.checked).toBe(checked)
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   it('matches menu icon stroke to medium-weight labels', async () => {
     let tree: any
     await TestRenderer.act(async () => {

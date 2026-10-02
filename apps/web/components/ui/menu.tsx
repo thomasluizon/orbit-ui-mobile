@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
+import { Check } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -98,7 +99,8 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
           <button
             key={item.id}
             type="button"
-            role="menuitem"
+            role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+            aria-checked={item.checked}
             disabled={disabled}
             data-destructive={item.destructive || undefined}
             className="orbit-menu-item"
@@ -106,6 +108,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
           >
             {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
             <span className="orbit-menu-label">{item.label}</span>
+            {item.checked ? <Check size={20} strokeWidth={2} aria-hidden="true" /> : null}
             {item.badge ? <Badge>{item.badge}</Badge> : null}
           </button>
         )
@@ -247,7 +250,7 @@ export function Menu({
     }
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
     const buttons = Array.from(
-      panelRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [],
+      panelRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled]), [role="menuitemcheckbox"]:not([disabled])') ?? [],
     )
     if (buttons.length === 0) return
     event.preventDefault()
@@ -280,8 +283,8 @@ export function Menu({
       <MenuItems
         items={items}
         onActivate={(id) => {
-          onSelect?.(id)
           onClose?.()
+          onSelect?.(id)
         }}
       />
     </AnchoredPopover>,

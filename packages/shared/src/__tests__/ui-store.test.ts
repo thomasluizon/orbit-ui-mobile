@@ -234,7 +234,19 @@ describe("shared ui store", () => {
     expect(migrated).toEqual({
       activeFilters: {},
       activeView: "all",
+      calendarShowRecurring: true,
     });
+  });
+
+  it("persists the recurring calendar filter and defaults invalid stored values", () => {
+    const store = createStoreHarness();
+    expect(store.getState().calendarShowRecurring).toBe(true);
+    store.getState().setCalendarShowRecurring(false);
+    const snapshot = getPersistedUIState(store.getState());
+    expect(migratePersistedUIState(snapshot).calendarShowRecurring).toBe(false);
+    expect(migratePersistedUIState({ calendarShowRecurring: true }).calendarShowRecurring).toBe(true);
+    expect(migratePersistedUIState({ calendarShowRecurring: "false" }).calendarShowRecurring).toBe(true);
+    expect(migratePersistedUIState({}).calendarShowRecurring).toBe(true);
   });
 
   it("maps every retired active view to today", () => {
