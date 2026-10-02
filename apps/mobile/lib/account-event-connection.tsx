@@ -33,7 +33,7 @@ export function AccountEventConnection(): null {
       lastEventId: lastEventId.current,
       resumed: resumed.current,
       open: openAccountEventStream,
-      onOpen: (openedAt) => invalidateAccountQueriesBefore(queryClient, openedAt),
+      onOpen: (openedAt, hasReplayCursor) => invalidateAccountQueriesBefore(queryClient, openedAt, hasReplayCursor),
       onFirstFailure: (failedAt) => invalidateAccountQueriesAtFailure(queryClient, failedAt, controller.signal),
       onReconnect: () => setAccountEventOrigin(null),
       onEvent: (event) => {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query'
 import React from 'react'
+import { createQueryClient } from '@/lib/query-client'
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -41,12 +42,7 @@ vi.mock('@/lib/actions/notifications', () => ({
 }))
 
 function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  })
+  const queryClient = createQueryClient()
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(
       QueryClientProvider,
@@ -149,7 +145,7 @@ describe('useNotifications', () => {
     Reflect.deleteProperty(document, 'visibilityState')
   })
 
-  it('refetches a stale list when the page becomes visible', async () => {
+  it('leaves a stale list to the account stream when the page becomes visible', async () => {
     mockNotificationsResponse({ items: [], unreadCount: 0 })
     vi.useFakeTimers()
     const handle = renderHook(() => useNotifications(), { wrapper: createWrapper() })
@@ -158,7 +154,7 @@ describe('useNotifications', () => {
       await act(async () => focusManager.setFocused(false))
       await act(async () => { await vi.advanceTimersByTimeAsync(61 * 1000) })
       await act(async () => focusManager.setFocused(true))
-      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(mockFetch).toHaveBeenCalledTimes(1)
     } finally {
       handle.unmount()
       focusManager.setFocused(undefined)

@@ -4,6 +4,7 @@ import {
   checklistTemplateKeys, gamificationKeys, goalKeys, habitKeys,
   notificationKeys, profileKeys, tagKeys,
 } from './keys'
+import { QUERY_STALE_TIMES } from './options'
 
 type QueryKey = readonly unknown[]
 
@@ -11,6 +12,12 @@ const TODAY_KEYS: QueryKey[] = [
   habitKeys.all, goalKeys.all, tagKeys.all, checklistTemplateKeys.all,
   profileKeys.all, gamificationKeys.all, notificationKeys.all,
 ]
+
+export function configureAccountQueryDefaults(queryClient: Pick<QueryClient, 'setQueryDefaults'>): void {
+  for (const queryKey of TODAY_KEYS) {
+    queryClient.setQueryDefaults(queryKey, { refetchOnWindowFocus: false })
+  }
+}
 
 export function accountChangeQueryKeys(change: AccountChange): QueryKey[] {
   switch (change.kind) {
@@ -51,12 +58,16 @@ export function invalidateAccountEvent(
 export function invalidateAccountQueriesBefore(
   queryClient: Pick<QueryClient, 'getQueryCache' | 'invalidateQueries'>,
   mountedAt: number,
+  hasReplayCursor = false,
 ): void {
   const predicate = (query: Query) =>
     query.state.dataUpdatedAt > 0
       && query.state.dataUpdatedAt < mountedAt
       && query.state.fetchStatus === 'idle'
-  for (const queryKey of TODAY_KEYS) {
+      && (!hasReplayCursor || query.isStaleByTime(QUERY_STALE_TIMES.profile))
+  /** Profile usage resets with the user's day without emitting an account event, so replay cannot refresh it. */
+  const queryKeys = hasReplayCursor ? [profileKeys.all] : TODAY_KEYS
+  for (const queryKey of queryKeys) {
     if (queryClient.getQueryCache().findAll({ queryKey, predicate }).length > 0) {
       void queryClient.invalidateQueries({ queryKey, predicate })
     }

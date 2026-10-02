@@ -36,7 +36,6 @@ export function useGamificationProfile(enabled = true) {
     queryKey: gamificationKeys.profile(),
     queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema, { handlesPayGate: true }),
     staleTime: QUERY_STALE_TIMES.gamification,
-    refetchOnWindowFocus: true,
     enabled,
   })
 
