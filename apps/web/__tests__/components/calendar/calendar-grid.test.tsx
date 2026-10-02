@@ -162,6 +162,12 @@ describe('CalendarGrid', () => {
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-20')
   })
 
+  it('does not reserve a sixth row for a five-week month', () => {
+    render(<CalendarGrid currentMonth={new Date(2026, 8, 1)} dayMap={emptyMap} onSelectDay={vi.fn()} />)
+    expect(document.querySelectorAll('[data-calendar-date]')).toHaveLength(35)
+    expect(screen.getByTestId('month-grid-days').style.minHeight).toBe('')
+  })
+
   it('uses the grid skeleton geometry and withholds weekdays while loading', () => {
     const { container } = render(
       <CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} isLoading />,

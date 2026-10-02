@@ -2,7 +2,7 @@ import React, { type ComponentProps } from 'react'
 import { StyleSheet } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CalendarMonthDay } from '@orbit/shared/utils'
+import { buildCalendarMonthModel, type CalendarMonthDay } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarGrid as CalendarGridComponent } from '@/app/(tabs)/calendar/_components/calendar-grid'
 import { useCurrentDate } from '@/app/(tabs)/use-today-date'
@@ -60,6 +60,18 @@ describe('CalendarGrid (mobile)', () => {
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it('does not reserve a sixth row for a five-week month', () => {
+    const { gridDays } = buildCalendarMonthModel(new Date(2026, 8, 1), new Map(), 1, '2026-09-11')
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarGrid gridDays={gridDays}
+        weekdayHeaders={Array.from({ length: 7 }, (_, index) => ({ key: String(index), label: String(index) }))}
+        selectedDay={null} onSelectDay={vi.fn()} language="en" t={(key) => key} tokens={createTokensV2('purple', 'dark')} />)
+    })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && String(node.props.testID).startsWith('month-grid-row-'))).toHaveLength(5)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-days' }).props.style).minHeight).toBeUndefined()
+  })
 
   it('uses the grid skeleton geometry and withholds weekdays while loading', () => {
     const tokens = createTokensV2('purple', 'dark')

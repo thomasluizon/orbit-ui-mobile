@@ -8,7 +8,6 @@ const toastSuccess = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import {
   buildCalendarMonthModel,
-  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   formatAPIDate,
   formatAPIDateInTimeZone,
 } from '@orbit/shared/utils'
@@ -536,11 +535,12 @@ describe('CalendarPage view switcher', () => {
       weekStartDay,
       formatAPIDate(now),
     ).gridDays.length / 7
-    const loadedHeight = Number(screen.getByTestId('month-grid-days').style.minHeight.replace('px', ''))
+    const loadedHeight = screen.getByTestId('month-grid-days').style.minHeight
 
     expect(loadedRows).toBe(expectedRows)
-    expect(loadingHeight).toBe(loadedHeight)
-    expect(loadedHeight).toBe(CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT)
+    const expectedLoadingRows = buildCalendarMonthModel(loadedMonth, new Map(), 1, formatAPIDate(now)).gridDays.length / 7
+    expect(loadingHeight).toBe(expectedLoadingRows * 44 + (expectedLoadingRows - 1) * 4)
+    expect(loadedHeight).toBe('')
   })
 
   it('shows a retryable error when the profile request fails', () => {

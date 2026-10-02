@@ -362,7 +362,7 @@ function CalendarProfileState({
             <View style={styles.profileGrid}>
               <Skeleton
                 variant="grid"
-                rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+                rows={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns}
                 cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
                 cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
                 gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}

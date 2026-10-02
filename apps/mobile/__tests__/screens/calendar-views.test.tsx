@@ -4,7 +4,7 @@ import ptBR from "@orbit/shared/i18n/pt-BR.json";
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  buildCalendarMonthModel,
   buildHabitCreateHref,
   formatAPIDate,
   formatAPIDateInTimeZone,
@@ -910,7 +910,7 @@ describe("CalendarScreen views (mobile)", () => {
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     )[0];
     expect(gridShape?.props.style).toEqual(expect.arrayContaining([
-      expect.objectContaining({ width: 332, height: 284 }),
+      expect.objectContaining({ width: 332, height: 236 }),
     ]));
   });
 
@@ -953,8 +953,9 @@ describe("CalendarScreen views (mobile)", () => {
     const loadedHeight = (loadedDayGrid.props.style as { minHeight: number }).minHeight;
 
     expect(loadedRows).toBe(expectedRows);
-    expect(loadingHeight).toBe(loadedHeight);
-    expect(loadedHeight).toBe(CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT);
+    const loadingRows = buildCalendarMonthModel(new Date(now.getFullYear(), now.getMonth(), 1), new Map(), 1, formatAPIDate(now)).gridDays.length / 7;
+    expect(loadingHeight).toBe(loadingRows * 44 + (loadingRows - 1) * 4);
+    expect(loadedHeight).toBeUndefined();
     TestRenderer.act(() => gridTree.update(<></>));
   });
 

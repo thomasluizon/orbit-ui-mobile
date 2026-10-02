@@ -7,7 +7,6 @@ import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts
 import {
   buildDayCellAccessibleName,
   CALENDAR_MONTH_GRID_GEOMETRY,
-  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
@@ -249,7 +248,7 @@ export function CalendarGrid({
         <View style={styles.loadingGrid}>
           <Skeleton
             variant="grid"
-            rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+            rows={Math.ceil(gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns)}
             cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
             cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
             gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
@@ -274,7 +273,6 @@ export function CalendarGrid({
         <MonthGrid
           weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
           gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
-          minimumDayGridHeight={CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT}
         >
           {gridDays.map((cell) => {
             const future = cell.dateStr > todayKey

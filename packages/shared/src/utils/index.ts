@@ -63,7 +63,6 @@ export {
 export { buildCalendarMonthModel, deriveCalendarStats, calendarMonthForDay } from './calendar-month'
 export {
   CALENDAR_MONTH_GRID_GEOMETRY,
-  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   resolveCalendarMonthDisplayState,
   type CalendarMonthDisplayState,
 } from './calendar-month-state'
