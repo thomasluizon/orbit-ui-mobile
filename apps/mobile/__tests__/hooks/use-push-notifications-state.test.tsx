@@ -641,6 +641,18 @@ describe('usePushNotifications', () => {
     expect(latestResult!.isEnabled).toBe(false)
   })
 
+  it('keeps first use eligible after the native request rejects', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockRejectedValueOnce(new Error('React context lost'))
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(latestResult!.registrationStatus).toBe('sync-failed')
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledTimes(2)
+    expect(latestResult!.isEnabled).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ method: 'POST' }))
+  })
+
   it('keeps the answered fact across provider remounts and account changes', async () => {
     vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(createPermissionResponse('denied', true))
     const first = await renderHarness()

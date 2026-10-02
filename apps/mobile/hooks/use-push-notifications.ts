@@ -243,7 +243,12 @@ async function readOrRequestNativePermission(
     await AsyncStorage.removeItem(PUSH_PERMISSION_ASKED_STORAGE_KEY)
     return null
   }
-  return { permissions: await notifications.requestPermissionsAsync(), asked: true }
+  try {
+    return { permissions: await notifications.requestPermissionsAsync(), asked: true }
+  } catch (error: unknown) {
+    await AsyncStorage.removeItem(PUSH_PERMISSION_ASKED_STORAGE_KEY)
+    throw error
+  }
 }
 
 async function delay(ms: number): Promise<void> {
