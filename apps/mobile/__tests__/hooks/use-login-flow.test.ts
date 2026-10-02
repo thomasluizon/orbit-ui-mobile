@@ -25,7 +25,6 @@ const mocks = vi.hoisted(() => ({
   createAuthReturnUrlAttempt: vi.fn(),
   isAuthReturnUrlAttemptCurrent: vi.fn(),
   clearStoredAuthReturnUrl: vi.fn(),
-  getSafeReturnUrl: vi.fn(),
   consumeStoredAuthReturnUrl: vi.fn(),
   markReferralApplied: vi.fn(),
   clearStoredReferralCode: vi.fn(),
@@ -74,14 +73,14 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => mocks.params,
 }))
 
-vi.mock('@/lib/auth-flow', () => ({
+vi.mock('@/lib/auth-flow', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-flow')>(),
   clearStoredReferralCode: mocks.clearStoredReferralCode,
   consumeStoredAuthReturnUrl: mocks.consumeStoredAuthReturnUrl,
   getStoredAuthReturnUrl: mocks.getStoredAuthReturnUrl,
   createAuthReturnUrlAttempt: mocks.createAuthReturnUrlAttempt,
   isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
   clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
-  getSafeReturnUrl: mocks.getSafeReturnUrl,
   getStoredReferralCode: mocks.getStoredReferralCode,
   isSafeReturnUrl: () => true,
   isValidReferralCode: () => false,
@@ -153,7 +152,6 @@ beforeEach(() => {
   mocks.getStoredAuthReturnUrl.mockResolvedValue(undefined)
   mocks.createAuthReturnUrlAttempt.mockReturnValue(0)
   mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
-  mocks.getSafeReturnUrl.mockImplementation((url?: string) => url ?? '/')
   mocks.markReferralApplied.mockResolvedValue(undefined)
   mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'cancel' })
 })
@@ -211,7 +209,8 @@ describe('useLoginFlow (mobile)', () => {
 
     await act(() => harness.current.verifyCode())
 
-    expect(mocks.replace).toHaveBeenCalledWith('/')
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
+    expect(mocks.replace).not.toHaveBeenCalledWith('/')
     expect(mocks.replace).not.toHaveBeenCalledWith('/older')
   })
 

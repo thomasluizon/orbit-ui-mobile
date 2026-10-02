@@ -51,6 +51,27 @@ describe('mobile auth flow helpers', () => {
     expect(getSafeReturnUrl('//evil.com', '/login')).toBe('/login')
   })
 
+  it.each([
+    [null, '/(tabs)'],
+    [undefined, '/(tabs)'],
+    ['/', '/(tabs)'],
+    ['/?source=login', '/(tabs)?source=login'],
+    ['/#today', '/(tabs)#today'],
+    ['/login', '/(tabs)'],
+    ['/login?returnUrl=/', '/(tabs)'],
+    ['/auth-callback?code=old', '/(tabs)'],
+    ['/(onboarding)', '/(tabs)'],
+    ['/(onboarding)/index', '/(tabs)'],
+    ['/(onboarding)/?step=welcome', '/(tabs)'],
+    ['//evil.example', '/(tabs)'],
+    ['https://evil.example', '/(tabs)'],
+    ['/calendar?import=1', '/calendar?import=1'],
+    ['/profile', '/profile'],
+    ['/(tabs)?date=2026-04-07', '/(tabs)?date=2026-04-07'],
+  ])('resolves the signed-in return URL %s to %s', (returnUrl, destination) => {
+    expect(getSafeReturnUrl(returnUrl)).toBe(destination)
+  })
+
   it('stores and retrieves valid referral codes', async () => {
     getItemMock.mockResolvedValue('invite_abc')
 
