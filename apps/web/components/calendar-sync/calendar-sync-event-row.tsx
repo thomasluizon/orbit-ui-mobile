@@ -80,7 +80,7 @@ export function CalendarSyncEventRow({
         </span>
         <span className="flex-1 min-w-0 block">
           <span
-            className="block truncate"
+            className="block [overflow-wrap:anywhere]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 15,
@@ -143,9 +143,8 @@ export function CalendarSyncEventRow({
             )}
             {event.calendarName && (
               <span
-                className="truncate"
+                className="min-w-0 [overflow-wrap:anywhere]"
                 style={{
-                  maxWidth: 160,
                   fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   color: 'var(--fg-3)',
@@ -157,7 +156,7 @@ export function CalendarSyncEventRow({
           </span>
           {event.description && (
             <span
-              className="block line-clamp-1"
+              className="block whitespace-pre-line [overflow-wrap:anywhere]"
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
