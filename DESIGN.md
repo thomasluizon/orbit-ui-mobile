@@ -1127,7 +1127,15 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 |---|---|---|
 | a surface (row, card, panel, list item) | **380ms** | background goes to `--bg-hover`, and its hairline to `--hairline-strong` |
 | a control (button, chip, segmented control, icon button) | **240ms** | fill or label colour only |
+| a web text field | **240ms** | inset perimeter ring moves from `--border-control` to `--hairline-strong` |
 | a link | **380ms** | colour, plus an underline scaling from the leading edge |
+
+Web text fields keep the hover transition on the base perimeter rule, behind
+`@media (hover: hover) and (pointer: fine)`. Disabled fields and fields holding focus do not
+hover. Focus takes the inset 2px `--primary` ring immediately. Validation rings keep their
+error treatment. An autofilled `Input` keeps its overlay perimeter unchanged on hover.
+The OTP cells share the real input's hover and disabled state; focus leaves only the active
+cell with the focus ring. A field wrapper suppresses hover over its interactive buttons.
 
 Neutral control hover and press fills use `--bg-hover` (`bgHover` on Android), clipped to the tap
 target at its own radius. Primary-filled actions use `--primary-hover` on hover and

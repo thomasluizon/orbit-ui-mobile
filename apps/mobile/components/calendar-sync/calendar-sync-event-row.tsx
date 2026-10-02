@@ -106,7 +106,6 @@ export function CalendarSyncEventRow({
         <View style={styles.eventBody}>
           <Text
             style={[styles.eventTitle, { color: issueVisuals.titleColor }]}
-            numberOfLines={1}
           >
             {event.title}
           </Text>
@@ -137,7 +136,6 @@ export function CalendarSyncEventRow({
             {event.calendarName ? (
               <Text
                 style={[styles.eventTagText, { color: tokens.fg3 }]}
-                numberOfLines={1}
               >
                 {event.calendarName}
               </Text>
@@ -146,7 +144,6 @@ export function CalendarSyncEventRow({
           {event.description ? (
             <Text
               style={[styles.eventDescription, { color: tokens.fg3 }]}
-              numberOfLines={1}
             >
               {event.description}
             </Text>

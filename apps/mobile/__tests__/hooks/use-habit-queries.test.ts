@@ -129,7 +129,7 @@ describe('useHabits refetch behavior', () => {
   it('does not install a periodic refetch for single-day habit lists', () => {
     renderHookCapture(() => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }))
     expect(lastQuery().refetchInterval).toBeUndefined()
-    expect(lastQuery().refetchOnWindowFocus).toBe(true)
+    expect(lastQuery().refetchOnWindowFocus).toBeUndefined()
     expect(lastQuery().refetchOnReconnect).toBe(true)
   })
 })

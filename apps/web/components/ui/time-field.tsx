@@ -150,7 +150,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
           data-focus-perimeter=""
           aria-invalid={error ? true : undefined}
           aria-describedby={error || hint ? descriptionId : undefined}
-          className={`min-h-[54px] w-full rounded-[12px] border-0 bg-[var(--bg-field)] px-4 text-base text-[var(--fg-1)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] ${canClear ? 'pr-24' : 'pr-12'} ${error ? 'shadow-[inset_0_0_0_2px_var(--status-bad)]' : 'shadow-[inset_0_0_0_1px_var(--border-control)]'} disabled:opacity-60`}
+          className={`orbit-field-hover min-h-[54px] w-full rounded-[12px] border-0 bg-[var(--bg-field)] px-4 text-base text-[var(--fg-1)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] ${canClear ? 'pr-24' : 'pr-12'} ${error ? 'shadow-[inset_0_0_0_2px_var(--status-bad)]' : 'shadow-[inset_0_0_0_1px_var(--border-control)]'} disabled:opacity-60`}
         />
         <button
           type="button"

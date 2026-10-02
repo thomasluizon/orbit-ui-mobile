@@ -21,6 +21,7 @@ import { setAccountId } from '@/lib/account-scope'
 import { identifyPostHogUser, resetPostHogUser } from '@/lib/posthog'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
+const SESSION_RECOVERY_CHECK_LIMIT = 3
 let sessionRevalidationQueue: Promise<void> = Promise.resolve()
 let sessionRecoveryUser: User | null = null
 let loginsWaitingForLogout = 0
@@ -193,6 +194,11 @@ async function readCurrentSession(): Promise<SessionSnapshot> {
     : { kind: 'inactive' }
 }
 
+function getActiveSessionUser(accountId: string | null, user: User | null): User | null {
+  if (user && user.userId === accountId) return user
+  return sessionRecoveryUser && sessionRecoveryUser.userId === accountId ? sessionRecoveryUser : null
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   sessionInactive: false,
@@ -235,11 +241,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   confirmSessionRefreshFailure: () => queueSessionRevalidation(async (requestVersion) => {
     if (sessionReadVersion !== requestVersion) return
+    if (get().sessionRefreshFailed) return
     const session = await readCurrentSession()
     if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
-      const accountChanged = adoptSessionAccount(session.userId)
-      const user = accountChanged ? null : get().user ?? sessionRecoveryUser
+      adoptSessionAccount(session.userId)
+      const user = getActiveSessionUser(session.userId ?? getHeldAccountId(), get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -281,8 +288,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = await readCurrentSession()
     if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'active') {
-      const accountChanged = adoptSessionAccount(session.userId)
-      const user = accountChanged ? null : get().user ?? sessionRecoveryUser
+      adoptSessionAccount(session.userId)
+      const user = getActiveSessionUser(session.userId ?? getHeldAccountId(), get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -308,12 +315,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const session = await readCurrentSession()
     if (sessionReadVersion !== requestVersion) return
     if (session.kind === 'rejected') {
-      await get().confirmSessionRefreshFailure()
+      if (!get().sessionRefreshFailed) await get().confirmSessionRefreshFailure()
       return
     }
     if (session.kind === 'active') {
-      const accountChanged = adoptSessionAccount(session.userId)
-      const user = accountChanged ? null : get().user ?? sessionRecoveryUser
+      adoptSessionAccount(session.userId)
+      const user = getActiveSessionUser(session.userId ?? getHeldAccountId(), get().user)
       sessionRecoveryUser = null
       set({
         isAuthenticated: true,
@@ -342,14 +349,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   startExpiryMonitor: () => {
     void get().checkSession()
+    let remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT
 
     const stopAccountSignal = subscribeToAccountSignal((accountId) => {
       get().adoptAccountFromSignal(accountId)
     })
 
     const intervalId = setInterval(() => {
-      const { isAuthenticated, sessionInactive, sessionRefreshFailed } = get()
-      if (!isAuthenticated && sessionInactive && !sessionRefreshFailed) {
+      if (get().sessionRefreshFailed) {
+        if (remainingRecoveryChecks > 0) {
+          remainingRecoveryChecks -= 1
+          void get().recoverSessionRefreshFailure()
+        }
+        return
+      }
+      remainingRecoveryChecks = SESSION_RECOVERY_CHECK_LIMIT
+      const { isAuthenticated, sessionInactive } = get()
+      if (!isAuthenticated && sessionInactive) {
         return
       }
 

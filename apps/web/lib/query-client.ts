@@ -1,8 +1,9 @@
 import { extractBackendStatus } from '@orbit/shared/utils'
 import { QueryClient } from '@tanstack/react-query'
+import { configureAccountQueryDefaults } from '@orbit/shared/query'
 
 export function createQueryClient(): QueryClient {
-  return new QueryClient({
+  const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 5 * 60 * 1000,
@@ -21,6 +22,8 @@ export function createQueryClient(): QueryClient {
       },
     },
   })
+  configureAccountQueryDefaults(queryClient)
+  return queryClient
 }
 
 let browserQueryClient: QueryClient | undefined

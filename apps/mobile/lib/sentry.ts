@@ -44,6 +44,7 @@ export function initSentry(): void {
   Sentry.init({
     dsn,
     enabled: Boolean(dsn),
+    environment: process.env.EXPO_PUBLIC_SENTRY_ENVIRONMENT || 'production',
     sendDefaultPii: false,
     tracesSampleRate: 0,
     beforeSend: scrubEvent,

@@ -21,7 +21,7 @@ export async function openAccountEventStream(
   const response = await open(await getToken())
   if (response.status !== 401) return response
   const { refreshSessionToken } = await import('@/stores/auth-store')
-  const refreshedToken = await refreshSessionToken({ clearOnFailure: false })
+  const refreshedToken = await refreshSessionToken()
   if (!refreshedToken) return response
   return open(refreshedToken)
 }
