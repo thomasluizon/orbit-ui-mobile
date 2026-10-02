@@ -551,7 +551,7 @@ const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePrefe
 describe('ProfileScreen', () => {
   it('owns the drawn 16px top inset on the destination scroller', async () => {
     const tree = await renderProfileScreen()
-    const scroller = tree.root.findByType('ScrollView')
+    const scroller = tree.root.findByProps({ testID: 'profile-scroller' })
     expect(StyleSheet.flatten(scroller.props.contentContainerStyle)).toMatchObject({
       paddingTop: 16,
       paddingHorizontal: 16,
