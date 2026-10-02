@@ -1,3 +1,4 @@
+import { Calendar, Eye, FileText, MessageCircle } from '@/components/ui/icons'
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, domMax, LazyMotion, m, useReducedMotion } from 'motion/react'
@@ -28,6 +29,13 @@ interface PlanSelectionProps {
   onRetry: () => void
   t: ReturnType<typeof useTranslations>
 }
+
+const OUTCOMES = [
+  { key: 'astra', Icon: MessageCircle },
+  { key: 'calendar', Icon: Calendar },
+  { key: 'retrospective', Icon: FileText },
+  { key: 'noticing', Icon: Eye },
+] as const
 
 interface Tier {
   interval: SubscriptionInterval
@@ -190,19 +198,18 @@ export function PlanSelection({
     <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
       <div className="flex flex-col items-stretch gap-4">
         {intervalControl}
-        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
           {tiers.map((tier) => (
-            <TierReservation key={tier.interval} interval={tier.interval} t={t}>
-              <TierCard
-                tier={tier}
-                recommended={tier.interval === 'yearly'}
-                selected={tier.interval === selectedInterval}
-                loading={checkoutLoading === tier.interval}
-                disabled={checkoutPending || checkoutDisabled}
-                onCheckout={onCheckout}
-                t={t}
-              />
-            </TierReservation>
+            <TierCard
+              key={tier.interval}
+              tier={tier}
+              recommended={tier.interval === 'yearly'}
+              selected={tier.interval === selectedInterval}
+              loading={checkoutLoading === tier.interval}
+              disabled={checkoutPending || checkoutDisabled}
+              onCheckout={onCheckout}
+              t={t}
+            />
           ))}
         </div>
       </div>
@@ -270,6 +277,7 @@ function TierCard({
 }>) {
   return (
     <section
+      data-tier={tier.interval}
       data-selected={selected || undefined}
       className="flex min-w-0 flex-col gap-2 rounded-[var(--r-card)] p-6"
       style={{
@@ -279,7 +287,7 @@ function TierCard({
           : 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <div className="flex flex-1 flex-col gap-2">
+      <div className="flex flex-col gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h3>
           {recommended ? (
@@ -293,6 +301,12 @@ function TierCard({
         {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums" style={{ color: selected ? 'var(--fg-2)' : 'var(--fg-3)' }}>{tier.secondLine}</p> : null}
         {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
       </div>
+      <ul aria-label={t('upgrade.outcomes.label')} className="flex flex-col gap-3 py-2">
+        {OUTCOMES.map(({ key, Icon }) => <li key={key} className="flex items-start gap-3">
+          <span aria-hidden="true" className="text-[var(--fg-3)]"><Icon size={20} strokeWidth={1.5} /></span>
+          <p translate={key === 'astra' || key === 'noticing' ? 'no' : undefined} className="min-w-0 text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{t(`upgrade.outcomes.${key}`)}</p>
+        </li>)}
+      </ul>
       <div className="pt-2">
         <PillButton
           variant={selected ? 'primary' : 'ghost'}

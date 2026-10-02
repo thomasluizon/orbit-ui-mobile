@@ -63,7 +63,7 @@ describe('Onboarding final Pro step', () => {
     const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(end))
     expect(screen.getByText(translate('upgrade.billing.plan.trialHint', { date }))).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument(); expect(screen.getByText('50')).toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+    expect(screen.queryAllByRole('list', { name: translate('upgrade.outcomes.label') })).toHaveLength(0)
     expect(screen.getAllByRole('button')).toHaveLength(1)
     expect(view.container.querySelector('[data-tier-content]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: translate('onboarding.flow.done.seeDay') }))
@@ -79,6 +79,9 @@ describe('Onboarding final Pro step', () => {
     if (state === 'offline') for (const button of screen.getAllByRole('button', { name: /Subscribe/ })) expect(button).toBeDisabled()
     if (state === 'loaded') {
       expect(screen.getAllByRole('button', { name: /Subscribe/ })).toHaveLength(2)
+      const lists = screen.getAllByRole('list', { name: translate('upgrade.outcomes.label') })
+      expect(lists).toHaveLength(2)
+      for (const list of lists) { expect(list.closest('[data-tier]')).not.toBeNull(); expect(list.children).toHaveLength(4) }
       expect(screen.getAllByText(en.upgrade.plans.recommended).filter((element) => !element.closest('[inert]'))).toHaveLength(1)
       expect(screen.getAllByText(/42/).filter((element) => !element.closest('[inert]'))).toHaveLength(1)
     }

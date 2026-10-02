@@ -85,6 +85,16 @@ describe('Android final Pro step', () => {
     mocks.plansState = state === 'offline' ? 'loaded' : state; mocks.online = state !== 'offline'
     const { tree, finish } = await mount()
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'onboarding-step-paywall')).toHaveLength(1)
+    if (state === 'loaded') {
+      const outcomes = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLabel === translate('upgrade.outcomes.label'))
+      expect(outcomes).toHaveLength(2)
+      for (const interval of ['yearly', 'monthly']) {
+        const tier = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === `upgrade-tier-${interval}`)[0]!
+        for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+          expect(text(tier)).toContain(translate(`upgrade.outcomes.${key}`))
+        }
+      }
+    }
     const decline = action(tree.root, en.upgrade.convert.stayFree)
     expect(decline.props.disabled).toBe(false)
     if (state === 'offline') expect(all(tree.root, 'PillButton').every((button) => button.props.disabled)).toBe(true)
