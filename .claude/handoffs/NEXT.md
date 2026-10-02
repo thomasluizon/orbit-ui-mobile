@@ -9,6 +9,15 @@ This session is the nominated successor of a context relay: adopt the run with `
 
 `/sleep` is the only entry point. It enters `/orchestrate --sleep` itself; do not start `/orchestrate` separately.
 
+## Priority: the owner's mobile review, research first
+
+The owner reviewed Orbit Staging on his phone and found the redesign crowded and desktop-like. The spec's Batch R section "The owner's mobile review on his phone" lists every defect (screenshots in the brain vault at `0 Inbox/raw/orbit-mobile-review/`), and its new standing rule states the principle: a native mobile feel, less on each screen, sheets, menus, sub-menus, drawers, modals and toasts for secondary content, breathing room, padded hover and press fills, and no wrapped or ellipsized labels. Every fix lands on Android and web. This outranks everything below except merging pull requests that are already approved.
+
+1. Run a multi-agent research Workflow on UI and UX best practice, mobile design philosophy first (native Android and iOS patterns, progressive disclosure, sheets and menus instead of crowded screens, spacing rhythm, touch targets, label length, tab bars, composers). The owner asked for this Workflow and for sub-agents, which is the explicit opt-in. Use Codex for research as well, through a sanctioned path: the guardrail refuses a raw `codex exec`, so add a research-only launcher path (order in, findings to the scratchpad, no pull request) if none exists, as a harness fix first. Record the research result in the brain.
+2. Then run one `/questions` round with the owner on what the research changes (`DESIGN.md` rules, drawings, composer, navigation, where each moved control goes). The owner asked for this round even in a sleep run; it overrides the sleep skill's never-ask rule for this round only. Keep workers busy on unaffected tickets while it waits.
+3. Then correct `DESIGN.md` and the affected drawings to his answers, file one ticket per coherent defect, place each in Batch R, and fix every item in the review on both platforms.
+4. Then a full sweep of every screen and every component, every line of UI code on both platforms, against the corrected rules, fixing everything it finds, then rendered sweeps (phone, foldable, desktop) until a full pass finds nothing.
+
 ## First: the open pull requests and the half-built worker
 
 1. `ui#1500` (`#1126`, relay threshold after tool calls) at `57202c39`: Pullfrog requested changes. Read the threads with `node tools/list-bot-threads.mjs --pr 1500 --repo ui --wait-seconds 0 --no-request`, fix them as a review fix, run both harness suites, merge on the bar. Until it lands, measure the transcript before long work in a turn.
@@ -51,11 +60,12 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 8. Fix everything in the owner's latest review in this session.
 9. Do visible-window Chrome work (sweeps, Play Console, Google account steps) whether or not the owner is at the Mac or talking to the session; sleep mode lasts until he turns it off.
 10. The owner keeps finding buttons of different sizes in improvised alignments: `#1123` fixes the rule, the component default, every caller and the guards.
+12. The owner's mobile review (Priority section above) comes first: research Workflow with sub-agents and Codex, one `/questions` round, then `DESIGN.md` corrected and every screen swept and fixed on Android and web.
 11. On Orbit Staging's subscription screen, "Ver na Google Play" opens Play's page for the production app's subscription ("Não foi possível encontrar a assinatura de Orbit: AI Habit Tracker (Orbit Pro)"): the manage link must use the running app's package. File it and fix it in this run. The rest of the purchase flow works.
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the four open pull requests and `#1123` merged, `#961` closed, `#1127` and the Play manage-link defect delivered and merged, a staging release and internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff the board had 135 open tickets, all 135 placed in the spec's `## The order` (0 unplaced, 0 closed tickets leading a bullet, 0 placed twice as a bullet's leading ticket); the Play manage-link defect is not filed yet.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's mobile review (research, questions, `DESIGN.md` corrected, every defect fixed on both platforms), the four open pull requests and `#1123` merged, `#961` closed, `#1127` and the Play manage-link defect delivered and merged, a staging release and internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff the board had 135 open tickets, all 135 placed in the spec's `## The order` (0 unplaced, 0 closed tickets leading a bullet, 0 placed twice as a bullet's leading ticket); the Play manage-link defect is not filed yet.
 
 ## In flight
 
@@ -89,6 +99,7 @@ Workers launched by a session die when it ends: read each worktree before relaun
 
 ## Previous prompt, disposition
 
+- The owner's mobile review after the wrap-up: added as the Priority section and owner instruction 12.
 - Opening, entry point, sleep contract, authorization, relay paragraph and owner instructions 1 to 6 and 8 to 10: carried. Owner instruction 7 updated: the `#961` purchase is done. Owner instruction 11 added from the owner's report.
 - First 1 (`#1126`): done as `ui#1500`; its review is carried as First 1.
 - First 2 (`ui#1498`): done, merged as `496954c8` after the combined merge check with both harness suites.
