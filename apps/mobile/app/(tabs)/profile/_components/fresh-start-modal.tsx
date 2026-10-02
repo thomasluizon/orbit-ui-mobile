@@ -173,7 +173,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   function handleFreshStartComplete() {
     setShowFreshStartAnim(false)
     void resetAccountQueries(queryClient, 'signed-in')
-    router.replace('/')
+    router.replace('/(tabs)')
   }
 
   const deletedItems = buildFreshStartDeletedItems(t)

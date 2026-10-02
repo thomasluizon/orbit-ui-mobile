@@ -84,7 +84,7 @@ export function useTodayDate(closeSearch: () => void): TodayDate {
     setSlideDirection(selectedDate > new Date() ? "left" : "right");
     setActiveView("today");
     closeSearch();
-    router.navigate("/");
+    router.navigate("/(tabs)");
   }, [closeSearch, router, selectedDate, setActiveView]);
 
   useEffect(() => {

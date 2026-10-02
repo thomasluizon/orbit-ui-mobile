@@ -767,6 +767,15 @@ describe("CalendarSyncScreen", () => {
     );
     expect(doneRows).toHaveLength(1);
     expect(doneRows[0]!.props.accessory).toBe("none");
+    const goToHabits = tree.root.find(
+      (node: TestNode) =>
+        typeof node.props.onPress === "function" &&
+        node.props.children === "calendar.goToHabits",
+    );
+    await TestRenderer.act(() => {
+      (goToHabits.props.onPress as () => void)();
+    });
+    expect(mocks.router.replace).toHaveBeenCalledWith("/(tabs)");
     expect(
       tree.root.findAll(
         (node: TestNode & { type?: unknown }) =>

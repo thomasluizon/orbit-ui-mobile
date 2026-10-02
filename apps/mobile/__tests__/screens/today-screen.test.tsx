@@ -750,7 +750,7 @@ describe("TodayScreen", () => {
     expect(mockRouterPush).toHaveBeenCalledWith("/?date=2026-04-08");
   });
 
-  it("returns to today via the bare tabs index, clearing the date param", async () => {
+  it("returns to today via the explicit tabs index, clearing the date param", async () => {
     dateParamState.value = "2026-04-06";
 
     const tree = await renderTodayScreen();
@@ -761,7 +761,7 @@ describe("TodayScreen", () => {
       (dateNav.props.onGoToToday as () => void)();
     });
 
-    expect(mockRouterNavigate).toHaveBeenCalledWith("/");
+    expect(mockRouterNavigate).toHaveBeenCalledWith("/(tabs)");
   });
 
   it("renders today on the bare route and the pinned day on a date deep link", async () => {

@@ -27,7 +27,6 @@ const mocks = vi.hoisted(() => ({
   getStoredAuthReturnUrl: vi.fn(),
   isAuthReturnUrlAttemptCurrent: vi.fn(),
   clearStoredAuthReturnUrl: vi.fn(),
-  getSafeReturnUrl: vi.fn(),
   allowGoogleErrorLogin: vi.fn(),
 }))
 
@@ -54,12 +53,12 @@ vi.mock('@/stores/auth-store', async (importOriginal) => ({
   getSessionGeneration: mocks.getSessionGeneration,
   useAuthStore: (selector: (state: { login: typeof mocks.login }) => unknown) => selector({ login: mocks.login }),
 }))
-vi.mock('@/lib/auth-flow', () => ({
+vi.mock('@/lib/auth-flow', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-flow')>(),
   clearStoredReferralCode: mocks.clearStoredReferralCode,
   getStoredAuthReturnUrl: mocks.getStoredAuthReturnUrl,
   isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
   clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
-  getSafeReturnUrl: mocks.getSafeReturnUrl,
   getStoredReferralCode: mocks.getStoredReferralCode,
   markReferralApplied: mocks.markReferralApplied,
   createAuthReturnUrlAttempt: () => 1,
@@ -107,7 +106,6 @@ beforeEach(() => {
   mocks.getSessionGeneration.mockReturnValue({ epoch: 0, credentialVersion: 0 })
   mocks.getStoredReferralCode.mockResolvedValue(null)
   mocks.getStoredAuthReturnUrl.mockResolvedValue('/')
-  mocks.getSafeReturnUrl.mockReturnValue('/')
   mocks.login.mockResolvedValue(() => true)
   clearPendingGoogleAuthSession()
   markPendingGoogleAuthSession(0, 'verifier', 's')
@@ -139,7 +137,7 @@ it('exchanges the single-use Google code once when the callback screen mounts tw
   mocks.completeGoogleAuthFromUrl.mockResolvedValue(success)
   await mountCallbackScreens()
   await vi.waitFor(() => expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalled())
-  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/(tabs)'))
   expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
 })
 
@@ -148,7 +146,7 @@ it('a rejected duplicate exchange never sends a signed-in person back to login',
     .mockResolvedValueOnce(success)
     .mockRejectedValueOnce(new Error('Could not exchange Google sign-in code'))
   await mountCallbackScreens()
-  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/(tabs)'))
   expect(mocks.login).toHaveBeenCalledTimes(1)
   expect(mocks.replace).not.toHaveBeenCalledWith('/login?googleError=1')
   expect(mocks.allowGoogleErrorLogin).not.toHaveBeenCalled()
@@ -163,7 +161,7 @@ it('keeps a completed callback single flight when login clears pending credentia
   })
   mocks.completeGoogleAuthFromUrl.mockResolvedValue(success)
   await mountCallbackScreens()
-  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/'))
+  await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/(tabs)'))
   TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
   await mountCallbackScreens()
   expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
@@ -185,10 +183,10 @@ it.each(['logout', 'credential teardown'])('exits a callback revisit after real 
   mocks.completeGoogleAuthFromUrl.mockResolvedValue(success)
   await mountCallbackScreens()
   expect(auth.useAuthStore.getState().isAuthenticated).toBe(true)
-  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
   TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
   await mountCallbackScreens(1)
-  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
   expect(mocks.completeGoogleAuthFromUrl).toHaveBeenCalledTimes(1)
   TestRenderer.act(() => { renderers.splice(0).forEach((renderer) => renderer.unmount()) })
 
@@ -267,7 +265,7 @@ it.each([1, 2])('retries a failed exchange with %i callback screens kept mounted
   expect(mocks.login).toHaveBeenCalledExactlyOnceWith(success.token, success.refreshToken, {
     userId: success.userId, name: success.name, email: success.email,
   }, 0)
-  expect(mocks.replace).toHaveBeenLastCalledWith('/')
+  expect(mocks.replace).toHaveBeenLastCalledWith('/(tabs)')
   expect(mocks.allowGoogleErrorLogin).toHaveBeenCalledTimes(1)
 })
 
