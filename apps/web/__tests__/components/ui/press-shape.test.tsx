@@ -138,7 +138,7 @@ describe('interaction fill parity in Chromium', () => {
       drillReset: noop, refreshCurrent: async () => {}, getDrillChildren: () => [],
     }
     const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
-      <CalendarHeader monthLabel="April" year={2026} previousMonthLabel="Previous month" nextMonthLabel="Next month" currentMonthLabel="Current month" selectYearLabel="Select year" onPreviousMonth={noop} onNextMonth={noop} onCurrentMonth={noop} onSelectYear={noop} />
+      <CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={noop} onNextMonth={noop} onCurrentMonth={noop} onSelectMonth={noop} />
       <CalendarWeekNav weekLabel="Week" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={noop} onNextWeek={noop} onCurrentWeek={noop} />
       <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
         previousLabel="Previous day" todayLabel="Today" goToTodayLabel="Go to Today" nextLabel="Next day"

@@ -5,6 +5,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
 }))
 
 Element.prototype.scrollIntoView = vi.fn()
@@ -38,25 +39,24 @@ describe('Calendar shell helpers', () => {
 
     render(
       <CalendarHeader
-        monthLabel="April"
-        year={2026}
+        currentMonth={new Date(2026, 3, 1)}
+        todayKey="2026-04-08"
         previousMonthLabel="common.previousMonth"
         nextMonthLabel="common.nextMonth"
-        currentMonthLabel="calendar.goToCurrentMonth"
-        selectYearLabel="common.selectYear"
         onPreviousMonth={onPreviousMonth}
         onNextMonth={onNextMonth}
         onCurrentMonth={onCurrentMonth}
-        onSelectYear={onSelectYear}
+        onSelectMonth={onSelectYear}
       />,
     )
 
     expect(screen.getByText('April')).toBeInTheDocument()
-    expect(screen.getByLabelText('common.selectYear')).toHaveStyle({ color: 'var(--fg-3)', fontWeight: 400 })
+    expect(screen.queryByText('2026')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('common.previousMonth'))
     fireEvent.click(screen.getByLabelText('common.nextMonth'))
-    fireEvent.click(screen.getByLabelText('calendar.goToCurrentMonth'))
+    fireEvent.click(screen.getByLabelText('calendar.monthPicker'))
+    fireEvent.click(screen.getByText('calendar.thisMonth'))
 
     expect(onPreviousMonth).toHaveBeenCalledTimes(1)
     expect(onNextMonth).toHaveBeenCalledTimes(1)
@@ -65,24 +65,25 @@ describe('Calendar shell helpers', () => {
     expect(screen.queryByLabelText('common.previousYear')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('common.nextYear')).not.toBeInTheDocument()
 
+    fireEvent.click(screen.getByLabelText('calendar.monthPicker'))
     fireEvent.click(screen.getByLabelText('common.selectYear'))
     fireEvent.click(screen.getByRole('button', { name: '2030' }))
-    expect(onSelectYear).toHaveBeenCalledWith(2030)
+    expect(onSelectYear).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Apr' }))
+    expect(onSelectYear).toHaveBeenCalledWith(3, 2030)
   })
 
   it('keeps the selector in the header without month controls in other views', () => {
     render(
       <CalendarHeader
-        monthLabel="April"
-        year={2026}
+        currentMonth={new Date(2026, 3, 1)}
+        todayKey="2026-04-08"
         previousMonthLabel="Previous month"
         nextMonthLabel="Next month"
-        currentMonthLabel="Current month"
-        selectYearLabel="Select year"
         onPreviousMonth={vi.fn()}
         onNextMonth={vi.fn()}
         onCurrentMonth={vi.fn()}
-        onSelectYear={vi.fn()}
+        onSelectMonth={vi.fn()}
         showMonthNavigation={false}
         viewSelector={<div role="group" aria-label="Calendar views" />}
       />,
@@ -147,7 +148,7 @@ describe('Calendar shell helpers', () => {
     expect(document.querySelector('[data-legend-outcome="none"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--status-empty)' })
     expect(document.querySelector('[data-legend-outcome="loggable"]')).toHaveStyle({
       background: 'var(--bg-well)',
-      boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      boxShadow: 'inset 0 0 0 2px var(--fg-3)',
     })
   })
 })

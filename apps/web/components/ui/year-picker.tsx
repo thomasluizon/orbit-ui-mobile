@@ -30,7 +30,7 @@ export function YearPicker({
         className="grid"
         style={{
           gridTemplateColumns: 'repeat(3, 1fr)',
-          gridAutoRows: 44,
+          gridAutoRows: 'minmax(48px, auto)',
           columnGap: 4,
           rowGap: 4,
           padding: 4,
@@ -46,10 +46,10 @@ export function YearPicker({
               aria-pressed={isSelected}
               data-focus-on-primary={isSelected ? '' : undefined}
               onClick={() => onSelectYear(year)}
-              className={`h-11 w-full rounded-full appearance-none border-0 cursor-pointer p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] ${isSelected ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-transparent hover:bg-[var(--bg-hover)]'}`}
+              className={`min-h-12 w-full rounded-full appearance-none border-0 cursor-pointer p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] ${isSelected ? 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' : 'bg-[var(--bg-field)] hover:bg-[var(--bg-hover)]'}`}
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: 14,
+                fontSize: '0.875rem',
                 fontWeight: isSelected ? 700 : 500,
                 fontVariantNumeric: 'tabular-nums',
                 color: isSelected ? 'var(--fg-on-primary)' : 'var(--fg-1)',

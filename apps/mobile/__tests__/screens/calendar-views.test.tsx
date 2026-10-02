@@ -13,12 +13,15 @@ import {
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { Text, View } from "react-native";
 
+import { useUIStore } from '@/stores/ui-store';
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import { advanceAccountGeneration } from '@/lib/session-epoch';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+
+vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <View testID="notification-bell" /> }));
 
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
@@ -99,10 +102,7 @@ vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
   CalendarImportContent: (props: { reviewMode: boolean }) => React.createElement('CalendarImportContentMock', props),
 }));
 
-vi.mock("@/stores/ui-store", () => ({
-  useUIStore: (selector: (value: Record<string, unknown>) => unknown) =>
-    selector({ setShowCreateModal: state.setShowCreateModal, setCalendarHasError: state.setCalendarHasError }),
-}));
+
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -286,8 +286,16 @@ function hostTexts(tree: Tree): unknown[] {
     });
 }
 
+function toggleRecurring(tree: Tree) {
+  const options = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'calendar.options')[0]!;
+  TestRenderer.act(() => options.props.onPress());
+  const recurring = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')[0]!;
+  TestRenderer.act(() => recurring.props.onPress());
+}
+
 function pressView(tree: Tree, view: string) {
-  const segments = tree.root.findAll(
+  const header = tree.root.findAll((node) => typeof node.type === 'string' && node.type === 'FlatList').length ? renderMonthHeader(tree) : null;
+  const segments = (header ?? tree).root.findAll(
     (node) =>
       typeof node.type === "string" &&
       node.props.accessibilityRole === "radio" &&
@@ -298,6 +306,7 @@ function pressView(tree: Tree, view: string) {
   TestRenderer.act(() => {
     segments[0]!.props.onPress();
   });
+  if (header) TestRenderer.act(() => header.update(<></>));
 }
 
 function renderMonthHeader(tree: Tree): import("react-test-renderer").ReactTestRenderer {
@@ -368,6 +377,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   beforeEach(() => {
+    useUIStore.setState({ calendarShowRecurring: true, setCalendarHasError: state.setCalendarHasError });
     state.language = "en";
     state.routeParams = {};
     vi.useFakeTimers();
@@ -461,13 +471,14 @@ describe("CalendarScreen views (mobile)", () => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
 
-    const switchers = tree!.root.findAll(
+    const monthHeader = renderMonthHeader(tree!);
+    const switchers = monthHeader.root.findAll(
       (node) =>
         typeof node.type === "string" &&
         node.props.accessibilityRole === "radiogroup" &&
         node.props.accessibilityLabel === "calendar.view.switchLabel",
     );
-    const segments = tree!.root.findAll(
+    const segments = monthHeader.root.findAll(
       (node) =>
         typeof node.type === "string" && node.props.accessibilityRole === "radio",
     );
@@ -477,8 +488,8 @@ describe("CalendarScreen views (mobile)", () => {
     expect(
       segments.find(
         (segment) => segment.props.testID === "segment-month-selected-enabled",
-      )?.props.accessibilityState?.checked,
-    ).toBe(true);
+      )?.props.accessibilityState,
+    ).toMatchObject({ checked: true });
     expect(
       segments.some(
         (segment) => segment.props.testID === "segment-agenda-unselected-enabled",
@@ -967,7 +978,7 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(hostTexts(tree)).toContain('calendar.loadError');
     const retry = tree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.testID === 'button-ghost-sm',
     );
     expect(retry).toHaveLength(1);
     TestRenderer.act(() => { retry[0]!.props.onPress(); });
@@ -1027,16 +1038,14 @@ describe("CalendarScreen views (mobile)", () => {
           typeof node.type === "string" &&
           node.props.accessibilityRole === "switch",
       );
-      expect(switches.length).toBeGreaterThan(0);
-      TestRenderer.act(() => {
-        switches[0]!.props.onPress();
-      });
+      expect(switches).toHaveLength(0);
+      toggleRecurring(tree);
 
       expect(hostTexts(tree)).not.toContain("Recurring");
       expect(hostTexts(tree)).toContain("OneTime");
 
       pressView(tree, "agenda");
-      expect(hostTexts(tree)).toContain("Recurring");
+      expect(hostTexts(tree)).not.toContain("Recurring");
       expect(hostTexts(tree)).toContain("OneTime");
     } finally {
       TestRenderer.act(() => tree.update(<></>));
@@ -1067,7 +1076,7 @@ describe("CalendarScreen views (mobile)", () => {
     const switches = headerTree.root.findAll(
       (node) => typeof node.type === "string" && node.props.accessibilityRole === "switch",
     );
-    expect(switches).toHaveLength(1);
+    expect(switches).toHaveLength(0);
 
     let initialFooterTree!: Tree;
     TestRenderer.act(() => {
@@ -1077,9 +1086,7 @@ describe("CalendarScreen views (mobile)", () => {
       (node) => typeof node.type === "string" && node.props.testID === "calendar-stats",
     )).toHaveLength(1);
 
-    TestRenderer.act(() => {
-      (switches[0]!.props as { onPress: () => void }).onPress();
-    });
+    toggleRecurring(tree!);
 
     const updatedFlatList = tree!.root.findAll(
       (node) => typeof node.type === "string" && node.type === "FlatList",
@@ -1344,7 +1351,7 @@ describe("CalendarScreen views (mobile)", () => {
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
     const header = renderMonthHeader(tree);
-    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-header-group')).toHaveLength(1);
+    expect(header.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-header-group')).toHaveLength(1);
     expect(header.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-detail')).toHaveLength(1);
 
     const selected = '2026-09-10';
@@ -1431,7 +1438,7 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(headerTree.root.findAll(
       (node) => typeof node.type === "string" && node.props.testID === "calendar-legend",
-    )).toHaveLength(1);
+    )).toHaveLength(0);
     expect(calendarGridProps.stats?.state).toBe("default");
   });
 
@@ -1453,7 +1460,7 @@ describe("CalendarScreen views (mobile)", () => {
     const retryButtons = tree!.root.findAll(
       (node) =>
         typeof node.type === "string" &&
-        node.props.accessibilityRole === "button",
+        node.props.accessibilityRole === "button" && node.props.testID === "button-ghost-sm",
     );
     expect(retryButtons).toHaveLength(1);
     TestRenderer.act(() => {

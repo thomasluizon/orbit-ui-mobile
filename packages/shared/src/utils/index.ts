@@ -63,6 +63,8 @@ export {
 export { buildCalendarMonthModel, deriveCalendarStats, calendarMonthForDay } from './calendar-month'
 export {
   CALENDAR_MONTH_GRID_GEOMETRY,
+  formatCalendarMonthHeading,
+  formatCalendarWeekLabel,
   resolveCalendarMonthDisplayState,
   type CalendarMonthDisplayState,
 } from './calendar-month-state'

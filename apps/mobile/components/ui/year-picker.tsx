@@ -7,7 +7,7 @@ import { createTokensV2 } from '@/lib/theme'
 type Tokens = ReturnType<typeof createTokensV2>
 
 const COLUMNS = 3
-const ROW_HEIGHT = 48
+const ROW_HEIGHT = 52
 const ROW_GAP = 4
 const GRID_PADDING = 4
 
@@ -68,7 +68,7 @@ export function YearPicker({
             accessibilityLabel={String(year)}
             style={({ pressed }) => [
               styles.yearCell,
-              isSelected ? { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary } : null,
+              { backgroundColor: isSelected ? (pressed ? tokens.primaryPressed : tokens.primary) : tokens.bgField },
               pressed && !isSelected ? { backgroundColor: tokens.bgHover } : null,
               pressed ? styles.yearCellPressed : null,
             ]}
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   yearCell: {
     width: `${100 / COLUMNS}%`,
-    height: ROW_HEIGHT - ROW_GAP,
+    minHeight: ROW_HEIGHT - ROW_GAP,
     marginBottom: ROW_GAP,
     alignItems: 'center',
     justifyContent: 'center',

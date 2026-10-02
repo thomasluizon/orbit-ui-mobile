@@ -1,11 +1,12 @@
 import { expectPressFill } from '../support/press-feedback';
 import React from "react";
 import { __setWindowDimensions } from "@/test-mocks/react-native";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import en from "@orbit/shared/i18n/en.json";
 import ptBR from "@orbit/shared/i18n/pt-BR.json";
 
+import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-options';
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Sheet } from "@/components/ui/sheet";
 import { createTokensV2 } from "@/lib/theme";
@@ -19,6 +20,8 @@ import {
   CalendarStats,
   type CalendarStat,
 } from "@/app/(tabs)/calendar/_components/calendar-stats";
+
+vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <View testID="notification-bell" /> }));
 
 const TestRenderer = require("react-test-renderer");
 
@@ -55,7 +58,8 @@ vi.mock("@lodev09/react-native-true-sheet", () => ({
 }));
 
 beforeEach(() => {
-  useUIStore.setState({ openOverlayIds: [] });
+  __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 });
+  useUIStore.setState({ openOverlayIds: [], calendarShowRecurring: true });
   nativeSheet.present.mockClear();
   nativeSheet.dismiss.mockReset().mockResolvedValue(undefined);
 });
@@ -115,204 +119,69 @@ function exercisePressCallbacks(tree: Tree) {
   }
 }
 
-describe("CalendarHeader year navigation (mobile)", () => {
-  it("keeps the selector in the header without month controls in other views", () => {
-    const tokens = createTokensV2("purple", "dark");
-    let tree: Tree;
+describe("CalendarHeader month and year navigation (mobile)", () => {
+  const tokens = createTokensV2("purple", "dark");
+  function renderHeader(onSelectMonth = vi.fn(), onCurrentMonth = vi.fn(), showMonthNavigation = true) {
+    let tree!: Tree;
     TestRenderer.act(() => {
-      tree = mount(
-        <CalendarHeader
-          monthLabel="April"
-          year={2026}
-          previousMonthLabel="Previous month"
-          nextMonthLabel="Next month"
-          currentMonthLabel="Current month"
-          selectYearLabel="Select year"
-          onPreviousMonth={vi.fn()}
-          onNextMonth={vi.fn()}
-          onCurrentMonth={vi.fn()}
-          onSelectYear={vi.fn()}
-          showMonthNavigation={false}
-          viewSelector={React.createElement("View", { testID: "calendar-view-selector" })}
-          tokens={tokens}
-        />,
-      );
+      tree = mount(<CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08"
+        previousMonthLabel="Previous month" nextMonthLabel="Next month"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={onCurrentMonth}
+        onSelectMonth={onSelectMonth} tokens={tokens} showMonthNavigation={showMonthNavigation}
+        viewSelector={<View testID="calendar-view-selector" />} />);
     });
-
-    const header = tree!.root.findAll((node) => node.props.testID === "calendar-header-group")[0] as TestNode & {
-      findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
-    };
-    expect(header.findAll((node) => node.props.testID === "calendar-view-selector")).toHaveLength(1);
-    expect(tree!.root.findAll((node) => node.props.accessibilityLabel === "Previous month")).toHaveLength(0);
-    expect(tree!.root.findAll((node) => node.props.accessibilityLabel === "Next month")).toHaveLength(0);
-    expect(tree!.root.findAll((node) => node.props.accessibilityLabel === "Select year")).toHaveLength(0);
-  });
-
-  it.each([412, 1352])("renders the month and year with their drawn sizes at %ipx", (width) => {
-    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
-    const onPreviousMonth = vi.fn();
-    const onNextMonth = vi.fn();
-    const onCurrentMonth = vi.fn();
-    const onSelectYear = vi.fn();
-    const tokens = createTokensV2("purple", "dark");
-
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = mount(
-        <CalendarHeader
-          monthLabel="April"
-          year={2026}
-          previousMonthLabel="Previous month"
-          nextMonthLabel="Next month"
-          currentMonthLabel="Go to current month"
-          selectYearLabel="Select year"
-          onPreviousMonth={onPreviousMonth}
-          onNextMonth={onNextMonth}
-          onCurrentMonth={onCurrentMonth}
-          onSelectYear={onSelectYear}
-          tokens={tokens}
-        />,
-      );
-    });
-
-    const texts = hostTextValues(tree!);
-    expect(texts).toContain("April");
-    expect(texts).toContain(2026);
-    const month = tree!.root.findAll((node) => node.type === "Text" && node.props.children === "April")[0]!;
-    expect(StyleSheet.flatten(month.props.style).fontSize).toBe(28);
-    const year = tree!.root.findAll((node) => node.type === "Text" && node.props.children === 2026)[0]!;
-    expect(StyleSheet.flatten(year.props.style)).toMatchObject({ fontSize: width >= 1024 ? 14 : 12, color: tokens.fg3, fontFamily: 'GeistMono_400Regular' });
-
-    for (const label of ['Previous month', 'Next month', 'Go to current month', 'Select year']) expectPressFill(tree!, label, tokens.bgHover, 999);
-
-    pressByAccessibilityLabel(tree!, "Previous month");
-    pressByAccessibilityLabel(tree!, "Next month");
-    pressByAccessibilityLabel(tree!, "Go to current month");
-    expect(onPreviousMonth).toHaveBeenCalledTimes(1);
-    expect(onNextMonth).toHaveBeenCalledTimes(1);
-    expect(onCurrentMonth).toHaveBeenCalledTimes(1);
-
-    const yearArrows = tree!.root.findAll(
-      (node) =>
-        typeof node.type === "string" &&
-        (node.props.accessibilityLabel === "Previous year" ||
-          node.props.accessibilityLabel === "Next year"),
-    );
-    expect(yearArrows).toHaveLength(0);
-  });
-
-  it("opens the year picker and reports the chosen year", () => {
-    const onSelectYear = vi.fn();
-    const tokens = createTokensV2("purple", "dark");
-
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = mount(
-        <CalendarHeader
-          monthLabel="April"
-          year={2026}
-          previousMonthLabel="Previous month"
-          nextMonthLabel="Next month"
-          currentMonthLabel="Go to current month"
-          selectYearLabel="Select year"
-          onPreviousMonth={vi.fn()}
-          onNextMonth={vi.fn()}
-          onCurrentMonth={vi.fn()}
-          onSelectYear={onSelectYear}
-          tokens={tokens}
-        />,
-      );
-    });
-
-    pressByAccessibilityLabel(tree!, "Select year");
-    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
-
-    expect(tree!.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
-    pressByAccessibilityLabel(tree!, "2030");
-    expect(nativeSheet.dismiss).toHaveBeenCalledOnce();
-    expect(onSelectYear).not.toHaveBeenCalled();
-    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
-    expect(tree!.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
-    finishNativeDismissal(tree!);
-    expect(onSelectYear).toHaveBeenCalledWith(2030);
-    expect(useUIStore.getState().openOverlayIds).toHaveLength(0);
-  });
-});
-
-describe("CalendarHeader year sheet dismissal (mobile)", () => {
-  function renderHeader(onSelectYear = vi.fn()) {
-    const tokens = createTokensV2("purple", "dark");
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = mount(
-        <CalendarHeader
-          monthLabel="April"
-          year={2026}
-          previousMonthLabel="Previous month"
-          nextMonthLabel="Next month"
-          currentMonthLabel="Go to current month"
-          selectYearLabel="Select year"
-          onPreviousMonth={vi.fn()}
-          onNextMonth={vi.fn()}
-          onCurrentMonth={vi.fn()}
-          onSelectYear={onSelectYear}
-          tokens={tokens}
-        />,
-      );
-    });
-    return tree!;
+    return tree;
   }
 
-  it("opens the shared sheet with one scroll owner and closes after native dismissal", () => {
-    const onSelectYear = vi.fn();
-    const tree = renderHeader(onSelectYear);
-    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
-    pressByAccessibilityLabel(tree, "Select year");
-
-    const sheet = tree.root.findAll((node) => node.type === Sheet)[0]!;
-    expect(sheet.props.title).toBe("Select year");
-    expect(nativeSheet.present).toHaveBeenCalledOnce();
-    expect(tree.root.findAll((node) => node.type === "Modal")).toHaveLength(0);
-    expect(tree.root.findAll((node) => node.type === "ScrollView")).toHaveLength(1);
-    expect(tree.root.findAll((node) => node.props.testID === "sheet-body-scroll")).toHaveLength(0);
-
-    pressByAccessibilityLabel(tree, "common.close");
-    expect(nativeSheet.dismiss).toHaveBeenCalledOnce();
-    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
-    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
-    finishNativeDismissal(tree);
-    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
-    expect(useUIStore.getState().openOverlayIds).toHaveLength(0);
-    expect(onSelectYear).not.toHaveBeenCalled();
-
-    pressByAccessibilityLabel(tree, "Select year");
-    finishNativeDismissal(tree);
-    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
-    expect(onSelectYear).not.toHaveBeenCalled();
-    exercisePressCallbacks(tree);
+  it("removes the month navigation row in the other views", () => {
+    const tree = renderHeader(vi.fn(), vi.fn(), false);
+    expect(tree.root.findAll((node) => node.props.testID === "calendar-month-navigation")).toHaveLength(0);
+    expect(tree.root.findAll((node) => typeof node.type === "string" && node.props.testID === "calendar-view-selector")).toHaveLength(1);
   });
 
-  it("keeps the picker and selected year when native dismissal rejects", async () => {
-    const onSelectYear = vi.fn();
-    const tree = renderHeader(onSelectYear);
-    pressByAccessibilityLabel(tree, "Select year");
-    nativeSheet.dismiss.mockRejectedValueOnce(new Error("Dismissal rejected"));
-    await TestRenderer.act(async () => {
-      pressByAccessibilityLabel(tree, "2030");
-      await Promise.resolve();
-    });
-    expect(nativeSheet.dismiss).toHaveBeenCalledOnce();
-    expect(onSelectYear).not.toHaveBeenCalled();
-    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
-    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
+  it.each([320, 412, 1352])("keeps one month control at %ipx with a padded 48 target", (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
+    const tree = renderHeader();
+    expect(hostTextValues(tree).flat()).toContain("April");
+    expect(hostTextValues(tree)).not.toContain(2026);
+    const title = tree.root.findAll((node) => node.type === "Text" && Array.isArray(node.props.children) && node.props.children[0] === "April")[0];
+    expect(StyleSheet.flatten(title?.props.style).fontSize).toBe(22);
+    for (const label of ['Previous month', 'Next month', 'calendar.monthPicker']) expectPressFill(tree, label, tokens.bgHover, 999);
+  });
 
-    await TestRenderer.act(async () => {
-      pressByAccessibilityLabel(tree, "2030");
-      await Promise.resolve();
-    });
+  it("keeps year browsing local and reports a chosen month after native dismissal", () => {
+    const onSelectMonth = vi.fn();
+    const tree = renderHeader(onSelectMonth);
+    pressByAccessibilityLabel(tree, "calendar.monthPicker");
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(1);
+    pressByAccessibilityLabel(tree, "common.selectYear");
+    expect(tree.root.findAll((node) => node.type === "ScrollView")).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.props.testID === "sheet-body-scroll")).toHaveLength(0);
+    pressByAccessibilityLabel(tree, "2030");
+    expect(onSelectMonth).not.toHaveBeenCalled();
+    pressByAccessibilityLabel(tree, "April");
+    expect(nativeSheet.dismiss).toHaveBeenCalledOnce();
+    expect(onSelectMonth).not.toHaveBeenCalled();
     finishNativeDismissal(tree);
-    expect(onSelectYear).toHaveBeenCalledExactlyOnceWith(2030);
-    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(0);
+    expect(onSelectMonth).toHaveBeenCalledWith(3, 2030);
+    expect(useUIStore.getState().openOverlayIds).toHaveLength(0);
+  });
+
+  it("preserves the date on cancellation and recovers from rejected dismissal", async () => {
+    const onSelectMonth = vi.fn();
+    const tree = renderHeader(onSelectMonth);
+    pressByAccessibilityLabel(tree, "calendar.monthPicker");
+    pressByAccessibilityLabel(tree, "common.close");
+    finishNativeDismissal(tree);
+    expect(onSelectMonth).not.toHaveBeenCalled();
+    pressByAccessibilityLabel(tree, "calendar.monthPicker");
+    nativeSheet.dismiss.mockRejectedValueOnce(new Error("Dismissal rejected"));
+    await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
+    expect(onSelectMonth).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
+    await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
+    finishNativeDismissal(tree);
+    expect(onSelectMonth).toHaveBeenCalledExactlyOnceWith(3, 2026);
   });
 });
 
@@ -409,8 +278,8 @@ describe("CalendarLegend (mobile)", () => {
     )[0];
     expect(StyleSheet.flatten(loggableMark?.props.style)).toMatchObject({
       backgroundColor: tokens.bgWell,
-      borderColor: tokens.hairline,
-      borderWidth: 1,
+      borderColor: tokens.fg3,
+      borderWidth: 2,
     });
   });
 });
@@ -461,5 +330,27 @@ describe("CalendarStats (mobile)", () => {
       .toEqual(StyleSheet.flatten(row(loadedTree!).props.style));
     expect(row(loadingTree!).props.children).toHaveLength(3);
     expect(row(loadedTree!).props.children).toHaveLength(3);
+  });
+});
+
+describe('Calendar options (mobile)', () => {
+  it('closes the menu before changing the filter or opening the legend', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={createTokensV2('purple', 'dark')} onGoogleCalendar={vi.fn()} />); });
+    expect(hostTextValues(tree)).not.toContain('calendar.legend.loggable');
+    pressByAccessibilityLabel(tree, 'calendar.options');
+    const recurring = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')[0]!;
+    expect(recurring.props.accessibilityState.checked).toBe(true);
+    TestRenderer.act(() => recurring.props.onPress());
+    expect(useUIStore.getState().calendarShowRecurring).toBe(true);
+    finishNativeDismissal(tree);
+    expect(useUIStore.getState().calendarShowRecurring).toBe(false);
+    pressByAccessibilityLabel(tree, 'calendar.options');
+    const legend = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem' && node.props.children.some((child: React.ReactElement<{ children?: React.ReactNode }> | null) => child?.props.children === 'calendar.legendTitle'))[0]!;
+    TestRenderer.act(() => legend.props.onPress());
+    expect(hostTextValues(tree)).not.toContain('calendar.legend.loggable');
+    finishNativeDismissal(tree);
+    expect(hostTextValues(tree)).toContain('calendar.legend.loggable');
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
   });
 });

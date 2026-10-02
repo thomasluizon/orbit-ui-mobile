@@ -12,7 +12,6 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
-import { ShowRecurringToggle } from './show-recurring-toggle'
 
 interface CalendarRangeViewProps {
   model: CalendarRangeModel
@@ -26,9 +25,6 @@ interface CalendarRangeViewProps {
   isLoading: boolean
   loadingLabel: string
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
-  showRecurring: boolean
-  onShowRecurringChange: (value: boolean) => void
-  showRecurringLabel: string
   language: string
   t: TFunction
   tokens: AppTokensV2
@@ -47,9 +43,6 @@ export function CalendarRangeView({
   isLoading,
   loadingLabel,
   stats,
-  showRecurring,
-  onShowRecurringChange,
-  showRecurringLabel,
   language,
   t,
   tokens,
@@ -96,14 +89,6 @@ export function CalendarRangeView({
           <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
         </PillButton>
       </ActionRow></View>
-      <View style={styles.toggleRow}>
-        <ShowRecurringToggle
-          checked={showRecurring}
-          onChange={onShowRecurringChange}
-          label={showRecurringLabel}
-          tokens={tokens}
-        />
-      </View>
       {isLoading ? (
         <>
           <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
@@ -146,7 +131,7 @@ export function CalendarRangeView({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 16, paddingHorizontal: 4, paddingTop: 12 },
+  container: { gap: 16, paddingHorizontal: 16, paddingTop: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rangeLabel: {
     flex: 1,
@@ -155,6 +140,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
-  toggleRow: { alignItems: 'flex-end', paddingHorizontal: 12 },
   daySlot: { width: 44, height: 44 },
 })

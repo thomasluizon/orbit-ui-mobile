@@ -11,7 +11,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
-import { ShowRecurringToggle } from './show-recurring-toggle'
 
 interface CalendarRangeViewProps {
   model: CalendarRangeModel
@@ -25,8 +24,6 @@ interface CalendarRangeViewProps {
   isLoading: boolean
   loadingLabel: string
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
-  showRecurring: boolean
-  onShowRecurringChange: (value: boolean) => void
 }
 
 /** A fixed fourteen-day, read-only orientation view with span-level figures. */
@@ -42,8 +39,6 @@ export function CalendarRangeView({
   isLoading,
   loadingLabel,
   stats,
-  showRecurring,
-  onShowRecurringChange,
 }: Readonly<CalendarRangeViewProps>) {
   const t = useTranslations()
   const { displayWeekdayDate } = useDateFormat()
@@ -63,7 +58,7 @@ export function CalendarRangeView({
       aria-label={rangeLabel}
       aria-busy={isLoading}
       className="flex flex-col"
-      style={{ gap: 16, maxWidth: 420, padding: '12px 4px 24px' }}
+      style={{ gap: 16, maxWidth: 420, padding: '12px 16px 24px' }}
     >
       <div className="flex items-center" style={{ gap: 8 }}><ActionRow>
         <p
@@ -97,9 +92,6 @@ export function CalendarRangeView({
           <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
         </PillButton>
       </ActionRow></div>
-      <div className="flex justify-end" style={{ padding: '0 12px' }}>
-        <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
-      </div>
       {isLoading ? (
         <>
           <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>

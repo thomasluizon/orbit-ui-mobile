@@ -1017,7 +1017,12 @@
       "resisted": "resistiu"
     },
     "completionHistory": "Histórico de Conclusão",
-    "showRecurring": "Mostrar hábitos que se repetem",
+    "showRecurring": "Hábitos que se repetem",
+    "googleCalendar": "Google Calendar",
+    "options": "Opções do calendário",
+    "monthPicker": "Mês e ano",
+    "thisMonth": "Este mês",
+    "legendTitle": "Legenda",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
     "profileHint": "Importe eventos como hábitos",

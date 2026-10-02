@@ -79,8 +79,8 @@ describe('Menu (mobile)', () => {
     })
     const rows = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.props.accessibilityState.checked).toBe(checked)
-    await TestRenderer.act(() => tree.unmount())
+    expect(rows[0]!.props.accessibilityState).toEqual({ disabled: false, checked })
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('matches menu icon stroke to medium-weight labels', async () => {
@@ -90,7 +90,7 @@ describe('Menu (mobile)', () => {
       await Promise.resolve()
     })
     expect(tree.root.findByType(Checkbox).props.strokeWidth).toBe(2)
-    await TestRenderer.act(() => tree.unmount())
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('uses a sheet at 412 and keeps the destructive item last', async () => {
@@ -107,7 +107,7 @@ describe('Menu (mobile)', () => {
     const sheet = tree.root.findAll((node: any) => node.type?.name === 'TrueSheet')[0]
     if (!sheet) throw new Error('Sheet presentation did not render its native backdrop')
     expect(sheet.props.dimmed).toBe(true)
-    await TestRenderer.act(() => tree.unmount())
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('uses the anchored presentation when explicitly selected and reports one id', async () => {
@@ -150,7 +150,7 @@ describe('Menu (mobile)', () => {
     ))[0]
     if (!catcher) throw new Error('Anchored menu catcher did not render')
     expect(StyleSheet.flatten(catcher.props.style).backgroundColor).toBe('transparent')
-    await TestRenderer.act(() => tree.unmount())
+    await TestRenderer.act(() => tree.update(<></>))
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
 })
