@@ -1,7 +1,11 @@
+/** Compact padding 16, value 22/600 tabular, label 14/20 on one line without clamp or word break.
+ * Keep only as many columns as fit whole labels at 320 in both locales, at most three. Long values
+ * use a short form or become a list row. Prefer plain figures when the values are not separate objects.
+ * At 200% text, grow or restructure the layout without shrinking, wrapping or clipping labels. */
 /** Stat tile: Space Grotesk tabular numeral over a quiet label. Ships its full state set, so a screen
  *  never swaps a tile row out for a hand-built loading version.
  *  States: default · loading (a skeleton SHAPED LIKE THE TILE that holds its exact dimensions - same
- *  padding, a 24px value block and a label-height bar - so nothing reflows when the figure arrives; never
+ *  padding, a 22px value block and a label-height bar - so nothing reflows when the figure arrives; never
  *  a spinner) · empty (the figure has no data yet: the value slot says so in mono --fg-4 and the label
  *  dims one step. A tile with no data NEVER renders a 0, which reads as a real measurement) · a tile has
  *  no hover, focus, active or disabled state: it is not interactive, and a stat that can be opened is a

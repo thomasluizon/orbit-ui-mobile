@@ -1,3 +1,7 @@
+/** Minimum height 52 for one line, 68 for two; rows grow at larger text sizes.
+ * Product titles and supporting labels stay on one line. Move a value below when it cannot fit beside
+ * the title. Typed or Google-provided text gets the full width, wraps to at most two lines, then ends
+ * in an ellipsis with full text one tap away. In a group every row has a leading icon or none does. */
 /** General list row: 24 icon in a 28px slot, title 17/400, description 14 in --fg-3, mono value, trailing
  *  24 chevron in --fg-4. Draws NO rule of its own; separation is the container's job. The row body is one
  *  button; `action` (when present) and the chevron are its siblings, so a control never nests in a button. */
