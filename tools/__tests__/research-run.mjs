@@ -107,6 +107,8 @@ export const cases = async () => {
   T("research: the configured Claude engine returns findings through stdout", claudeResult.status === 0 && discardLog(claudeResult).engine === "claude")
   const claudeObserved = JSON.parse(readFileSync(claude.output, "utf8"))
   T("research: Claude has only web tools and no bypass or inherited settings", claudeObserved.args[claudeObserved.args.indexOf("--tools") + 1] === "WebSearch,WebFetch" && claudeObserved.args.includes("dontAsk") && !claudeObserved.args.includes("bypassPermissions"))
+  const allowedAt = claudeObserved.args.indexOf("--allowedTools")
+  T("research: Claude pre-approves exactly the two web tools", allowedAt > 0 && JSON.stringify(claudeObserved.args.slice(allowedAt + 1, allowedAt + 3)) === JSON.stringify(["WebSearch", "WebFetch"]) && claudeObserved.args[allowedAt + 3].startsWith("--") && !claudeObserved.args.some((arg) => /^(Bash|Edit|Write|Read|Agent|mcp__)/.test(arg)))
 
   const marker = stage("research/wake-marker-parent/marker", "")
   rmSync(marker)

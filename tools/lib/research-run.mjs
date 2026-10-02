@@ -54,7 +54,8 @@ export const researchInvocation = (engineName, invocation, reportFile) => {
   if (engineName === "claude") {
     return [
       "-p", "--output-format", "text", "--strict-mcp-config", "--setting-sources", "",
-      "--permission-mode", "dontAsk", "--tools", "WebSearch,WebFetch",
+      // --tools makes the web tools available; dontAsk denies every unlisted call, so --allowedTools approves exactly these two.
+      "--permission-mode", "dontAsk", "--tools", "WebSearch,WebFetch", "--allowedTools", "WebSearch", "WebFetch",
       "--disable-slash-commands", "--no-session-persistence", "--model", invocation.model,
     ]
   }
