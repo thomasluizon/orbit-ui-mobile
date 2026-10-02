@@ -34,4 +34,3 @@ export function CalendarOptions({ tokens, onGoogleCalendar }: Readonly<{ tokens:
     </Sheet> : null}
   </>
 }
-

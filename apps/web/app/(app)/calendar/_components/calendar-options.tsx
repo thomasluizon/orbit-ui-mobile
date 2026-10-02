@@ -38,4 +38,3 @@ export function CalendarOptions({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
   const hosted = useShellHeaderSlot(renderHeader, 'calendar')
   return hosted ? null : renderHeader()
 }
-
