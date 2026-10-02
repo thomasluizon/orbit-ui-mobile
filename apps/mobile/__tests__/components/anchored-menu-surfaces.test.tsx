@@ -1,5 +1,5 @@
 import React from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { TodayDateControl } from '@/components/today/today-date-control'
@@ -10,7 +10,7 @@ import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
 interface RenderedNode {
-  props: { accessibilityLabel?: string; open?: boolean; items: { id: string }[]; onPress: () => void; onClose: () => void; onDidDismiss: () => void }
+  props: { accessibilityLabel?: string; open?: boolean; items: { id: string }[]; onPress: () => void; onClose: () => void; onDidDismiss: () => void; onRequestClose: () => void }
   findAllByType: (type: string | typeof Menu | typeof TrueSheet) => RenderedNode[]
 }
 interface RenderedTree {
@@ -22,11 +22,13 @@ interface RenderedTree {
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark' }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+const nativeDismiss = vi.hoisted(() => vi.fn(() => Promise.resolve()))
+beforeEach(() => nativeDismiss.mockClear())
 vi.unmock('@/components/ui/sheet')
 vi.mock('@lodev09/react-native-true-sheet', () => ({
   TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
     present = vi.fn(() => Promise.resolve())
-    dismiss = vi.fn(() => Promise.resolve())
+    dismiss = nativeDismiss
     render() { return <>{this.props.header}{this.props.children}{this.props.footer}</> }
   },
 }))
@@ -51,7 +53,7 @@ function openMenus(tree: RenderedTree): RenderedNode[] {
 }
 
 const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
-  (['open', 'dismissed', 'reopened'] as const).map((phase) => ({ presentation, phase })))
+  (['open', 'exiting', 'reopened'] as const).map((phase) => ({ presentation, phase })))
 
 describe('redesign menu ownership on Android', () => {
   it.each(cases)('replaces the $phase $presentation controls menu with a row and back', async ({ presentation, phase }) => {
@@ -61,18 +63,28 @@ describe('redesign menu ownership on Android', () => {
       <TodayControls />
       <HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} />
     </>) as unknown as RenderedTree })
+    const pendingDismissals: (() => void)[] = []
     const prepare = async (label: string) => {
       await TestRenderer.act(() => trigger(tree, label).props.onPress())
       expect(openMenus(tree)).toHaveLength(1)
       if (phase === 'open') return
-      await TestRenderer.act(() => openMenus(tree)[0]!.props.onClose())
-      expect(openMenus(tree)).toHaveLength(0)
+      if (presentation === 'sheet') {
+        const complete = tree.root.findAllByType(TrueSheet)[0]!.props.onDidDismiss
+        pendingDismissals.push(complete)
+        await TestRenderer.act(() => trigger(tree, 'common.close').props.onPress())
+        expect(nativeDismiss).toHaveBeenCalled()
+        expect(openMenus(tree)).toHaveLength(1)
+        if (phase === 'reopened') await TestRenderer.act(() => complete())
+      } else {
+        await TestRenderer.act(() => tree.root.findAllByType('Modal')[0]!.props.onRequestClose())
+        expect(openMenus(tree)).toHaveLength(0)
+      }
       if (phase === 'reopened') await TestRenderer.act(() => trigger(tree, label).props.onPress())
     }
     try {
       await prepare('List options')
       await prepare('habits.actions.more')
-      if (phase !== 'dismissed') {
+      if (phase !== 'exiting') {
         expect(openMenus(tree)).toHaveLength(1)
         expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toEqual(['edit'])
       }
@@ -81,6 +93,9 @@ describe('redesign menu ownership on Android', () => {
       expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toContain('select')
       expect(JSON.stringify(tree.toJSON())).not.toContain('common.edit')
       expect(tree.root.findAllByType('Modal')).toHaveLength(presentation === 'anchored' ? 1 : 0)
+      for (const complete of pendingDismissals) await TestRenderer.act(() => complete())
+      expect(openMenus(tree)).toHaveLength(1)
+      expect(openMenus(tree)[0]!.props.items.map((item: { id: string }) => item.id)).toContain('select')
     } finally {
       await TestRenderer.act(() => tree.unmount())
     }
@@ -97,12 +112,21 @@ describe('redesign menu ownership on Android', () => {
     }
     let tree!: RenderedTree
     await TestRenderer.act(() => { tree = TestRenderer.create(<Rows showFirst />) as unknown as RenderedTree })
+    let pendingDismissal: (() => void) | undefined
     const triggers = () => tree.root.findAllByType('Pressable').filter((node) => node.props.accessibilityLabel === 'habits.actions.more')
     try {
       await TestRenderer.act(() => triggers()[0]!.props.onPress())
       if (phase !== 'open') {
-        await TestRenderer.act(() => openMenus(tree)[0]!.props.onClose())
-        expect(openMenus(tree)).toHaveLength(0)
+        if (presentation === 'sheet') {
+          pendingDismissal = tree.root.findAllByType(TrueSheet)[0]!.props.onDidDismiss
+          await TestRenderer.act(() => trigger(tree, 'common.close').props.onPress())
+          expect(nativeDismiss).toHaveBeenCalled()
+          expect(openMenus(tree)).toHaveLength(1)
+          if (phase === 'reopened') await TestRenderer.act(() => pendingDismissal?.())
+        } else {
+          await TestRenderer.act(() => tree.root.findAllByType('Modal')[0]!.props.onRequestClose())
+          expect(openMenus(tree)).toHaveLength(0)
+        }
         if (phase === 'reopened') await TestRenderer.act(() => triggers()[0]!.props.onPress())
       }
       await TestRenderer.act(() => triggers()[1]!.props.onPress())
@@ -114,6 +138,8 @@ describe('redesign menu ownership on Android', () => {
       expect(openMenus(tree)).toHaveLength(1)
       expect(JSON.stringify(tree.toJSON())).toContain('habits.actions.duplicate')
       expect(JSON.stringify(tree.toJSON())).not.toContain('habits.actions.delete')
+      await TestRenderer.act(() => pendingDismissal?.())
+      expect(openMenus(tree)).toHaveLength(1)
     } finally {
       await TestRenderer.act(() => tree.unmount())
     }
@@ -129,6 +155,9 @@ describe('redesign menu ownership on Android', () => {
     try {
       await TestRenderer.act(() => trigger(tree, 'habits.actions.more').props.onPress())
       const oldDismissal = tree.root.findAllByType(TrueSheet)[0]!.props.onDidDismiss
+      await TestRenderer.act(() => trigger(tree, 'common.close').props.onPress())
+      expect(nativeDismiss).toHaveBeenCalledOnce()
+      expect(openMenus(tree)).toHaveLength(1)
       await TestRenderer.act(() => trigger(tree, 'List options').props.onPress())
       await TestRenderer.act(() => trigger(tree, 'habits.actions.more').props.onPress())
       await TestRenderer.act(() => oldDismissal())

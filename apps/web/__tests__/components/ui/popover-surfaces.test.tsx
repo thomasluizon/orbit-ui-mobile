@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
 import { TodayDateControl } from '@/app/(app)/today-shell'
@@ -58,6 +58,44 @@ describe('Today controls and habit menu ownership', () => {
       await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Select' })).toHaveFocus())
     }
   })
+
+  it.each(['pointer', 'click-only'] as const)('replaces a sheet while its exit is pending via %s', async (activation) => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    render(<><TodayControls /><HabitRow habit={createMockHabit({ title: 'Read' })} actions={{ onEdit: vi.fn() }} /></>)
+    const controlsTrigger = screen.getByRole('button', { name: 'List options' })
+    const rowTrigger = screen.getByRole('button', { name: 'habits.actions.more' })
+    const press = (trigger: HTMLElement) => {
+      if (activation === 'pointer') fireEvent.pointerDown(trigger)
+      fireEvent.click(trigger)
+    }
+    press(controlsTrigger)
+    await screen.findByRole('menuitem', { name: 'Select' })
+    const exitingPanel = screen.getByRole('dialog')
+    let finishExit!: () => void
+    const finished = new Promise<void>((resolve) => { finishExit = resolve })
+    const getAnimations = vi.fn(() => [{ finished }])
+    Object.defineProperty(exitingPanel, 'getAnimations', { value: getAnimations })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(getAnimations).toHaveBeenCalled())
+    expect(exitingPanel).toHaveAttribute('data-ending-style')
+    expect(exitingPanel).toBeInTheDocument()
+    expect(controlsTrigger).toHaveAttribute('aria-expanded', 'true')
+
+    press(rowTrigger)
+    await screen.findByRole('menuitem', { name: 'common.edit' })
+    expect(exitingPanel).not.toBeInTheDocument()
+    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
+    expect(screen.queryByRole('menuitem', { name: 'Select', hidden: true })).toBeNull()
+    press(controlsTrigger)
+    await screen.findByRole('menuitem', { name: 'Select' })
+    await act(async () => { finishExit(); await finished })
+    expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
+    expect(screen.getByRole('menuitem', { name: 'Select' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'common.edit', hidden: true })).toBeNull()
+    expect(controlsTrigger).toHaveAttribute('aria-expanded', 'true')
+    expect(rowTrigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
 })
 
 function ControlledMenus({ open, onClose }: { open: boolean; onClose: () => void }) {
