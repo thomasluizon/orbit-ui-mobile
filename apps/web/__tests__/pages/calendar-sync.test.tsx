@@ -355,8 +355,12 @@ describe('CalendarSyncPage', () => {
         const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value}`).join(';')
         await page.setContent(`<style>${stylesheet} :root { ${theme} }</style><div class="${mode}" style="background:var(--bg-sheet)">${container.innerHTML}</div>`)
         const paintedRow = page.getByRole('button', { name: new RegExp('Planning the weekly training') })
-        for (const hovered of [false, true]) {
-          if (hovered) await paintedRow.hover()
+        for (const state of ['rest', 'hover', 'press']) {
+          if (state !== 'rest') await paintedRow.hover()
+          if (state === 'press') {
+            await page.mouse.down()
+            if (!blocked) expect(await paintedRow.evaluate((element) => element.matches(':active'))).toBe(true)
+          }
           await paintedRow.evaluate(async (element) => {
             await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
           })
@@ -371,8 +375,9 @@ describe('CalendarSyncPage', () => {
             }))
           expect(pairs.length).toBeGreaterThanOrEqual(7)
           for (const pair of pairs) {
-            expect.soft(contrastOnSurface(pair.color, pair.layers), `${mode}, selected: ${selected}, blocked: ${blocked}, hovered: ${hovered}, ${pair.text.slice(0, 80)}, ${pair.color} on ${pair.layers.join(' over ')}`).toBeGreaterThanOrEqual(4.5)
+            expect.soft(contrastOnSurface(pair.color, pair.layers), `${mode}, selected: ${selected}, blocked: ${blocked}, state: ${state}, ${pair.text.slice(0, 80)}, ${pair.color} on ${pair.layers.join(' over ')}`).toBeGreaterThanOrEqual(4.5)
           }
+          if (state === 'press') await page.mouse.up()
         }
       } finally { await page.close() }
     })
