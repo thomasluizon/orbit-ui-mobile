@@ -1,7 +1,8 @@
 'use client'
 
 import Link, { type LinkProps } from 'next/link'
-import type { CSSProperties, Ref } from 'react'
+import { useContext, type CSSProperties, type Ref } from 'react'
+import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
 import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
@@ -67,7 +68,7 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   variant = 'primary',
-  size = 'md',
+  size: requestedSize = 'sm',
   onClick,
   disabled = false,
   loading = false,
@@ -82,6 +83,7 @@ export function Button({
   buttonRef,
   quiet = false,
 }: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean }>) {
+  const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
@@ -112,7 +114,7 @@ export function Button({
 export function PillLink({
   href,
   variant = 'primary',
-  size = 'md',
+  size: requestedSize = 'sm',
   children,
   accessibleName,
 }: Readonly<{
@@ -122,6 +124,7 @@ export function PillLink({
   children: string
   accessibleName?: string
 }>) {
+  const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   return (
     <Link
       href={href}

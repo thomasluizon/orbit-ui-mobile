@@ -968,6 +968,7 @@
       "completionSummary": "{done} de {total} registrados",
       "nothingDue": "nada programado",
       "eventsTitle": "Na sua agenda",
+      "importEvents": "Importar eventos",
       "searchEvents": "Buscar eventos",
       "noMatchingEvents": "Nenhum evento corresponde a \"{query}\".",
       "clearEventSearch": "Limpar busca",

@@ -20,6 +20,11 @@ import {
 } from '@/__tests__/support/chromium'
 
 describe('PillButton', () => {
+
+  it('defaults ordinary pills to small', () => {
+    render(<PillButton>Continue</PillButton>)
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveAttribute('data-size', 'sm')
+  })
   describe('small touch targets in Chromium', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
@@ -136,7 +141,7 @@ describe('PillButton', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     const button = screen.getByRole('button', { name: 'Continue' })
     expect(button).toHaveClass('whitespace-nowrap')
-    expect(button).toHaveStyle({ paddingInlineStart: '26px', paddingInlineEnd: '26px' })
+    expect(button).toHaveStyle({ paddingInlineStart: '18px', paddingInlineEnd: '18px' })
   })
 
   it('keeps a leading glyph decorative and tightens its side of the pill', () => {
@@ -167,8 +172,8 @@ describe('PillButton', () => {
     )
     expect(screen.getByRole('link', { name: 'Ghost' })).toHaveAttribute('href', '/ghost')
     expect(screen.getByRole('link', { name: 'Primary' })).toHaveStyle({
-      paddingInlineStart: '26px',
-      paddingInlineEnd: '26px',
+      paddingInlineStart: '18px',
+      paddingInlineEnd: '18px',
     })
   })
 
@@ -345,7 +350,7 @@ describe('PillButton', () => {
         <PillButton size="sm" onClick={() => {}}>
           Small
         </PillButton>
-        <PillButton onClick={() => {}}>Medium</PillButton>
+        <PillButton size="md" onClick={() => {}}>Medium</PillButton>
       </>,
     )
     expect(screen.getByRole('button', { name: 'Small' })).toHaveStyle({ height: '40px' })

@@ -878,7 +878,7 @@ contract. No other caller gains a nested scroller from this exception.
 
 Grabber (mobile presentation only) · header (title, optional description, close) · body (the single scroll container) · footer (actions, pinned, never scrolling with the body) · safe-area and keyboard insets on both.
 
-Every sheet footer on web and Android uses trailing, label-hugging `sm` actions, with the ghost dismissal before the filled action when paired.
+Every sheet footer on web and Android applies the action-row rule in **Buttons** through `ActionRow`: trailing, label-hugging `sm` actions, with the ghost dismissal before the filled action when paired.
 
 **The sheet primitive owns the body's outer padding on both platforms:** 8px at the top,
 24px horizontally and 24px at the bottom. Callers add only spacing between their content groups,
@@ -913,9 +913,11 @@ All eight, by name: default · hover · focus · active · disabled · loading �
 `PillButton` is the one pill CTA. Its geometry is shared data in `packages/shared/src/theme/button.ts` so the two mirrors cannot drift.
 
 - **Variants:** `primary` (accent fill, `--fg-on-primary` text, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill), `caution` (status-overdue fill). `ConfirmDialog` builds its action row from `PillButton`, never a hand-rolled pill.
-- **Sizes:** `sm` / `md` (default). A size is a fixed height plus horizontal padding plus label, icon and gap. Never hand-tune per call.
+- **Sizes:** `sm` is the default for every pill. Explicit `md` is reserved for the single primary action that ends a flow: a form submit, a Wrapped player action, or the full-width action of a mobile overlay. At most one `md` pill renders per view. A size is a fixed height plus horizontal padding plus label, icon and gap. Never hand-tune per call.
+- **Action rows:** two or more pills acting on the same section render through one `ActionRow`, in one size, on one line at the trailing edge with a 12px gap. Ghost actions precede the filled action. Wrap only when the row cannot fit, and retain the trailing edge on every wrapped line. Sheet footers apply this same rule.
+- **Per-item actions:** an action on one list item belongs in that row's own trailing action slot, never in a pill stacked under the item.
 - **Width, hug by default.** A lone CTA in a wide container caps at about 360px and never spans a desktop content column. Full-width is sanctioned ONLY in: the single primary action of a mobile overlay, a form submit at or below the mobile breakpoint, and a full-screen empty-state primary CTA.
-- **The one matched-width exception:** `EmptyState.matchActionFooterWidth`, for a primary pill stacked directly over a secondary pill as one visual unit. Two pills of visibly different width read as an unrelated pair, which is itself a slop tell.
+- **Empty-state actions** follow the same action-row rule and hug their labels.
 - **Labels are verb-first and 1 to 2 words.** Strip words the surrounding title already carries. A confirmation button repeats the consequence, so the dialog is answerable without reading the body: "Delete habit", never "Yes".
 - **One label per CTA intent per surface, and the name survives the whole flow.**
 - **Keep submit enabled until the request starts**, then disable with a spinner and **keep the original label**, because the label is what tells assistive tech which button is busy.
