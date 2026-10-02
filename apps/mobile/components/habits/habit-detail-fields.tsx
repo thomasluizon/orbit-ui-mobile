@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
-import type { HabitDetailPatch } from '@orbit/shared/hooks'
+import type { HabitDetailPatch, ReminderChanges } from '@orbit/shared/hooks'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitReminderLabel, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -27,6 +27,7 @@ import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder
 type Tokens = ReturnType<typeof createTokensV2>
 
 interface HabitDetailFieldsProps {
+  open?: boolean
   habit: NormalizedHabit
   hasProAccess: boolean
   relationshipControlsAvailable: boolean
@@ -42,7 +43,7 @@ function FieldWell({ children, tokens }: Readonly<{ children: React.ReactNode; t
 
 function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onSave: () => void }>) {
   const { t } = useTranslation()
-  return <View style={styles.actions}><PillButton variant="secondary" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></View>
+  return <View style={styles.actions}><PillButton variant="ghost" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></View>
 }
 
 function FrequencyUnitOption({ label, selected, tokens, onSelect }: Readonly<{ label: string; selected: boolean; tokens: Tokens; onSelect: () => void }>) {
@@ -93,10 +94,10 @@ function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ ha
 }
 
 
-export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade, tokens }: Readonly<HabitDetailFieldsProps>) {
+export function HabitDetailFields({ open = true, habit, hasProAccess, relationshipControlsAvailable, onItemsChange, onPatch, onUpgrade, tokens }: Readonly<HabitDetailFieldsProps>) {
   const { t } = useTranslation()
   const { showError } = useAppToast()
-  const { cancelReminders, goalIds, openField, reminderHabit, saveReminders, toggleField, toggleGoal, updateReminders } = useHabitDetailFieldsState(habit, onPatch)
+  const { goalIds, openField, reminderHabit, toggleField, toggleGoal, updateReminders } = useHabitDetailFieldsState(habit, onPatch)
   const [description, setDescription] = useState(habit.description ?? '')
   const [savedDescription, setSavedDescription] = useState(habit.description ?? '')
   if ((habit.description ?? '') !== savedDescription) {
@@ -104,19 +105,20 @@ export function HabitDetailFields({ habit, hasProAccess, relationshipControlsAva
     if (description === savedDescription) setDescription(habit.description ?? '')
   }
 
-  const saveReminderDraft = () => {
-    const validationError = saveReminders()
+  if (!open) return null
+
+  const changeReminders = (changes: ReminderChanges) => {
+    const validationError = updateReminders(changes)
     if (validationError) showError(t(validationError))
   }
   return (
     <View style={styles.fields}>
       <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
       <View>
-        <Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.form.reminders')}</Text>
-        {habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError}>
-          <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} offsetReminderCount={reminderHabit.reminderTimes.length} nested />
-        </ReminderSection> : <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} />}
-        <FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} />
+        {!habit.dueTime ? <Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.form.reminders')}</Text> : null}
+        {habit.dueTime ? <ReminderSection inline tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => changeReminders({ offsets })} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError}>
+          <ScheduledReminderSection inline tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => changeReminders({ scheduled })} onValidationError={showError} offsetReminderCount={reminderHabit.reminderTimes.length} nested />
+        </ReminderSection> : <ScheduledReminderSection inline tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => changeReminders({ scheduled })} onValidationError={showError} />}
       </View>
       <View>
         <Text style={[styles.chipText, { color: tokens.fg2 }]}>{t('habits.form.checklist')}</Text>
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
   list: { gap: 8 },
   fields: { gap: 24 },
   fieldWell: { gap: 12 },
-  actions: { flexDirection: 'row', gap: 8 },
+  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   input: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, paddingVertical: 12 },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
   quantity: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, width: 72 },
