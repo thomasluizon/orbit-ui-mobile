@@ -78,8 +78,24 @@ describe('Bottom tab geometry in Chromium', () => {
           expect(measured.textOverflow).not.toBe('ellipsis')
           expect(measured.indicatorTop).toBeGreaterThan(bar!.y)
           await button.hover()
-          expect(await button.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
-          expect(await button.locator('svg').evaluate((element) => getComputedStyle(element.parentElement!).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+          const hover = await button.evaluate((element) => {
+            const style = getComputedStyle(element)
+            const bounds = element.getBoundingClientRect()
+            const probe = document.createElement('span')
+            probe.style.backgroundColor = 'var(--bg-hover)'
+            element.append(probe)
+            const token = getComputedStyle(probe).backgroundColor
+            probe.remove()
+            return { background: style.backgroundColor, token,
+              radius: Math.min(parseFloat(style.borderTopLeftRadius), bounds.width / 2, bounds.height / 2) }
+          })
+          expect(hover.background).toBe(hover.token)
+          const targetBox = (await button.boundingBox())!
+          expect(hover.radius).toBe(Math.min(targetBox.width, targetBox.height) / 2)
+          expect(await button.locator('svg').evaluate((element) => getComputedStyle(element.parentElement!).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+          await page.mouse.down()
+          expect(await button.locator('svg').evaluate((element) => getComputedStyle(element.parentElement!).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+          await page.mouse.up()
           const colors = await button.evaluate((element) => {
             const icon = element.querySelector('svg')!
             const iconStyle = getComputedStyle(icon)
@@ -90,8 +106,9 @@ describe('Bottom tab geometry in Chromium', () => {
               icon: iconStyle.fill === 'none' ? iconStyle.stroke : iconStyle.fill,
             }
           })
-          expect(contrastOnSurface(colors.label, [colors.canvas])).toBeGreaterThanOrEqual(4.5)
-          expect(contrastOnSurface(colors.icon, [colors.canvas, colors.indicator])).toBeGreaterThanOrEqual(3)
+          expect(contrastOnSurface(colors.label, [colors.canvas, hover.background])).toBeGreaterThanOrEqual(4.5)
+          expect(contrastOnSurface(colors.icon, [colors.canvas, hover.background, colors.indicator])).toBeGreaterThanOrEqual(3)
+          await page.keyboard.press('Tab')
           await button.focus()
           expect(await button.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none')
         }

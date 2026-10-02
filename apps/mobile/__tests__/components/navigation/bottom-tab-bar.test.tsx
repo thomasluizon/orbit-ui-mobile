@@ -74,6 +74,22 @@ describe('BottomTabBar', () => {
     tree.unmount()
   })
 
+  it('fills the whole rounded tab hit area on pointer hover without changing the indicator geometry', () => {
+    const tree = renderNavigation(<BottomTabBar items={items.map((item) => ({ ...item, icon: () => <Text>Icon</Text> }))} activeId="today" onSelect={vi.fn()} label="Navigation" />)
+    const tab = () => tree.hosts().find((node) => node.props.testID === 'tab-progress-inactive')!
+    const hoverTab = tab() as { props: { onHoverIn?: () => void; onHoverOut?: () => void } }
+    expect(hoverTab.props.onHoverIn).toBeTypeOf('function')
+    const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
+    void renderer.act(() => hoverTab.props.onHoverIn?.())
+    expect(StyleSheet.flatten(tab().props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 999 })
+    const indicator = tree.hosts().find((node) => node.props.testID === 'tab-indicator-progress')!
+    expect(StyleSheet.flatten(indicator.props.style)).toMatchObject({ width: 56, height: 32 })
+    expect(StyleSheet.flatten(getTabChildStyle(tab(), true, View))).not.toHaveProperty('backgroundColor')
+    void renderer.act(() => hoverTab.props.onHoverOut?.())
+    expect(StyleSheet.flatten(tab().props.style)).not.toHaveProperty('backgroundColor')
+    tree.unmount()
+  })
+
   it.each(['dark', 'light'] as const)('uses resting and pressed label roles in %s mode', (mode) => {
     theme.currentTheme = mode
     const tokens = createTokensV2(theme.currentScheme, mode)

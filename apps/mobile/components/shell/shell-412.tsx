@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Keyboard, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
@@ -43,7 +43,7 @@ function ShellBottomChrome({
         {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
         {pinnedSlot !== undefined ? (
           <View testID="shell-composer-band" style={styles.composerBand}>
-            <View testID="shell-pinned-slot">{pinnedSlot}</View>
+            <ScrollView testID="shell-pinned-slot" style={styles.pinnedSlot} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
           </View>
         ) : null}
         {fab !== undefined ? (
@@ -165,18 +165,26 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
+    minHeight: 48,
   },
   bottomChrome: {
+    flexShrink: 1,
+    minHeight: 0,
     position: 'relative',
     zIndex: zLayers.sticky,
   },
+  pinnedSlot: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   composerBand: {
+    flexShrink: 1,
+    minHeight: 0,
     position: 'relative',
   },
   notice: {
     paddingHorizontal: 16,
   },
   bottomColumn: {
+    flexShrink: 1,
+    minHeight: 0,
     alignSelf: 'center',
     maxWidth: SHELL_CONTENT_MAX_WIDTH,
     width: '100%',

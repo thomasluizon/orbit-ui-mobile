@@ -4,6 +4,13 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import en from '@orbit/shared/i18n/en.json'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { Composer } from '@/components/shell/composer'
+import { AppBar } from '@/components/ui/app-bar'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { NotFoundContent } from '@/components/ui/not-found-content'
 import { Toast } from '@/components/ui/toast'
@@ -69,6 +76,45 @@ describe('Foldable shell geometry', () => {
       expect.soft(bounds.celebration).toEqual(bounds.content)
       expect.soft(bounds.title).toEqual(bounds.content)
       expect(bounds.documentWidth).toBe(width)
+    } finally { await page.close() }
+  })
+
+  it.each([360, 320])('budgets the real header, composer and tab bar inside a %ipx tall window', async (height) => {
+    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+      header={<AppBar title={en.nav.today} onBack={vi.fn()} backLabel={en.common.back} />}
+      composer={<Composer state="idle" value="" words={en.shell.composer}
+        suggestions={toComposerSuggestions(['today', 'calendar', 'progress'].map((id) => ({ id, label: en.nav[id as 'today' | 'calendar' | 'progress'], onSelect: vi.fn() })))}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onVoice={vi.fn()} voiceWords={en.shell.composer.voice}
+        onAttachFile={vi.fn()} onAttachImage={vi.fn()}
+        attachWords={{ file: en.chat.attachFile, image: en.chat.attachImage, trayLabel: en.chat.attachFile, remove: (name) => name }}
+        onOpenConversation={vi.fn()} conversationLabel={en.todayAstra.openConversation} />}
+      tabBar={<BottomTabBar label={en.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
+        items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />}>
+      <div style={{ height: 1600 }}>Long habit detail</div>
+    </ShellWide>)
+    const page = await browser.newPage({ viewport: { width: 740, height } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        scroller.scrollTop = scroller.scrollHeight
+        return { bottom: box('[data-shell-bottom]').bottom, headerTop: box('[data-shell-header]').top,
+          tabsHeight: box('[data-shell-tab-bar]').height, scrollerHeight: scroller.clientHeight,
+          clearance: box('[data-shell-bottom]').top - scroller.lastElementChild!.getBoundingClientRect().bottom }
+      })
+      expect(geometry.bottom).toBeLessThanOrEqual(height)
+      expect(geometry.headerTop).toBe(0)
+      expect(geometry.tabsHeight).toBe(80)
+      expect(geometry.scrollerHeight).toBeGreaterThanOrEqual(48)
+      expect(geometry.clearance).toBeGreaterThanOrEqual(95)
+      for (const control of await page.locator('[data-shell-pinned-slot] button:not([disabled]), [data-shell-pinned-slot] textarea').all()) {
+        await control.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
+        const box = (await control.boundingBox())!
+        const pinned = (await page.locator('[data-shell-pinned-slot]').boundingBox())!
+        expect(box.y).toBeGreaterThanOrEqual(pinned.y)
+        expect(box.y + box.height).toBeLessThanOrEqual(pinned.y + pinned.height)
+      }
     } finally { await page.close() }
   })
 

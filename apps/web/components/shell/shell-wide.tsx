@@ -172,17 +172,17 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   return (
     <div
       data-shell-bottom=""
-      className="z-sticky relative shrink-0 bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
+      className="z-sticky relative flex min-h-0 flex-col bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
     >
-      <div className="relative mx-auto w-full" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+      <div className="relative mx-auto flex min-h-0 w-full flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
         {props.notice !== undefined ? <div data-shell-notice="" className="px-4">{props.notice}</div> : null}
         {pinnedSlot !== undefined ? (
-          <div data-shell-pinned-slot="" hidden={conversationOpen} className="lg:pb-4">
+          <div data-shell-pinned-slot="" hidden={conversationOpen} className="min-h-0 overflow-y-auto overscroll-contain lg:pb-4">
             {pinnedSlot}
           </div>
         ) : null}
         {navigationEnabled && props.tabBar !== undefined ? (
-          <div data-shell-tab-bar="" className="lg:hidden">{props.tabBar}</div>
+          <div data-shell-tab-bar="" className="shrink-0 lg:hidden">{props.tabBar}</div>
         ) : null}
         {props.fab !== undefined ? (
           <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
@@ -225,7 +225,7 @@ function ShellWideBackground({
 
       <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
         <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
-          {props.header !== undefined ? <div data-shell-header="">{props.header}</div> : null}
+          {props.header !== undefined ? <div data-shell-header="" className="shrink-0">{props.header}</div> : null}
           <main
             ref={registerScroller}
             data-shell-scroller=""
