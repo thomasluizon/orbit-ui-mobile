@@ -171,7 +171,7 @@ for (const width of [412, 1352]) {
         }
         await page.goto('/search')
         await page.getByRole('combobox', { name: messages.habits.search.title }).fill('Read')
-        const main = page.locator('#orbit-main')
+        const main = page.getByRole('main')
         const next = main.getByRole('button', { name: messages.habits.search.next, exact: true })
         const previous = main.getByRole('button', { name: messages.habits.search.previous, exact: true })
         await expect(main.getByRole('option')).toHaveCount(20)
@@ -182,7 +182,7 @@ for (const width of [412, 1352]) {
         await expect(previous).toBeEnabled()
         await expect(next).toBeEnabled()
         await expect(main.locator('[data-slot="action-row"]').filter({ has: previous }).locator('.orbit-pill-action')).toHaveCount(2)
-        await assertActionGeometry(page)
+        await assertActionGeometry(page, main)
       })
 
       test('delete confirmation keeps a trailing small action pair', async ({ page }) => {
