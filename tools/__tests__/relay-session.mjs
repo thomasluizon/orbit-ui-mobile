@@ -58,11 +58,12 @@ export const cases = async () => {
   }
   const successful = fixture("success")
   const commands = []
-  const result = await relaySession({ repoRoot: successful.checkout, sessionId: "predecessor", execute: executeFor(successful.checkout, { commands }), wait: async () => {}, confirmMilliseconds: 10 })
+  const result = await relaySession({ repoRoot: successful.checkout, sessionId: "predecessor", terminalHandle: "term_predecessor", execute: executeFor(successful.checkout, { commands }), wait: async () => {}, confirmMilliseconds: 10 })
+  T("relay-session: closes the finishing handle after successor confirmation", commands.some((args) => args.join(" ") === "terminal close --terminal term_predecessor --json"))
   T("relay-session: confirms only the nominated sleep successor", result.terminal === "term_successor" && readRunState(successful.checkout).relay.from === "predecessor")
   const entry = openSessionChain(result.successorSessionId, successful.checkout).entries[0]
   T("relay-session: chain records measured metrics, complete decisions and questions", entry.measuredTokens === 400000 && entry.assistantCalls === 20 && entry.decisions === "Decision and reasoning copied in full.\n" && entry.openOwnerQuestions[0] === "An owner question." && entry.superseded === true)
-  T("relay-session: no terminal operation uses an empty handle", commands.filter((args) => ["send", "wait", "close"].includes(args[1])).every((args) => args[args.indexOf("--terminal") + 1] === "term_successor"))
+  T("relay-session: no terminal operation uses an empty handle", commands.filter((args) => ["send", "wait", "close"].includes(args[1])).every((args) => ["term_successor", "term_predecessor"].includes(args[args.indexOf("--terminal") + 1])))
   const command = commands.find((args) => args[1] === "create").at(-2)
   T("relay-session: successor command contains no evaluated source", !/eval|node -e|Buffer.from/.test(command))
   let launchPayload
