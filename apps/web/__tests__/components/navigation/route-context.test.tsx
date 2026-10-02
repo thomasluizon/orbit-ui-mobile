@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { RouteContext } from '@/components/navigation/route-context'
@@ -78,4 +78,73 @@ it('leaves habit detail titles to the loaded screen', () => {
   expect(document.title).toBe('Read · Orbit')
   expect(resolveTitledRoute('/habits/new')).toBe('/habits/new')
   expect(resolveTitledRoute('/habits/habit-1/invalid')).toBe('/[...missing]')
+})
+
+describe('client navigation focus', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  function view(content: React.ReactNode) {
+    return <NextIntlClientProvider locale="en" messages={en}><RouteContext />{content}</NextIntlClientProvider>
+  }
+
+  function finishNavigation() {
+    void act(() => vi.advanceTimersByTime(40))
+  }
+
+  it('leaves focus alone on direct load and focuses the new heading after navigation', () => {
+    const rendered = render(view(<main><h1>Today</h1></main>))
+    expect(screen.getByRole('heading')).not.toHaveFocus()
+    navigation.pathname = '/privacy'
+    rendered.rerender(view(<main><h1>Privacy</h1></main>))
+    finishNavigation()
+    expect(screen.getByRole('heading', { name: 'Privacy' })).toHaveFocus()
+    expect(screen.getByRole('heading')).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('focuses main when the new view has no heading', () => {
+    const rendered = render(view(<main><h1>Today</h1></main>))
+    navigation.pathname = '/login'
+    rendered.rerender(view(<main>Sign in</main>))
+    finishNavigation()
+    expect(screen.getByRole('main')).toHaveFocus()
+  })
+
+  it('waits for a suspended view to mount', async () => {
+    const rendered = render(view(<main><h1>Today</h1></main>))
+    navigation.pathname = '/terms'
+    rendered.rerender(view(null))
+    finishNavigation()
+    rendered.rerender(view(<main><h1>Terms</h1></main>))
+    await act(async () => {})
+    finishNavigation()
+    expect(screen.getByRole('heading', { name: 'Terms' })).toHaveFocus()
+  })
+
+  it('preserves focus already placed by the owning shell or form', () => {
+    const rendered = render(view(<main><h1>Today</h1></main>))
+    navigation.pathname = '/habits/new'
+    rendered.rerender(view(<main><h1>New habit</h1><input autoFocus aria-label="Name" /></main>))
+    finishNavigation()
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveFocus()
+    navigation.pathname = '/calendar'
+    rendered.rerender(view(<main><h1 tabIndex={-1}>Calendar</h1></main>))
+    screen.getByRole('heading').focus()
+    finishNavigation()
+    expect(screen.getByRole('heading')).toHaveFocus()
+  })
+
+  it('does not move focus on locale updates or after unmount', () => {
+    const rendered = render(view(<main><h1>Today</h1></main>))
+    rendered.rerender(<NextIntlClientProvider locale="pt-BR" messages={ptBR}><RouteContext /><main><h1>Hoje</h1></main></NextIntlClientProvider>)
+    finishNavigation()
+    expect(screen.getByRole('heading')).not.toHaveFocus()
+    navigation.pathname = '/about'
+    rendered.rerender(view(null))
+    rendered.unmount()
+    const unrelated = render(<main><h1>Another view</h1></main>)
+    finishNavigation()
+    expect(screen.getByRole('heading')).not.toHaveFocus()
+    unrelated.unmount()
+  })
 })
