@@ -10,23 +10,24 @@ This prompt continues a context relay: the run state, the readiness ledger and t
 
 ## First: finish the owner's latest review
 
-Shipped defects are done: production Android 1.3.56 (115) carries the Google sign-in fix (`#1110`), and Orbit Staging's fix (`#1086`) is proven on device. What remains, in this order:
+Shipped defects are done: production Android 1.3.56 (115) carries the Google sign-in fix (`#1110`), production web `b84bdc9e` carries the one-row-menu fix (`#1112`), and Orbit Staging's sign-in fix (`#1086`) is proven on device. Four owner-review pull requests are merged (`#1103`, `#1106`, `#1107`, and the `#556` carry `ui#1486`). What remains, in this order:
 
-1. Drive the owner-review pull requests to merge on the bar (each listed in the spec's `### Batch R`): `ui#1481` (`#1104`, composer on Hoje only), `ui#1484` (`#1105`, Perfil sub-menus), `ui#1483` (`#1106`, API keys row), `ui#1482` (`#1107`, plan cards), then `ui#1485` (`#1103`) and `ui#1486` (`#556` carry). Read each exact head's checks, clear every Pullfrog review, run the combined merge check before merging any that is behind, and prove locally that each edited hermetic layout case fails on an unfixed build.
-2. When `ui#1484` merges, launch `#1108` (one notifications switch and the first-use permission) and `#1109` (the Orbit Pro row); both are filed and blocked only by `#1105`.
-3. Release `redesign/main` web to staging after the merges and ship a new Orbit Staging internal build (the last is 1.3.55 (114)).
-4. Answer the owner plainly whether a Pro purchase on Orbit Staging charges real money: read the Play Console license-tester list and the purchase dialog's test-card wording from a visible window (`ioreg -n Root -d1 -a` shows `CGSSessionScreenIsLocked` false), and put the answer in the report.
+1. Ship the Android open track for `#1112`: 1.3.57 (116) from `main` through `android-release.yml` (the release plan shows Android needing release with 2 commits; API and landing need none).
+2. Drive the remaining owner-review pull requests to merge on the bar: `ui#1481` (`#1104`, composer on Hoje only, head `255c8528`) and `ui#1484` (`#1105`, Perfil sub-menus, head `d2e318c8`). Read each exact head's checks, clear every Pullfrog review, prove the rewritten `content-edge-notices` case of `ui#1481` red on an unfixed build, read the `ui#1484` red-proof result (the previous session's scratchpad log `layout-red-1484.log`, or rerun it with the pull request's own messages swapped in), and run the combined merge check before merging either one, since both are behind.
+3. When `ui#1484` merges, launch `#1108` (one notifications switch and the first-use permission) and `#1109` (the Orbit Pro row); both are filed and blocked only by `#1105`.
+4. Release `redesign/main` web to staging after the merges and ship a new Orbit Staging internal build (the last is 1.3.55 (114)).
+5. Answer the owner plainly whether a Pro purchase on Orbit Staging charges real money: read the Play Console license-tester list and the purchase dialog's test-card wording from a visible window (`ioreg -n Root -d1 -a` shows `CGSSessionScreenIsLocked` false), and put the answer in the report.
 
 Also from the owner: the Mac is meant to be unlocked (Play Console wizards and phone-width sweeps need a visible window), the Supabase project is deleted, and the two Vercel Orbit projects are deleted.
 
-## Then: in flight, the token-cost tail, the rest of Batch R
+## Then: the token-cost tail, the carry, the rest of Batch R
 
-1. `ui#1487` (`#1112`, `main`): CHANGES_REQUESTED with one thread; clear it with one review batch, merge on the bar, release production web and ship the Android open track.
-2. Launch `#1089` and `#1111`: their worktrees and composed orders are ready (they were held at the load gate when the relay began).
-3. `#1103` and the rest of the spec's `### Batch R`; the production content rating questionnaire mirroring Orbit Staging's answers; the Play Console test notification for `#1040` (both need a visible window).
+1. `ui#1489` (`#1089`, worker sub-agents only for the close gate): APPROVED and green at `a756c0d5`, behind `redesign/main`; run a combined merge check that includes `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`, then merge. After it merges, a UI order that carries the review sweep launches with `--allow-subagents`.
+2. `ui#1490` (`#556` carry of `a182bf4f` and `b84bdc9e`): wait for CI and its first Pullfrog review, clear it, merge on the bar.
+3. The rest of the spec's `### Batch R`; the production content rating questionnaire mirroring Orbit Staging's answers; the Play Console test notification for `#1040` (both need a visible window).
 4. A full rendered sweep of staging at desktop, phone and foldable widths, covering what the spec's Sweep coverage lists as not yet swept, filing and fixing until a full pass finds nothing; then an Orbit Staging internal build after the last redesign merge.
 5. When the redesign is done, tell the owner (instruction 1) and stop the redesign at THE REDESIGN GATE.
-6. Then the rest of the spec's order: Batch M (the Resend cleanup after an observed SES send per environment, then the Resend account for his delete click), Batch 0c, Batch E (`#763` measurement through local `psql`, since the Render MCP cannot reach either database) and Batch 0b, as the spec orders them. Free worker slots may take independent tickets from later batches when every Batch R ticket is blocked on an open pull request.
+6. Then the rest of the spec's order: Batch M (only the owner's Resend account delete click remains), Batch 0c, Batch E (`#763` measurement through local `psql`; the Render MCP cannot reach either database, and `psql` is not installed on the PATH, so install libpq or call it by its full path first) and Batch 0b, as the spec orders them. Free worker slots may take independent tickets from later batches when every Batch R ticket is blocked on an open pull request.
 
 ## Sleep
 
@@ -52,41 +53,43 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's latest review (the pull requests above, then `#1108` and `#1109`), then the token-cost tail (`#1089`), then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff the board had 141 open tickets, all 141 placed in the spec's `## The order` (0 unplaced, 0 closed tickets leading a bullet, 0 placed twice as a bullet's leading ticket).
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's latest review (the pull requests above, then `#1108` and `#1109`), then the token-cost tail (`#1089`), then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). At handoff the board had 136 open tickets, all 136 placed in the spec's `## The order` (0 unplaced, 0 closed tickets leading a bullet, 0 placed twice as a bullet's leading ticket).
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| `ui#1481` (`#1104`) at `15d584df` | CI-fix pushed after a Layout Guard red; no Pullfrog review yet; wait, review, merge check, merge |
-| `ui#1482` (`#1107`) at `62b28662` | CI-fix pushed; copy approved by `/second-opinion` (posted); needs a fresh review of this head; merge |
-| `ui#1483` (`#1106`) at `710584b4` | APPROVED; confirm checks, merge check, merge |
-| `ui#1484` (`#1105`) at `2dc2b62f` | base merge pushed (the `CLAUDE.md` registry row conflict); no review yet; wait, review, merge; then launch `#1108` and `#1109` |
-| `ui#1485` (`#1103`) at `418a3ff9` | APPROVED; confirm checks, merge check, merge |
-| `ui#1486` (`#556` carry) at `0dbc1755` | APPROVED; confirm checks, merge check, merge |
-| `ui#1487` (`#1112`, `main`) at `bd1a2759` | CHANGES_REQUESTED, one thread; review batch, merge, release |
-| `#1089`, `#1111` | worktrees `ticket-1089-subagents-close-gate` (redesign/main) and `ticket-1111-web-hook-settle` (main) at their bases, no commits; orders were composed in the old scratchpad, so recompose and launch |
-| `#1110` | done: merged (`e027243a`), Android 1.3.56 (115) on the open track, proven on device, closed |
-| `#1086` | proven on an instrumented Orbit Staging 1.3.54 rebuild; the owner's own phone sign-in stays on the gate checks |
+| `ui#1481` (`#1104`) at `255c8528` | CI-fix pushed (not-found layout case); needs CI, a Pullfrog approval of this head, the rewritten case's red proof, a combined merge check; merge |
+| `ui#1484` (`#1105`) at `d2e318c8` | review fix (routes inside `Stack.Protected`), manifest and step-up key fixes pushed; needs CI, a Pullfrog approval of this head, its red-proof result, a combined merge check; merge; then launch `#1108` and `#1109` |
+| `ui#1489` (`#1089`) at `a756c0d5` | APPROVED, green, behind; combined merge check with both harness suites; merge |
+| `ui#1490` (`#556` carry) at `fa50ada4` | delivered, no review yet; wait, review, merge |
+| Android open track for `#1112` | owed: 1.3.57 (116) from `main` |
+| Merged this session | `ui#1487` (`#1112`, `main`, `a182bf4f`), `ui#1488` (`#1111`, `main`, `b84bdc9e`), `ui#1486` (`073fdd4a`), `ui#1485` (`916c3460`), `ui#1483` (`0a443e7c`), `ui#1482` (`f9ddaca7`); tickets `#1103`, `#1106`, `#1107`, `#1111`, `#1112` closed |
+| Production | API `6c4e92dc`, web `b84bdc9e` (released and verified), landing `ebbebb2a`, Android 1.3.56 (115) open |
 | Staging | web `d84ded19`, API `891176b7`, landing current; Orbit Staging 1.3.55 (114) internal |
-| Production | API `6c4e92dc`, web `a67cc942`, landing `ebbebb2a`, Android 1.3.56 (115) open |
-| Running workers | none (every launch this session exited; two gated launches were stopped before they started) |
-| Waiters | the session's CI waiters on `ui#1485`, `ui#1486` and `ui#1487` are stopped by the relay tool; start fresh ones |
+| Batch M | Resend cleanup done (env group keys, SSM parameters, six DNS records); only the owner's Resend account delete click remains |
+| Running workers | none |
+| Waiters | the session's CI waiter on `ui#1481` and `ui#1484` is stopped by the relay tool; start fresh ones |
+| Local checks | a red-proof run of `ui#1484`'s layout specs may still be finishing in the previous session's scratchpad (`layout-red-1484.log`); read it or rerun |
 | Open pull requests in `orbit-api` and `orbit-landing-page` | none |
 | Stashes | none in any repository |
-| Uncommitted work | none in the three main checkouts |
-| Unpushed commits | none on any ticket branch this session used |
-| Detached HEADs | scratch repro worktrees `repro-prod` (`a67cc942`) and `repro-stg` (`a75bf34b`) under the old scratchpad hold only instrumentation edits, never committed; they go with `git worktree prune` once that scratchpad is gone |
-| Throwaway AVD | `Orbit_Repro_Throwaway` (port 5584) is still booted for repros; delete it once no repro needs it |
+| Uncommitted work | none in the three main checkouts or the live ticket worktrees |
+| Unpushed commits | none on any ticket branch |
+| Detached HEADs | scratch merge-check and red-proof worktrees under session scratchpads (merge commits only) and `repro-prod`, `repro-stg` (instrumentation only); `questions-manual-steps` at `aa2bddbd` is a local merge of an old pull request for review, clean; all go with `git worktree prune` once their scratchpads are gone |
+| Throwaway AVD | `Orbit_Repro_Throwaway` still exists; delete it once no repro needs it |
 | Ignored files | the session decision log stayed in the scratchpad and in the session chain; every durable rule and fact is in the spec |
 
 Workers launched by a session die when it ends: read each worktree before relaunching.
 
 ## Previous prompt, disposition
 
-- Opening, entry point, sleep contract, authorization and owner instructions 1 to 8: carried, unchanged, in the sections below and above; added the relay paragraph.
-- Owner review items: 1 done (`#1110`, Android 1.3.56); 2 done (`#1086` proven on device); 3 to 8 filed as `#1104` to `#1109` (four are open pull requests, two wait on `#1105`); 9 carried (needs a visible window, the screen was locked).
-- In flight: `ui#1474`, `ui#1476`, `ui#1477`, `ui#1478` done (merged after one combined merge check); `ui#1479` done (merged, the relay is live); `#1089` carried (worktree ready); staging web released at `d84ded19`; Orbit Staging 1.3.55 (114) shipped.
-- Then: `#1103` carried as `ui#1485`; content rating and `#1040` test notification carried (locked screen); full sweep carried (locked screen); Batch M carried (SES sends not attributable per environment yet); `#746` done for `#903` and `#1102` (`orbit-api#688`, released to staging); `#556` carried as `ui#1486`; the two-menus defect filed and delivered as `#1112` `ui#1487`.
+- Opening, entry point, sleep contract, authorization, relay paragraph and owner instructions 1 to 8: carried, unchanged, in the sections above and below.
+- First 1 (drive the six owner-review pull requests): `ui#1482`, `ui#1483`, `ui#1485`, `ui#1486` done (merged after one combined merge check, layout cases proven red for `ui#1482` and `ui#1483`); `ui#1481` and `ui#1484` carried with new heads.
+- First 2 (launch `#1108` and `#1109` when `ui#1484` merges): carried.
+- First 3 (staging web release and a new Orbit Staging build): carried, after the remaining merges.
+- First 4 (Orbit Staging real-money answer): carried (the screen stayed locked).
+- Then 1 (`ui#1487`): done, merged as `a182bf4f` and released to production web `b84bdc9e`; the Android open track carried.
+- Then 2 (launch `#1089` and `#1111`): done, delivered as `ui#1489` (carried for merge) and `ui#1488` (merged as `b84bdc9e`).
+- Then 3 to 6: carried; Batch M's Resend cleanup done (observed SES sends per environment through the mailbox simulator), leaving the owner's Resend account click.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
