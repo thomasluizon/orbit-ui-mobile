@@ -1725,6 +1725,7 @@
   },
   "profile": {
     "submenus": {
+      "accountLabel": "{name}, {email}, conta",
       "account": "Conta",
       "preferences": "Preferências"
     },

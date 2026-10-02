@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { getLegacyRedirects } from '../../next.config'
 
 describe('legacy Perfil settings routes', () => {
-  it.each(['preferences', 'advanced', 'ai-settings'])('redirects a saved /%s link to Perfil', (routeName) => {
+  it.each([['preferences', '/profile/preferences'], ['advanced', '/profile/astra'], ['ai-settings', '/profile/astra']])('redirects a saved /%s link to its sub-screen', (routeName, destination) => {
     expect(existsSync(resolve(process.cwd(), `app/(app)/${routeName}/page.tsx`))).toBe(false)
     expect(getLegacyRedirects()).toContainEqual({
       source: `/${routeName}`,
-      destination: '/profile',
+      destination,
       permanent: true,
     })
   })

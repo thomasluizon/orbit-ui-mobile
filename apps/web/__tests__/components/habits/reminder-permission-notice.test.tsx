@@ -20,7 +20,7 @@ describe('reminder permission notice', () => {
     expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('status')).toHaveTextContent('habits.form.reminderPermissionNeeded')
     expect(screen.getByRole('link', { name: 'habits.form.reminderSettingsAction' })).toHaveAttribute('target', '_blank')
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/profile')
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/profile/notifications')
   })
 
   it('shows the same settings path for a scheduled reminder', () => {
@@ -28,5 +28,6 @@ describe('reminder permission notice', () => {
     render(<ScheduledReminderSection reminderEnabled scheduledReminders={[]} onToggleReminder={vi.fn()} onSetScheduledReminders={vi.fn()} onValidationError={vi.fn()} t={t} />)
     expect(screen.getByRole('switch', { name: 'habits.form.scheduledReminder' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByRole('link', { name: 'habits.form.reminderSettingsAction' })).toHaveAttribute('target', '_blank')
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/profile/notifications')
   })
 })

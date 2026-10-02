@@ -31,6 +31,7 @@ import {
   markStepUpVerified,
   readStepUpTiming,
 } from '@/lib/step-up-storage'
+import { PROFILE_STEP_UP_DESTINATIONS } from '@orbit/shared/utils/profile-routes'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
@@ -70,6 +71,7 @@ function StepUpScreenContent() {
 
   const [record, setRecord] = useState<StepUpTimingRecord | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const returnDestination = operation ? PROFILE_STEP_UP_DESTINATIONS[operation].route : '/profile'
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<StepUpPhase>('challenge')
   const [code, setCode] = useState('')
@@ -83,13 +85,13 @@ function StepUpScreenContent() {
     let active = true
     async function hydrate() {
       if (!operation) {
-        router.replace('/profile')
+        router.replace(returnDestination)
         return
       }
       const stored = await readStepUpTiming(operation, accountId)
       if (!active) return
       if (!stored) {
-        router.replace('/profile')
+        router.replace(returnDestination)
         return
       }
       setRecord(stored)
@@ -100,7 +102,7 @@ function StepUpScreenContent() {
     return () => {
       active = false
     }
-  }, [accountId, operation, router])
+  }, [accountId, operation, returnDestination, router])
 
   useEffect(() => {
     const timer = globalThis.setInterval(() => setNow(Date.now()), 1000)
@@ -193,7 +195,7 @@ function StepUpScreenContent() {
         await clearStepUpTiming(operation, accountId)
         if (!isCurrentRequest(generation, initiatingAccountId)) return
         markStepUpVerified(operation)
-        router.replace('/profile')
+        router.replace(returnDestination)
         return
       }
       const response = await apiClient<AccountDeactivationResponse>(
@@ -274,7 +276,8 @@ function StepUpScreenContent() {
       <MobileStepUpExhausted
         {...sharedView}
         lockSeconds={lockSeconds}
-        onBack={() => router.replace('/profile')}
+        backLabel={t('common.backToDestination', { destination: t(PROFILE_STEP_UP_DESTINATIONS[operation].labelKey) })}
+        onBack={() => router.replace(returnDestination)}
       />
     )
   }
@@ -286,7 +289,7 @@ function StepUpScreenContent() {
       cooldownSeconds={cooldownSeconds}
       email={email}
       expired={expired}
-      onCancel={() => router.replace('/profile')}
+      onCancel={() => router.replace(returnDestination)}
       onCodeChange={handleCodeChange}
       onConfirm={() => void handleConfirm()}
       onResend={() => void handleResend()}
@@ -362,12 +365,13 @@ function MobileStepUpSuccess({
 }
 
 function MobileStepUpExhausted({
+  backLabel,
   lockSeconds,
   onBack,
   operationLabel,
   t,
   tokens,
-}: Readonly<SharedMobileStepUpProps & { lockSeconds: number | null; onBack: () => void }>) {
+}: Readonly<SharedMobileStepUpProps & { backLabel: string; lockSeconds: number | null; onBack: () => void }>) {
   return (
     <FlowShell nav={false}>
       <View style={styles.column}>
@@ -375,7 +379,7 @@ function MobileStepUpExhausted({
         <View style={styles.exhausted}>
           <CapacityNotice message={t('stepUp.exhaustedNotice')} />
           {lockSeconds === null ? null : <Text testID="lock-countdown" style={[styles.mono, { color: tokens.fg3 }]}>{t('stepUp.lockCountdown', { time: formatStepUpCountdown(lockSeconds) })}</Text>}
-          <QuietAction label={t('stepUp.backToProfile')} onPress={onBack} />
+          <QuietAction label={backLabel} onPress={onBack} />
         </View>
         <Text style={[styles.secondary, { color: tokens.fg3 }]}>{t('stepUp.neverShare')}</Text>
       </View>

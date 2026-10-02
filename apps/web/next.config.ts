@@ -2,13 +2,14 @@ import type { NextConfig } from 'next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import { withSentryConfig } from '@sentry/nextjs'
 import path from 'node:path'
+import { LEGACY_PROFILE_ROUTES } from '../../packages/shared/src/utils/profile-routes'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
 export function getLegacyRedirects() {
   return [
     { source: '/streak', destination: '/progress', permanent: true },
-    ...['/preferences', '/advanced', '/ai-settings'].map((source) => ({ source, destination: '/profile', permanent: true })),
+    ...LEGACY_PROFILE_ROUTES.map(({ source, destination }) => ({ source, destination, permanent: true })),
   ]
 }
 

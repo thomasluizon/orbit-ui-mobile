@@ -17,7 +17,6 @@ interface ProfileSettingsFrameProps {
   loadingLabel: string
   labels: GroupLabels
   rows: GroupRows
-  uncontainedGroups?: readonly ProfileSettingsGroupId[]
 }
 
 interface ProfileValueRowProps {
@@ -44,7 +43,6 @@ export function ProfileSettingsFrame({
   loadingLabel,
   labels,
   rows,
-  uncontainedGroups = [],
 }: Readonly<ProfileSettingsFrameProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -64,11 +62,7 @@ export function ProfileSettingsFrame({
           {labels[group.id] ? <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>
             {labels[group.id]}
           </Text> : null}
-          {rows[group.id] == null
-            ? null
-            : uncontainedGroups.includes(group.id)
-              ? rows[group.id]
-              : <RowList>{rows[group.id]}</RowList>}
+          {rows[group.id] == null ? null : <RowList>{rows[group.id]}</RowList>}
         </View>
       ))}
     </View>

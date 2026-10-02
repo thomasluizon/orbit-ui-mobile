@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +13,11 @@ import { ProfileSettingsContent } from './profile/_components/profile-settings-c
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
+  const router = useRouter()
+  const { subscription } = useLocalSearchParams<{ subscription?: string }>()
+  useEffect(() => {
+    if (subscription === 'success') router.replace('/profile/astra?subscription=success')
+  }, [router, subscription])
   const clearance = useShellScrollerClearance()
   const { profile, isLoading, error, patchProfile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()

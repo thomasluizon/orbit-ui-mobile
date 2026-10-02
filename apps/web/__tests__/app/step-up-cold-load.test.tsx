@@ -100,6 +100,6 @@ it('returns to Profile when another account replaces the tab mid challenge', asy
 
   await replaceAccountWith('user-2')
 
-  await waitFor(() => expect(mocks.router.replace).toHaveBeenCalledWith('/profile'))
+  await waitFor(() => expect(mocks.router.replace).toHaveBeenCalledWith('/profile/account'))
   expect(screen.queryByLabelText('codeLabel')).not.toBeInTheDocument()
 })

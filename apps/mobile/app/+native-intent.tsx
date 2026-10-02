@@ -1,3 +1,5 @@
+import { LEGACY_PROFILE_ROUTES, getProfileSectionDestination } from '@orbit/shared/utils/profile-routes'
+
 function getSystemPathname(path: string): string {
   try {
     const url = new URL(path)
@@ -11,9 +13,7 @@ function getSystemPathname(path: string): string {
 
 const RETIRED_ROUTE_DESTINATIONS: Readonly<Record<string, string>> = {
   '/streak': '/progress',
-  '/preferences': '/profile',
-  '/advanced': '/profile',
-  '/ai-settings': '/profile',
+  ...Object.fromEntries(LEGACY_PROFILE_ROUTES.map(({ source, destination }) => [source, destination])),
 }
 
 export function redirectSystemPath({ path }: Readonly<{
@@ -23,5 +23,14 @@ export function redirectSystemPath({ path }: Readonly<{
   const pathname = getSystemPathname(path).replace(/\/+$/, '')
   const retired = Object.entries(RETIRED_ROUTE_DESTINATIONS).find(([route]) =>
     pathname === route || pathname.startsWith(`${route}/`))
-  return retired ? retired[1] : path
+  if (retired) return retired[1]
+  if (pathname === '/profile') {
+    const suffixIndex = path.search(/[?#]/)
+    const suffix = suffixIndex < 0 ? '' : path.slice(suffixIndex)
+    const hashIndex = suffix.indexOf('#')
+    const search = suffix.startsWith('?') ? suffix.slice(0, hashIndex < 0 ? undefined : hashIndex) : ''
+    const hash = hashIndex < 0 ? '' : suffix.slice(hashIndex)
+    return getProfileSectionDestination(search, hash) ?? path
+  }
+  return path
 }

@@ -1,5 +1,9 @@
 'use client'
 
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
 import { useRouter } from 'next/navigation'
 import { deriveProfileAstraFeatures } from '@orbit/shared/utils'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
@@ -38,7 +42,7 @@ function buildAstraRows(
   settings: AstraSettingsController,
   apiKeysUnlocked: boolean,
 ) {
-  const onUpgrade = () => router.push('/upgrade')
+  const onUpgrade = () => router.push('/upgrade?from=%2Fprofile%2Fastra')
   const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
     <div className="flex flex-col" style={{ gap: 32 }}>
@@ -67,8 +71,11 @@ function buildAstraRows(
 
 export function ProfileAstraContent({ profile, patchProfile }: Readonly<ProfileContentProps>) {
   const t = useTranslations()
+  const { hasReturnError, isSettling, retryReturn } = useStripeCheckoutReturn()
   const router = useRouter()
   const [apiKeysUnlocked] = useAccountScopedState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
+  if (isSettling) return <Skeleton variant="settings" rows={8} label={t('profile.loading')} />
+  if (hasReturnError) return <ErrorState message={t('upgrade.billing.error')} action={<PillButton variant="ghost" onClick={retryReturn}>{t('upgrade.billing.retry')}</PillButton>} />
   return buildAstraRows({ profile, router, t }, astraSettings, apiKeysUnlocked)
 }

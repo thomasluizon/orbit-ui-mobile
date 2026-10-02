@@ -112,7 +112,7 @@ export function ScheduledReminderSection({
       {!nested && <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
         {permission.showNotice ? <>
           {t('habits.form.reminderPermissionNeeded')}{' '}
-          <Link href="/profile" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
+          <Link href="/profile/notifications" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
             {t('habits.form.reminderSettingsAction')}
           </Link>
         </> : null}

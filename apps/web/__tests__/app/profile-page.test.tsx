@@ -24,6 +24,7 @@ const {
   mockShellNoticeSlot,
   mockUseGamificationProfile,
   mockPatchProfile,
+  mockRefetchProfile,
   mockProfileState,
   mockRouterPush,
   mockSearchParams,
@@ -49,6 +50,7 @@ const {
   mockShellNoticeSlot: vi.fn(),
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockPatchProfile: vi.fn(),
+  mockRefetchProfile: vi.fn(),
   mockRouterPush: vi.fn(),
   mockSearchParams: { current: '' },
   mockStepUpVerified: { current: false },
@@ -153,7 +155,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
+  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile, refetch: mockRefetchProfile }),
   useTrialExpired: () => true,
 }))
 
@@ -214,9 +216,27 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 
 import ProfilePage from '@/app/(app)/profile/page'
 
+import ProfileAccountRoute from '@/app/(app)/profile/account/page'
+import ProfilePreferencesRoute from '@/app/(app)/profile/preferences/page'
+import ProfileAstraRoute from '@/app/(app)/profile/astra/page'
+import ProfileNotificationsRoute from '@/app/(app)/profile/notifications/page'
 import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscreen'
 
+const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
+
 describe('ProfilePage', () => {
+  it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', (destination) => {
+    mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
+    const Destination = PROFILE_ROUTES[destination]
+    render(<Destination />)
+    expect(screen.getByRole('alert')).toHaveTextContent('errors.loadProfile')
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(mockRefetchProfile).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
+    expect(screen.queryByTestId('profile-api-keys')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+  })
+
   it.each([
     ['account', ['profile.settingsRows.editName', 'profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
@@ -228,7 +248,8 @@ describe('ProfilePage', () => {
     fireEvent.click(entry)
     expect(entry).toHaveAttribute('href', `/profile/${destination}`)
     top.unmount()
-    const content = render(<ProfileSubscreen screen={destination} />)
+    const Destination = PROFILE_ROUTES[destination]
+    const content = render(<Destination />)
     const group = screen.getByTestId(`profile-settings-group-${destination}`)
     for (const label of labels.filter((key) => key !== 'profile.settingsRows.editName')) expect(group.textContent).toContain(label)
     if (destination === 'account') expect(within(group).getByRole('button', { name: /profile.settingsRows.editName/ })).toBeInTheDocument()
@@ -241,6 +262,22 @@ describe('ProfilePage', () => {
       if (other !== destination) expect(screen.queryByTestId(`profile-settings-group-${other}`)).not.toBeInTheDocument()
     }
     content.unmount()
+  })
+
+  it('forwards a checkout return to Astra without dropping settlement parameters', () => {
+    mockSearchParams.current = 'subscription=success&keep=1'
+    render(<ProfilePage />)
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile/astra?subscription=success&keep=1')
+  })
+
+  it.each([['#you', '/profile/preferences'], ['#astra', '/profile/astra'], ['#api-keys', '/profile/astra'], ['#notifications', '/profile/notifications'], ['#ending', '/profile/account']])('forwards the saved %s section to %s', (hash, destination) => {
+    history.replaceState({}, '', `/profile${hash}`)
+    try {
+      render(<ProfilePage />)
+      expect(mockRouterPush).toHaveBeenCalledWith(destination)
+    } finally {
+      history.replaceState({}, '', '/')
+    }
   })
 
   it('opens settings through four sub-menu entries instead of rendering their controls on Perfil', () => {
@@ -261,6 +298,7 @@ describe('ProfilePage', () => {
     mockUpdateAiSummary.mockReset()
     mockUpdateProactiveAstra.mockReset()
     mockShellNoticeSlot.mockReset()
+    mockRefetchProfile.mockReset()
     mockPatchProfile.mockReset()
     Object.defineProperties(URL, {
       createObjectURL: { configurable: true, value: vi.fn(() => 'blob:export') },
@@ -495,7 +533,7 @@ describe('ProfilePage', () => {
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
 
     const allowanceGate = astra.getByRole('link', { name: 'profile.allowance.seePro' })
-    expect(allowanceGate).toHaveAttribute('href', '/upgrade')
+    expect(allowanceGate).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     expect(allowanceGate).not.toHaveAttribute('aria-disabled', 'true')
   })
 
@@ -510,8 +548,8 @@ describe('ProfilePage', () => {
     expect(summaryGate).toBeEnabled()
     fireEvent.click(proactiveGate)
     fireEvent.click(summaryGate)
-    expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
-    expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fastra')
+    expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fastra')
   })
 
   it.each([
@@ -547,8 +585,8 @@ describe('ProfilePage', () => {
         expect(row).toBeEnabled()
         fireEvent.click(row)
       }
-      expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
-      expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+      expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade?from=%2Fprofile%2Fastra')
+      expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade?from=%2Fprofile%2Fastra')
     }
   })
 
@@ -562,7 +600,7 @@ describe('ProfilePage', () => {
     expect(upgradeRow).toBeEnabled()
 
     fireEvent.click(upgradeRow)
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
   })
 
   it('badges the locked API keys section Pro, never with the trial label', () => {
@@ -595,7 +633,7 @@ describe('ProfilePage', () => {
     expect(upgradeRow).toBeEnabled()
     expect(apiKeys.queryByText('Work key')).not.toBeInTheDocument()
     fireEvent.click(upgradeRow)
-    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade?from=%2Fprofile%2Fastra')
   })
 
   it('puts the step up before the API key list for Pro accounts', () => {
@@ -815,7 +853,7 @@ describe('ProfilePage', () => {
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
     expect(astra.getByText('profile.subscription.trial')).toBeInTheDocument()
-    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade')
+    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
   })
 
@@ -840,7 +878,7 @@ describe('ProfilePage', () => {
     expect(astra.getByText('profile.allowance.spent')).toBeInTheDocument()
     expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
 
-    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade')
+    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade?from=%2Fprofile%2Fastra')
     const proactiveSwitch = astra.getByRole('switch', { name: 'profile.proactiveAstra.title' })
     const summarySwitch = astra.getByRole('switch', { name: 'profile.aiSummary.title' })
     const proactiveRow = proactiveSwitch.closest('[data-testid="profile-value-row"]')

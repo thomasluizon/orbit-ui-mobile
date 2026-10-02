@@ -11,7 +11,10 @@ import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import ProfileScreen from '@/app/(tabs)/profile'
-import { ProfileSubscreen } from '@/app/(tabs)/profile/_components/profile-subscreen'
+import ProfileAccountRoute from '@/app/profile/account'
+import ProfilePreferencesRoute from '@/app/profile/preferences'
+import ProfileAstraRoute from '@/app/profile/astra'
+import ProfileNotificationsRoute from '@/app/profile/notifications'
 
 interface MockDeviceState {
   count: number | undefined
@@ -60,6 +63,7 @@ const {
   mockShellNoticeSlot,
   mockUseGamificationProfile,
   mockPatchProfile,
+  mockRefetchProfile,
   mockRouterPush,
   mockSetAstraConversationOpen,
   mockSendAccessibilityEvent,
@@ -100,6 +104,7 @@ const {
   },
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockPatchProfile: vi.fn(),
+  mockRefetchProfile: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
   mockSetAstraConversationOpen: vi.fn(),
@@ -189,7 +194,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
+  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile, refetch: mockRefetchProfile }),
   useTrialExpired: () => true,
 }))
 
@@ -499,7 +504,8 @@ async function renderProfileScreen(createNodeMock?: (element: { props: { label?:
 async function renderProfileSubscreen(screen: 'account' | 'preferences' | 'astra' | 'notifications') {
   let tree: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<ProfileSubscreen screen={screen} />)
+    const Destination = PROFILE_ROUTES[screen]
+    tree = TestRenderer.create(<Destination />)
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
   return tree!
@@ -534,7 +540,23 @@ function findButtonByText(
 }
 
 
+const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
+
 describe('ProfileScreen', () => {
+  it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', async (destination) => {
+    mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
+    const tree = await renderProfileSubscreen(destination)
+    expect(nodeText(tree.root)).toContain('errors.loadProfile')
+    TestRenderer.act(() => {
+      tree.root.find((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'button' && (node.props.accessibilityLabel === 'common.retry' || nodeText(node) === 'common.retry')).props.onPress()
+    })
+    expect(mockRefetchProfile).toHaveBeenCalledOnce()
+    expect(tree.root.findAllByProps({ testID: 'profile-api-keys' })).toHaveLength(0)
+    expect(tree.root.findAll((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'switch')).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([
     ['account', ['profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
@@ -565,6 +587,13 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => tree.unmount())
   })
 
+  it('forwards a directly linked subscription success return to Astra', async () => {
+    mockSearchParams.current = { subscription: 'success' }
+    const tree = await renderProfileScreen()
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile/astra?subscription=success')
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('opens each settings sub-screen from Perfil without showing its controls there', async () => {
     const tree = await renderProfileScreen()
     for (const [label, path] of [
@@ -590,6 +619,7 @@ describe('ProfileScreen', () => {
     mockPerformQueuedApiMutation.mockReset()
     mockShareAsync.mockReset().mockResolvedValue(undefined)
     mockShellNoticeSlot.mockReset()
+    mockRefetchProfile.mockReset()
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()

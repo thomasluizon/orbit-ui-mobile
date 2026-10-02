@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
-> Twenty-one screens plus the design system tokens. Build from these. The eleven documents in
+> Twenty-one screens plus the design system tokens, with the Perfil sub-menu amendment. Build from these. The eleven documents in
 > `superseded/` are a record of an earlier pass and are not a target.
 
 ## The authority
@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Opaque control hover | Added `--bg-hover-opaque`: dark reuses `--p-hover`, light uses `--p-l-hover-opaque` at `rgba(9,9,11,0.11)` | Layered over the resting elevated fill, the hover step measures 1.477:1 dark and 1.271:1 light, clearing the 1.25:1 floor. |
 | 2026-09-29 | `Orbit Entrar` and `Orbit Verificacao` centre their compact columns with equal vertical padding | The owner's phone layout decision places both sign-in steps between the safe areas. |

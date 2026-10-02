@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   showSuccess: vi.fn(),
 }))
 
+vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade', useSearchParams: () => new URLSearchParams() }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
     params ? `${key}:${JSON.stringify(params)}` : key,

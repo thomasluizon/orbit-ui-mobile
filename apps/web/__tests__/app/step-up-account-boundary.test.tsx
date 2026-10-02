@@ -131,7 +131,7 @@ it('accepts a cold-load key confirmation completed before session hydration', as
     'user-1',
   ))
   await waitFor(() => expect(hasApiKeyCreationGrant()).toBe(true))
-  expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
+  expect(mocks.router.replace).toHaveBeenCalledWith('/profile/astra')
 
   await act(async () => {
     pendingSession.resolve(Response.json({ expiresAt: Date.now() + 3600000, userId: 'user-1' }))
@@ -162,7 +162,7 @@ it('shows a cold-load deletion completed before session hydration', async () => 
   })
   expect(getHeldAccountId()).toBe('user-1')
   expect(screen.getByText(/successTitle/)).toBeInTheDocument()
-  expect(mocks.router.replace).not.toHaveBeenCalledWith('/profile')
+  expect(mocks.router.replace).not.toHaveBeenCalledWith('/profile/astra')
 })
 
 it('accepts a cold resend when the same account hydrates while it is pending', async () => {
@@ -197,7 +197,7 @@ it('keeps a cold key confirmation when the same account hydrates while it is pen
   await act(async () => { pendingAction.resolve({ message: 'confirmed' }); await pendingAction.promise })
 
   expect(hasApiKeyCreationGrant()).toBe(true)
-  expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
+  expect(mocks.router.replace).toHaveBeenCalledWith('/profile/astra')
 })
 
 it('shows cold deletion success when the same account hydrates while it is pending', async () => {
@@ -217,7 +217,7 @@ it('shows cold deletion success when the same account hydrates while it is pendi
   })
 
   expect(screen.getByText(/successTitle/)).toBeInTheDocument()
-  expect(mocks.router.replace).not.toHaveBeenCalledWith('/profile')
+  expect(mocks.router.replace).not.toHaveBeenCalledWith('/profile/astra')
 })
 
 it('discards a deferred key confirmation after account replacement', async () => {

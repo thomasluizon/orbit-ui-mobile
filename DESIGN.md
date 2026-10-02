@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -129,6 +129,23 @@ for, and building that instead is the defect.
 | **Subscription** | understand the current plan and hand billing changes to its provider | not a shell destination or a billing back office |
 | **Auth** | get in without friction | not a place to explain the product |
 | **Wrapped** | close a period and feel it was worth it | not a report |
+
+### Perfil settings navigation
+
+Perfil starts with the account row, then Preferências, Astra and Notificações. Each entry opens
+one sub-screen with a page title and a visible back control returning to Perfil. The account row
+keeps the name and email; the position directly beneath it stays available for Orbit Pro.
+
+Conta owns edit name, data export, usage analytics, fresh start and account deletion, in that order.
+Deletion is last and keeps its danger label, confirmation and step-up. Preferências owns timezone,
+week start, clock, language, theme and showing general habits on Hoje. Astra owns today's allowance,
+feature switches and Pro gates, then API keys and MCP. Notificações owns the current push-device
+controls, product email consent and the note that habit reminders live on each habit.
+
+Mais do Orbit stays inline with Orbit Wrapped, Android widget, calendar sync, support and about,
+in that order. Calendar sync keeps its Pro gate. Sign out is the final top-level row. Each setting
+has one home; the retired Preferências, Avançado and Recursos de IA pages redirect to the new
+sub-screens and never carry a second copy.
 
 ### The month completion rate has one definition
 
