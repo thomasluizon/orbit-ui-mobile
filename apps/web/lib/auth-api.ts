@@ -320,7 +320,8 @@ export async function resolveSessionTokens(options: {
       }
     }
 
-    if (!forceRefresh && options.authToken && currentExpiry && currentExpiry > Date.now()) {
+    if (refreshResult.outcome === 'retryable'
+      && !forceRefresh && options.authToken && currentExpiry && currentExpiry > Date.now()) {
       return {
         token: options.authToken,
         expiresAt: currentExpiry,

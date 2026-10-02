@@ -6,7 +6,7 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const appDirectory = resolve(__dirname, '../../app')
-const layoutPath = resolve(appDirectory, '_layout.tsx')
+const layoutPath = resolve(appDirectory, '../components/navigation/root-stack-screens.tsx')
 const program = ts.createProgram([layoutPath], {
   noResolve: true,
   jsx: ts.JsxEmit.Preserve,

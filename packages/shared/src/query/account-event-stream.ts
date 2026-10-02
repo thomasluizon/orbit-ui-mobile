@@ -60,7 +60,7 @@ interface AccountEventStreamOptions {
   lastEventId?: string | null
   resumed?: boolean
   onEvent: (event: ParsedAccountEvent) => void
-  onOpen: (openedAt: number) => void
+  onOpen: (openedAt: number, hasReplayCursor: boolean) => void
   onFirstFailure?: (failedAt: number) => void
   onReconnect: () => void
   signal: AbortSignal
@@ -94,7 +94,7 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
       if (!response.ok || !response.body) throw new Error('Account event stream unavailable')
       opened = true
       reportNextFailure = true
-      if (!lastEventId && streamIsActive(options.signal)) options.onOpen(Date.now())
+      if (streamIsActive(options.signal)) options.onOpen(Date.now(), Boolean(lastEventId))
       await readEvents(response.body, options.signal, (event) => {
         if (event.id) lastEventId = event.id
         options.onEvent(event)
@@ -102,7 +102,7 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
       })
     } catch {
       retry = Math.min(retry + 1, 5)
-      if (!opened && reportNextFailure && !lastEventId && streamIsActive(options.signal)) {
+      if (!opened && reportNextFailure && streamIsActive(options.signal)) {
         reportNextFailure = false
         options.onFirstFailure?.(Date.now())
       }

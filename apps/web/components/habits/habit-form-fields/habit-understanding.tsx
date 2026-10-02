@@ -41,7 +41,7 @@ export function HabitUnderstanding({
     <div className="flex flex-col" style={{ gap: 24 }}>
       <div className="flex flex-col" style={{ gap: 8 }}>
         <label htmlFor="habit-phrase" className="form-label">{labels.field}</label>
-        <div data-habit-phrase-field="" data-focus-perimeter="" className="relative rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
+        <div data-habit-phrase-field="" data-focus-perimeter="" className="orbit-field-hover relative rounded-[12px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight]">
           <p
             aria-hidden="true"
             className="min-h-[92px] w-full whitespace-pre-wrap break-words p-4 text-start text-base leading-[1.45] text-[var(--fg-1)]"

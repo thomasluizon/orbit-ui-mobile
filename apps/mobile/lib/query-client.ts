@@ -1,5 +1,5 @@
 import { extractBackendStatus } from '@orbit/shared/utils'
-import { configKeys, habitKeys } from '@orbit/shared/query'
+import { configKeys, configureAccountQueryDefaults, habitKeys } from '@orbit/shared/query'
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
@@ -41,6 +41,8 @@ export const queryClient = new QueryClient({
     },
   },
 })
+
+configureAccountQueryDefaults(queryClient)
 
 const CACHE_KEY_PREFIX = '@orbit/query-cache'
 const LEGACY_CACHE_KEY = '@orbit/query-cache'

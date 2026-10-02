@@ -7,6 +7,7 @@ import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
+import { RouteContext } from '@/components/navigation/route-context'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
@@ -41,7 +42,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const description = t('description')
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.useorbit.org'),
-    title,
     description,
     manifest: '/manifest.webmanifest',
     icons: {
@@ -143,14 +143,16 @@ export default async function RootLayout({
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <PostHogProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <Suspense fallback={null}>
-              <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
-              <NavigationHistoryTracker />
-            </Suspense>
-            <KeyboardPlatformProvider applePlatform={applePlatform}>
-              {children}
-            </KeyboardPlatformProvider>
-            <ThrottleScreen />
+            <RouteContext>
+              <Suspense fallback={null}>
+                <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
+                <NavigationHistoryTracker />
+              </Suspense>
+              <KeyboardPlatformProvider applePlatform={applePlatform}>
+                {children}
+              </KeyboardPlatformProvider>
+              <ThrottleScreen />
+            </RouteContext>
           </NextIntlClientProvider>
         </PostHogProvider>
       </body>

@@ -1,6 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/events/ticket/route'
 import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared'
 
 const serverAuthMutate = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/server-fetch', () => ({ serverAuthMutate }))
@@ -16,4 +17,14 @@ it('returns a single-purpose ticket without caching the BFF response', async () 
   )
   expect(response.headers.get('cache-control')).toBe('private, no-store')
   expect(await response.json()).toMatchObject({ ticket: 'short-lived' })
+})
+
+it('reports a definitive session rejection to the event connection', async () => {
+  serverAuthMutate.mockRejectedValue(Object.assign(
+    createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized'),
+    { sessionRefreshFailed: true },
+  ))
+  const response = await POST()
+  expect(response.status).toBe(401)
+  expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
 })

@@ -74,7 +74,6 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: selectNormalizedHabits,
-    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   })
 

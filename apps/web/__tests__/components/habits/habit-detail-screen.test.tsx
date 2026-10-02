@@ -22,11 +22,13 @@ import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { DestinationShell } from '@/components/shell/destination-shell'
+import { RouteContext } from '@/components/navigation/route-context'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => ({
+  pathname: '/habits/habit-1',
   realTimeField: false,
   realReminderSections: false,
   logs: [] as HabitLog[],
@@ -81,7 +83,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
-  usePathname: () => '/habits/habit-1',
+  usePathname: () => mocks.pathname,
   useParams: () => ({}),
 }))
 
@@ -265,10 +267,11 @@ function openRescueGate() {
 
 describe('HabitDetailScreen', () => {
   it('exposes the habit name as its only page heading and a route focus target', () => {
-    render(<HabitDetailScreen habitId="habit-1" />)
+    render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     const headings = screen.getAllByRole('heading', { level: 1 })
     expect(headings).toHaveLength(1)
     expect(headings[0]).toHaveTextContent(mocks.detail!.title)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
     expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
@@ -276,6 +279,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
   })
   beforeEach(() => {
+    mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
     mocks.realReminderSections = false;
     vi.useFakeTimers()
@@ -631,12 +635,26 @@ describe('HabitDetailScreen', () => {
 
   it('moves focus from the fallback heading to the habit heading when data arrives', () => {
     mocks.detailLoading = true
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     const fallback = screen.getByRole('heading', { level: 1 })
+    expect(document.title).toBe('habits.detail.screenTitle · Orbit')
     fallback.focus()
     mocks.detailLoading = false
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
+  })
+
+  it('keeps a loaded habit name over the route fallback on locale and habit changes', () => {
+    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
+    mocks.language = 'pt-BR'
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
+    mocks.pathname = '/habits/habit-2'
+    mocks.detail = { ...mocks.detail!, id: 'habit-2' }
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-2" /></RouteContext>)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
 
   it('replaces the hosted loading heading with the habit heading after a fresh load', () => {

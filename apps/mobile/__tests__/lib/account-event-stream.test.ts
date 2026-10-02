@@ -21,7 +21,7 @@ it('replays with Last-Event-ID after refreshing an expired bearer token', async 
   mocks.refreshSessionToken.mockResolvedValue('fresh-token')
   mocks.expoFetch.mockResolvedValueOnce({ status: 401 }).mockResolvedValueOnce({ status: 200 })
   await openAccountEventStream(new AbortController().signal, 'epoch.3')
-  expect(mocks.refreshSessionToken).toHaveBeenCalledWith({ clearOnFailure: false })
+  expect(mocks.refreshSessionToken).toHaveBeenCalledWith()
   expect(mocks.expoFetch).toHaveBeenNthCalledWith(2,
     'https://api.useorbit.org/api/events',
     expect.objectContaining({ headers: {

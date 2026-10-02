@@ -196,7 +196,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           <AstraGlyph size={20} color="currentColor" />
         </button>
       ) : null}
-      <div data-composer-input-row data-focus-perimeter="" aria-live="polite" className="flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight] flex-wrap justify-end">
+      <div data-composer-input-row data-focus-perimeter="" aria-live="polite" className="orbit-field-hover flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-xl bg-[var(--bg-field)] px-2 shadow-[inset_0_0_0_1px_var(--border-control)] has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[textarea:focus-visible]:border-[Highlight] flex-wrap justify-end">
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <textarea
           id={props.inputId}
           rows={1}

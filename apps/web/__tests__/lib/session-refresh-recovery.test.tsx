@@ -40,7 +40,7 @@ describe('session refresh recovery', () => {
         status: 401,
         headers: { 'x-orbit-session-refresh': 'failed' },
       }))
-      .mockResolvedValueOnce(Response.json({ expiresAt, refreshFailed: false }))
+      .mockResolvedValueOnce(Response.json({ expiresAt, userId: 'user-1', refreshFailed: false }))
 
     render(<ExpiryWarning />)
     await act(() => sessionAwareFetch('/api/profile'))
@@ -67,10 +67,10 @@ describe('session refresh recovery', () => {
         headers: { 'x-orbit-session-refresh': 'failed' },
       }))
       .mockResolvedValueOnce(Response.json(
-        { expiresAt: null, refreshFailed: true },
+        { expiresAt: null, userId: null, refreshFailed: true },
         { status: 401 },
       ))
-      .mockResolvedValueOnce(Response.json({ expiresAt, refreshFailed: false }))
+      .mockResolvedValueOnce(Response.json({ expiresAt, userId: 'user-1', refreshFailed: false }))
 
     const winner = sessionAwareFetch('/api/winner')
     await act(() => sessionAwareFetch('/api/loser'))
@@ -102,10 +102,10 @@ describe('session refresh recovery', () => {
     const winner = runServerAction(winnerResult)
     mockFetch
       .mockResolvedValueOnce(Response.json(
-        { expiresAt: null, refreshFailed: true },
+        { expiresAt: null, userId: null, refreshFailed: true },
         { status: 401 },
       ))
-      .mockResolvedValueOnce(Response.json({ expiresAt, refreshFailed: false }))
+      .mockResolvedValueOnce(Response.json({ expiresAt, userId: 'user-1', refreshFailed: false }))
 
     await expect(runServerAction(Promise.resolve({
       ok: false as const,

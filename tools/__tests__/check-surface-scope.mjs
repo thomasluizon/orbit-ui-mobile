@@ -39,7 +39,9 @@ function stageRepository(label, { web = "", mobile = "" }) {
   }
   mkdirSync(join(repository, "apps/web"), { recursive: true })
   mkdirSync(join(repository, "apps/mobile"), { recursive: true })
-  writeFileSync(join(repository, "DESIGN.md"), declarations)
+  const raisedTextDeclarations = readFileSync(join(actualRoot, "DESIGN.md"), "utf8").split(/\r?\n/)
+    .filter((line) => /^\|\s*(?:dark|light)\s+`--primary-text`/.test(line)).join("\n")
+  writeFileSync(join(repository, "DESIGN.md"), declarations.replace("<!-- surface-scope:end -->", `${raisedTextDeclarations}\n<!-- surface-scope:end -->`))
   writeFileSync(join(repository, "apps/web/example.tsx"), web)
   writeFileSync(join(repository, "apps/mobile/example.tsx"), mobile)
   return repository
@@ -63,6 +65,48 @@ function stageProducerRepository(label, paths, violation) {
 }
 
 export const cases = () => {
+  const interactionOwners = [
+    { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: " group-hover:text-[var(--primary-text)]", after: "" },
+    { path: "apps/web/components/shell/shell-wide.tsx", before: " hover:text-[var(--primary-text)]", after: "" },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active && pressed ? tokens.primaryText : active ? tokens.primarySoft : tokens.fg3", after: "active ? tokens.primarySoft : tokens.fg3" },
+  ]
+  for (const [index, owner] of interactionOwners.entries()) {
+    const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
+    check("check-surface-scope.mjs", `accepts paired resting and interaction colors in ${owner.path}`, ["--root", paired], {
+      status: 0,
+      stdout: /Surface scope guard passed/,
+    })
+    const unpaired = stageProducerRepository(`unpaired-owner-${index}`, [owner.path], owner)
+    check("check-surface-scope.mjs", `rejects retained resting text on the interaction surface in ${owner.path}`, ["--root", unpaired], {
+      status: 1,
+      stderr: /--primary-soft on hover, dark ratio 3\.385, TEXT floor 4\.50/,
+    })
+  }
+  const stateCases = [
+    ["direct-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</button>` }, 0],
+    ["wrong-state", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] focus:text-[var(--primary-text)]">Item</button>` }, 1],
+    ["child-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</span></button>` }, 1],
+    ["font-size-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[14px]">Item</button>` }, 1],
+    ["self-group", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="group text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]">Item</span></button>` }, 1],
+    ["hover-canvas", { web: `<button className="bg-[var(--bg-card)] hover:bg-[var(--bg)] text-[var(--primary-text)] hover:text-[var(--primary-soft)]">Item</button>` }, 0],
+    ["sibling-override", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--primary-soft)]">Item</span><span className="hover:text-[var(--primary-text)]">Other</span></button>` }, 1],
+    ["missing-group", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]">Item</span></button>` }, 1],
+    ["independent-group-hover", { web: `<div className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] p-4"><div className="group"><span className="text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]">Item</span></div></div>` }, 1],
+    ["background-owner-group", { web: `<div className="group bg-[var(--bg)] hover:bg-[var(--bg-hover)] p-4"><div><span className="text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]">Item</span></div></div>` }, 0],
+    ["background-inside-group", { web: `<div className="group"><div className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] p-4"><span className="text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]">Item</span></div></div>` }, 0],
+    ["nested-correlated-groups", { web: `<div className="group bg-[var(--bg)] hover:bg-[var(--bg-hover)] p-4"><div className="group"><span className="text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]">Item</span></div></div>` }, 0],
+    ["bad-resting-surface", { web: `<button className="bg-[var(--bg-card)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</button>` }, 1],
+    ["bad-hover-override", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-text)] hover:text-[var(--primary-soft)]">Item</button>` }, 1],
+    ["reversed-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primarySoft : tokens.primaryText }}>Item</Text>}</Pressable></View>` }, 1],
+    ["direct-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primaryText : tokens.primarySoft }}>Item</Text>}</Pressable></View>` }, 0],
+  ]
+  for (const [label, source, status] of stateCases) {
+    const repository = stageRepository(label, source)
+    check("check-surface-scope.mjs", `pairs foreground and background states: ${label}`, ["--root", repository], {
+      status,
+      ...(status === 0 ? { stdout: /Surface scope guard passed/ } : { stderr: /--primary-soft on (?:hover|card), dark ratio/ }),
+    })
+  }
   const fg4Card = stageRepository("fg4-card", { web: `export function StatusRing(){return <span className="bg-[var(--bg-card)] shadow-[inset_0_0_0_2px_var(--fg-4)]" />}` })
   check("check-surface-scope.mjs", "rejects fg-4 graphics on a card", ["--root", fg4Card], {
     status: 1,

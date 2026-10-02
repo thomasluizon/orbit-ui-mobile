@@ -100,10 +100,17 @@ describe('offline queue across the real API and auth boundary', () => {
   it('retains both writes through terminal 401 teardown and same-account login', async () => {
     enqueue()
     enqueue('later-delete')
-    const clearSession = vi.spyOn(auth, 'clearSessionAndResetAuth')
+    const sessionEnded = vi.fn()
+    const unsubscribe = auth.useAuthStore.subscribe((state, previous) => {
+      if (previous.isAuthenticated && !state.isAuthenticated) sessionEnded()
+    })
     mocks.fetch.mockResolvedValue(new Response(null, { status: 401 }))
-    await flushQueuedMutations()
-    expect(clearSession).toHaveBeenCalledOnce()
+    try {
+      await flushQueuedMutations()
+    } finally {
+      unsubscribe()
+    }
+    expect(sessionEnded).toHaveBeenCalledOnce()
     expect(auth.useAuthStore.getState().isAuthenticated).toBe(false)
     expect(mocks.clearTokens).toHaveBeenCalledOnce()
     expect(stored()).toHaveLength(2)

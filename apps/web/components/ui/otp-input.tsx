@@ -34,7 +34,7 @@ export function OtpInput({
 
   return (
     <div className="flex flex-col gap-2" data-error={error ? '' : undefined}>
-      <div className="relative flex items-center justify-center gap-2">
+      <div className="orbit-otp-hover relative flex items-center justify-center gap-2">
         <input
           ref={inputRef}
           id={id}
@@ -61,14 +61,7 @@ export function OtpInput({
             data-otp-cell=""
             data-error={error ? '' : undefined}
             data-active={focused && !disabled && index === activeIndex ? '' : undefined}
-            className="pointer-events-none grid h-[56px] w-[44px] shrink-0 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:data-[active]:border-[Highlight]"
-            style={{
-              boxShadow: focused && !disabled && index === activeIndex
-                ? 'inset 0 0 0 2px var(--primary)'
-                : error
-                  ? 'inset 0 0 0 2px var(--status-bad)'
-                  : 'inset 0 0 0 1px var(--border-control)',
-            }}
+            className={`pointer-events-none grid h-[56px] w-[44px] shrink-0 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)] ${focused && !disabled && index === activeIndex ? 'shadow-[inset_0_0_0_2px_var(--primary)]' : error ? 'shadow-[inset_0_0_0_2px_var(--status-bad)]' : 'shadow-[inset_0_0_0_1px_var(--border-control)]'} forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:data-[active]:border-[Highlight]`}
           >
             {digits[index] ?? ''}
           </span>

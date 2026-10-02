@@ -499,6 +499,15 @@ describe('mobile notification hooks', () => {
     }
   })
 
+  it('inherits the account foreground policy without adding a polling owner', () => {
+    const handle = renderHook(() => useNotifications())
+    expect(mocks.useQuery).not.toHaveBeenCalledWith(expect.objectContaining({ refetchInterval: expect.any(Number) }))
+    expect(mocks.useQuery).not.toHaveBeenCalledWith(expect.objectContaining({ refetchOnWindowFocus: true }))
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(focusManager.hasListeners()).toBe(true)
+    handle.unmount()
+  })
+
   it('invalidates the list after a mark-read confirms online', async () => {
     const mutation = useMarkNotificationRead() as unknown as MutationConfig<
       unknown,
