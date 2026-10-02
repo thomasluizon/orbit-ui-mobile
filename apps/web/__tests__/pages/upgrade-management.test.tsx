@@ -5,6 +5,9 @@ import { useTranslations } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import { UsageStats } from '@/components/upgrade/usage-stats'
 import { ProviderHandoff } from '@/components/upgrade/provider-handoff'
+import { RouteContext } from '@/components/navigation/route-context'
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade' }))
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
 const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
@@ -966,5 +969,5 @@ describe('UpgradePage subscription management', () => {
 
 function render(element: React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}><RouteContext>{children}</RouteContext></QueryClientProvider> })
 }

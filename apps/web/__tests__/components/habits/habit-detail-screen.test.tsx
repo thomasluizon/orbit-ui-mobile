@@ -267,7 +267,7 @@ function openRescueGate() {
 
 describe('HabitDetailScreen', () => {
   it('exposes the habit name as its only page heading and a route focus target', () => {
-    render(<HabitDetailScreen habitId="habit-1" />)
+    render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     const headings = screen.getAllByRole('heading', { level: 1 })
     expect(headings).toHaveLength(1)
     expect(headings[0]).toHaveTextContent(mocks.detail!.title)
@@ -635,25 +635,25 @@ describe('HabitDetailScreen', () => {
 
   it('moves focus from the fallback heading to the habit heading when data arrives', () => {
     mocks.detailLoading = true
-    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     const fallback = screen.getByRole('heading', { level: 1 })
     expect(document.title).toBe('habits.detail.screenTitle · Orbit')
     fallback.focus()
     mocks.detailLoading = false
-    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
 
   it('keeps a loaded habit name over the route fallback on locale and habit changes', () => {
-    const view = render(<><RouteContext /><HabitDetailScreen habitId="habit-1" /></>)
+    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     mocks.language = 'pt-BR'
-    view.rerender(<><RouteContext /><HabitDetailScreen habitId="habit-1" /></>)
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     mocks.pathname = '/habits/habit-2'
     mocks.detail = { ...mocks.detail!, id: 'habit-2' }
-    view.rerender(<><RouteContext /><HabitDetailScreen habitId="habit-2" /></>)
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-2" /></RouteContext>)
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
 

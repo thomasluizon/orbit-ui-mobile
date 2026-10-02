@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useLocale } from 'next-intl'
-import { formatRouteTitle } from '@/lib/route-titles'
+import { createContext, useContext, useEffect } from 'react'
+
+export const DocumentTitleContext = createContext<((surface: string) => () => void) | null>(null)
 
 export function useDocumentTitle(surface: string | null, routeKey?: string) {
-  const locale = useLocale()
+  const registerTitle = useContext(DocumentTitleContext)
   useEffect(() => {
-    if (surface !== null) document.title = formatRouteTitle(surface)
-  }, [locale, routeKey, surface])
+    if (surface !== null && registerTitle) return registerTitle(surface)
+  }, [registerTitle, routeKey, surface])
 }

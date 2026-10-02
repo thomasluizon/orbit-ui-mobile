@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { getRouteMetadata } from '@/lib/route-metadata'
-import { ROUTE_TITLE_KEYS, type TitledRoute } from '@/lib/route-titles'
+import { ROUTE_TITLE_KEYS, SERVER_TITLED_ROUTES, type TitledRoute } from '@/lib/route-titles'
 
 const request = vi.hoisted(() => ({ locale: 'en' }))
 vi.mock('next-intl/server', () => ({
@@ -21,6 +21,10 @@ const serverRoutes: { file: string; route: TitledRoute }[] = [
   { file: 'step-up/page.tsx', route: '/step-up' },
   { file: 'turnstile-bridge/page.tsx', route: '/turnstile-bridge' },
 ]
+
+it('assigns the metadata owner to exactly the routes exporting server titles', () => {
+  expect(SERVER_TITLED_ROUTES).toEqual(serverRoutes.map(({ route }) => route))
+})
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('server route metadata in $locale', ({ locale, messages }) => {
   it.each(serverRoutes)('exports translated metadata for $route', async ({ file, route }) => {

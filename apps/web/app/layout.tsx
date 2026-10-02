@@ -42,7 +42,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const description = t('description')
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.useorbit.org'),
-    title,
     description,
     manifest: '/manifest.webmanifest',
     icons: {
@@ -144,15 +143,16 @@ export default async function RootLayout({
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <PostHogProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
-            <RouteContext />
-            <Suspense fallback={null}>
-              <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
-              <NavigationHistoryTracker />
-            </Suspense>
-            <KeyboardPlatformProvider applePlatform={applePlatform}>
-              {children}
-            </KeyboardPlatformProvider>
-            <ThrottleScreen />
+            <RouteContext>
+              <Suspense fallback={null}>
+                <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
+                <NavigationHistoryTracker />
+              </Suspense>
+              <KeyboardPlatformProvider applePlatform={applePlatform}>
+                {children}
+              </KeyboardPlatformProvider>
+              <ThrottleScreen />
+            </RouteContext>
           </NextIntlClientProvider>
         </PostHogProvider>
       </body>

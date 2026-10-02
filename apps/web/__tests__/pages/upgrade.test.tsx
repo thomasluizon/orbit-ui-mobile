@@ -223,14 +223,14 @@ describe('UpgradePage', () => {
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
     it('names the pitch and subscription management before Orbit', () => {
       mockLocale.value = locale
-      const view = render(<><RouteContext /><UpgradePage /></>)
+      const view = render(<RouteContext><UpgradePage /></RouteContext>)
       expect(document.title).toBe(`${messages.upgrade.pitchTitle} · Orbit`)
       mockHasProAccess = true
       mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false, subscriptionSource: 'play' }
-      view.rerender(<><RouteContext /><UpgradePage /></>)
+      view.rerender(<RouteContext><UpgradePage /></RouteContext>)
       expect(document.title).toBe(`${messages.upgrade.title} · Orbit`)
       mockLocale.value = locale === 'en' ? 'pt-BR' : 'en'
-      view.rerender(<><RouteContext /><UpgradePage /></>)
+      view.rerender(<RouteContext><UpgradePage /></RouteContext>)
       expect(document.title).toBe(`${(mockLocale.value === 'en' ? en : ptBR).upgrade.title} · Orbit`)
     })
 

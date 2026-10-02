@@ -26,10 +26,15 @@ export const ROUTE_TITLE_KEYS = {
 
 export type TitledRoute = keyof typeof ROUTE_TITLE_KEYS
 
+export const SERVER_TITLED_ROUTES: readonly TitledRoute[] = [
+  '/', '/notifications', '/[...missing]', '/chat', '/r/[code]', '/step-up', '/turnstile-bridge',
+]
+
 export function resolveTitledRoute(pathname: string): TitledRoute {
-  if (Object.hasOwn(ROUTE_TITLE_KEYS, pathname)) return pathname as TitledRoute
-  if (/^\/habits\/[^/]+$/.test(pathname)) return '/habits/[id]'
-  if (/^\/r\/[^/]+$/.test(pathname)) return '/r/[code]'
+  const canonicalPathname = pathname.replace(/\/+$/, '') || '/'
+  if (Object.hasOwn(ROUTE_TITLE_KEYS, canonicalPathname)) return canonicalPathname as TitledRoute
+  if (/^\/habits\/[^/]+$/.test(canonicalPathname)) return '/habits/[id]'
+  if (/^\/r\/[^/]+$/.test(canonicalPathname)) return '/r/[code]'
   return '/[...missing]'
 }
 
