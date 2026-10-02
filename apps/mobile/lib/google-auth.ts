@@ -16,6 +16,7 @@ import {
   extractGoogleAuthParams,
   clearPendingGoogleAuthSession,
   hasPendingGoogleAuthSession,
+  dismissPendingGoogleAuthSession,
   getPendingGoogleAuthVerifier,
   markPendingGoogleAuthSession,
   setPendingGoogleAuthCallbackUrl,
@@ -24,7 +25,8 @@ import {
 export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
   | { type: 'denied'; url: string }
-  | { type: WebBrowser.WebBrowserResultType }
+  | { type: 'dismiss'; returnUrlAttemptId: string }
+  | { type: Exclude<WebBrowser.WebBrowserResultType, WebBrowser.WebBrowserResultType.DISMISS> }
 
 let googleAuthStartInProgress = false
 
@@ -58,20 +60,27 @@ async function openGoogleAuthSession(authorizeUrl: string, returnUrlAttemptId: s
   if (!isAuthReturnUrlAttemptCurrent(returnUrlAttemptId)) {
     return { type: WebBrowser.WebBrowserResultType.CANCEL }
   }
-  if (result.type !== 'success') {
+  let callbackUrl: string
+  if (result.type === WebBrowser.WebBrowserResultType.DISMISS) {
+    const acceptedCallback = dismissPendingGoogleAuthSession(returnUrlAttemptId)
+    if (!acceptedCallback) return { type: 'dismiss', returnUrlAttemptId }
+    callbackUrl = acceptedCallback
+  } else if (result.type !== 'success') {
     await clearPendingGoogleAuthSession(returnUrlAttemptId)
     return { type: result.type }
+  } else {
+    if (!setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
+      throw new Error('Invalid OAuth state')
+    }
+    callbackUrl = result.url
   }
-  if (!setPendingGoogleAuthCallbackUrl(result.url, returnUrlAttemptId)) {
-    throw new Error('Invalid OAuth state')
-  }
-  const params = extractGoogleAuthParams(result.url)
+  const params = extractGoogleAuthParams(callbackUrl)
   if (params.error === 'access_denied') {
     await clearPendingGoogleAuthSession(returnUrlAttemptId)
-    return { type: 'denied', url: result.url }
+    return { type: 'denied', url: callbackUrl }
   }
   if (params.error || !params.code) throw new Error('Authentication failed')
-  return { type: 'success', url: result.url }
+  return { type: 'success', url: callbackUrl }
 }
 
 export async function startMobileGoogleAuth({

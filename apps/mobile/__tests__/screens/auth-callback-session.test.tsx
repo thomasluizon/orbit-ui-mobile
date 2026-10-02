@@ -37,7 +37,8 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: mocks.replace }),
 }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'en' } }) }))
-vi.mock('@/lib/auth-flow', () => ({
+vi.mock('@/lib/auth-flow', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/auth-flow')>(),
   clearStoredReferralCode: mocks.clearStoredReferralCode,
   getStoredReferralCode: mocks.getStoredReferralCode,
   consumeStoredAuthReturnUrl: mocks.consumeStoredAuthReturnUrl,
@@ -45,7 +46,6 @@ vi.mock('@/lib/auth-flow', () => ({
   clearStoredAuthReturnUrl: mocks.clearStoredAuthReturnUrl,
   createAuthReturnUrlAttempt: mocks.createAuthReturnUrlAttempt,
   isAuthReturnUrlAttemptCurrent: mocks.isAuthReturnUrlAttemptCurrent,
-  getSafeReturnUrl: (url: string | null) => url ?? '/',
 }))
 vi.mock('@/lib/google-auth-callback', () => ({
   AUTH_CALLBACK_URL: 'https://app.useorbit.org/auth-callback',
@@ -246,4 +246,28 @@ it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated 
   await TestRenderer.act(async () => { mocks.continueAccount?.(); await Promise.resolve() })
   await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalledWith(returnUrl))
   expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledWith('attempt-1', expect.any(Function))
+})
+
+it.each([false, true])('leaves the owning callback on an allowed explicit route, reactivated=%s', async (reactivated) => {
+  mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'access', refreshToken: 'refresh',
+    userId: 'user-1', name: 'A', email: 'a@example.com', wasReactivated: reactivated })
+  mocks.login.mockResolvedValue(() => true)
+  mocks.getStoredAuthReturnUrl.mockResolvedValue(null)
+  await mountCallback()
+  if (reactivated) {
+    expect(mocks.callbackState).toBe('account')
+    await TestRenderer.act(async () => { mocks.continueAccount?.(); await Promise.resolve() })
+  }
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
+  expect(mocks.replace).not.toHaveBeenCalledWith('/')
+})
+
+it.each(['/', '/?source=login', '/login', '/auth-callback?code=old', '/(onboarding)', '//evil.example'])
+('rejects a return URL that cannot leave the signed-in callback: %s', async (returnUrl) => {
+  mocks.login.mockResolvedValue(() => true)
+  mocks.getStoredAuthReturnUrl.mockResolvedValue(returnUrl)
+  await mountCallback()
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(
+    returnUrl === '/?source=login' ? '/(tabs)?source=login' : '/(tabs)',
+  )
 })

@@ -11,6 +11,9 @@ import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import { AUTH_BACKEND_ERROR_MAP } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
 import AuthCallbackScreen from '@/app/auth-callback'
+import { LoginContent } from '@/components/auth/login-content'
+import { EmailStep } from '@/components/auth/email-step'
+import { CodeStep } from '@/components/auth/code-step'
 import { CalendarImportContent } from '@/components/calendar-sync/calendar-import-content'
 import { useLoginFlow } from '@/app/use-login-flow'
 import { useConfig } from '@/hooks/use-config'
@@ -29,6 +32,7 @@ vi.unmock('react-i18next')
 
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
+  rawUrl: null as string | null,
   fetch: vi.fn(), replace: vi.fn(), showError: vi.fn(), openAuthSession: vi.fn(),
   clearCache: vi.fn(async () => {}), resetQueries: vi.fn(async () => {}),
   resetAccount: vi.fn(async () => {}), clearOffline: vi.fn(async () => {}),
@@ -50,7 +54,7 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
   useFocusEffect: () => {},
 }))
-vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
+vi.mock('expo-linking', () => ({ useLinkingURL: () => mocks.rawUrl }))
 vi.mock('expo-web-browser', () => ({
   openAuthSessionAsync: mocks.openAuthSession,
   WebBrowserResultType: { CANCEL: 'cancel', DISMISS: 'dismiss' },
@@ -130,6 +134,7 @@ function expectNoTeardown() {
 
 beforeEach(async () => {
   vi.clearAllMocks()
+  mocks.rawUrl = null
   vi.stubGlobal('fetch', mocks.fetch)
   vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'test-client')
   vi.stubEnv('EXPO_PUBLIC_TURNSTILE_SITE_KEY', '')
@@ -142,6 +147,7 @@ beforeEach(async () => {
   mocks.fetch.mockImplementation((url: string) => {
     const path = new URL(url).pathname
     if (path === API.config.get) return Promise.resolve(new Response(null, { status: 401 }))
+    if (path === API.auth.sendCode) return Promise.resolve(new Response('{}'))
     if (path === API.auth.verifyCode) {
       const error = Object.entries(AUTH_BACKEND_ERROR_MAP).find(([, key]) => key === 'auth.errors.invalidCode')?.[0]
       return Promise.resolve(new Response(JSON.stringify({ error }), { status: 401 }))
@@ -160,6 +166,7 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
+  vi.useRealTimers()
 })
 
 it.each([1, 2])('completes one Google exchange after %i foreground checks while the referral read is pending', async (foregroundEvents) => {
@@ -181,7 +188,7 @@ it.each([1, 2])('completes one Google exchange after %i foreground checks while 
   expect(requestCount(API.auth.googleCode)).toBe(1)
   expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: success.userId } })
   await expect(getToken()).resolves.toBe(success.token)
-  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
   expect(getSessionGeneration().epoch).toBe(generation.epoch + 1)
 })
 
@@ -217,7 +224,7 @@ it('survives both the anonymous config 401 and foreground check during the same 
   expect(requestCount(API.auth.googleCode)).toBe(1)
   expect(requestCount(API.auth.refresh)).toBe(0)
   expect(useAuthStore.getState().isAuthenticated).toBe(true)
-  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
 })
 
 it('reports a wrong email code as invalid without recovery or navigation', async () => {
@@ -326,7 +333,7 @@ it.each(['sign-in', 'Calendar'])('retries %s on a mounted callback with one POST
   expect(exchangeRequests.map(([, options]) => JSON.parse(options.body).code)).toEqual(['attempt-1', 'attempt-2'])
   expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: success.userId } })
   expect(getSessionGeneration().epoch).toBe(generation.epoch + 1)
-  expect(mocks.replace).toHaveBeenLastCalledWith(purpose === 'Calendar' ? '/calendar?import=1' : '/')
+  expect(mocks.replace).toHaveBeenLastCalledWith(purpose === 'Calendar' ? '/calendar?import=1' : '/(tabs)')
   await expect(getToken()).resolves.toBe(success.token)
 })
 
@@ -343,4 +350,56 @@ it('rejects three parallel anonymous 401s without refreshing or tearing down the
   expect(mocks.replace).not.toHaveBeenCalled()
   expect(getSessionGeneration()).toEqual(generation)
   expectNoTeardown()
+})
+
+
+it.each([false, true])('finishes a dismissed Google attempt through the App Link screen after requesting email: %s', async (requestEmail) => {
+  mocks.openAuthSession.mockResolvedValue({ type: 'dismiss' })
+  let flow!: ReturnType<typeof useLoginFlow>
+  function LoginProbe() { flow = useLoginFlow(); return null }
+  await mount(<LoginProbe />)
+  await TestRenderer.act(async () => { await flow.signInWithGoogle() })
+  expect(flow.errorKey).toBe('auth.errors.googleError')
+  if (requestEmail) {
+    await TestRenderer.act(() => { flow.setEmail('person@example.com') })
+    await TestRenderer.act(async () => { await flow.sendCode() })
+    expect(requestCount(API.auth.sendCode)).toBe(1)
+  }
+  const authorizeUrl = new URL(mocks.openAuthSession.mock.calls[0]![0] as string)
+  mocks.rawUrl = `${AUTH_CALLBACK_URL}?code=late-code&state=${authorizeUrl.searchParams.get('state')}`
+  await mount(<AuthCallbackScreen />)
+  await vi.waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(true))
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
+  expect(requestCount(API.auth.googleCode)).toBe(1)
+  expect(useAuthStore.getState()).toMatchObject({ sessionPhase: 'signed-in', user: { userId: success.userId } })
+  await expect(getToken()).resolves.toBe(success.token)
+  expect(flow.errorKey).toBeNull()
+  expect(flow.isGoogleLoading).toBe(false)
+})
+
+it.each(['dismiss', 'cancel'])('recovers from a delayed %s Google callback after replacement email verification fails', async (browserResult) => {
+  mocks.openAuthSession.mockResolvedValue({ type: browserResult })
+  const loginScreen = await mount(<LoginContent />)
+  await TestRenderer.act(() => { loginScreen.root.findByType(EmailStep).props.onSignInWithGoogle() })
+  const authorizeUrl = new URL(mocks.openAuthSession.mock.calls[0]![0] as string)
+  const googleState = authorizeUrl.searchParams.get('state')
+  await TestRenderer.act(() => { loginScreen.root.findByType(EmailStep).props.onEmailChange('person@example.com') })
+  await TestRenderer.act(() => { loginScreen.root.findByType(EmailStep).props.onSendCode() })
+  expect(requestCount(API.auth.sendCode)).toBe(1)
+  await TestRenderer.act(() => { loginScreen.root.findByType(CodeStep).props.onCodeChange('123456') })
+  expect(requestCount(API.auth.verifyCode)).toBe(1)
+  expect(loginScreen.root.findByType(CodeStep).props.codeFailure).toBe('wrong')
+
+  mocks.rawUrl = `${AUTH_CALLBACK_URL}?code=late-code&state=${googleState}`
+  vi.useFakeTimers()
+  const callbackScreen = await mount(<AuthCallbackScreen />)
+  await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+
+  expect(callbackScreen.root.findByType(LoginContent).props.callback.state).toBe('failed')
+  expect(callbackScreen.root.findByType(EmailStep).props.isGoogleLoading).toBe(false)
+  expect(callbackScreen.root.findByType(EmailStep).props.isSubmitting).toBe(false)
+  expect(getPendingGoogleAuthVerifier(googleState!)).toBeNull()
+  expect(requestCount(API.auth.googleCode)).toBe(0)
+  expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  expect(mocks.replace).not.toHaveBeenCalled()
 })

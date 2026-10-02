@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
+import { clearPendingGoogleAuthSession, hasPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
+import { completeGoogleAuthFromUrl, getGoogleAuthRedirectUrl, startMobileGoogleAuth } from '@/lib/google-auth'
 
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(), open: vi.fn(), random: vi.fn(), digest: vi.fn(),
@@ -22,9 +24,6 @@ vi.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   CryptoEncoding: { BASE64: 'base64' },
 }))
-
-import { clearPendingGoogleAuthSession, hasPendingGoogleAuthSession } from '@/lib/google-auth-callback'
-import { completeGoogleAuthFromUrl, getGoogleAuthRedirectUrl, startMobileGoogleAuth } from '@/lib/google-auth'
 
 const callback = 'https://app.useorbit.org/auth-callback'
 const loginResponse = { token: 'jwt', refreshToken: 'refresh', userId: 'user-1', name: 'Alex', email: 'alex@example.com' }
@@ -143,5 +142,51 @@ describe('mobile Google authorization code flow', () => {
     expect(result.type).toBe('success')
     if (result.type !== 'success') return
     await expect(completeGoogleAuthFromUrl(result.url, 'en')).resolves.toEqual(loginResponse)
+  })
+
+  it('accepts the same attempt callback after the browser dismisses', async () => {
+    mocks.open.mockResolvedValue({ type: 'dismiss' })
+    const dismissed = await startMobileGoogleAuth({})
+    expect(dismissed.type).toBe('dismiss')
+    const callbackUrl = `${callback}?code=late-code&state=${authorizeUrl().searchParams.get('state')}`
+    expect(setPendingGoogleAuthCallbackUrl(callbackUrl)).toBe(true)
+    await expect(completeGoogleAuthFromUrl(callbackUrl, 'en')).resolves.toEqual(loginResponse)
+  })
+
+  it('accepts callback delivery before the browser dismissal resolves', async () => {
+    let callbackUrl = ''
+    mocks.open.mockImplementation((url: string) => {
+      callbackUrl = `${callback}?code=first-code&state=${new URL(url).searchParams.get('state')}`
+      expect(setPendingGoogleAuthCallbackUrl(callbackUrl)).toBe(true)
+      return Promise.resolve({ type: 'dismiss' })
+    })
+    const result = await startMobileGoogleAuth({})
+    expect(result).toEqual({ type: 'success', url: callbackUrl })
+    await expect(completeGoogleAuthFromUrl(callbackUrl, 'en')).resolves.toEqual(loginResponse)
+  })
+
+  it('keeps a denied App Link denied when it arrives before browser dismissal', async () => {
+    mocks.open.mockImplementation((url: string) => {
+      expect(setPendingGoogleAuthCallbackUrl(
+        `${callback}?error=access_denied&state=${new URL(url).searchParams.get('state')}`,
+      )).toBe(true)
+      return Promise.resolve({ type: 'dismiss' })
+    })
+    await expect(startMobileGoogleAuth({})).resolves.toMatchObject({ type: 'denied' })
+    expect(hasPendingGoogleAuthSession()).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('rejects a dismissed attempt callback after a replacement browser attempt starts', async () => {
+    mocks.open.mockResolvedValue({ type: 'dismiss' })
+    await startMobileGoogleAuth({})
+    const oldCallback = `${callback}?code=old-code&state=${authorizeUrl().searchParams.get('state')}`
+    mocks.random.mockResolvedValue(new Uint8Array(32).fill(3))
+    await startMobileGoogleAuth({})
+    const newCallback = `${callback}?code=new-code&state=${authorizeUrl().searchParams.get('state')}`
+    expect(setPendingGoogleAuthCallbackUrl(oldCallback)).toBe(false)
+    expect(setPendingGoogleAuthCallbackUrl(newCallback)).toBe(true)
+    await expect(completeGoogleAuthFromUrl(oldCallback, 'en')).rejects.toThrow('Invalid OAuth state')
+    await expect(completeGoogleAuthFromUrl(newCallback, 'en')).resolves.toEqual(loginResponse)
   })
 })
