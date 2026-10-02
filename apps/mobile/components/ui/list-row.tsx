@@ -64,7 +64,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const body: ReactNode = (
     <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' ? styles.labelContent : null, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
-        <View style={styles.iconSlot}>
+        <View importantForAccessibility="no-hide-descendants" style={styles.iconSlot}>
           {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}

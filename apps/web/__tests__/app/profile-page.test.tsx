@@ -276,6 +276,7 @@ describe('ProfilePage', () => {
             right: title.getBoundingClientRect().right,
             available: title.getBoundingClientRect().width,
             iconWidth: icon.getBoundingClientRect().width,
+            iconHidden: icon.closest('[aria-hidden="true"]') !== null,
             overflow: row.scrollWidth > row.clientWidth,
           }
         }))
@@ -289,6 +290,7 @@ describe('ProfilePage', () => {
           expect(row.textEdge, row.label!).toBe(rows[0]!.textEdge)
           expect(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
           expect(row.iconWidth, row.label!).toBe(24)
+          expect(row.iconHidden, row.label!).toBe(true)
           expect(row.overflow, row.label!).toBe(false)
           expect(row.titleOverflow, row.label!).toBe(false)
           expect(row.ellipsis, row.label!).toBe(false)
@@ -296,6 +298,31 @@ describe('ProfilePage', () => {
           if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.iconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
         }
         if (textScale === 2 && locale === 'pt-BR') expect(rows.find(({ label }) => label === ptBR.profile.calendarSync.title)!.lines).toBeGreaterThan(1)
+      } finally { await page.close() }
+    })
+
+    it.each([1, 2])('reveals the full account email within the row at %s text scale', async (textScale) => {
+      translateProMessages('en')
+      const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
+      mockProfileState.current.profile = createMockProfile({ name: 'Marina', email })
+      render(<ProfilePage />)
+      const accountLink = screen.getByRole('link', { name: /Marina/ })
+      expect(accountLink).toHaveAttribute('href', '/profile/account')
+      await act(async () => { fireEvent.click(accountLink) })
+      const { container } = render(<ProfileAccountRoute />)
+      const page = await browser.newPage({ viewport: { width: 320, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(({ email, textScale }) => {
+          const row = Array.from(document.querySelectorAll('.orbit-list-row-shell')).find((row) => row.textContent.includes(email))!
+          const description = Array.from(row.querySelectorAll<HTMLElement>('span')).find((span) => span.textContent === email)!
+          description.style.fontSize = `${parseFloat(getComputedStyle(description).fontSize) * textScale}px`
+          return { overflow: row.scrollWidth > row.clientWidth, clamped: getComputedStyle(description).webkitLineClamp, text: description.textContent }
+        }, { email, textScale })
+        expect(geometry.text).toBe(email)
+        expect(geometry.clamped).toBe('none')
+        expect(geometry.overflow).toBe(false)
       } finally { await page.close() }
     })
 

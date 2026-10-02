@@ -22,11 +22,16 @@ function getActionStyle(compact: boolean, inset: boolean, compactForm: boolean, 
   return { marginBlock: !compact && inset && hasDescription ? 16 : 4, marginInlineEnd: inset ? compactForm ? 12 : 16 : 0, marginInlineStart: 0, alignSelf: 'center' as const }
 }
 
+function descriptionClass(textMode: WebListRowProps['textMode'], wrapTitle: WebListRowProps['wrapTitle']) {
+  if (textMode === 'personal') return 'line-clamp-2 break-all'
+  return wrapTitle ? 'break-words' : undefined
+}
+
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger'>>) {
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' } : {}) }}>
     <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 break-all' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
-    {description ? <span className={textMode === 'personal' ? 'line-clamp-2 break-all' : undefined} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? 12 : 14, lineHeight: 1.4 }}>{description}</span> : null}
+    {description ? <span className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? 12 : 14, lineHeight: 1.4 }}>{description}</span> : null}
   </span>
 }
 
@@ -49,7 +54,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
   return (
     <>
       {icon ? (
-        <span style={{ width: 28, display: 'flex', justifyContent: 'center', flexShrink: 0, color: rowColors.iconColor }}>
+        <span aria-hidden="true" style={{ width: 28, display: 'flex', justifyContent: 'center', flexShrink: 0, color: rowColors.iconColor }}>
           {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
         </span>
       ) : null}

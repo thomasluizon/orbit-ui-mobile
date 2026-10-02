@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -600,7 +600,11 @@ describe('ProfileScreen', () => {
       const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow>; children: unknown[] }) => {
         let rowTree!: ReturnType<typeof TestRenderer.create>
         TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
-        try { return { title: row.props.title, ...measureProfileRow(rowTree.toJSON(), width - 32, textScale) } }
+        try {
+          const iconSlot = rowTree.root.find((node: { type: unknown; props: { style?: StyleProp<ViewStyle> } }) => node.type === 'View' && node.props.style && StyleSheet.flatten(node.props.style).width === 28)
+          expect(iconSlot.props.importantForAccessibility).toBe('no-hide-descendants')
+          return { title: row.props.title, ...measureProfileRow(rowTree.toJSON(), width - 32, textScale) }
+        }
         finally { TestRenderer.act(() => rowTree.unmount()) }
       })
       for (const row of measured) {
@@ -620,6 +624,30 @@ describe('ProfileScreen', () => {
         expect(calendar.height).toBeGreaterThan(52)
       }
     } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([1, 2])('reveals the full account email within the Android row at %s text scale', async (textScale) => {
+    const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
+    mockProfileState.current.profile = createMockProfile({ name: 'Marina', email })
+    mockRealListRow.current = true
+    const root = await renderProfileScreen()
+    const account = root.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.description === email)!
+    TestRenderer.act(() => account.props.onClick())
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile/account')
+    TestRenderer.act(() => root.unmount())
+    const destination = await renderProfileSubscreen('account')
+    try {
+      const row = destination.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.description === email)!
+      let rowTree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+      try {
+        const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
+        const description = geometry.texts.find(({ label }) => label === email)!
+        expect(description.clipped).toBe(false)
+        expect(description.lines).toBeGreaterThan(2)
+        expect(description.right).toBeLessThanOrEqual(288)
+      } finally { TestRenderer.act(() => rowTree.unmount()) }
+    } finally { TestRenderer.act(() => destination.unmount()) }
   })
 
   describe.each(['en', 'pt-BR'] as const)('Orbit Pro in %s', (locale) => {
