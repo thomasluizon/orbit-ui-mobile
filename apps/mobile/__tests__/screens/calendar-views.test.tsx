@@ -32,9 +32,11 @@ function getMockAccountDateKey(): string {
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
   rangeLoading: false,
+  rangeFetching: false,
   language: "en",
   monthMap: new Map<string, CalendarDayEntry[]>(),
   monthLoading: false,
+  monthFetching: false,
   monthError: null as string | null,
   monthRefresh: () => {},
   profile: undefined as {
@@ -173,7 +175,7 @@ vi.mock("@/hooks/use-habits", () => ({
     return ({
       dayMap: state.monthMap,
       isLoading: state.monthLoading,
-      isFetching: false,
+      isFetching: state.monthFetching,
       error: state.monthError,
       refresh: state.monthRefresh,
     })
@@ -183,7 +185,7 @@ vi.mock("@/hooks/use-habits", () => ({
     return {
       dayMap: state.rangeMap,
       isLoading: state.rangeLoading,
-      isFetching: false,
+      isFetching: state.rangeFetching,
       error: null,
       refresh: vi.fn(),
     };
@@ -377,6 +379,8 @@ describe("CalendarScreen views (mobile)", () => {
     state.monthMap = new Map();
     state.rangeLoading = false;
     state.monthLoading = false;
+    state.monthFetching = false;
+    state.rangeFetching = false;
     state.monthError = null;
     state.monthRefresh = () => {};
     state.profile = { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: false };
@@ -515,6 +519,56 @@ describe("CalendarScreen views (mobile)", () => {
       expect(row.props.wrapTitle).toBe(true);
       expect(row.props.onPress).toBeUndefined();
       expect(row.props.onClick).toBeUndefined();
+    }
+  });
+
+  it.each(['month', 'range'] as const)('keeps the %s first-load skeleton and shows no indicator during a refetch', (view) => {
+    state.monthLoading = view === 'month';
+    state.monthFetching = view === 'month';
+    state.rangeLoading = view === 'range';
+    state.rangeFetching = view === 'range';
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    if (view === 'range') pressView(tree, 'range');
+    const header = view === 'month' ? renderMonthHeader(tree) : undefined;
+    const footer = view === 'month' ? renderMonthFooter(tree) : undefined;
+    const surface = header ?? tree;
+    const indicators = () => surface.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar');
+    const grids = () => surface.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-grid');
+    const details = () => surface.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-day-detail');
+    const days = () => surface.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('day-cell-'));
+    const update = () => {
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      if (header && footer) {
+        const list = tree.root.findAll((node) => node.type === 'FlatList')[0]!;
+        TestRenderer.act(() => { header.update(list.props.ListHeaderComponent); footer.update(list.props.ListFooterComponent); });
+      }
+    };
+
+    try {
+      expect(indicators().length).toBeGreaterThan(0);
+      expect(grids().length).toBeGreaterThan(0);
+      if (view === 'month') expect(surface.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-settings')).toHaveLength(1);
+
+      state.monthLoading = false;
+      state.monthFetching = false;
+      state.rangeLoading = false;
+      state.rangeFetching = false;
+      state.monthMap = new Map([[getMockAccountDateKey(), [makeEntry({ status: 'completed' })]]]);
+      state.rangeMap = state.monthMap;
+      update();
+      expect(indicators()).toHaveLength(0);
+      expect(view === 'month' ? details().length : days().length).toBeGreaterThan(0);
+
+      state.monthFetching = view === 'month';
+      state.rangeFetching = view === 'range';
+      update();
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-loading-bar')).toHaveLength(0);
+      expect(indicators()).toHaveLength(0);
+      expect(view === 'month' ? details().length : days().length).toBeGreaterThan(0);
+      expect(calendarStatsProps.current?.state ?? 'default').toBe('default');
+    } finally {
+      TestRenderer.act(() => { header?.update(<></>); footer?.update(<></>); tree.update(<></>); });
     }
   });
 
