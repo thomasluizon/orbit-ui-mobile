@@ -4,6 +4,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -239,22 +240,26 @@ describe('ProfilePage', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each(['free', 'trial', 'paid', 'lifetime'] as const)('keeps %s Perfil rows whole at 320px', async (plan) => {
-      translateProMessages('pt-BR')
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 412].flatMap((width) => [1, 2].flatMap((textScale) => ['free', 'trial', 'paid', 'lifetime'].map((plan) => ({ locale, width, textScale, plan }))))))('keeps $plan Perfil rows readable in $locale at $width px and $textScale text scale', async ({ locale, width, textScale, plan }) => {
+      translateProMessages(locale as 'en' | 'pt-BR')
       mockProfileState.current.profile = createMockProfile({
-        name: 'Marina', email: 'marina@example.com', hasProAccess: plan !== 'free',
+        name: 'Marina', email: 'marina.silva.long.address@example.com', hasProAccess: plan !== 'free',
         isTrialActive: plan === 'trial', isLifetimePro: plan === 'lifetime',
         trialEndsAt: plan === 'trial' ? '2099-10-09T12:00:00Z' : null,
       })
       const { container } = render(<ProfilePage />)
-      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
       try {
-        const font = readFileSync(require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')).toString('base64')
-        await page.setContent(`<style>${stylesheet}
-@font-face { font-family: Geist; src: url(data:font/ttf;base64,${font}); } :root { --font-sans: Geist; }</style>${container.innerHTML}`)
-        await page.evaluate(() => document.fonts.ready)
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        await page.evaluate((scale) => {
+          for (const element of document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')) {
+            if (element.children.length > 0 || !element.textContent) continue
+            element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * scale}px`
+          }
+        }, textScale)
         const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell')).map((row) => {
-          const title = row.querySelector('[data-slot="list-row-title"]')!
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
           const range = document.createRange()
           range.selectNodeContents(title)
           const icon = row.querySelector('svg')!
@@ -263,6 +268,12 @@ describe('ProfilePage', () => {
             height: row.getBoundingClientRect().height,
             textEdge: title.getBoundingClientRect().left,
             textWidth: range.getBoundingClientRect().width,
+            lines: range.getClientRects().length,
+            titleTop: title.getBoundingClientRect().top,
+            iconTop: icon.getBoundingClientRect().top,
+            titleOverflow: title.scrollWidth > title.clientWidth,
+            ellipsis: getComputedStyle(title).textOverflow === 'ellipsis',
+            right: title.getBoundingClientRect().right,
             available: title.getBoundingClientRect().width,
             iconWidth: icon.getBoundingClientRect().width,
             overflow: row.scrollWidth > row.clientWidth,
@@ -270,13 +281,21 @@ describe('ProfilePage', () => {
         }))
         expect(rows).toHaveLength(11)
         for (const row of rows) {
-          expect(row.height, row.label!).toBeLessThanOrEqual(68)
+          if (textScale === 1) {
+            expect(row.height, row.label!).toBeLessThanOrEqual(68)
+            expect(row.lines, row.label!).toBe(1)
+          }
           expect(row.height, row.label!).toBeGreaterThanOrEqual(48)
           expect(row.textEdge, row.label!).toBe(rows[0]!.textEdge)
           expect(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
           expect(row.iconWidth, row.label!).toBe(24)
           expect(row.overflow, row.label!).toBe(false)
+          expect(row.titleOverflow, row.label!).toBe(false)
+          expect(row.ellipsis, row.label!).toBe(false)
+          expect(row.right, row.label!).toBeLessThanOrEqual(width)
+          if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.iconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
         }
+        if (textScale === 2 && locale === 'pt-BR') expect(rows.find(({ label }) => label === ptBR.profile.calendarSync.title)!.lines).toBeGreaterThan(1)
       } finally { await page.close() }
     })
 

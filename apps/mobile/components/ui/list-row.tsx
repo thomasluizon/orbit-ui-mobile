@@ -26,13 +26,22 @@ function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolea
   return <Text style={[styles.value, wrap ? styles.wrappedValue : null, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
 
+function titleLineLimit(textMode: ListRowProps['textMode'], wrapTitle: ListRowProps['wrapTitle']) {
+  if (textMode === 'personal') return 2
+  return textMode === 'label' || wrapTitle ? undefined : 1
+}
+
+function chevronStyle(textMode: ListRowProps['textMode']) {
+  return textMode ? styles.chevron : styles.control
+}
+
 function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing'> & { titleColor: string; valueColor: string }>) {
-  const text = <View style={[styles.textBlock, wrapValue || textMode === 'label' ? styles.wrappedTextBlock : null]}>
-    <Text numberOfLines={textMode === 'personal' ? 2 : wrapTitle ? undefined : 1} ellipsizeMode={textMode === 'label' ? 'clip' : 'tail'} style={[styles.title, { color: titleColor }]}>{title}</Text>
+  const text = <View style={[styles.textBlock, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]}>
+    <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, { color: titleColor }]}>{title}</Text>
     {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
   </View>
-  const rowValue = value ? <RowValue value={value} wrap={wrapValue === true} color={valueColor} /> : null
-  return wrapValue || textMode === 'label' ? <View style={styles.wrappedContent}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
+  const rowValue = value ? <RowValue value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} /> : null
+  return wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -53,7 +62,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, compactForm)
   const body: ReactNode = (
-    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
+    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' ? styles.labelContent : null, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View style={styles.iconSlot}>
           {renderLeadingIcon(icon, rowColors.iconColor)}
@@ -61,7 +70,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
       ) : null}
       <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
       {trailing && props.textMode !== 'label' ? <View style={styles.trailing}>{trailing}</View> : null}
-      {!readOnly && chevron ? <View style={props.textMode ? styles.chevron : styles.control}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
+      {!readOnly && chevron ? <View style={chevronStyle(props.textMode)}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
   )
 
@@ -96,12 +105,14 @@ const styles = StyleSheet.create({
   bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   bodyWithAction: { paddingEnd: 0 },
   action: { width: 44, height: 44, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
-  iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },
+  iconSlot: { width: 28, minHeight: 24, flexShrink: 0, alignItems: 'center' },
   textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
+  labelContent: { minHeight: 24, alignItems: 'flex-start' },
+  labelTextBlock: { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' },
   wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
-  chevron: { width: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
+  chevron: { width: 24, minHeight: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   personalDescription: { fontSize: 12, lineHeight: 16.8 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },

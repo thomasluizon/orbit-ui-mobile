@@ -24,16 +24,27 @@ function getActionStyle(compact: boolean, inset: boolean, compactForm: boolean, 
 
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger'>>) {
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
-  return <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4, ...(wrapValue || textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : {}) }}>
-    <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 break-all' : textMode === 'label' ? 'whitespace-nowrap' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
+  return <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' } : {}) }}>
+    <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 break-all' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
     {description ? <span className={textMode === 'personal' ? 'line-clamp-2 break-all' : undefined} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? 12 : 14, lineHeight: 1.4 }}>{description}</span> : null}
   </span>
 }
 
+function RowValue({ value, textMode, wrapValue }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue'>>) {
+  if (!value) return null
+  return <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</span>
+}
+
+function getContentStyle(textMode: WebListRowProps['textMode']) {
+  return textMode === 'label'
+    ? { minHeight: 24, gap: 12, alignItems: 'flex-start' }
+    : { minHeight: 44, gap: 12 }
+}
+
 function RowBody(props: Readonly<WebListRowProps>) {
-  const { textMode, icon, value, wrapValue, danger, trailing } = props
+  const { textMode, icon, wrapValue, danger, trailing } = props
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
-  const rowValue = value ? <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'whitespace-nowrap' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</span> : null
+  const rowValue = <RowValue {...props} />
   const rowTrailing = trailing ? <span className="flex shrink-0 items-center px-2">{trailing}</span> : null
   return (
     <>
@@ -42,7 +53,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
           {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
         </span>
       ) : null}
-      {wrapValue || textMode === 'label' ? <span className="flex min-w-0 flex-1 flex-wrap items-center" style={{ gap: 12 }}>{<RowText {...props} />}{rowValue}{textMode === 'label' ? rowTrailing : null}</span> : <>{<RowText {...props} />}{rowValue}</>}
+      {wrapValue || textMode === 'label' ? <span className="flex min-w-0 flex-1 flex-wrap items-center" style={{ gap: 12, ...(textMode === 'label' ? { alignItems: 'flex-start' } : {}) }}>{<RowText {...props} />}{rowValue}{textMode === 'label' ? rowTrailing : null}</span> : <>{<RowText {...props} />}{rowValue}</>}
       {textMode !== 'label' ? rowTrailing : null}
     </>
   )
@@ -51,7 +62,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
 export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, expanded, controls, action, chevron = true, compact = !props.description, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span className="flex min-w-0 flex-1 items-center" style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24 } : { width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm)
 

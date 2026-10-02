@@ -11,6 +11,7 @@ import type { StepUpTimingRecord } from '@orbit/shared/utils'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { ListRow } from '@/components/ui/list-row'
 
 import ProfileScreen from '@/app/(tabs)/profile'
@@ -583,6 +584,43 @@ describe('ProfileScreen', () => {
         : key
     }
   }
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 412].flatMap((width) => [1, 2].flatMap((textScale) => ['free', 'trial', 'paid', 'lifetime'].map((plan) => ({ locale, width, textScale, plan }))))))('keeps $plan Android Perfil rows readable in $locale at $width dp and $textScale text scale', async ({ locale, width, textScale, plan }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({
+      name: 'Marina', email: 'marina.silva.long.address@example.com', hasProAccess: plan !== 'free',
+      isTrialActive: plan === 'trial', isLifetimePro: plan === 'lifetime',
+      trialEndsAt: plan === 'trial' ? '2099-10-09T12:00:00Z' : null,
+    })
+    const tree = await renderProfileScreen()
+    try {
+      const rows = tree.root.findAllByType(ListRow)
+      expect(rows).toHaveLength(11)
+      const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow>; children: unknown[] }) => {
+        let rowTree!: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+        try { return { title: row.props.title, ...measureProfileRow(rowTree.toJSON(), width - 32, textScale) } }
+        finally { TestRenderer.act(() => rowTree.unmount()) }
+      })
+      for (const row of measured) {
+        const title = row.texts.find(({ label }) => label === row.title)!
+        expect(row.height, row.title).toBeGreaterThanOrEqual(48)
+        expect(title.left, row.title).toBe(measured[0]!.texts[0]!.left)
+        expect(title.right, row.title).toBeLessThanOrEqual(width - 32)
+        expect(title.clipped, row.title).toBe(false)
+        if (textScale === 1) {
+          expect(row.height, row.title).toBeLessThanOrEqual(68)
+          expect(title.lines, row.title).toBe(1)
+        }
+      }
+      if (textScale === 2 && locale === 'pt-BR') {
+        const calendar = measured.find(({ title }) => title === ptBR.profile.calendarSync.title)!
+        expect(calendar.texts[0]!.lines).toBeGreaterThan(1)
+        expect(calendar.height).toBeGreaterThan(52)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
 
   describe.each(['en', 'pt-BR'] as const)('Orbit Pro in %s', (locale) => {
     it.each(proPlans)('shows the $state plan directly after the account and opens its destination', async (plan) => {
