@@ -15,7 +15,7 @@ This session is the nominated successor of a context relay: adopt the run with `
 2. `ui#1501` (`#1125`, Calendário fetch bar) at `a0be373f`: APPROVED, one check failed. Read `gh run list --commit a0be373f`, fix a real red or rerun an infra one, merge on the bar.
 3. `ui#1502` (`#1124`, proactive line today only) at `5c342ef8`: APPROVED; merge on the bar once its checks settle green.
 4. `orbit-api#691` (`#1121`, achievement streak window, on `main`) at `caa4438c`: read CI with `gh run list --commit caa4438c` (a body edit re-ran Guards, so cancelled twins may show beside passing runs) and the Pullfrog review, drive it to the bar, merge to `main`, release the production API, measure queryid 2057064764435677686 again (before: 2,542.6 rows per call over 435 calls; the before read is in the spec), record both on the pull request, then carry it through `#746` and close `#1121`.
-5. `#1123` (every pill at the drawn size, every pill group one action row): the worker was still running at handoff in `ticket-1123-action-rows` with three commits (`0343f0ad`, `b5b3f08c`, `2a01093a`) and no pull request, and it dies with this session. Read the worktree and the worker log, then relaunch it from its tree with a continuation order that names those commits (`--allow-subagents --hard-ceiling-minutes 75`, `--relaunch-reason` if needed). Prove its layout spec red on the unfixed base, check the diff against `DESIGN.md` and the canvas, approve its new copy with `/second-opinion`, merge on the bar.
+5. `#1123` (every pill at the drawn size, every pill group one action row): delivered as `ui#1503` at `45eec686` (5 commits, worker exited cleanly after handoff). Run `verify-delivery.mjs`, read the worker log tail for NEEDS_DECISION and the body's Assumptions, prove its layout spec red on the unfixed base, check the diff against `DESIGN.md` and the canvas, approve its new copy with `/second-opinion`, clear the review, merge on the bar.
 6. `#961`: the owner's license-tester purchase on Orbit Staging succeeded. Confirm the staging API verified and acknowledged it, then close the ticket.
 7. Close each ticket with `node tools/complete-ticket.mjs --issue "#N"` after its merge into `redesign/main`.
 8. Harness: `parseHandoffRequest` in `tools/lib/handoff-prompt.mjs` returns null for an owner prompt that puts a word before the command ("RUN /wrap-up --sleep"), so that owner handoff was recorded as a context relay and `node tools/relay-session.mjs --close-chain` refused to close the chain. File it, fix the parser to find the command anywhere in the owner's prompt, prove it with a hook case red first, run both harness suites, then close the open chain with the next owner handoff.
@@ -65,7 +65,7 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | `ui#1501` (`#1125`) at `a0be373f` | APPROVED, one failed check; read the run, fix or rerun, merge |
 | `ui#1502` (`#1124`) at `5c342ef8` | APPROVED, checks settling; merge on the bar |
 | `orbit-api#691` (`#1121`) at `caa4438c` | on `main`, body links `Refs`; read CI and review, merge, release, measure, carry |
-| `#1123` worker | running at handoff in `ticket-1123-action-rows`, 3 commits, no pull request; dies with this session: read the tree, relaunch with a continuation order |
+| `ui#1503` (`#1123`) at `45eec686` | delivered after handoff, review not read; verify, prove red, drive to the bar |
 | `#1127` | filed and placed; worktree `ticket-1127-perfil-top-inset` at `a24d3cea` prepared, not launched |
 | Play manage-link defect | owner report, not filed yet |
 | Merged this session | `ui#1495` (`182efc34`), `ui#1498` (`496954c8`), `ui#1499` (`a24d3cea`) |
@@ -75,9 +75,9 @@ Finish the spec: a production release with an empty ticket board and the whole-r
 | Waiters | the CI waiter on `ui#1500` to `ui#1502` dies with this session |
 | Open pull requests in `orbit-landing-page` | none |
 | Stashes | none in any repository |
-| Uncommitted work | none in the main checkouts (the spec and this prompt are committed with this handoff); `ticket-1123-action-rows` may hold worker edits |
-| Unpushed commits | the three `#1123` commits on `fix/ticket-1123-action-rows` (no pull request yet) |
-| Branches with no pull request | `fix/ticket-1123-action-rows`, `fix/ticket-1127-perfil-top-inset` |
+| Uncommitted work | none in the main checkouts (the spec and this prompt are committed with this handoff) |
+| Unpushed commits | none on any ticket branch |
+| Branches with no pull request | `fix/ticket-1127-perfil-top-inset` (no commits beyond `a24d3cea`) |
 | Detached HEADs | scratch merge-check worktrees under the session scratchpads (merge commits only); `git worktree prune` clears them |
 | Chrome | the automation tab sits in the owner's window 57, restored to 1352 by 849 |
 | Throwaway AVD | `Orbit_Repro_Throwaway` still exists; delete it once no repro needs it |
@@ -95,7 +95,7 @@ Workers launched by a session die when it ends: read each worktree before relaun
 - First 3 (`ui#1495`): done, merged as `182efc34`.
 - First 4 (`ui#1499`): done, merged as `a24d3cea`.
 - First 5 (close tickets): done for `#1118`, `#1119`, `#1122`; carried as First 7.
-- Then 1 (`#1123`): launched; carried as First 5.
+- Then 1 (`#1123`): delivered as `ui#1503`; carried as First 5.
 - Then 2 (`#1125`, `#1124`): delivered as `ui#1501` and `ui#1502`; carried as First 2 and 3.
 - Then 3 (staging release and internal build): carried as Then 3.
 - Then 4 (sweep and content rating): sweep partly done (phone width complete, foldable partly), the content rating change sent for review; carried as Then 4.
