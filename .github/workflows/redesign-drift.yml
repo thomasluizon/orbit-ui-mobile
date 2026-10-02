@@ -1,0 +1,18 @@
+name: Redesign drift control
+
+# The redesign contract rebaseline lives in this workflow's `redesign/main` copy. GitHub lets a
+# workflow be dispatched only when a file with its name exists on the default branch, so `main`
+# keeps this dispatch-only copy: `gh workflow run redesign-drift.yml --ref redesign/main` runs the
+# branch's own version. Dispatched on `main`, it changes nothing.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  redesign-branch-entry-point:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Name the branch that carries the job
+        run: echo "Dispatch with --ref redesign/main; the main copy only registers the workflow." >> "$GITHUB_STEP_SUMMARY"
