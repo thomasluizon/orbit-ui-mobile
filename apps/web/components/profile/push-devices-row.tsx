@@ -42,6 +42,7 @@ export function PushDevicesRow({
   return (
     <div aria-busy={loading || checking}>
     <RowList>
+      <div>
       {/* eslint-disable-next-line local/max-button-words -- #1108 specifies the full device notification label. */}
       <ListRow readOnly title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
         <fieldset disabled={disabled} aria-hidden={checking || undefined} className={`m-0 border-0 p-0${checking ? ' invisible' : ''}`}>
@@ -61,6 +62,7 @@ export function PushDevicesRow({
       </div> : null}
       <p role="status" className={`m-0 text-sm text-[var(--fg-3)]${showLimit ? ' px-4 pb-3' : ''}`}>{showLimit ? t('profile.settingsRows.pushDeviceLimit') : ''}</p>
       <PushDeviceStatus status={status} permission={permission} />
+      </div>
     </RowList>
     </div>
   )

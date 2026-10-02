@@ -320,8 +320,8 @@ export function CreateHabitModal({
         selectedTagIds: tags.selectedTagIds,
         subHabits: subHabitValues,
       })
-      const reminderForm = habitFormSchema.safeParse(formHelpers.form.getValues())
-      if (!error && isOnline && reminderForm.success && reminderForm.data.reminderEnabled) requestReminderPermission()
+      const reminderForm = error ? null : habitFormSchema.safeParse(formHelpers.form.getValues())
+      if (!error && isOnline && reminderForm?.success && reminderForm.data.reminderEnabled) requestReminderPermission()
       if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
       if (error) {

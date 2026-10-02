@@ -72,6 +72,7 @@ const {
   mockChangeLanguage,
   mockPushSupported,
   mockPushEnabled,
+  mockPushError,
   mockDeviceState,
   mockFocusCallback,
   mockPushPermissionStatus,
@@ -114,6 +115,7 @@ const {
   mockChangeLanguage: vi.fn(),
   mockPushSupported: { current: false },
   mockPushEnabled: { current: false },
+  mockPushError: { current: null as string | null },
   mockDeviceState: { current: deviceState },
   mockFocusCallback: { current: null as null | (() => void) },
   mockPushPermissionStatus: { current: null as 'denied' | 'granted' | null },
@@ -201,6 +203,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-push-notifications', () => ({
   usePushNotifications: () => ({
     expoPushToken: 'fcm-token',
+    error: mockPushError.current,
     isSupported: mockPushSupported.current,
     isEnabled: mockPushEnabled.current,
     isRegistered: false,
@@ -630,6 +633,7 @@ describe('ProfileScreen', () => {
     mockChangeLanguage.mockReset().mockResolvedValue(undefined)
     mockPushSupported.current = false
     mockPushEnabled.current = false
+    mockPushError.current = null
     mockDeviceState.current = { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn().mockResolvedValue(undefined) }
     mockFocusCallback.current = null
     mockPushPermissionStatus.current = null
@@ -1576,6 +1580,8 @@ describe('ProfileScreen', () => {
   })
 
   it('reports the cap only after an enable attempt without prompting or registering', async () => {
+    mockPushPermissionStatus.current = 'granted'
+    mockPushError.current = 'profile.settingsRows.pushDeviceLimit'
     mockPushSupported.current = true
     mockDeviceState.current.count = 5
     const tree = await renderProfileSubscreen('notifications')

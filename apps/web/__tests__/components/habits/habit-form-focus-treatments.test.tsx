@@ -8,6 +8,11 @@ import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
 
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
+}))
+
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}(${JSON.stringify(values)})` : key,

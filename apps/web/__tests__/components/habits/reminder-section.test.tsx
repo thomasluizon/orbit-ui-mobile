@@ -3,6 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
+}))
+
+
 vi.mock('@/components/ui/app-select', () => ({
   AppSelect: ({
     value,

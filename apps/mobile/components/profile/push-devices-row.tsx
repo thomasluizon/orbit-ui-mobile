@@ -54,7 +54,7 @@ function PushDevicesFeedback({
         {full ? t('profile.settingsRows.pushDeviceLimit') : ''}
       </Text>
       {showPushStatus ? (
-        <Text accessibilityRole="alert" style={{ color: pushStatus.tone === 'critical' ? tokens.statusBadText : tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>
+        <Text accessibilityRole={registrationStatus === 'registering' ? undefined : 'alert'} accessibilityLiveRegion="polite" style={{ color: pushStatus.tone === 'critical' ? tokens.statusBadText : tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>
           {t(pushStatus.messageKey)}
         </Text>
       ) : null}
@@ -103,11 +103,12 @@ export function PushDevicesRow({
   return (
     <View accessibilityState={{ busy: loading }}>
     <RowList>
+      <View>
       {/* eslint-disable-next-line local/max-button-words -- #1108 specifies the full device notification label. */}
       <ListRow readOnly title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
         <Switch checked={currentDeviceRegistered} disabled={disabled} onChange={() => {
-          if (!currentDeviceRegistered && !canEnable) { setLimitReached(true); return }
-          setLimitReached(false)
+          setLimitReached(!currentDeviceRegistered)
+          if (!currentDeviceRegistered && !canEnable) return
           onToggle()
         }} label={t('profile.settingsRows.alertsOnThisDevice')} />
       } />
@@ -115,7 +116,7 @@ export function PushDevicesRow({
       <PushDevicesFeedback
         tokens={tokens}
         error={error}
-        full={!error && !currentDeviceRegistered && (limitError || (limitReached && !canEnable))}
+        full={!error && !currentDeviceRegistered && (limitReached && (limitError || !canEnable))}
         supported={supported}
         permissionStatus={permissionStatus}
         registrationStatus={registrationStatus}
@@ -123,6 +124,7 @@ export function PushDevicesRow({
         onOpenSettings={onOpenSettings}
         onRetry={onRetry}
       />
+      </View>
     </RowList>
     </View>
   )

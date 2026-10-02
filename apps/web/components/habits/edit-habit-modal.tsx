@@ -290,8 +290,8 @@ export function EditHabitModal({
         selectedGoalIds,
         selectedTagIds: tags.selectedTagIds,
       })
-      const reminderForm = habitFormSchema.safeParse(formHelpers.form.getValues())
-      if (!error && reminderForm.success && reminderForm.data.reminderEnabled) requestReminderPermission()
+      const reminderForm = error ? null : habitFormSchema.safeParse(formHelpers.form.getValues())
+      if (!error && reminderForm?.success && reminderForm.data.reminderEnabled) requestReminderPermission()
       if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
 
       if (error) {

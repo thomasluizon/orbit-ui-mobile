@@ -30,6 +30,15 @@ const mockHabitFormFieldsState = vi.hoisted(() => ({
   onSuggestionContextChange: undefined as undefined | (() => void),
 }))
 
+const pushPermission = vi.hoisted(() => ({ subscribe: vi.fn().mockResolvedValue({ permission: 'granted' }) }))
+vi.mock('@/hooks/use-push-notification-preferences', () => ({
+  ensurePushSubscription: pushPermission.subscribe,
+  isPushNotificationSupported: () => true,
+}))
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => {
     const t = (key: string, params?: Record<string, unknown>) => {
@@ -197,6 +206,7 @@ describe('EditHabitModal', () => {
   const defaultHabit = createMockHabit({ id: 'h-1', title: 'Exercise', frequencyUnit: 'Day' })
 
   beforeEach(() => {
+    vi.stubGlobal('Notification', { permission: 'default' })
     vi.clearAllMocks()
     mockHabitDetailResult = { data: null, isPending: false, error: null }
     mockUpdateMutateAsync.mockResolvedValue({})
@@ -266,6 +276,15 @@ describe('EditHabitModal', () => {
     )
     expect(screen.getByText('common.cancel')).toBeDefined()
     expect(screen.getByText('common.save')).toBeDefined()
+  })
+
+  it('starts permission from Save when the existing habit has a reminder', async () => {
+    const values = mockFormGetValues()
+    mockFormGetValues.mockReturnValue({ ...values, reminderEnabled: true, dueTime: '09:00' })
+    renderWithProviders(<EditHabitModal open onOpenChange={vi.fn()} habit={defaultHabit} />)
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(pushPermission.subscribe).toHaveBeenCalledOnce()
+    await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalledOnce())
   })
 
   it('submits through the named Save footer action', async () => {
