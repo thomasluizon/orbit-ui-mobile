@@ -40,8 +40,6 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 
 ## Owner instructions for this run
 
-## Owner instructions for this run
-
 1. When EVERYTHING the redesign needs is done (every redesign ticket merged and closed, every service released to staging from `redesign/main`, an Orbit Staging internal build uploaded after the last redesign merge, a full rendered sweep finding nothing), tell the owner plainly that the redesign is ready for his test: send a push notification with the `PushNotification` tool and make it the first line of the report, and list the owner checks for the gate review from the spec's Current state. That is THE REDESIGN GATE; stop the redesign there and never merge `redesign/main` to `main`; `main`-branch work continues.
 2. No recurring Orbit Pro prompt for free accounts (decided); a visible Pro entry in Perfil is not a prompt. Habit detail keeps the Astra composer (decided).
 3. Orbit Staging must be the most up to date build possible, installable, named "Orbit Staging" with the redesigned icon.
