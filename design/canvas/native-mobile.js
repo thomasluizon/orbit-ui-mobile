@@ -1,6 +1,8 @@
 /* Drawing primitives for the native mobile amendment. Product implementation has its own tickets. */
 window.OrbitNativeMobile = (() => {
-  const node = (...args) => React.createElement(...args);
+  const node = (tag, props, ...children) => React.createElement(tag,
+    tag === 'button' || tag === 'a' ? { ...props, className: ['native-control', props?.className].filter(Boolean).join(' '),
+      style: { transition: 'background-color var(--dur-fast) var(--ease-standard)', ...props?.style } } : props, ...children);
   const icon = (name, size = 24) => node(window.OrbitDesignSystem_918bd5.Icon, { name, size });
   const button = { minHeight: 44, minWidth: 44, padding: '4px 8px', border: 0,
     borderRadius: 'var(--r-pill)', background: 'transparent', color: 'var(--fg-2)',
@@ -63,7 +65,7 @@ window.OrbitNativeMobile = (() => {
                   color: 'var(--fg-1)', font: 'inherit', fontSize: 16, lineHeight: '24px', maxHeight: 120, padding: '4px 8px' } }),
           node('button', { type: 'button', style: button, 'aria-label': t.attach, disabled: blocked,
             'aria-expanded': open, onClick: () => setOpen(!open) }, icon('plus')),
-          node('button', { type: 'button', 'aria-label': props.onRetry ? props.words.retry : props.words.send,
+          node('button', { type: 'button', className: 'native-send', 'aria-label': props.onRetry ? props.words.retry : props.words.send,
             disabled: blocked && !props.onRetry, onClick: send,
             style: { ...button, background: 'var(--primary)', color: 'var(--fg-on-primary)' } },
             icon(props.onRetry ? 'refresh' : props.state === 'sending' ? 'loader' : 'arrow-up')))),
@@ -74,7 +76,7 @@ window.OrbitNativeMobile = (() => {
   function TabBar({ items, activeId, onSelect }) {
     return node('nav', { style: { display: 'flex', minHeight: 80, paddingBottom: 'env(safe-area-inset-bottom)',
       borderTop: '1px solid var(--hairline)', background: 'var(--bg)' } }, items.map((item) => node('button', {
-        key: item.id, type: 'button', 'aria-current': item.id === activeId ? 'page' : undefined,
+        key: item.id, type: 'button', className: 'native-tab', 'aria-current': item.id === activeId ? 'page' : undefined,
         onClick: () => { if (item.id === activeId) rootScroller?.scrollTo({ top: 0 }); onSelect?.(item.id); },
         style: { ...button, flex: 1, flexDirection: 'column', gap: 4, paddingBlock: 14, paddingInline: 0,
           color: item.id === activeId ? 'var(--primary-soft)' : 'var(--fg-3)' } },
