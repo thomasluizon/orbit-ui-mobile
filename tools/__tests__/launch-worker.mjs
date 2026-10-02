@@ -206,6 +206,32 @@ export const cases = async () => {
   const ordinary = check(TOOL, "without --measurement the ordinary cap applies", [...argv, "--dry-run"], { status: 0 }, options)
   const ordinaryPlan = JSON.parse(ordinary.stdout)
   discardLog(ordinary.stdout)
+  for (const name of ["codex", "claude"]) {
+    const config = launchConfig()
+    config.worker = name
+    config.workers[name].command = process.execPath
+    const subagents = launch(`subagents-${name}`, config)
+    const launchArgs = ["--issue", "#1089", "--worktree", subagents.worktree, "--prompt", subagents.prompt, "--dry-run"]
+    const launchOptions = { path: subagents.path }
+    const offArgs = name === "codex" ? ["--disable", "multi_agent"] : ["--disallowed-tools", "Task"]
+    for (const tier of ["default", "mechanical"]) {
+      const disabled = check(TOOL, `${name}.${tier} non-sweep order resolves offline`, [...launchArgs, "--tier", tier], { status: 0 }, launchOptions)
+      T(`${TOOL}: ${name}.${tier} non-sweep order disables sub-agents`,
+        offArgs.every((argument) => JSON.parse(disabled.stdout).args.includes(argument)), disabled.stdout)
+    }
+    check(TOOL, `${name} refuses sub-agents without the sweep heading`, [...launchArgs, "--allow-subagents"], { status: 2, stderr: /--allow-subagents requires the ## UI review sweep heading/ }, launchOptions)
+    writeFileSync(subagents.prompt, "## UI review sweep ownership\nCloud handoff only.\n")
+    check(TOOL, `${name} refuses a heading prefix`, [...launchArgs, "--allow-subagents"], { status: 2 }, launchOptions)
+    writeFileSync(subagents.prompt, "## UI review sweep\nRun the conditional sweep.\n")
+    const stillDisabled = check(TOOL, `${name} sweep heading alone grants no permission`, launchArgs, { status: 0 }, launchOptions)
+    T(`${TOOL}: ${name} ticket text never enables sub-agents`,
+      JSON.parse(stillDisabled.stdout).args.includes(offArgs[1]), stillDisabled.stdout)
+    for (const tier of ["default", "mechanical"]) {
+      const allowed = check(TOOL, `${name}.${tier} allows the explicit sweep`, [...launchArgs, "--tier", tier, "--allow-subagents"], { status: 0 }, launchOptions)
+      T(`${TOOL}: ${name}.${tier} sweep order drops the off vector`,
+        !JSON.parse(allowed.stdout).args.includes(offArgs[1]), allowed.stdout)
+    }
+  }
   const isolationArgs = ["exec", "--disable", "apps", "--ignore-user-config"]
   T(
     `${TOOL}: ordinary Codex workers disable account apps and user MCP servers`,

@@ -4,6 +4,8 @@ import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { Composer } from '@/components/shell/composer'
+import en from '@orbit/shared/i18n/en.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { notificationKeys } from '@orbit/shared/query'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
@@ -81,7 +83,7 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
@@ -98,6 +100,8 @@ vi.mock('@/components/shell/shell-wide', () => ({
     paletteLabel?: string
     tabBar?: ReactNode
     fab?: ReactNode
+    conversation?: ReactNode
+    conversationOpen?: boolean
   }) => (
     <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
       {header ? <div data-shell-header="">{header}</div> : null}
@@ -112,6 +116,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {mocks.wide && onCreate ? <button type="button" onClick={onCreate}>{createLabel}</button> : null}
       {mocks.wide ? createRefusal : null}
       {!mocks.wide ? fab : null}
+      {conversationOpen && <div data-testid="conversation">{conversation}</div>}
     </div>
   ),
 }))
@@ -157,8 +162,8 @@ describe('DestinationShell', () => {
     vi.clearAllMocks()
   })
 
-  it.each([false, true])('shows an unselected not-found shell with its composer at wide=%s', (wide) => {
-    mocks.pathname = '/nao-existe'
+  it.each([[false, '/nao-existe'], [true, '/nao-existe'], [false, '/habits/missing'], [true, '/habits/missing']] as const)('shows an unselected not-found shell without a composer at wide=%s for %s', (wide, pathname) => {
+    mocks.pathname = pathname
     mocks.params = { missing: ['nao-existe'] }
     mocks.wide = wide
     const view = render(
@@ -167,11 +172,11 @@ describe('DestinationShell', () => {
       </DestinationShell>,
     )
     expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
-    expect(view.container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
+    expect(view.container.querySelector('[data-shell-pinned-slot]')).not.toBeInTheDocument()
     expect(view.container.querySelectorAll('[aria-current="page"]')).toHaveLength(0)
   })
 
-  it.each([false, true])('includes the not-found composer and unselected navigation in server markup at wide=%s', (wide) => {
+  it.each([false, true])('omits the not-found composer and keeps unselected navigation in server markup at wide=%s', (wide) => {
     mocks.pathname = '/nao-existe'
     mocks.params = { missing: ['nao-existe'] }
     mocks.wide = wide
@@ -181,8 +186,8 @@ describe('DestinationShell', () => {
       </DestinationShell>,
     )
 
-    expect(html).toContain('data-shell-pinned-slot=""')
-    expect(html).toContain('Composer')
+    expect(html).not.toContain('data-shell-pinned-slot=""')
+    expect(html).not.toContain('Composer')
     expect(html).not.toContain('aria-current="page"')
   })
 
@@ -324,6 +329,7 @@ describe('DestinationShell', () => {
 
   it.each([false, true])('mounts destination feedback in the shell notice slot at wide=%s', async (wide) => {
     mocks.wide = wide
+    mocks.pathname = '/profile'
 
     function ProfileExportNotice() {
       const [done, setDone] = useState(false)
@@ -344,7 +350,7 @@ describe('DestinationShell', () => {
 
     const notice = await screen.findByTestId('export-done')
     expect(notice.parentElement).toHaveAttribute('data-shell-notice')
-    expect(document.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
+    expect(document.querySelector('[data-shell-pinned-slot]')).toBeNull()
   })
 
   it.each([
@@ -744,16 +750,53 @@ describe('DestinationShell', () => {
     expect(screen.queryByText('One unread')).not.toBeInTheDocument()
   })
 
-  it.each([false, true])('shows composer only on roots and habit detail at wide=%s', (wide) => {
+  it.each([false, true])('shows composer only on Hoje and habit detail at wide=%s', (wide) => {
     mocks.wide = wide
     for (const pathname of ['/', '/calendar', '/progress', '/profile', '/habits/h1', '/about', '/support', '/search', '/ai-settings', '/preferences', '/advanced']) {
       mocks.pathname = pathname
       const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Title</h1></DestinationShell>)
       expect(Boolean(view.container.querySelector('[data-shell-pinned-slot]'))).toBe(
-        ['/', '/calendar', '/progress', '/profile', '/habits/h1'].includes(pathname),
+        ['/', '/habits/h1'].includes(pathname),
       )
       view.unmount()
     }
+  })
+
+  it.each([false, true])('shows input and chips only on Hoje and preserves the conversation at wide=%s', (wide) => {
+    mocks.wide = wide
+    function App() {
+      const [open, setOpen] = useState(false)
+      return <DestinationShell onCreate={() => {}} conversation={<button type="button" onClick={() => setOpen(false)}>Close conversation</button>}
+        conversationOpen={open} conversationLabel="Conversation" composer={<Composer words={en.shell.composer} value="" state="idle"
+          suggestions={[
+            { id: 'first', label: 'First suggestion', onSelect: () => {} },
+            { id: 'second', label: 'Second suggestion', onSelect: () => {} },
+            { id: 'third', label: 'Third suggestion', onSelect: () => {} },
+          ]} onChangeValue={() => {}} onSend={() => {}} onOpenConversation={() => setOpen(true)} conversationLabel="Open conversation" />}>
+        <h1>Destination</h1>
+      </DestinationShell>
+    }
+    const view = render(<App />)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open conversation' }))
+    expect(screen.getByTestId('conversation')).toBeInTheDocument()
+    for (const pathname of ['/calendar', '/progress', '/profile']) {
+      mocks.pathname = pathname
+      view.rerender(<App />)
+      expect(screen.getByTestId('conversation')).toBeInTheDocument()
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: en.shell.composer.suggestionsLabel })).not.toBeInTheDocument()
+      expect(view.container.querySelector('[data-shell-pinned-slot]')).toBeNull()
+      expect(screen.getByRole('button', { name: 'nav.today' })).toBeInTheDocument()
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Close conversation' }))
+    expect(screen.queryByTestId('conversation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    mocks.pathname = '/'
+    view.rerender(<App />)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: en.shell.composer.suggestionsLabel })).toBeInTheDocument()
   })
 
   it.each([false, true])('retains Calendar on Search at wide=%s', (wide) => {

@@ -129,6 +129,12 @@ export const cases = () => {
     JSON.stringify({ expected: expectedReviewSweepContract, actual: UI_REVIEW_SWEEP_CONTRACT }, null, 2),
   )
   const real = realOrchestratorConfig()
+  T(`${TOOL}: review lanes stay in the worker session with exactly two close-gate sub-agents`,
+    /Run the four read-only lanes yourself, in this session, in order/.test(reviewSweepContract) &&
+      /Spawn exactly two sub-agents/.test(reviewSweepContract) &&
+      /Spawn no other sub-agent/.test(reviewSweepContract) &&
+      ["design-reviewer", "completeness-critic"].every((name) => reviewSweepContract.includes(`.claude/agents/${name}.md`)),
+    reviewSweepContract)
   const staged = stageWithConfig("compose-prompt", TOOL, {
     ...real,
     repos: { ui: REPO_PATH, api: API_REPO_PATH, landing: LANDING_REPO_PATH },

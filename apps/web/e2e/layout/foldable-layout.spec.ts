@@ -27,7 +27,7 @@ const goals = paginatedGoalResponseSchema.parse({
   page: 1, pageSize: 100, totalCount: 8, totalPages: 1,
 })
 
-async function assertColumnGeometry(page: Page, viewportWidth: number) {
+async function assertColumnGeometry(page: Page, viewportWidth: number, hasComposer: boolean) {
   const column = page.locator('[data-shell-column]').last()
   await expect(column).toBeVisible()
   const geometry = await column.evaluate((element) => {
@@ -59,7 +59,7 @@ async function assertColumnGeometry(page: Page, viewportWidth: number) {
   if (viewportWidth < 1024) expect(geometry.width).toBe(Math.min(viewportWidth, SHELL_CONTENT_MAX_WIDTH))
   expect(Math.abs(geometry.leftGap - geometry.rightGap)).toBeLessThanOrEqual(1)
   expect(geometry.scrollerWidth).toBe(geometry.clientWidth)
-  if (geometry.clearance !== null) expect(geometry.clearance).toBeGreaterThanOrEqual(viewportWidth < 1024 ? 95 : 31)
+  if (geometry.clearance !== null) expect(geometry.clearance).toBeGreaterThanOrEqual(viewportWidth < 1024 && hasComposer ? 95 : 31)
   if (geometry.chromeBottom !== undefined) expect(geometry.chromeBottom).toBeLessThanOrEqual(geometry.viewportHeight)
   for (const scroller of geometry.horizontalScrollers) {
     expect(scroller.left, scroller.label).toBeGreaterThanOrEqual(geometry.left - 1)
@@ -129,7 +129,8 @@ for (const { width, height } of windows) {
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title, exact: true })).toBeVisible()
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        await assertColumnGeometry(page, width)
+        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(['Hoje', 'Habit detail'].includes(name) ? 1 : 0)
+        await assertColumnGeometry(page, width, ['Hoje', 'Habit detail'].includes(name))
         await assertReachableControls(page.locator('[data-shell-column]').last())
       })
     }

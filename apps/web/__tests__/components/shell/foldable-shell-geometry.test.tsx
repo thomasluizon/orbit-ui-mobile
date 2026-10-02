@@ -5,7 +5,6 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ShellWide } from '@/components/shell/shell-wide'
-import { Composer } from '@/components/shell/composer'
 import { NotFoundContent } from '@/components/ui/not-found-content'
 import { Toast } from '@/components/ui/toast'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -28,34 +27,44 @@ describe('Foldable shell geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 412, 500, 740, 1024, 1352])('aligns the toast and in-shell not-found title with composer content at %ipx', async (width) => {
+  it.each([320, 412, 500, 740, 1024, 1352])('aligns feedback and not-found content without reserving composer space at %ipx', async (width) => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
     useUIStore.getState().enqueueCelebration('all-done', { count: 1 })
     const { container } = render(<ShellWide items={[]} activeId="" navLabel="Navigation"
       notice={<><CelebrationPanel /><Toast kind="neutral" message="Notification removed" /></>}
-      composer={<Composer words={{ placeholder: 'Message', send: 'Send', suggestionsLabel: 'Suggestions' }}
-        value="" onChangeValue={vi.fn()} onSend={vi.fn()} suggestions={[]} state="idle" />}>
+      tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <NotFoundContent inShell />
     </ShellWide>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const bounds = await page.evaluate(() => {
-        const composer = document.querySelector('[data-composer-root]')!
-        const rectangle = composer.getBoundingClientRect()
-        const style = getComputedStyle(composer)
+        const column = document.querySelector('[data-shell-column]')!
+        const rectangle = column.getBoundingClientRect()
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        scroller.scrollTop = scroller.scrollHeight
+        const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
+        const last = scroller.lastElementChild!.getBoundingClientRect()
         const edges = (element: Element) => {
           const box = element.getBoundingClientRect()
           return { left: box.left, right: box.right }
         }
         return {
-          content: { left: rectangle.left + parseFloat(style.paddingLeft), right: rectangle.right - parseFloat(style.paddingRight) },
+          content: { left: rectangle.left + 16, right: rectangle.right - 16 },
+          composerCount: document.querySelectorAll('[data-composer-root]').length,
+          pinnedCount: document.querySelectorAll('[data-shell-pinned-slot]').length,
+          padding: parseFloat(getComputedStyle(scroller).paddingBottom),
+          clearance: bottom.top - last.bottom,
           toast: edges(document.querySelector('[data-shell-notice] [data-kind]')!),
           celebration: edges(document.querySelector('[data-celebration-panel]')!),
           title: edges(document.querySelector('[data-state="not-found"] h1')!),
           documentWidth: document.documentElement.scrollWidth,
         }
       })
+      expect(bounds.composerCount).toBe(0)
+      expect(bounds.pinnedCount).toBe(0)
+      expect(bounds.padding).toBe(32)
+      expect(bounds.clearance).toBeGreaterThanOrEqual(31)
       expect.soft(bounds.toast).toEqual(bounds.content)
       expect.soft(bounds.celebration).toEqual(bounds.content)
       expect.soft(bounds.title).toEqual(bounds.content)
@@ -99,6 +108,35 @@ describe('Foldable shell geometry', () => {
       expect(bounds.pinnedWidth).toBe(bounds.width)
       expect(bounds.clearance).toBeGreaterThanOrEqual(width < 1024 ? 95 : 31)
       expect(bounds.bottom).toBeLessThanOrEqual(height)
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1023, 1024, 1352])('clears navigation without reserving composer space at %ipx', async (width) => {
+    const { container } = render(<ShellWide items={[]} activeId="calendario" navLabel="Navigation"
+      tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
+      <div style={{ height: 1600 }}>Long destination</div>
+    </ShellWide>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        scroller.scrollTop = scroller.scrollHeight
+        const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
+        const last = scroller.lastElementChild!.getBoundingClientRect()
+        return {
+          padding: parseFloat(getComputedStyle(scroller).paddingBottom),
+          clearance: bottom.top - last.bottom,
+          bottomHeight: bottom.height,
+          bottom: bottom.bottom,
+          pinnedCount: document.querySelectorAll('[data-shell-pinned-slot]').length,
+        }
+      })
+      expect(geometry.pinnedCount).toBe(0)
+      expect(geometry.padding).toBe(32)
+      expect(geometry.clearance).toBeCloseTo(32, 0)
+      expect(geometry.bottomHeight).toBe(width < 1024 ? 64 : 0)
+      expect(geometry.bottom).toBe(915)
     } finally { await page.close() }
   })
 

@@ -306,6 +306,26 @@ describe('ShellWide', () => {
     expect(screen.getByRole('button', { name: 'Open conversation' })).toHaveFocus()
   })
 
+  it.each([true, false])('returns focus to the current destination after its composer disappears with side panel=%s', (sidePanel) => {
+    media.width = sidePanel ? 1024 : 1023
+    const props = {
+      items,
+      navLabel: 'Main navigation',
+      conversation: <button type="button">Close conversation</button>,
+      conversationLabel: 'Astra conversation',
+    }
+    const { rerender } = render(<ShellWide {...props} activeId="hoje" conversationOpen={false}
+      composer={<button type="button">Open conversation</button>}><h1>Today</h1></ShellWide>)
+    screen.getByRole('button', { name: 'Open conversation' }).focus()
+    rerender(<ShellWide {...props} activeId="hoje" conversationOpen
+      composer={<button type="button">Open conversation</button>}><h1>Today</h1></ShellWide>)
+    expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
+    rerender(<ShellWide {...props} activeId="calendario" conversationOpen><h1>Calendar</h1></ShellWide>)
+    expect(screen.getByRole('button', { name: 'Close conversation' })).toHaveFocus()
+    rerender(<ShellWide {...props} activeId="calendario" conversationOpen={false}><h1>Calendar</h1></ShellWide>)
+    expect(screen.getByRole('heading', { name: 'Calendar' })).toHaveFocus()
+  })
+
   it('omits navigation and uses the action slot in flow mode', () => {
     const { container } = render(
       <ShellWide nav={false} action={<button type="button">Continue</button>}>

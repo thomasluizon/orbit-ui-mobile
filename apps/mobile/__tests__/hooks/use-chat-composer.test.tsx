@@ -525,6 +525,7 @@ describe('mobile useChatComposer', () => {
 
   beforeEach(() => {
     __resetTestHostConfig()
+    mocks.composerProps = null
     mocks.state.profile = undefined
     mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
     mocks.state.detail = null
@@ -573,8 +574,8 @@ describe('mobile useChatComposer', () => {
   })
 
   it.each([
-    ['/profile', 'open', undefined],
-    ['/profile', 'direct-send', undefined],
+    ['/', 'open', undefined],
+    ['/', 'direct-send', undefined],
   ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {
     mocks.pathname = pathname
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))

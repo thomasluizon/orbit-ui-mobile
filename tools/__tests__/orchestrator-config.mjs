@@ -103,6 +103,27 @@ export const cases = async () => {
 
   /** The shipped config, so this asserts the real engine rather than a fixture agreeing with it. */
   const real = realOrchestratorConfig()
+  for (const [name, offArgs] of [["codex", ["--disable", "multi_agent"]], ["claude", ["--disallowed-tools", "Task"]]]) {
+    const worker = real.workers[name]
+    T(`${NAME}: ${name} declares the verified sub-agent off vector`,
+      JSON.stringify(worker.subagentOffArgs) === JSON.stringify(offArgs))
+    for (const tier of ["default", "mechanical"]) {
+      const disabled = resolveWorkerInvocation(name, worker, tier)
+      const allowed = resolveWorkerInvocation(name, worker, tier, { allowSubagents: true })
+      T(`${NAME}: ${name}.${tier} disables sub-agents by default`,
+        offArgs.every((argument) => disabled.args.includes(argument)), JSON.stringify(disabled))
+      T(`${NAME}: ${name}.${tier} can omit only the sub-agent off vector`,
+        JSON.stringify(allowed.args) === JSON.stringify([...worker.args, ...(worker.models[tier].args ?? []), "--model", worker.models[tier].model]), JSON.stringify(allowed))
+    }
+  }
+  T(`${NAME}: a malformed sub-agent off vector is refused`,
+    /subagentOffArgs must be an array of non-model strings/.test(thrown(() => resolveWorkerInvocation("codex", {
+      ...real.workers.codex, subagentOffArgs: ["--disable", 7],
+    })) ?? ""))
+  const killSwitch = { ...real.workers.codex }
+  delete killSwitch.subagentOffArgs
+  T(`${NAME}: removing the off vector is the config kill switch`,
+    JSON.stringify(resolveWorkerInvocation("codex", killSwitch).args) === JSON.stringify([...killSwitch.args, ...(killSwitch.models.default.args ?? []), "--model", killSwitch.models.default.model]))
   const shipped = readOrchestratorConfig()
   T(`${NAME}: shipped standing ticket numbers are read`, JSON.stringify(shipped.tickets.standing) === JSON.stringify([556, 746]))
   const repeatedStanding = structuredClone(real)
@@ -173,7 +194,7 @@ export const cases = async () => {
     `${NAME}: resolves the declared tier, model, and a single appended --model`,
     invocation.tier === "default" &&
       invocation.model === engine.models.default.model &&
-      JSON.stringify(invocation.args) === JSON.stringify([...engine.args, ...(engine.models.default.args ?? []), "--model", engine.models.default.model]),
+      JSON.stringify(invocation.args) === JSON.stringify([...engine.args, ...(engine.subagentOffArgs ?? []), ...(engine.models.default.args ?? []), "--model", engine.models.default.model]),
     JSON.stringify(invocation),
   )
   T(
