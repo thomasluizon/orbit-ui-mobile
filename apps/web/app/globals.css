@@ -1233,6 +1233,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .today-astra-line {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1245,8 +1246,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: var(--bg-well);
   color: var(--fg-2);
   font-family: inherit;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+  font-size: 14px;
+  line-height: 1.55;
   text-align: start;
   text-decoration: none;
   cursor: pointer;
@@ -1254,16 +1255,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   -webkit-tap-highlight-color: transparent;
 }
 
+.today-astra-line::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--bg-hover-opaque);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+}
+
 .today-astra-line > svg {
+  position: relative;
   flex-shrink: 0;
 }
 
 .today-astra-sentence {
+  position: relative;
   display: -webkit-box;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   overflow-wrap: anywhere;
+  max-width: 65ch;
+  text-wrap: pretty;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -1273,8 +1288,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
-.today-astra-line:active {
-  background: var(--bg-hover);
+.today-astra-line:active::before {
+  opacity: 1;
+  transition-duration: 0s;
 }
 
 [data-habit-row-body] {
@@ -1292,8 +1308,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .today-astra-line:hover {
-    background: var(--bg-hover);
+  .today-astra-line:hover::before {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .today-astra-line::before {
+      transition: opacity var(--dur-hover) var(--ease-standard);
+    }
   }
 
   @layer components {

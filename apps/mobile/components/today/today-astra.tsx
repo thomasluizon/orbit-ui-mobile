@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import {
@@ -59,7 +59,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
       accessibilityRole={line.notificationId ? 'button' : 'link'}
       accessibilityLabel={line.text}
       accessibilityHint={line.destination}
-      style={[styles.line, { backgroundColor: pressed ? tokens.bgHover : tokens.bgWell }]}
+      style={[styles.line, { backgroundColor: tokens.bgWell }]}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       onPress={() => {
@@ -71,6 +71,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
         }
       }}
     >
+      {pressed ? <View accessible={false} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: tokens.bgHoverOpaque }]} /> : null}
       <AstraGlyph size={20} color={tokens.fg3} />
       <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.text, { color: tokens.fg2 }]}>
         {line.text}
@@ -81,5 +82,6 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
 
 const styles = StyleSheet.create({
   line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
-  text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  feedback: { borderRadius: 12 },
+  text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 },
 })

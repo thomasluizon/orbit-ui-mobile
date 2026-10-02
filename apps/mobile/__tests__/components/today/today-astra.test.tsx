@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { TodayAstra } from '@/components/today/today-astra'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useUIStore } from '@/stores/ui-store'
@@ -48,6 +48,7 @@ vi.mock('@/lib/theme', () => ({
     bg: '#111111',
     bgHover: '#333333',
     bgWell: '#444444',
+    bgHoverOpaque: '#333333',
     hairline: '#222222',
     fg1: '#ffffff',
     fg2: '#eeeeee',
@@ -212,8 +213,11 @@ describe('mobile Today Astra', () => {
     const action = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Check in')[0]!
     expect(StyleSheet.flatten(action.props.style)).toMatchObject({ backgroundColor: '#444444' })
     await TestRenderer.act(() => { (action.props.onPressIn as () => void)() })
-    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ backgroundColor: '#333333' })
+    const feedback = action.findAll((node) => node.type === View && node.props.pointerEvents === 'none')[0]!
+    expect(feedback.props.accessible).toBe(false)
+    expect(StyleSheet.flatten(feedback.props.style)).toMatchObject({ backgroundColor: '#333333', borderRadius: 12, position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 })
     await TestRenderer.act(() => { (action.props.onPressOut as () => void)() })
+    expect(action.findAll((node) => node.type === View && node.props.pointerEvents === 'none')).toHaveLength(0)
     expect(StyleSheet.flatten(action.props.style)).toMatchObject({ backgroundColor: '#444444' })
     await TestRenderer.act(async () => {
       ;(action.props.onPress as () => void)()

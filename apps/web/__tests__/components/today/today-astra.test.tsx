@@ -246,9 +246,9 @@ describe('web Today Astra', () => {
       const { container, unmount } = renderTodayAstra()
       for (const mode of ['dark', 'light'] as const) {
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
-        for (const fontSize of [16, 32]) {
+        for (const fontSize of [14, 28]) {
           await page.mouse.move(0, 0)
-          await page.setContent(`<html class="${mode}" lang="pt-BR"><style>${stylesheet.css}:root{${variables}font-size:${fontSize}px}body{padding:16px}</style><body>${container.innerHTML}</body></html>`)
+          await page.setContent(`<html class="${mode}" lang="pt-BR"><style>${stylesheet.css}:root{${variables}}body{padding:16px}.today-astra-line{font-size:${fontSize}px}</style><body>${container.innerHTML}</body></html>`)
           await loadAppFonts(page)
           const action = page.getByRole(variant === 'proactive' ? 'button' : 'link')
           const appearance = await action.evaluate((element) => {
@@ -270,27 +270,40 @@ describe('web Today Astra', () => {
               proseHeight: prose.height, lineHeight: parseFloat(sentenceStyle.lineHeight),
               clamp: sentenceStyle.webkitLineClamp,
               fullText: sentence.textContent, name: element.textContent,
-              extraTarget: getComputedStyle(element, '::before').content,
+              feedbackEvents: getComputedStyle(element, '::before').pointerEvents,
+              feedbackInset: getComputedStyle(element, '::before').top,
+              feedbackOpacity: getComputedStyle(element, '::before').opacity,
               overflow: document.documentElement.scrollWidth > window.innerWidth,
             }
           })
           expect(appearance).toMatchObject({
             width: 288, paddingStart: '16px', paddingEnd: '16px', radius: '12px',
-            background: appearance.expectedBackground, clamp: '2', extraTarget: 'none', overflow: false,
+            background: appearance.expectedBackground, clamp: '2', feedbackEvents: 'none', feedbackInset: '0px', feedbackOpacity: '0', overflow: false,
           })
           expect(appearance.height).toBeGreaterThanOrEqual(48)
           expect(appearance.proseHeight).toBeLessThanOrEqual(appearance.lineHeight * 2)
           expect(appearance.name).toBe(appearance.fullText)
-          if (fontSize === 32) expect(appearance.height).toBeGreaterThan(48)
+          if (fontSize === 28) expect(appearance.height).toBeGreaterThan(48)
           expect(contrastOnSurface(appearance.textColor, [appearance.canvas, appearance.background])).toBeGreaterThanOrEqual(4.5)
           expect(contrastOnSurface(appearance.glyphColor, [appearance.canvas, appearance.background])).toBeGreaterThanOrEqual(3)
           await page.keyboard.press('Tab')
           expect(await action.evaluate((element) => document.activeElement === element)).toBe(true)
           expect(await action.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('solid')
+          expect(await action.evaluate((element) => getComputedStyle(element, '::before').transitionDuration)).toBe('0.38s')
           await action.hover()
-          const hoveredFill = await action.evaluate((element) => getComputedStyle(element).backgroundColor)
-          expect(hoveredFill).not.toBe(appearance.background)
-          expect(contrastOnSurface(appearance.textColor, [appearance.canvas, hoveredFill])).toBeGreaterThanOrEqual(4.5)
+          await page.waitForTimeout(400)
+          const feedback = await action.evaluate((element) => ({
+            fill: getComputedStyle(element, '::before').backgroundColor,
+            opacity: getComputedStyle(element, '::before').opacity,
+          }))
+          expect(feedback.opacity).toBe('1')
+          expect(contrastOnSurface(appearance.textColor, [appearance.canvas, appearance.background, feedback.fill])).toBeGreaterThanOrEqual(4.5)
+          expect(contrastOnSurface(appearance.glyphColor, [appearance.canvas, appearance.background, feedback.fill])).toBeGreaterThanOrEqual(3)
+          expect(contrastOnSurface(feedback.fill, [appearance.canvas, appearance.background])).toBeGreaterThanOrEqual(1.25)
+          await page.emulateMedia({ reducedMotion: 'reduce' })
+          expect(await action.evaluate((element) => parseFloat(getComputedStyle(element, '::before').transitionDuration))).toBeLessThanOrEqual(0.00001)
+          expect(await action.evaluate((element) => getComputedStyle(element, '::before').opacity)).toBe('1')
+          await page.emulateMedia({ reducedMotion: 'no-preference' })
         }
       }
       unmount()
