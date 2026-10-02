@@ -29,6 +29,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".claude/hooks/forbid-superseded-session.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".claude/hooks/forbid-worker-browser.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -48,6 +53,16 @@
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
+  },
+  ".claude/hooks/relay-at-threshold.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "relay retry and auto compact fallback bounds",
+        "source": ".claude/hooks/_lib/rules-relay.mjs context relay lifecycle"
+      }
+    ]
   },
   ".claude/hooks/require-handoff-prompt.mjs": {
     "scope": "changed-files",

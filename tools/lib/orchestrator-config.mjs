@@ -117,6 +117,12 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
     throw new Error(`.claude/orchestrator.json worker "${config.worker}" is not one of its workers`)
   }
   if (!isRecord(config.classifier)) throw new Error(".claude/orchestrator.json must declare a classifier object")
+  if (!isRecord(config.relay) || typeof config.relay.enabled !== "boolean") {
+    throw new Error(".claude/orchestrator.json relay.enabled must be a boolean")
+  }
+  if (!Number.isInteger(config.relay.thresholdTokens) || config.relay.thresholdTokens < 150000 || config.relay.thresholdTokens > 900000) {
+    throw new Error(".claude/orchestrator.json relay.thresholdTokens must be an integer from 150000 through 900000")
+  }
   nonEmptyString(config.classifier.model, "classifier.model")
   positive(config.timeouts?.hardCeilingMinutes, "timeouts.hardCeilingMinutes")
   positive(config.timeouts?.cloudCeilingMinutes, "timeouts.cloudCeilingMinutes")

@@ -4,7 +4,7 @@ import { setTimeout as wait } from "node:timers/promises"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { readGithub } from "./lib/admission.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
+import { clearWakeSource, registerWakeSource, readRunState } from "./lib/run-state.mjs"
 
 const USAGE = `usage: wait-ci.mjs --repo <key> --pr <n> [--pr <n> ...] [--require-check <name> ...] [--ceiling-minutes <n>]
 
@@ -69,7 +69,7 @@ const finish = (reason, code, error = null) => {
 process.once("exit", () => clearWakeSource(process.pid))
 process.once("SIGINT", () => finish("SIGINT", 130))
 process.once("SIGTERM", () => finish("SIGTERM", 143))
-if (!registerWakeSource({ pid: process.pid, repositoryKey, prNumbers: result.pullRequests.map((entry) => entry.number), what: `CI ${repositoryKey} pull requests ${result.pullRequests.map((entry) => `#${entry.number}`).join(", ")}`, startedAt: new Date().toISOString() })) {
+if (!registerWakeSource({ pid: process.pid, sessionId: process.env.CLAUDE_CODE_SESSION_ID ?? readRunState()?.sessionId, repositoryKey, prNumbers: result.pullRequests.map((entry) => entry.number), what: `CI ${repositoryKey} pull requests ${result.pullRequests.map((entry) => `#${entry.number}`).join(", ")}`, startedAt: new Date().toISOString() })) {
   finish("WAKE_REGISTRATION_FAILED", 1)
 }
 

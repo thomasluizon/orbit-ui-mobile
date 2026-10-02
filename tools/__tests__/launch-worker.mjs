@@ -3,7 +3,7 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSyn
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
-import { readWakeSourceStates } from "../lib/run-state.mjs"
+import { readWakeSourceStates, writeRunState } from "../lib/run-state.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -195,6 +195,10 @@ export const cases = async () => {
   discardLog(admittedExisting.stdout)
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
   const options = { path: fixture.path }
+  writeRunState({ sessionId: "draining", sleep: true, relay: { pending: true } }, fixture.base)
+  const draining = run(TOOL, [...argv, "--dry-run"], options)
+  T(`${TOOL}: a relay drain refuses even dry runs`, draining.status === 8 && /ADMISSION_REFUSED/.test(draining.stdout) && /RELAY_DRAIN/.test(draining.stdout))
+  writeRunState({ sessionId: "draining", sleep: true, relay: { pending: false } }, fixture.base)
 
   const measured = check(TOOL, "--measurement resolves the longer no-progress cap", [...argv, "--measurement", "--dry-run"], { status: 0 }, options)
   const measuredPlan = JSON.parse(measured.stdout)
