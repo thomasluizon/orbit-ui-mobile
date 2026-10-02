@@ -372,7 +372,6 @@ export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } 
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode, withShareLinkOrigin } from './referral'
 export {
   canRepeatOnboardingScheduleWeeks,
-  canSnapshotOnboardingEntry,
   clampOnboardingRepeatWeeks,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -397,10 +396,9 @@ export {
   ONBOARDING_WHEN_STEP,
   ONBOARDING_TOTAL_STEPS,
   ONBOARDING_REMINDER_MINUTES,
-  resolveRetainedOnboarding,
   shouldRequestOnboardingSuggestion,
 } from './onboarding'
-export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode, RetainedOnboardingAction } from './onboarding'
+export type { OnboardingCompleteCopy, OnboardingCompleteState, OnboardingRemindCopy, OnboardingRemindState, OnboardingSchedule, OnboardingScheduleMode } from './onboarding'
 export {
   isMissingBillingError,
   isMissingBillingStatus,

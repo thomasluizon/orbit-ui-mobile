@@ -6,7 +6,6 @@ import {
   buildOnboardingScheduleFromPhrase,
   buildOnboardingScheduleFromSuggestion,
   canRepeatOnboardingScheduleWeeks,
-  canSnapshotOnboardingEntry,
   clampOnboardingRepeatWeeks,
   getOnboardingCompleteCopy,
   isOnboardingHabitDueToday,
@@ -20,7 +19,6 @@ import {
   ONBOARDING_REMIND_STEP,
   ONBOARDING_STARTERS,
   shouldRequestOnboardingSuggestion,
-  resolveRetainedOnboarding,
 } from '../utils/onboarding'
 import { getHabitPhraseTitle } from '../utils/habit-phrase-title'
 
@@ -286,124 +284,6 @@ describe('onboarding helpers', () => {
   })
 })
 
-describe('canSnapshotOnboardingEntry', () => {
-  it('is true once not-completed, unsuppressed, and the habit count has settled', () => {
-    expect(
-      canSnapshotOnboardingEntry({
-        hasCompletedOnboarding: false,
-        suppressed: false,
-        habitCountLoaded: true,
-      }),
-    ).toBe(true)
-  })
-
-  it('waits while the habit count is still loading', () => {
-    expect(
-      canSnapshotOnboardingEntry({
-        hasCompletedOnboarding: false,
-        suppressed: false,
-        habitCountLoaded: false,
-      }),
-    ).toBe(false)
-  })
-
-  it('waits while suppressed (draft hydrating or answers flushing)', () => {
-    expect(
-      canSnapshotOnboardingEntry({
-        hasCompletedOnboarding: false,
-        suppressed: true,
-        habitCountLoaded: true,
-      }),
-    ).toBe(false)
-  })
-
-  it('never snapshots once onboarding is already complete', () => {
-    expect(
-      canSnapshotOnboardingEntry({
-        hasCompletedOnboarding: true,
-        suppressed: false,
-        habitCountLoaded: true,
-      }),
-    ).toBe(false)
-  })
-
-  it('never snapshots before the profile has loaded', () => {
-    expect(
-      canSnapshotOnboardingEntry({
-        hasCompletedOnboarding: undefined,
-        suppressed: false,
-        habitCountLoaded: true,
-      }),
-    ).toBe(false)
-  })
-})
-
-describe('resolveRetainedOnboarding', () => {
-  it('shows the overlay for a not-completed account that had no habits at entry', () => {
-    expect(
-      resolveRetainedOnboarding({
-        hasCompletedOnboarding: false,
-        hadHabitsAtEntry: false,
-      }),
-    ).toBe('show')
-  })
-
-  it('auto-completes for a not-completed account that already had habits at entry', () => {
-    expect(
-      resolveRetainedOnboarding({
-        hasCompletedOnboarding: false,
-        hadHabitsAtEntry: true,
-      }),
-    ).toBe('autocomplete')
-  })
-
-  it('does nothing until the entry snapshot has been captured', () => {
-    expect(
-      resolveRetainedOnboarding({
-        hasCompletedOnboarding: false,
-        hadHabitsAtEntry: null,
-      }),
-    ).toBe('none')
-  })
-
-  it('does nothing once onboarding is complete, regardless of the snapshot', () => {
-    expect(
-      resolveRetainedOnboarding({
-        hasCompletedOnboarding: true,
-        hadHabitsAtEntry: true,
-      }),
-    ).toBe('none')
-  })
-
-  it('uses one schedule model for proposal rendering and correction', () => {
-    const recurring = {
-      frequencyUnit: 'Month' as const,
-      frequencyQuantity: 2,
-      intervalWeeks: 1,
-      days: [],
-      isGeneral: false,
-      isFlexible: false,
-      dueTime: '',
-    }
-    expect(getOnboardingScheduleMode(recurring)).toBe('interval')
-    expect(changeOnboardingScheduleMode(recurring, 'oneTime')).toMatchObject({
-      frequencyUnit: null,
-      frequencyQuantity: null,
-      isGeneral: false,
-      isFlexible: false,
-    })
-  })
-
-  it('does nothing before the profile has loaded', () => {
-    expect(
-      resolveRetainedOnboarding({
-        hasCompletedOnboarding: undefined,
-        hadHabitsAtEntry: null,
-      }),
-    ).toBe('none')
-  })
-})
-
 const weekdaySchedule: OnboardingSchedule = {
   frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 3,
   days: ['Monday'], isGeneral: false, isFlexible: false, dueTime: '',
@@ -532,5 +412,13 @@ describe('getOnboardingRemindCopy', () => {
   ] as const)('keeps one %s body, because it claims nothing about storage', (state, titleKey, bodyKey) => {
     expect(getOnboardingRemindCopy(state, true)).toEqual({ titleKey, bodyKey })
     expect(getOnboardingRemindCopy(state, false)).toEqual({ titleKey, bodyKey })
+  })
+})
+
+describe('onboarding schedule correction', () => {
+  it('uses one schedule model for proposal rendering and correction', () => {
+    const recurring = { frequencyUnit: 'Month' as const, frequencyQuantity: 2, intervalWeeks: 1, days: [], isGeneral: false, isFlexible: false, dueTime: '' }
+    expect(getOnboardingScheduleMode(recurring)).toBe('interval')
+    expect(changeOnboardingScheduleMode(recurring, 'oneTime')).toMatchObject({ frequencyUnit: null, frequencyQuantity: null, isGeneral: false, isFlexible: false })
   })
 })

@@ -76,7 +76,7 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
   useOnboardingDraftStore: Object.assign(
     (selector: (state: { onboardingLocallyDone: boolean; habits: unknown[] }) => unknown) =>
       selector({ onboardingLocallyDone: false, habits: [] }),
-    { getState: () => ({ onboardingLocallyDone: false, habits: [] }) },
+    { getState: () => ({ onboardingLocallyDone: false, habits: [], markOnboardingLocallyDone: vi.fn() }) },
   ),
 }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))

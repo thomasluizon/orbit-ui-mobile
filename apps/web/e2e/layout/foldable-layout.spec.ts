@@ -1,3 +1,4 @@
+import { completeInstallOnboarding } from './install-onboarding'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
@@ -138,6 +139,7 @@ for (const { width, height } of windows) {
     test.use({ viewport: { width, height }, storageState: { cookies: [], origins: [] } })
     test('centres the sign-in form and keeps every action reachable', async ({ page, context }) => {
       await context.addCookies([{ name: 'i18n_locale', value: 'en', url: LAYOUT_ORIGIN }])
+      await completeInstallOnboarding(page)
       await page.goto('/login')
       await loadAppFonts(page)
       await expect(page.getByRole('heading', { name: en.auth.emailTitle })).toBeVisible()

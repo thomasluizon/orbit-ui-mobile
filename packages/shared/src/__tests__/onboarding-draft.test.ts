@@ -72,7 +72,7 @@ describe('onboarding draft store', () => {
     expect(store.getState().hasPendingAnswers()).toBe(false)
 
     store.getState().markOnboardingLocallyDone()
-    expect(store.getState().hasPendingAnswers()).toBe(true)
+    expect(store.getState().hasPendingAnswers()).toBe(false)
   })
 
   it('keeps deferred push registration outcomes in the persisted draft', () => {
@@ -100,7 +100,18 @@ describe('onboarding draft store', () => {
 
     const persisted = getPersistedOnboardingDraft(store.getState())
     expect(persisted.habits).toHaveLength(0)
-    expect(persisted.onboardingLocallyDone).toBe(false)
+    expect(persisted.onboardingLocallyDone).toBe(true)
+  })
+
+  it('ends device onboarding on sign-in without creating pending account answers', () => {
+    const store = makeStore()
+    store.getState().setAccountScope('account-a', true)
+    expect(store.getState().onboardingLocallyDone).toBe(true)
+    expect(store.getState().hasPendingAnswers()).toBe(false)
+    store.getState().setAccountScope(null)
+    expect(store.getState().onboardingLocallyDone).toBe(true)
+    store.getState().setAccountScope('account-b')
+    expect(store.getState().hasPendingAnswers()).toBe(false)
   })
 
   it('migrates unknown persisted shapes to a clean draft', () => {
