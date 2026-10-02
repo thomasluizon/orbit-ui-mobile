@@ -10,6 +10,7 @@ import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/t
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { DocumentPickerAsset } from 'expo-document-picker'
 
+import { Linking, StyleSheet } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useChatComposer } from '@/hooks/use-chat-composer'
@@ -111,6 +112,7 @@ vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
   return {
     ...original,
+    Linking: { openSettings: vi.fn().mockResolvedValue(undefined) },
     FlatList: React.forwardRef<unknown, {
       data: ChatMessage[]
       renderItem: (entry: { item: ChatMessage; index: number }) => React.ReactNode
@@ -470,6 +472,39 @@ describe('mobile useChatComposer', () => {
     expect(focus).toHaveBeenCalled()
     expect(visibleMessageTexts(tree)).toContain('Hi there')
     expect(tree.root.findByType('FlatList').props.data).toEqual(expect.arrayContaining([expect.objectContaining({ role: 'ai', content: 'Hi there' })]))
+  })
+
+  it('keeps voice failures and settings recovery visible in the dock without losing the draft', async () => {
+    useChatStore.setState({ draft: 'Keep my draft', draftHydrated: true })
+    const openSettings = vi.spyOn(Linking, 'openSettings')
+    const tree = await renderConversationHarness()
+    mocks.state.speechError = 'speech.micDenied'
+    await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('speech.micDenied')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(inputHosts(tree)[0].props.value).toBe('Keep my draft')
+    const recovery = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.openSettings')
+    expect(recovery).toHaveLength(1)
+    expect(StyleSheet.flatten(recovery[0].props.style({ pressed: false })).minHeight).toBeGreaterThanOrEqual(48)
+    TestRenderer.act(() => recovery[0].props.onPress())
+    expect(openSettings).toHaveBeenCalledOnce()
+  })
+
+  it('offers one retry action in the owning conversation after a transport failure', async () => {
+    mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(sseStreamResponse(finalFrame(makeChatResponse())))
+    const tree = await renderConversationHarness()
+    TestRenderer.act(() => inputHosts(tree)[0].props.onChangeText('Plan my morning'))
+    await TestRenderer.act(async () => { inputHosts(tree)[0].props.onSubmitEditing(); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('chat.sendError')
+    const retries = tree.root.findAll((node: { type: unknown; findAll: (predicate: (child: { type: unknown; props: { children?: unknown } }) => boolean) => unknown[] }) =>
+      node.type === 'Pressable' && node.findAll((child) => child.type === 'Text' && child.props.children === 'shell.composer.retry').length > 0)
+    expect(retries).toHaveLength(1)
+    await TestRenderer.act(async () => { retries[0].props.onPress(); await Promise.resolve() })
+    expect(mocks.openChatStream).toHaveBeenCalledTimes(2)
+    expect(visibleMessageTexts(tree)).toContain('Hi there')
+    expect(visibleMessageTexts(tree)).not.toContain('chat.sendError')
+    expect(visibleMessageTexts(tree)).not.toContain('shell.composer.retry')
   })
 
   it('opens the conversation when sending a finished voice transcript', async () => {

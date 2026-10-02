@@ -72,6 +72,8 @@ type ComposerBase = {
   suggestions: ComposerSuggestions
   onOpenConversation?: () => void
   conversationLabel?: string
+  errorMessage?: string
+  errorRecovery?: { label: string; onSelect: () => void }
 }
 
 type ComposerState =

@@ -322,6 +322,33 @@ describe('web useChatComposer streaming send', () => {
     await waitFor(() => expect(screen.getByText('Hi there')).toBeVisible())
   })
 
+  it('keeps voice failures visible in the dock without opening the conversation or losing the draft', () => {
+    useChatStore.setState({ draft: 'Keep my draft', draftHydrated: true })
+    const view = render(<ComposerConversationHarness />)
+    mocks.state.speechError = 'microphone denied'
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.getByRole('alert')).toHaveTextContent('microphone denied')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(screen.getByRole('textbox')).toHaveValue('Keep my draft')
+  })
+
+  it('offers one retry action in the owning conversation after a transport failure', async () => {
+    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    render(<ComposerConversationHarness />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('chat.sendError'))
+    const retries = screen.getAllByRole('button', { name: 'shell.composer.retry' })
+    expect(retries).toHaveLength(1)
+    expect(retries[0]!.closest('[data-composer-root]')).not.toBeNull()
+    fireEvent.click(retries[0]!)
+    await waitFor(() => expect(screen.getByText('Hi there')).toBeVisible())
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'shell.composer.retry' })).not.toBeInTheDocument()
+  })
+
   it('opens the conversation when sending a finished voice transcript', async () => {
     mocks.state.isRecording = true
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))

@@ -262,7 +262,10 @@ describe('Composer', () => {
   it('disables input and send and hides suggestions during sending', () => {
     render(<Composer {...props({ state: 'sending', value: 'oi' })} />)
     expect(screen.getByRole('textbox', { name: words.placeholder })).toBeDisabled()
-    expect(screen.getByRole('button', { name: words.send })).toBeDisabled()
+    const send = screen.getByRole('button', { name: words.send })
+    expect(send).toBeDisabled()
+    expect(send).toHaveAttribute('aria-busy', 'true')
+    expect(send.querySelector('.orbit-essential-loading')).not.toBeNull()
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()
   })
 

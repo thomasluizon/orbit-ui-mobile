@@ -11,7 +11,6 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   sendAccessibilityEvent: vi.fn(),
-  openSettings: vi.fn(),
   setAstraConversationOpen: vi.fn(),
   router: { push: vi.fn() },
   composer: {
@@ -64,7 +63,6 @@ vi.mock('react-native', async (importOriginal) => {
       sendAccessibilityEvent: mocks.sendAccessibilityEvent,
       announceForAccessibility: vi.fn(),
     },
-    Linking: { openSettings: (...arguments_: unknown[]) => mocks.openSettings(...arguments_) },
     Platform: { ...actual.Platform, OS: 'android' },
     FlatList: React.forwardRef<unknown, {
       data: ChatMessage[]
@@ -268,28 +266,6 @@ describe('ChatScreen composer recoveries', () => {
     expect(findByLabel(tree.root, 'ads.watchForMessages')).toBeUndefined()
   })
 
-  it('keeps microphone permission recovery after the transient alert clears', async () => {
-    mocks.composer.sendError = 'speech.micDenied'
-    mocks.composer.speechError = 'speech.micDenied'
-    const tree = await renderScreen()
-    expect(findByLabel(tree.root, 'common.openSettings')).toBeDefined()
-
-    mocks.composer.sendError = null
-    TestRenderer.act(() => tree.update(<AstraConversation chat={mocks.composer as never} />))
-    const settingsAction = findByLabel(tree.root, 'common.openSettings')
-    TestRenderer.act(() => press(settingsAction))
-
-    expect(mocks.openSettings).toHaveBeenCalledOnce()
-  })
-
-  it('keeps other speech errors on the transient path without a settings action', async () => {
-    mocks.composer.sendError = 'speech.failedToStart'
-    mocks.composer.speechError = 'speech.failedToStart'
-    const tree = await renderScreen()
-
-    expect(findByLabel(tree.root, 'common.openSettings')).toBeUndefined()
-  })
-
   it('keeps live composer suggestions available in a new and populated thread', async () => {
     mocks.composer.composerProps.suggestions = [{ id: 'one', label: 'One', onSelect: vi.fn() }, { id: 'two', label: 'Two', onSelect: vi.fn() }, { id: 'three', label: 'Three', onSelect: vi.fn() }]
     const tree = await renderScreen()
@@ -393,19 +369,6 @@ describe('ChatScreen composer recoveries', () => {
     const chip = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && nodeText(node).includes('Check goals'))[0]
     TestRenderer.act(() => press(chip))
     expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Check goals', 'followUp')
-  })
-
-  it('retries a failed send inline', async () => {
-    mocks.composer.sendError = 'chat.sendError'
-    mocks.composer.canRetryLastSend = true
-    const tree = await renderScreen()
-    const retry = tree.root.findAll((node) =>
-      typeof node.props.onPress === 'function' && nodeText(node).includes('shell.composer.retry'),
-    )[0]
-
-    TestRenderer.act(() => press(retry))
-
-    expect(mocks.composer.retryLastSend).toHaveBeenCalledOnce()
   })
 
   it('closes from the conversation header', async () => {

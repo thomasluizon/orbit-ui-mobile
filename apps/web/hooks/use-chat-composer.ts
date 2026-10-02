@@ -709,6 +709,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     const common = {
       words,
       value: input,
+      errorMessage: sendError ?? undefined,
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
       onPaste: handlePaste,
@@ -769,6 +770,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     retryLastSend,
     setInput,
     sendMessage,
+    sendError,
     speechSupported,
     t,
     toggleRecording,

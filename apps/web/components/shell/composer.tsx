@@ -9,7 +9,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
-import { ArrowUp, FileText, Image as ImageIcon, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
+import { ArrowUp, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -214,16 +214,28 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         type="button"
         aria-label={props.words.send}
         data-accent={sendIsAccent ? '' : undefined}
+        aria-busy={props.state === 'sending' || undefined}
         disabled={!canSend}
         onClick={() => {
           if (canSend) props.onSend()
         }}
         className={`relative flex w-[48px] min-h-[48px] shrink-0 items-center justify-center overflow-hidden rounded-full border-0 transition-[background-color,opacity] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed ${props.state === 'sending' ? '' : 'disabled:opacity-40'} ${sendIsAccent ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-hover)] enabled:active:bg-[var(--primary-pressed)]' : 'bg-[var(--bg-well)] text-[var(--fg-3)]'}`}
       >
-        <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />
+        {props.state === 'sending' ? <Loader2 size={20} strokeWidth={2} className="animate-spin orbit-essential-loading" aria-hidden="true" /> : <ArrowUp size={20} strokeWidth={2} aria-hidden="true" />}
       </button>
     </div>
   )
+}
+
+function ComposerError({ props }: Readonly<{ props: ComposerProps }>) {
+  if (!props.errorMessage && !props.errorRecovery) return null
+  return <div className="flex min-w-0 flex-col gap-2">
+    {props.errorMessage ? <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)] [overflow-wrap:anywhere]">{props.errorMessage}</p> : null}
+    {props.errorRecovery ? <button type="button" onClick={props.errorRecovery.onSelect}
+      className="orbit-link-action min-h-[48px] self-start border-0 bg-transparent text-sm font-medium text-[var(--fg-2)]">
+      {props.errorRecovery.label}
+    </button> : null}
+  </div>
 }
 
 function RetryControl({ props }: Readonly<{ props: ComposerProps }>) {
@@ -277,6 +289,7 @@ export function Composer(props: Readonly<WebComposerProps>) {
         <AttachmentTray attachments={attachments} words={props.attachWords} onRemove={props.onAttachRemove} />
       ) : null}
 
+      <ComposerError props={props} />
       <ComposerStatus props={props} />
       <ComposerInputRow props={props} />
       <RetryControl props={props} />

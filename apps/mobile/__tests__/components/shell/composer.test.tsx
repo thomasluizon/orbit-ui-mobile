@@ -502,7 +502,10 @@ describe('Composer (mobile)', () => {
   it('disables input and send and hides suggestions during sending', async () => {
     const tree = await renderComposer(props({ state: 'sending', value: 'oi' }))
     expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
-    expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(true)
+    const send = byLabel(tree.root, words.send)[0]
+    expect(send.props.disabled).toBe(true)
+    expect(send.props.accessibilityState.busy).toBe(true)
+    expect(send.findAll((node: { type: unknown }) => node.type === 'ActivityIndicator')).toHaveLength(1)
     expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
   })
 

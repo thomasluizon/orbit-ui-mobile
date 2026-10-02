@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList } from "react-native";
+import { FlatList, Linking } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
@@ -833,6 +833,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     const common = {
       words,
       value: input,
+      errorMessage: sendError ?? undefined,
+      ...(speechError === t("speech.micDenied") ? {
+        errorRecovery: { label: t("common.openSettings"), onSelect: () => { void Linking.openSettings(); } },
+      } : {}),
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
       suggestions: composerSuggestions,
@@ -891,6 +895,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     retryLastSend,
     setInput,
     sendMessage,
+    sendError,
+    speechError,
     speechSupported,
     t,
     toggleRecording,

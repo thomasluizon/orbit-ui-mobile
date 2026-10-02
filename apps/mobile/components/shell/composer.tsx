@@ -7,7 +7,7 @@ import {
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { useEffect, useRef, useState } from 'react'
-import { AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
+import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, FileText, Image, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -302,7 +302,7 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
         focusColor={sendIsAccent ? tokens.fgOnPrimary : tokens.fg1}
         accessibilityRole="button"
         accessibilityLabel={props.words.send}
-        accessibilityState={{ disabled: !canSend }}
+        accessibilityState={{ disabled: !canSend, busy: props.state === 'sending' }}
         disabled={!canSend}
         onPress={() => {
           if (canSend) props.onSend()
@@ -319,10 +319,22 @@ function ComposerInputRow({ props, tokens, inputRef }: Readonly<{ props: MobileC
           !canSend && props.state !== 'sending' ? styles.disabled : null,
         ]}
       >
-        <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />
+        {props.state === 'sending' ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : <ArrowUp size={20} strokeWidth={2} color={sendIsAccent ? tokens.fgOnPrimary : tokens.fg3} />}
       </InsetFocusPressable>
     </View>
   )
+}
+
+function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
+  if (!props.errorMessage && !props.errorRecovery) return null
+  return <View style={styles.limitStatus}>
+    {props.errorMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive"
+      style={[styles.limitReason, { color: tokens.statusBadText }]}>{props.errorMessage}</Text> : null}
+    {props.errorRecovery ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
+      style={({ pressed }) => [styles.retry, pressed ? styles.retryPressed : null]}>
+      <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.errorRecovery.label}</Text>
+    </InsetFocusPressable> : null}
+  </View>
 }
 
 function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
@@ -393,6 +405,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
         />
       ) : null}
 
+      <ComposerError props={props} tokens={tokens} />
       <ComposerStatus props={props} tokens={tokens} focusTarget={focusTarget} />
       <ComposerInputRow props={props} tokens={tokens} inputRef={focusTarget} />
       <RetryControl props={props} tokens={tokens} />

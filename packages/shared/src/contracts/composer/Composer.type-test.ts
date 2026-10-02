@@ -114,6 +114,8 @@ type ExpectedComposerBase = {
   suggestions: ExpectedComposerSuggestions
   onOpenConversation?: () => void
   conversationLabel?: string
+  errorMessage?: string
+  errorRecovery?: { label: string; onSelect: () => void }
 }
 type ExpectedIdleState = { state: 'idle'; limitReason?: never; limitRecovery?: never }
 type ExpectedSendingState = { state: 'sending'; limitReason?: never; limitRecovery?: never }
