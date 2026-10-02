@@ -210,19 +210,21 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
-      "placeholder": "Ask Astra for something",
+      "placeholder": "Astra",
       "send": "Send",
       "suggestionsLabel": "Suggestions",
       "retry": "Try again",
       "voice": {
-        "start": "Speak",
+        "start": "Voice",
         "stop": "Stop",
         "recording": "Listening",
-        "transcribing": "Writing what you said"
+        "transcribing": "Transcribing"
       },
       "attach": {
         "trayLabel": "Attached files",
-        "remove": "Remove {name}"
+        "remove": "Remove {name}",
+        "file": "Document",
+        "image": "Photo"
       },
       "limit": {
         "reason": "Today's allowance of {allowance} Astra messages is used. Lists, habit logging, and voice input still work without using Astra."
@@ -231,7 +233,7 @@
         "reason": "Astra is still answering. Wait for this response before sending another message."
       },
       "offline": {
-        "placeholder": "No connection",
+        "placeholder": "Offline",
         "reason": "No connection. Astra comes back when the connection does."
       },
       "chips": {
@@ -275,7 +277,9 @@
           "pauseThisWeek": "Pause this week",
           "rename": "Rename"
         }
-      }
+      },
+      "inputLabel": "Ask Astra",
+      "actions": "Add to message"
     }
   },
   "todayAstra": {

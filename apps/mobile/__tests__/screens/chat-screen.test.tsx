@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
       words: {
         placeholder: 'shell.composer.placeholder',
         send: 'shell.composer.send',
+        actions: 'shell.composer.actions',
         suggestionsLabel: 'shell.composer.suggestionsLabel',
       },
       value: '',
@@ -289,11 +290,11 @@ describe('ChatScreen composer recoveries', () => {
     expect(findByLabel(tree.root, 'common.openSettings')).toBeUndefined()
   })
 
-  it('shows only empty-state suggestions until the thread has a message', async () => {
+  it('keeps live composer suggestions available in a new and populated thread', async () => {
     mocks.composer.composerProps.suggestions = [{ id: 'one', label: 'One', onSelect: vi.fn() }, { id: 'two', label: 'Two', onSelect: vi.fn() }, { id: 'three', label: 'Three', onSelect: vi.fn() }]
     const tree = await renderScreen()
     expect(findByType(tree.root, 'ChatEmptyState')).toBeDefined()
-    expect((findByType(tree.root, 'Composer')?.props.suggestions as unknown[])).toEqual([])
+    expect(findByType(tree.root, 'Composer')?.props.suggestions).toEqual(mocks.composer.composerProps.suggestions)
     mocks.composer.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
     mocks.composer.showSuggestions = false
     TestRenderer.act(() => tree.update(<AstraConversation chat={mocks.composer as never} />))
@@ -304,7 +305,7 @@ describe('ChatScreen composer recoveries', () => {
   it('keeps a requested Progress action reachable in a new conversation', async () => {
     useChatStore.getState().setContextualSuggestion({ id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' })
     const tree = await renderScreen()
-    expect((findByType(tree.root, 'Composer')?.props.suggestions as unknown[])).toEqual([])
+    expect(findByType(tree.root, 'Composer')?.props.suggestions).toEqual(mocks.composer.composerProps.suggestions)
     const action = findByType(tree.root, 'ChatEmptyState')?.props.contextualAction as { onSelect: () => void }
     TestRenderer.act(() => action.onSelect())
     expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Help me make a goal')

@@ -1,13 +1,16 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
 const words = {
   placeholder: 'placeholder sentinel',
   send: 'send sentinel',
+  actions: 'actions sentinel',
   suggestionsLabel: 'suggestions sentinel',
 }
 const voiceWords = {
@@ -59,12 +62,12 @@ describe('Composer', () => {
     expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
   })
 
-  it('does not steal focus from the enabled voice stop control when recording starts', () => {
+  it('keeps focus on the stop control as recording ends in transcription', () => {
     const capability = { onVoice: vi.fn(), voiceWords }
-    const view = render(<Composer {...props(capability)} autoFocus />)
-    const voiceButton = screen.getByRole('button', { name: voiceWords.start })
-    act(() => voiceButton.focus())
-    view.rerender(<Composer {...props({ ...capability, state: 'recording' })} autoFocus />)
+    const view = render(<Composer {...props({ ...capability, state: 'recording' })} autoFocus />)
+    const stop = screen.getByRole('button', { name: voiceWords.stop })
+    act(() => stop.focus())
+    view.rerender(<Composer {...props({ ...capability, state: 'transcribing' })} autoFocus />)
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveFocus()
   })
 
@@ -143,23 +146,13 @@ describe('Composer', () => {
     expect(field.className.split(' ')).not.toContain('focus-visible:outline-2')
   })
 
-  it('gives each inner control its own shaped ring without the wrapper ring', () => {
-    render(<Composer {...props({
-      onAttachFile: vi.fn(),
-      onAttachImage: vi.fn(),
-      onVoice: vi.fn(),
-      attachWords,
-      voiceWords,
-    })} />)
-
-    for (const name of [attachWords.file, attachWords.image, voiceWords.start]) {
-      const control = screen.getByRole('button', { name })
-      control.focus()
-      expect(control).toHaveFocus()
-      expect(control.className.split(' ')).not.toContain('focus-visible:outline-0')
-      expect(control).toHaveClass('rounded-full')
-      expect(control.closest('[data-composer-input-row]')?.className.split(' ')).toContain('has-[textarea:focus-visible]:shadow-[inset_0_0_0_2px_var(--primary)]')
-    }
+  it('gives the menu trigger its own shaped focus ring inside the field', () => {
+    render(<Composer {...props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), onVoice: vi.fn(), attachWords, voiceWords })} />)
+    const control = screen.getByRole('button', { name: words.actions })
+    control.focus()
+    expect(control).toHaveFocus()
+    expect(control).toHaveClass('rounded-full')
+    expect(control.closest('[data-composer-input-row]')).toBe(screen.getByRole('textbox').parentElement)
   })
 
   it.each(['', '   '])('does not send a blank value %j', (value) => {
@@ -271,15 +264,15 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: 'recovery sentinel' })).toBeInTheDocument()
   })
 
-  it('renders and invokes voice only when the capability is present', () => {
+  it('opens the voice handler from the menu only when supported', async () => {
     const onVoice = vi.fn()
     const { rerender } = render(<Composer {...props({ onVoice, voiceWords })} />)
-    fireEvent.click(screen.getByRole('button', { name: voiceWords.start }))
-    expect(onVoice).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: words.actions }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: voiceWords.start }))
+    await waitFor(() => expect(onVoice).toHaveBeenCalledOnce())
     rerender(<Composer {...props()} />)
-    expect(screen.queryByRole('button', { name: voiceWords.start })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: words.actions })).not.toBeInTheDocument()
   })
-
 
   it('replaces suggestions with recording status and a stop control', () => {
     render(<Composer {...props({ state: 'recording', onVoice: vi.fn(), voiceWords })} />)
@@ -306,15 +299,18 @@ describe('Composer', () => {
     expect(screen.getByRole('button', { name: voiceWords.stop })).toHaveClass('bg-transparent')
   })
 
-  it('renders attachment capability without an empty tray', () => {
-    render(
-      <Composer
-        {...props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords })}
-      />,
-    )
-    expect(screen.getByRole('button', { name: attachWords.file })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: attachWords.image })).toBeInTheDocument()
+  it('opens a sheet menu and dispatches each attachment after dismissal without changing the draft', async () => {
+    const onAttachFile = vi.fn()
+    const onAttachImage = vi.fn()
+    render(<Composer {...props({ value: 'Keep this draft', onAttachFile, onAttachImage, attachWords })} />)
     expect(screen.queryByLabelText(attachWords.trayLabel)).not.toBeInTheDocument()
+    for (const [name, handler] of [[attachWords.image, onAttachImage], [attachWords.file, onAttachFile]] as const) {
+      fireEvent.click(screen.getByRole('button', { name: words.actions }))
+      expect(await screen.findByRole('dialog')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('menuitem', { name }))
+      await waitFor(() => expect(handler).toHaveBeenCalledOnce())
+      expect(screen.getByRole('textbox')).toHaveValue('Keep this draft')
+    }
   })
 
   it('allows a text file to send without typed text', () => {
@@ -374,8 +370,8 @@ describe('Composer', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça algo à Astra'],
-    ['en', en.shell.composer.placeholder, 'Ask Astra for something'],
+    ['pt-BR', ptBR.shell.composer.placeholder, 'Astra'],
+    ['en', en.shell.composer.placeholder, 'Astra'],
   ])('shows the %s composer placeholder', (_locale, placeholder, expected) => {
     render(<Composer {...props({ words: { ...words, placeholder } })} />)
     expect(placeholder).toBe(expected)
@@ -383,8 +379,8 @@ describe('Composer', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
-    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+    ['pt-BR', ptBR.shell.composer.offline, 'Offline', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'Offline', 'No connection. Astra comes back when the connection does.'],
   ])('shows the %s offline composer copy', (_locale, offline, placeholder, reason) => {
     render(<Composer {...props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason })} />)
     expect(screen.getByRole('textbox', { name: 'Ask Astra for something' })).toHaveAttribute('placeholder', placeholder)
@@ -406,40 +402,40 @@ describe('Composer', () => {
       expect(root).not.toHaveAttribute('data-can-retry', 'false')
     },
   )
-  it.each(['idle', 'sending', 'offline', 'atLimit'] as const)('only dispatches attachment actions while idle, from %s', (state) => {
+  it.each(['sending', 'offline', 'atLimit'] as const)('prevents attachment selection while %s', (state) => {
     const onAttachFile = vi.fn()
     const onAttachImage = vi.fn()
-    const statuses = {
-      idle: { state: 'idle' }, sending: { state: 'sending' },
-      offline: { state: 'offline', limitReason: 'offline sentinel' },
-      atLimit: { state: 'atLimit', limitReason: 'limit sentinel' },
-    } as const
-    render(<Composer words={words} value="" suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} {...statuses[state]} onAttachFile={onAttachFile} onAttachImage={onAttachImage} attachWords={attachWords} />)
-    for (const [name, callback] of [[attachWords.file, onAttachFile], [attachWords.image, onAttachImage]] as const) {
-      const button = screen.getByRole('button', { name })
-      if (state === 'idle') expect(button).toBeEnabled()
-      else expect(button).toBeDisabled()
-      fireEvent.click(button)
-      expect(callback).toHaveBeenCalledTimes(state === 'idle' ? 1 : 0)
-    }
+    const statuses = { sending: { state: 'sending' }, offline: { state: 'offline', limitReason: 'offline sentinel' }, atLimit: { state: 'atLimit', limitReason: 'limit sentinel' } } as const
+    render(<Composer {...props({ ...statuses[state], onAttachFile, onAttachImage, attachWords })} />)
+    const trigger = screen.getByRole('button', { name: words.actions })
+    expect(trigger).toBeDisabled()
+    fireEvent.click(trigger)
+    expect(screen.queryByRole('menuitem')).not.toBeInTheDocument()
+    expect(onAttachFile).not.toHaveBeenCalled()
+    expect(onAttachImage).not.toHaveBeenCalled()
   })
 
-  it.each(['idle', 'recording', 'transcribing', 'sending', 'offline', 'atLimit'] as const)('dispatches voice only when the %s control can act', (state) => {
+  it('allows voice at the Astra limit while keeping attachment choices disabled', async () => {
     const onVoice = vi.fn()
-    const statuses = {
-      idle: { state: 'idle' }, recording: { state: 'recording' },
-      transcribing: { state: 'transcribing' }, sending: { state: 'sending' },
-      offline: { state: 'offline', limitReason: 'offline sentinel' },
-      atLimit: { state: 'atLimit', limitReason: 'limit sentinel' },
-    } as const
-    render(<Composer words={words} value="" suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} {...statuses[state]} onVoice={onVoice} voiceWords={voiceWords} />)
-    const canAct = state === 'idle' || state === 'recording' || state === 'atLimit'
-    const name = state === 'recording' || state === 'transcribing' ? voiceWords.stop : voiceWords.start
-    const button = screen.getByRole('button', { name })
-    if (canAct) expect(button).toBeEnabled()
-    else expect(button).toBeDisabled()
-    fireEvent.click(button)
-    expect(onVoice).toHaveBeenCalledTimes(canAct ? 1 : 0)
+    const onAttachFile = vi.fn()
+    render(<Composer {...props({ state: 'atLimit', limitReason: 'limit sentinel', onVoice, voiceWords, onAttachFile, attachWords })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.actions }))
+    expect(await screen.findByRole('menuitem', { name: attachWords.file })).toBeDisabled()
+    fireEvent.click(screen.getByRole('menuitem', { name: voiceWords.start }))
+    await waitFor(() => expect(onVoice).toHaveBeenCalledOnce())
+    expect(onAttachFile).not.toHaveBeenCalled()
   })
 
+  it('dismisses the menu without changing text or sending', async () => {
+    const onSend = vi.fn()
+    const onChangeValue = vi.fn()
+    render(<Composer {...props({ value: 'Keep this draft', onSend, onChangeValue, onVoice: vi.fn(), voiceWords })} />)
+    fireEvent.click(screen.getByRole('button', { name: words.actions }))
+    await screen.findByRole('dialog')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('textbox')).toHaveValue('Keep this draft')
+    expect(onSend).not.toHaveBeenCalled()
+    expect(onChangeValue).not.toHaveBeenCalled()
+  })
 })

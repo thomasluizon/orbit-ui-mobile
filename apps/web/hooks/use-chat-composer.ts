@@ -701,9 +701,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const composerProps = useMemo(() => {
     const words = {
       placeholder: t(isOnline ? 'shell.composer.placeholder' : 'shell.composer.offline.placeholder'),
-      inputLabel: t('shell.composer.placeholder'),
+      inputLabel: t('shell.composer.inputLabel'),
       ...(!isOnline ? { offlineReason: t('shell.composer.offline.reason') } : {}),
       send: t('shell.composer.send'),
+      actions: t('shell.composer.actions'),
       suggestionsLabel: t('shell.composer.suggestionsLabel'),
       retry: t('shell.composer.retry'),
     }
@@ -723,8 +724,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       onAttachFile: openTextFilePicker,
       onAttachImage: openFilePicker,
       attachWords: {
-        file: t('chat.attachFile'),
-        image: t('chat.attachImage'),
+        file: t('shell.composer.attach.file'),
+        image: t('shell.composer.attach.image'),
         trayLabel: t('shell.composer.attach.trayLabel'),
         remove: (name: string) => t('shell.composer.attach.remove', { name }),
       },

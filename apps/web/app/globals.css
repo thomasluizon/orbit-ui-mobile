@@ -1047,7 +1047,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transition: none;
   }
 
+  .orbit-field-hover[data-composer-input-row]:has(textarea:enabled):not(:focus-within) {
+    transition: box-shadow var(--dur-hover-control) var(--ease-standard);
+  }
+
   @media (hover: hover) and (pointer: fine) {
+    .orbit-field-hover[data-composer-input-row]:has(textarea:enabled:hover):not(:focus-within),
     .orbit-field-hover:hover:is(:enabled, :has(:is(input, textarea):enabled)):not(:focus-within):not(:disabled):not([aria-invalid="true"]):not(:has(:disabled, [aria-invalid="true"], button:hover, a:hover, [role="button"]:hover)),
     .orbit-field-hover-overlay:hover:not(:focus-within):not(:has(:disabled, [aria-invalid="true"], :autofill, button:hover, a:hover, [role="button"]:hover))::after,
     .orbit-otp-hover:hover:not(:focus-within):not(:has(:disabled, [aria-invalid="true"])) [data-otp-cell] {

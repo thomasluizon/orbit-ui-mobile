@@ -205,7 +205,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             ) : null}
           </div>
         ) : null}
-        <Composer {...composerProps} autoFocus suggestions={messages.length === 0 ? [] : composerProps.suggestions} />
+        <Composer {...composerProps} autoFocus suggestions={composerProps.suggestions} />
       </div>
 
       {selectedGoalId && (

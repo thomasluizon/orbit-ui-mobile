@@ -4,6 +4,7 @@ export type ComposerWords = {
   inputLabel?: string
   offlineReason?: string
   send: string
+  actions: string
   suggestionsLabel: string
   retry?: string
 }

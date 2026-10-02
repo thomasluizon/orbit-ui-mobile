@@ -4,162 +4,160 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve, join } from 'node:path'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { buildComposerChips } from '@orbit/shared/chat'
-import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-const cases = [320, 360, 412, 450, 480, 600, 1023].flatMap((width) =>
-  [en, ptBR].flatMap((messages) => ['', 'Astra '.repeat(10)].map((value) => ({ width, messages, value }))),
+const cases = [320, 360, 384, 412].flatMap((width) =>
+  [en, ptBR].flatMap((messages) => [1, 2].map((fontScale) => ({ width, messages, fontScale }))),
 )
+
+type GeometryScenario = 'idle' | 'typing' | 'longText' | 'sending' | 'recording' | 'transcribing' | 'tray1' | 'tray2' | 'tray3' | 'atLimit' | 'offline' | 'retry'
+
+function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpener: boolean): ComposerProps {
+  const state = ['typing', 'longText', 'tray1', 'tray2', 'tray3', 'retry'].includes(scenario) ? 'idle' : scenario
+  return {
+    state,
+    ...(state === 'offline' ? { limitReason: messages.shell.composer.offline.reason } : {}),
+    ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason } : {}),
+    value: scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
+    suggestions: [], words: { ...messages.shell.composer, ...(state === 'offline' ? { placeholder: messages.shell.composer.offline.placeholder } : {}) },
+    onChangeValue: vi.fn(), onSend: vi.fn(),
+    onVoice: vi.fn(), voiceWords: messages.shell.composer.voice,
+    onAttachFile: vi.fn(), onAttachImage: vi.fn(),
+    attachWords: { ...messages.shell.composer.attach, remove: (name: string) => name },
+    attachments: Array.from({ length: scenario.startsWith('tray') ? Number(scenario.at(-1)) : 0 }, (_, index) => ({ id: String(index), kind: index === 0 ? 'image' : 'file', name: `attachment-${index}.txt` })),
+    onAttachRemove: vi.fn(),
+    ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation } : {}),
+    ...(scenario === 'retry' ? { onRetry: vi.fn() } : {}),
+  } as ComposerProps
+
+}
+
+interface PillGeometry {
+  pill: { left: number; right: number; height: number }
+  documentWidth: number
+  input: { width: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
+  controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[]
+}
+
+function assertPillGeometry(measured: PillGeometry, context: { width: number; fontScale: number; withOpener: boolean; scenario: GeometryScenario }) {
+  const { width, fontScale, withOpener, scenario } = context
+  const evidence = JSON.stringify({ width, fontScale, withOpener, scenario, measured })
+  expect(measured.documentWidth, evidence).toBe(width)
+  expect(measured.controls).toHaveLength(withOpener ? 3 : 2)
+  for (const [index, control] of measured.controls.entries()) {
+    expect(control.width, evidence).toBe(48)
+    expect(control.height, evidence).toBe(48)
+    expect(control.left, evidence).toBeGreaterThanOrEqual(measured.pill.left)
+    expect(control.right, evidence).toBeLessThanOrEqual(measured.pill.right)
+    if (index > 0) expect(control.left, evidence).toBeGreaterThanOrEqual(measured.controls[index - 1]!.right)
+  }
+  expect(new Set(measured.controls.map((control) => control.top)).size, evidence).toBe(1)
+  if (measured.input) {
+    expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136)
+    expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.width)
+    if (scenario === 'longText') {
+      expect(measured.input.height, evidence).toBe(measured.input.maximumHeight)
+      expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
+    } else if (scenario !== 'typing') expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
+  } else expect(measured.pill.height, evidence).toBe(56)
+}
 
 describe('Composer compact geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
-  const measurements: { width: number; placeholder: string; composing: boolean; contentWidth: number }[] = []
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
   })
-  afterAll(async () => {
-    await closeChrome(browserLaunch)
-    writeFileSync(join(tmpdir(), 'orbit-composer-widths.json'), JSON.stringify(measurements, null, 2))
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(cases)('keeps controls inside one pill at $width and $fontScale text size in both locales', async ({ width, messages, fontScale }) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      for (const withOpener of [true, false]) for (const scenario of ['idle', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
+        const props = geometryProps(scenario, messages, withOpener)
+        const view = render(<Composer {...props} />)
+        const markup = view.container.innerHTML
+        view.unmount()
+        await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style>${markup}`)
+        await loadAppFonts(page)
+        const measured = await page.evaluate(() => {
+          const pill = document.querySelector<HTMLElement>('[data-composer-input-row]')!
+          const bounds = pill.getBoundingClientRect()
+          const input = pill.querySelector<HTMLTextAreaElement>('textarea')
+          const canvas = document.createElement('canvas').getContext('2d')!
+          if (input) canvas.font = getComputedStyle(input).font
+          return {
+            pill: { left: bounds.left, right: bounds.right, height: bounds.height },
+            documentWidth: document.documentElement.scrollWidth,
+            input: input ? { width: input.clientWidth, height: input.clientHeight, scrollHeight: input.scrollHeight,
+              maximumHeight: parseFloat(getComputedStyle(input).maxHeight), placeholderWidth: canvas.measureText(input.placeholder).width } : null,
+            controls: [...pill.querySelectorAll('button')].map((button) => {
+              const rectangle = button.getBoundingClientRect()
+              return { left: rectangle.left, right: rectangle.right, top: rectangle.top, bottom: rectangle.bottom, width: rectangle.width, height: rectangle.height }
+            }),
+          }
+        })
+        assertPillGeometry(measured, { width, fontScale, withOpener, scenario })
+
+      }
+    } finally { await page.close() }
   }, 30_000)
 
   it.each(['idle', 'sending', 'offline', 'atLimit', 'transcribing', 'recording'] as const)(
-    'paints hover only on enabled attachment and voice controls while %s', async (state) => {
-      const statuses = {
-        idle: { state: 'idle' }, sending: { state: 'sending' },
-        recording: { state: 'recording' }, transcribing: { state: 'transcribing' },
-        offline: { state: 'offline', limitReason: en.shell.composer.offline.reason },
-        atLimit: { state: 'atLimit', limitReason: en.shell.composer.limit.reason },
-      } as const
-      const { container } = render(<Composer {...statuses[state]} value="" suggestions={[]}
-        words={en.shell.composer}
+    'paints hover only on enabled menu and stop controls while %s', async (state) => {
+      const statuses = { idle: { state: 'idle' }, sending: { state: 'sending' }, recording: { state: 'recording' }, transcribing: { state: 'transcribing' }, offline: { state: 'offline', limitReason: en.shell.composer.offline.reason }, atLimit: { state: 'atLimit', limitReason: en.shell.composer.limit.reason } } as const
+      const { container } = render(<Composer {...statuses[state]} value="" suggestions={[]} words={en.shell.composer}
         onChangeValue={vi.fn()} onSend={vi.fn()} onVoice={vi.fn()} voiceWords={en.shell.composer.voice}
-        onAttachFile={vi.fn()} onAttachImage={vi.fn()}
-        attachWords={{ file: en.chat.attachFile, image: en.chat.attachImage, trayLabel: en.chat.attachFile, remove: (name) => name }} />)
+        onAttachFile={vi.fn()} onAttachImage={vi.fn()} attachWords={{ ...en.shell.composer.attach, remove: (name) => name }} />)
       const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(true)
-        const controls = page.locator('[data-composer-controls] button')
-        expect(await controls.count()).toBe(['recording', 'transcribing'].includes(state) ? 1 : 3)
-        for (const control of await controls.all()) {
-          await page.mouse.move(0, 0)
-          const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
-          const bounds = (await control.boundingBox())!
-          await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-          await page.waitForTimeout(300)
-          const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
-          if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
-          else expect(hoveredFill).not.toBe(restingFill)
-        }
+        const control = page.locator('[data-composer-controls] button')
+        expect(await control.count()).toBe(1)
+        const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+        const bounds = (await control.boundingBox())!
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        await page.waitForTimeout(300)
+        const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+        if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
+        else expect(hoveredFill).not.toBe(restingFill)
       } finally { await page.close() }
     },
   )
 
-  it.each([320, 360, 412, 600])('fully reveals long suggestion chips after scrolling and resizing from $0', async (width) => {
-    const chips = buildComposerChips({
-      surface: 'progress', status: 'success', totalHabitCount: 1,
-      habits: [createMockHabit({ title: 'Read a longer book chapter '.repeat(8), linkedGoals: [] })],
-      profile: createMockProfile({ currentStreak: 0, longestStreak: 1 }),
-    })
-    const suggestions = toComposerSuggestions(chips.map(({ id, params }) => ({
-      id,
-      label: en.shell.composer.chips.progress[id.replace('progress.', '') as keyof typeof en.shell.composer.chips.progress].replace('{title}', params?.title ?? ''),
-      onSelect: vi.fn(),
-    })))
-    const { container } = render(<Composer state="idle" value="" suggestions={suggestions}
-      words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />)
+  it.each([320, 360, 384, 412])('keeps chip labels whole in a single scroll row at %ipx', async (width) => {
+    const suggestions = toComposerSuggestions(['Ask Astra', 'Pause this week', 'Rename'].map((label) => ({ id: label, label, onSelect: vi.fn() })))
+    const { container } = render(<Composer state="idle" value="" suggestions={suggestions} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />)
     const page = await browser.newPage({ viewport: { width, height: 740 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}html{font-size:32px}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      for (const viewportWidth of [width, 840, width]) {
-        await page.setViewportSize({ width: viewportWidth, height: 740 })
-        const strip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel })
-        for (const control of await strip.getByRole('button').all()) {
-          await control.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))
-          await control.focus()
-          const measured = await control.evaluate((element) => {
-            const bounds = element.getBoundingClientRect()
-            const scroller = element.parentElement!.getBoundingClientRect()
-            const label = element.querySelector('span')!
-            return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
-              scrollerLeft: scroller.left, scrollerRight: scroller.right,
-              labelHeight: label.getBoundingClientRect().height, lineHeight: parseFloat(getComputedStyle(label).lineHeight) }
-          })
-          expect(measured.width).toBeGreaterThanOrEqual(44)
-          expect(measured.height).toBeGreaterThanOrEqual(44)
-          expect(measured.left).toBeGreaterThanOrEqual(measured.scrollerLeft)
-          expect(measured.right).toBeLessThanOrEqual(measured.scrollerRight)
-          expect(measured.labelHeight).toBeLessThanOrEqual(measured.lineHeight)
-        }
-        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewportWidth)
+      const strip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel })
+      const tops = []
+      for (const control of await strip.getByRole('button').all()) {
+        await control.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))
+        const measured = await control.evaluate((element) => {
+          const label = element.querySelector('span')!
+          return { top: element.getBoundingClientRect().top, height: element.getBoundingClientRect().height, labelWidth: label.clientWidth, textWidth: label.scrollWidth, whiteSpace: getComputedStyle(label).whiteSpace, overflow: getComputedStyle(label).textOverflow }
+        })
+        tops.push(measured.top)
+        expect(measured.height).toBeGreaterThanOrEqual(48)
+        expect(measured.labelWidth).toBe(measured.textWidth)
+        expect(measured.whiteSpace).toBe('nowrap')
+        expect(measured.overflow).not.toBe('ellipsis')
       }
-      expect(await page.getByRole('button', { name: suggestions[0]!.label, exact: true }).getAttribute('aria-label')).toBe(suggestions[0]!.label)
-    } finally { await page.close() }
-  })
-
-  it.each(cases)('keeps usable text at $width with value "$value" and $messages.shell.composer.placeholder', async ({ width, messages, value }) => {
-    const { container } = render(<Composer
-      state="idle" value={value} suggestions={[]}
-      words={messages.shell.composer}
-      onChangeValue={vi.fn()} onSend={vi.fn()}
-      onOpenConversation={vi.fn()} conversationLabel={messages.todayAstra.openConversation}
-      onVoice={vi.fn()} voiceWords={messages.shell.composer.voice}
-      onAttachFile={vi.fn()} onAttachImage={vi.fn()}
-      attachWords={{ file: messages.chat.attachFile, image: messages.chat.attachImage, trayLabel: messages.chat.attachFile, remove: (name) => name }}
-    />)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
-    try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await loadAppFonts(page)
-      const measured = await page.evaluate(() => {
-        const input = document.querySelector<HTMLTextAreaElement>('[data-composer-input]')!
-        const style = getComputedStyle(input)
-        const placeholderStyle = getComputedStyle(input, '::placeholder')
-        return {
-          contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
-          clientHeight: input.clientHeight,
-          scrollHeight: input.scrollHeight,
-          placeholderWhiteSpace: placeholderStyle.whiteSpace,
-          whiteSpace: style.whiteSpace,
-          documentWidth: document.documentElement.scrollWidth,
-          controlGroupRight: document.querySelector('[data-composer-controls]')!.getBoundingClientRect().right,
-          fieldRight: input.parentElement!.getBoundingClientRect().right - parseFloat(getComputedStyle(input.parentElement!).paddingRight),
-          controls: [...document.querySelectorAll('button')].map((button) => {
-            const bounds = button.getBoundingClientRect()
-            return { width: bounds.width, height: bounds.height, left: bounds.left, right: bounds.right }
-          }),
-        }
-      })
-      measurements.push({ width, placeholder: messages.shell.composer.placeholder, composing: value.length > 0, contentWidth: measured.contentWidth })
-      expect(measured.contentWidth, JSON.stringify(measured)).toBeGreaterThanOrEqual(width === 320 ? 140 : 160)
-      expect(measured.documentWidth).toBe(width)
-      expect(measured.controlGroupRight).toBeCloseTo(measured.fieldRight, 0)
-      if (!value) {
-        expect(measured.scrollHeight, JSON.stringify(measured)).toBe(measured.clientHeight)
-        expect(measured.placeholderWhiteSpace).toBe('nowrap')
-      } else {
-        expect(measured.whiteSpace).toBe('pre-wrap')
-      }
-      for (const control of measured.controls) {
-        expect(control.width).toBeGreaterThanOrEqual(44)
-        expect(control.height).toBeGreaterThanOrEqual(44)
-        expect(control.left).toBeGreaterThanOrEqual(0)
-        expect(control.right).toBeLessThanOrEqual(width)
-      }
+      expect(new Set(tops).size).toBe(1)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
     } finally { await page.close() }
   })
 })

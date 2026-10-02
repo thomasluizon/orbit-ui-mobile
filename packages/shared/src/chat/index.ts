@@ -1,4 +1,4 @@
-export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurface, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
+export { buildComposerChips, resolveComposerChipStatus, resolveComposerChipSurface, resolveComposerDockSuggestions, type ComposerChip, type ComposerChipState, type ComposerChipSurface } from './composer-chips'
 export * from './action-chips'
 export * from './client-context'
 export * from './final-message'
