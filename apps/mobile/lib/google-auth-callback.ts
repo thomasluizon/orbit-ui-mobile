@@ -96,6 +96,15 @@ export function getPendingGoogleAuthVerifier(state: string): string | null {
 
 export function hasPendingGoogleAuthSession(): boolean {
   return pendingCredentials !== null
+    && (pendingGoogleAuthSession.isPending || pendingGoogleAuthSession.callbackUrl !== null)
+}
+
+export function dismissPendingGoogleAuthSession(returnUrlAttemptId: string): string | null {
+  if (pendingGoogleAuthSession.returnUrlAttemptId !== returnUrlAttemptId) return null
+  if (pendingGoogleAuthSession.callbackUrl) return pendingGoogleAuthSession.callbackUrl
+  pendingGoogleAuthSession = { ...pendingGoogleAuthSession, isPending: false }
+  emit()
+  return null
 }
 
 export function setPendingGoogleAuthCallbackUrl(callbackUrl: string, returnUrlAttemptId?: string): boolean {

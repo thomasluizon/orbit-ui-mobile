@@ -13,6 +13,7 @@ import { clearStoredAuthReturnUrl, clearStoredReferralCode, createAuthReturnUrlA
   isSafeReturnUrl, isValidReferralCode, isValidVerificationCode,
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
+import { usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useOffline } from '@/hooks/use-offline'
 import { useTurnstileToken } from '@/hooks/use-turnstile-token'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
@@ -62,9 +63,15 @@ export function useLoginFlow(isAuthCallback = false) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorKey, setErrorKey] = useState<string | null>(
+  const googleSession = usePendingGoogleAuthSession()
+  const [dismissedGoogleAttemptId, setDismissedGoogleAttemptId] = useState<string | null>(null)
+  const [loginErrorKey, setLoginErrorKey] = useState<string | null>(
     params.googleError === '1' ? 'auth.errors.googleError' : null,
   )
+  const dismissedGoogleAttemptCurrent = dismissedGoogleAttemptId !== null
+    && googleSession.returnUrlAttemptId === dismissedGoogleAttemptId
+    && googleSession.callbackUrl === null
+  const errorKey = dismissedGoogleAttemptCurrent ? 'auth.errors.googleError' : loginErrorKey
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
   const [codeFailure, setCodeFailure] = useState<LoginCodeFailure>(null)
@@ -118,6 +125,11 @@ export function useLoginFlow(isAuthCallback = false) {
     }, 1000)
     return () => clearInterval(timer)
   }, [codeFailure, email])
+
+  function setErrorKey(key: string | null) {
+    setDismissedGoogleAttemptId(null)
+    setLoginErrorKey(key)
+  }
 
   function resolveErrorKey(error: unknown, source: 'magic-code' | 'send' = 'magic-code') {
     return resolveAuthLoginErrorKey({ status: error instanceof ApiClientError ? error.status : undefined,
@@ -260,7 +272,8 @@ export function useLoginFlow(isAuthCallback = false) {
     setErrorKey(null)
     try {
       const result = await startMobileGoogleAuth({ returnUrl: typeof params.returnUrl === 'string' ? params.returnUrl : undefined })
-      if (result.type !== 'success') setErrorKey('auth.errors.googleError')
+      if (result.type === 'dismiss') setDismissedGoogleAttemptId(result.returnUrlAttemptId)
+      else if (result.type !== 'success') setErrorKey('auth.errors.googleError')
     } catch { setErrorKey('auth.errors.googleError') }
     finally { busy.current = false; setIsGoogleLoading(false) }
   }
