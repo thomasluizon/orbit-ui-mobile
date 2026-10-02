@@ -1,18 +1,24 @@
 #!/usr/bin/env node
 import { readSessionContext } from "../../tools/lib/session-context.mjs"
 import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
-import { readRunState, readWakeSourceStates, writeRunState } from "../../tools/lib/run-state.mjs"
+import { acquireRelayLock, readRunState, readWakeSourceStates, writeRunState } from "../../tools/lib/run-state.mjs"
 import { recordHandoffRequest } from "../../tools/lib/handoff-prompt.mjs"
 import { appendChainEntry } from "../../tools/lib/session-chain.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkRelayStop } from "./_lib/rules-relay.mjs"
 
+let releaseLock
 try {
   const input = readStdinJson()
-  const state = readRunState()
+  let state = readRunState()
   const config = readOrchestratorConfig()
   if (config.relay.enabled && state?.sleep === true && state.sessionId === input?.session_id) {
     const measuredTokens = readSessionContext(input.transcript_path)
+    if (measuredTokens >= config.relay.thresholdTokens) {
+      releaseLock = acquireRelayLock()
+      // Parallel tool hooks must decide from the state published by the previous lock owner.
+      state = readRunState()
+    }
     if (state.relay?.fallbackUntilCompacted && measuredTokens < config.relay.thresholdTokens) {
       writeRunState({ ...state, relay: { ...state.relay, fallbackUntilCompacted: false } })
     }
@@ -34,4 +40,6 @@ try {
   }
 } catch (error) {
   process.stderr.write(`Context relay skipped: ${error.message.replaceAll("\n", " ")}\n`)
+} finally {
+  releaseLock?.()
 }
