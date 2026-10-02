@@ -289,7 +289,11 @@ function StepUpScreenContent({
       <StepUpExhausted
         {...sharedView}
         lockSeconds={lockSeconds}
-        backLabel={translate('common.backToDestination', { destination: translate(PROFILE_STEP_UP_DESTINATIONS[operation].labelKey) })}
+        backLabel={translate('common.backToDestination', {
+          destination: operation === 'keys'
+            ? translate('profile.groups.astra')
+            : translate('profile.submenus.account'),
+        })}
         onBack={() => router.replace(returnDestination)}
       />
     )

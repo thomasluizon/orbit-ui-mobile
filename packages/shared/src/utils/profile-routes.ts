@@ -1,6 +1,6 @@
 export const PROFILE_STEP_UP_DESTINATIONS = {
-  keys: { route: '/profile/astra', labelKey: 'profile.groups.astra' },
-  delete: { route: '/profile/account', labelKey: 'profile.submenus.account' },
+  keys: { route: '/profile/astra' },
+  delete: { route: '/profile/account' },
 } as const
 
 export const LEGACY_PROFILE_ROUTES = [
