@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { assertOutsideRepository, researchEnvironment, researchInvocation, researchPaths, researchPrompt } from "./lib/research-run.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { ADMISSION_REFUSED_EXIT, checkAdmission, releaseAdmission } from "./lib/admission.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
@@ -13,6 +14,13 @@ import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestra
 import { clearWakeSource, clearWorkerLaunchReservation, recordReservedWorkerPid, registerWakeSource, reserveWorkerLaunch, readRunState, workerLaunchDirectory } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
+
+  Research: launch-worker.mjs --research --order <file> --out <scratchpad file> [--dry-run]
+  --research         research in an empty temporary directory, without ticket admission or git writes
+  --order <file>     non-empty research order outside every repository
+  --out <file>       new findings file in an existing scratchpad directory outside every repository
+                     Engine output is published only on successful completion. Uses the same
+                     session load and launch-spacing gate as ticket work
 
   --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required)
@@ -38,11 +46,14 @@ Prints one JSON object on stdout when the worker is gone: issue, engine, tier, p
 startedAt, endedAt, exitCode, outcome, plus what the run left in the tree: commitsSinceLaunch,
 commits and treeClean. Progress goes to stderr, so stdout stays pipeable.
 outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY or SPAWN_FAILED.
+Research prints research, outputFile, published, engine, model, pid, logFile, startedAt, endedAt,
+exitCode and outcome. It publishes only a non-empty final response from an engine that exits 0.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, 3 the worker executable could not be resolved,
             4 this launcher killed it but the tree holds commits it made, so the work may be salvageable,
-            8 admission refused new ticket work before reservation`
+            8 admission refused new ticket work before reservation
+Research exits 0 only after publishing findings, or 1 on engine, supervision or publication failure.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -59,6 +70,9 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
+const research = process.argv.includes("--research")
+const orderArgument = argOf("--order")
+const outputArgument = argOf("--out")
 const issueArgument = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
@@ -77,15 +91,28 @@ if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument
   fail(2, `${USAGE}\n\n--relaunch-reason must be non-empty text`)
 }
 
-let issue
-try {
-  const resolvedTicket = resolveTicket(issueArgument)
-  issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
-} catch (error) {
-  fail(2, `${USAGE}\n\n--issue must be ORB-N, #N, or N: ${error.message}`)
+let researchPlan = null
+if (research) {
+  const allowed = new Set(["--research", "--order", "--out", "--dry-run"])
+  for (let index = 2; index < process.argv.length; index++) {
+    const flag = process.argv[index]
+    if (!allowed.has(flag)) fail(2, `unsupported research option: ${flag}`)
+    if (["--order", "--out"].includes(flag)) index++
+  }
+  try { researchPlan = researchPaths(orderArgument, outputArgument) } catch (error) { fail(2, error.message) }
+} else if (orderArgument !== null || outputArgument !== null) fail(2, "--order and --out require --research")
+
+let issue = research ? "research" : null
+if (!research) {
+  try {
+    const resolvedTicket = resolveTicket(issueArgument)
+    issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+  } catch (error) {
+    fail(2, `${USAGE}\n\n--issue must be ORB-N, #N, or N: ${error.message}`)
+  }
 }
-if (!worktreeArg || worktreeArg.startsWith("--")) fail(2, `${USAGE}\n\n--worktree is required`)
-if (!promptArg || promptArg.startsWith("--")) fail(2, `${USAGE}\n\n--prompt is required`)
+if (!research && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
+if (!research && (!promptArg || promptArg.startsWith("--"))) fail(2, `${USAGE}\n\n--prompt is required`)
 
 let config
 try {
@@ -98,15 +125,15 @@ if (config.relay.enabled && readRunState()?.relay?.pending === true) {
   process.exit(ADMISSION_REFUSED_EXIT)
 }
 
-/**
- * This launcher starts implementers only. The harness runs no reviewer of its own: Pullfrog reviews
- * every pull request in GitHub Actions and publishes the `pullfrog-approval` required check, so the
- * review verdict reaches readiness through branch protection rather than through a model session
- * this process would have to launch, bound, and keep pinned to a head.
- */
-const runDirectory = resolve(worktreeArg)
+const researchStorage = research ? mkdtempSync(join(tmpdir(), "orbit-research-")) : null
+const runDirectory = research ? join(researchStorage, "workspace") : resolve(worktreeArg)
+if (research) {
+  mkdirSync(runDirectory)
+  process.on("exit", () => rmSync(researchStorage, { recursive: true, force: true }))
+  try { assertOutsideRepository(runDirectory, "research directory") } catch (error) { fail(2, error.message) }
+}
 if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
-const promptFile = resolve(promptArg)
+const promptFile = research ? researchPlan.orderFile : resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
 if (allowSubagents && !/^## UI review sweep\r?$/m.test(readFileSync(promptFile, "utf8"))) {
@@ -119,11 +146,12 @@ if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
 }
 
 const gitIn = (args) => {
+  if (research) return ""
   const result = spawnSync("git", ["-C", runDirectory, ...args], { encoding: "utf8", windowsHide: true })
   return result.status === 0 ? result.stdout.trim() : ""
 }
 const branch = gitIn(["rev-parse", "--abbrev-ref", "HEAD"])
-if (!branch) fail(2, `${runDirectory} is not a git worktree`)
+if (!research && !branch) fail(2, `${runDirectory} is not a git worktree`)
 /** Where the worker starts from, so a kill can report what the run added rather than make the
  * orchestrator re-derive it from git on every exit. */
 const startHead = gitIn(["rev-parse", "HEAD"])
@@ -229,14 +257,19 @@ const headlessInvocation = () => {
 }
 
 const { executable, scriptArgs } = headlessInvocation()
-const workerArgs = [...scriptArgs, ...invocation.args, workerPointer(runDirectory, branch)]
+const workerArgs = research ? null : [...scriptArgs, ...invocation.args, workerPointer(runDirectory, branch)]
 /** Outside every repo: a log written into the worktree lands in the worker's own diff. */
 const logDirectory = join(tmpdir(), "orbit-workers")
 mkdirSync(logDirectory, { recursive: true })
-const logFile = join(logDirectory, `${issue}-${Date.now()}.log`)
+const logFile = join(logDirectory, `${issue}-${process.pid}-${Date.now()}.log`)
+const reportFile = research ? join(researchStorage, "findings.txt") : null
+let researchArgs = null
+if (research) {
+  try { researchArgs = [...scriptArgs, ...researchInvocation(engineName, invocation, reportFile)] } catch (error) { fail(2, error.message) }
+}
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue: research ? null : issue, research, outputFile: researchPlan?.outputFile ?? null, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: researchArgs ?? workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -250,26 +283,30 @@ const gitRepositoryIdentity = (directory) => {
     return null
   }
 }
-const repositoryIdentity = gitRepositoryIdentity(runDirectory)
-if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
-const repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
-  typeof repository === "string" && gitRepositoryIdentity(repository) === repositoryIdentity)?.[0]
-if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
+let repositoryKey = null
+let githubAuth = { environment: researchEnvironment(), secrets: [] }
+let admission = { admitted: true, reservationId: null }
+if (!research) {
+  const repositoryIdentity = gitRepositoryIdentity(runDirectory)
+  if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
+  repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
+    typeof repository === "string" && gitRepositoryIdentity(repository) === repositoryIdentity)?.[0]
+  if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
 
-let githubAuth
-try {
-  githubAuth = await githubEnvironment(runDirectory)
-} catch (error) {
-  const result = { admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }
-  console.log(JSON.stringify(result))
-  process.exit(ADMISSION_REFUSED_EXIT)
+  try {
+    githubAuth = await githubEnvironment(runDirectory)
+  } catch (error) {
+    const result = { admitted: false, reason: "ADMISSION_REFUSED", counts: { openPullRequests: null, queuedRuns: null }, limits: { maxOpenPullRequests: config.caps.maxOpenPullRequests, maxQueuedRuns: config.caps.maxQueuedRuns }, error: redactSecrets(error.message) }
+    console.log(JSON.stringify(result))
+    process.exit(ADMISSION_REFUSED_EXIT)
+  }
+  admission = await checkAdmission({ config, repositoryKey, branch, environment: githubAuth.environment, worktree: runDirectory })
+  if (!admission.admitted) {
+    console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
+    process.exit(ADMISSION_REFUSED_EXIT)
+  }
 }
-const admission = await checkAdmission({ config, repositoryKey, branch, environment: githubAuth.environment, worktree: runDirectory })
-if (!admission.admitted) {
-  console.log(JSON.stringify({ ...admission, error: admission.error ? redactSecrets(admission.error, githubAuth.secrets) : null }))
-  process.exit(ADMISSION_REFUSED_EXIT)
-}
-process.on("exit", () => releaseAdmission(admission.reservationId))
+process.on("exit", () => { if (!research) releaseAdmission(admission.reservationId) })
 let child
 for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
   process.once(signal, () => {
@@ -277,14 +314,14 @@ for (const [signal, exitCode] of [["SIGINT", 130], ["SIGTERM", 143]]) {
       if (process.platform === "win32") spawnSync("taskkill", ["/T", "/F", "/PID", String(child.pid)], { windowsHide: true })
       else { try { process.kill(-child.pid) } catch { /* child already exited */ } }
     }
-    releaseAdmission(admission.reservationId)
+    if (!research) releaseAdmission(admission.reservationId)
     process.exit(exitCode)
   })
 }
 
 const timestamp = new Date().toISOString()
 const launchSessionId = readRunState()?.sessionId ?? null
-const reservation = reserveWorkerLaunch({
+const reservation = research ? { allowed: true } : reserveWorkerLaunch({
   launcherPid: process.pid,
   sessionId: launchSessionId,
   issue,
@@ -311,47 +348,64 @@ const startedAt = new Date().toISOString()
  * a Stop in that launch window can observe the live launcher. The reader expires this pending form
  * after 45 seconds, while the process identity still proves that the launcher itself really began.
  */
-if (!registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
-  clearWorkerLaunchReservation(process.pid, runDirectory)
+if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })) {
+  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
   fail(3, "could not register the pending launcher wake source")
 }
 const logFd = openSync(logFile, "a")
+const reportFd = research && engineName === "claude" ? openSync(reportFile, "wx") : null
+process.on("exit", () => { if (research) clearWakeSource(process.pid) })
 // The gate cannot enter the worktree until both records name its pid. If this launcher dies
 // beforehand, its IPC channel closes and the gate exits without starting the real worker.
 const gatePath = fileURLToPath(new URL("./lib/worker-gate.cjs", import.meta.url))
 child = spawn(process.execPath, [gatePath], {
   cwd: tmpdir(),
-  stdio: ["ignore", logFd, logFd, "ipc"],
+  stdio: ["ignore", logFd, logFd, "ipc", ...(reportFd === null ? [] : [reportFd])],
   windowsHide: true,
   // POSIX only, and it is what makes killTree's `process.kill(-pid)` reach anything at all: the
   // child becomes a process-group leader, so the group exists to be signalled. Windows needs the
   // opposite, since detached there spawns a console window; taskkill /T already walks that tree.
   detached: process.platform !== "win32",
-  env: {
+  env: research ? githubAuth.environment : {
     ...githubAuth.environment,
     ORBIT_LAUNCH_WORKER: "1",
     ORCA_CLI_COMMAND: process.env.ORCA_BIN || "orca",
   },
 })
-if (!child.pid || !recordReservedWorkerPid(process.pid, child.pid, runDirectory)) {
+if (!child.pid || (!research && !recordReservedWorkerPid(process.pid, child.pid, runDirectory))) {
   child.kill()
   fail(3, "could not publish the worker pid in the worktree reservation")
 }
 
-if (!registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: child.pid, logFile, startedAt })) {
+if (!registerWakeSource({ pid: process.pid, what: research ? "research" : `worker ${issue}`, research, workerPid: child.pid, logFile, startedAt })) {
   child.kill()
   fail(3, "could not publish the worker pid in the wake source")
 }
-child.send({ executable, args: workerArgs, directory: runDirectory })
+child.send({ executable, args: researchArgs ?? workerArgs, directory: runDirectory, ...(research ? { input: researchPrompt(promptFile), reportDescriptor: reportFd === null ? null : 4 } : {}) })
 
 let finishing = false
 const finish = (outcome, exitCode) => {
   if (finishing) return
   finishing = true
-  releaseAdmission(admission.reservationId)
+  if (!research) releaseAdmission(admission.reservationId)
   clearWakeSource(process.pid)
-  clearWorkerLaunchReservation(process.pid, runDirectory)
+  if (!research) clearWorkerLaunchReservation(process.pid, runDirectory)
   closeSync(logFd)
+  if (reportFd !== null) closeSync(reportFd)
+  if (research) {
+    let published = false
+    if (outcome === "EXITED" && exitCode === 0) {
+      try {
+        const findings = readFileSync(reportFile, "utf8")
+        if (!findings.trim()) throw new Error("research returned no findings")
+        const checked = researchPaths(promptFile, researchPlan.outputFile)
+        writeFileSync(checked.outputFile, findings, { flag: "wx", mode: 0o600 })
+        published = true
+      } catch (error) { console.error(`could not publish research findings: ${error.message}`) }
+    }
+    console.log(JSON.stringify({ research: true, outputFile: researchPlan.outputFile, published, engine: engineName, model: invocation.model, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }, null, 2))
+    process.exit(published ? 0 : 1)
+  }
   const commits = startHead ? gitIn(["log", "--format=%h %s", `${startHead}..HEAD`]).split("\n").filter(Boolean) : []
   const porcelain = spawnSync("git", ["-C", runDirectory, "status", "--porcelain"], { encoding: "utf8", windowsHide: true })
   const treeClean = porcelain.status === 0 && porcelain.stdout.trim() === ""
