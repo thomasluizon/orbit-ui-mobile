@@ -10,22 +10,19 @@ import { test } from './upgrade-fixtures'
 const notification = createMockNotification({ title: 'Layout notification' })
 const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
 
-async function expectContentEdges(surface: Locator, reference: 'composer' | 'notice-column') {
+async function expectContentEdges(surface: Locator, reference: 'shell-column' | 'notice-column') {
   const geometry = await surface.evaluate((element, reference) => {
-    const contentColumn = reference === 'composer'
-      ? document.querySelector('[data-composer-root]')
+    const contentColumn = reference === 'shell-column'
+      ? element.closest('[data-shell-column]')
       : element.closest('[data-shell-notice]')?.parentElement
     if (!contentColumn) throw new Error('Shell content column missing')
     const column = contentColumn.getBoundingClientRect()
-    const style = getComputedStyle(contentColumn)
-    const insetLeft = reference === 'composer' ? parseFloat(style.paddingLeft) : 16
-    const insetRight = reference === 'composer' ? parseFloat(style.paddingRight) : 16
     const bounds = element.getBoundingClientRect()
     return {
       left: bounds.left,
       right: bounds.right,
-      contentLeft: column.left + insetLeft,
-      contentRight: column.right - insetRight,
+      contentLeft: column.left + 16,
+      contentRight: column.right - 16,
     }
   }, reference)
   expect(geometry.left).toBeCloseTo(geometry.contentLeft, 1)
@@ -54,13 +51,13 @@ for (const width of [412, 1352] as const) {
         await expect(toast).toHaveCount(0)
       })
 
-      test('aligns the in-shell missing-page title with composer content', async ({ page }) => {
+      test('aligns the in-shell missing-page title with shell content without a composer', async ({ page }) => {
         await page.goto('/layout-missing')
         const title = page.getByRole('heading', { name: messages.notFoundPage.title, exact: true })
         await expect(title).toBeVisible()
-        await expect(page.locator('[data-composer-root]')).toBeVisible()
+        await expect(page.locator('[data-composer-root]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        await expectContentEdges(title, 'composer')
+        await expectContentEdges(title, 'shell-column')
       })
     })
   }

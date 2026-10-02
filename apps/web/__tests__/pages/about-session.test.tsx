@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   cookie: '',
   fetch: vi.fn(),
   pathname: '/about',
+  params: {} as { missing?: string[] },
+  wide: false,
   searchPending: false,
   searchParams: new URLSearchParams(),
   router: { prefetch: vi.fn(), replace: vi.fn(), push: vi.fn() },
@@ -38,6 +40,7 @@ vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getMessages: a
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en', NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
+  useParams: () => mocks.params,
   useRouter: () => mocks.router,
   useSearchParams: () => {
     if (mocks.searchPending) use(new Promise<URLSearchParams>(() => {}))
@@ -50,15 +53,16 @@ vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }
 vi.mock('@/lib/providers', () => ({ Providers: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/lib/account-event-connection', () => ({ AccountEventConnection: () => null }))
 vi.mock('@/app/(app)/today-provider', () => ({ TodayProvider: ({ children }: { children: ReactNode }) => children, useToday: () => '2026-09-12' }))
-vi.mock('@/components/shell/destination-shell', () => ({
-  useNotFoundShell: () => {},
-  useShellHeaderSlot: () => false,
-  useShellComposerSlot: () => {},
-  DestinationShell: ({ children, composer, notice, onCreate }: { children: ReactNode; composer?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
+vi.mock('@/components/shell/shell-wide', () => ({
+  ShellWide: ({ children, composer, notice, onCreate }: { children: ReactNode; composer?: ReactNode; notice?: ReactNode; onCreate: () => void }) => (
     <main aria-label="Destination shell"><nav aria-label="nav.mainNavigation" /><button onClick={onCreate}>Create habit</button>{composer}{children}<div data-shell-notice="">{notice}</div></main>
   ),
 }))
-vi.mock('@/components/command/command-palette', () => ({ CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null, CommandPaletteBackground: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/hooks/use-is-desktop', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-is-desktop')>(),
+  useIsWideDesktop: () => mocks.wide,
+}))
 vi.mock('@/components/motion/route-transition-shell', () => ({ RouteTransitionShell: ({ children }: { children: ReactNode }) => children }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }), useHasProAccess: () => true }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
@@ -114,6 +118,8 @@ vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => nu
 beforeEach(() => {
   mocks.cookie = ''
   mocks.pathname = '/about'
+  mocks.params = {}
+  mocks.wide = false
   mocks.searchPending = false
   mocks.searchParams = new URLSearchParams()
   mocks.validateHabit.mockReset()
@@ -186,14 +192,24 @@ it('opens an Astra deep link once while the shell rerenders', () => {
   expect(mocks.router.replace).toHaveBeenCalledExactlyOnceWith('/')
 })
 
-it('renders an authenticated unknown path inside the destination shell', () => {
+it.each([false, true])('renders an authenticated unknown path without a composer at wide=%s', (wide) => {
   mocks.pathname = '/nao-existe'
+  mocks.params = { missing: ['nao-existe'] }
+  mocks.wide = wide
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
   useAuthStore.setState({ isAuthenticated: true })
   render(<QueryAppLayout><AppNotFound /></QueryAppLayout>)
   expect(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).toBeInTheDocument()
-  expect(screen.getByTestId('composer')).toBeInTheDocument()
+  expect(screen.queryByTestId('composer')).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+})
+
+it.each([false, true])('keeps the Hoje composer at wide=%s', (wide) => {
+  mocks.pathname = '/'
+  mocks.wide = wide
+  useAuthStore.setState({ isAuthenticated: true })
+  render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
+  expect(screen.getByTestId('composer')).toBeInTheDocument()
 })
 
 it('renders an unauthenticated unknown public path without the shell', () => {
@@ -207,10 +223,12 @@ it('renders an unauthenticated unknown public path without the shell', () => {
 
 it('keeps the shell shape while a protected unknown path restores its session', () => {
   mocks.pathname = '/nao-existe'
+  mocks.params = { missing: ['nao-existe'] }
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
   render(<QueryAppLayout><AppNotFound /></QueryAppLayout>)
   expect(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
+  expect(screen.queryByTestId('composer')).not.toBeInTheDocument()
   expect(screen.getByRole('main', { name: 'Destination shell' }).querySelector('main')).toBeNull()
 })
 
