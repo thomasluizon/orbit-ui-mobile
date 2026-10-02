@@ -270,10 +270,12 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
   const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
+  const relaySuccessor = typeof previous?.sessionId === "string" && state?.relay?.from === previous.sessionId
+  const preserveLedger = sameSession || relaySuccessor
   // Ledger entries come after pull request entries, so the ledger copy wins as it does in the Stop hook.
   const identities = [
-    ...(sameSession && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
-    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
+    ...(preserveLedger && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
+    ...(preserveLedger && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
     ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
   ]
@@ -310,7 +312,10 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     merged: row.merged,
     closed: row.closed,
   }))
-  writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
+  const pullRequests = preserveLedger
+    ? [...new Map([...(previous.pullRequests ?? []), ...(state.pullRequests ?? [])].map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
+    : state.pullRequests
+  writeAtomicFile(runStatePath(repoRoot), `${JSON.stringify({ ...state, ...(pullRequests ? { pullRequests } : {}), readinessLedger }, null, 2)}\n`)
 }
 
 export const processStartIdentity = (pid) => {

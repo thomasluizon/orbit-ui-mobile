@@ -89,6 +89,7 @@ const CASE_MODULES = [
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
   ["lib/review-harness.mjs", "review-harness"],
   ["lib/run-state.mjs", "run-state"],
+  ["lib/session-context.mjs", "session-context"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
   ["lib/win-spawn-target.mjs", "win-spawn-target"],
   ["list-bot-threads.mjs", "list-bot-threads"],

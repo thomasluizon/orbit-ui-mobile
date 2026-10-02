@@ -245,6 +245,11 @@ export const cases = async () => {
   )
 
   const readAndFail = (label, config) => thrown(() => readOrchestratorConfig(configUrl(label, JSON.stringify(config))))
+  for (const thresholdTokens of [149999, 900001, "400000", 400000.5]) {
+    T(`${NAME}: relay threshold ${thresholdTokens} is refused`,
+      /relay.thresholdTokens/.test(readAndFail(`relay-${thresholdTokens}`, { ...real, relay: { enabled: true, thresholdTokens } }) ?? ""))
+  }
+  T(`${NAME}: relay enabled must be boolean`, /relay.enabled/.test(readAndFail("relay-enabled", { ...real, relay: { enabled: "true", thresholdTokens: 400000 } }) ?? ""))
   T(
     `${NAME}: a config with no workers object is refused`,
     /must declare a workers object/.test(readAndFail("no-workers", { worker: "codex" }) ?? ""),
