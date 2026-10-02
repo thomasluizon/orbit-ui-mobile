@@ -54,7 +54,12 @@ vi.mock('react-native', async () => {
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => '/calendar',
   useLocalSearchParams: () => ({}),
+}))
+
+vi.mock('@/hooks/use-notifications', () => ({
+  useNotifications: () => ({ notifications: [], unreadCount: 0 }),
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))

@@ -129,7 +129,7 @@ function createStyles(tokens: Tokens) {
     picker: { gap: 16 },
     pickerYear: { alignSelf: 'center' },
     months: { flexDirection: 'row', flexWrap: 'wrap' },
-    month: { minHeight: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tokens.bgField },
+    month: { minHeight: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },
     legend: { gap: 16 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     legendLabel: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16, color: tokens.fg2 },
