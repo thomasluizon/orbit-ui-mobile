@@ -20,8 +20,18 @@ export const cases = async () => {
   const env = { ...orcaEnv(plan), GIT_BIN: process.execPath }
   // Node receives Git's argv through the shared shim, without invoking a real repository.
   env.ORBIT_ORCA_STUB = JSON.stringify([...plan, { match: "remote get-url origin", stdout: "https://github.com/example/orbit-ui-mobile.git\n" }])
-  check("progress-window.mjs", "CLI reads paginated responses from outside the checkout", ["--session", "current", "--transcript", transcriptPath],
+  const result = check("progress-window.mjs", "CLI reads paginated responses from outside the checkout", ["--session", "current", "--transcript", transcriptPath],
     { status: 0, stdout: /"baseline": "available"/ }, { path: staged.path, cwd: sources.repoRoot, env })
+  const report = result.status === 0 ? JSON.parse(result.stdout) : null
+  T("progress-window: CLI retains all repository sources and the Android upload", report?.entries[0].merges.length === 3 &&
+    report.entries[0].releases.length === 4 && report.entries[0].closedTickets.length === 1)
+  check("progress-window.mjs", "CLI reports an absent baseline without authentication", ["--session", "unrecorded"],
+    { status: 0, stdout: /"baseline": "unavailable"/ }, { path: staged.path, cwd: sources.repoRoot, env: { ...env,
+      ORBIT_ORCA_STUB: JSON.stringify([{ match: "remote get-url origin", stdout: "https://github.com/example/orbit-ui-mobile.git\n" }]) } })
+  check("progress-window.mjs", "CLI reports a failed source on stderr", ["--session", "current", "--transcript", transcriptPath],
+    { status: 1, stderr: /GitHub read failed/ }, { path: staged.path, cwd: sources.repoRoot, env: { ...env,
+      ORBIT_ORCA_STUB: JSON.stringify([{ match: "api --paginate", exit: 1, stderr: "remote read failed" },
+        ...JSON.parse(env.ORBIT_ORCA_STUB)]) } })
   check("progress-window.mjs", "CLI refuses a missing session", [], { status: 2 })
   T("progress-window: default skill gathers the full live window before ancestry checks",
     readFileSync(join(REPO_ROOT, ".claude/skills/progress/SKILL.md"), "utf8").includes("node tools/progress-window.mjs --session"))

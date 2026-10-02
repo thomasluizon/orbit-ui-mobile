@@ -138,7 +138,8 @@ For the default session or chain scope:
 1. Get the live session id from `currentRunIdentifier()` in
    `tools/lib/identifier-ledger.mjs`. Use `readRunState()` only when its `sessionId` exactly matches.
    The helper's chain or exact transcript establishes the time baseline even without a matching
-   run record. When it returns `baseline: "unavailable"`, state "No session baseline is available."
+   run record. When it returns `baseline: "unavailable"`, there is no session baseline.
+   State "No session baseline is available."
    Then report the effort scope instead by following the full-scope procedure once. Do not silently
    turn an absent baseline into an empty session or call all visible work session-owned.
 2. Start with every helper entry's `merges`, whose `repository` is the repository key and `id`

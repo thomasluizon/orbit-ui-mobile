@@ -78,9 +78,12 @@ export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPat
   ])
   sources.push({ repository: ticketRepository, kind: "closedTickets", projection: ticketProjection,
     path: `repos/${ticketRepository}/issues?state=closed&per_page=100&since=${encodeURIComponent(startedAt)}` })
-  const responses = await Promise.all(sources.map(async (source) => ({ source,
+  const results = await Promise.allSettled(sources.map(async (source) => ({ source,
     pages: await readPages(source.path, source.projection) })))
-  for (const { source, pages } of responses) collectSource(entries, source, pages, now)
+  for (const result of results) {
+    if (result.status === "rejected") throw result.reason
+    collectSource(entries, result.value.source, result.value.pages, now)
+  }
   for (const entry of entries) {
     for (const kind of ["merges", "releases", "closedTickets"]) entry[kind].sort((left, right) => left.time.localeCompare(right.time) || left.id - right.id)
   }
@@ -97,6 +100,11 @@ const collectSource = (entries, source, pages, now) => {
   } else if (pages.some((page) => !Array.isArray(page))) throw new Error(`invalid response at ${source.path}`)
   const rows = source.kind === "releases" ? pages.flatMap((page) => page.workflow_runs) : pages.flat()
   for (const row of rows) {
+    const id = source.kind === "releases" ? row?.id : row?.number
+    const title = source.kind === "releases" ? row?.display_title : row?.title
+    if (!Number.isInteger(id) || id <= 0 || typeof title !== "string" || typeof row.html_url !== "string") {
+      throw new Error(`invalid source identity at ${source.path}`)
+    }
     if (source.kind === "merges") {
       if (row.merged_at === null) continue
       if (typeof row.base?.ref !== "string" || typeof row.merge_commit_sha !== "string") throw new Error(`invalid merged pull request at ${source.path}`)

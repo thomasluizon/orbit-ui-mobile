@@ -59,6 +59,7 @@ export const cases = async () => {
     android?.track === "internal" && android.version === "1.3.59" && android.versionCode === "118")
   T("progress-window: pending runs remain visible without a success claim", report.entries.at(-1).releases.every((run) => run.conclusion === null && run.status === "in_progress"))
   T("progress-window: one paginated REST read per source, without GraphQL", staged.calls.length === 8 && new Set(staged.calls.map((call) => call.path)).size === 8 && staged.calls.every((call) => !call.path.includes("graphql")))
+  T("progress-window: workflow date filter uses the verified day form", staged.calls.filter((call) => call.path.includes("/runs?")).every((call) => call.path.endsWith("created=%3E%3D2026-10-01")))
   const missingTitle = await collectProgressWindow({ ...staged.options, readPages: async (path, projection) => {
     const pages = await staged.options.readPages(path, projection)
     return path.includes("/runs?") ? pages.map((page) => ({ ...page, workflow_runs: page.workflow_runs.map((run) => ({ ...run, display_title: "Release API" })) })) : pages
@@ -77,4 +78,15 @@ export const cases = async () => {
   const absent = await collectProgressWindow({ ...standalone.options, readPages: async () => { remoteRead = true; throw new Error("unexpected read") } })
   T("progress-window: foreign state never creates a baseline or reads remote sources", absent.baseline === "unavailable" && !remoteRead)
   T("progress-window: source errors propagate instead of a partial success", await rejects({ ...staged.options, readPages: async () => { throw new Error("source unavailable") } }, /source unavailable/))
+  T("progress-window: missing source identity is refused", await rejects({ ...staged.options, readPages: async (path, projection) => {
+    const pages = await staged.options.readPages(path, projection)
+    if (path.includes("/pulls?")) delete pages[0][0].number
+    return pages
+  } }, /invalid source identity/))
+  const ledgerPath = join(staged.repoRoot, ".git", "orbit-session-chain.json")
+  const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"))
+  ledger.chains[0].entries[1].startedAt = "2026-10-01T01:01:00Z"
+  ledger.chains[0].entries[0].endedAt = "2026-10-01T00:59:00Z"
+  writeSessionChain(ledger, staged.repoRoot)
+  T("progress-window: work in a gap is reported as an interval error", await rejects(staged.options, /has no chain entry/))
 }
