@@ -56,7 +56,7 @@ describe('select-check RadioRow group', () => {
     expect(selected).toHaveClass('bg-[rgba(var(--primary-rgb),0.10)]')
     expect(selected).toHaveClass('hover:bg-[var(--bg-hover)]')
     expect(selected).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--primary)' })
-    expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--track-empty)' })
+    expect(unselected.querySelector('[aria-hidden="true"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--radio-row-track,var(--track-empty))' })
   })
 
   it('keeps one tab stop, wraps, and follows selection with focus', () => {
@@ -154,6 +154,57 @@ describe('RadioRow secondary text contrast', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  const pressStates = (['no-preference', 'reduce'] as const).flatMap((reducedMotion) =>
+    [false, true].flatMap((selected) => [false, true].map((disabled) => ({ reducedMotion, selected, disabled }))),
+  )
+  it.each(pressStates)('keeps press feedback accessible with motion=$reducedMotion, selected=$selected, disabled=$disabled', async ({ reducedMotion, selected, disabled }) => {
+    const theme = resolveWebThemeVariables('orange', 'dark')
+    const variables = Object.entries(theme).map(([key, value]) => `${key}:${value}`).join(';')
+    const { container } = render(<RadioGroup aria-label="Subjects">
+      {disabled
+        ? <RadioRow label="Subject" selected={selected} disabled reason="Sending" />
+        : <RadioRow label="Subject" selected={selected} onSelect={vi.fn()} />}
+    </RadioGroup>)
+    const page = await browser.newPage({ hasTouch: true })
+    try {
+      await page.emulateMedia({ reducedMotion })
+      await page.setContent(`<style>${stylesheet}</style><div style="${variables};background:var(--bg)">${container.innerHTML}</div>`)
+      const row = page.locator('[role="radio"]')
+      const restingScale = await row.evaluate((element) => getComputedStyle(element).scale)
+      expect(restingScale).toBe('none')
+      const center = await row.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+      })
+      await page.mouse.move(center.x, center.y)
+      await page.mouse.down()
+      await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale))
+        .toBe(disabled || reducedMotion === 'reduce' ? 'none' : '0.96')
+      if (!disabled && reducedMotion === 'no-preference') {
+        const scaleTransition = await row.evaluate((element) => {
+          const style = getComputedStyle(element)
+          const index = style.transitionProperty.split(',').map((property) => property.trim()).indexOf('scale')
+          return style.transitionDuration.split(',')[index]?.trim()
+        })
+        expect(scaleTransition).toBe('0.15s')
+      }
+      if (!disabled) {
+        await expect.poll(async () => contrastOnSurface(
+          await row.evaluate((element) => getComputedStyle(element).backgroundColor), [theme['--bg']!],
+        )).toBe(contrastOnSurface(theme['--bg-hover']!, [theme['--bg']!]))
+        await page.emulateMedia({ reducedMotion: reducedMotion === 'reduce' ? 'no-preference' : 'reduce' })
+        await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale))
+          .toBe(reducedMotion === 'reduce' ? '0.96' : 'none')
+        await page.emulateMedia({ reducedMotion })
+      }
+      await page.mouse.up()
+      await expect.poll(() => row.evaluate((element) => getComputedStyle(element).scale)).toBe(restingScale)
+      await expect.poll(async () => contrastOnSurface(
+        await row.evaluate((element) => getComputedStyle(element).backgroundColor), [theme['--bg']!],
+      )).toBe(contrastOnSurface(selected ? `rgba(${theme['--primary-rgb']}, 0.1)` : 'rgba(0, 0, 0, 0)', [theme['--bg']!]))
+    } finally { await page.close() }
+  })
+
   const states = (['dark', 'light'] as const).flatMap((mode) =>
     [false, true].flatMap((selected) => [false, true].map((disabled) => ({ mode, selected, disabled }))),
   )
@@ -218,6 +269,58 @@ describe('RadioRow secondary text contrast', () => {
       }
       for (const foreground of [row.color, row.metaColor, row.tagColor]) {
         expect(contrastOnSurface(foreground, [expectedForeground])).toBe(1)
+      }
+      if (!row.disabled) {
+        const radio = page.locator('[role="radio"]')
+        const center = await radio.evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+        })
+        await page.mouse.move(center.x, center.y)
+        await page.mouse.down()
+        await expect.poll(async () => contrastOnSurface(
+          await radio.evaluate((element) => getComputedStyle(element).backgroundColor), [theme['--bg']!],
+        )).toBe(contrastOnSurface(theme['--bg-hover']!, [theme['--bg']!]))
+        await expect.poll(async () => {
+          const pressed = await radio.evaluate((element) => ({
+            background: getComputedStyle(element).backgroundColor,
+            trackShadow: getComputedStyle(element.querySelector('[aria-hidden="true"]')!).boxShadow,
+            foregrounds: [...element.querySelectorAll('span')]
+              .filter((span) => ['Subject details', '3', 'Current'].includes(span.textContent))
+              .map((span) => getComputedStyle(span).color),
+          }))
+          expect(pressed.foregrounds).toHaveLength(3)
+          if (!selected) {
+            const trackColor = pressed.trackShadow.match(/rgba?\([^)]*\)/)![0]
+            for (const surface of [[], [theme['--bg-card']!], [theme['--bg-sheet']!]]) {
+              expect(contrastOnSurface(trackColor, [theme['--bg']!, ...surface, pressed.background]))
+                .toBeGreaterThanOrEqual(3)
+            }
+          }
+          return Math.min(...[[], [theme['--bg-card']!], [theme['--bg-sheet']!]].flatMap((surface) =>
+            pressed.foregrounds.map((foreground) => contrastOnSurface(foreground, [theme['--bg']!, ...surface, pressed.background])),
+          ))
+        }).toBeGreaterThanOrEqual(4.5)
+        await page.mouse.up()
+        await page.mouse.move(0, 0)
+        const releasing = await radio.evaluate((element) => ({
+          background: getComputedStyle(element).backgroundColor,
+          trackShadow: getComputedStyle(element.querySelector('[aria-hidden="true"]')!).boxShadow,
+          foregrounds: [...element.querySelectorAll('span')]
+            .filter((span) => ['Subject details', '3', 'Current'].includes(span.textContent))
+            .map((span) => getComputedStyle(span).color),
+        }))
+        expect(releasing.foregrounds).toHaveLength(3)
+        const releasingSurfaces = [[], [theme['--bg-card']!], [theme['--bg-sheet']!]]
+        expect(Math.min(...releasingSurfaces.flatMap((surface) => releasing.foregrounds.map((foreground) =>
+          contrastOnSurface(foreground, [theme['--bg']!, ...surface, releasing.background]),
+        )))).toBeGreaterThanOrEqual(4.5)
+        if (!selected) {
+          const trackColor = releasing.trackShadow.match(/rgba?\([^)]*\)/)![0]
+          expect(Math.min(...releasingSurfaces.map((surface) =>
+            contrastOnSurface(trackColor, [theme['--bg']!, ...surface, releasing.background]),
+          ))).toBeGreaterThanOrEqual(3)
+        }
       }
       expect(contrastOnSurface(row.background, [theme['--bg']!])).toBe(contrastOnSurface(
         row.selected ? `rgba(${theme['--primary-rgb']}, 0.1)` : 'rgba(0, 0, 0, 0)', [theme['--bg']!],

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { useState, type ReactNode } from 'react'
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -16,6 +16,8 @@ import {
 
 const themeState = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({ currentScheme: 'orange', currentTheme: 'dark' }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => themeState }))
+const motionState = vi.hoisted(() => ({ prefersReducedMotion: false }))
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => motionState.prefersReducedMotion }))
 
 function RadioRows({ onChange }: Readonly<{ onChange: (value: string) => void }>) {
   const [value, setValue] = useState('first')
@@ -338,6 +340,63 @@ describe('select-check RadioRow group', () => {
   })
 })
 
+describe('RadioRow press feedback', () => {
+  afterEach(() => { motionState.prefersReducedMotion = false })
+
+  const states = [false, true].flatMap((reducedMotion) =>
+    [false, true].map((selected) => ({ reducedMotion, selected })),
+  )
+  it.each(states)('keeps press feedback accessible with reducedMotion=$reducedMotion, selected=$selected', ({ reducedMotion, selected }) => {
+    motionState.prefersReducedMotion = reducedMotion
+    const onSelect = vi.fn()
+    let tree!: ReactTestRenderer
+    void act(() => {
+      tree = create(<RadioGroup accessibilityLabel="Subjects">
+        <RadioRow label="Subject" selected={selected} onSelect={onSelect} />
+      </RadioGroup>)
+    })
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+    const pressStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    const accessibilityState = row.props.accessibilityState as { checked: boolean }
+    const onPress = row.props.onPress as () => void
+    const style = (pressed: boolean) => StyleSheet.flatten(pressStyle({ pressed }))
+    const tokens = createTokensV2('orange', 'dark')
+
+    expect(style(false).transform).toBeUndefined()
+    expect(style(true).transform).toEqual(reducedMotion ? undefined : [{ scale: 0.96 }])
+    expect(style(true).backgroundColor).toBe(tokens.bgHover)
+    expect(accessibilityState.checked).toBe(selected)
+    expect(onSelect).not.toHaveBeenCalled()
+    void act(() => onPress())
+    expect(onSelect).toHaveBeenCalledTimes(selected ? 0 : 1)
+    expect(style(false).transform).toBeUndefined()
+    expect(style(false).backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
+    void act(() => tree.update(<View />))
+  })
+
+  it('responds to a reduced-motion preference change while pressed', () => {
+    let tree!: ReactTestRenderer
+    const renderRow = () => <RadioGroup accessibilityLabel="Subjects">
+      <RadioRow label="Subject" onSelect={vi.fn()} />
+    </RadioGroup>
+    void act(() => { tree = create(renderRow()) })
+    const pressedStyle = () => {
+      const row = tree.root.findAll((node) => node.type === Pressable)[0]!
+      const style = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+      return StyleSheet.flatten(style({ pressed: true }))
+    }
+    expect(pressedStyle().transform).toEqual([{ scale: 0.96 }])
+    motionState.prefersReducedMotion = true
+    void act(() => { tree.update(renderRow()) })
+    expect(pressedStyle().transform).toBeUndefined()
+    expect(pressedStyle().backgroundColor).toBe(createTokensV2('orange', 'dark').bgHover)
+    motionState.prefersReducedMotion = false
+    void act(() => { tree.update(renderRow()) })
+    expect(pressedStyle().transform).toEqual([{ scale: 0.96 }])
+    void act(() => { tree.update(<View />) })
+  })
+})
+
 describe('RadioRow secondary text contrast', () => {
   afterEach(() => { themeState.currentTheme = 'dark' })
 
@@ -390,9 +449,28 @@ describe('RadioRow secondary text contrast', () => {
         })
       }
       const pressed = StyleSheet.flatten(pressStyle({ pressed: true })) as { backgroundColor: string; opacity: number }
-      for (const foreground of foregrounds) {
-        expect(contrastOnSurface(foreground, [tokens.bg, pressed.backgroundColor]))
-          .toBeGreaterThanOrEqual(4.5)
+      const pressable = tree.root.findAll((node) => node.type === Pressable)[0]!
+      const content = pressable.props.children as ReactNode | ((state: { pressed: boolean }) => ReactNode)
+      void act(() => {
+        tree.update(<View>{typeof content === 'function' ? content({ pressed: true }) : content}</View>)
+      })
+      const pressedForegrounds = ['Details', '3', 'Current'].map((text) => {
+        const label = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === text)[0]!
+        return (StyleSheet.flatten(label.props.style) as { color: string }).color
+      })
+      const pressedContrasts = [[], [tokens.bgCard], [tokens.bgSheet]].flatMap((surface) =>
+        pressedForegrounds.map((foreground) => contrastOnSurface(foreground, [tokens.bg, ...surface, pressed.backgroundColor])),
+      )
+      expect(Math.min(...pressedContrasts)).toBeGreaterThanOrEqual(4.5)
+      const glyph = tree.root.findAll((node) => node.type === RadioGlyph)[0]!
+      const glyphHost = glyph.findAll((node) => typeof node.type === 'string')[0]!
+      const glyphStyle = StyleSheet.flatten(glyphHost.props.style) as { borderColor: string }
+      if (!selected) {
+        const trackContrasts = [[], [tokens.bgCard], [tokens.bgSheet]].map((surface) =>
+          contrastOnSurface(glyphStyle.borderColor, [tokens.bg, ...surface, pressed.backgroundColor]),
+        )
+        expect(trackContrasts).toHaveLength(3)
+        expect(Math.min(...trackContrasts)).toBeGreaterThanOrEqual(3)
       }
     }
     expect(descriptionStyle.color).toBe(expectedForeground)
