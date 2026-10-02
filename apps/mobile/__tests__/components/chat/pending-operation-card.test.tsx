@@ -5,7 +5,7 @@ import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
-import type { RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
+import type { PendingOperationRevisionResponse, RefreshPendingOperation, RevisePendingOperation } from '@orbit/shared/hooks'
 import { makeHeldHabitMessage, makePendingAgentOperation, pendingWriteSummaryCases, makePendingWriteSummaryOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '@orbit/shared/test-support/chat-fixtures'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
@@ -147,11 +147,15 @@ describe('PendingOperationCard (mobile)', () => {
     expect(handlers.onConfirmExecute).toHaveBeenCalledOnce()
   })
 
-  it('edits one field without executing', async () => {
-    const revise = vi.fn().mockResolvedValue({ ok: true, result: {
+  it.each(['immediate', 'deferred'])('edits one field without executing with %s revision', async (timing) => {
+    const editedItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, newValue: '2026-09-27' }] }
+    const revision: PendingOperationRevisionResponse = { ok: true, result: {
       isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false,
-      preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem], previewFingerprint: 'preview-2' },
-    } })
+      preview: { changes: [], changeTargetCount: 2, items: [editedItem, secondItem], previewFingerprint: 'preview-2' },
+    } }
+    let resolveRevision!: (result: PendingOperationRevisionResponse) => void
+    const revise = vi.fn<RevisePendingOperation>().mockReturnValue(timing === 'immediate' ? Promise.resolve(revision)
+      : new Promise<PendingOperationRevisionResponse>((resolve) => { resolveRevision = resolve }))
     const { tree, handlers } = renderCard(preview, revise)
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-27'))
@@ -164,7 +168,13 @@ describe('PendingOperationCard (mobile)', () => {
       items: [{ itemId: 'habit-1', edits: { date: '2026-09-27' } }, { itemId: 'habit-2' }],
     })
     expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+    if (timing === 'deferred') {
+      expect(renderedText(tree.toJSON())).not.toContain('chat.operation.edited')
+      expect(press(tree, 'common.save').props.disabled).toBe(true)
+      await TestRenderer.act(async () => { resolveRevision(revision); await Promise.resolve() })
+    }
     expect(renderedText(tree.toJSON())).toContain('chat.operation.edited')
+    expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
   })
 
   it('rejects every item and collapses the preview', async () => {

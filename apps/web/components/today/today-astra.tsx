@@ -15,11 +15,12 @@ import { useUIStore } from '@/stores/ui-store'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 
 interface TodayAstraProps {
+  today: string
   isTodaySelected: boolean
   suppressed: boolean
 }
 
-export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
+export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
   const { profile } = useProfile()
   const { notifications } = useNotifications()
@@ -41,7 +42,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
   const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
   const proactive = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
-    ? selectNewestUnreadProactiveCheckin(notifications)
+    ? selectNewestUnreadProactiveCheckin(notifications, today, profile?.timeZone)
     : null
 
   const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })

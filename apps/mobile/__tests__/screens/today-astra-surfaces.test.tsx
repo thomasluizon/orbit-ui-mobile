@@ -1,3 +1,5 @@
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import type { NotificationItem } from '@orbit/shared/types/notification'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -11,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   lastCompletionDate: undefined as string | null | undefined,
   noHabits: false,
+  timeZone: 'UTC',
+  today: '2026-08-29',
+  notifications: [] as NotificationItem[],
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -36,10 +41,10 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   parseShowGeneralOnTodayPreference: () => false,
 }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { timeZone: 'UTC', lastCompletionDate: mocks.lastCompletionDate } }),
+  useProfile: () => ({ profile: { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate } }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [] }),
+  useNotifications: () => ({ notifications: mocks.notifications }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
@@ -67,12 +72,12 @@ vi.mock('@/components/habit-list', () => ({
 }))
 vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null }))
 vi.mock('@/components/ui/capacity-notice', () => ({ CapacityNotice: () => null }))
-vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => null }))
+vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => React.createElement('TodayDate', { date: mocks.today }) }))
 vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
 vi.mock('@/components/today/today-astra', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/today/today-astra')>()
   return {
-    TodayAstra: (props: { isTodaySelected: boolean; suppressed: boolean }) =>
+    TodayAstra: (props: { today: string; isTodaySelected: boolean; suppressed: boolean }) =>
       React.createElement(React.Fragment, null,
         React.createElement('TodayAstraMock', { suppressed: props.suppressed }),
         React.createElement(original.TodayAstra, props),
@@ -97,8 +102,8 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 vi.mock('@/app/(tabs)/use-today-date', () => ({
   useTodayDate: () => ({
-    dateStr: '2026-08-29',
-    today: '2026-08-29',
+    dateStr: mocks.today,
+    today: mocks.today,
     selectedDate: new Date('2026-08-29T12:00:00Z'),
     dayName: 'Saturday',
     numericDate: '29',
@@ -136,11 +141,32 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.routerPush.mockReset()
     mocks.lastCompletionDate = undefined
     mocks.noHabits = false
+    mocks.timeZone = 'UTC'
+    mocks.today = '2026-08-29'
+    mocks.notifications = []
     useUIStore.setState({
       showCreateModal: false,
       isSelectMode: false,
       selectedHabitIds: new Set(),
     })
+  })
+
+  it('removes an unread previous-day check-in when the owning Today date rolls over', async () => {
+    mocks.timeZone = 'America/Sao_Paulo'
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-30T02:59:00Z' })]
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link').length).toBeGreaterThan(0)
+
+    mocks.today = '2026-08-30'
+    await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link')).toHaveLength(0)
+    expect(tree.root.findAll((node) => String(node.type) === 'TodayDate')[0]?.props.date).toBe('2026-08-30')
+    expect(mocks.notifications[0]?.isRead).toBe(false)
   })
 
   it.each([
