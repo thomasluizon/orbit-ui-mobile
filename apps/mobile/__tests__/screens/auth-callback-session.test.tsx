@@ -248,7 +248,6 @@ it.each(['/calendar?import=1', '/calendar?mode=review'])('returns a reactivated 
   expect(mocks.clearStoredAuthReturnUrl).toHaveBeenCalledWith('attempt-1', expect.any(Function))
 })
 
-
 it.each([false, true])('leaves the owning callback on an allowed explicit route, reactivated=%s', async (reactivated) => {
   mocks.completeGoogleAuthFromUrl.mockResolvedValue({ token: 'access', refreshToken: 'refresh',
     userId: 'user-1', name: 'A', email: 'a@example.com', wasReactivated: reactivated })

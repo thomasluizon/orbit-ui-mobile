@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { googleCodeAuthResponseSchema } from '@orbit/shared/types/auth'
+import { clearPendingGoogleAuthSession, hasPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
+import { completeGoogleAuthFromUrl, getGoogleAuthRedirectUrl, startMobileGoogleAuth } from '@/lib/google-auth'
 
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(), open: vi.fn(), random: vi.fn(), digest: vi.fn(),
@@ -22,9 +24,6 @@ vi.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   CryptoEncoding: { BASE64: 'base64' },
 }))
-
-import { clearPendingGoogleAuthSession, hasPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl } from '@/lib/google-auth-callback'
-import { completeGoogleAuthFromUrl, getGoogleAuthRedirectUrl, startMobileGoogleAuth } from '@/lib/google-auth'
 
 const callback = 'https://app.useorbit.org/auth-callback'
 const loginResponse = { token: 'jwt', refreshToken: 'refresh', userId: 'user-1', name: 'Alex', email: 'alex@example.com' }

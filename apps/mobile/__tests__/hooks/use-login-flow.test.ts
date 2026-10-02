@@ -766,7 +766,6 @@ describe('mobile auth state recovery', () => {
   })
 })
 
-
 describe('Google dismissal through the owning login flow', () => {
   it('removes the dismissal error when the same attempt App Link arrives', async () => {
     const google = await vi.importActual<typeof import('@/lib/google-auth')>('@/lib/google-auth')
@@ -774,6 +773,7 @@ describe('Google dismissal through the owning login flow', () => {
     await callback.clearPendingGoogleAuthSession()
     vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'web-client-id')
     mocks.openGoogleBrowser.mockResolvedValue({ type: 'dismiss' })
+    mocks.createAuthReturnUrlAttempt.mockReturnValue('google-attempt')
     mocks.startMobileGoogleAuth.mockImplementation(google.startMobileGoogleAuth)
     const harness = await renderLoginFlow()
     await act(() => harness.current.signInWithGoogle())
@@ -800,6 +800,7 @@ describe('Google dismissal through the owning login flow', () => {
     await callback.clearPendingGoogleAuthSession()
     vi.stubEnv('EXPO_PUBLIC_GOOGLE_CLIENT_ID', 'web-client-id')
     mocks.openGoogleBrowser.mockResolvedValue({ type: 'dismiss' })
+    mocks.createAuthReturnUrlAttempt.mockReturnValue('google-attempt')
     mocks.startMobileGoogleAuth.mockImplementation(google.startMobileGoogleAuth)
     const harness = await renderLoginFlow()
     await act(() => harness.current.signInWithGoogle())
@@ -808,6 +809,9 @@ describe('Google dismissal through the owning login flow', () => {
     expect(mocks.openGoogleBrowser).toHaveBeenCalledTimes(2)
     expect(harness.current.errorMessage).toBe('auth.errors.googleError')
     expect(harness.current.isGoogleLoading).toBe(false)
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    expect(harness.current.errorKey).toBeNull()
     await callback.clearPendingGoogleAuthSession()
   })
 })
