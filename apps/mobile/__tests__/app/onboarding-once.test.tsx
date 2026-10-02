@@ -48,7 +48,7 @@ vi.mock('expo-router', () => {
       Protected: ({ children, guard }: Readonly<{ children?: ReactNode; guard: boolean }>) => guard ? children : null,
       Screen: ({ name }: { name: string }) => {
         if (routeState.contextEntry) {
-          if (name === 'r' && routeState.pathname.startsWith('/r/')) return React.createElement(ReferralRedirectScreen)
+          if (name === 'r/[code]' && routeState.pathname.startsWith('/r/')) return React.createElement(ReferralRedirectScreen)
           if (name === 'login' && routeState.pathname.startsWith('/login')) return React.createElement(LoginContext)
           return null
         }
