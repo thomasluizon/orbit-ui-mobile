@@ -110,7 +110,7 @@ export function ChecklistTemplates({
           icon="template"
           title={t('habits.form.useTemplate')}
           compact
-          inForm
+          inset={false}
           onClick={() => setOpen(true)}
         />
       </View>

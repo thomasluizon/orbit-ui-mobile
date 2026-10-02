@@ -11,7 +11,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
-const formLocale = vi.hoisted(() => ({ language: 'en' }))
+const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
 const setupPatch = buildHabitFormPatchFromSuggestion({ emoji: null, frequencyUnit: 'Week', frequencyQuantity: 3, days: [], isFlexible: false, flexibleTarget: null, dueTime: null, subHabits: [], checklistItems: [] })
@@ -70,7 +70,11 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => <div>checklist-templates</div> }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => <div>goal-linking</div> }))
-vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: ({ children }: { children?: React.ReactNode }) => <div>offset-reminders{children}</div> }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-form-fields/reminder-section')>()
+  return { ReminderSection: (props: React.ComponentProps<typeof actual.ReminderSection>) => formLocale.realReminders ? <actual.ReminderSection {...props} /> : <div>offset-reminders{props.children}</div> }
+})
+vi.mock('@/hooks/use-reminder-permission', () => ({ useReminderPermission: (_enabled: boolean, onToggle: () => void) => ({ toggleReminder: onToggle, showNotice: false }) }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: (props: { onSetScheduledReminders: (items: { when: string; time: string }[]) => void; nested?: boolean; offsetReminderCount?: number }) => <button type="button" data-nested={String(props.nested)} data-offset-count={props.offsetReminderCount} onClick={() => props.onSetScheduledReminders([{ when: 'day_before', time: '18:00' }])}>scheduled-reminders</button> }))
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
 vi.mock('@/components/ui/time-field', () => ({
@@ -139,6 +143,14 @@ function renderForm(
 }
 
 describe('HabitFormFields', () => {
+  it('keeps the timed reminder toggle label distinct from its section heading', () => {
+    formLocale.realReminders = true
+    renderForm(createFormHelpers({ dueTime: '08:00' }), undefined, true)
+    expect(screen.getAllByText('habits.form.reminders')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'habits.form.reminders' })).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'habits.form.reminder' })).toBeInTheDocument()
+  })
+
   it('shows one unresolved reading before corrections and the Astra ask, without an understood card', () => {
     renderForm(createFormHelpers({ title: 'Beber mais água quando der' }), vi.fn(), false, true)
     expect(screen.getAllByText('habits.form.unresolved')).toHaveLength(1)
@@ -198,6 +210,7 @@ describe('HabitFormFields', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     formLocale.language = 'en'
+    formLocale.realReminders = false
     mockProfileState.aiMessagesUsed = 0
     mockProfileState.hasProAccess = false
   })

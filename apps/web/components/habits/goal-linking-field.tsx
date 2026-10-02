@@ -97,7 +97,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
 
   return (
     <>
-      <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} inForm onClick={() => setOpen(true)} />
+      <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} inset={false} onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? (
         <div className="flex flex-wrap gap-2 pt-2">
           {selectedGoals.slice(0, 3).map((goal) => <span key={goal.id} className="chip max-w-full truncate">{goal.title}</span>)}

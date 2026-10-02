@@ -39,7 +39,7 @@ import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-sess
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
-import { SectionLabel } from '@/components/ui/section-label'
+import { FormSectionLabel } from './habit-form-fields/form-section-label'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
@@ -135,8 +135,8 @@ interface EndDateEditorProps {
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
   if (!visible) return null
   return (
-    <section>
-      <SectionLabel>{t('habits.form.endDate')}</SectionLabel>
+    <section className="flex flex-col gap-2">
+      <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
       <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
     </section>
   )
@@ -159,9 +159,9 @@ function SlipAlertEditor({
 }: Readonly<SlipAlertEditorProps>) {
   if (!visible) return null
   return (
-    <section>
-      <SectionLabel>{t('habits.form.slipAlert')}</SectionLabel>
-      <SlipAlertSection hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} t={t} />
+    <section className="flex flex-col gap-2">
+      <FormSectionLabel>{t('habits.form.slipAlert')}</FormSectionLabel>
+      <SlipAlertSection inline hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} t={t} />
     </section>
   )
 }
@@ -174,14 +174,14 @@ function SubHabitSection({
   t,
 }: Readonly<SubHabitSectionProps>) {
   return (
-    <section>
-      <SectionLabel>{t('habits.form.subHabits')}</SectionLabel>
+    <section className="flex flex-col gap-2">
+      <FormSectionLabel>{t('habits.form.subHabits')}</FormSectionLabel>
       {canUseSubHabits ? (
         <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
           {children}
         </Proposed>
       ) : (
-        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} inForm onClick={onUpgrade} />
+        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} inset={false} onClick={onUpgrade} />
       )}
     </section>
   )
@@ -199,11 +199,11 @@ function ReminderEditors({
   t,
 }: Readonly<ReminderEditorsProps>) {
   if (!dueTime) {
-    return <ScheduledReminderSection reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} t={t} />
+    return <ScheduledReminderSection inline reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} t={t} />
   }
   return (
-    <ReminderSection reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError} t={t}>
-      <ScheduledReminderSection reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} offsetReminderCount={reminderTimes.length} nested t={t} />
+    <ReminderSection inline toggleLabel={t('habits.form.reminder')} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={scheduledReminders.length} onValidationError={onValidationError} t={t}>
+      <ScheduledReminderSection inline reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} offsetReminderCount={reminderTimes.length} nested t={t} />
     </ReminderSection>
   )
 }
@@ -444,8 +444,8 @@ export function HabitFormFields({
               />
             </section>
 
-            <section>
-              <SectionLabel>{t('habits.form.reminders')}</SectionLabel>
+            <section className="flex flex-col gap-2">
+              <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
                 reminderEnabled={reminderEnabled}
@@ -459,8 +459,8 @@ export function HabitFormFields({
               />
             </section>
 
-            <section>
-              <SectionLabel>{t('habits.form.checklist')}</SectionLabel>
+            <section className="flex flex-col gap-2">
+              <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
               <HabitChecklist
                 items={checklistItems}
                 editable

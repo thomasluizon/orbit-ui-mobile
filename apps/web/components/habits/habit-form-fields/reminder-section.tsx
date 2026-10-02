@@ -10,6 +10,7 @@ import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
 interface ReminderSectionProps {
   inline?: boolean
+  toggleLabel?: string
   reminderEnabled: boolean
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
@@ -22,7 +23,7 @@ interface ReminderSectionProps {
 }
 
 export function ReminderSection({
-  inline = false, reminderEnabled, reminderTimes,
+  inline = false, toggleLabel, reminderEnabled, reminderTimes,
   onReminderTimesChange, onToggleReminder, reminderLabel, t, children,
   scheduledReminderCount = 0, onValidationError,
 }: Readonly<ReminderSectionProps>) {
@@ -32,6 +33,7 @@ export function ReminderSection({
   const [customUnit, setCustomUnit] = useState<'min' | 'hours' | 'days'>('min')
   const [customDirection, setCustomDirection] = useState<'before' | 'after'>('before')
   const permission = useReminderPermission(reminderEnabled, onToggleReminder)
+  const label = toggleLabel ?? t(inline ? 'habits.form.reminders' : 'habits.form.reminder')
 
   const reminderUnitOptions = useMemo(() => [
     { value: 'min', label: t('habits.form.reminderUnitMin') },
@@ -94,13 +96,13 @@ export function ReminderSection({
             className="text-[var(--fg-1)]"
             style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
           >
-            {t(inline ? 'habits.form.reminders' : 'habits.form.reminder')}
+            {label}
           </span>
         </div>
         <Switch
           checked={reminderEnabled}
           onChange={permission.toggleReminder}
-          label={t(inline ? 'habits.form.reminders' : 'habits.form.reminder')}
+          label={label}
         />
       </div>
       <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">

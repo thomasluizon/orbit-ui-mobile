@@ -1,4 +1,7 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -81,6 +84,33 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
+  it('renders disclosure headings with the field label role and no additional start inset', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+    })
+    const { currentScheme, currentTheme } = useAppTheme()
+    const tokens = createTokensV2(currentScheme, currentTheme)
+    const keys = ['endDate', 'slipAlert', 'subHabits', 'reminders', 'checklist']
+    for (const key of keys) {
+      const heading = tree!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === `habits.form.${key}`)
+      expect(heading).toHaveLength(1)
+      expect(StyleSheet.flatten(heading[0].props.style)).toMatchObject({ fontSize: 14, fontFamily: 'Geist_500Medium', color: tokens.fg2 })
+      let ancestor = heading[0].parent
+      let startInset = 0
+      while (ancestor && ancestor.type !== HabitFormFields) {
+        if (typeof ancestor.type === 'string') {
+          const style = StyleSheet.flatten(ancestor.props.style) ?? {}
+          startInset += style.paddingStart ?? style.paddingLeft ?? style.paddingHorizontal ?? style.padding ?? 0
+          startInset += style.marginStart ?? style.marginLeft ?? style.marginHorizontal ?? style.margin ?? 0
+        }
+        ancestor = ancestor.parent
+      }
+      expect(startInset).toBe(16)
+    }
+    await TestRenderer.act(() => tree!.unmount())
+  })
+
   it('shows one unresolved reading and corrections before the ask without an understood card', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {

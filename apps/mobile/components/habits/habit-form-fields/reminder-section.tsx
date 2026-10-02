@@ -12,6 +12,7 @@ import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ReminderSectionProps {
   inline?: boolean;
+  toggleLabel?: string;
   tokens: AppTokens;
   reminderEnabled: boolean;
   reminderTimes: number[];
@@ -26,6 +27,7 @@ interface ReminderSectionProps {
 export function ReminderSection({
   tokens,
   inline = false,
+  toggleLabel,
   reminderEnabled,
   reminderTimes,
   onReminderTimesChange,
@@ -43,6 +45,7 @@ export function ReminderSection({
   const [customUnit, setCustomUnit] = useState<"min" | "hours" | "days">("min");
   const [customDirection, setCustomDirection] = useState<"before" | "after">("before");
   const permission = useReminderPermission(reminderEnabled, onToggleReminder);
+  const label = toggleLabel ?? t(inline ? "habits.form.reminders" : "habits.form.reminder");
 
   const availablePresets = useMemo(
     () => HABIT_REMINDER_PRESETS.filter((p) => !reminderTimes.includes(p.value)),
@@ -97,13 +100,13 @@ export function ReminderSection({
         <View style={sectionStyles.headerLeft}>
           {!inline ? <Bell size={20} color={tokens.fg2} strokeWidth={1.8} /> : null}
           <Text style={sectionStyles.headerLabel}>
-            {t(inline ? "habits.form.reminders" : "habits.form.reminder")}
+            {label}
           </Text>
         </View>
         <Switch
           checked={reminderEnabled}
           onChange={permission.toggleReminder}
-          label={t(inline ? "habits.form.reminders" : "habits.form.reminder")}
+          label={label}
         />
       </View>
       <View style={permission.showNotice ? { gap: 4 } : { position: "absolute" }}>

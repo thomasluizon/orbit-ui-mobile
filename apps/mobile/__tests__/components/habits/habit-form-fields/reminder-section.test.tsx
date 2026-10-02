@@ -60,6 +60,8 @@ function descendantText(node: TestNode): string | undefined {
 }
 
 function renderSection(overrides: {
+  inline?: boolean;
+  toggleLabel?: string;
   reminderTimes?: number[];
   reminderEnabled?: boolean;
   onReminderTimesChange?: (times: number[]) => void;
@@ -73,6 +75,8 @@ function renderSection(overrides: {
     tree = TestRenderer.create(
       <ReminderSection
         tokens={tokens}
+        inline={overrides.inline}
+        toggleLabel={overrides.toggleLabel}
         reminderEnabled={overrides.reminderEnabled ?? true}
         reminderTimes={overrides.reminderTimes ?? []}
         onReminderTimesChange={onReminderTimesChange}
@@ -97,6 +101,13 @@ function buttons(tree: TestTree): TestNode[] {
 }
 
 describe("ReminderSection", () => {
+  it("uses the form toggle label for both the visible title and switch in inline layout", () => {
+    const { tree } = renderSection({ inline: true, toggleLabel: "habits.form.reminder", reminderEnabled: false });
+    expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === "habits.form.reminder")).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === "Switch")[0]?.props.label).toBe("habits.form.reminder");
+    expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === "habits.form.reminders")).toHaveLength(0);
+  });
+
   it("keeps the reminder on and shows the settings action when permission is blocked", () => {
     pushPermission.status = "denied";
     const { tree } = renderSection({ reminderEnabled: true });

@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface SlipAlertSectionProps {
+  inline?: boolean
   tokens: AppTokens;
   hasProAccess: boolean;
   slipAlertEnabled: boolean;
@@ -16,6 +17,7 @@ interface SlipAlertSectionProps {
 
 export function SlipAlertSection({
   tokens,
+  inline = false,
   hasProAccess,
   slipAlertEnabled,
   onToggle,
@@ -25,7 +27,7 @@ export function SlipAlertSection({
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
 
   return (
-    <View style={sectionStyles.container}>
+    <View style={inline ? { gap: 12 } : sectionStyles.container}>
       {hasProAccess ? (
         <View style={sectionStyles.headerRow}>
           <View style={{ flex: 1, gap: 4 }}>

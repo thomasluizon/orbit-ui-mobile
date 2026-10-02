@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
+import { HabitDetailFields, HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
 import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -12,6 +12,10 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: true } }) }))
 
+vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => null }))
+
+vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => null }))
+
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => null }))
 
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
@@ -20,6 +24,7 @@ vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () =
 
 type PressableNode = Readonly<{
   props: {
+    children?: unknown
     accessibilityLabel?: string
     accessibilityRole?: string
     accessibilityState?: { checked?: boolean; selected?: boolean; expanded?: boolean }
@@ -103,5 +108,20 @@ describe('HabitDetailSchedule schedule chips', () => {
     expect(onPatch).toHaveBeenCalledWith(expect.objectContaining({
       frequencyUnit: 'Day', frequencyQuantity: 1, days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     }))
+  })
+})
+
+
+describe('HabitDetailFields disclosure labels', () => {
+  it('uses the same secondary field label role as create and edit', () => {
+    let tree!: TestTree
+    renderer.act(() => {
+      tree = renderer.create(<HabitDetailFields habit={makeHabitDetailScopedChild('2026-08-29')} hasProAccess relationshipControlsAvailable={false} tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} />)
+    })
+    const headings = tree.root.findAllByType(Text).filter((node) => node.props.accessibilityRole === 'header')
+    expect(headings.map((node) => node.props.children)).toEqual(['habits.form.reminders', 'habits.form.checklist', 'habits.form.endDate'])
+    for (const heading of headings) {
+      expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ fontSize: 14, fontFamily: 'Geist_500Medium', color: tokens.fg2 })
+    }
   })
 })
