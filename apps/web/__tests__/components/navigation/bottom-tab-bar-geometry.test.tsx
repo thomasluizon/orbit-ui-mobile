@@ -4,6 +4,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
@@ -21,19 +22,19 @@ describe('Bottom tab geometry in Chromium', () => {
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
-    const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
-    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([en, ptBR].flatMap((messages) => [1, 2].map((textScale) => ({ messages, textScale }))))(
-    'keeps complete labels and separated targets at 320 with $textScale text scale in $messages.nav.calendar',
-    async ({ messages, textScale }) => {
+  it.each([en, ptBR].flatMap((messages) => [1, 2].flatMap((textScale) => (['dark', 'light'] as const).map((mode) => ({ messages, textScale, mode })))))(
+    'keeps complete labels and separated targets at 320 with $textScale text scale in $messages.nav.calendar and $mode mode',
+    async ({ messages, textScale, mode }) => {
       const { container } = render(<BottomTabBar label={messages.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
-        items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: messages.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />)
+        items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: messages.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} />)
       const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
       try {
-        await page.setContent(`<style>${stylesheet}html{font-size:${16 * textScale}px}</style>${container.innerHTML}`)
+        const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet}:root{${theme}}html{font-size:${16 * textScale}px}</style>${container.innerHTML}`)
         await loadAppFonts(page)
         const bar = await page.locator('nav').boundingBox()
         expect(bar).not.toBeNull()
@@ -79,6 +80,18 @@ describe('Bottom tab geometry in Chromium', () => {
           await button.hover()
           expect(await button.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
           expect(await button.locator('svg').evaluate((element) => getComputedStyle(element.parentElement!).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+          const colors = await button.evaluate((element) => {
+            const icon = element.querySelector('svg')!
+            const iconStyle = getComputedStyle(icon)
+            return {
+              canvas: getComputedStyle(element.closest('nav')!).backgroundColor,
+              label: getComputedStyle(element.querySelector('span:last-child')!).color,
+              indicator: getComputedStyle(icon.parentElement!).backgroundColor,
+              icon: iconStyle.fill === 'none' ? iconStyle.stroke : iconStyle.fill,
+            }
+          })
+          expect(contrastOnSurface(colors.label, [colors.canvas])).toBeGreaterThanOrEqual(4.5)
+          expect(contrastOnSurface(colors.icon, [colors.canvas, colors.indicator])).toBeGreaterThanOrEqual(3)
           await button.focus()
           expect(await button.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe('none')
         }
