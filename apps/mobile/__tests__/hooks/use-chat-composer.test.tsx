@@ -432,7 +432,7 @@ describe('mobile useChatComposer', () => {
     __setFocusImpl(focus)
     const tree = await renderConversationHarness()
     TestRenderer.act(() => inputHosts(tree)[0].props.onFocus())
-    const voiceButton = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.start')[0]
+    const voiceButton = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.actions')[0]
     TestRenderer.act(() => { __setTouchMode(false); __focusHost(voiceButton.props.__nativeTag) })
     expect(__getFocusedNativeTag()).toBe(voiceButton.props.__nativeTag)
     focus.mockClear()
@@ -817,7 +817,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBe('shell.composer.offline.reason')
     expect(composer.current.composerProps.state).toBe('offline')
     expect(composer.current.composerProps.words.placeholder).toBe('shell.composer.offline.placeholder')
-    expect(composer.current.composerProps.words.inputLabel).toBe('shell.composer.placeholder')
+    expect(composer.current.composerProps.words.inputLabel).toBe('shell.composer.inputLabel')
   })
 
   it('aborts an idle stream at the watchdog and arms retry with the timeout copy', async () => {
@@ -1376,6 +1376,7 @@ describe('mobile useChatComposer', () => {
   })
 
   it('surfaces the speech-to-text error through the send error banner', async () => {
+    vi.useFakeTimers()
     mocks.state.speechError = 'mic failed'
     const composer = await renderComposer()
 
@@ -1383,6 +1384,8 @@ describe('mobile useChatComposer', () => {
       await Promise.resolve()
     })
 
+    expect(composer.current.sendError).toBe('mic failed')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(4000) })
     expect(composer.current.sendError).toBe('mic failed')
   })
 

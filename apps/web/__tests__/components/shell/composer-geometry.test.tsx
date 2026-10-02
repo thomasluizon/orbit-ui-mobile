@@ -6,6 +6,8 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
@@ -80,6 +82,24 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each(['reduce', 'no-preference'] as const)('keeps the press target intact with %s motion', async (reducedMotion) => {
+    const view = render(<Composer {...geometryProps('idle', en, true)} />)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.emulateMedia({ reducedMotion })
+      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      const target = page.locator('[data-open-conversation]')
+      const bounds = (await target.boundingBox())!
+      await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+      await page.mouse.down()
+      await page.waitForTimeout(250)
+      expect((await target.boundingBox())!.width).toBe(48)
+      const glyphWidth = (await target.locator('svg').boundingBox())!.width
+      expect(glyphWidth).toBeCloseTo(reducedMotion === 'reduce' ? 20 : 19.2, 1)
+      await page.mouse.up()
+    } finally { await page.close(); view.unmount() }
+  })
+
   it.each(cases)('keeps controls inside one pill at $width and $fontScale text size in both locales', async ({ width, messages, fontScale }) => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -135,8 +155,12 @@ describe('Composer compact geometry in Chromium', () => {
     },
   )
 
-  it.each([320, 360, 384, 412])('keeps chip labels whole in a single scroll row at %ipx', async (width) => {
-    const suggestions = toComposerSuggestions(['Ask Astra', 'Pause this week', 'Rename'].map((label) => ({ id: label, label, onSelect: vi.fn() })))
+  it.each([320, 360, 384, 412].flatMap((width) => [en, ptBR].map((messages) => ({ width, messages }))))('keeps habit detail chips whole in one scroll row at $width', async ({ width, messages }) => {
+    const chips = buildComposerChips({ surface: 'habitDetail', status: 'success', habits: [], totalHabitCount: 1,
+      detailHabit: { title: 'Reading', checklistItems: [] }, profile: createMockProfile() })
+    const labels = messages.shell.composer.chips.habitDetail
+    const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
+      label: labels[id.replace('habitDetail.', '') as keyof typeof labels], onSelect: vi.fn() })))
     const { container } = render(<Composer state="idle" value="" suggestions={suggestions} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />)
     const page = await browser.newPage({ viewport: { width, height: 740 } })
     try {

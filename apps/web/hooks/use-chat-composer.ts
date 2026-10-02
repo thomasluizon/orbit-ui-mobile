@@ -407,14 +407,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     }
   }, [isRecording, setInput, transcript])
 
-  useEffect(() => {
-    if (!speechError) return
-    const timer = globalThis.setTimeout(() => {
-      setSendError((current) => (current === speechError ? null : current))
-    }, 4000)
-    return () => globalThis.clearTimeout(timer)
-  }, [speechError])
-
   const buildChatFormData = useCallback((attempted: AttemptedSend) => {
     const formData = new FormData()
     formData.append('message', attempted.content)

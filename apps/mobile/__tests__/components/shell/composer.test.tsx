@@ -190,6 +190,28 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
 }
 
 describe('Composer (mobile)', () => {
+  it('reserves a scaled text line before the first native content-size event', () => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const tree = renderComposer(props())
+    try { expect(StyleSheet.flatten(tree.root.findByType('TextInput').props.style).height).toBe(72) }
+    finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+  })
+
+  it('opens the full attachment name without removing it or changing the draft', () => {
+    const name = 'A long document name '.repeat(15) + '.txt'
+    const onAttachRemove = vi.fn()
+    const tree = renderComposer(props({ value: 'Keep this draft', attachWords, onAttachFile: vi.fn(), onAttachRemove,
+      attachments: [{ id: 'file', kind: 'file', name }] }))
+    pressControl(byLabel(tree.root, name)[0])
+    const sheet = tree.root.findByType('Sheet')
+    expect(sheet.props.title).toBe(attachWords.trayLabel)
+    expect(textValues(sheet)).toContain(name)
+    pressControl(byLabel(sheet, 'attempt-dismiss')[0])
+    expect(tree.root.findByType('TextInput').props.value).toBe('Keep this draft')
+    expect(onAttachRemove).not.toHaveBeenCalled()
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('keeps whole suggestion labels in one horizontally scrolling row', () => {
     const chips = suggestions(3)
     const tree = renderComposer(props({ suggestions: chips, value: 'Keep this draft' }))
@@ -231,7 +253,7 @@ describe('Composer (mobile)', () => {
         try {
           for (const lineCount of state === 'recording' || state === 'transcribing' ? [1] : [1, 3, 5, 8]) {
             const nativeInput = tree.root.findAllByType('TextInput')[0]
-            if (nativeInput) TestRenderer.act(() => nativeInput.props.onContentSizeChange({ nativeEvent: { contentSize: { width: 136, height: 24 * fontScale * lineCount + 24 } } }))
+            if (nativeInput) TestRenderer.act(() => nativeInput.props.onContentSizeChange({ nativeEvent: { target: 1, contentSize: { width: 136, height: 24 * fontScale * lineCount + 24 } } }))
             const nodes = new Map<string, YogaNode>()
             const layout = composerLayout(tree.toJSON(), config, nodes, lineCount)
             try {

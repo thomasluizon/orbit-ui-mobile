@@ -48,6 +48,30 @@ function props(overrides: Record<string, unknown> = {}): ComposerProps {
 }
 
 describe('Composer', () => {
+  it('opens and names its menu from the keyboard without changing the draft', async () => {
+    render(<Composer {...props({ value: 'Keep this draft', onVoice: vi.fn(), voiceWords })} />)
+    const trigger = screen.getByRole('button', { name: words.actions })
+    const input = screen.getByRole('textbox')
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    const menu = await screen.findByRole('menu')
+    expect(trigger).toHaveAttribute('aria-controls', menu.id)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    expect(input).toHaveValue('Keep this draft')
+  })
+
+  it('opens the full attachment name without removing it or changing the draft', async () => {
+    const name = 'A long document name '.repeat(15) + '.txt'
+    const onAttachRemove = vi.fn()
+    render(<Composer {...props({ value: 'Keep this draft', attachWords, onAttachFile: vi.fn(), onAttachRemove,
+      attachments: [{ id: 'file', kind: 'file', name }] })} />)
+    fireEvent.click(screen.getByRole('button', { name }))
+    expect(await screen.findByRole('dialog', { name: attachWords.trayLabel })).toHaveTextContent(name)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('textbox')).toHaveValue('Keep this draft')
+    expect(onAttachRemove).not.toHaveBeenCalled()
+  })
+
   it('restores input focus when the composer still owns focus after sending', () => {
     const view = render(<Composer {...props({ state: 'sending' })} autoFocus />)
     expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
@@ -186,7 +210,7 @@ describe('Composer', () => {
     else expect(send).not.toHaveAttribute('data-accent')
     expect(send).toHaveClass(accented ? 'bg-[var(--primary)]' : 'bg-[var(--bg-well)]')
     if (_case === 'idle with an empty field' || _case === 'idle with text') {
-      expect(send).toHaveClass('duration-150')
+      expect(send).toHaveClass('duration-[var(--dur-hover-control)]')
     }
     if (_case === 'idle with text' || _case === 'idle with a file only') {
       expect(send).toHaveClass('enabled:hover:bg-[var(--primary-hover)]')

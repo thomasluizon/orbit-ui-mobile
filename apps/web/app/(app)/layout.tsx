@@ -339,7 +339,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
-                suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
+            suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
             inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}
             conversationLabel={t('todayAstra.openConversation')}

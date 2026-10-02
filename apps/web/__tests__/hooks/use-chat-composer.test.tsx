@@ -990,7 +990,7 @@ describe('web useChatComposer streaming send', () => {
     }
 
     render(<ComposerHarness />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' }), {
       clipboardData: {
         items: [{ type: pastedImage.type, getAsFile: () => pastedImage }],
       },
@@ -999,7 +999,7 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.getByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
     expect(screen.getByText('pasted.jpg')).toBeInTheDocument()
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' }), {
       target: { value: 'log my walk' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
@@ -1156,7 +1156,7 @@ describe('web useChatComposer streaming send', () => {
       expect(result.current.canSend).toBe(false)
       expect(result.current.composerProps.state).toBe('offline')
       expect(result.current.composerProps.words.placeholder).toBe('shell.composer.offline.placeholder')
-      expect(result.current.composerProps.words.inputLabel).toBe('shell.composer.placeholder')
+      expect(result.current.composerProps.words.inputLabel).toBe('shell.composer.inputLabel')
 
       act(() => {
         Object.defineProperty(globalThis.navigator, 'onLine', {
@@ -1302,7 +1302,7 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
-  it('clears a new speech permission error after its visible timeout', async () => {
+  it('keeps an actionable speech permission error visible after its former timeout', async () => {
     vi.useFakeTimers()
     const { result, rerender } = renderHook(() => useChatComposer())
 
@@ -1313,7 +1313,7 @@ describe('web useChatComposer streaming send', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4000)
     })
-    expect(result.current.sendError).toBeNull()
+    expect(result.current.sendError).toBe('microphone denied')
   })
 
   it('omits voice when speech is unavailable at the account limit', () => {

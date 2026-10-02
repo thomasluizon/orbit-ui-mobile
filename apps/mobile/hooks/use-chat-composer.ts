@@ -289,13 +289,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     void Promise.resolve().then(() => {
       if (active) setSendError(speechError);
     });
-    const timer = setTimeout(() => {
-      setSendError((current) => (current === speechError ? null : current));
-    }, 4000);
-
     return () => {
       active = false;
-      clearTimeout(timer);
     };
   }, [speechError]);
 
