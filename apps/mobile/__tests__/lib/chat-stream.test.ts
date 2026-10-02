@@ -119,9 +119,7 @@ describe('openChatStream', () => {
 
     expect(response).toEqual(makeResponse(200))
     expect(mocks.refreshSessionToken).toHaveBeenCalledTimes(1)
-    expect(mocks.refreshSessionToken).toHaveBeenCalledWith({
-      clearOnFailure: false,
-    })
+    expect(mocks.refreshSessionToken).toHaveBeenCalledWith()
     expect(mocks.expoFetch).toHaveBeenCalledTimes(2)
     expect(mocks.expoFetch.mock.calls[1]?.[1]?.headers).toMatchObject({
       Authorization: 'Bearer fresh-token',

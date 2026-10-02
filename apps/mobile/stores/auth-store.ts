@@ -44,7 +44,7 @@ let credentialVersion = 0
 let credentialMutationTail = Promise.resolve()
 
 let profileHydrationInFlight: Promise<void> | null = null
-let refreshSessionInFlight: Promise<RefreshSessionAttempt> | null = null
+let refreshSessionInFlight: Promise<RefreshSessionOutcome> | null = null
 
 type SessionSnapshot = {
   epoch: number
@@ -263,19 +263,13 @@ export async function clearSessionAndResetAuth(
 /**
  * Outcome of a token rotation attempt. `network-error` is a transient blip,
  * `superseded` belongs to a newer session, and `unauthorized` is a real auth
- * failure where the session is cleared when `clearOnFailure`.
+ * failure that ends the observed session.
  */
 export type RefreshSessionOutcome =
   | { status: 'refreshed'; token: string }
   | { status: 'unauthorized' }
   | { status: 'network-error' }
   | { status: 'superseded' }
-
-type RefreshSessionAttempt = {
-  epoch: number
-  credentialVersion: number
-  outcome: RefreshSessionOutcome
-}
 
 function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true
@@ -307,9 +301,8 @@ async function classifyRejectedRefresh(
 }
 
 /**
- * Uses raw fetch, not apiClient: apiClient's own 401 handler calls this function, so routing
- * it back through apiClient would invert the dependency and lose the clearOnFailure contract
- * (apiClient throws + clears unconditionally; this returns a discriminated outcome.
+ * Uses raw fetch because apiClient's own 401 handler calls this function. Routing the
+ * refresh through apiClient would recurse instead of returning a discriminated outcome.
  */
 async function rotateSessionToken(
   epoch: number,
@@ -366,44 +359,33 @@ async function rotateSessionToken(
   return { status: 'refreshed', token: data.token }
 }
 
-async function runRefreshSession(): Promise<RefreshSessionAttempt> {
-  const { epoch, credentialVersion: expectedCredentialVersion } = getSessionGeneration()
+async function runRefreshSession(): Promise<RefreshSessionOutcome> {
+  const observation = getSessionGeneration()
   try {
-    return {
-      epoch,
-      credentialVersion: expectedCredentialVersion,
-      outcome: await rotateSessionToken(epoch, expectedCredentialVersion),
+    const outcome = await rotateSessionToken(observation.epoch, observation.credentialVersion)
+    if (outcome.status === 'unauthorized') {
+      const cleared = await clearSessionAndResetAuth({
+        authority: 'observed-credential',
+        ...observation,
+      })
+      if (!cleared) return { status: 'superseded' }
     }
+    return outcome
   } finally {
     refreshSessionInFlight = null
   }
 }
 
-export async function refreshSession(options?: {
-  clearOnFailure?: boolean
-}): Promise<RefreshSessionOutcome> {
-  const clearOnFailure = options?.clearOnFailure ?? true
-  const attempt = await (refreshSessionInFlight ??= runRefreshSession())
-
-  if (attempt.outcome.status === 'unauthorized' && clearOnFailure) {
-    await clearSessionAndResetAuth({
-      authority: 'observed-credential',
-      epoch: attempt.epoch,
-      credentialVersion: attempt.credentialVersion,
-    })
-  }
-
-  return attempt.outcome
+export function refreshSession(): Promise<RefreshSessionOutcome> {
+  return refreshSessionInFlight ??= runRefreshSession()
 }
 
 /**
  * Backwards-compatible wrapper returning the rotated access token, or null when
  * the rotation did not yield a token (transient or unauthorized).
  */
-export async function refreshSessionToken(options?: {
-  clearOnFailure?: boolean
-}): Promise<string | null> {
-  const outcome = await refreshSession(options)
+export async function refreshSessionToken(): Promise<string | null> {
+  const outcome = await refreshSession()
   switch (outcome.status) {
     case 'refreshed':
       return outcome.token

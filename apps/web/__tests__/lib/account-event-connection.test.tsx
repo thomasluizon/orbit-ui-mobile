@@ -1,26 +1,39 @@
 import { useVersionGateStore } from '@/stores/version-gate-store'
-import { afterEach, expect, it, vi } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
-import { QueryClient, QueryObserver } from '@tanstack/query-core'
-import { habitKeys, profileKeys } from '@orbit/shared/query'
+import { beforeEach, afterEach, expect, it, vi } from 'vitest'
+import { act, render, waitFor } from '@testing-library/react'
+import { focusManager, QueryClient, QueryObserver } from '@tanstack/react-query'
+import { calendarKeys, checklistTemplateKeys, gamificationKeys, goalKeys, habitKeys, notificationKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createQueryClient } from '@/lib/query-client'
+import { useAuthStore } from '@/stores/auth-store'
+import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
+import { API } from '@orbit/shared/api'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { getAccountEventOrigin, setAccountEventOrigin } from '@/lib/account-event-origin'
 
 const invalidateQueries = vi.fn()
 const queryClientState = vi.hoisted(() => ({ current: null as QueryClient | null }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () =>
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-query')>(),
+  useQueryClient: () =>
   queryClientState.current ?? {
     invalidateQueries,
     getQueryCache: () => ({ findAll: () => [] }),
   },
 }))
 
+beforeEach(() => {
+  useAuthStore.setState({ isAuthenticated: true, sessionRefreshFailed: false })
+})
+
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   setAccountEventOrigin(null)
   invalidateQueries.mockClear()
+  queryClientState.current?.unmount()
   queryClientState.current?.clear()
+  focusManager.setFocused(undefined)
   queryClientState.current = null
 })
 
@@ -125,9 +138,9 @@ it('replays changes missed while the page was hidden', async () => {
   const view = render(<AccountEventConnection />)
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
   visibility = 'hidden'
-  document.dispatchEvent(new Event('visibilitychange'))
+  document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
   visibility = 'visible'
-  document.dispatchEvent(new Event('visibilitychange'))
+  document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
   expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: { 'Last-Event-ID': 'epoch.5' } })
   view.unmount()
@@ -160,6 +173,131 @@ it('refreshes each account query once after returning without a replay cursor', 
   expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: undefined })
   stopObserving(queries)
   view.unmount()
+})
+
+it.each([false, true])('refreshes stale account queries after the return open, cursor: %s', async (cursor) => {
+  const setVisibility = stubVisibility()
+  const client = createQueryClient()
+  queryClientState.current = client
+  client.mount()
+  let openSecondStream!: (response: Response) => void
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(ticketResponse('first'))
+    .mockResolvedValueOnce(cursorStream(cursor))
+    .mockResolvedValueOnce(ticketResponse('second'))
+    .mockReturnValueOnce(new Promise<Response>((resolve) => { openSecondStream = resolve }))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  await settle()
+  const queries = observeStaleQueries(client, accountQueryKeys())
+  const calendar = observeStaleQueries(client, [calendarKeys.autoSyncState()])
+  try {
+    setVisibility('hidden')
+    setVisibility('visible')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
+    await settle()
+    const beforeOpen = refreshCounts(queries)
+    await settle(2)
+    openSecondStream(idleStream())
+    await settle()
+    expect({ beforeOpen, afterOpen: refreshCounts(queries) }).toEqual({
+      beforeOpen: Array(7).fill(0), afterOpen: cursor ? [1, 0, 0, 0, 0, 0, 0] : Array(7).fill(1),
+    })
+    expect(refreshCounts(calendar)).toEqual([1])
+  } finally {
+    stopObserving(queries)
+    stopObserving(calendar)
+    view.unmount()
+  }
+})
+
+it.each([false, true])('refreshes exhausted AI usage after midnight only after the return stream opens, cursor: %s', async (cursor) => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-01-01T02:55:00Z'))
+  const setVisibility = stubVisibility()
+  const client = createQueryClient()
+  queryClientState.current = client
+  client.mount()
+  let openSecondStream!: (response: Response) => void
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(ticketResponse('first'))
+    .mockResolvedValueOnce(cursorStream(cursor))
+    .mockResolvedValueOnce(ticketResponse('second'))
+    .mockReturnValueOnce(new Promise<Response>((resolve) => { openSecondStream = resolve }))
+    .mockResolvedValueOnce(ticketResponse('third'))
+    .mockResolvedValueOnce(idleStream())
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  await settle()
+  const exhausted = createMockProfile({ aiMessagesUsed: 20 })
+  client.setQueryData(profileKeys.detail(), exhausted)
+  const fetchProfile = vi.fn(async () => createMockProfile({ aiMessagesUsed: 0 }))
+  const observer = new QueryObserver(client, { queryKey: profileKeys.detail(), queryFn: fetchProfile })
+  const unsubscribe = observer.subscribe(() => {})
+  const habits = observeStaleQueries(client, [habitKeys.count()])
+  try {
+    expect(observer.getCurrentResult().data?.aiMessagesUsed).toBe(exhausted.aiMessagesLimit)
+    setVisibility('hidden')
+    vi.setSystemTime(new Date('2026-01-01T03:05:00Z'))
+    setVisibility('visible')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
+    await settle()
+    expect(fetchProfile).not.toHaveBeenCalled()
+    expect(refreshCounts(habits)).toEqual([0])
+    openSecondStream(idleStream())
+    await settle()
+    expect(fetchProfile).toHaveBeenCalledTimes(1)
+    expect(observer.getCurrentResult().data?.aiMessagesUsed).toBe(0)
+    expect(refreshCounts(habits)).toEqual([cursor ? 0 : 1])
+    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: cursor ? { 'Last-Event-ID': 'epoch.5' } : undefined })
+    setVisibility('hidden')
+    vi.setSystemTime(new Date('2026-01-01T03:06:00Z'))
+    setVisibility('visible')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(6))
+    await settle()
+    expect(fetchProfile).toHaveBeenCalledTimes(cursor ? 1 : 2)
+  } finally {
+    unsubscribe()
+    stopObserving(habits)
+    view.unmount()
+    vi.useRealTimers()
+  }
+})
+
+it('refreshes once when a return with a replay cursor cannot reopen', async () => {
+  const setVisibility = stubVisibility()
+  const client = createQueryClient()
+  queryClientState.current = client
+  client.mount()
+  let failSecondOpen!: (error: Error) => void
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(ticketResponse('first'))
+    .mockResolvedValueOnce(cursorStream(true))
+    .mockResolvedValueOnce(ticketResponse('second'))
+    .mockReturnValueOnce(new Promise<Response>((_resolve, reject) => { failSecondOpen = reject }))
+    .mockRejectedValue(new Error('stream unavailable'))
+  vi.stubGlobal('fetch', fetchMock)
+  const view = render(<AccountEventConnection />)
+  await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+  await settle()
+  const queries = observeAccountQueries(client)
+  try {
+    setVisibility('hidden')
+    setVisibility('visible')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
+    expect(refreshCounts(queries)).toEqual([0, 0, 0])
+    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: { 'Last-Event-ID': 'epoch.5' } })
+    failSecondOpen(new Error('stream unavailable'))
+    await waitFor(() => expect(refreshCounts(queries)).toEqual([1, 1, 1]))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5), { timeout: 4000 })
+    await settle()
+    expect(refreshCounts(queries)).toEqual([1, 1, 1])
+  } finally {
+    stopObserving(queries)
+    view.unmount()
+  }
 })
 
 it('refreshes once when the first open after a return fails and again when the stream opens', async () => {
@@ -274,7 +412,7 @@ function stubVisibility() {
   vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
   return (next: DocumentVisibilityState) => {
     visibility = next
-    document.dispatchEvent(new Event('visibilitychange'))
+    document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
   }
 }
 
@@ -315,3 +453,46 @@ function refreshCounts(queries: ReturnType<typeof observeAccountQueries>) {
 function stopObserving(queries: ReturnType<typeof observeAccountQueries>) {
   for (const { unsubscribe } of queries) unsubscribe()
 }
+
+function accountQueryKeys() {
+  return [profileKeys.detail(), habitKeys.count(), goalKeys.list({}), tagKeys.list({}),
+    checklistTemplateKeys.lists(), gamificationKeys.profile(), notificationKeys.lists()]
+}
+
+function observeStaleQueries(client: QueryClient, queryKeys: readonly (readonly unknown[])[]) {
+  return queryKeys.map((queryKey) => {
+    client.setQueryData(queryKey, 'before return', { updatedAt: Date.now() - 600_000 })
+    const queryFn = vi.fn(async () => 'after return')
+    const unsubscribe = new QueryObserver(client, { queryKey, queryFn, refetchOnMount: false }).subscribe(() => {})
+    return { queryFn, unsubscribe }
+  })
+}
+
+function cursorStream(cursor: boolean) {
+  return new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (cursor) controller.enqueue(new TextEncoder().encode('id: epoch.5\nevent: changes\ndata: {"v":1,"changes":[]}\n\n'))
+    },
+  }))
+}
+
+it('stops requesting event tickets after a confirmed refresh rejection', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+  const fetchMock = vi.fn((url: string) => Promise.resolve(url === API.events.ticket
+    ? Response.json({ error: 'Unauthorized' }, { status: 401, headers: buildSessionRefreshHeaders(true) })
+    : Response.json({ expiresAt: null, refreshFailed: true }, { status: 401 })))
+  vi.stubGlobal('fetch', fetchMock)
+  vi.useFakeTimers()
+  const view = render(<AccountEventConnection />)
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    for (const delay of [2000, 4000, 8000, 16000, 30000]) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(delay) })
+    }
+    expect(fetchMock.mock.calls.filter(([url]) => url === API.events.ticket)).toHaveLength(1)
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: false, sessionRefreshFailed: true })
+  } finally {
+    view.unmount()
+    vi.useRealTimers()
+  }
+})
