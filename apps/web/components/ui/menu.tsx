@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useEffectEvent,
   useRef,
@@ -55,17 +56,19 @@ function MenuSheet({
   onSelect,
   onClose,
   title,
+  finalFocus,
 }: Readonly<{
   id?: string
   items: readonly MenuItem[]
   onSelect?: (id: string) => void
   onClose?: () => void
   title?: string
+  finalFocus: () => boolean
 }>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
   return (
-    <Sheet ref={sheetRef} open title={title} onClose={onClose}>
+    <Sheet ref={sheetRef} open title={title} onClose={onClose} finalFocus={finalFocus}>
       <div id={id} role="menu" aria-label={title}>
         <MenuItems
           items={items}
@@ -159,13 +162,14 @@ function useMenuOwnership(open: boolean, onClose: (() => void) | undefined, rest
 
   useEffect(() => {
     if (!open || dismissed) return
+    restoreFocusRef.current = true
     const dismiss = () => dismissMenu()
     activeMenuDismiss?.()
     activeMenuDismiss = dismiss
     return () => {
       if (activeMenuDismiss === dismiss) activeMenuDismiss = null
     }
-  }, [open, dismissed])
+  }, [open, dismissed, restoreFocusRef])
 
   return dismissed
 }
@@ -187,6 +191,7 @@ export function Menu({
   const panelRef = useRef<HTMLDivElement>(null)
   const focusReturnTargetRef = useRef<HTMLElement | null>(null)
   const restoreFocusOnCleanupRef = useRef(true)
+  const restoreSheetFocus = useCallback(() => restoreFocusOnCleanupRef.current, [])
   const dismissed = useMenuOwnership(open && items.length > 0, onClose, restoreFocusOnCleanupRef)
   const portalTarget = useSyncExternalStore(
     subscribeToPortalTarget,
@@ -203,7 +208,6 @@ export function Menu({
     const activeElement = activeFocusReturnTarget()
     const focusReturnTarget = activeElement && anchor?.contains(activeElement) ? activeElement : anchor
     focusReturnTargetRef.current = focusReturnTarget
-    restoreFocusOnCleanupRef.current = true
 
     function dismiss(event: Event) {
       const target = event.target
@@ -259,7 +263,7 @@ export function Menu({
   if (!open || dismissed || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
-    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} />
+    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} finalFocus={restoreSheetFocus} />
   }
 
   if (!portalTarget) return null

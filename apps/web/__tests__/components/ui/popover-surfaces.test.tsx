@@ -68,9 +68,11 @@ describe('Today controls and habit menu ownership', () => {
       if (activation === 'pointer') fireEvent.pointerDown(trigger)
       fireEvent.click(trigger)
     }
+    controlsTrigger.focus()
     press(controlsTrigger)
     await screen.findByRole('menuitem', { name: 'Select' })
     const exitingPanel = screen.getByRole('dialog')
+    await waitFor(() => expect(exitingPanel).toContainElement(document.activeElement as HTMLElement))
     let finishExit!: () => void
     const finished = new Promise<void>((resolve) => { finishExit = resolve })
     const getAnimations = vi.fn(() => [{ finished }])
@@ -81,8 +83,12 @@ describe('Today controls and habit menu ownership', () => {
     expect(exitingPanel).toBeInTheDocument()
     expect(controlsTrigger).toHaveAttribute('aria-expanded', 'true')
 
+    const previousTriggerFocus = vi.fn()
+    controlsTrigger.addEventListener('focus', previousTriggerFocus)
     press(rowTrigger)
     await screen.findByRole('menuitem', { name: 'common.edit' })
+    await waitFor(() => expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement))
+    expect(previousTriggerFocus).not.toHaveBeenCalled()
     expect(exitingPanel).not.toBeInTheDocument()
     expect(document.querySelectorAll('[role="menu"]')).toHaveLength(1)
     expect(screen.queryByRole('menuitem', { name: 'Select', hidden: true })).toBeNull()
@@ -94,6 +100,9 @@ describe('Today controls and habit menu ownership', () => {
     expect(screen.queryByRole('menuitem', { name: 'common.edit', hidden: true })).toBeNull()
     expect(controlsTrigger).toHaveAttribute('aria-expanded', 'true')
     expect(rowTrigger).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(controlsTrigger).toHaveFocus())
   })
 
 })

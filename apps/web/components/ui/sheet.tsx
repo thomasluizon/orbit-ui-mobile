@@ -44,13 +44,14 @@ export function useSheetHost() {
 interface WebSheetProps extends SheetProps {
   virtualizedBody?: boolean
   initialFocus?: RefObject<HTMLElement | null>
+  finalFocus?: Dialog.Popup.Props['finalFocus']
   titleTranslate?: 'no'
   /** The handle `useSheetHost` fills in, so the host can close through the exit transition. */
   ref?: Ref<SheetHandle>
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
@@ -124,7 +125,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
       <Dialog.Portal className="orbit-sheet-portal">
         <Dialog.Backdrop className="orbit-sheet-backdrop" />
         <Dialog.Viewport className="orbit-sheet-viewport">
-          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
+          <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
               <Dialog.Title translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'}>
