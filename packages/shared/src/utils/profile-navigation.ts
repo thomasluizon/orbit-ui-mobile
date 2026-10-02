@@ -7,25 +7,27 @@ import {
 
 export type ProfileNavSection = 'account' | 'features'
 
-export type ProfileSettingsGroupId =
-  | 'you'
-  | 'astra'
-  | 'notifications'
-  | 'more'
-  | 'ending'
+export type ProfileSettingsGroupId = 'you' | 'more' | 'ending'
 
 export interface ProfileSettingsGroupDefinition {
   id: ProfileSettingsGroupId
-  labelKey: string
+  labelKey: string | null
 }
 
 export const PROFILE_SETTINGS_GROUPS: readonly ProfileSettingsGroupDefinition[] = [
-  { id: 'you', labelKey: 'profile.groups.you' },
-  { id: 'astra', labelKey: 'profile.groups.astra' },
-  { id: 'notifications', labelKey: 'profile.groups.notifications' },
+  { id: 'you', labelKey: null },
   { id: 'more', labelKey: 'profile.groups.more' },
-  { id: 'ending', labelKey: 'profile.groups.ending' },
+  { id: 'ending', labelKey: null },
 ]
+
+export const PROFILE_SUBMENUS = [
+  { id: 'account', route: '/profile/account', labelKey: 'profile.submenus.account' },
+  { id: 'preferences', route: '/profile/preferences', labelKey: 'profile.submenus.preferences' },
+  { id: 'astra', route: '/profile/astra', labelKey: 'profile.groups.astra' },
+  { id: 'notifications', route: '/profile/notifications', labelKey: 'profile.groups.notifications' },
+] as const
+
+export type ProfileSubmenuId = typeof PROFILE_SUBMENUS[number]['id']
 
 export type ProfileNavVariant = 'default' | 'primary'
 

@@ -11,6 +11,7 @@ import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import ProfileScreen from '@/app/(tabs)/profile'
+import { ProfileSubscreen } from '@/app/(tabs)/profile/_components/profile-subscreen'
 
 interface MockDeviceState {
   count: number | undefined
@@ -154,7 +155,8 @@ vi.mock('expo-router', () => ({
   useLocalSearchParams: () => mockSearchParams.current,
   useRouter: () => ({
     push: mockRouterPush,
-    replace: vi.fn(),
+    replace: mockRouterPush,
+    dismissTo: mockRouterPush,
   }),
 }))
 
@@ -494,6 +496,15 @@ async function renderProfileScreen(createNodeMock?: (element: { props: { label?:
   return tree!
 }
 
+async function renderProfileSubscreen(screen: 'account' | 'preferences' | 'astra' | 'notifications') {
+  let tree: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    tree = TestRenderer.create(<ProfileSubscreen screen={screen} />)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  return tree!
+}
+
 function findRowByLabel(
   tree: ReturnType<typeof TestRenderer.create>,
   label: string,
@@ -522,7 +533,55 @@ function findButtonByText(
   )
 }
 
+
 describe('ProfileScreen', () => {
+  it.each([
+    ['account', ['profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
+    ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
+    ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
+    ['notifications', ['profile.settingsRows.devices', 'profile.settingsRows.remindersNote']],
+  ] as const)('opens %s from Perfil and keeps its settings in that screen alone', async (destination, labels) => {
+    mockRealListRow.current = true
+    const top = await renderProfileScreen()
+    const title = destination === 'account' ? mockProfileState.current.profile?.name : destination === 'preferences' ? 'profile.submenus.preferences' : `profile.groups.${destination}`
+    TestRenderer.act(() => {
+      top.root.find((node: { type: unknown; props: { accessibilityRole?: string }; children: unknown[] }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'button' && nodeText(node).startsWith(title ?? '')).props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenLastCalledWith(`/profile/${destination}`)
+    TestRenderer.act(() => top.unmount())
+    const tree = await renderProfileSubscreen(destination)
+    const group = tree.root.findByProps({ testID: `profile-settings-group-${destination}` })
+    for (const label of labels) expect(nodeText(group)).toContain(label)
+    expect(labels.map((label) => nodeText(group).indexOf(label))).toEqual(labels.map((label) => nodeText(group).indexOf(label)).sort((left, right) => left - right))
+    TestRenderer.act(() => {
+      tree.root.find((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.backToProfile').props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenLastCalledWith('/profile')
+    for (const other of ['account', 'preferences', 'astra', 'notifications']) {
+      if (other !== destination) expect(tree.root.findAllByProps({ testID: `profile-settings-group-${other}` })).toHaveLength(0)
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it('opens each settings sub-screen from Perfil without showing its controls there', async () => {
+    const tree = await renderProfileScreen()
+    for (const [label, path] of [
+      [mockProfileState.current.profile?.name ?? 'profile.submenus.account', '/profile/account'],
+      ['profile.submenus.preferences', '/profile/preferences'],
+      ['profile.groups.astra', '/profile/astra'],
+      ['profile.groups.notifications', '/profile/notifications'],
+    ] as const) {
+      TestRenderer.act(() => {
+        findRowByLabel(tree, label).props.onPress?.()
+      })
+      expect(mockRouterPush).toHaveBeenLastCalledWith(path)
+    }
+    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.timezone')
+    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.apiKeysMcp')
+  })
+
   beforeEach(() => {
     mockRealListRow.current = false
     mockTranslate.current = (key, params) => key === 'profile.settingsRows.devicesCount' ? [params?.count ?? '', 'of', params?.max ?? ''].join(' ') : key
@@ -570,91 +629,11 @@ describe('ProfileScreen', () => {
     }
   })
 
-  it('keeps only the account chevron on the name and preference rows in You', async () => {
-    const tree = await renderProfileScreen()
-    const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
-    const rows = group.findAllByType('SettingsRowStub')
-    expect(rows[0].props.icon).toBeUndefined()
-    expect(rows[0].props.chevron).toBe(true)
-    for (const key of ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title']) {
-      const row = findRowByLabel(tree, key)
-      expect(row.props.icon).toBeUndefined()
-      expect(row.props.chevron).toBe(false)
-    }
-    expect(findRowByLabel(tree, 'profile.settingsRows.export').props.icon).toBeDefined()
-    TestRenderer.act(() => tree.unmount())
-  })
-
-  it('renders the drawn pt-BR Perfil labels in group order for a Pro trial', async () => {
-    mockLocale.current = 'pt-BR'
-    mockTranslate.current = (key, params) => {
-      let message: unknown = ptBR
-      for (const segment of key.split('.')) {
-        message = message && typeof message === 'object'
-          ? (message as Record<string, unknown>)[segment]
-          : undefined
-      }
-      return typeof message === 'string'
-        ? message.replace('{count}', String(params?.count ?? '')).replace('{max}', String(params?.max ?? ''))
-        : key
-    }
-    mockProfileState.current = {
-      profile: createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, language: 'pt-BR', weekStartDay: 1 }),
-      isLoading: false,
-      error: null,
-    }
-    const tree = await renderProfileScreen()
-    expect(findRowByLabel(tree, 'Semana começa em').props.value).toBe('segunda')
-    const groupText = (node: unknown): string => {
-      if (typeof node === 'string' || typeof node === 'number') return String(node)
-      if (!node || typeof node !== 'object' || !('children' in node)) return ''
-      const rendered = node as { type: unknown; props: { label?: string; value?: string }; children: unknown[] }
-      const rowContent = rendered.type === 'SettingsRowStub'
-        ? `${rendered.props.label ?? ''}${rendered.props.value ?? ''}`
-        : ''
-      return rowContent + rendered.children.map(groupText).join('')
-    }
-    const inOrder = (group: string, labels: string[]) => {
-      const content = groupText(tree.root.findByProps({ testID: `profile-settings-group-${group}` }))
-      let previous = -1
-      for (const label of labels) {
-        const position = content.indexOf(label, previous + 1)
-        expect(position, `${label} in ${group}`).toBeGreaterThan(previous)
-        previous = position
-      }
-    }
-    inOrder('you', [
-      'Fuso horário', 'Semana começa em', 'Idioma', 'Português do Brasil',
-      'Tema', 'Exportar os meus dados',
-    ])
-    inOrder('astra', ['Mensagens de hoje', 'Plano', 'Chaves de API e MCP', 'Abrir as chaves'])
-    const apiKeys = tree.root.findByProps({ testID: 'profile-api-keys' })
-    expect(groupText(apiKeys)).toContain('Pro')
-    expect(groupText(apiKeys)).not.toContain('Período de teste')
-    inOrder('notifications', [
-      'Análise de uso', 'Aparelhos com aviso', 'Este aparelho',
-      'Os lembretes de cada hábito ficam no próprio hábito.',
-    ])
-    expect(tree.root.findAll((node: { props: { testID?: string } }) =>
-      node.props.testID === 'marketing-consent-section')).toHaveLength(1)
-    inOrder('more', [
-      'Orbit Wrapped', 'Widget do Android', 'Sincronizar calendário',
-      'Ajuda e suporte', 'Sobre o Orbit',
-    ])
-    inOrder('ending', ['Sair da conta', 'Começar de novo', 'Apagar a conta'])
-    expect(groupText(tree.root.findByProps({ testID: 'profile-settings-group-you' }))).not.toContain('Plano')
-    expect(groupText(tree.root)).not.toContain('Compartilhar progresso')
-  })
-
   it('renders every feature destination as a grouped settings row with its hint', async () => {
     const tree = await renderProfileScreen()
 
     const groupLabels = [
-      'profile.groups.you',
-      'profile.groups.astra',
-      'profile.groups.notifications',
       'profile.groups.more',
-      'profile.groups.ending',
     ]
     for (const label of groupLabels) {
       expect(
@@ -714,97 +693,6 @@ describe('ProfileScreen', () => {
     }
   })
 
-  it('keeps every profile setting reachable by its accessible name', async () => {
-    const tree = await renderProfileScreen()
-    expect(tree.root.findAll((node: SettingsRowStubNode) =>
-      node.type === 'SettingsRowStub' &&
-      ['profile.subscription.plan', 'shareCard.entry'].includes(node.props.label ?? ''))).toHaveLength(0)
-    const accessibleNames = [
-      'profile.settingsRows.editName',
-      'profile.language.title',
-      'profile.settingsRows.timezoneValue',
-      'profile.settingsRows.weekStart',
-      'settings.clock.title',
-      'profile.settingsRows.wrapped',
-      'profile.widgetTitle',
-      'profile.calendarSync.title',
-      'profile.support.rowTitle',
-      'profile.aboutRow',
-      'profile.settingsRows.export',
-      'profile.settingsRows.signOut',
-      'profile.settingsRows.startOver',
-      'profile.settingsRows.deleteAccount',
-    ]
-
-    for (const accessibilityLabel of accessibleNames) {
-      expect(
-        tree.root.findAll(
-          (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-            node.props.accessibilityRole === 'button' &&
-            node.props.accessibilityLabel === accessibilityLabel,
-        ),
-        `missing accessible profile row: ${accessibilityLabel}`,
-      ).toHaveLength(1)
-    }
-    const themeChoices = tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme')
-    expect(themeChoices.some((choice: { props: { style: { flexWrap?: string; maxWidth?: string } } }) =>
-      choice.props.style.flexWrap === 'wrap' && choice.props.style.maxWidth === '100%')).toBe(true)
-  })
-
-  it.each([
-    ['en', false, 'ready'], ['en', true, 'ready'], ['pt-BR', false, 'ready'], ['pt-BR', true, 'ready'],
-    ['en', false, 'no timezone'], ['pt-BR', false, 'no timezone'],
-    ['en', false, 'unavailable'], ['pt-BR', false, 'unavailable'],
-  ] as const)('starts each %s profile row name with its visible label (Pro: %s, %s)', async (locale, hasProAccess, profileState) => {
-    mockPushSupported.current = hasProAccess
-    mockRealListRow.current = true
-    mockRealConsentSection.current = true
-    mockLocale.current = locale
-    mockTranslate.current = (key, params) => {
-      let message: unknown = locale === 'en' ? en : ptBR
-      for (const segment of key.split('.')) {
-        message = (message as Record<string, unknown>)[segment]
-      }
-      return String(message).replace(/\{(\w+)\}/g, (_, parameter: string) => String(params?.[parameter] ?? ''))
-    }
-    mockProfileState.current.profile = createMockProfile({
-      name: 'Voice user', language: locale, timeZone: profileState === 'no timezone' ? null : 'America/Sao_Paulo', hasProAccess,
-      plan: hasProAccess ? 'pro' : 'free',
-    })
-    if (profileState === 'unavailable') mockProfileState.current.profile = undefined
-    const tree = await renderProfileScreen()
-    for (const group of ['you', 'astra', 'notifications', 'more', 'ending']) {
-      const section = tree.root.findByProps({ testID: `profile-settings-group-${group}` })
-      const controls = section.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) =>
-        typeof node.type === 'string' && node.props.accessibilityRole === 'button')
-      expect(controls.length, group).toBeGreaterThan(0)
-      for (const control of controls) {
-        const visibleLabel = nodeText(control.findAllByType('Text')[0])
-        expect(visibleLabel, group).toBeTruthy()
-        const accessibleName = control.props.accessibilityLabel ?? nodeText(control)
-        expect.soft(accessibleName, visibleLabel).toMatch(new RegExp(`^${visibleLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
-      }
-    }
-    const switches = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) =>
-      typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
-    expect(switches.length).toBeGreaterThan(0)
-    for (const control of switches) {
-      const accessibleLabel = control.props.accessibilityLabel
-      const visibleLabel = accessibleLabel === mockTranslate.current('profile.settingsRows.alertsOnThisDevice')
-        ? mockTranslate.current('profile.settingsRows.currentDevice')
-        : accessibleLabel
-      expect(visibleLabel).toBeTruthy()
-      expect(tree.root.findAllByType('Text').some((node: unknown) => nodeText(node) === visibleLabel)).toBe(true)
-      expect.soft(accessibleLabel).toMatch(new RegExp(`^${visibleLabel}`))
-    }
-    const themeLabel = mockTranslate.current('profile.settingsRows.theme')
-    expect(tree.root.findAllByType('Text').some((node: unknown) => nodeText(node) === themeLabel)).toBe(true)
-    expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      typeof node.type === 'string' && node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === themeLabel)).toHaveLength(1)
-    await TestRenderer.act(() => tree.unmount())
-  })
-
   it('keeps the share card off Perfil', async () => {
     const tree = await renderProfileScreen()
     expect(
@@ -825,43 +713,8 @@ describe('ProfileScreen', () => {
     expect(rows[0]?.props.label).toBe('profile.settingsRows.signOut')
   })
 
-  it('puts Fresh Start directly after Sign out', async () => {
-    const tree = await renderProfileScreen()
-    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
-    const labels = ending.findAll(
-      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
-    ).map((node: SettingsRowStubNode) => node.props.label)
-
-    expect(labels.slice(0, 2)).toEqual(['profile.settingsRows.signOut', 'profile.settingsRows.startOver'])
-  })
-
-  it('keeps Delete account last in the three-row ending group', async () => {
-    const tree = await renderProfileScreen()
-    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
-    const labels = ending.findAll(
-      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
-    ).map((node: SettingsRowStubNode) => node.props.label)
-
-    expect(labels).toEqual([
-      'profile.settingsRows.signOut',
-      'profile.settingsRows.startOver',
-      'profile.settingsRows.deleteAccount',
-    ])
-  })
-
-  it('passes ordinary and danger Perfil icons without a fixed color', async () => {
-    const tree = await renderProfileScreen()
-    for (const label of ['profile.settingsRows.signOut', 'profile.settingsRows.deleteAccount']) {
-      const row = findRowByLabel(tree, label) as SettingsRowStubNode & {
-        props: { icon?: React.ReactElement<{ color?: string }>; danger?: boolean }
-      }
-      expect(row.props.icon?.props.color).toBeUndefined()
-      expect(Boolean(row.props.danger)).toBe(label === 'profile.settingsRows.deleteAccount')
-    }
-  })
-
   it('shows the free daily allowance as an enabled route to Pro', async () => {
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
     const progress = astra.findByProps({
       accessibilityRole: 'progressbar',
@@ -884,12 +737,12 @@ describe('ProfileScreen', () => {
     expect(allowanceGate.props.accessibilityState.disabled).toBe(false)
     expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
       pathname: '/upgrade',
-      params: { from: '/profile' },
+      params: { from: '/profile/astra' },
     })
   })
 
   it('shows both free Astra switch gates as enabled routes to Pro', async () => {
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
     const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
 
@@ -903,11 +756,11 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
       pathname: '/upgrade',
-      params: { from: '/profile' },
+      params: { from: '/profile/astra' },
     })
     expect(mockRouterPush).toHaveBeenNthCalledWith(2, {
       pathname: '/upgrade',
-      params: { from: '/profile' },
+      params: { from: '/profile/astra' },
     })
   })
 
@@ -931,7 +784,7 @@ describe('ProfileScreen', () => {
     mockProfileState.current.profile = createMockProfile({
       plan: hasProAccess ? 'pro' : 'free', hasProAccess, language: locale,
     })
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
 
     if (hasProAccess) {
@@ -946,8 +799,8 @@ describe('ProfileScreen', () => {
         expect(row.props.hint).toBeUndefined()
         TestRenderer.act(() => row.props.onPress?.())
       }
-      expect(mockRouterPush).toHaveBeenNthCalledWith(1, { pathname: '/upgrade', params: { from: '/profile' } })
-      expect(mockRouterPush).toHaveBeenNthCalledWith(2, { pathname: '/upgrade', params: { from: '/profile' } })
+      expect(mockRouterPush).toHaveBeenNthCalledWith(1, { pathname: '/upgrade', params: { from: '/profile/astra' } })
+      expect(mockRouterPush).toHaveBeenNthCalledWith(2, { pathname: '/upgrade', params: { from: '/profile/astra' } })
     }
   })
 
@@ -957,7 +810,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     const apiKeys = tree.root.findByProps({ testID: 'profile-api-keys' })
     const badges = apiKeys.findAll((node: { type: unknown; props: { testID?: string } }) =>
@@ -970,7 +823,7 @@ describe('ProfileScreen', () => {
   })
 
   it('shows only the API key description and upgrade row to free accounts', async () => {
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
 
     expect(
@@ -990,7 +843,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile' },
+      params: { from: '/profile/astra' },
     })
   })
 
@@ -1001,7 +854,7 @@ describe('ProfileScreen', () => {
       name: 'Work key',
       keyPrefix: 'orb_live_1234',
     }]
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     const upgradeRow = findRowByLabel(tree, 'profile.apiKeys.unlock')
     expect(upgradeRow.props.accessibilityRole).toBe('button')
@@ -1013,7 +866,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => upgradeRow.props.onPress?.())
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile' },
+      params: { from: '/profile/astra' },
     })
   })
 
@@ -1023,7 +876,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     TestRenderer.act(() => {
       findRowByLabel(tree, 'profile.apiKeys.open').props.onPress?.()
@@ -1047,7 +900,7 @@ describe('ProfileScreen', () => {
       keyPrefix: 'orb_live_1234',
     }]
 
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     expect(findRowByLabel(tree, 'profile.apiKeys.open')).toBeDefined()
     expect(
@@ -1074,7 +927,7 @@ describe('ProfileScreen', () => {
       lastUsedAtUtc: null,
       isRevoked: false,
     }]
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     const keyRow = findRowByLabel(tree, 'Work key')
     expect(keyRow.props.value).toBe('orb_live_1234…')
@@ -1099,7 +952,7 @@ describe('ProfileScreen', () => {
     mockApiClient
       .mockRejectedValueOnce(new Error('failed'))
       .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress()
@@ -1135,7 +988,7 @@ describe('ProfileScreen', () => {
 
     tree.unmount()
     mockCreateGrant.consumed = false
-    const secondTree = await renderProfileScreen()
+    const secondTree = await renderProfileSubscreen('astra')
     TestRenderer.act(() => findButtonByText(secondTree, 'profile.apiKeys.createScoped').props.onPress())
     expect(secondTree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
   })
@@ -1153,7 +1006,7 @@ describe('ProfileScreen', () => {
     ]
     mockApiClient.mockImplementation((endpoint: string) =>
       Promise.resolve(endpoint === API.apiKeys.create ? createdKeys.shift() : undefined))
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
@@ -1176,7 +1029,7 @@ describe('ProfileScreen', () => {
     tree.unmount()
     mockStepUpVerified.current = true
     mockCreateGrant.consumed = false
-    const secondTree = await renderProfileScreen()
+    const secondTree = await renderProfileSubscreen('astra')
     await TestRenderer.act(async () => {
       findButtonByText(secondTree, 'profile.apiKeys.create').props.onPress()
       await Promise.resolve()
@@ -1199,7 +1052,7 @@ describe('ProfileScreen', () => {
         errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED',
       }, 'Challenge required'))
       .mockResolvedValueOnce(undefined)
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
 
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
@@ -1226,7 +1079,7 @@ describe('ProfileScreen', () => {
       settle = () => resolve({ message: 'sent' })
       reject = rejectPromise
     }))
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.create').props.onPress())
     expect(mockApiClient).toHaveBeenCalledWith(
       API.apiKeys.requestCreationChallenge,
@@ -1263,7 +1116,7 @@ describe('ProfileScreen', () => {
     vi.mocked(beginStepUpChallenge).mockReturnValueOnce(new Promise<StepUpTimingRecord>((resolve) => {
       settle = () => resolve({ operation: 'keys', sentAt: Date.now() })
     }))
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     await TestRenderer.act(async () => {
       findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
       await Promise.resolve()
@@ -1291,7 +1144,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
     expect(
       astra.findAll((node: { children: unknown[] }) =>
@@ -1310,7 +1163,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile' },
+      params: { from: '/profile/astra' },
     })
   })
 
@@ -1325,7 +1178,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
     const progress = astra.findByProps({
       accessibilityRole: 'progressbar',
@@ -1350,7 +1203,7 @@ describe('ProfileScreen', () => {
     })
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
-      params: { from: '/profile' },
+      params: { from: '/profile/astra' },
     })
     const proactiveSwitch = astra.findByProps({
       accessibilityRole: 'switch',
@@ -1388,7 +1241,7 @@ describe('ProfileScreen', () => {
       isLoading: false,
       error: null,
     }
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('astra')
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
 
     expect(
@@ -1405,29 +1258,6 @@ describe('ProfileScreen', () => {
     ).toHaveLength(0)
   })
 
-  it('places export last in You instead of Ending things', async () => {
-    const tree = await renderProfileScreen()
-    const youGroup = tree.root.find(
-      (node: { props: { testID?: string } }) =>
-        node.props.testID === 'profile-settings-group-you',
-    )
-    const endingGroup = tree.root.find(
-      (node: { props: { testID?: string } }) =>
-        node.props.testID === 'profile-settings-group-ending',
-    )
-    const youRows = youGroup.findAll(
-      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
-    ) as SettingsRowStubNode[]
-
-    expect(youRows.at(-1)?.props.label).toBe('profile.settingsRows.export')
-    expect(
-      endingGroup.findAll(
-        (node: SettingsRowStubNode) =>
-          node.type === 'SettingsRowStub' && node.props.label === 'profile.settingsRows.export',
-      ),
-    ).toHaveLength(0)
-  })
-
   it('shows Preparing on the row and registers completion in the shell notice slot', async () => {
     let finishExport!: (value: Record<string, never>) => void
     mockApiClient.mockReturnValueOnce(
@@ -1435,7 +1265,7 @@ describe('ProfileScreen', () => {
         finishExport = resolve
       }),
     )
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('account')
 
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.settingsRows.export').props.onPress?.()
@@ -1459,7 +1289,7 @@ describe('ProfileScreen', () => {
   })
 
   it('opens the timezone picker from the timezone row', async () => {
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('preferences')
 
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.settingsRows.timezone').props.onPress?.()
@@ -1476,56 +1306,10 @@ describe('ProfileScreen', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('places usage analytics beside product email consent in Notifications', async () => {
-    const tree = await renderProfileScreen()
-    const notificationsGroup = tree.root.find(
-      (node: { props: { testID?: string } }) =>
-        node.props.testID === 'profile-settings-group-notifications',
-    )
-
-    expect(
-      notificationsGroup.findAll(
-        (node: { props: { testID?: string } }) =>
-          node.props.testID === 'marketing-consent-section',
-      ),
-    ).toHaveLength(1)
-    expect(nodeText(notificationsGroup)).not.toContain('profile.analytics.description')
-    expect(
-      notificationsGroup.findAll(
-        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-          node.props.accessibilityRole === 'switch' &&
-          node.props.accessibilityLabel === 'profile.analytics.title',
-      ).length,
-    ).toBeGreaterThan(0)
-    expect(
-      notificationsGroup.findAll(
-        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-          node.props.accessibilityRole === 'button' &&
-          ['profile.settingsRows.reminders', 'habits.form.slipAlert'].includes(
-            node.props.accessibilityLabel ?? '',
-          ),
-      ),
-    ).toHaveLength(0)
-
-    expect(
-      notificationsGroup.findAll(
-        (node: { children: unknown[] }) =>
-          node.children.includes('profile.settingsRows.remindersNote'),
-      ),
-    ).toHaveLength(1)
-    expect(
-      notificationsGroup.findAll(
-        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-          node.props.accessibilityRole === 'switch' &&
-          node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice',
-      ),
-    ).not.toHaveLength(0)
-  })
-
   it('renders only the drawn Notifications rows and the recorded deviations, in order', async () => {
     mockPushSupported.current = true
     mockRealConsentSection.current = true
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     const notificationsGroup = tree.root.findByProps({ testID: 'profile-settings-group-notifications' })
     const controls = notificationsGroup.findAll(
       (node: { type: unknown; props: { accessibilityRole?: string; onPress?: () => void } }) =>
@@ -1539,30 +1323,27 @@ describe('ProfileScreen', () => {
     ).map(nodeText).filter(Boolean)
 
     expect(textLines).toEqual([
-      'profile.groups.notifications',
+      'profile.settingsRows.devices',
+      '0 of 5',
+      'profile.settingsRows.currentDevice',
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
       'profile.marketingEmails.accept',
       'profile.marketingEmails.decline',
-      'profile.analytics.title',
-      'profile.settingsRows.devices',
-      '0 of 5',
-      'profile.settingsRows.currentDevice',
       'profile.settingsRows.remindersNote',
     ])
     expect(controls.map((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
       `${node.props.accessibilityRole}: ${node.props.accessibilityLabel ?? nodeText(node)}`)).toEqual([
+      'switch: profile.settingsRows.alertsOnThisDevice',
       'button: profile.marketingEmails.accept',
       'button: profile.marketingEmails.decline',
-      'switch: profile.analytics.title',
-      'switch: profile.settingsRows.alertsOnThisDevice',
     ])
   })
 
   it('restores the analytics switch and announces a failed local save', async () => {
     const write = vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('storage failed'))
     try {
-      const tree = await renderProfileScreen()
+      const tree = await renderProfileSubscreen('account')
       const control = tree.root.find(
         (node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
           node.props.accessibilityRole === 'switch' &&
@@ -1635,7 +1416,7 @@ describe('ProfileScreen', () => {
 
   it('places the clock choice between week start and language', async () => {
     mockProfileState.current = { ...mockProfileState.current, profile: createMockProfile({ uses24HourClock: true }) }
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('preferences')
     const rows = tree.root.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
     const labels = rows.map((row: SettingsRowStubNode) => row.props.label)
     expect(labels.indexOf('profile.settingsRows.weekStart')).toBeLessThan(labels.indexOf('settings.clock.title'))
@@ -1644,7 +1425,7 @@ describe('ProfileScreen', () => {
   })
 
   it('opens each inline preference directly and sends Support to its form', async () => {
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('preferences')
     for (const label of ['profile.language.title', 'profile.settingsRows.weekStart', 'settings.clock.title']) {
       mockRouterPush.mockClear()
       await TestRenderer.act(async () => {
@@ -1655,8 +1436,9 @@ describe('ProfileScreen', () => {
     }
     expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
       node.props.accessibilityRole === 'radiogroup' && node.props.accessibilityLabel === 'profile.settingsRows.theme').length).toBeGreaterThan(0)
+    const top = await renderProfileScreen()
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'profile.support.rowTitle').props.onPress?.()
+      findRowByLabel(top, 'profile.support.rowTitle').props.onPress?.()
       await Promise.resolve()
     })
     expect(mockRouterPush).toHaveBeenCalledWith('/support')
@@ -1665,7 +1447,7 @@ describe('ProfileScreen', () => {
 
   it('refreshes push permission when the app becomes active', async () => {
     mockPushSupported.current = true
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     expect(mockAddAppStateListener).toHaveBeenCalledWith('change', expect.any(Function))
     const onAppStateChange = mockAddAppStateListener.mock.calls[0]?.[1] as (state: string) => void
     await TestRenderer.act(async () => {
@@ -1685,7 +1467,7 @@ describe('ProfileScreen', () => {
   it('changes theme and general habits from their inline controls', async () => {
     const write = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     try {
-      const tree = await renderProfileScreen()
+      const tree = await renderProfileSubscreen('preferences')
       await TestRenderer.act(async () => {
         tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
           node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'preferences.themeModeLight' && typeof node.props.onPress === 'function').props.onPress()
@@ -1701,7 +1483,7 @@ describe('ProfileScreen', () => {
   })
 
   it('commits language and week start through the inline pickers', async () => {
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('preferences')
     TestRenderer.act(() => {
       findRowByLabel(tree, 'profile.language.title').props.onPress?.()
     })
@@ -1726,7 +1508,7 @@ describe('ProfileScreen', () => {
 
   it('uses an inline switch for this device', async () => {
     mockPushSupported.current = true
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
         node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()
@@ -1737,7 +1519,7 @@ describe('ProfileScreen', () => {
 
   it.each([0, 1, 5])('shows %i devices against the cap', async (count) => {
     mockDeviceState.current.count = count
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     expect(nodeText(tree.root)).toContain(`profile.settingsRows.devices${count} of 5`)
     expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
     expect(nodeText(tree.root)).not.toContain('profile.settingsRows.alertsOnThisDevice')
@@ -1747,7 +1529,7 @@ describe('ProfileScreen', () => {
     mockPushSupported.current = true
     mockDeviceState.current.count = 1
     mockDeviceState.current.isCurrentDeviceRegistered = true
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     const control = tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
       node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function')
     expect(control.props.accessibilityState?.checked).toBe(true)
@@ -1758,7 +1540,7 @@ describe('ProfileScreen', () => {
   it('reserves the count while devices load', async () => {
     mockDeviceState.current.count = undefined
     mockDeviceState.current.isLoading = true
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
       node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === 'profile.loading')).not.toHaveLength(0)
   })
@@ -1766,7 +1548,7 @@ describe('ProfileScreen', () => {
   it('explains the full device cap', async () => {
     mockPushSupported.current = true
     mockDeviceState.current.count = 5
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     expect(nodeText(tree.root)).toContain('profile.settingsRows.pushDeviceLimit')
     expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityState?: { disabled?: boolean } } }) =>
       node.props.accessibilityRole === 'switch' && node.props.accessibilityState?.disabled === true)).not.toHaveLength(0)
@@ -1774,7 +1556,7 @@ describe('ProfileScreen', () => {
 
   it('offers retry when the device list fails', async () => {
     mockDeviceState.current.isError = true
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
         node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'common.retry' && typeof node.props.onPress === 'function').props.onPress()
@@ -1784,7 +1566,7 @@ describe('ProfileScreen', () => {
   })
 
   it('refreshes the device count when Perfil regains focus', async () => {
-    await renderProfileScreen()
+    await renderProfileSubscreen('notifications')
     expect(mockFocusCallback.current).toBeTypeOf('function')
     await TestRenderer.act(async () => {
       mockFocusCallback.current?.()
@@ -1797,7 +1579,7 @@ describe('ProfileScreen', () => {
     mockPushSupported.current = true
     mockDeviceState.current.count = 1
     mockDeviceState.current.isCurrentDeviceRegistered = true
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
         node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()
@@ -1811,7 +1593,7 @@ describe('ProfileScreen', () => {
   it('opens device settings when push permission is denied', async () => {
     mockPushSupported.current = true
     mockPushPermissionStatus.current = 'denied'
-    const tree = await renderProfileScreen()
+    const tree = await renderProfileSubscreen('notifications')
     await TestRenderer.act(async () => {
       tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
         node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function').props.onPress()

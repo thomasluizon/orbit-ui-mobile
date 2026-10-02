@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-type GroupLabels = Record<ProfileSettingsGroupId, string>
+type GroupLabels = Partial<Record<ProfileSettingsGroupId, string>>
 type GroupRows = Partial<Record<ProfileSettingsGroupId, ReactNode>>
 
 interface ProfileSettingsFrameProps {
@@ -61,9 +61,9 @@ export function ProfileSettingsFrame({
           testID={`profile-settings-group-${group.id}`}
           style={styles.group}
         >
-          <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>
+          {labels[group.id] ? <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg1 }]}>
             {labels[group.id]}
-          </Text>
+          </Text> : null}
           {rows[group.id] == null
             ? null
             : uncontainedGroups.includes(group.id)

@@ -12,11 +12,7 @@ describe('ProfileSettingsFrame', () => {
         isLoading={false}
         loadingLabel="Loading profile"
         labels={{
-          you: 'You',
-          astra: 'Astra',
-          notifications: 'Notifications',
           more: 'More of Orbit',
-          ending: 'Ending things',
         }}
         rows={{ more: <div>About Orbit</div> }}
       />,
@@ -25,11 +21,7 @@ describe('ProfileSettingsFrame', () => {
     expect(screen.getByTestId('profile-settings-groups')).toHaveStyle({ gap: '32px' })
     expect(screen.getByTestId('profile-settings-group-more')).toHaveStyle({ gap: '12px' })
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
-      'You',
-      'Astra',
-      'Notifications',
       'More of Orbit',
-      'Ending things',
     ])
   })
 

@@ -8,7 +8,7 @@ import {
 import { RowList } from '@/components/ui/row-list'
 import { Skeleton } from '@/components/ui/skeleton'
 
-type GroupLabels = Record<ProfileSettingsGroupId, string>
+type GroupLabels = Partial<Record<ProfileSettingsGroupId, string>>
 type GroupRows = Partial<Record<ProfileSettingsGroupId, ReactNode>>
 
 interface ProfileSettingsFrameProps {
@@ -69,9 +69,9 @@ export function ProfileSettingsFrame({
           className="flex flex-col"
           style={{ gap: 12 }}
         >
-          <h2 className="font-sans text-[20px] font-medium tracking-[-0.01em] text-[var(--fg-1)]">
+          {labels[group.id] ? <h2 className="font-sans text-[20px] font-medium tracking-[-0.01em] text-[var(--fg-1)]">
             {labels[group.id]}
-          </h2>
+          </h2> : null}
           {rows[group.id] == null
             ? null
             : uncontainedGroups.includes(group.id)

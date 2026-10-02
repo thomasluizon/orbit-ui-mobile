@@ -1724,6 +1724,10 @@
     }
   },
   "profile": {
+    "submenus": {
+      "account": "Conta",
+      "preferences": "Preferências"
+    },
     "analytics": {
       "title": "Análise de uso",
       "saveError": "Alteração não salva. Tente de novo."
