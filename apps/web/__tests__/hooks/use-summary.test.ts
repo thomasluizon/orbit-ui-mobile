@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useSummary } from '@/hooks/use-summary'
 import { habitKeys } from '@orbit/shared/query'
+import './session-query-setup'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -46,6 +47,8 @@ describe('useSummary', () => {
       { wrapper: createWrapper() },
     )
 
+    expect(result.current.summary).toBeNull()
+    expect(result.current.isLoading).toBe(true)
     await waitFor(() => expect(result.current.summary).toBeTruthy())
     expect(result.current.summary).toBe('Great day! You completed 5 out of 6 habits.')
     expect(result.current.isLoading).toBe(false)
