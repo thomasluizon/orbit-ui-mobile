@@ -9,21 +9,43 @@ export const HANDOFF_PROMPT_PATH = ".claude/handoffs/NEXT.md"
 const REQUEST_FILE = "orbit-handoff-request.json"
 const KEPT_REQUESTS = 20
 
-const HANDOFF_COMMANDS = new Set(["handoff", "wrap-up"])
 const SLEEP_TOKEN = /(^|\s)(--sleep|\/sleep)(\s|$)/
 // The hook documentation gives the typed text; the transcript stores the expanded command tags. Accept both.
-const TYPED_COMMAND = /^\s*\/([a-z][\w-]*)\b([\s\S]*)$/
-const TAGGED_COMMAND = /<command-name>\/([a-z][\w-]*)<\/command-name>/
+const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|(?:^|[\s(])\/(handoff|wrap-up)(?=$|[\s),;!?])/g
 const TAGGED_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
+const QUOTED_CONTENT = /<pasted_content\b[^>]*>[\s\S]*?(?:<\/pasted_content\s*>|(?![\s\S]))|^[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n|$)|(`+)/gm
+
+const ownerPromptText = (prompt) => {
+  const parts = []
+  let previousEnd = 0
+  for (const quoted of prompt.matchAll(QUOTED_CONTENT)) {
+    if (quoted.index < previousEnd) continue
+    const delimiter = quoted[1] ?? quoted[2]
+    let end = quoted.index + quoted[0].length
+    if (delimiter) {
+      const closing = quoted[1]
+        ? new RegExp(`^[ \\t]{0,3}${delimiter[0]}{${delimiter.length},}[ \\t]*\\r?$`, "gm")
+        : new RegExp(`(?<!${delimiter[0]})${delimiter[0]}{${delimiter.length}}(?!${delimiter[0]})`, "g")
+      closing.lastIndex = end
+      const match = closing.exec(prompt)
+      if (!match && quoted[2]) continue
+      end = match ? match.index + match[0].length : prompt.length
+    }
+    parts.push(prompt.slice(previousEnd, quoted.index), prompt.slice(quoted.index, end).replace(/[^\r\n]/g, " "))
+    previousEnd = end
+  }
+  return parts.join("") + prompt.slice(previousEnd)
+}
 
 /** A `/handoff` or `/wrap-up` invocation and whether it asked for an unattended next session, or null. */
 export const parseHandoffRequest = (prompt) => {
   if (typeof prompt !== "string") return null
-  const tagged = TAGGED_COMMAND.exec(prompt)
-  const typed = tagged ? null : TYPED_COMMAND.exec(prompt)
-  const command = tagged?.[1] ?? typed?.[1]
-  if (!command || !HANDOFF_COMMANDS.has(command)) return null
-  const args = tagged ? (TAGGED_ARGS.exec(prompt)?.[1] ?? "") : typed[2]
+  const text = ownerPromptText(prompt)
+  const [first, next] = text.matchAll(HANDOFF_COMMAND)
+  if (!first) return null
+  const command = first[1] ?? first[2]
+  const trailing = text.slice(first.index + first[0].length, next?.index ?? text.length)
+  const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing
   return { command, sleep: SLEEP_TOKEN.test(args) }
 }
 
