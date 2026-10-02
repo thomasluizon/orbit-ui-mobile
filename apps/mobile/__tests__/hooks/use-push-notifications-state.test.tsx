@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
     user: { userId: 'user-1' },
   }
   return {
+    capacity: vi.fn(() => Promise.resolve(true)),
     storage: new Map<string, string>(),
     setAstraConversationOpen: vi.fn(),
     invalidateQueries: vi.fn(() => Promise.resolve()),
@@ -35,6 +36,8 @@ const mocks = vi.hoisted(() => {
     auth,
   }
 })
+
+vi.mock('@/hooks/use-push-subscriptions', () => ({ hasPushSubscriptionCapacity: mocks.capacity }))
 
 vi.mock('expo', () => ({
   isRunningInExpoGo: () => mocks.expoGo,
@@ -203,6 +206,7 @@ describe('usePushNotifications', () => {
     globalPromptResult = null
     profileSurfaceResult = null
     mocks.storage.clear()
+    mocks.capacity.mockReset().mockResolvedValue(true)
     mocks.apiClient.mockClear()
     mocks.invalidateQueries.mockClear()
     mocks.router.push.mockClear()
@@ -566,6 +570,106 @@ describe('usePushNotifications', () => {
     })
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+  })
+
+  it('grants first use and registers this device once', async () => {
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => {
+      await Promise.all([latestResult!.requestFirstUsePermission(), latestResult!.requestFirstUsePermission()])
+    })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+    expect(latestResult!.isEnabled).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('finishes first-use registration when the token arrives while Hoje stays focused', async () => {
+    let finishCapacityCheck: ((hasCapacity: boolean) => void) | undefined
+    mocks.capacity.mockImplementation((token?: string | null) => token
+      ? new Promise<boolean>((resolve) => { finishCapacityCheck = resolve })
+      : Promise.resolve(true))
+    function FocusedToday() {
+      const { requestFirstUsePermission } = usePushNotifications()
+      React.useEffect(() => {
+        let focused = true
+        void requestFirstUsePermission(() => focused)
+        return () => { focused = false }
+      }, [requestFirstUsePermission])
+      return <Harness />
+    }
+    await TestRenderer.act(() => {
+      TestRenderer.create(<PushNotificationsProvider><FocusedToday /></PushNotificationsProvider>)
+    })
+    await flush()
+    expect(finishCapacityCheck).toBeDefined()
+    await TestRenderer.act(() => { finishCapacityCheck!(true) })
+    await flush()
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+    expect(latestResult!.isEnabled).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscribe, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('does not prompt or register a sixth device on first use or from settings', async () => {
+    mocks.capacity.mockResolvedValue(false)
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    await TestRenderer.act(async () => { await latestResult!.requestPermission() })
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(latestResult!.isEnabled).toBe(false)
+    expect(latestResult!.error).toBe('Turn off alerts on another device to use this one.')
+  })
+
+  it('does not prompt after focus was lost while checking capacity', async () => {
+    let focused = true
+    mocks.capacity.mockImplementation(() => { focused = false; return Promise.resolve(true) })
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission(() => focused) })
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('asks on first use once per install, even after an askable refusal', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(createPermissionResponse('denied', true))
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+    expect(latestResult!.isEnabled).toBe(false)
+  })
+
+  it('keeps the answered fact across provider remounts and account changes', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(createPermissionResponse('denied', true))
+    const first = await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    await TestRenderer.act(() => { first.update(<></>) })
+    mocks.auth.user = { userId: 'user-2' }
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+  })
+
+  it('does not ask on first use when onboarding already asked on this install', async () => {
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(createPermissionResponse('denied', true))
+    await renderHarness()
+    await flush()
+    await TestRenderer.act(async () => { await latestResult!.requestPermissionOutcome(false) })
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalledOnce()
+  })
+
+  it('never asks on first use after sign-out', async () => {
+    await renderHarness()
+    await flush()
+    mocks.auth.isAuthenticated = false
+    mocks.auth.user = null
+    await TestRenderer.act(async () => { await latestResult!.requestFirstUsePermission() })
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
   })
 
   it('prompts for permission and registers once the user grants it', async () => {

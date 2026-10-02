@@ -16,6 +16,7 @@ import {
   selectSuggestedSubHabitTitles,
 } from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
+import { useReminderPermission } from '@/hooks/use-reminder-permission'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
@@ -127,6 +128,7 @@ export function CreateHabitModal({
   const activeView = useUIStore((s) => s.activeView)
   const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', hasProAccess ? 'pro' : 'free')
 
+  const { requestPermission: requestReminderPermission } = useReminderPermission(false, () => {})
   const formHelpers = useHabitForm({
     initialData: {
       dueDate: initialDate ?? formatAPIDate(new Date()),
@@ -312,14 +314,16 @@ export function CreateHabitModal({
       }
 
       const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
-      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
-
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
         selectedTagIds: tags.selectedTagIds,
         subHabits: subHabitValues,
       })
+      const reminderForm = habitFormSchema.safeParse(formHelpers.form.getValues())
+      if (!error && isOnline && reminderForm.success && reminderForm.data.reminderEnabled) requestReminderPermission()
+      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+
       if (error) {
         showError(error)
         return
@@ -352,7 +356,7 @@ export function CreateHabitModal({
         )
       }
     },
-    [canUseSubHabits, finishClose, createErrorEntity, createErrorKey, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [requestReminderPermission, canUseSubHabits, finishClose, createErrorEntity, createErrorKey, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(

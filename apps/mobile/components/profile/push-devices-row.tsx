@@ -79,6 +79,7 @@ export function PushDevicesRow({
   error,
   permissionStatus,
   registrationStatus,
+  limitError = false,
   onToggle,
   onOpenSettings,
   onRetry,
@@ -92,6 +93,7 @@ export function PushDevicesRow({
   error: boolean
   permissionStatus: NotificationPermissionStatus | null
   registrationStatus: NativePushRegistrationStatus
+  limitError?: boolean
   onToggle: () => void
   onOpenSettings: () => void
   onRetry: () => void
@@ -115,7 +117,7 @@ export function PushDevicesRow({
       <PushDevicesFeedback
         tokens={tokens}
         error={error}
-        full={limitReached && !error && !currentDeviceRegistered && !canEnable}
+        full={!error && !currentDeviceRegistered && (limitError || (limitReached && !canEnable))}
         supported={supported}
         permissionStatus={permissionStatus}
         registrationStatus={registrationStatus}

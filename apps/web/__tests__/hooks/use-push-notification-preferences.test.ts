@@ -486,6 +486,22 @@ describe('use-push-notification-preferences helpers', () => {
     expect((await loadPushNotificationState('account-b')).status).toBe('registered')
   })
 
+  it('does not reopen the OS prompt after a denied answer', async () => {
+    const { requestPermission, subscribe } = setupPushEnvironment({ permission: 'denied' })
+    expect((await subscribeToPushNotifications()).status).toBe('denied')
+    expect((await ensurePushSubscription()).status).toBe('denied')
+    expect(requestPermission).not.toHaveBeenCalled()
+    expect(subscribe).not.toHaveBeenCalled()
+    expect(mockSubscribePush).not.toHaveBeenCalled()
+  })
+
+  it('shares one permission dialog between reminder gestures', async () => {
+    const { requestPermission } = setupPushEnvironment({ permission: 'default', requestPermissionResult: 'granted' })
+    const results = await Promise.all([ensurePushSubscription(), ensurePushSubscription()])
+    expect(requestPermission).toHaveBeenCalledOnce()
+    expect(results.every((result) => result.status === 'registered')).toBe(true)
+  })
+
   it('refuses to subscribe without a VAPID key before prompting or dropping the current subscription', async () => {
     delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
     const existingSubscription = createMockSubscription()

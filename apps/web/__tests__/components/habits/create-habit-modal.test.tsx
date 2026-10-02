@@ -40,6 +40,15 @@ const mockHabitFormFieldsState = vi.hoisted(() => ({
   onPhraseOwnershipChange: undefined as undefined | ((ownership: { cadence: boolean; dueTime: boolean }) => void),
 }))
 
+const pushPermission = vi.hoisted(() => ({ subscribe: vi.fn(async () => ({ permission: 'granted' })) }))
+vi.mock('@/hooks/use-push-notification-preferences', () => ({
+  ensurePushSubscription: pushPermission.subscribe,
+  isPushNotificationSupported: () => true,
+}))
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => {
     const t = (key: string, params?: Record<string, unknown>) => {
@@ -266,6 +275,7 @@ async function traverseHistory(direction: 'back' | 'forward') {
 
 describe('CreateHabitModal', () => {
   beforeEach(() => {
+    vi.stubGlobal('Notification', { permission: 'default' })
     Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
     vi.clearAllMocks()
     mockFormStatus.dirty = false
@@ -538,6 +548,15 @@ describe('CreateHabitModal', () => {
     )
     expect(screen.getByRole('button', { name: 'common.cancel' })).toBeDefined()
     expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
+  })
+
+  it('starts permission from Save when a reminder was prefilled', async () => {
+    const values = mockFormGetValues()
+    mockFormGetValues.mockReturnValue({ ...values, reminderEnabled: true, dueTime: '09:00' })
+    renderWithProviders(<CreateHabitModal open onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+    expect(pushPermission.subscribe).toHaveBeenCalledOnce()
+    await waitFor(() => expect(mockCreateMutateAsync).toHaveBeenCalledOnce())
   })
 
   it('submits through the named Create footer action', async () => {
