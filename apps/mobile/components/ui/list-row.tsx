@@ -35,9 +35,13 @@ function chevronStyle(textMode: ListRowProps['textMode']) {
   return textMode ? styles.chevron : styles.control
 }
 
+function wrappedTitleStyle(textMode: ListRowProps['textMode'], wrapTitle: ListRowProps['wrapTitle']) {
+  return textMode === 'label' || wrapTitle ? styles.wrappedTitle : null
+}
+
 function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing'> & { titleColor: string; valueColor: string }>) {
   const text = <View style={[styles.textBlock, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]}>
-    <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, { color: titleColor }]}>{title}</Text>
+    <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Text>
     {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
   </View>
   const rowValue = value ? <RowValue value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} /> : null
@@ -112,6 +116,7 @@ const styles = StyleSheet.create({
   labelTextBlock: { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' },
   wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
+  wrappedTitle: { lineHeight: 23.8 },
   chevron: { width: 24, minHeight: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   personalDescription: { fontSize: 12, lineHeight: 16.8 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },

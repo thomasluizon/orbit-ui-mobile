@@ -27,10 +27,14 @@ function descriptionClass(textMode: WebListRowProps['textMode'], wrapTitle: WebL
   return wrapTitle ? 'break-words' : undefined
 }
 
+function titleLineHeight(textMode: WebListRowProps['textMode'], wrapTitle: WebListRowProps['wrapTitle']) {
+  return textMode === 'label' || wrapTitle ? 1.4 : 1.25
+}
+
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger'>>) {
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' } : {}) }}>
-    <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 break-all' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
+    <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 break-all' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</span>
     {description ? <span className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? 12 : 14, lineHeight: 1.4 }}>{description}</span> : null}
   </span>
 }

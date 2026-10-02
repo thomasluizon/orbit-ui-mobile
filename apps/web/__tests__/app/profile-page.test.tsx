@@ -304,7 +304,7 @@ describe('ProfilePage', () => {
     it.each([1, 2])('reveals the full account email within the row at %s text scale', async (textScale) => {
       translateProMessages('en')
       const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
-      mockProfileState.current.profile = createMockProfile({ name: 'Marina', email })
+      mockProfileState.current.profile = createMockProfile({ name: `Marina ${'Silva'.repeat(16)}`, email })
       render(<ProfilePage />)
       const accountLink = screen.getByRole('link', { name: /Marina/ })
       expect(accountLink).toHaveAttribute('href', '/profile/account')
@@ -318,11 +318,17 @@ describe('ProfilePage', () => {
           const row = Array.from(document.querySelectorAll('.orbit-list-row-shell')).find((row) => row.textContent.includes(email))!
           const description = Array.from(row.querySelectorAll<HTMLElement>('span')).find((span) => span.textContent === email)!
           description.style.fontSize = `${parseFloat(getComputedStyle(description).fontSize) * textScale}px`
-          return { overflow: row.scrollWidth > row.clientWidth, clamped: getComputedStyle(description).webkitLineClamp, text: description.textContent }
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          title.style.fontSize = `${parseFloat(getComputedStyle(title).fontSize) * textScale}px`
+          const range = document.createRange()
+          range.selectNodeContents(title)
+          return { overflow: row.scrollWidth > row.clientWidth, clamped: getComputedStyle(description).webkitLineClamp, text: description.textContent, nameLines: range.getClientRects().length, lineHeightRatio: parseFloat(getComputedStyle(title).lineHeight) / parseFloat(getComputedStyle(title).fontSize) }
         }, { email, textScale })
         expect(geometry.text).toBe(email)
         expect(geometry.clamped).toBe('none')
         expect(geometry.overflow).toBe(false)
+        expect(geometry.nameLines).toBeGreaterThanOrEqual(3)
+        expect(geometry.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
       } finally { await page.close() }
     })
 

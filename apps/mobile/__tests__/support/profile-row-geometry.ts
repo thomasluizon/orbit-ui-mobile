@@ -102,7 +102,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
     return { height: layout.getComputedHeight(), texts: texts.map(({ node, label, style, limit }) => {
       const lines = wrappedLines(label, node.getComputedWidth(), style, scale)
-      return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit }
+      return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize) * 1.4) / Number(style.fontSize) }
     }) }
   } finally { layout.freeRecursive() }
 }

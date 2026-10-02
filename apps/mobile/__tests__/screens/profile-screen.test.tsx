@@ -628,7 +628,7 @@ describe('ProfileScreen', () => {
 
   it.each([1, 2])('reveals the full account email within the Android row at %s text scale', async (textScale) => {
     const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
-    mockProfileState.current.profile = createMockProfile({ name: 'Marina', email })
+    mockProfileState.current.profile = createMockProfile({ name: `Marina ${'Silva'.repeat(16)}`, email })
     mockRealListRow.current = true
     const root = await renderProfileScreen()
     const account = root.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.description === email)!
@@ -643,6 +643,8 @@ describe('ProfileScreen', () => {
       try {
         const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
         const description = geometry.texts.find(({ label }) => label === email)!
+        expect(geometry.texts[0]!.lines).toBeGreaterThanOrEqual(3)
+        expect(geometry.texts[0]!.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
         expect(description.clipped).toBe(false)
         expect(description.lines).toBeGreaterThan(2)
         expect(description.right).toBeLessThanOrEqual(288)
