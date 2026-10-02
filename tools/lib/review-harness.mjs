@@ -106,7 +106,9 @@ export const renderUiReviewSweepContract = () => {
   const laneLines = UI_REVIEW_SWEEP_CONTRACT.lanes
     .map(({ name, applicability, skills }) => `- ${name} (${applicability}): ${inlineCodeList(skills)}`)
     .join("\n")
-  const closeGate = inlineCodeList(UI_REVIEW_SWEEP_CONTRACT.closeGate.map(({ instruction }) => instruction))
+  const closeGate = UI_REVIEW_SWEEP_CONTRACT.closeGate
+    .map(({ name, instruction }) => `- One for \`${instruction}\`, told to read \`.claude/agents/${name}.md\`.`)
+    .join("\n")
 
   return `Use \`.claude/playbooks/redesign-screen.md\` as the authority. Complete all three source families before starting a lane:
 
@@ -122,11 +124,16 @@ gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \\
 Stop if \`truncated\` is \`true\`. Read every printed path from \`https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>\`.
 3. ${vercel.instruction}.
 
-Run the four read-only lanes in this order:
+Run the four read-only lanes yourself, in this session, in order:
 
 ${laneLines}
 
-Within the change lane, run \`interface-review\` before \`better-interface\`. Then close with ${closeGate}.
+Within the change lane, run \`interface-review\` before \`better-interface\`.
+Spawn exactly two sub-agents for the close gate:
+
+${closeGate}
+
+Spawn no other sub-agent. If no changed path matches the sweep's scope, spawn none.
 Verify each lane's PASS, not only its findings. A routed domain marked skipped is not covered.
 Fix every in-scope finding in this pull request. Only then write:
 

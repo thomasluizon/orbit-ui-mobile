@@ -11,6 +11,7 @@
         "--ignore-user-config",
         "--dangerously-bypass-approvals-and-sandbox"
       ],
+      "subagentOffArgs": ["--disable", "multi_agent"],
       "models": {
         "default": {
           "model": "gpt-6.1-sol",
@@ -39,6 +40,7 @@
         "--permission-mode",
         "bypassPermissions"
       ],
+      "subagentOffArgs": ["--disallowed-tools", "Task"],
       "models": {
         "default": {
           "model": "claude-opus-5-5"
