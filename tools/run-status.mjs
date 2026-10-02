@@ -88,14 +88,15 @@ const validPull = (pull, number) => pull?.number === number &&
   pull.reviewThreads.nodes.every((thread) => thread && typeof thread.isResolved === "boolean" && Array.isArray(thread.comments?.nodes)) &&
   (pull.statusCheckRollup === null || (Array.isArray(pull.statusCheckRollup?.contexts?.nodes) && pull.statusCheckRollup.contexts.nodes.every((check) => check.__typename === "CheckRun" ? typeof check.name === "string" && typeof check.status === "string" : check.__typename === "StatusContext" && typeof check.context === "string" && typeof check.state === "string") && typeof pull.statusCheckRollup.contexts.pageInfo?.hasNextPage === "boolean"))
 
-const deliveryIsCurrent = (row, pull) => {
+const deliveryIsCurrent = (row, pull, rejectedFingerprint) => {
   const delivery = readJson(row.deliveryPath ?? `${row.receiptPath}.delivery.json`)
   const state = delivery?.checks?.pullRequestState
   const ci = delivery?.checks?.ci
   return delivery?.checks?.prCount?.number === row.prNumber && state?.headSha === pull.headRefOid &&
     state?.baseSha === pull.baseRefOid && state?.baseBranch === pull.baseRefName &&
     ci?.pass === true && Array.isArray(ci.pending) && ci.pending.length === 0 &&
-    Array.isArray(ci.failing) && ci.failing.length === 0 && typeof ci.registrationFingerprint === "string"
+    Array.isArray(ci.failing) && ci.failing.length === 0 && typeof ci.registrationFingerprint === "string" &&
+    ci.registrationFingerprint !== rejectedFingerprint
 }
 
 const observePull = (row, pull, launches, wakes) => {
@@ -116,7 +117,9 @@ const observePull = (row, pull, launches, wakes) => {
     : receipt.currentHeadSha !== pull.headRefOid || receipt.currentBaseSha !== pull.baseRefOid ? "RECEIPT_STALE" : "CURRENT"
   const receiptVerdict = receipt ? readinessReport(receipt).verdict : null
   const receiptCiCurrent = receiptStatus === "CURRENT" && !readinessReport(receipt).verdicts.includes("CI_STALE")
-  const currentDelivery = deliveryIsCurrent(row, pull)
+  // A CI_STALE receipt rejects the artifact it evaluated; refreshed evidence can still advance.
+  const rejectedFingerprint = receiptStatus === "CURRENT" && !receiptCiCurrent ? receipt.ci?.checks?.registrationFingerprint : null
+  const currentDelivery = deliveryIsCurrent(row, pull, rejectedFingerprint)
   const observation = { ...identity, status: pull.state, draft: pull.isDraft, head: pull.headRefOid, base: pull.baseRefOid,
     baseBranch: pull.baseRefName, mergeStateStatus: pull.mergeStateStatus, checks,
     review: review ? { state: review.state, submittedAt: review.submittedAt } : null,

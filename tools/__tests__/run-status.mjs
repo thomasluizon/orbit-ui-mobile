@@ -267,6 +267,21 @@ export const assertRepositoryLabel = (ticket) => ticket
   advanced = execute(report.nextActions[0].command)
   T("run-status: the pending-to-green command sequence reaches a quoted READY receipt", advanced.status === 0 && /"verdict": "READY"/.test(advanced.stdout) && (await snapshot()).nextActions[0].type === "MERGE_CANDIDATE", advanced.stdout + advanced.stderr)
 
+  const originalFingerprint = JSON.parse(readFileSync(row.deliveryPath, "utf8")).checks.ci.registrationFingerprint
+  pull.statusCheckRollup.contexts.nodes[0].startedAt = "2026-10-01T22:00:00Z"
+  setPull(pull)
+  report = await snapshot()
+  advanced = execute(report.nextActions[0].command)
+  const rejectedReceipt = JSON.parse(readFileSync(receiptPath, "utf8"))
+  T("run-status: a same-head green rerun rejects the cached delivery through the recommended recorder", advanced.status === 1 && /"verdict": "CI_STALE"/.test(advanced.stdout) && rejectedReceipt.currentHeadSha === headSha && rejectedReceipt.currentBaseSha === baseSha && rejectedReceipt.ci.checks.registrationFingerprint === originalFingerprint, advanced.stdout + advanced.stderr)
+  report = await snapshot()
+  T("run-status: rejected same-head green delivery requests verification before recording again", report.nextActions[0].type === "VERIFY_DELIVERY", JSON.stringify(report.nextActions))
+  advanced = execute(report.nextActions[0].command)
+  report = await snapshot()
+  T("run-status: refreshed same-head green delivery advances past the rejected fingerprint", advanced.status === 0 && JSON.parse(readFileSync(row.deliveryPath, "utf8")).checks.ci.registrationFingerprint !== originalFingerprint && report.nextActions[0].type === "RECORD_READINESS", JSON.stringify(report.nextActions) + advanced.stdout + advanced.stderr)
+  advanced = execute(report.nextActions[0].command)
+  T("run-status: the same-head green-rerun command sequence reaches a quoted READY receipt", advanced.status === 0 && /"verdict": "READY"/.test(advanced.stdout) && (await snapshot()).nextActions[0].type === "MERGE_CANDIDATE", advanced.stdout + advanced.stderr)
+
   for (const telemetry of ["absent", "corrupt"]) {
     resetTransition()
     for (const path of [launchResultPath, join(resultDirectory, `${indexedLaunch.launcherPid}.json`)]) {
