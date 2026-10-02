@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -44,7 +46,7 @@ function FieldWell({ children, tokens }: Readonly<{ children: React.ReactNode; t
 
 function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onSave: () => void }>) {
   const { t } = useTranslation()
-  return <View style={styles.actions}><PillButton variant="ghost" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></View>
+  return <View style={styles.actions}><ActionRow><PillButton variant="ghost" size="sm" onClick={onCancel}>{t('common.cancel')}</PillButton><PillButton variant="secondary" size="sm" onClick={onSave}>{t('common.save')}</PillButton></ActionRow></View>
 }
 
 function FrequencyUnitOption({ label, selected, tokens, onSelect }: Readonly<{ label: string; selected: boolean; tokens: Tokens; onSelect: () => void }>) {

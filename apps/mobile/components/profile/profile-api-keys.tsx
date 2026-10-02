@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
@@ -122,10 +124,10 @@ function ScopeSheet({
       title={t('profile.apiKeys.scopeTitle')}
       onClose={onClose}
       actions={(
-        <>
+        <ActionRow>
           <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
           <PillButton size="sm" disabled={!scope.trim()} loading={busy} onClick={() => void submit()}>{t('profile.apiKeys.scopeAction')}</PillButton>
-        </>
+        </ActionRow>
       )}
     >
       <Input
@@ -294,7 +296,11 @@ function ApiKeyCreateControls({
     return <Text style={[styles.message, { color: tokens.fg3 }]}>{t('orbitMcp.maxKeysReached')}</Text>
   }
   return (
-    <View style={styles.actions}>
+    <View style={styles.actions}><ActionRow>
+      {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
+        {t('profile.apiKeys.createScoped')}
+      </PillButton>
       <PillButton
         variant="secondary"
         size="sm"
@@ -303,11 +309,7 @@ function ApiKeyCreateControls({
       >
         {t('profile.apiKeys.create')}
       </PillButton>
-      {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
-        {t('profile.apiKeys.createScoped')}
-      </PillButton>
-    </View>
+    </ActionRow></View>
   )
 }
 

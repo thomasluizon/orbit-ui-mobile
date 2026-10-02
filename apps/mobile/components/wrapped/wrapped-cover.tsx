@@ -108,14 +108,14 @@ function CoverBody({
           </View>
           <Text style={[styles.stateText, { color: tokens.fg2 }]}>{t('wrapped.empty')}</Text>
         </View>
-        <Button disabled>{t('wrapped.start')}</Button>
+        <Button size="md" disabled>{t('wrapped.start')}</Button>
       </View>
     )
   }
 
   return (
     <View style={styles.coverBody}>
-      <Button onClick={onStart}>{t('wrapped.start')}</Button>
+      <Button size="md" onClick={onStart}>{t('wrapped.start')}</Button>
     </View>
   )
 }

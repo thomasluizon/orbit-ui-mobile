@@ -1,7 +1,7 @@
 import { StyleSheet, Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createTokensV2 } from '@/lib/theme'
@@ -34,7 +34,6 @@ export function ConfirmSheet({
   confirmLabel,
   cancelLabel,
   destructive = false,
-  inlineActions = false,
   confirmImmediately = false,
   loading = false,
   onCloseComplete,
@@ -121,9 +120,9 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <DialogActionPair inline={inlineActions}>
+        <ActionRow>
           {cancelButton}{confirmButton}
-        </DialogActionPair>
+        </ActionRow>
       }
     >
       <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text>

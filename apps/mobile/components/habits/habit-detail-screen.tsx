@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -200,7 +202,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   }
   return (
     <Surface>
-      <View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.history')}</SectionTitle><View style={styles.historyActions}><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} color={tokens.fg1} /></PillButton><Text style={[styles.summary, { flex: 1, textAlign: 'center', color: tokens.fg3 }]}>{capitalizeFirstLetter(label)}</Text><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} color={tokens.fg1} /></PillButton></View></View>
+      <View style={styles.sectionHeader}><SectionTitle color={tokens.fg1}>{t('habits.detail.history')}</SectionTitle><View style={styles.historyActions}><ActionRow><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} color={tokens.fg1} /></PillButton><Text style={[styles.summary, { flex: 1, textAlign: 'center', color: tokens.fg3 }]}>{capitalizeFirstLetter(label)}</Text><PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} color={tokens.fg1} /></PillButton></ActionRow></View></View>
       <View><MonthGrid weekdayLabels={weekdayLabels} gap={4} label={t('habits.detail.calendarLabel', { month: label })}>{days.map((day) => {
         const dateLabel = formatLocaleDate(day.date, locale, { dateStyle: 'full' })
         const cellLabel = day.loggedAt
@@ -281,11 +283,11 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
       <View testID="rescue-free-card" style={card}>
         <View style={styles.rescueHead}><AstraGlyph size={20} color={tokens.fg1} /><Badge>{t('habits.detail.proGate')}</Badge></View>
         <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{t('habits.reschedule.freePrompt')}</Text>
-        <View style={styles.rescueActions}>
+        <View style={styles.rescueActions}><ActionRow>
+          {notNow}
           {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Habit Detail.dc.html:857 (D42) */}
           <PillButton accessibilityRole="link" variant={actionVariant} size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
-          {notNow}
-        </View>
+        </ActionRow></View>
       </View>
     )
   }
@@ -304,10 +306,10 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
         <View accessible accessibilityLiveRegion="polite" style={styles.rescueContent}>{suggestion ? renderRescueProposalValues(suggestion, buildRescheduleProposalLabels(suggestion, { locale, today, translate: t, formatTime: displayTime }), t('habits.detail.rescheduleFinePrint'), tokens) : <>
           <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</Text>
         </>}</View>
-        <View style={styles.rescueActions}>
+        <View style={styles.rescueActions}><ActionRow>
           {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
           {notNow}
-        </View>
+        </ActionRow></View>
       </View>
     </Proposed>
   )

@@ -1,3 +1,4 @@
+const actionRows = require("../../eslint-rules/action-rows.cjs")
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require("eslint/config")
 const expoConfig = require("eslint-config-expo/flat")
@@ -102,6 +103,7 @@ module.exports = defineConfig([
     plugins: {
       local: {
         rules: {
+          "action-rows": actionRows,
           "no-comments": noComments,
           "no-gorhom-sheet": noGorhomSheet,
           "no-fullbleed-button": noFullbleedButton,
@@ -132,6 +134,7 @@ module.exports = defineConfig([
       },
     },
     rules: {
+      "local/action-rows": "error",
       "local/no-comments": "error",
       // DESIGN.md's spacing scale is cross-platform, but this rule was registered
       // ONLY in apps/web, so mobile spacing was completely ungated while CLAUDE.md

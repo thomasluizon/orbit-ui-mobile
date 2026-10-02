@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useEffect, useMemo, useImperativeHandle, type Ref } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -537,12 +539,12 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               {autoSyncStateQuery.isError ? t('calendar.fetchError') : displayedErrorMessage}
             </p>
           </div>
-          <div className="flex gap-3">
-            <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
+          <div className="flex gap-3"><ActionRow>
             <PillButton variant="ghost" onClick={onClose}>
               {t('common.goBack')}
             </PillButton>
-          </div>
+            <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
+          </ActionRow></div>
         </div>
       )}
         </div>

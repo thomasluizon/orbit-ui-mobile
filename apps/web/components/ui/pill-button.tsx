@@ -55,6 +55,7 @@ function inlineStartPadding(paddingX: number, iconOnly: boolean, leadingIcon: bo
 function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false): CSSProperties {
   const sizeSpec = BUTTON_SIZES[size]
   return {
+    flexShrink: 0,
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
     width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : undefined,

@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from '@/components/ui/action-row'
+
 import { useEffect, useState } from 'react'
 import { useUIStore } from '@/stores/ui-store'
 import { useTranslations } from 'next-intl'
@@ -20,7 +22,7 @@ export function UpdateAvailableBanner({ modalId, active = true }: Readonly<{ mod
   return (
     <div role="status" data-update-live-region="" data-update-banner={visible ? '' : undefined}>
       {visible ? (
-        <div className="flex flex-wrap items-center gap-3 bg-[var(--bg-elev)] px-6 py-3 shadow-[inset_0_-1px_0_var(--hairline)]">
+        <div className="flex flex-wrap items-center gap-3 bg-[var(--bg-elev)] px-6 py-3 shadow-[inset_0_-1px_0_var(--hairline)]"><ActionRow>
           <div className="min-w-0 flex-1 basis-[240px]">
             <p className="text-[17px] font-medium leading-[1.4]" translate={reloadMessage ? undefined : 'no'}>
               {reloadMessage ?? t('forceUpdate.banner')}
@@ -29,11 +31,11 @@ export function UpdateAvailableBanner({ modalId, active = true }: Readonly<{ mod
               {t('forceUpdate.bannerVersion', { minVersion })}
             </p>}
           </div>
+          {!reloadReason && <PillButton size="sm" variant="ghost" onClick={dismissUpdate}>{t('versionUpdate.laterCta')}</PillButton>}
           <PillButton size="sm" variant="secondary" onClick={() => globalThis.location.reload()}>
             {reloadReason ? t('errors.api.reload') : t('forceUpdate.refresh')}
           </PillButton>
-          {!reloadReason && <PillButton size="sm" variant="ghost" onClick={dismissUpdate}>{t('versionUpdate.laterCta')}</PillButton>}
-        </div>
+        </ActionRow></div>
       ) : null}
     </div>
   )

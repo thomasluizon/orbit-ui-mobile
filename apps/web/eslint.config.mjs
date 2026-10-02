@@ -1,3 +1,4 @@
+import actionRows from "../../eslint-rules/action-rows.cjs"
 import nextConfig from "eslint-config-next"
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals"
 import nextTypeScript from "eslint-config-next/typescript"
@@ -87,6 +88,7 @@ export default [
     plugins: {
       local: {
         rules: {
+          "action-rows": actionRows,
           "no-comments": noComments,
           "no-fullbleed-button": noFullbleedButton,
           "animate-presence-exit": animatePresenceExit,
@@ -123,6 +125,7 @@ export default [
       },
     },
     rules: {
+      "local/action-rows": "error",
       "local/no-comments": "error",
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: false }],
       "no-console": "error",

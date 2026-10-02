@@ -123,7 +123,7 @@ it('renders clear-all actions with small ghost cancel before destructive confirm
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
   press('Clear all')
 
-  const pairs = tree?.root.findAll((node) => node.type === 'View' && node.props.testID === 'dialog-action-pair')
+  const pairs = tree?.root.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')
   expect(pairs).toHaveLength(1)
   const actions = pairs?.[0]?.findAll(
     (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',

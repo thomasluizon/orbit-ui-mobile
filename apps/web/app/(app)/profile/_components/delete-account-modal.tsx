@@ -12,7 +12,7 @@ import { getAccountGeneration } from '@/lib/session-epoch'
 import { getHeldAccountId, useHeldAccountId } from '@/stores/auth-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { TriangleAlert } from '@/components/ui/icons'
 import { ErrorState } from '@/components/ui/error-state'
 
@@ -114,7 +114,7 @@ export function DeleteAccountModal({
                 {error}
               </p>
             ) : null}
-            <DialogActionPair>
+            <ActionRow>
               <PillButton
                 size="sm"
                 variant="ghost"
@@ -132,7 +132,7 @@ export function DeleteAccountModal({
               >
                 {t('profile.deleteAccount.sendCode')}
               </PillButton>
-            </DialogActionPair>
+            </ActionRow>
           </>
         ) : undefined
       }

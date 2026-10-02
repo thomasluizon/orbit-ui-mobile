@@ -175,7 +175,7 @@ export function SupportForm({
         </p>
       ) : null}
       <div className="[&_button]:w-full md:[&_button]:w-auto md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button:enabled]:hover:opacity-90 md:[&_button:enabled:active]:opacity-85">
-        <PillButton
+        <PillButton size="md"
           disabled={disabled}
           loading={isSending}
           descriptionId={!isOnline || disabledReason ? 'support-send-reason' : undefined}

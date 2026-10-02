@@ -1,3 +1,5 @@
+
+import { ActionRow } from '@/components/ui/action-row'
 import type { PagerProps } from '@orbit/shared/contracts/navigation'
 import { StyleSheet, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -17,12 +19,12 @@ export function Pager(props: Readonly<PagerProps>) {
             style={[styles.segment, { backgroundColor: index === props.index ? tokens.primary : index < props.index ? tokens.fg3 : tokens.statusEmpty }]} />
         ))}
       </View>
-      <View style={styles.controls}>
+      <View style={styles.controls}><ActionRow>
         <PillButton variant="ghost" disabled={!props.onBack} onClick={props.onBack}>{props.backLabel}</PillButton>
         {props.forwardLabel !== undefined ? (
           <PillButton disabled={!props.onForward} onClick={props.onForward}>{props.forwardLabel}</PillButton>
         ) : props.forwardSlot}
-      </View>
+      </ActionRow></View>
     </View>
   )
 }

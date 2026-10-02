@@ -8,7 +8,7 @@ import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import { canPromptEngagement, hasOpenPromptBlockingOverlay, parseMilestoneShareKey } from '@orbit/shared/stores'
 import { buildReferralUrl } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { DialogActionPair } from '@/components/ui/dialog-action-pair'
+import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { useShareCard } from '@/hooks/use-share-card'
@@ -139,7 +139,7 @@ export function MilestoneSharePrompt() {
               {t('milestoneShare.shareError')}
             </Text>
           ) : null}
-          <DialogActionPair>
+          <ActionRow>
             <PromptQuietAction
               accessibleName={t('milestoneShare.later')}
               onClick={dismiss}
@@ -160,7 +160,7 @@ export function MilestoneSharePrompt() {
             >
               {t('milestoneShare.share')}
             </PillButton>
-          </DialogActionPair>
+          </ActionRow>
         </>
       )}
     >
