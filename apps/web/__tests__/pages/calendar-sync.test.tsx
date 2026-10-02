@@ -1,4 +1,5 @@
 import userEvent from '@testing-library/user-event'
+import type { Locator } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -331,8 +332,8 @@ describe('CalendarSyncPage', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    function provideEvents(review: boolean, blocked: boolean) {
-      const event = blocked ? { ...longEvent, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : longEvent
+    function provideEvents(review: boolean, blocked: boolean, rowEvent: CalendarSyncEvent = longEvent) {
+      const event = blocked ? { ...rowEvent, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : rowEvent
       const events = [event, { ...longEvent, id: 'short-event', title: 'Short event', calendarName: null, description: null }]
       if (review) {
         mockSearchParams.set('mode', 'review')
@@ -342,12 +343,27 @@ describe('CalendarSyncPage', () => {
       }
     }
 
+    async function expectInteractivePaint(row: Locator, state: string, blocked: boolean) {
+      if (state === 'rest' || blocked) return
+      const fills = await row.evaluate((element) => {
+        const reference = document.createElement('span')
+        reference.style.backgroundColor = 'var(--bg-hover)'
+        element.append(reference)
+        const fills = { actual: getComputedStyle(element).backgroundColor, expected: getComputedStyle(reference).backgroundColor }
+        reference.remove()
+        return fills
+      })
+      expect(fills.actual).toBe(fills.expected)
+      if (state === 'press') expect(await row.getAttribute('data-contrast-pressed')).toBe('true')
+    }
+
     it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].flatMap((selected) =>
       [false, true].map((blocked) => ({ mode, selected, blocked })),
     )))('keeps painted row text readable in $mode, selected: $selected, blocked: $blocked', async ({ mode, selected, blocked }) => {
-      provideEvents(true, blocked)
+      const contrastEvent = { ...longEvent, title: 'Planning the weekly training schedule', calendarName: 'Work calendar', description: 'Review every preparation step before importing.' }
+      provideEvents(true, blocked, contrastEvent)
       const { container } = renderPage()
-      await screen.findByText(longEvent.title)
+      await screen.findByText(contrastEvent.title)
       const row = screen.getByRole('button', { name: new RegExp('Planning the weekly training') })
       if (!selected && !blocked) fireEvent.click(row)
       const page = await browser.newPage({ viewport: { width: 412, height: 900 } })
@@ -358,12 +374,18 @@ describe('CalendarSyncPage', () => {
         for (const state of ['rest', 'hover', 'press']) {
           if (state !== 'rest') await paintedRow.hover()
           if (state === 'press') {
+            const center = await paintedRow.evaluate((element) => {
+              element.addEventListener('pointerdown', () => { element.setAttribute('data-contrast-pressed', 'true') }, { once: true })
+              const bounds = element.getBoundingClientRect()
+              return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }
+            })
+            await page.mouse.move(center.x, center.y)
             await page.mouse.down()
-            if (!blocked) expect(await paintedRow.evaluate((element) => element.matches(':active'))).toBe(true)
           }
           await paintedRow.evaluate(async (element) => {
             await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished))
           })
+          await expectInteractivePaint(paintedRow, state, blocked)
           const pairs = await paintedRow.evaluate((element) => Array.from(element.querySelectorAll('span'))
             .filter((field) => Array.from(field.childNodes).some((child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim()))
             .map((field) => {
