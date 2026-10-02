@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -548,6 +549,18 @@ function findButtonByText(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfileScreen', () => {
+  it('owns the drawn 16px top inset on the destination scroller', async () => {
+    const tree = await renderProfileScreen()
+    const scroller = tree.root.findByType('ScrollView')
+    expect(StyleSheet.flatten(scroller.props.contentContainerStyle)).toMatchObject({
+      paddingTop: 16,
+      paddingHorizontal: 16,
+    })
+    const groups = tree.root.findByProps({ testID: 'profile-settings-groups' })
+    expect(scroller.findByProps({ testID: 'profile-settings-group-you' })).toBeDefined()
+    expect(StyleSheet.flatten(groups.props.style)).not.toHaveProperty('paddingTop')
+  })
+
   const proPlans = [
     { state: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false, en: 'Free', pt: 'Grátis' },
     { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Pro Trial until Oct 9, 2099', pt: 'Teste Pro até 9 de out. de 2099' },
