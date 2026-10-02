@@ -35,16 +35,16 @@ describe('YearPicker (mobile)', () => {
 
     const selectedCell = tree!.root.findByProps({ accessibilityLabel: '2026' })
     const targetStyle = StyleSheet.flatten(selectedCell.props.style({ pressed: false })) as {
-      height: number
+      minHeight: number
       marginBottom: number
     }
-    const renderedRowHeight = targetStyle.height + targetStyle.marginBottom
+    const renderedRowHeight = targetStyle.minHeight + targetStyle.marginBottom
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 3 * renderedRowHeight, animated: false })
-    expect(targetStyle.height).toBe(44)
+    expect(targetStyle.minHeight).toBe(48)
 
     expect(StyleSheet.flatten(selectedCell.props.style({ pressed: false }))).toMatchObject({
-      height: 44,
+      minHeight: 48,
       borderRadius: 999,
       overflow: 'hidden',
       backgroundColor: tokens.primary,

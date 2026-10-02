@@ -200,6 +200,7 @@ interface MenuItemsProps {
 function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { fontScale } = useWindowDimensions()
 
   return items?.map((item) => {
     const disabled = item.disabled === true && !item.badge
@@ -212,6 +213,7 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
         onPress={() => onActivate(item.id)}
         style={({ pressed }) => [
           styles.item,
+          fontScale > 1.3 ? { alignItems: 'flex-start' } : null,
           sheetPresentation ? styles.sheetItem : null,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,
           pressed ? { backgroundColor: tokens.bgHover } : null,
@@ -220,12 +222,12 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
       >
         {item.icon ? <Icon color={item.destructive ? tokens.statusBad : tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
         <Text
-          numberOfLines={1}
+          numberOfLines={fontScale > 1.3 ? undefined : 1}
           style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}
         >
           {item.label}
         </Text>
-        {item.checked ? <Check size={20} color={tokens.fg1} strokeWidth={2} /> : null}
+        {item.checked ? <View style={{ height: 20 * fontScale, justifyContent: 'center' }}><Check size={20} color={tokens.fg1} strokeWidth={2} /></View> : null}
         {item.badge ? (
           <View style={[styles.badge, { backgroundColor: tokens.bgElev }]}>
             <Text style={[styles.badgeText, { color: tokens.fg2 }]}>{item.badge}</Text>
@@ -270,7 +272,8 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     fontFamily: 'Geist_500Medium',
-    fontSize: 15,
+    fontSize: 14,
+    lineHeight: 20,
   },
   badge: {
     borderRadius: 8,

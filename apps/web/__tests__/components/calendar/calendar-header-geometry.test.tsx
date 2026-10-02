@@ -30,32 +30,52 @@ describe('Calendar header geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it('keeps the specified recurring menu label on one line at double text size', async () => {
+  it.each([320, 360, 412])('keeps the full recurring menu label readable at %ipx and 200% text', async (width) => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
       <Menu open presentation="sheet" title={ptBR.calendar.options}
         items={[{ id: 'recurring', label: ptBR.calendar.showRecurring, checked: true }]} />
     </NextIntlClientProvider>)
     const dialog = document.querySelector('[role="dialog"]')!
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
       await loadAppFonts(page)
-      const geometry = await page.evaluate(() => {
-        const row = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!
-        row.style.fontSize = '28px'
-        const label = row.querySelector<HTMLElement>('.orbit-menu-label')!
-        const range = document.createRange()
-        range.selectNodeContents(label)
-        const canvas = document.createElement('canvas')
-        const context = canvas.getContext('2d')!
-        context.font = '500 28px Geist'
-        return {
-          lines: new Set([...range.getClientRects()].map((bounds) => Math.round(bounds.top))).size,
-          textWidth: context.measureText(label.textContent!).width,
-          availableWidth: label.getBoundingClientRect().width,
+      for (const textScale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+        const geometry = await page.evaluate(() => {
+          const row = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!
+          const label = row.querySelector<HTMLElement>('.orbit-menu-label')!
+          const check = row.querySelector('svg')!
+          const range = document.createRange()
+          range.selectNodeContents(label)
+          const lines = [...range.getClientRects()]
+          const style = getComputedStyle(label)
+          const context = document.createElement('canvas').getContext('2d')!
+          context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+          return {
+            label: label.textContent,
+            lines: new Set(lines.map((bounds) => Math.round(bounds.top))).size,
+            textWidth: context.measureText(label.textContent!).width,
+            availableWidth: label.getBoundingClientRect().width,
+            height: row.getBoundingClientRect().height,
+            checkTop: check.getBoundingClientRect().top,
+            firstLineTop: lines[0]!.top,
+            lineHeight: Number.parseFloat(style.lineHeight),
+            fontSize: Number.parseFloat(style.fontSize),
+            overflow: label.scrollWidth > label.clientWidth,
+          }
+        })
+        expect(geometry.label).toBe('Mostrar hábitos que se repetem')
+        expect(geometry.overflow, JSON.stringify(geometry)).toBe(false)
+        expect(geometry.fontSize).toBe(14 * textScale)
+        expect(geometry.height).toBeGreaterThanOrEqual(48)
+        if (textScale === 1) expect(geometry.lines, JSON.stringify(geometry)).toBe(1)
+        else {
+          expect(geometry.lines, JSON.stringify(geometry)).toBeGreaterThan(1)
+          expect(Math.abs(geometry.checkTop - geometry.firstLineTop), JSON.stringify(geometry)).toBeLessThan(geometry.lineHeight / 2)
         }
-      })
-      expect(geometry, JSON.stringify(geometry)).toMatchObject({ lines: 1 })
+        process.stdout.write(`Calendar menu geometry ${JSON.stringify({ width, textScale, ...geometry })}\n`)
+      }
     } finally { await page.close() }
   })
 

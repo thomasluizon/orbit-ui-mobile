@@ -108,7 +108,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
           >
             {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
             <span className="orbit-menu-label">{item.label}</span>
-            {item.checked ? <Check size={20} strokeWidth={2} aria-hidden="true" /> : null}
+            {item.checked ? <span className="orbit-menu-check" aria-hidden="true"><Check size={20} strokeWidth={2} /></span> : null}
             {item.badge ? <Badge>{item.badge}</Badge> : null}
           </button>
         )

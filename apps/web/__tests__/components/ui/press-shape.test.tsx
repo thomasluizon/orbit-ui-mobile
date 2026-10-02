@@ -164,7 +164,7 @@ describe('interaction fill parity in Chromium', () => {
       await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
       await loadAppFonts(page)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
-      for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel']) {
+      for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', ptBr.calendar.monthPicker, 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel']) {
         const control = page.getByRole('button', { name: label, exact: true })
         const bounds = await control.boundingBox()
         expect(bounds!.width, `${label} target width`).toBeGreaterThanOrEqual(44)

@@ -21,7 +21,7 @@ interface CalendarHeaderProps {
   showMonthNavigation?: boolean
 }
 
-const headerButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]'
+const headerButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]'
 
 function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, setChoosingYear, year, setYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; setChoosingYear: (choosing: boolean) => void; year: number; setYear: (year: number) => void }>) {
   const t = useTranslations()

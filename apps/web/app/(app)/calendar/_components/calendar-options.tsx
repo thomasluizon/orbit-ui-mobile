@@ -20,7 +20,7 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
   const setChecked = useUIStore((state) => state.setCalendarShowRecurring)
   return <>
     <div data-testid="calendar-shell-header" className="flex min-h-12 items-center justify-end gap-2 px-4">
-      <button ref={anchorRef} type="button" className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]" aria-label={t('calendar.options')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><MoreVertical size={24} strokeWidth={2} aria-hidden="true" /></button>
+      <button ref={anchorRef} type="button" className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]" aria-label={t('calendar.options')} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}><MoreVertical size={24} strokeWidth={2} aria-hidden="true" /></button>
       <NotificationBell />
     </div>
     <Menu open={menuOpen} anchorRef={anchorRef} title={t('calendar.options')} onClose={() => setMenuOpen(false)}

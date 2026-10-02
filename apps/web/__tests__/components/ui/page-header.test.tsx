@@ -10,6 +10,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
 import { LegalDocumentLayout } from '@/components/legal-document-layout'
 import { Markdown } from '@/components/ui/markdown'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
 
 describe('PageHeader', () => {
   describe('drawn title size', () => {
@@ -43,14 +45,14 @@ describe('PageHeader', () => {
 
     it.each([412, 1352])('renders the calendar and legal hierarchy at %ipx', async (width) => {
       const noop = () => {}
-      const { container } = render(<>
+      const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
         <CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous" nextMonthLabel="Next"
           onPreviousMonth={noop}
           onNextMonth={noop} onCurrentMonth={noop} onSelectMonth={noop} />
         <LegalDocumentLayout title="Privacy" lastUpdated="Updated" backLabel="Back" onBack={noop}
           sections={[{ id: 'privacy', title: 'Your privacy', paragraphs: ['Your privacy matters.'] }]}
           closingNote={{ id: 'contact', title: 'Contact', paragraphs: ['Contact us.'] }} />
-      </>)
+      </NextIntlClientProvider>)
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
