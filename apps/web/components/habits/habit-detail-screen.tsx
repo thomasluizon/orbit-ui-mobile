@@ -601,7 +601,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }
     })
 
-  const subHabitCreation = <div><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
+  const subHabitCreation = <div className={showCreateRefusal ? 'flex flex-col gap-3' : undefined}><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
 
   return (
     <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>

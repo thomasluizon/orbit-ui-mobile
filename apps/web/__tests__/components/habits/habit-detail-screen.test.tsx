@@ -1827,7 +1827,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('button', { name: 'habits.detail.rescheduleAccept' })).toBeInTheDocument()
   })
 
-  describe('drawn header geometry', () => {
+  describe('drawn detail geometry', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
     let stylesheet: string
@@ -1840,6 +1840,42 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([
+      [412, 'leaf'],
+      [1280, 'leaf'],
+      [412, 'parent'],
+      [1280, 'parent'],
+    ])('reserves offline refusal clearance only while visible at %ipx for a %s', async (width, kind) => {
+      vi.useRealTimers()
+      mocks.detail = kind === 'leaf' ? { ...makeDetail(), children: [] } : makeDetail()
+      Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+        const measureClearance = async () => {
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          return page.getByTestId('list-row-habits.detail.addSubHabit').evaluate((element) => {
+            const live = element.parentElement!.querySelector('[aria-live="polite"]')!
+            return live.getBoundingClientRect().top - element.getBoundingClientRect().bottom
+          })
+        }
+        expect(await measureClearance()).toBe(0)
+        if (kind === 'parent') {
+          const gaps = await page.getByTestId('detail-children').evaluate((element) => ({
+            before: element.getBoundingClientRect().top - element.previousElementSibling!.getBoundingClientRect().bottom,
+            after: element.nextElementSibling!.getBoundingClientRect().top - element.getBoundingClientRect().bottom,
+          }))
+          expect(gaps).toEqual({ before: 8, after: 8 })
+        }
+        fireEvent.click(screen.getByTestId('list-row-habits.detail.addSubHabit'))
+        expect(screen.getByText('offline.create.reason')).toBeVisible()
+        expect(await measureClearance()).toBe(12)
+      } finally {
+        Reflect.deleteProperty(navigator, 'onLine')
+        await page.close()
+      }
+    })
 
     it.each([
       [412, 'Read'],
