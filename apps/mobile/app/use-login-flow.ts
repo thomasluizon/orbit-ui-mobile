@@ -155,7 +155,7 @@ export function useLoginFlow(isAuthCallback = false) {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  async function completeLogin(response: BackendLoginResponse, attemptId: string, today = false) {
+  async function completeLogin(response: BackendLoginResponse, attemptId: string) {
     const isCurrentLoginSession = await login(response.token, response.refreshToken, {
       userId: response.userId, name: response.name, email: response.email,
     })
@@ -173,7 +173,7 @@ export function useLoginFlow(isAuthCallback = false) {
     await clearStoredAuthReturnUrl(attemptId, isCurrentLoginSession)
     if (!isCurrentLoginSession() || !isAuthReturnUrlAttemptCurrent(attemptId)) return
     const returnUrl = getSafeReturnUrl(storedReturnUrl)
-    router.replace(today ? '/' : returnUrl)
+    router.replace(returnUrl)
   }
 
   function reportVerificationFailure(error: unknown) {
@@ -273,7 +273,7 @@ export function useLoginFlow(isAuthCallback = false) {
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
-    try { await returnUrlAttempt.ready; await completeLogin(accountBack, returnUrlAttempt.id, true) }
+    try { await returnUrlAttempt.ready; await completeLogin(accountBack, returnUrlAttempt.id) }
     catch { setErrorKey('auth.errors.unknownError') }
     finally { busy.current = false; setIsSubmitting(false) }
   }

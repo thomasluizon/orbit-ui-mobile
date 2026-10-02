@@ -47,8 +47,13 @@ export function isSafeReturnUrl(value: string | null | undefined): value is stri
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
 }
 
-export function getSafeReturnUrl(value: string | null | undefined, fallback = '/'): string {
-  return isSafeReturnUrl(value) ? value : fallback
+export function getSafeReturnUrl(value: string | null | undefined, fallback = '/(tabs)'): string {
+  if (!isSafeReturnUrl(value)) return fallback
+  const pathname = value.split(/[?#]/)[0]
+  if (pathname === '/') return `/(tabs)${value.slice(1)}`
+  if (pathname === '/login' || pathname === '/auth-callback'
+    || pathname === '/(onboarding)' || pathname?.startsWith('/(onboarding)/')) return fallback
+  return value
 }
 
 export async function getStoredReferralCode(): Promise<string | null> {

@@ -171,7 +171,7 @@ beforeEach(() => {
   mocks.getStoredAuthReturnUrl.mockResolvedValue(undefined)
   mocks.createAuthReturnUrlAttempt.mockReturnValue(1)
   mocks.isAuthReturnUrlAttemptCurrent.mockReturnValue(true)
-  mocks.getSafeReturnUrl.mockImplementation((url?: string) => url ?? '/')
+  mocks.getSafeReturnUrl.mockImplementation((url?: string) => url ?? '/(tabs)')
   mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'cancel' })
 })
 
@@ -559,7 +559,7 @@ describe('useLoginFlow (mobile)', () => {
     expect(harness.current.accountBack).toMatchObject({ wasReactivated: true })
     expect(mocks.replace).not.toHaveBeenCalled()
     await act(() => harness.current.continueAccount())
-    expect(mocks.replace).toHaveBeenCalledWith('/')
+    expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
   })
 
   it('applies a stored referral code on verification and hides the banner', async () => {
