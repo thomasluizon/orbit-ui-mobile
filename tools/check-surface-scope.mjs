@@ -279,8 +279,8 @@ function classifiedRole(node, source, matchIndex, graphicTags) {
   if (graphicTags.has(tag)) return "graphic"
   const literal = ancestor(node, (current) => ts.isStringLiteralLike(current) || ts.isTemplateExpression(current))
   const before = source.slice(literal ? literal.getStart() + 1 : Math.max(0, matchIndex - 48), matchIndex)
-  if (/(?:^|\s)text-\[[^\]]*$/.test(before)) return "text"
-  if (/(?:^|\s)(?:bg|border|fill|outline|ring|shadow|stroke)-\[[^\]]*$/.test(before)) return "graphic"
+  if (/(?:^|\s)(?:[\w-]+:)*text-\[[^\]]*$/.test(before)) return "text"
+  if (/(?:^|\s)(?:[\w-]+:)*(?:bg|border|fill|outline|ring|shadow|stroke)-\[[^\]]*$/.test(before)) return "graphic"
   const attribute = ancestor(node, ts.isJsxAttribute)
   if (attribute) {
     const name = propertyName(attribute.name).toLowerCase()
@@ -302,13 +302,99 @@ function classifiedRole(node, source, matchIndex, graphicTags) {
   return undefined
 }
 
-function surfacesInText(text) {
-  const result = new Set()
-  for (const match of tokenMatches(text)) {
-    const surface = SURFACE_TOKENS.get(match.token)
-    if (surface) result.add(surface)
+function matchedSurface(text, match, state) {
+  const utility = text.slice(0, match.index).match(/(?:^|[\s"'`])([^\s"'`]*)$/)?.[1] ?? ""
+  if (state === "rest" && /(?:^|:)hover:|group-hover:/.test(utility)) return undefined
+  return SURFACE_TOKENS.get(match.token)
+}
+
+function booleanAssignments(expression, expected, state, assignments) {
+  expression = unwrapExpression(expression)
+  if (ts.isPrefixUnaryExpression(expression) && expression.operator === ts.SyntaxKind.ExclamationToken) {
+    return booleanAssignments(expression.operand, !expected, state, assignments)
   }
-  return [...result]
+  if (ts.isBinaryExpression(expression)) {
+    const operator = expression.operatorToken.kind
+    const conjunction = operator === ts.SyntaxKind.AmpersandAmpersandToken
+    if (conjunction || operator === ts.SyntaxKind.BarBarToken) {
+      if (expected === conjunction) {
+        return booleanAssignments(expression.left, expected, state, assignments)
+          .flatMap((values) => booleanAssignments(expression.right, expected, state, values))
+      }
+      return [
+        ...booleanAssignments(expression.left, expected, state, assignments),
+        ...booleanAssignments(expression.right, expected, state, assignments),
+      ]
+    }
+  }
+  const key = expression.getText()
+  const known = key === "pressed" && state !== "hover" ? state === "pressed"
+    : expression.kind === ts.SyntaxKind.TrueKeyword ? true
+    : expression.kind === ts.SyntaxKind.FalseKeyword ? false
+    : assignments.get(key)
+  if (known !== undefined && known !== expected) return []
+  return [new Map([...assignments, [key, expected]])]
+}
+
+function reachableInState(node, state) {
+  if (!state) return true
+  let assignments = [new Map()]
+  for (let current = node; current.parent; current = current.parent) {
+    const parent = current.parent
+    if (!ts.isConditionalExpression(parent) || current === parent.condition) continue
+    const expected = current === parent.whenTrue
+    assignments = assignments.flatMap((values) => booleanAssignments(parent.condition, expected, state, values))
+    if (assignments.length === 0) return false
+  }
+  return true
+}
+
+function expressionSurfaces(expression, sourceFile, state) {
+  const text = expression.getText(sourceFile)
+  const surfaces = new Set()
+  for (const match of tokenMatches(text)) {
+    const node = nodeAt(sourceFile, expression.getStart(sourceFile) + match.index)
+    if (!reachableInState(node, state)) continue
+    const literal = ancestor(node, ts.isStringLiteralLike)
+    const utility = text.slice(0, match.index).match(/(?:^|[\s"'`])([^\s"'`]*)$/)?.[1] ?? ""
+    if (state === "hover" && utility.startsWith("bg-[")
+      && literal && /(?:^|\s)hover:bg-\[var\(--/.test(literal.text)) continue
+    const surface = matchedSurface(text, match, state)
+    if (surface) surfaces.add(surface)
+  }
+  return [...surfaces]
+}
+
+function webForegroundStates(node, matchIndex, sourceFile) {
+  const literal = ancestor(node, ts.isStringLiteralLike)
+  if (!literal) return ["rest", "hover"]
+  const before = sourceFile.text.slice(literal.getStart() + 1, matchIndex)
+  const utility = before.match(/(?:^|\s)([^\s]*)$/)?.[1] ?? ""
+  const hasGroup = () => {
+    for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
+      if (!ts.isJsxElement(current)) continue
+      const className = current.openingElement.attributes.properties.find((attribute) =>
+        ts.isJsxAttribute(attribute) && propertyName(attribute.name) === "className")
+      if (className && /(?:["'`\s])group(?:["'`\s])/.test(className.getText())) return true
+    }
+    return false
+  }
+  if (utility.startsWith("hover:") || (utility.startsWith("group-hover:") && hasGroup())) return ["hover"]
+  const role = utility.match(/^(text|bg|border|fill|stroke)-/)?.[1]
+  if (role && new RegExp(`(?:^|\\s)hover:${role}-\\[var\\(--`).test(literal.text)
+    && !ancestorHoverSurface(node, sourceFile)) return ["rest"]
+  if (role && hasGroup() && new RegExp(`(?:^|\\s)group-hover:${role}-\\[var\\(--`).test(literal.text)) return ["rest"]
+  return ["rest", "hover"]
+}
+
+function ancestorHoverSurface(node, sourceFile) {
+  for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
+    if (!ts.isJsxElement(current)) continue
+    const opening = current.openingElement
+    const resting = openingSurfaces(opening, sourceFile, "rest")
+    if (openingSurfaces(opening, sourceFile, "hover").some((surface) => !resting.includes(surface))) return true
+  }
+  return false
 }
 
 function owningFunctionName(node) {
@@ -460,18 +546,19 @@ function selectedObjectMemberReferences(node, sourceFile) {
   return { path, references }
 }
 
-function localExpressionSurfaces(node, sourceFile) {
+function localExpressionSurfaces(node, sourceFile, state) {
   const surfaces = new Set()
   const seen = new Set()
   const inspect = (expression) => {
-    for (const surface of surfacesInText(expression.getText(sourceFile))) surfaces.add(surface)
+    for (const surface of expressionSurfaces(expression, sourceFile, state)) surfaces.add(surface)
     const visit = (current) => {
+      if (!reachableInState(current, state)) return
       if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
-        for (const surface of styleMemberSurfaces(current, sourceFile) ?? []) surfaces.add(surface)
+        for (const surface of styleMemberSurfaces(current, sourceFile, state) ?? []) surfaces.add(surface)
       }
       const selectedStyle = ts.isIdentifier(current) && ts.isPropertyAccessExpression(current.parent)
         && current.parent.expression === current
-        && styleMemberSurfaces(current.parent, sourceFile) !== undefined
+        && styleMemberSurfaces(current.parent, sourceFile, state) !== undefined
       if (ts.isIdentifier(current) && !selectedStyle && !seen.has(current.text)) {
         const declaration = visibleDeclaration(current, sourceFile, current.text)
         if (declaration) {
@@ -487,7 +574,7 @@ function localExpressionSurfaces(node, sourceFile) {
   return [...surfaces]
 }
 
-function styleMemberSurfaces(reference, sourceFile) {
+function styleMemberSurfaces(reference, sourceFile, state) {
   const binding = visibleDeclaration(reference, sourceFile, reference.expression.text)
   if (!binding?.initializer) return undefined
   let styleObject
@@ -508,32 +595,32 @@ function styleMemberSurfaces(reference, sourceFile) {
   inspect(binding.initializer)
   if (!styleObject || !ts.isObjectLiteralExpression(styleObject)) return undefined
   const member = objectProperty(styleObject, reference.name.text)
-  return member ? surfacesInText(member.getText(sourceFile)) : []
+  return member ? expressionSurfaces(member, sourceFile, state) : []
 }
 
-function openingSurfaces(opening, sourceFile) {
+function openingSurfaces(opening, sourceFile, state) {
   const surfaces = new Set()
   for (const attribute of opening.attributes.properties) {
     if (!ts.isJsxAttribute(attribute) || !["className", "style", "backgroundColor", "background"].includes(propertyName(attribute.name))) continue
-    for (const surface of surfacesInText(attribute.getText(sourceFile))) surfaces.add(surface)
+    for (const surface of expressionSurfaces(attribute, sourceFile, state)) surfaces.add(surface)
     if (attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
-      for (const surface of localExpressionSurfaces(attribute.initializer.expression, sourceFile)) surfaces.add(surface)
+      for (const surface of localExpressionSurfaces(attribute.initializer.expression, sourceFile, state)) surfaces.add(surface)
     }
   }
   return [...surfaces]
 }
 
-function contextSurfaces(node, sourceFile, contentSurfaces = new Map()) {
+function contextSurfaces(node, sourceFile, contentSurfaces = new Map(), state) {
   const surfaces = new Set()
   const variable = ancestor(node, ts.isVariableDeclaration)
   const selectedMember = localObjectMemberPath(node, sourceFile)
   if (selectedMember) {
     for (const property of selectedMember.object.properties) {
       if (!ts.isPropertyAssignment(property) || !/^background(?:Color)?$/i.test(propertyName(property.name))) continue
-      for (const surface of surfacesInText(property.initializer.getText(sourceFile))) surfaces.add(surface)
+      for (const surface of expressionSurfaces(property.initializer, sourceFile, state)) surfaces.add(surface)
     }
   } else if (variable?.initializer) {
-    for (const surface of surfacesInText(variable.initializer.getText(sourceFile))) surfaces.add(surface)
+    for (const surface of expressionSurfaces(variable.initializer, sourceFile, state)) surfaces.add(surface)
   }
   const openings = new Set()
   for (let current = node; current; current = current.parent) {
@@ -541,7 +628,7 @@ function contextSurfaces(node, sourceFile, contentSurfaces = new Map()) {
     if (ts.isJsxElement(current)) openings.add(current.openingElement)
   }
   for (const opening of openings) {
-    for (const surface of openingSurfaces(opening, sourceFile)) surfaces.add(surface)
+    for (const surface of openingSurfaces(opening, sourceFile, state)) surfaces.add(surface)
     for (const surface of contentSurfaces.get(jsxTag(opening)) ?? []) surfaces.add(surface)
   }
   const scope = variable && (enclosingFunction(variable) ?? sourceFile)
@@ -551,10 +638,10 @@ function contextSurfaces(node, sourceFile, contentSurfaces = new Map()) {
       if (ts.isIdentifier(current) && current.text === name && current !== variable.name) {
         for (let parent = current; parent; parent = parent.parent) {
           if (ts.isJsxOpeningElement(parent) || ts.isJsxSelfClosingElement(parent)) {
-            for (const surface of openingSurfaces(parent, sourceFile)) surfaces.add(surface)
+            for (const surface of openingSurfaces(parent, sourceFile, state)) surfaces.add(surface)
           }
           if (ts.isJsxElement(parent)) {
-            for (const surface of openingSurfaces(parent.openingElement, sourceFile)) surfaces.add(surface)
+            for (const surface of openingSurfaces(parent.openingElement, sourceFile, state)) surfaces.add(surface)
           }
           if (parent === scope) break
         }
@@ -594,7 +681,7 @@ function inferredRoles(node, sourceFile, source, matchIndex, graphicTags) {
   return [...roles]
 }
 
-function componentContentSurfaces(files) {
+function componentContentSurfaces(files, state) {
   const result = new Map()
   for (const file of files) {
     const source = readFileSync(file, "utf8")
@@ -605,7 +692,7 @@ function componentContentSurfaces(files) {
         const owner = owningFunctionName(node)
         if (owner) {
           const surfaces = result.get(owner) ?? new Set()
-          for (const surface of contextSurfaces(node, syntax)) surfaces.add(surface)
+          for (const surface of contextSurfaces(node, syntax, new Map(), state)) surfaces.add(surface)
           result.set(owner, surfaces)
         }
       }
@@ -616,7 +703,7 @@ function componentContentSurfaces(files) {
   return result
 }
 
-function componentSurfaces(files, contentSurfaces) {
+function componentSurfaces(files, contentSurfaces, state) {
   const calls = []
   for (const file of files) {
     const source = readFileSync(file, "utf8")
@@ -625,7 +712,7 @@ function componentSurfaces(files, contentSurfaces) {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const tag = jsxTag(node)
         if (/^[A-Z]/.test(tag)) {
-          calls.push({ tag, owner: owningFunctionName(node), surfaces: contextSurfaces(node, syntax, contentSurfaces) })
+          calls.push({ tag, owner: owningFunctionName(node), surfaces: contextSurfaces(node, syntax, contentSurfaces, state) })
         }
       }
       ts.forEachChild(node, visit)
@@ -653,8 +740,10 @@ function componentSurfaces(files, contentSurfaces) {
 
 function inspectSources(repositoryRoot, declarations) {
   const files = ["apps/web", "apps/mobile"].flatMap((path) => collectSourceFiles(resolve(repositoryRoot, path)))
-  const contentSurfaces = componentContentSurfaces(files)
-  const callSurfaces = componentSurfaces(files, contentSurfaces)
+  const stateSurfaces = new Map(["rest", "hover", "pressed"].map((state) => {
+    const contentSurfaces = componentContentSurfaces(files, state)
+    return [state, { contentSurfaces, callSurfaces: componentSurfaces(files, contentSurfaces, state) }]
+  }))
   const usages = []
   const undeclared = []
   for (const file of files) {
@@ -674,21 +763,26 @@ function inspectSources(repositoryRoot, declarations) {
         continue
       }
       if (roles.length === 0) continue
-      const ownSurfaces = contextSurfaces(node, syntax, contentSurfaces)
-      const owner = owningFunctionName(node)
-      const variable = ancestor(node, ts.isVariableDeclaration)
-      const componentLevelRole = !owner && variable && /^[A-Z\d_]+$/.test(propertyName(variable.name))
-      const inherited = ownSurfaces.length > 0
-        ? ownSurfaces
-        : owner
-          ? [...(callSurfaces.get(owner) ?? [])]
-        : componentLevelRole
-          ? [...new Set(exported.flatMap((name) => [...(callSurfaces.get(name) ?? [])]))]
-          : []
-      for (const role of roles) {
-        usages.push({ path, line, token: match.token, role, surfaces: inherited })
-        if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
-          usages.push({ path, line, token: match.token, role: "graphic", surfaces: inherited })
+      const states = path.startsWith("apps/mobile/") ? ["rest", "pressed"] : webForegroundStates(node, match.index, syntax)
+      for (const state of states) {
+        if (!reachableInState(node, state)) continue
+        const { contentSurfaces, callSurfaces } = stateSurfaces.get(state)
+        const ownSurfaces = contextSurfaces(node, syntax, contentSurfaces, state)
+        const owner = owningFunctionName(node)
+        const variable = ancestor(node, ts.isVariableDeclaration)
+        const componentLevelRole = !owner && variable && /^[A-Z\d_]+$/.test(propertyName(variable.name))
+        const inherited = ownSurfaces.length > 0
+          ? ownSurfaces
+          : owner
+            ? [...(callSurfaces.get(owner) ?? [])]
+          : componentLevelRole
+            ? [...new Set(exported.flatMap((name) => [...(callSurfaces.get(name) ?? [])]))]
+            : []
+        for (const role of roles) {
+          usages.push({ path, line, token: match.token, role, surfaces: inherited })
+          if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
+            usages.push({ path, line, token: match.token, role: "graphic", surfaces: inherited })
+          }
         }
       }
     }
