@@ -30,7 +30,7 @@
     "constants": "none"
   },
   ".claude/hooks/forbid-superseded-session.mjs": {
-    "scope": "whole-tree-blocking",
+    "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
   },
@@ -55,7 +55,7 @@
     "constants": "none"
   },
   ".claude/hooks/relay-at-threshold.mjs": {
-    "scope": "whole-tree-blocking",
+    "scope": "changed-files",
     "snapshot": "none",
     "constants": [
       {

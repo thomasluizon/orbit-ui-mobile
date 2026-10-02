@@ -93,4 +93,9 @@ export const cases = async () => {
   mkdirSync(join(locked.checkout, ".git", "orbit-relay-lock"))
   writeFileSync(join(locked.checkout, ".git", "orbit-relay-lock", "owner.json"), JSON.stringify({ pid: process.pid, processStartIdentity: processStartIdentity(process.pid) }))
   T("relay-session: occupied lock prevents a second launch", /EEXIST/.test(await failure({ repoRoot: locked.checkout, sessionId: "predecessor" })))
+  const concurrent = fixture("concurrent")
+  const concurrentCommands = []
+  const options = { repoRoot: concurrent.checkout, sessionId: "predecessor", execute: executeFor(concurrent.checkout, { commands: concurrentCommands }), wait: async () => {}, confirmMilliseconds: 10 }
+  const attempts = await Promise.allSettled([relaySession(options), relaySession(options)])
+  T("relay-session: simultaneous attempts create only one successor", attempts.filter((attempt) => attempt.status === "fulfilled").length === 1 && concurrentCommands.filter((args) => args[1] === "create").length === 1)
 }
