@@ -40,7 +40,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
       <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ rootHeader }}" sheets="{{ disclosure }}" tab-bar="{{ tabBar }}" hint-size="412px,820px">
-        <div style="display:flex;flex-direction:column;gap:24px;padding:16px">
+        <div data-native-scroll="true" style="display:flex;flex-direction:column;gap:24px;padding:16px">
 
           <div style="display:flex;flex-direction:column;gap:16px">
             <div style="display:flex;align-items:center;justify-content:center;gap:8px">
@@ -164,7 +164,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="calendario" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" header="{{ wideOptions }}" items="{{ navItems }}" active-id="calendario" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px">
 
             <div style="display:flex;flex-direction:column;gap:16px">
@@ -792,6 +792,7 @@ class Component extends DCLogic {
     return Object.assign(base, {
       monthTitle: first.toLocaleDateString(t.intl, y === YEAR ? { month: 'long' } : { month: 'short', year: 'numeric' }),
       openMonth: () => this.setState({ disclosure: 'month' }),
+      wideOptions: H('div', { style: { display: 'flex', justifyContent: 'flex-end', minHeight: 48, paddingInline: 16 } }, H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: () => this.setState({ disclosure: 'options' }) }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
       rootHeader: H(window.OrbitNativeMobile.BellRow, null,
         H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: () => this.setState({ disclosure: 'options' }) }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
       disclosure: s.disclosure ? H(D.Sheet, { open: true, title: s.disclosure === 'legend' ? (t.lang === 'en' ? 'Legend' : 'Legenda') : s.disclosure === 'calendar' ? 'Google Calendar' : s.disclosure === 'events' ? t.eventsTitle : s.disclosure === 'month' ? (t.lang === 'en' ? 'Month' : 'Mês') : (t.lang === 'en' ? 'Options' : 'Opções'),

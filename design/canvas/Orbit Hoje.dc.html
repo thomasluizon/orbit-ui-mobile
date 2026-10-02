@@ -182,7 +182,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ bottom }}" conversation="{{ conversation }}" conversation-label="{{ panelAria }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" header="{{ wideOptions }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ bottom }}" conversation="{{ conversation }}" conversation-label="{{ panelAria }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;min-height:100%;box-sizing:border-box">
 
             <sc-if value="{{ hasAstra }}" hint-placeholder-val="{{ true }}">
@@ -2706,6 +2706,7 @@ class Component extends DCLogic {
       rootHeader: H(window.OrbitNativeMobile.BellRow, { leading: off !== 0 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ off: 0, prompted: [], promptKey: null }) }, t.today) : null },
         H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Search' : 'Buscar', onClick: () => { window.location.href = 'Orbit Busca.dc.html'; } }, H(D.Icon, { name: 'search', size: 24 })),
         H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: this.openControls }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
+      wideOptions: H('div', { style: { display: 'flex', justifyContent: 'flex-end', minHeight: 48, paddingInline: 16 } }, off !== 0 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ off: 0 }) }, t.today) : null, H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: this.openControls }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
       backToTop: H(window.OrbitNativeMobile.BackToTop),
 
       showDate: st !== 'no habits' && !drillOn,
