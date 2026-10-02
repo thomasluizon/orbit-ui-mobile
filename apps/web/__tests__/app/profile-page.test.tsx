@@ -202,9 +202,6 @@ vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/components/profile/profile-nav-icon', () => ({
-  ProfileNavIcon: () => null,
-}))
 
 
 vi.mock('@/components/referral/referral-card', () => ({
@@ -242,6 +239,47 @@ describe('ProfilePage', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+    it.each(['free', 'trial', 'paid', 'lifetime'] as const)('keeps %s Perfil rows whole at 320px', async (plan) => {
+      translateProMessages('pt-BR')
+      mockProfileState.current.profile = createMockProfile({
+        name: 'Marina', email: 'marina@example.com', hasProAccess: plan !== 'free',
+        isTrialActive: plan === 'trial', isLifetimePro: plan === 'lifetime',
+        trialEndsAt: plan === 'trial' ? '2099-10-09T12:00:00Z' : null,
+      })
+      const { container } = render(<ProfilePage />)
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      try {
+        const font = readFileSync(require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')).toString('base64')
+        await page.setContent(`<style>${stylesheet}
+@font-face { font-family: Geist; src: url(data:font/ttf;base64,${font}); } :root { --font-sans: Geist; }</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell')).map((row) => {
+          const title = row.querySelector('[data-slot="list-row-title"]')!
+          const range = document.createRange()
+          range.selectNodeContents(title)
+          const icon = row.querySelector('svg')!
+          return {
+            label: title.textContent,
+            height: row.getBoundingClientRect().height,
+            textEdge: title.getBoundingClientRect().left,
+            textWidth: range.getBoundingClientRect().width,
+            available: title.getBoundingClientRect().width,
+            iconWidth: icon.getBoundingClientRect().width,
+            overflow: row.scrollWidth > row.clientWidth,
+          }
+        }))
+        expect(rows).toHaveLength(11)
+        for (const row of rows) {
+          expect(row.height, row.label!).toBeLessThanOrEqual(68)
+          expect(row.height, row.label!).toBeGreaterThanOrEqual(48)
+          expect(row.textEdge, row.label!).toBe(rows[0]!.textEdge)
+          expect(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
+          expect(row.iconWidth, row.label!).toBe(24)
+          expect(row.overflow, row.label!).toBe(false)
+        }
+      } finally { await page.close() }
+    })
+
     it.each([320, 412, 600, 840, 1023, 1024, 1352])('insets the first account card at %ipx and preserves the wide shell', async (width) => {
       const { container } = render(
         <ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
@@ -265,9 +303,9 @@ describe('ProfilePage', () => {
 
   const proPlans = [
     { state: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false, en: 'Free', pt: 'Grátis' },
-    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Pro Trial until Oct 9, 2099', pt: 'Teste Pro até 9 de out. de 2099' },
-    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Pro', pt: 'Pro' },
-    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime Pro', pt: 'Pro Vitalício' },
+    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Trial', pt: 'Teste' },
+    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Active', pt: 'Ativo' },
+    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime', pt: 'Vitalício' },
   ] as const
 
   function translateProMessages(locale: 'en' | 'pt-BR') {

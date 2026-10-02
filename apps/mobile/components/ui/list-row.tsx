@@ -26,13 +26,13 @@ function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolea
   return <Text style={[styles.value, wrap ? styles.wrappedValue : null, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
 
-function RowTextContent({ title, wrapTitle, description, value, wrapValue, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'wrapTitle' | 'description' | 'value' | 'wrapValue'> & { titleColor: string; valueColor: string }>) {
-  const text = <View style={[styles.textBlock, wrapValue ? styles.wrappedTextBlock : null]}>
-    <Text numberOfLines={wrapTitle ? undefined : 1} style={[styles.title, { color: titleColor }]}>{title}</Text>
-    {description ? <Text style={[styles.description, { color: valueColor }]}>{description}</Text> : null}
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing'> & { titleColor: string; valueColor: string }>) {
+  const text = <View style={[styles.textBlock, wrapValue || textMode === 'label' ? styles.wrappedTextBlock : null]}>
+    <Text numberOfLines={textMode === 'personal' ? 2 : wrapTitle ? undefined : 1} ellipsizeMode={textMode === 'label' ? 'clip' : 'tail'} style={[styles.title, { color: titleColor }]}>{title}</Text>
+    {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
   </View>
   const rowValue = value ? <RowValue value={value} wrap={wrapValue === true} color={valueColor} /> : null
-  return wrapValue ? <View style={styles.wrappedContent}>{text}{rowValue}</View> : <>{text}{rowValue}</>
+  return wrapValue || textMode === 'label' ? <View style={styles.wrappedContent}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -60,8 +60,8 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
         </View>
       ) : null}
       <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
-      {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
-      {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
+      {trailing && props.textMode !== 'label' ? <View style={styles.trailing}>{trailing}</View> : null}
+      {!readOnly && chevron ? <View style={styles.chevron}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
   )
 
@@ -101,6 +101,8 @@ const styles = StyleSheet.create({
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
+  chevron: { width: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
+  personalDescription: { fontSize: 12, lineHeight: 16.8 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
   wrappedValue: { flexShrink: 0, maxWidth: '100%' },

@@ -563,9 +563,9 @@ describe('ProfileScreen', () => {
 
   const proPlans = [
     { state: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false, en: 'Free', pt: 'Grátis' },
-    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Pro Trial until Oct 9, 2099', pt: 'Teste Pro até 9 de out. de 2099' },
-    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Pro', pt: 'Pro' },
-    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime Pro', pt: 'Pro Vitalício' },
+    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Trial', pt: 'Teste' },
+    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Active', pt: 'Ativo' },
+    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime', pt: 'Vitalício' },
   ] as const
 
   function translateProMessages(locale: 'en' | 'pt-BR') {
@@ -755,12 +755,8 @@ describe('ProfileScreen', () => {
     }
 
     expect(findRowByLabel(tree, 'profile.settingsRows.wrapped').props.hint).toBeUndefined()
-    expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBe(
-      'profile.widgetHint',
-    )
-    expect(findRowByLabel(tree, 'profile.calendarSync.title').props.hint).toBe(
-      'profile.calendarSync.hint',
-    )
+    expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.calendarSync.title').props.hint).toBeUndefined()
     expect(findRowByLabel(tree, 'profile.support.rowTitle').props.hint).toBeUndefined()
     expect(findRowByLabel(tree, 'profile.aboutRow').props.hint).toBeUndefined()
 

@@ -17,7 +17,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { Profile } from '@orbit/shared/types/profile'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { LogOut } from '@/components/ui/icons'
 
@@ -43,6 +43,7 @@ function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
     return (
       <ListRow
         key={item.id}
+        textMode="label"
         compact={!item.hintKey}
         icon={<ProfileNavIcon iconKey={item.iconKey} />}
         title={t(item.titleKey)}
@@ -60,17 +61,19 @@ function buildMoreRows({ profile, t }: RowContext, openWidget: () => void) {
 
 export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileSettingsContentProps>) {
   const t = useTranslations()
-  const locale = useLocale()
   const router = useRouter()
   const logout = useAuthStore((state) => state.logout)
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const context = { profile, router, t }
-  const proEntry = profile ? getProfileProEntry(profile, locale, t) : undefined
+  const proEntry = profile ? getProfileProEntry(profile, t) : undefined
   const rows = {
     you: PROFILE_SUBMENUS.flatMap((submenu) => {
       const row = <ListRow
         key={submenu.id}
-        compact={submenu.id !== 'account'}
+        compact
+        icon={<ProfileNavIcon iconKey={submenu.iconKey} />}
+        textMode={submenu.id === 'account' ? 'personal' : 'label'}
+        chevron={submenu.id !== 'account'}
         title={submenu.id === 'account' ? profile?.name ?? t(submenu.labelKey) : t(submenu.labelKey)}
         accessibilityLabel={submenu.id === 'account' ? t('profile.submenus.accountLabel', { name: profile?.name ?? t(submenu.labelKey), email: profile?.email ?? '' }) : t(submenu.labelKey)}
         description={submenu.id === 'account' ? profile?.email : undefined}
@@ -80,9 +83,10 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
       return [row, <ListRow
         key="orbit-pro"
         compact
+        icon={<ProfileNavIcon iconKey="pro" />}
+        textMode="label"
         title={t('upgrade.pitchTitle')}
         value={proEntry.value}
-        wrapValue
         chevron={Boolean(proEntry.href)}
         readOnly={!proEntry.href}
         titleTranslate="no"
@@ -91,7 +95,7 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
     }),
     more: buildMoreRows(context, () => setShowWidgetInfo(true)),
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 428 controls this label under D42. */
-    ending: <ListRow compact icon={<LogOut size={24} strokeWidth={1.8} />} title={t('profile.settingsRows.signOut')} chevron={false} onClick={() => void logout()} />,
+    ending: <ListRow textMode="label" compact icon={<LogOut size={24} strokeWidth={1.8} />} title={t('profile.settingsRows.signOut')} chevron={false} onClick={() => void logout()} />,
   }
   return <>
     <ProfileSettingsFrame isLoading={isLoading} loadingLabel={t('profile.loading')} labels={{ more: t('profile.groups.more') }} rows={rows} />
