@@ -596,6 +596,15 @@ describe('ProfileScreen', () => {
     })
   })
 
+
+  it.each([true, false])('withholds the Pro entry while the plan is unknown and loading is %s', async (isLoading) => {
+    mockRealListRow.current = true
+    mockProfileState.current = { profile: undefined, isLoading, error: isLoading ? null : new Error('load failed') }
+    const tree = await renderProfileScreen()
+    expect(nodeText(tree.root)).not.toContain('upgrade.pitchTitle')
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', async (destination) => {
     mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
     const tree = await renderProfileSubscreen(destination)

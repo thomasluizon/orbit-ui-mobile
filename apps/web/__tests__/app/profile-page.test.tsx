@@ -278,6 +278,13 @@ describe('ProfilePage', () => {
     })
   })
 
+
+  it.each([true, false])('withholds the Pro entry while the plan is unknown and loading is %s', (isLoading) => {
+    mockProfileState.current = { profile: undefined, isLoading, error: isLoading ? null : new Error('load failed') }
+    render(<ProfilePage />)
+    expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
+  })
+
   it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', (destination) => {
     mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
     const Destination = PROFILE_ROUTES[destination]

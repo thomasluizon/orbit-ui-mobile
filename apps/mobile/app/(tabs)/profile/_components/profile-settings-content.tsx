@@ -78,18 +78,18 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
   const context = { profile, router, t }
-  const proEntry = getProfileProEntry(profile, i18n.language, t)
+  const proEntry = profile ? getProfileProEntry(profile, i18n.language, t) : undefined
   const rows = {
     you: PROFILE_SUBMENUS.flatMap((submenu) => {
       const row = <ListRow
-      key={submenu.id}
-      compact={submenu.id !== 'account'}
-      title={submenu.id === 'account' ? profile?.name ?? t(submenu.labelKey) : t(submenu.labelKey)}
-      accessibilityLabel={submenu.id === 'account' ? t('profile.submenus.accountLabel', { name: profile?.name ?? t(submenu.labelKey), email: profile?.email ?? '' }) : t(submenu.labelKey)}
-      description={submenu.id === 'account' ? profile?.email : undefined}
-      onClick={() => router.push(submenu.route)}
-    />
-      if (submenu.id !== 'account') return [row]
+        key={submenu.id}
+        compact={submenu.id !== 'account'}
+        title={submenu.id === 'account' ? profile?.name ?? t(submenu.labelKey) : t(submenu.labelKey)}
+        accessibilityLabel={submenu.id === 'account' ? t('profile.submenus.accountLabel', { name: profile?.name ?? t(submenu.labelKey), email: profile?.email ?? '' }) : t(submenu.labelKey)}
+        description={submenu.id === 'account' ? profile?.email : undefined}
+        onClick={() => router.push(submenu.route)}
+      />
+      if (submenu.id !== 'account' || !proEntry) return [row]
       return [row, <ListRow
         key="orbit-pro"
         compact

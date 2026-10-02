@@ -31,14 +31,14 @@ export const PROFILE_SUBMENUS = [
 export type ProfileSubmenuId = typeof PROFILE_SUBMENUS[number]['id']
 
 export function getProfileProEntry(
-  profile: Profile | undefined,
+  profile: Profile,
   locale: string,
   t: (key: string, values?: Record<string, string>) => string,
 ): { value: string; href: '/upgrade' | undefined } {
-  if (profile?.isLifetimePro) {
+  if (profile.isLifetimePro) {
     return { value: t('upgrade.billing.plan.lifetime'), href: undefined }
   }
-  if (profile?.isTrialActive) {
+  if (profile.isTrialActive) {
     const plan = t('profile.subscription.trial')
     const value = profile.trialEndsAt
       ? t('profile.subscription.trialUntil', {
@@ -49,7 +49,7 @@ export function getProfileProEntry(
     return { value, href: '/upgrade' }
   }
   return {
-    value: t(profile?.hasProAccess ? 'profile.allowance.pro' : 'profile.allowance.free'),
+    value: t(profile.hasProAccess ? 'profile.allowance.pro' : 'profile.allowance.free'),
     href: '/upgrade',
   }
 }
