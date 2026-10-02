@@ -406,4 +406,40 @@ describe('Composer', () => {
       expect(root).not.toHaveAttribute('data-can-retry', 'false')
     },
   )
+  it.each(['idle', 'sending', 'offline', 'atLimit'] as const)('only dispatches attachment actions while idle, from %s', (state) => {
+    const onAttachFile = vi.fn()
+    const onAttachImage = vi.fn()
+    const statuses = {
+      idle: { state: 'idle' }, sending: { state: 'sending' },
+      offline: { state: 'offline', limitReason: 'offline sentinel' },
+      atLimit: { state: 'atLimit', limitReason: 'limit sentinel' },
+    } as const
+    render(<Composer words={words} value="" suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} {...statuses[state]} onAttachFile={onAttachFile} onAttachImage={onAttachImage} attachWords={attachWords} />)
+    for (const [name, callback] of [[attachWords.file, onAttachFile], [attachWords.image, onAttachImage]] as const) {
+      const button = screen.getByRole('button', { name })
+      if (state === 'idle') expect(button).toBeEnabled()
+      else expect(button).toBeDisabled()
+      fireEvent.click(button)
+      expect(callback).toHaveBeenCalledTimes(state === 'idle' ? 1 : 0)
+    }
+  })
+
+  it.each(['idle', 'recording', 'transcribing', 'sending', 'offline', 'atLimit'] as const)('dispatches voice only when the %s control can act', (state) => {
+    const onVoice = vi.fn()
+    const statuses = {
+      idle: { state: 'idle' }, recording: { state: 'recording' },
+      transcribing: { state: 'transcribing' }, sending: { state: 'sending' },
+      offline: { state: 'offline', limitReason: 'offline sentinel' },
+      atLimit: { state: 'atLimit', limitReason: 'limit sentinel' },
+    } as const
+    render(<Composer words={words} value="" suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} {...statuses[state]} onVoice={onVoice} voiceWords={voiceWords} />)
+    const canAct = state === 'idle' || state === 'recording' || state === 'atLimit'
+    const name = state === 'recording' || state === 'transcribing' ? voiceWords.stop : voiceWords.start
+    const button = screen.getByRole('button', { name })
+    if (canAct) expect(button).toBeEnabled()
+    else expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(onVoice).toHaveBeenCalledTimes(canAct ? 1 : 0)
+  })
+
 })

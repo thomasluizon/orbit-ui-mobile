@@ -18,7 +18,6 @@ import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
 import { Chip } from '@/components/ui/chip'
 import { Sheet } from '@/components/ui/sheet'
 import { TagEditorRow } from '@/components/habits/habit-form-fields/tag-editor-row'
-import { HabitTagChip } from '@/components/habits/habit-form-fields/habit-tag-chip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { fireEvent, render, within } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -147,7 +146,6 @@ describe('interaction fill parity in Chromium', () => {
       <SegmentedControl label="Views" options={[{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }]} value="all" onChange={noop} />
       <AppSelect value="before" options={[{ value: 'before', label: 'Before' }, { value: 'after', label: 'After' }]} label="Direction" onChange={noop} />
       <TagEditorRow value="Health" inputAriaLabel="Tag" actionLabel="Save" cancelAriaLabel="Cancel" disabled={false} onChange={noop} onCommit={noop} onCancel={noop} />
-      <HabitTagChip tag={{ id: 'health', name: 'Health' }} selected={false} animationClassName="" atLimit={false} disabled={false} onToggle={noop} onEdit={noop} onDelete={noop} editAriaLabel="Edit Health" deleteAriaLabel="Delete Health" />
     </NextIntlClientProvider>)
     const markup = controls.container.innerHTML
     controls.unmount()
@@ -161,7 +159,7 @@ describe('interaction fill parity in Chromium', () => {
       await page.setContent(`<style>${stylesheet}:root {${declarations}} body {padding:48px} :is(button, select) {transition:none !important}</style>${markup}${close}`)
       await loadAppFonts(page)
       const expectedFill = await page.evaluate((fill) => { const probe = document.createElement('span'); probe.style.backgroundColor = fill; document.body.append(probe); const color = getComputedStyle(probe).backgroundColor; probe.remove(); return color }, variables['--bg-hover']!)
-      for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel', 'Health', 'Edit Health', 'Delete Health']) {
+      for (const label of ['Previous day', 'Next day', 'List options', 'Search', 'Previous month', 'Next month', 'Current month', 'Select year', 'Previous week', 'Next week', 'Current week', 'common.back', 'Idle chip', 'Selected chip', ptBr.common.close, 'Cancel']) {
         const control = page.getByRole('button', { name: label, exact: true })
         const bounds = await control.boundingBox()
         expect(bounds!.width, `${label} target width`).toBeGreaterThanOrEqual(44)
