@@ -202,11 +202,11 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => tree.update(<></>))
   })
 
-  it.each(['today', 'calendar', 'progress', 'profile'])('keeps the %s composer and scroller under one keyboard owner', async (destination) => {
+  it.each(['today', 'calendar', 'progress', 'profile'])('keeps the %s chrome and scroller under one keyboard owner', async (destination) => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <Shell412 composer={React.createElement('Composer', { destination })} tabBar={React.createElement('TabBar')}>
+        <Shell412 composer={destination === 'today' ? React.createElement('Composer', { destination }) : undefined} tabBar={React.createElement('TabBar')}>
           {React.createElement('DestinationList', { destination })}
         </Shell412>,
       )
@@ -216,7 +216,7 @@ describe('Shell412 mobile', () => {
     expect(owner).toHaveLength(1)
     expect(owner[0]?.props.behavior).toBe('height')
     expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-scroller')).toHaveLength(1)
-    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
+    expect(owner[0]?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(destination === 'today' ? 1 : 0)
 
     await TestRenderer.act(() => {
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
@@ -310,7 +310,7 @@ describe('Shell412 mobile', () => {
     expect(tree.root.findAll((node) => String(node.type) === 'AstraComposer')).toHaveLength(0)
   })
 
-  it('mounts destination feedback above the persistent composer', async () => {
+  it('mounts Profile feedback above the tab bar without a composer', async () => {
     function ProfileExportNotice() {
       useShellNoticeSlot(
         true,
@@ -323,7 +323,6 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <Shell412
-          composer={React.createElement('AstraComposer')}
           tabBar={React.createElement('TabBar')}
         >
           <ProfileExportNotice />
@@ -334,8 +333,8 @@ describe('Shell412 mobile', () => {
 
     const notice = findByTestId(tree, 'shell-notice')[0]
     expect(notice?.findAll((node) => String(node.type) === 'ExportDone')).toHaveLength(1)
-    expect(findByTestId(tree, 'shell-pinned-slot')[0]
-      ?.findAll((node) => String(node.type) === 'AstraComposer')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(0)
+    expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
   })
 
   it('refreshes the Today composer tray when an image is selected and removed', async () => {
@@ -452,7 +451,6 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <Shell412
-          composer={React.createElement('Composer')}
           tabBar={React.createElement('TabBar')}
         >
           {React.createElement('View', { testID: 'profile-identity-container' })}

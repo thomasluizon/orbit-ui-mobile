@@ -452,8 +452,8 @@ describe('web useChatComposer streaming send', () => {
   })
 
   it.each([
-    ['/profile', 'open', undefined],
-    ['/profile', 'direct-send', undefined],
+    ['/', 'open', undefined],
+    ['/', 'direct-send', undefined],
   ])('captures route intent through the layout %s %s callback before the first request', async (pathname, action, expectedIntent) => {
     mocks.pathname = pathname
     useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })

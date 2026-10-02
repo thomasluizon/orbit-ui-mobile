@@ -329,6 +329,7 @@ describe('DestinationShell', () => {
 
   it.each([false, true])('mounts destination feedback in the shell notice slot at wide=%s', async (wide) => {
     mocks.wide = wide
+    mocks.pathname = '/profile'
 
     function ProfileExportNotice() {
       const [done, setDone] = useState(false)
@@ -349,7 +350,7 @@ describe('DestinationShell', () => {
 
     const notice = await screen.findByTestId('export-done')
     expect(notice.parentElement).toHaveAttribute('data-shell-notice')
-    expect(document.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
+    expect(document.querySelector('[data-shell-pinned-slot]')).toBeNull()
   })
 
   it.each([
