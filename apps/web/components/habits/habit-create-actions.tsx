@@ -17,7 +17,7 @@ export function HabitCreateActions({ presentation, pending, empty, subHabit, onl
   const t = useTranslations()
   const screen = presentation === 'screen'
   const ActionContainer = screen ? 'div' : DialogActionPair
-  const reason = empty ? <p id={`${formId}-create-reason`} className={`text-sm text-[var(--fg-3)]${screen ? ' text-center' : ''}`}>{t('habits.form.createWhy')}</p> : null
+  const reason = empty ? <p id={`${formId}-create-reason`} className={`text-sm text-[var(--fg-3)]${screen ? ' text-center sm:text-start' : ''}`}>{t('habits.form.createWhy')}</p> : null
   return <div className={online ? 'flex w-full flex-col' : 'flex w-full flex-col gap-4'}>
     <div role="status">{!online ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div>
     <div className={screen ? 'flex flex-col gap-2' : 'flex flex-col gap-4'}>
