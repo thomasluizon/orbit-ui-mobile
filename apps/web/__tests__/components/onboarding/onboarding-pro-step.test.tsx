@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { getTrialDaysLeft } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
@@ -52,6 +52,24 @@ async function mount(profile = mocks.profile) {
 }
 
 describe('Onboarding final Pro step', () => {
+  it.each(['en', 'pt-BR'])('exposes both loaded paywall cards to geometry checks in %s', async (locale) => {
+    mocks.locale = locale
+    const view = await mount()
+    const step = view.container.querySelector('[data-onboarding-step="paywall"]')!
+    const cards = step.querySelectorAll<HTMLElement>('[data-tier-content]')
+    expect(cards).toHaveLength(2)
+    expect(Array.from(cards, (card) => card.dataset.tierContent)).toEqual(['yearly', 'monthly'])
+    for (const card of cards) {
+      expect(card).toHaveAttribute('data-tier', card.dataset.tierContent)
+      expect(within(card).getByRole('button', { name: /Subscribe|Assinar/ })).toBeEnabled()
+      const outcomes = within(card).getByRole('list', { name: translate('upgrade.outcomes.label') })
+      expect(within(outcomes).getAllByRole('listitem')).toHaveLength(4)
+      for (const key of ['astra', 'calendar', 'retrospective', 'noticing']) {
+        expect(within(outcomes).getByText(translate(`upgrade.outcomes.${key}`))).toBeInTheDocument()
+      }
+    }
+  })
+
   it.each(['en', 'pt-BR'])('shows trial facts and one action in %s', async (locale) => {
     mocks.locale = locale
     const end = new Date(Date.now() + 7 * 86400000).toISOString()
@@ -63,7 +81,7 @@ describe('Onboarding final Pro step', () => {
     const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(end))
     expect(screen.getByText(translate('upgrade.billing.plan.trialHint', { date }))).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument(); expect(screen.getByText('50')).toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+    expect(screen.queryAllByRole('list', { name: translate('upgrade.outcomes.label') })).toHaveLength(0)
     expect(screen.getAllByRole('button')).toHaveLength(1)
     expect(view.container.querySelector('[data-tier-content]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: translate('onboarding.flow.done.seeDay') }))
@@ -79,6 +97,9 @@ describe('Onboarding final Pro step', () => {
     if (state === 'offline') for (const button of screen.getAllByRole('button', { name: /Subscribe/ })) expect(button).toBeDisabled()
     if (state === 'loaded') {
       expect(screen.getAllByRole('button', { name: /Subscribe/ })).toHaveLength(2)
+      const lists = screen.getAllByRole('list', { name: translate('upgrade.outcomes.label') })
+      expect(lists).toHaveLength(2)
+      for (const list of lists) { expect(list.closest('[data-tier]')).not.toBeNull(); expect(list.children).toHaveLength(4) }
       expect(screen.getAllByText(en.upgrade.plans.recommended).filter((element) => !element.closest('[inert]'))).toHaveLength(1)
       expect(screen.getAllByText(/42/).filter((element) => !element.closest('[inert]'))).toHaveLength(1)
     }
