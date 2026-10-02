@@ -11,7 +11,7 @@ import { createTokensV2 } from '@/lib/theme'
 interface HostJson {
   type: string
   props: {
-    style?: StyleProp<ViewStyle & TextStyle>
+    style?: StyleProp<ViewStyle & TextStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle & TextStyle>)
     testID?: string
     importantForAccessibility?: string
     width?: number
@@ -50,11 +50,12 @@ function applyInsets(node: Node, style: ViewStyle) {
 
 function applyStyle(node: Node, style: ViewStyle) {
   for (const [key, setter] of [
-    ['height', 'setHeight'], ['width', 'setWidth'], ['minHeight', 'setMinHeight'],
+    ['height', 'setHeight'], ['width', 'setWidth'], ['minHeight', 'setMinHeight'], ['minWidth', 'setMinWidth'],
     ['flexGrow', 'setFlexGrow'], ['flexShrink', 'setFlexShrink'], ['flex', 'setFlex'],
   ] as const) if (typeof style[key] === 'number') node[setter](style[key])
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
   if (style.borderWidth) node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
   applyInsets(node, style)
@@ -63,7 +64,8 @@ function applyStyle(node: Node, style: ViewStyle) {
 function build(element: HostJson, boxes: Map<HostJson, Node>): Node {
   const node = Yoga.Node.create()
   boxes.set(element, node)
-  const style = StyleSheet.flatten(element.props.style)
+  const renderedStyle = typeof element.props.style === 'function' ? element.props.style({ pressed: false }) : element.props.style
+  const style = StyleSheet.flatten(renderedStyle ?? {})
   applyStyle(node, style)
   if (element.type === 'Svg') { node.setWidth(element.props.width); node.setHeight(element.props.height) }
   if (element.type === 'Text') {
@@ -75,7 +77,7 @@ function build(element: HostJson, boxes: Map<HostJson, Node>): Node {
       return { width: Math.min(width, textWidth), height: Math.max(1, Math.ceil(textWidth / Math.max(1, width))) * lineHeight }
     })
   } else if (element.type === 'Pressable') {
-    node.setHeight(44)
+    node.setMeasureFunc(() => ({ width: textOf(element).length * 8, height: 20 }))
   } else {
     (element.children ?? []).filter((child): child is HostJson => typeof child !== 'string')
       .forEach((child, index) => node.insertChild(build(child, boxes), index))
@@ -119,14 +121,17 @@ describe('Android Pro tier Yoga geometry', () => {
           const cardEntry = Array.from(measured.boxes).filter(([element]) => element.props.testID === `upgrade-tier-${interval}`).at(-1)!
           const [element, card] = cardEntry
           const action = card.getChild(card.getChildCount() - 1)
-          const style = StyleSheet.flatten(element.props.style)
+          const button = action.getChild(0)
+          const renderedStyle = typeof element.props.style === 'function' ? element.props.style({ pressed: false }) : element.props.style
+          const style = StyleSheet.flatten(renderedStyle ?? {})
           const padding = Number(style.padding) + (style.borderWidth ?? 0)
           const belowButton = card.getComputedHeight() - action.getComputedTop() - action.getComputedHeight()
           const contentHeight = card.getComputedHeight() - belowButton + padding
-          process.stdout.write(`${JSON.stringify({ width, locale, interval, cardHeight: card.getComputedHeight(), contentHeight, reservedHeight: content?.getComputedHeight(), belowButton, padding })}\n`)
-          return { height: card.getComputedHeight(), contentHeight, reservedHeight: content?.getComputedHeight() }
+          process.stdout.write(`${JSON.stringify({ width, locale, interval, cardHeight: card.getComputedHeight(), contentHeight, reservedHeight: content?.getComputedHeight(), belowButton, padding, buttonWidth: button.getComputedWidth(), actionWidth: action.getComputedWidth() })}\n`)
+          return { height: card.getComputedHeight(), contentHeight, reservedHeight: content?.getComputedHeight(), buttonWidth: button.getComputedWidth(), actionWidth: action.getComputedWidth() }
         })
         for (const card of measurements) {
+          expect(card.buttonWidth).toBeLessThan(card.actionWidth)
           expect(Math.abs(card.height - card.contentHeight)).toBeLessThanOrEqual(1)
           if (card.reservedHeight !== undefined) expect(Math.abs(card.reservedHeight - card.height)).toBeLessThanOrEqual(1)
         }

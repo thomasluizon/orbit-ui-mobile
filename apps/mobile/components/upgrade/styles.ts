@@ -156,6 +156,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   tierAction: {
+    alignItems: 'flex-start',
     paddingTop: 8,
   },
   renewalNote: {

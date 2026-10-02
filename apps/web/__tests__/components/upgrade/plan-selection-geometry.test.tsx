@@ -66,11 +66,13 @@ describe('Pro tier geometry in Chromium', () => {
           const contentHeight = clone.getBoundingClientRect().height
           clone.remove()
           return { tier: card.querySelector('h3')!.textContent, height: bounds.height, contentHeight,
-            belowButton: bounds.bottom - button.bottom, padding: parseFloat(style.paddingBottom) }
+            belowButton: bounds.bottom - button.bottom, padding: parseFloat(style.paddingBottom),
+            buttonWidth: button.width, contentWidth: bounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) }
         }))
       process.stdout.write(`${JSON.stringify({ width, locale, coupon, geometry })}\n`)
       expect(geometry).toHaveLength(2)
       for (const card of geometry) {
+        expect(card.buttonWidth).toBeLessThan(card.contentWidth)
         expect(card.height).toBeCloseTo(card.contentHeight, 0)
         expect(card.belowButton).toBeCloseTo(card.padding, 0)
       }
