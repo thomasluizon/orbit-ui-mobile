@@ -153,6 +153,19 @@ describe('Shell412 mobile', () => {
     await TestRenderer.act(() => tree.update(<></>))
   })
 
+  it.each([412, 1352])('keeps tab-only clearance without a composer band at %ipx', async (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Shell412 tabBar={React.createElement('TabBar')}><ScrollSurface /></Shell412>)
+    })
+    expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-composer-band')).toHaveLength(0)
+    expect(StyleSheet.flatten(findByTestId(tree, 'scroll-surface')[0]?.props.contentContainerStyle)).toMatchObject({ paddingBottom: 32 })
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-bottom')[0]?.props.style)).toMatchObject({ paddingBottom: 24 })
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('does not reserve pinned-chrome clearance when the chrome is absent', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {

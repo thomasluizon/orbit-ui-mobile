@@ -224,6 +224,9 @@ function ShellWideBackground({
   const pinnedSlot = navigationEnabled ? props.composer : props.action
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
+  const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
+    ? 'pb-24 lg:pb-8'
+    : 'pb-8'
   return (
     <div
       data-shell-background=""
@@ -239,7 +242,7 @@ function ShellWideBackground({
           <main
             ref={registerScroller}
             data-shell-scroller=""
-            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${hasBottomChrome ? 'pb-24 lg:pb-8' : ''}`}
+            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${hasBottomChrome ? scrollerClearance : ''}`}
           >
             <span
               aria-hidden="true"

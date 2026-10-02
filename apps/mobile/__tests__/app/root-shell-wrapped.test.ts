@@ -308,12 +308,12 @@ describe('Wrapped root shell', () => {
   })
 
   it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings'])(
-    'shows composer only on destination roots and habit detail at %s', async (pathname) => {
+    'shows composer only on Hoje and habit detail at %s', async (pathname) => {
       routeState.pathname = pathname
       routeState.segments = pathname === '/' ? ['(tabs)'] : [pathname.slice(1)]
       const tree = await renderRoot()
       expect(findByTestId(tree, 'shell-pinned-slot').length > 0).toBe(
-        ['/', '/calendar', '/progress', '/profile', '/habits/h1'].includes(pathname),
+        ['/', '/habits/h1'].includes(pathname),
       )
       expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
     },

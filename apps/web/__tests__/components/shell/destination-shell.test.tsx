@@ -744,13 +744,13 @@ describe('DestinationShell', () => {
     expect(screen.queryByText('One unread')).not.toBeInTheDocument()
   })
 
-  it.each([false, true])('shows composer only on roots and habit detail at wide=%s', (wide) => {
+  it.each([false, true])('shows composer only on Hoje and habit detail at wide=%s', (wide) => {
     mocks.wide = wide
     for (const pathname of ['/', '/calendar', '/progress', '/profile', '/habits/h1', '/about', '/support', '/search', '/ai-settings', '/preferences', '/advanced']) {
       mocks.pathname = pathname
       const view = render(<DestinationShell onCreate={() => {}} composer={<span>Composer</span>}><h1>Title</h1></DestinationShell>)
       expect(Boolean(view.container.querySelector('[data-shell-pinned-slot]'))).toBe(
-        ['/', '/calendar', '/progress', '/profile', '/habits/h1'].includes(pathname),
+        ['/', '/habits/h1'].includes(pathname),
       )
       view.unmount()
     }

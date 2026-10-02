@@ -102,6 +102,35 @@ describe('Foldable shell geometry', () => {
     } finally { await page.close() }
   })
 
+  it.each([412, 1023, 1024, 1352])('clears navigation without reserving composer space at %ipx', async (width) => {
+    const { container } = render(<ShellWide items={[]} activeId="calendario" navLabel="Navigation"
+      tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
+      <div style={{ height: 1600 }}>Long destination</div>
+    </ShellWide>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        scroller.scrollTop = scroller.scrollHeight
+        const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
+        const last = scroller.lastElementChild!.getBoundingClientRect()
+        return {
+          padding: parseFloat(getComputedStyle(scroller).paddingBottom),
+          clearance: bottom.top - last.bottom,
+          bottomHeight: bottom.height,
+          bottom: bottom.bottom,
+          pinnedCount: document.querySelectorAll('[data-shell-pinned-slot]').length,
+        }
+      })
+      expect(geometry.pinnedCount).toBe(0)
+      expect(geometry.padding).toBe(32)
+      expect(geometry.clearance).toBeCloseTo(32, 0)
+      expect(geometry.bottomHeight).toBe(width < 1024 ? 64 : 0)
+      expect(geometry.bottom).toBe(915)
+    } finally { await page.close() }
+  })
+
   it.each(windows.filter(({ width }) => width < 1024))('aligns the compact conversation at $width by $height', async ({ width, height }) => {
     const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
       conversation={<button type="button">Close conversation</button>} conversationLabel="Conversation" />)

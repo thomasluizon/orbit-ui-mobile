@@ -69,6 +69,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     || notice !== undefined
     || pinnedSlot !== undefined
     || props.fab !== undefined
+  const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
+    ? SHELL_SCROLLER_CLEARANCE
+    : 32
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
@@ -138,7 +141,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotProvider value={registeredComposer.value}>
         <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
-          <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? SHELL_SCROLLER_CLEARANCE : 0}>
+          <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
             {shell}
           </ShellScrollerClearanceContext.Provider>
         </KeyboardAwareView>
