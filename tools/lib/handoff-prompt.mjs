@@ -9,21 +9,59 @@ export const HANDOFF_PROMPT_PATH = ".claude/handoffs/NEXT.md"
 const REQUEST_FILE = "orbit-handoff-request.json"
 const KEPT_REQUESTS = 20
 
-const HANDOFF_COMMANDS = new Set(["handoff", "wrap-up"])
-const SLEEP_TOKEN = /(^|\s)(--sleep|\/sleep)(\s|$)/
+const SLEEP_TOKEN = /(?:^|[\s(])(?:--sleep|\/sleep)(?=$|[\s),;!?])/
 // The hook documentation gives the typed text; the transcript stores the expanded command tags. Accept both.
-const TYPED_COMMAND = /^\s*\/([a-z][\w-]*)\b([\s\S]*)$/
-const TAGGED_COMMAND = /<command-name>\/([a-z][\w-]*)<\/command-name>/
+const HANDOFF_COMMAND = /<command-name>\/(handoff|wrap-up)<\/command-name>|(?:^|[\s(])\/(handoff|wrap-up)(?=$|[\s),;!?])/g
 const TAGGED_ARGS = /<command-args>([\s\S]*?)<\/command-args>/
+const QUOTED_CONTENT = /(<pasted_content\b[^>]*>)|^[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n|$)|(`+)/gm
+const PASTED_TAG = /<(\/?)pasted_content\b([^>]*)>/g
+const PASTED_ID = /\bid\s*=\s*"([^"]*)"/
+
+// A pasted region ends at the closing tag that carries its own id, or at its balanced close, so a nested block cannot end it early.
+const pastedRegionEnd = (prompt, start) => {
+  const tags = new RegExp(PASTED_TAG.source, "g")
+  tags.lastIndex = start
+  const id = PASTED_ID.exec(tags.exec(prompt)[2])?.[1]
+  let depth = 1
+  for (let tag = tags.exec(prompt); tag; tag = tags.exec(prompt)) {
+    if (id === undefined) depth += tag[1] ? -1 : 1
+    else if (tag[1] && PASTED_ID.exec(tag[2])?.[1] === id) depth = 0
+    if (depth === 0) return tag.index + tag[0].length
+  }
+  return prompt.length
+}
+
+const ownerPromptText = (prompt) => {
+  const parts = []
+  let previousEnd = 0
+  for (const quoted of prompt.matchAll(QUOTED_CONTENT)) {
+    if (quoted.index < previousEnd) continue
+    const delimiter = quoted[2] ?? quoted[3]
+    let end = quoted[1] ? pastedRegionEnd(prompt, quoted.index) : quoted.index + quoted[0].length
+    if (delimiter) {
+      const closing = quoted[2]
+        ? new RegExp(`^[ \\t]{0,3}${delimiter[0]}{${delimiter.length},}[ \\t]*\\r?$`, "gm")
+        : new RegExp(`(?<!${delimiter[0]})${delimiter[0]}{${delimiter.length}}(?!${delimiter[0]})`, "g")
+      closing.lastIndex = end
+      const match = closing.exec(prompt)
+      if (!match && quoted[3]) continue
+      end = match ? match.index + match[0].length : prompt.length
+    }
+    parts.push(prompt.slice(previousEnd, quoted.index), prompt.slice(quoted.index, end).replace(/[^\r\n]/g, " "))
+    previousEnd = end
+  }
+  return parts.join("") + prompt.slice(previousEnd)
+}
 
 /** A `/handoff` or `/wrap-up` invocation and whether it asked for an unattended next session, or null. */
 export const parseHandoffRequest = (prompt) => {
   if (typeof prompt !== "string") return null
-  const tagged = TAGGED_COMMAND.exec(prompt)
-  const typed = tagged ? null : TYPED_COMMAND.exec(prompt)
-  const command = tagged?.[1] ?? typed?.[1]
-  if (!command || !HANDOFF_COMMANDS.has(command)) return null
-  const args = tagged ? (TAGGED_ARGS.exec(prompt)?.[1] ?? "") : typed[2]
+  const text = ownerPromptText(prompt)
+  const [first, next] = text.matchAll(HANDOFF_COMMAND)
+  if (!first) return null
+  const command = first[1] ?? first[2]
+  const trailing = text.slice(first.index + first[0].length, next?.index ?? text.length)
+  const args = first[1] ? (TAGGED_ARGS.exec(trailing)?.[1] ?? "") : trailing
   return { command, sleep: SLEEP_TOKEN.test(args) }
 }
 
