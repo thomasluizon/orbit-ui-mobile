@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { StyleSheet, Text, View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { SectionLabel } from '@/components/ui/section-label'
+import { ListRow } from '@/components/ui/list-row'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
@@ -18,6 +19,7 @@ type Translate = ReturnType<typeof useTranslation>['t']
 type MarketingConsentStyles = ReturnType<typeof createStyles>
 
 interface MarketingConsentContentProps {
+  contained: boolean
   consent: boolean | null | undefined
   enabled: boolean
   isPending: boolean
@@ -27,6 +29,7 @@ interface MarketingConsentContentProps {
 }
 
 function MarketingConsentContent({
+  contained,
   consent,
   enabled,
   isPending,
@@ -61,31 +64,42 @@ function MarketingConsentContent({
     )
   }
 
-  return (
+  const control = (
+    <View
+      pointerEvents={isPending ? 'none' : 'auto'}
+      accessible={isPending}
+      accessibilityRole={isPending ? 'switch' : undefined}
+      accessibilityLabel={isPending ? t('profile.marketingEmails.title') : undefined}
+      accessibilityState={isPending ? { checked: enabled, disabled: true } : undefined}
+    >
+      <View
+        accessibilityElementsHidden={isPending}
+        importantForAccessibility={isPending ? 'no-hide-descendants' : 'auto'}
+      >
+        <Switch
+          checked={enabled}
+          onChange={onChange}
+          label={t('profile.marketingEmails.title')}
+        />
+      </View>
+    </View>
+  )
+  return contained ? (
+    // eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42.
+    <ListRow
+      readOnly
+      title={t('profile.marketingEmails.title')}
+      chevron={false}
+      trailing={control}
+    />
+  ) : (
     <SettingsRow
       icon={Mail}
       label={t('profile.marketingEmails.title')}
       accessory="none"
       divider={false}
     >
-      <View
-        pointerEvents={isPending ? 'none' : 'auto'}
-        accessible={isPending}
-        accessibilityRole={isPending ? 'switch' : undefined}
-        accessibilityLabel={isPending ? t('profile.marketingEmails.title') : undefined}
-        accessibilityState={isPending ? { checked: enabled, disabled: true } : undefined}
-      >
-        <View
-          accessibilityElementsHidden={isPending}
-          importantForAccessibility={isPending ? 'no-hide-descendants' : 'auto'}
-        >
-          <Switch
-            checked={enabled}
-            onChange={onChange}
-            label={t('profile.marketingEmails.title')}
-          />
-        </View>
-      </View>
+      {control}
     </SettingsRow>
   )
 }
@@ -134,6 +148,7 @@ export function MarketingConsentSection({
   })
   const content = (
     <MarketingConsentContent
+      contained={contained}
       consent={profile?.marketingEmailConsent}
       enabled={enabled}
       isPending={mutation.isPending}

@@ -39,6 +39,7 @@ export function ProfileNotificationsContent() {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <View style={{ gap: 12 }}>
+      <MarketingConsentSection showSectionLabel={false} contained />
       <PushDevicesRow
         tokens={tokens}
         count={pushSubscriptions.count}
@@ -54,7 +55,6 @@ export function ProfileNotificationsContent() {
         onOpenSettings={() => void Linking.openSettings()}
         onRetry={() => void pushSubscriptions.refresh()}
       />
-      <MarketingConsentSection showSectionLabel={false} contained />
       <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21.7 }}>
         {t('profile.settingsRows.remindersNote')}
       </Text>

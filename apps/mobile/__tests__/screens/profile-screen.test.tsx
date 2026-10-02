@@ -10,6 +10,8 @@ import type { StepUpTimingRecord } from '@orbit/shared/utils'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
+import { ListRow } from '@/components/ui/list-row'
+
 import ProfileScreen from '@/app/(tabs)/profile'
 import ProfileAccountRoute from '@/app/profile/account'
 import ProfilePreferencesRoute from '@/app/profile/preferences'
@@ -1402,6 +1404,35 @@ describe('ProfileScreen', () => {
     ).toBeGreaterThan(0)
   })
 
+  it.each([true, false])('renders answered email consent %s before the matching device row and reminders note', async (consent) => {
+    mockPushSupported.current = true
+    mockRealConsentSection.current = true
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({ marketingEmailConsent: consent })
+    const tree = await renderProfileSubscreen('notifications')
+    const group = tree.root.findByProps({ testID: 'profile-settings-group-notifications' })
+    const rows = group.findAllByType(ListRow)
+    expect(rows.map((row: { props: { title: string } }) => row.props.title)).toEqual([
+      'profile.marketingEmails.title',
+      'profile.settingsRows.alertsOnThisDevice',
+    ])
+    for (const row of rows) {
+      expect(row.props.icon).toBeUndefined()
+      expect(row.props.readOnly).toBe(true)
+      expect(row.props.chevron).toBe(false)
+    }
+    const controls = group.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
+    expect(controls.map((node: { props: { accessibilityLabel: string } }) => node.props.accessibilityLabel)).toEqual([
+      'profile.marketingEmails.title',
+      'profile.settingsRows.alertsOnThisDevice',
+    ])
+    expect(controls[0].props.accessibilityState.checked).toBe(consent)
+    const text = nodeText(group)
+    expect(text.indexOf('profile.settingsRows.alertsOnThisDevice')).toBeLessThan(text.indexOf('profile.settingsRows.remindersNote'))
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it('renders only the drawn Notifications rows and the recorded deviations, in order', async () => {
     mockPushSupported.current = true
     mockRealConsentSection.current = true
@@ -1420,18 +1451,18 @@ describe('ProfileScreen', () => {
     ).map(nodeText).filter(Boolean)
 
     expect(textLines).toEqual([
-      'profile.settingsRows.alertsOnThisDevice',
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
       'profile.marketingEmails.accept',
       'profile.marketingEmails.decline',
+      'profile.settingsRows.alertsOnThisDevice',
       'profile.settingsRows.remindersNote',
     ])
     expect(controls.map((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
       `${node.props.accessibilityRole}: ${node.props.accessibilityLabel ?? nodeText(node)}`)).toEqual([
-      'switch: profile.settingsRows.alertsOnThisDevice',
       'button: profile.marketingEmails.accept',
       'button: profile.marketingEmails.decline',
+      'switch: profile.settingsRows.alertsOnThisDevice',
     ])
   })
 

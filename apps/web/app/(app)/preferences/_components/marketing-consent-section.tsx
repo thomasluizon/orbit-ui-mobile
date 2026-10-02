@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Mail } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
+import { ListRow } from '@/components/ui/list-row'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
@@ -41,6 +42,15 @@ export function MarketingConsentSection({
       patchProfile({ marketingEmailConsent: context?.previous ?? null })
     },
   })
+  const control = (
+    <fieldset disabled={mutation.isPending} className="m-0 border-0 p-0">
+      <Switch
+        checked={enabled}
+        onChange={(checked) => mutation.mutate(checked)}
+        label={t('profile.marketingEmails.title')}
+      />
+    </fieldset>
+  )
   const content = profile?.marketingEmailConsent == null ? (
     <div
       className="flex flex-col bg-[var(--bg-well)] p-4"
@@ -65,6 +75,14 @@ export function MarketingConsentSection({
         </PillButton>
       </fieldset>
     </div>
+  ) : contained ? (
+    // eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42.
+    <ListRow
+      readOnly
+      title={t('profile.marketingEmails.title')}
+      chevron={false}
+      trailing={control}
+    />
   ) : (
     <SettingsRow
       icon={Mail}
@@ -72,13 +90,7 @@ export function MarketingConsentSection({
       accessory="none"
       divider={false}
     >
-      <fieldset disabled={mutation.isPending} className="m-0 border-0 p-0">
-        <Switch
-          checked={enabled}
-          onChange={(checked) => mutation.mutate(checked)}
-          label={t('profile.marketingEmails.title')}
-        />
-      </fieldset>
+      {control}
     </SettingsRow>
   )
 
