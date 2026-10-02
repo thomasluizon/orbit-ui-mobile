@@ -11,6 +11,7 @@ const timestamp = (value, label) => {
 
 const progressEntries = async ({ sessionId, repoRoot, transcriptPath, now }) => {
   const chain = openSessionChain(sessionId, repoRoot)
+  now ??= new Date().toISOString()
   const currentSessionId = chain?.currentSessionId ?? sessionId
   const recorded = readRunState(repoRoot)
   const state = recorded?.sessionId === currentSessionId ? recorded : null
@@ -65,9 +66,10 @@ const pullProjection = "[.[]|{number,title,body,base:{ref:.base.ref},merge_commi
 const runProjection = "{total_count,workflow_runs:[.workflow_runs[]|{id,display_title,head_branch,conclusion,status,created_at,updated_at,html_url}]}"
 const ticketProjection = "[.[]|{number,title,body,closed_at,state_reason,html_url}]"
 
-export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPath, now = new Date().toISOString(), repositories, ticketRepository, readPages }) => {
+export const collectProgressWindow = async ({ sessionId, repoRoot, transcriptPath, now, repositories, ticketRepository, readPages }) => {
   const entries = await progressEntries({ sessionId, repoRoot, transcriptPath, now })
   if (!entries) return { baseline: "unavailable", sessionId, window: null, entries: [] }
+  now = entries.at(-1).endedAt
   const startedAt = entries[0].startedAt
   const sources = repositories.flatMap(({ key, slug }) => [
     { repository: key, kind: "merges", path: `repos/${slug}/pulls?state=closed&per_page=100`, projection: pullProjection },

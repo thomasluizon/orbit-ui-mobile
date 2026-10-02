@@ -89,4 +89,19 @@ export const cases = async () => {
   ledger.chains[0].entries[0].endedAt = "2026-10-01T00:59:00Z"
   writeSessionChain(ledger, staged.repoRoot)
   T("progress-window: work in a gap is reported as an interval error", await rejects(staged.options, /has no chain entry/))
+  const recovered = fixture("progress-recovered")
+  const recoveringLedger = JSON.parse(readFileSync(join(recovered.repoRoot, ".git", "orbit-session-chain.json"), "utf8"))
+  recoveringLedger.chains[0].currentSessionId = "relay-2"
+  writeSessionChain(recoveringLedger, recovered.repoRoot)
+  writeRunState({ sessionId: "current", relay: { from: "relay-2", successorTerminal: "current-terminal" } }, recovered.repoRoot)
+  const OriginalDate = globalThis.Date
+  let clock = OriginalDate.parse("2026-10-01T04:00:00Z")
+  let recoveryError
+  try {
+    globalThis.Date = class extends OriginalDate {
+      constructor(...args) { super(...(args.length ? args : [++clock])) }
+    }
+    await collectProgressWindow({ ...recovered.options, now: undefined })
+  } catch (error) { recoveryError = error.message } finally { globalThis.Date = OriginalDate }
+  T("progress-window: recovered relay resolves before the window end is sampled", recoveryError === undefined, recoveryError)
 }
