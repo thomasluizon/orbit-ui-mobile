@@ -36,26 +36,35 @@ export interface AnchoredMenuController {
 export function useAnchoredMenu(): AnchoredMenuController {
   const anchorRef = useRef<NativeView>(null)
   const ownsActiveMenu = useRef(false)
+  const currentOpenRevision = useRef(0)
+  const [openRevision, setOpenRevision] = useState(0)
   const [visible, setVisible] = useState(false)
-  const close = useCallback(() => {
+  const dismissImmediately = useCallback(() => {
     if (ownsActiveMenu.current) {
       ownsActiveMenu.current = false
       activeMenuClose = null
     }
     setVisible(false)
   }, [])
+  const close = useCallback(() => {
+    if (currentOpenRevision.current !== openRevision) return
+    dismissImmediately()
+  }, [dismissImmediately, openRevision])
   const open = useCallback(() => {
     if (!ownsActiveMenu.current) activeMenuClose?.()
     ownsActiveMenu.current = true
-    activeMenuClose = close
+    activeMenuClose = dismissImmediately
+    currentOpenRevision.current += 1
+    setOpenRevision(currentOpenRevision.current)
     setVisible(true)
-  }, [close])
+  }, [dismissImmediately])
   const toggle = useCallback(() => {
     if (visible) close()
     else open()
   }, [close, open, visible])
   useEffect(() => () => {
     if (ownsActiveMenu.current) activeMenuClose = null
+    ownsActiveMenu.current = false
   }, [])
   return { anchorRef, visible, open, close, toggle }
 }

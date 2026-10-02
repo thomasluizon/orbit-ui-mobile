@@ -30,6 +30,25 @@ function NestedReloadSheets() {
 }
 
 describe('Sheet', () => {
+  it('returns focus to its trigger after ordinary dismissal without a focus policy', async () => {
+    const user = userEvent.setup()
+    function Host() {
+      const [open, setOpen] = useState(false)
+      return <>
+        <button type="button" onClick={() => setOpen(true)}>Open sheet</button>
+        {open ? <Sheet title="Options" onClose={() => setOpen(false)}><button type="button">Action</button></Sheet> : null}
+      </>
+    }
+    render(<Host />)
+    const trigger = screen.getByRole('button', { name: 'Open sheet' })
+    await user.click(trigger)
+    const dialog = screen.getByRole('dialog')
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement))
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
   it('leaves the short widget sheet bottom inset to the primitive', () => {
     render(<WidgetInfoOverlay open onOpenChange={vi.fn()} t={(key) => key} />)
     const body = screen.getByRole('dialog').querySelector('[data-slot="sheet-body"]')!

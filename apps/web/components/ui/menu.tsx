@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useEffectEvent,
   useRef,
@@ -20,6 +21,8 @@ const AnchoredPopover = dynamic(
   () => import('@/components/ui/popover-positioner').then((module) => module.AnchoredPopover),
   { ssr: false },
 )
+
+let activeMenuDismiss: (() => void) | null = null
 
 const DEFAULT_WIDE_FROM = 900
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
@@ -53,17 +56,19 @@ function MenuSheet({
   onSelect,
   onClose,
   title,
+  finalFocus,
 }: Readonly<{
   id?: string
   items: readonly MenuItem[]
   onSelect?: (id: string) => void
   onClose?: () => void
   title?: string
+  finalFocus: () => boolean
 }>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
   return (
-    <Sheet ref={sheetRef} open title={title} onClose={onClose}>
+    <Sheet ref={sheetRef} open title={title} onClose={onClose} finalFocus={finalFocus}>
       <div id={id} role="menu" aria-label={title}>
         <MenuItems
           items={items}
@@ -145,6 +150,30 @@ function adjacentTabStop(
   return null
 }
 
+function useMenuOwnership(open: boolean, onClose: (() => void) | undefined, restoreFocusRef: RefObject<boolean>) {
+  const [visibility, setVisibility] = useState({ open, dismissed: false })
+  if (visibility.open !== open) setVisibility({ open, dismissed: false })
+  const dismissed = visibility.open === open && visibility.dismissed
+  const dismissMenu = useEffectEvent(() => {
+    restoreFocusRef.current = false
+    setVisibility({ open, dismissed: true })
+    onClose?.()
+  })
+
+  useEffect(() => {
+    if (!open || dismissed) return
+    restoreFocusRef.current = true
+    const dismiss = () => dismissMenu()
+    activeMenuDismiss?.()
+    activeMenuDismiss = dismiss
+    return () => {
+      if (activeMenuDismiss === dismiss) activeMenuDismiss = null
+    }
+  }, [open, dismissed, restoreFocusRef])
+
+  return dismissed
+}
+
 /** One overflow menu. Width, never platform or caller identity, chooses its presentation. */
 export function Menu({
   id,
@@ -162,6 +191,8 @@ export function Menu({
   const panelRef = useRef<HTMLDivElement>(null)
   const focusReturnTargetRef = useRef<HTMLElement | null>(null)
   const restoreFocusOnCleanupRef = useRef(true)
+  const restoreSheetFocus = useCallback(() => restoreFocusOnCleanupRef.current, [])
+  const dismissed = useMenuOwnership(open && items.length > 0, onClose, restoreFocusOnCleanupRef)
   const portalTarget = useSyncExternalStore(
     subscribeToPortalTarget,
     getPortalTarget,
@@ -172,12 +203,11 @@ export function Menu({
   const closeMenu = useEffectEvent(() => onClose?.())
 
   useEffect(() => {
-    if (!open || resolvedPresentation !== 'anchored') return
+    if (!open || dismissed || resolvedPresentation !== 'anchored') return
     const anchor = anchorElement(anchorRef)
     const activeElement = activeFocusReturnTarget()
     const focusReturnTarget = activeElement && anchor?.contains(activeElement) ? activeElement : anchor
     focusReturnTargetRef.current = focusReturnTarget
-    restoreFocusOnCleanupRef.current = true
 
     function dismiss(event: Event) {
       const target = event.target
@@ -202,7 +232,7 @@ export function Menu({
       if (restoreFocusOnCleanupRef.current) focusReturnTarget?.focus()
       focusReturnTargetRef.current = null
     }
-  }, [anchorRef, open, resolvedPresentation])
+  }, [anchorRef, dismissed, open, resolvedPresentation])
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
@@ -230,10 +260,10 @@ export function Menu({
     buttons[nextIndex]?.focus()
   }
 
-  if (!open || items.length === 0) return null
+  if (!open || dismissed || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
-    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} />
+    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} finalFocus={restoreSheetFocus} />
   }
 
   if (!portalTarget) return null

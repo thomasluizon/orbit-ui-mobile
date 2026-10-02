@@ -7,6 +7,7 @@ import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import type { AppConfig } from '@orbit/shared/types/config'
 import { createMockConfig } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
+import './session-query-setup'
 
 const mockFetch = vi.fn()
 let queryClient: QueryClient
@@ -52,6 +53,7 @@ describe('useConfig', () => {
     await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
     expect(result.current.config).toEqual(customConfig)
     expect(result.current.config.limits.maxTagsPerHabit).toBe(10)
+    expect(result.current.isFetching).toBe(false)
     expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(true)
   })
 
@@ -64,6 +66,7 @@ describe('useConfig', () => {
 
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.isPlaceholderData).toBe(false))
+    expect(result.current.isFetching).toBe(false)
     expect(result.current.isSuccess).toBe(true)
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
     expect(isFeatureEnabled(result.current.config, 'analytics', 'free')).toBe(false)
