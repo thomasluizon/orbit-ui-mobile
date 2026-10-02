@@ -55,11 +55,13 @@ const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
   error: string | null
   isLoading: boolean
+  isFetching: boolean
   refresh: ReturnType<typeof vi.fn>
 } = {
   dayMap: new Map(),
   error: null,
   isLoading: false,
+  isFetching: false,
   refresh: vi.fn(),
 }
 const profileQueryState: {
@@ -115,6 +117,7 @@ const agendaViewProps: {
   isLoading?: boolean
 } = {}
 let rangeLoading = false
+let rangeFetching = false
 let rangeDayMap = new Map<string, CalendarDayEntry[]>()
 const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
 
@@ -135,7 +138,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     return ({
     dayMap: monthQueryState.dayMap,
     isLoading: monthQueryState.isLoading,
-    isFetching: false,
+    isFetching: monthQueryState.isFetching,
     error: monthQueryState.error,
     refresh: monthQueryState.refresh,
     })
@@ -143,7 +146,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
   useCalendarRange: () => ({
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
-    isFetching: false,
+    isFetching: rangeFetching,
     error: null,
     refresh: vi.fn(),
   }),
@@ -405,6 +408,7 @@ describe('CalendarPage view switcher', () => {
     monthQueryState.dayMap = new Map()
     monthQueryState.error = null
     monthQueryState.isLoading = false
+    monthQueryState.isFetching = false
     monthQueryState.refresh = vi.fn()
     profileQueryState.profile = {
       weekStartDay: 1,
@@ -434,11 +438,43 @@ describe('CalendarPage view switcher', () => {
     agendaViewProps.dayMap = undefined
     agendaViewProps.isLoading = undefined
     rangeLoading = false
+    rangeFetching = false
     rangeDayMap = new Map()
     calendarRangeViewProps.current = null
   })
 
   afterEach(() => vi.useRealTimers())
+
+  it.each(['month', 'range'] as const)('keeps the %s first-load skeleton and shows no indicator during a refetch', (view) => {
+    monthQueryState.isLoading = view === 'month'
+    monthQueryState.isFetching = view === 'month'
+    rangeLoading = view === 'range'
+    rangeFetching = view === 'range'
+    const { rerender } = render(<CalendarPage />)
+    if (view === 'range') fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+
+    expect(screen.getAllByRole('progressbar', { name: view === 'month' ? 'calendar.loading' : 'common.loading' }).length).toBeGreaterThan(0)
+    expect(document.querySelector('[data-variant="grid"]')).not.toBeNull()
+    if (view === 'month') expect(document.querySelector('[data-variant="settings"]')).not.toBeNull()
+
+    monthQueryState.isLoading = false
+    monthQueryState.isFetching = false
+    rangeLoading = false
+    rangeFetching = false
+    monthQueryState.dayMap = new Map([[getMockAccountDateKey(), [monthEntry('loaded', 'completed')]]])
+    rangeDayMap = monthQueryState.dayMap
+    rerender(<CalendarPage />)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByTestId(view === 'month' ? 'day-detail' : 'range-view')).toBeInTheDocument()
+
+    monthQueryState.isFetching = view === 'month'
+    rangeFetching = view === 'range'
+    rerender(<CalendarPage />)
+    expect(screen.queryByTestId('calendar-loading-bar')).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByTestId(view === 'month' ? 'day-detail' : 'range-view')).toBeInTheDocument()
+    expect(screen.getByTestId('month-stats')).not.toHaveAttribute('data-state', 'loading')
+  })
 
   it('loads calendar data concurrently while the profile resolves', () => {
     profileQueryState.profile = undefined

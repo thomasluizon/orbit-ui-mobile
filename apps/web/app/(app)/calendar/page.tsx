@@ -442,7 +442,7 @@ function CalendarPageContent({
     resultStatus: calendarEventsResult?.status,
   })
 
-  const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
+  const { dayMap, isLoading, error, refresh } = monthQuery
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
@@ -475,7 +475,6 @@ function CalendarPageContent({
   const {
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
-    isFetching: rangeFetching,
     error: rangeError,
     refresh: rangeRefresh,
   } = useCalendarRange(
@@ -522,15 +521,13 @@ function CalendarPageContent({
 
   const {
     dayMap: activeDayMap,
-    isFetching: activeFetching,
     error: activeError,
     refresh: activeRefresh,
   } =
     view === 'month'
-      ? { dayMap, isFetching, error, refresh }
+      ? { dayMap, error, refresh }
       : {
           dayMap: rangeDayMap,
-          isFetching: rangeFetching,
           error: rangeError,
           refresh: rangeRefresh,
         }
@@ -759,12 +756,6 @@ function CalendarPageContent({
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className="relative z-[1]">
         {calendarHeader}
-
-        <div
-          className={`loading-bar w-full transition-opacity duration-[var(--dur-slow)] ${
-            activeFetching ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-        />
 
         {activeError ? (
           <div style={{ padding: '12px 16px 16px' }}>
