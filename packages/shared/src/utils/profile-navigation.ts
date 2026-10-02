@@ -1,4 +1,5 @@
 import type { Profile } from '../types/profile'
+import { formatLocaleDate } from './locale-format'
 import {
   canAccessEntitlement,
   type UpgradeEntitlementMode,
@@ -28,6 +29,30 @@ export const PROFILE_SUBMENUS = [
 ] as const
 
 export type ProfileSubmenuId = typeof PROFILE_SUBMENUS[number]['id']
+
+export function getProfileProEntry(
+  profile: Profile,
+  locale: string,
+  t: (key: string, values?: Record<string, string>) => string,
+): { value: string; href: '/upgrade' | undefined } {
+  if (profile.isLifetimePro) {
+    return { value: t('upgrade.billing.plan.lifetime'), href: undefined }
+  }
+  if (profile.isTrialActive) {
+    const plan = t('profile.subscription.trial')
+    const value = profile.trialEndsAt
+      ? t('profile.subscription.trialUntil', {
+        plan,
+        date: formatLocaleDate(profile.trialEndsAt, locale, { day: 'numeric', month: 'short', year: 'numeric' }),
+      })
+      : plan
+    return { value, href: '/upgrade' }
+  }
+  return {
+    value: t(profile.hasProAccess ? 'profile.allowance.pro' : 'profile.allowance.free'),
+    href: '/upgrade',
+  }
+}
 
 export type ProfileNavVariant = 'default' | 'primary'
 

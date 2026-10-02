@@ -546,6 +546,68 @@ function findButtonByText(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfileScreen', () => {
+  const proPlans = [
+    { state: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false, en: 'Free', pt: 'Grátis' },
+    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Pro Trial until Oct 9, 2099', pt: 'Teste Pro até 9 de out. de 2099' },
+    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Pro', pt: 'Pro' },
+    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime Pro', pt: 'Pro Vitalício' },
+  ] as const
+
+  function translateProMessages(locale: 'en' | 'pt-BR') {
+    mockLocale.current = locale
+    const messages = locale === 'en' ? en : ptBR
+    mockTranslate.current = (key, params) => {
+      let message: unknown = messages
+      for (const segment of key.split('.')) {
+        message = message && typeof message === 'object'
+          ? (message as Record<string, unknown>)[segment]
+          : undefined
+      }
+      return typeof message === 'string'
+        ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(params?.[name] ?? ''))
+        : key
+    }
+  }
+
+  describe.each(['en', 'pt-BR'] as const)('Orbit Pro in %s', (locale) => {
+    it.each(proPlans)('shows the $state plan directly after the account and opens its destination', async (plan) => {
+      translateProMessages(locale)
+      mockRealListRow.current = true
+      mockProfileState.current.profile = createMockProfile({
+        plan: plan.hasProAccess ? 'pro' : 'free',
+        hasProAccess: plan.hasProAccess,
+        isTrialActive: plan.isTrialActive,
+        isLifetimePro: plan.isLifetimePro,
+        trialEndsAt: plan.isTrialActive ? '2099-10-09T12:00:00Z' : null,
+      })
+      const tree = await renderProfileScreen()
+      const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
+      const expectedValue = locale === 'en' ? plan.en : plan.pt
+      const text = nodeText(group)
+      expect(text.indexOf(mockProfileState.current.profile.name)).toBeLessThan(text.indexOf('Orbit Pro'))
+      expect(text.indexOf('Orbit Pro')).toBeLessThan(text.indexOf(locale === 'en' ? 'Preferences' : 'Preferências'))
+      expect(text).toContain(`Orbit Pro${expectedValue}`)
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      const entries = group.findAll((node: { type: unknown; props: { accessibilityRole?: string }; children: unknown[] }) =>
+        typeof node.type === 'string' && node.props.accessibilityRole === 'button' && nodeText(node).startsWith('Orbit Pro'))
+      expect(entries).toHaveLength(plan.isLifetimePro ? 0 : 1)
+      if (!plan.isLifetimePro) {
+        TestRenderer.act(() => entries[0].props.onPress())
+        expect(mockRouterPush).toHaveBeenCalledExactlyOnceWith('/upgrade')
+      }
+      TestRenderer.act(() => tree.unmount())
+    })
+  })
+
+
+  it.each([true, false])('withholds the Pro entry while the plan is unknown and loading is %s', async (isLoading) => {
+    mockRealListRow.current = true
+    mockProfileState.current = { profile: undefined, isLoading, error: isLoading ? null : new Error('load failed') }
+    const tree = await renderProfileScreen()
+    expect(nodeText(tree.root)).not.toContain('upgrade.pitchTitle')
+    TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(['account', 'preferences', 'astra', 'notifications'] as const)('offers recovery for a failed %s load and keeps its settings hidden', async (destination) => {
     mockProfileState.current = { profile: undefined, isLoading: false, error: new Error('load failed') }
     const tree = await renderProfileSubscreen(destination)
