@@ -241,7 +241,7 @@ describe('ProfilePage', () => {
     ['account', ['profile.settingsRows.editName', 'profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
-    ['notifications', ['profile.settingsRows.devices', 'profile.marketingEmails.question', 'profile.settingsRows.remindersNote']],
+    ['notifications', ['profile.settingsRows.alertsOnThisDevice', 'profile.marketingEmails.question', 'profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', (destination, labels) => {
     const top = render(<ProfilePage />)
     const entry = screen.getAllByRole('link').find((link) => link.getAttribute('href') === `/profile/${destination}`)!
@@ -424,33 +424,32 @@ describe('ProfilePage', () => {
     expect(mockTogglePush).toHaveBeenCalledWith(true)
   })
 
-  it.each([0, 1, 5])('shows %i devices against the cap', (count) => {
+  it.each([0, 1, 5])('shows one notification switch without a count for %i devices', (count) => {
     mockDeviceState.current.count = count
     render(<ProfileSubscreen screen="notifications" />)
-    expect(screen.getByText(`${count} of 5`)).toBeInTheDocument()
-    expect(screen.getByText('profile.settingsRows.devices')).toBeInTheDocument()
-    expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
-    expect(screen.queryByText('profile.settingsRows.alertsOnThisDevice')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toHaveLength(1)
+    expect(screen.getByText('profile.settingsRows.alertsOnThisDevice')).toBeInTheDocument()
+    expect(screen.queryByText(`${count} of 5`)).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.settingsRows.devices')).not.toBeInTheDocument()
   })
 
-  it('names this device when its endpoint is registered and turns it off', () => {
-    mockDeviceState.current.count = 1
+  it('turns a registered device off', () => {
+    mockDeviceState.current.count = 5
     mockDeviceState.current.isCurrentDeviceRegistered = true
     render(<ProfileSubscreen screen="notifications" />)
     const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
     expect(control).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByText('profile.settingsRows.currentDevice')).toBeInTheDocument()
-    expect(screen.queryByText('profile.settingsRows.alertsOnThisDevice')).not.toBeInTheDocument()
     fireEvent.click(control)
     expect(mockTogglePush).toHaveBeenCalledWith(false)
   })
 
-  it('reserves the count while devices load', () => {
+  it('disables the switch while devices load', () => {
     mockDeviceState.current.count = undefined
     mockDeviceState.current.isLoading = true
     render(<ProfileSubscreen screen="notifications" />)
-    const placeholder = screen.getByRole('status', { name: 'profile.loading' })
-    expect(placeholder.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
+    const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
+    expect(control).toBeDisabled()
+    expect(control.closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
   })
 
   it('keeps browser push status empty and reserves the switch while checking', () => {
@@ -469,11 +468,16 @@ describe('ProfilePage', () => {
     expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
   })
 
-  it('explains the full device cap and keeps this device off', () => {
+  it('reports the cap only after an enable attempt without prompting or registering', () => {
     mockDeviceState.current.count = 5
     render(<ProfileSubscreen screen="notifications" />)
+    expect(screen.queryByText('profile.settingsRows.pushDeviceLimit')).not.toBeInTheDocument()
+    const control = screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })
+    expect(control).not.toBeDisabled()
+    fireEvent.click(control)
     expect(screen.getByText('profile.settingsRows.pushDeviceLimit')).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
+    expect(control).toHaveAttribute('aria-checked', 'false')
+    expect(mockTogglePush).not.toHaveBeenCalled()
   })
 
   it('offers retry when the device list fails', () => {
@@ -964,9 +968,7 @@ describe('ProfilePage', () => {
       'button: profile.marketingEmails.decline',
     ])
     expect(textLines).toEqual([
-      'profile.settingsRows.devices',
-      '0 of 5',
-      'profile.settingsRows.currentDevice',
+      'profile.settingsRows.alertsOnThisDevice',
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
       'profile.marketingEmails.accept',

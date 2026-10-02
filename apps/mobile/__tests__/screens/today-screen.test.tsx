@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   clearSelection: vi.fn(),
   composerEnabled: [] as boolean[],
   astraOwnership: [] as boolean[],
+  firstUsePermission: vi.fn(async (_isCurrent?: () => boolean) => {}),
+  focusCallbacks: [] as (() => void | (() => void))[],
+  onboardingComplete: true,
   profileReady: true,
   plan: 'trial',
   habitFilters: [] as { includeGeneral?: boolean }[],
@@ -39,13 +42,16 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ requestFirstUsePermission: mocks.firstUsePermission }) }))
+
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
+  useProfile: () => ({ profile: mocks.profileReady ? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
 }))
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mocks.routerPush }),
   useFocusEffect: (callback: () => void | (() => void)) => {
+    mocks.focusCallbacks.push(callback)
     mocks.focusCallback = callback
   },
 }))
@@ -233,6 +239,8 @@ describe('Hoje date boundaries', () => {
     mocks.composerEnabled.length = 0
     mocks.astraOwnership.length = 0
     mocks.profileReady = true
+    mocks.onboardingComplete = true
+    mocks.focusCallbacks.length = 0
     mocks.plan = 'trial'
     mocks.habitFilters.length = 0
     setAccountId(null)
@@ -245,6 +253,23 @@ describe('Hoje date boundaries', () => {
     mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
     mocks.date.dateStr = '2026-04-08'
     mocks.date.nextDisabled = false
+  })
+
+  it.each(['loading', 'onboarding', 'today'])('starts first-use permission only on loaded Today: %s', async (state) => {
+    mocks.profileReady = state !== 'loading'
+    mocks.onboardingComplete = state !== 'onboarding'
+    await TestRenderer.act(() => { TestRenderer.create(<TodayScreen />) })
+    let cleanup: void | (() => void)
+    await TestRenderer.act(() => { cleanup = mocks.focusCallbacks.at(state === 'loading' ? -1 : -2)!() })
+    if (state === 'today') {
+      expect(mocks.firstUsePermission).toHaveBeenCalledOnce()
+      const isCurrent = mocks.firstUsePermission.mock.calls[0]![0]!
+      expect(isCurrent()).toBe(true)
+      cleanup!()
+      expect(isCurrent()).toBe(false)
+    } else {
+      expect(mocks.firstUsePermission).not.toHaveBeenCalled()
+    }
   })
 
   it.each(['trial', 'free', 'pro'])('keeps the plan line off Hoje for a %s account', async (plan) => {

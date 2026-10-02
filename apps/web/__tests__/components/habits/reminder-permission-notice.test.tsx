@@ -3,6 +3,11 @@ import { render, screen } from '@testing-library/react'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
+}))
+
+
 vi.mock('@/hooks/use-push-notification-preferences', () => ({
   isPushNotificationSupported: () => true,
   subscribeToPushNotifications: vi.fn(),

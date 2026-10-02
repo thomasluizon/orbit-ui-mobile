@@ -29,6 +29,7 @@ import {
   type NotificationPermissionsResponse,
 } from '@/lib/push-notification-permissions'
 import { useAuthStore } from '@/stores/auth-store'
+import { hasPushSubscriptionCapacity } from '@/hooks/use-push-subscriptions'
 import { useUIStore } from '@/stores/ui-store'
 import { getAccountId } from '@/lib/account-scope'
 import { getAccountGeneration, getSessionEpoch } from '@/lib/session-epoch'
@@ -87,12 +88,15 @@ interface UsePushNotificationsReturn {
   permissionCanAskAgain: boolean
   registrationStatus: PushRegistrationStatus
   disablePushNotifications: () => Promise<boolean>
+  requestFirstUsePermission: (isCurrent?: () => boolean) => Promise<void>
   requestPermission: () => Promise<boolean>
   requestPermissionOutcome: (registerDevice?: boolean, isCurrent?: () => boolean) => Promise<PushPermissionOutcome>
   refreshPermissionStatus: () => Promise<void>
 }
 
 export type PushPermissionOutcome = 'granted' | 'denied' | 'unsupported' | 'failed'
+
+const PUSH_PERMISSION_ASKED_STORAGE_KEY = 'orbit:push-permission-asked'
 
 const PushNotificationsContext = createContext<UsePushNotificationsReturn | null>(null)
 
@@ -222,6 +226,31 @@ async function ensureAndroidChannel(): Promise<void> {
   })
 }
 
+async function readOrRequestNativePermission(
+  notifications: ExpoNotificationsModule,
+  firstUse: boolean,
+  isCurrent?: () => boolean,
+) {
+  await ensureAndroidChannel()
+  const permissions = await notifications.getPermissionsAsync()
+  const status = normalizePermissionStatus(permissions)
+  if ((firstUse && status !== 'undetermined') || status === 'granted' || permissions.canAskAgain === false) {
+    return { permissions, asked: false }
+  }
+  if (isCurrent?.() === false) return null
+  await AsyncStorage.setItem(PUSH_PERMISSION_ASKED_STORAGE_KEY, '1')
+  if (isCurrent?.() === false) {
+    await AsyncStorage.removeItem(PUSH_PERMISSION_ASKED_STORAGE_KEY)
+    return null
+  }
+  try {
+    return { permissions: await notifications.requestPermissionsAsync(), asked: true }
+  } catch (error: unknown) {
+    await AsyncStorage.removeItem(PUSH_PERMISSION_ASKED_STORAGE_KEY)
+    throw error
+  }
+}
+
 async function delay(ms: number): Promise<void> {
   await new Promise((resolve) => {
     setTimeout(resolve, ms)
@@ -333,6 +362,9 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
   const [isRegistered, setIsRegistered] = useState(false)
   const handledNotificationResponseIdentifiers = useRef(new Set<string>())
   const loadingRequestId = useRef(0)
+  const firstUseRequestPending = useRef(false)
+  const pushTokenRef = useRef(expoPushToken)
+  useEffect(() => { pushTokenRef.current = expoPushToken }, [expoPushToken])
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const userId = useAuthStore((s) => s.user?.userId ?? null)
   const isSupported = !!notificationsModule && isPhysicalDevice()
@@ -431,6 +463,14 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
         return false
       }
 
+      const hasCapacity = await hasPushSubscriptionCapacity(token)
+      if (!stillCurrent()) return false
+      if (!hasCapacity) {
+        setRegistrationStatus('disabled')
+        setError(i18n.t('profile.settingsRows.pushDeviceLimit'))
+        return false
+      }
+      if (!stillCurrent()) return false
       return syncRegistrationToken(token, stillCurrent)
     })()
 
@@ -504,7 +544,17 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     }
   }, [isSupported, readDisabledPreference, registerAndSync])
 
-  const requestPermissionOutcome = useCallback(async (registerDevice = true, isCurrent?: () => boolean): Promise<PushPermissionOutcome> => {
+  const canRequestPermission = useCallback(async (registerDevice: boolean, firstUse: boolean, isCurrent?: () => boolean) => {
+    if (firstUse && await AsyncStorage.getItem(PUSH_PERMISSION_ASKED_STORAGE_KEY) === '1') return false
+    if (isCurrent?.() === false) return false
+    if (!registerDevice) return true
+    const hasCapacity = await hasPushSubscriptionCapacity(pushTokenRef.current)
+    if (isCurrent?.() === false) return false
+    if (!hasCapacity && !firstUse) setError(i18n.t('profile.settingsRows.pushDeviceLimit'))
+    return hasCapacity
+  }, [])
+
+  const requestPermissionOutcome = useCallback(async (registerDevice = true, isCurrent?: () => boolean, firstUse = false): Promise<PushPermissionOutcome> => {
     const activeNotificationsModule = notificationsModule
     if (!isSupported || !activeNotificationsModule) {
       setPermissionStatus(null)
@@ -518,15 +568,11 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     setIsLoading(true)
     setError(null)
     try {
-      await ensureAndroidChannel()
-      let permissions = await activeNotificationsModule.getPermissionsAsync()
-      let status = normalizePermissionStatus(permissions)
-
-      if (status !== 'granted' && permissions.canAskAgain !== false) {
-        permissions = await activeNotificationsModule.requestPermissionsAsync()
-        status = normalizePermissionStatus(permissions)
-      }
-
+      if (!await canRequestPermission(registerDevice, firstUse, isCurrent)) return 'failed'
+      const result = await readOrRequestNativePermission(activeNotificationsModule, firstUse, isCurrent)
+      if (!result || isCurrent?.() === false) return 'failed'
+      const { permissions } = result
+      const status = normalizePermissionStatus(permissions)
       setPermissionStatus(status)
       setPermissionCanAskAgain(permissions.canAskAgain !== false)
       if (status !== 'granted') {
@@ -537,6 +583,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       }
 
       if (isCurrent?.() === false) return 'failed'
+      if (firstUse && !result.asked) return 'granted'
       if (!registerDevice) return 'granted'
       return await enablePushNotifications(isCurrent) ? 'granted' : 'failed'
     } catch (err: unknown) {
@@ -547,7 +594,23 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     } finally {
       if (loadingRequestId.current === requestId) setIsLoading(false)
     }
-  }, [enablePushNotifications, isSupported])
+  }, [canRequestPermission, enablePushNotifications, isSupported])
+
+  const requestFirstUsePermission = useCallback(async (isCurrent?: () => boolean): Promise<void> => {
+    if (!useAuthStore.getState().isAuthenticated || firstUseRequestPending.current) return
+    const accountId = getAccountId()
+    const generation = getAccountGeneration()
+    const epoch = getSessionEpoch()
+    const stillCurrent = () => useAuthStore.getState().isAuthenticated
+      && getAccountId() === accountId && getAccountGeneration() === generation
+      && getSessionEpoch() === epoch && isCurrent?.() !== false
+    firstUseRequestPending.current = true
+    try {
+      await requestPermissionOutcome(true, stillCurrent, true)
+    } finally {
+      firstUseRequestPending.current = false
+    }
+  }, [requestPermissionOutcome])
 
   const requestPermission = useCallback(async (): Promise<boolean> => (
     await requestPermissionOutcome()
@@ -669,6 +732,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
     registrationStatus,
     disablePushNotifications,
     requestPermission,
+    requestFirstUsePermission,
     requestPermissionOutcome,
     refreshPermissionStatus: syncGrantedPermission,
   }

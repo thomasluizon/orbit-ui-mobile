@@ -49,6 +49,7 @@ export function ProfileNotificationsContent() {
         error={pushSubscriptions.isError}
         permissionStatus={pushPreferences.permissionStatus}
         registrationStatus={pushPreferences.registrationStatus}
+        limitError={pushPreferences.error === t('profile.settingsRows.pushDeviceLimit')}
         onToggle={() => void handlePushToggle()}
         onOpenSettings={() => void Linking.openSettings()}
         onRetry={() => void pushSubscriptions.refresh()}

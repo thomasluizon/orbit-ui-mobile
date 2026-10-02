@@ -72,6 +72,7 @@ const {
   mockChangeLanguage,
   mockPushSupported,
   mockPushEnabled,
+  mockPushError,
   mockDeviceState,
   mockFocusCallback,
   mockPushPermissionStatus,
@@ -114,6 +115,7 @@ const {
   mockChangeLanguage: vi.fn(),
   mockPushSupported: { current: false },
   mockPushEnabled: { current: false },
+  mockPushError: { current: null as string | null },
   mockDeviceState: { current: deviceState },
   mockFocusCallback: { current: null as null | (() => void) },
   mockPushPermissionStatus: { current: null as 'denied' | 'granted' | null },
@@ -201,6 +203,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-push-notifications', () => ({
   usePushNotifications: () => ({
     expoPushToken: 'fcm-token',
+    error: mockPushError.current,
     isSupported: mockPushSupported.current,
     isEnabled: mockPushEnabled.current,
     isRegistered: false,
@@ -561,7 +564,7 @@ describe('ProfileScreen', () => {
     ['account', ['profile.settingsRows.export', 'profile.analytics.title', 'profile.settingsRows.startOver', 'profile.settingsRows.deleteAccount']],
     ['preferences', ['profile.settingsRows.timezone', 'profile.settingsRows.weekStart', 'settings.clock.title', 'profile.language.title', 'profile.settingsRows.theme', 'settings.homeScreen.showGeneral']],
     ['astra', ['profile.allowance.title', 'profile.proactiveAstra.title', 'profile.aiSummary.title', 'profile.settingsRows.apiKeysMcp']],
-    ['notifications', ['profile.settingsRows.devices', 'profile.settingsRows.remindersNote']],
+    ['notifications', ['profile.settingsRows.remindersNote']],
   ] as const)('opens %s from Perfil and keeps its settings in that screen alone', async (destination, labels) => {
     mockRealListRow.current = true
     const top = await renderProfileScreen()
@@ -574,7 +577,7 @@ describe('ProfileScreen', () => {
     TestRenderer.act(() => top.unmount())
     const tree = await renderProfileSubscreen(destination)
     const group = tree.root.findByProps({ testID: `profile-settings-group-${destination}` })
-    for (const label of labels) expect(nodeText(group)).toContain(label)
+    for (const label of labels) expect(nodeText(group) + group.findAllByProps({ label }).map((row: { props: { label: string } }) => row.props.label).join('')).toContain(label)
     expect(labels.map((label) => nodeText(group).indexOf(label))).toEqual(labels.map((label) => nodeText(group).indexOf(label)).sort((left, right) => left - right))
     TestRenderer.act(() => {
       tree.root.find((node: { type: unknown; props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
@@ -630,6 +633,7 @@ describe('ProfileScreen', () => {
     mockChangeLanguage.mockReset().mockResolvedValue(undefined)
     mockPushSupported.current = false
     mockPushEnabled.current = false
+    mockPushError.current = null
     mockDeviceState.current = { count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn().mockResolvedValue(undefined) }
     mockFocusCallback.current = null
     mockPushPermissionStatus.current = null
@@ -1339,6 +1343,7 @@ describe('ProfileScreen', () => {
   it('renders only the drawn Notifications rows and the recorded deviations, in order', async () => {
     mockPushSupported.current = true
     mockRealConsentSection.current = true
+    mockRealListRow.current = true
     const tree = await renderProfileSubscreen('notifications')
     const notificationsGroup = tree.root.findByProps({ testID: 'profile-settings-group-notifications' })
     const controls = notificationsGroup.findAll(
@@ -1353,9 +1358,7 @@ describe('ProfileScreen', () => {
     ).map(nodeText).filter(Boolean)
 
     expect(textLines).toEqual([
-      'profile.settingsRows.devices',
-      '0 of 5',
-      'profile.settingsRows.currentDevice',
+      'profile.settingsRows.alertsOnThisDevice',
       'profile.marketingEmails.question',
       'profile.marketingEmails.questionDescription',
       'profile.marketingEmails.accept',
@@ -1547,41 +1550,49 @@ describe('ProfileScreen', () => {
     expect(mockRequestPushPermission).toHaveBeenCalledOnce()
   })
 
-  it.each([0, 1, 5])('shows %i devices against the cap', async (count) => {
+  it.each([0, 1, 5])('shows one notification switch without a count for %i devices', async (count) => {
     mockDeviceState.current.count = count
+    mockRealListRow.current = true
     const tree = await renderProfileSubscreen('notifications')
-    expect(nodeText(tree.root)).toContain(`profile.settingsRows.devices${count} of 5`)
-    expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
-    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.alertsOnThisDevice')
+    expect(nodeText(tree.root)).toContain('profile.settingsRows.alertsOnThisDevice')
+    expect(nodeText(tree.root)).not.toContain(`${count} of 5`)
+    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.devices')
   })
 
-  it('names this device when its token is registered', async () => {
+  it('turns a registered device off even at the cap', async () => {
     mockPushSupported.current = true
-    mockDeviceState.current.count = 1
+    mockDeviceState.current.count = 5
     mockDeviceState.current.isCurrentDeviceRegistered = true
     const tree = await renderProfileSubscreen('notifications')
-    const control = tree.root.find((node: { props: { accessibilityRole?: string; accessibilityLabel?: string; onPress?: () => void } }) =>
-      node.props.accessibilityRole === 'switch' && node.props.accessibilityLabel === 'profile.settingsRows.alertsOnThisDevice' && typeof node.props.onPress === 'function')
+    const control = tree.root.find((node: { props: { accessibilityRole?: string; onPress?: () => void } }) =>
+      node.props.accessibilityRole === 'switch' && typeof node.props.onPress === 'function')
     expect(control.props.accessibilityState?.checked).toBe(true)
-    expect(nodeText(tree.root)).toContain('profile.settingsRows.currentDevice')
-    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.alertsOnThisDevice')
+    await TestRenderer.act(async () => { control.props.onPress(); await Promise.resolve() })
+    expect(mockDisablePushNotifications).toHaveBeenCalledOnce()
   })
 
-  it('reserves the count while devices load', async () => {
+  it('disables the switch while devices load', async () => {
     mockDeviceState.current.count = undefined
     mockDeviceState.current.isLoading = true
     const tree = await renderProfileSubscreen('notifications')
-    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
-      node.props.accessibilityRole === 'progressbar' && node.props.accessibilityLabel === 'profile.loading')).not.toHaveLength(0)
+    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityState?: { disabled?: boolean } } }) =>
+      node.props.accessibilityRole === 'switch' && node.props.accessibilityState?.disabled === true)).not.toHaveLength(0)
   })
 
-  it('explains the full device cap', async () => {
+  it('reports the cap only after an enable attempt without prompting or registering', async () => {
+    mockPushPermissionStatus.current = 'granted'
+    mockPushError.current = 'profile.settingsRows.pushDeviceLimit'
     mockPushSupported.current = true
     mockDeviceState.current.count = 5
     const tree = await renderProfileSubscreen('notifications')
+    expect(nodeText(tree.root)).not.toContain('profile.settingsRows.pushDeviceLimit')
+    const control = tree.root.find((node: { props: { accessibilityRole?: string; onPress?: () => void } }) =>
+      node.props.accessibilityRole === 'switch' && typeof node.props.onPress === 'function')
+    expect(control.props.accessibilityState?.disabled).not.toBe(true)
+    await TestRenderer.act(async () => { control.props.onPress(); await Promise.resolve() })
     expect(nodeText(tree.root)).toContain('profile.settingsRows.pushDeviceLimit')
-    expect(tree.root.findAll((node: { props: { accessibilityRole?: string; accessibilityState?: { disabled?: boolean } } }) =>
-      node.props.accessibilityRole === 'switch' && node.props.accessibilityState?.disabled === true)).not.toHaveLength(0)
+    expect(mockRequestPushPermission).not.toHaveBeenCalled()
+    expect(control.props.accessibilityState?.checked).toBe(false)
   })
 
   it('offers retry when the device list fails', async () => {

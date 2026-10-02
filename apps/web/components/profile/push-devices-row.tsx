@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { ListRow } from '@/components/ui/list-row'
 import { useTranslations } from 'next-intl'
 import type { WebPushPermission } from '@orbit/shared/utils'
 import { RowList } from '@/components/ui/row-list'
@@ -32,36 +34,35 @@ export function PushDevicesRow({
   onRetry: () => void
 }>) {
   const t = useTranslations()
+  const [limitReached, setLimitReached] = useState(false)
   const canEnable = count !== undefined && max !== undefined && count < max
+  const showLimit = limitReached && !error && !currentDeviceRegistered && !canEnable
   const checking = status === 'checking'
-  const disabled = checking || loading || error || !supported || (!currentDeviceRegistered && !canEnable)
+  const disabled = checking || loading || error || !supported || count === undefined || max === undefined
   return (
     <div aria-busy={loading || checking}>
     <RowList>
-      <div className="flex min-h-11 items-center gap-3 px-4 py-3">
-        <span className="min-w-0 flex-1 text-[length:var(--fs-md)] text-[var(--fg-1)]">{t('profile.settingsRows.devices')}</span>
-        <span className="inline-flex min-w-16 shrink-0 justify-end font-mono text-xs text-[var(--fg-3)]">
-          {count !== undefined && max !== undefined
-            ? t('profile.settingsRows.devicesCount', { count, max })
-            : loading ? <span role="status" aria-label={t('profile.loading')} className="inline-block h-4 w-12 rounded-lg bg-[var(--bg-well)]" /> : null}
-        </span>
-      </div>
-      <div className="flex min-h-11 items-center gap-3 px-4 py-3">
-        <span className="min-w-0 flex-1 text-sm text-[var(--fg-2)]">{t('profile.settingsRows.currentDevice')}</span>
+      <div>
+      {/* eslint-disable-next-line local/max-button-words -- #1108 specifies the full device notification label. */}
+      <ListRow readOnly title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
         <fieldset disabled={disabled} aria-hidden={checking || undefined} className={`m-0 border-0 p-0${checking ? ' invisible' : ''}`}>
-          <Switch checked={currentDeviceRegistered} onChange={onToggle} label={t('profile.settingsRows.alertsOnThisDevice')} />
+          <Switch checked={currentDeviceRegistered} onChange={() => {
+            if (!currentDeviceRegistered && !canEnable) { setLimitReached(true); return }
+            setLimitReached(false)
+            onToggle()
+          }} label={t('profile.settingsRows.alertsOnThisDevice')} />
         </fieldset>
-      </div>
+      } />
+      {loading ? <p role="status" aria-label={t('profile.loading')} className="m-0 px-4 pb-3 text-sm text-[var(--fg-3)]">{t('profile.loading')}</p> : null}
       {error ? <div className="flex items-center gap-3 px-4 pb-3">
         <p role="alert" className="m-0 flex-1 text-sm text-[var(--status-bad-text)]">{t('profile.settingsRows.devicesUnavailable')}</p>
         <PillButton variant="ghost" size="sm" iconOnly label={t('common.retry')} onClick={onRetry}>
           <RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />
         </PillButton>
       </div> : null}
-      {!error && !currentDeviceRegistered && !canEnable && count !== undefined ? (
-        <p role="status" className="m-0 px-4 pb-3 text-sm text-[var(--fg-3)]">{t('profile.settingsRows.pushDeviceLimit')}</p>
-      ) : null}
+      <p role="status" className={`m-0 text-sm text-[var(--fg-3)]${showLimit ? ' px-4 pb-3' : ''}`}>{showLimit ? t('profile.settingsRows.pushDeviceLimit') : ''}</p>
       <PushDeviceStatus status={status} permission={permission} />
+      </div>
     </RowList>
     </div>
   )

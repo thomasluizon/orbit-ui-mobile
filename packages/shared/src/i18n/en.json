@@ -1755,12 +1755,9 @@
       "deleteAccount": "Delete account",
       "reminders": "Habit reminders",
       "remindersNote": "Each habit's reminders live on the habit itself.",
-      "currentDevice": "This device",
-      "devices": "Devices getting alerts",
-      "devicesCount": "{count} of {max}",
-      "alertsOnThisDevice": "This device: alerts",
+      "alertsOnThisDevice": "Notifications on this device",
       "devicesUnavailable": "Could not load devices.",
-      "pushDeviceLimit": "Turn off alerts on another device to use this one."
+      "pushDeviceLimit": "Turn off notifications on another device to use this one."
     },
     "allowance": {
       "title": "Today's messages",

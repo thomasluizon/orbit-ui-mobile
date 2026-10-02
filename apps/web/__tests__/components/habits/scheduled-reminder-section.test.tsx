@@ -4,6 +4,11 @@ import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import { ScheduledReminderSection } from '@/components/habits/habit-form-fields/scheduled-reminder-section'
 import { buildCreateHabitRequest, buildEmptyHabitFormValues } from '@orbit/shared/utils'
 
+vi.mock('@/hooks/use-push-subscriptions', () => ({
+  usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
+}))
+
+
 const clockState = vi.hoisted(() => ({ language: 'pt-BR', uses24HourClock: false }))
 vi.mock('next-intl', () => ({ useLocale: () => clockState.language }))
 

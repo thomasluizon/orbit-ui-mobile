@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { usePushSubscriptions } from '@/hooks/use-push-subscriptions'
+import { hasPushSubscriptionCapacity, usePushSubscriptions } from '@/hooks/use-push-subscriptions'
 
 const mocks = vi.hoisted(() => {
   const queryResult: unknown = null
@@ -59,6 +59,7 @@ describe('usePushSubscriptions', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith(API.notifications.subscriptions, undefined, expect.anything())
     mocks.queryResult = queryResult
     const state = usePushSubscriptions(token)
+    expect(await hasPushSubscriptionCapacity(token)).toBe(count < 5 || includesCurrent)
     expect(state.count).toBe(count)
     expect(state.max).toBe(5)
     expect(state.isCurrentDeviceRegistered).toBe(includesCurrent && count > 0)

@@ -12,6 +12,7 @@ import {
   applySuggestionChecklist,
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
+import { useReminderPermission } from '@/hooks/use-reminder-permission'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
@@ -87,6 +88,7 @@ export function EditHabitModal({
   const suggestion = useHabitSuggestion()
   const { showError, showSuccess, showInfo } = useAppToast()
 
+  const { requestPermission: requestReminderPermission } = useReminderPermission(false, () => {})
   const formHelpers = useHabitForm()
   const [suggestionRevision] = useState(createHabitFormSuggestionRevision)
   const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
@@ -283,13 +285,15 @@ export function EditHabitModal({
       e.preventDefault()
       if (!habit) return
 
-      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
-
       const error = formHelpers.validateAll({
         reminderTimes,
         selectedGoalIds,
         selectedTagIds: tags.selectedTagIds,
       })
+      const reminderForm = error ? null : habitFormSchema.safeParse(formHelpers.form.getValues())
+      if (!error && reminderForm?.success && reminderForm.data.reminderEnabled) requestReminderPermission()
+      if (!await formHelpers.form.trigger(undefined, { shouldFocus: true })) return
+
       if (error) {
         showError(error)
         return
@@ -321,7 +325,7 @@ export function EditHabitModal({
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },
-    [assignTags, closeSheet, formHelpers, habit, initialGoalIds, initialTagIds, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
+    [requestReminderPermission, assignTags, closeSheet, formHelpers, habit, initialGoalIds, initialTagIds, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
   const handleSuggest = useCallback(async () => {

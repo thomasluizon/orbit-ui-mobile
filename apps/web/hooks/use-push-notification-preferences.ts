@@ -133,6 +133,15 @@ export async function loadPushNotificationState(accountId: string | null): Promi
   }
 }
 
+let activePermissionRequest: Promise<NotificationPermission> | null = null
+
+function readOrRequestPushPermission(): Promise<NotificationPermission> {
+  if (Notification.permission !== 'default') return Promise.resolve(Notification.permission)
+  if (activePermissionRequest) return activePermissionRequest
+  activePermissionRequest = Notification.requestPermission().finally(() => { activePermissionRequest = null })
+  return activePermissionRequest
+}
+
 export async function subscribeToPushNotifications(
   vapidKey: string | undefined = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
   intendedAccountId: string | null = getHeldAccountId(),
@@ -146,10 +155,7 @@ export async function subscribeToPushNotifications(
   }
 
   const ownerAccountId = getAccountId()
-  const permission =
-    Notification.permission === 'granted'
-      ? 'granted'
-      : await Notification.requestPermission()
+  const permission = await readOrRequestPushPermission()
 
   if (permission !== 'granted') {
     return createSnapshot(permission, false)
@@ -226,9 +232,7 @@ export async function ensurePushSubscription(): Promise<PushPreferenceSnapshot> 
 
 export async function requestWebPushPermission(): Promise<WebPushPermissionOutcome> {
   if (!isPushNotificationSupported()) return 'unsupported'
-  const permission = Notification.permission === 'granted'
-    ? 'granted'
-    : await Notification.requestPermission()
+  const permission = await readOrRequestPushPermission()
   return permission === 'granted' ? 'granted' : 'denied'
 }
 

@@ -20,6 +20,7 @@ import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useTodayMotion } from './use-today-motion'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { useProfile } from '@/hooks/use-profile'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
@@ -39,6 +40,14 @@ function getBoundaryMessageKey(
 export default function TodayScreen() {
   const { t } = useTranslation()
   const { profile, isError, refetch } = useProfile()
+  const { requestFirstUsePermission } = usePushNotifications()
+  const readyForNotifications = profile?.hasCompletedOnboarding === true
+  useFocusEffect(useCallback(() => {
+    if (!readyForNotifications) return
+    let focused = true
+    void requestFirstUsePermission(() => focused)
+    return () => { focused = false }
+  }, [readyForNotifications, requestFirstUsePermission]))
   if (!profile) {
     return isError
       ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
