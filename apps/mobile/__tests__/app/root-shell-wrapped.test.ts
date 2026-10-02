@@ -1,6 +1,8 @@
 import React, { useSyncExternalStore, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
+import en from '@orbit/shared/i18n/en.json'
+import { __setWindowDimensions } from '../../test-mocks/react-native'
 import RootLayout from '@/app/_layout'
 import { Shell412 } from '@/components/shell/shell-412'
 import {
@@ -23,6 +25,7 @@ const createState = vi.hoisted(() => ({
   push: vi.fn(),
   showCreate: vi.fn(),
   setLastDestination: vi.fn(),
+  conversationOpen: false,
 }))
 
 vi.mock('expo-router', () => {
@@ -104,9 +107,9 @@ vi.mock('@/lib/upgrade-route', () => ({ buildUpgradeHref: () => '/upgrade' }))
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({
-      astraConversationOpen: false,
+      astraConversationOpen: createState.conversationOpen,
       enqueueCelebration: vi.fn(),
-      setAstraConversationOpen: vi.fn(),
+      setAstraConversationOpen: (open: boolean) => { createState.conversationOpen = open },
       setShowCreateModal: createState.showCreate,
       todayFabHidden: false,
       lastDestination: 'hoje',
@@ -175,15 +178,25 @@ vi.mock('@/components/gamification/celebration-panel', () => ({
 }))
 vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
-vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
-vi.mock('@/components/shell/composer', () => ({ Composer: () => React.createElement('ComposerMarker', { testID: 'composer-marker' }) }))
+vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => React.createElement(Text, { testID: 'conversation-content' }, 'Conversation') }))
 vi.mock('@/components/throttle-screen', () => ({ ThrottleScreen: () => null }))
 vi.mock('@/components/upgrade-required-screen', () => ({
   UpgradeRequiredScreen: () => null,
 }))
 
 vi.mock('@/hooks/use-chat-composer', () => ({
-  useChatComposer: () => ({ composerProps: {} }),
+  useChatComposer: () => ({ composerProps: {
+    words: en.shell.composer,
+    value: '',
+    state: 'idle',
+    suggestions: [
+      { id: 'first', label: 'First suggestion', onSelect: vi.fn() },
+      { id: 'second', label: 'Second suggestion', onSelect: vi.fn() },
+      { id: 'third', label: 'Third suggestion', onSelect: vi.fn() },
+    ],
+    onChangeValue: vi.fn(),
+    onSend: vi.fn(),
+  } }),
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({
@@ -222,6 +235,7 @@ describe('Wrapped root shell', () => {
     createState.reducedMotion = false
     createState.count = 0
     createState.countLoaded = false
+    createState.conversationOpen = false
     createState.push.mockClear()
     createState.showCreate.mockClear()
     createState.setLastDestination.mockClear()
@@ -241,7 +255,7 @@ describe('Wrapped root shell', () => {
     const screen = tree.root.findAll((node) => node.props.name === 'habits/new')[0]
     expect(screen?.props.options).toMatchObject({ animation: reducedMotion ? 'none' : 'slide_from_right' })
     expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(0)
-    expect(findByTestId(tree, 'composer-marker')).toHaveLength(0)
+    expect(findByTestId(tree, 'composer-idle')).toHaveLength(0)
   })
 
   it('opens create while profile access is unresolved, even after the habit count loads', async () => {
@@ -269,6 +283,43 @@ describe('Wrapped root shell', () => {
     expect(createFab?.props.accessibilityLabel).toBe('nav.createHabit')
   })
 
+  it.each([412, 1352])('shows input and chips only on Hoje and preserves an open conversation at %ipx', async (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    const tree = await renderRoot()
+    expect(findByTestId(tree, 'composer-idle')).toHaveLength(1)
+    expect(findByTestId(tree, 'composer-field')).toHaveLength(1)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'First suggestion')).toHaveLength(1)
+    const open = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'todayAstra.openConversation')[0]
+    await TestRenderer.act(() => { (open?.props.onPress as () => void)(); tree.update(React.createElement(RootLayout)) })
+    expect(findByTestId(tree, 'shell-conversation')).toHaveLength(1)
+
+    for (const pathname of ['/calendar', '/progress', '/profile']) {
+      routeState.pathname = pathname
+      routeState.segments = ['(tabs)', pathname.slice(1)]
+      await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+      expect(findByTestId(tree, 'shell-conversation')).toHaveLength(1)
+      expect(findByTestId(tree, 'conversation-content')).toHaveLength(1)
+      expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(0)
+      createState.conversationOpen = false
+      await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+      expect(findByTestId(tree, 'composer-idle')).toHaveLength(0)
+      expect(findByTestId(tree, 'composer-field')).toHaveLength(0)
+      expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'First suggestion')).toHaveLength(0)
+      expect(findByTestId(tree, 'shell-composer-band')).toHaveLength(0)
+      expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
+      createState.conversationOpen = true
+      await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+    }
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    createState.conversationOpen = false
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
+    expect(findByTestId(tree, 'composer-idle')).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(React.createElement(React.Fragment)))
+  })
+
   it('renders Wrapped without bottom chrome or notices', async () => {
     const tree = await renderRoot()
 
@@ -276,14 +327,14 @@ describe('Wrapped root shell', () => {
     expect(findByTestId(tree, 'shell-notice')).toHaveLength(0)
   })
 
-  it('keeps the not-found screen in the tab shell with a composer and no header', async () => {
+  it('keeps the not-found screen in the tab shell without a composer or header', async () => {
     routeState.pathname = '/nao-existe'
     routeState.segments = ['+not-found']
     const tree = await renderRoot()
 
     expect(findByTestId(tree, 'shell-tab-bar')).toHaveLength(1)
-    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
-    expect(findByTestId(tree, 'composer-marker')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(0)
+    expect(findByTestId(tree, 'composer-idle')).toHaveLength(0)
     expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.type === Shell412)[0]?.props.safeAreaTop).toBe(true)
   })
@@ -298,22 +349,22 @@ describe('Wrapped root shell', () => {
     expect(tree.root.findAll((node) => node.type === Shell412)[0]?.props.safeAreaTop).toBe(true)
   })
 
-  it('does not remember a destination from an unmatched path below a known prefix', async () => {
-    routeState.pathname = '/calendar/bad'
+  it.each(['/calendar/bad', '/habits/missing'])('does not remember a destination or show a composer for unmatched path %s', async (pathname) => {
+    routeState.pathname = pathname
     routeState.segments = ['+not-found']
     const tree = await renderRoot()
 
-    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-pinned-slot')).toHaveLength(0)
     expect(createState.setLastDestination).not.toHaveBeenCalled()
   })
 
   it.each(['/', '/calendar', '/progress', '/profile', '/habits/h1', '/search', '/about', '/support', '/preferences', '/advanced', '/ai-settings'])(
-    'shows composer only on destination roots and habit detail at %s', async (pathname) => {
+    'shows composer only on Hoje and habit detail at %s', async (pathname) => {
       routeState.pathname = pathname
       routeState.segments = pathname === '/' ? ['(tabs)'] : [pathname.slice(1)]
       const tree = await renderRoot()
       expect(findByTestId(tree, 'shell-pinned-slot').length > 0).toBe(
-        ['/', '/calendar', '/progress', '/profile', '/habits/h1'].includes(pathname),
+        ['/', '/habits/h1'].includes(pathname),
       )
       expect(findByTestId(tree, 'shell-header')).toHaveLength(0)
     },

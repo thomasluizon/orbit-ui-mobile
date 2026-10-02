@@ -224,6 +224,9 @@ function ShellWideBackground({
   const pinnedSlot = navigationEnabled ? props.composer : props.action
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
+  const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
+    ? 'pb-24 lg:pb-8'
+    : 'pb-8'
   return (
     <div
       data-shell-background=""
@@ -239,7 +242,7 @@ function ShellWideBackground({
           <main
             ref={registerScroller}
             data-shell-scroller=""
-            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${hasBottomChrome ? 'pb-24 lg:pb-8' : ''}`}
+            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${hasBottomChrome ? scrollerClearance : ''}`}
           >
             <span
               aria-hidden="true"
@@ -263,6 +266,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
     getServerSnapshot,
   )
   const modalOpen = conversationOpen && !sidePanel
+  const shellRef = useRef<HTMLDivElement>(null)
   const conversationRef = useRef<HTMLDivElement>(null)
   const sidePanelRef = useRef<HTMLElement>(null)
   const returnFocusTriggerRef = useRef<HTMLElement>(null)
@@ -280,9 +284,22 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
       if (returnTarget?.isConnected) returnTarget.focus()
     }
   }, [conversationOpen, sidePanel])
+  useEffect(() => {
+    if (!conversationOpen) return
+    const shell = shellRef.current
+    const trigger = returnFocusTriggerRef.current
+    return () => {
+      if (trigger?.isConnected || !shell?.isConnected) return
+      const target = shell.querySelector<HTMLElement>('[data-shell-header] h1, [data-shell-scroller] h1')
+        ?? shell.querySelector<HTMLElement>('[data-shell-scroller]')
+      if (target && !target.hasAttribute('tabindex')) target.tabIndex = -1
+      target?.focus({ preventScroll: true })
+    }
+  }, [conversationOpen])
 
   return (
     <div
+      ref={shellRef}
       data-shell="wide"
       className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
       onFocusCapture={(event) => {

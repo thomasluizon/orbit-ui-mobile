@@ -64,7 +64,7 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 **Astra is not a place.** There is no Astra tab, no Astra screen in the navigation, and no bubble.
 
-1. **The front door** is ONE persistent composer in the shell, present on every primary screen. Above
+1. **The front door** is ONE persistent composer in the shell on Hoje only. Above
    it sit **3 to 6 suggestion chips built from live state**, never from a static list: what is
    overdue, which streak is at risk, which habit has no goal.
 2. **The layer** is an inline AI affordance on every object it can improve. Schedule, breakdown,
@@ -91,10 +91,11 @@ client asks for them deliberately.
 
 | platform | navigation | Astra |
 |---|---|---|
-| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on all four |
-| **web** | sidebar, the same four | composer pinned at the bottom of the 740 column, on all four |
+| **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on Hoje only |
+| **web** | sidebar, the same four | composer pinned at the bottom of the 740 column, on Hoje only |
 
-**No drawer and no hamburger on either platform.** The composer stays visible on every primary screen.
+**No drawer and no hamburger on either platform.** The composer and its suggestion chips stay visible on Hoje only.
+Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 
 **The conversation renders as an overlay on mobile and as a side panel at the wide breakpoint.** That
 is one feature in two presentations, which the responsive rules already govern. It is **not** a new

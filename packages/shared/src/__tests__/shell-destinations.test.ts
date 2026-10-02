@@ -49,11 +49,11 @@ describe('resolveShellChrome', () => {
     expect(resolveShellChrome('/upgrade').activeId).toBe('perfil')
   })
 
-  it('shows the composer only on destination roots and habit detail', () => {
-    for (const route of ['/', '/calendar', '/progress', '/profile', '/habits/h1']) {
+  it('shows the composer only on Hoje and habit detail', () => {
+    for (const route of ['/', '/habits/h1']) {
       expect(resolveShellChrome(route).composer).toBe(true)
     }
-    for (const route of ['/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
+    for (const route of ['/calendar', '/progress', '/profile', '/search', '/about', '/support', '/notifications', '/upgrade', '/preferences', '/advanced', '/ai-settings']) {
       expect(resolveShellChrome(route).composer).toBe(false)
     }
   })

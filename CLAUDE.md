@@ -54,9 +54,9 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | Doc | Purpose |
 |---|---|
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
-| `DESIGN.md` | UI spec, including trailing small sheet actions, the Android wide sheet adapter, sheet primitive padding ownership and stepped date-grid insets, the bounded TimeField scroll exception, opaque control hover layers, web field hover perimeters, typed field fills under autofill, the Pro responsive type pairs and price-loading reservation rule; read before frontend work. |
+| `DESIGN.md` | UI spec, including the Hoje only primary shell composer and trailing small sheet actions, the Android wide sheet adapter, sheet primitive padding ownership and stepped date grid insets, the bounded TimeField scroll exception, opaque control hover layers, web field hover perimeters, typed field fills under autofill, the Pro responsive type pairs and price loading reservation rule; read before frontend work. |
 | `questions.md` | Run-level redesign questions, the decision bar, composition decisions under D90, resolved generic-boundary copy for #338, notification text contrast for #459, and the Perfil Notificações row set for #906, #917, #959 and #963. |
-| `design/canvas/` | The granted canvas export: 21 screens plus 177 tokens. Outranks DESIGN.md prose on how a surface looks; never over `## Information architecture` or `## Bans`. |
+| `design/canvas/` | The granted canvas export: 21 screens plus 177 tokens, with the Hoje-only primary shell composer amendment. Outranks DESIGN.md prose on how a surface looks; never over `## Information architecture` or `## Bans`. |
 | `design/sheet-footer-inventory.md` | Sheet footer owners, platform mirrors and states covered by the trailing-action contract. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `apps/web/DEPLOYMENT.md` | Web image build, GitHub settings, and Render deploy flow. |

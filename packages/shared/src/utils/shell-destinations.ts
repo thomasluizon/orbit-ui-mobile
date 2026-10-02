@@ -39,8 +39,6 @@ export function resolveShellDestination(pathname: string): ShellDestinationId | 
   )?.destination ?? null
 }
 
-export const SHELL_ROOT_ROUTES = ['/', '/calendar', '/progress', '/profile'] as const
-
 export interface ShellChrome {
   activeId: ShellDestinationId
   composer: boolean
@@ -51,7 +49,7 @@ export function resolveShellChrome(pathname: string, lastDestination: ShellDesti
   const destination = resolveShellDestination(pathname)
   return {
     activeId: pathname === '/search' ? lastDestination : destination ?? lastDestination,
-    composer: SHELL_ROOT_ROUTES.some((route) => route === pathname) || /^\/habits\/[^/]+$/.test(pathname),
+    composer: pathname === '/' || /^\/habits\/[^/]+$/.test(pathname),
     flow: pathname === '/wrapped' || pathname === '/upgrade' || pathname === '/habits/new',
   }
 }

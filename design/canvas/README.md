@@ -17,6 +17,7 @@ that disagrees with production is a trap rather than an authority.
 | amendment | what changed | why |
 |---|---|---|
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
+| Hoje composer | The shell composer, Astra glyph button and suggestion chips appear on Hoje only on web and Android, at every width; Calendário, Progresso and Perfil clear navigation or the column bottom | The owner limits the conversation front door to Hoje. An open conversation keeps its existing presentation and state when destinations change. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Opaque control hover | Added `--bg-hover-opaque`: dark reuses `--p-hover`, light uses `--p-l-hover-opaque` at `rgba(9,9,11,0.11)` | Layered over the resting elevated fill, the hover step measures 1.477:1 dark and 1.271:1 light, clearing the 1.25:1 floor. |
 | 2026-09-29 | `Orbit Entrar` and `Orbit Verificacao` centre their compact columns with equal vertical padding | The owner's phone layout decision places both sign-in steps between the safe areas. |
