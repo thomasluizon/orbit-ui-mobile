@@ -5,9 +5,10 @@ import { buildHabitCreateHref } from '@orbit/shared/utils'
 import HabitCreateRoute from '@/app/(app)/habits/new/page'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { useUIStore } from '@/stores/ui-store'
+import { RouteContext } from '@/components/navigation/route-context'
 
 const route = vi.hoisted(() => ({ params: new URLSearchParams(), replace: vi.fn(), form: null as ComponentProps<typeof CreateHabitModal> | null }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: route.replace }), useSearchParams: () => route.params }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/habits/new', useRouter: () => ({ replace: route.replace }), useSearchParams: () => route.params }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: ComponentProps<typeof CreateHabitModal>) => {
   route.form = props
@@ -42,8 +43,8 @@ describe('habit creation route', () => {
     vi.restoreAllMocks()
   })
   it('makes a direct link usable without history', () => {
-    render(<HabitCreateRoute />)
-    expect(document.title).toBe('habits.form.newHabit | Orbit')
+    render(<><RouteContext /><HabitCreateRoute /></>)
+    expect(document.title).toBe('habits.form.newHabit · Orbit')
     fireEvent.click(screen.getByRole('button', { name: 'back' }))
     expect(route.replace).toHaveBeenCalledWith('/')
   })

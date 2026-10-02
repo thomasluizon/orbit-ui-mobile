@@ -269,6 +269,7 @@ describe('HabitDetailScreen', () => {
     const headings = screen.getAllByRole('heading', { level: 1 })
     expect(headings).toHaveLength(1)
     expect(headings[0]).toHaveTextContent(mocks.detail!.title)
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
     expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
@@ -633,10 +634,12 @@ describe('HabitDetailScreen', () => {
     mocks.detailLoading = true
     const view = render(<HabitDetailScreen habitId="habit-1" />)
     const fallback = screen.getByRole('heading', { level: 1 })
+    expect(document.title).toBe('habits.detail.screenTitle · Orbit')
     fallback.focus()
     mocks.detailLoading = false
     view.rerender(<HabitDetailScreen habitId="habit-1" />)
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
+    expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
 
   it('replaces the hosted loading heading with the habit heading after a fresh load', () => {

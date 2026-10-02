@@ -7,6 +7,7 @@ import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
+import { RouteContext } from '@/components/navigation/route-context'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
@@ -146,6 +147,7 @@ export default async function RootLayout({
             <Suspense fallback={null}>
               <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
               <NavigationHistoryTracker />
+              <RouteContext />
             </Suspense>
             <KeyboardPlatformProvider applePlatform={applePlatform}>
               {children}
