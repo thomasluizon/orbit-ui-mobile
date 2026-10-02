@@ -80,10 +80,11 @@ const closeCases = async (successful, result) => {
     closeRelayTerminal({ ...request, terminalHandle }, (_binary, args) => { commands.push(args); return "" })
     T("relay-session: missing or successor finishing handle prevents close", commands.length === 0 && receipt().status === "refused")
   }
-  for (const mode of ["closed", "cli-only", "invisible", "shared-tab", "incomplete", "click-failed", "still-open", "fence-lost"]) {
+  for (const mode of ["closed", "cli-only", "invisible", "shared-tab", "incomplete", "click-failed", "still-open", "fence-lost", "shared-during-observation", "moved-during-observation", "collateral-close"]) {
     writeSessionChain(ledger, successful.checkout)
     const operations = []
     let clicked = false
+    let observed = false
     const snapshot = structuredClone(appState)
     // The installed tab renderer supplies this label; the captured provider supplies index syntax.
     snapshot.result.snapshot.treeText += "\n\t7 botão Close tab Relay predecessor term_predecessor"
@@ -97,10 +98,14 @@ const closeCases = async (successful, result) => {
       }
       if (args[1] === "list") {
         const remaining = structuredClone(inventory)
+        if (observed && mode === "shared-during-observation") remaining.result.terminals[1].tabId = remaining.result.terminals[0].tabId
+        if (observed && mode === "moved-during-observation") remaining.result.terminals[0].tabId = "tab_2"
         if (clicked && mode !== "still-open") remaining.result.terminals.shift()
+        if (clicked && mode === "collateral-close") remaining.result.terminals.shift()
         return JSON.stringify(remaining)
       }
       if (args[1] === "get-app-state") {
+        observed = true
         if (mode === "fence-lost") {
           const unfenced = structuredClone(ledger)
           unfenced.chains[0].entries[0].superseded = false
@@ -119,7 +124,9 @@ const closeCases = async (successful, result) => {
     T(`relay-session: ${mode} cleanup records its observed outcome`, receipt().status === (succeeded ? "closed" : "failed") && (!succeeded || receipt().path === (mode === "cli-only" ? "orca-cli" : "computer-use")))
     T(`relay-session: ${mode} fallback never precedes direct close`, operations[0].join(" ") === "terminal close --terminal term_predecessor --json" && (mode !== "cli-only" || computerCommands.length === 0))
     if (mode === "closed") T("relay-session: computer fallback clicks only the fresh predecessor control", operations.some((args) => args.join(" ") === "computer click --app Orca --no-screenshot --json --window-id 42 --element-index 7"))
-    if (["invisible", "shared-tab", "incomplete", "fence-lost"].includes(mode)) T(`relay-session: ${mode} fallback refuses an unsafe GUI close`, !clicked)
+    if (["invisible", "shared-tab", "incomplete", "fence-lost", "shared-during-observation", "moved-during-observation"].includes(mode)) T(`relay-session: ${mode} fallback refuses an unsafe GUI close`, !clicked)
+    if (["shared-during-observation", "moved-during-observation"].includes(mode)) T(`relay-session: ${mode} keeps the unfenced terminal open`, !operations.some((args) => args.includes("term_successor")) && /tab/.test(receipt().failure))
+    if (mode === "collateral-close") T("relay-session: a GUI close that removes another terminal is recorded as failed", /also removed term_successor/.test(receipt().failure))
   }
   writeSessionChain(ledger, successful.checkout)
 }

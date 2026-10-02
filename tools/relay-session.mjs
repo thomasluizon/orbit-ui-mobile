@@ -64,11 +64,15 @@ const listTerminals = (request, execute) => {
   return listing.terminals
 }
 
+const ownTab = (terminals, handle) => {
+  const finishing = terminals.find((row) => row.handle === handle)
+  if (!finishing?.tabId || terminals.some((row) => row.handle !== handle && row.tabId === finishing.tabId)) throw new Error("computer close requires the predecessor's own tab")
+  return finishing.tabId
+}
+
 const closeWithComputer = (request, execute) => {
   const invoke = (args) => execute(orcaCommand(), args, request.repoRoot, cleanEnvironment(process.env))
-  const terminals = listTerminals(request, execute)
-  const finishing = terminals.find((row) => row.handle === request.terminalHandle)
-  if (!finishing?.tabId || terminals.some((row) => row.handle !== request.terminalHandle && row.tabId === finishing.tabId)) throw new Error("computer close requires the predecessor's own tab")
+  const tabId = ownTab(listTerminals(request, execute), request.terminalHandle)
   const title = `Relay predecessor ${request.terminalHandle}`
   invoke(["terminal", "rename", "--terminal", request.terminalHandle, "--title", title, "--json"])
   invoke(["terminal", "switch", "--terminal", request.terminalHandle, "--json"])
@@ -79,8 +83,14 @@ const closeWithComputer = (request, execute) => {
   const index = matches.length === 1 ? matches[0].match(/^\s*(\d+)\s/)?.[1] : null
   if (!index || snapshot.window?.id == null) throw new Error("predecessor tab close control is not uniquely visible")
   assertTerminalFence(request)
+  // Rename, switch and observation can move terminals, so tab isolation is proven again at the click.
+  const current = listTerminals(request, execute)
+  if (ownTab(current, request.terminalHandle) !== tabId) throw new Error("predecessor tab changed during observation")
   invoke(["computer", "click", ...target, "--window-id", String(snapshot.window.id), "--element-index", index])
-  if (listTerminals(request, execute).some((row) => row.handle === request.terminalHandle)) throw new Error("computer close did not remove the predecessor terminal")
+  const after = listTerminals(request, execute)
+  if (after.some((row) => row.handle === request.terminalHandle)) throw new Error("computer close did not remove the predecessor terminal")
+  const removed = current.filter((row) => row.handle !== request.terminalHandle && !after.some((survivor) => survivor.handle === row.handle))
+  if (removed.length) throw new Error(`computer close also removed ${removed.map((row) => row.handle).join(", ")}`)
 }
 
 /** Cleanup failure never undoes a successful relay; only a confirmed fence permits a close. */
