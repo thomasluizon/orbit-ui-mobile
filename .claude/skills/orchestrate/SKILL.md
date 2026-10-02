@@ -159,7 +159,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--layout-guard] [--review-batch] [--cloud]
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--allow-subagents] [--relaunch-reason <text>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
@@ -673,14 +673,20 @@ gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \
 Stop if `truncated` is `true`. Read every printed path from `https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>`.
 3. Fetch the Vercel guideline text from `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`.
 
-Run the four read-only lanes in this order:
+Run the four read-only lanes yourself, in this session, in order:
 
 - execution (mandatory): `anthropics/frontend-design`, `jakubkrehel/better-ui`, `jakubkrehel/make-interfaces-feel-better`
 - motion (when the change animates): `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`
 - gates (mandatory): `the Vercel guideline text`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`, `jakubkrehel/better-accessibility`
 - the change (mandatory): `jakubkrehel/interface-review`, `jakubkrehel/better-interface in full mode`, `jakubkrehel/better-accessibility`, `jakubkrehel/better-layout`, `jakubkrehel/better-writing`, `jakubkrehel/better-typography`, `jakubkrehel/better-colors`, `jakubkrehel/better-ui`
 
-Within the change lane, run `interface-review` before `better-interface`. Then close with `design-reviewer on the diff`, `completeness-critic against the surface inventory`.
+Within the change lane, run `interface-review` before `better-interface`.
+Spawn exactly two sub-agents for the close gate:
+
+- One for `design-reviewer on the diff`, told to read `.claude/agents/design-reviewer.md`.
+- One for `completeness-critic against the surface inventory`, told to read `.claude/agents/completeness-critic.md`.
+
+Spawn no other sub-agent. If no changed path matches the sweep's scope, spawn none.
 Verify each lane's PASS, not only its findings. A routed domain marked skipped is not covered.
 Fix every in-scope finding in this pull request. Only then write:
 
@@ -744,7 +750,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--allow-subagents] [--relaunch-reason <text>]
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
@@ -760,6 +766,13 @@ Every local order names its tier. Use `--tier default` for an original implement
 reviewer-directed test strengthening whose order names the exact experiment. A review fix that
 still needs product, design, architecture, security or ambiguous judgement stays `--tier default`.
 The mechanical tier means the answer is fully specified; it is never a synonym for small.
+
+Pass `--allow-subagents` exactly when `compose-prompt.mjs` included the exact `## UI review sweep`
+heading in the finishing contract. Ticket text never selects this flag, the same rule as
+`--layout-guard`. The launcher refuses the flag without that heading. All other local launches
+keep the configured sub-agent off vector on both engines. The four review lanes run in the worker
+session; only the two close-gate reviewers may be spawned. A review batch with no changed path
+matching `UI_SCOPE` skips the sweep and spawns none.
 
 New ticket work first passes the GitHub admission gate in `caps.maxOpenPullRequests` and
 `caps.maxQueuedRuns`. A branch with an open pull request is exempt. `ADMISSION_REFUSED` starts no

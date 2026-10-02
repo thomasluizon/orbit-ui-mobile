@@ -164,7 +164,7 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
  * `tier` is a plain string, not a label array. The caller chooses the configured profile for the
  * order in front of it; the resolver owns the one argument path shared by every tier.
  */
-export const resolveWorkerInvocation = (engineName, engine, tier = "default") => {
+export const resolveWorkerInvocation = (engineName, engine, tier = "default", { allowSubagents = false } = {}) => {
   if (!isRecord(engine)) {
     throw new Error(`worker engine "${engineName}" is missing from .claude/orchestrator.json`)
   }
@@ -175,6 +175,13 @@ export const resolveWorkerInvocation = (engineName, engine, tier = "default") =>
   ) {
     throw new Error(`worker engine "${engineName}" must declare args as an array of non-model strings`)
   }
+  const subagentOffArgs = engine.subagentOffArgs ?? []
+  if (
+    !Array.isArray(subagentOffArgs) ||
+    subagentOffArgs.some((argument) => typeof argument !== "string" || argument === "--model" || argument === "-m" || argument.startsWith("--model="))
+  ) {
+    throw new Error(`worker engine "${engineName}" subagentOffArgs must be an array of non-model strings`)
+  }
   const entry = engine.models?.[tier]
   if (!isRecord(entry) || typeof entry.model !== "string" || entry.model.trim().length === 0) {
     const declared = Object.keys(engine.models ?? {}).join(", ") || "none"
@@ -183,5 +190,5 @@ export const resolveWorkerInvocation = (engineName, engine, tier = "default") =>
   if (entry.args !== undefined && (!Array.isArray(entry.args) || entry.args.some((argument) => typeof argument !== "string"))) {
     throw new Error(`worker engine "${engineName}" models.${tier}.args must be an array of strings`)
   }
-  return { tier, model: entry.model, args: [...engine.args, ...(entry.args ?? []), "--model", entry.model] }
+  return { tier, model: entry.model, args: [...engine.args, ...(allowSubagents ? [] : subagentOffArgs), ...(entry.args ?? []), "--model", entry.model] }
 }
