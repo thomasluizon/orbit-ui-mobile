@@ -141,13 +141,13 @@ describe('web Today Astra owned surfaces', () => {
     mocks.timeZone = 'America/Sao_Paulo'
     mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-30T02:59:00Z' })]
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-    expect(screen.getByRole('button', { name: 'todayAstra.openConversation' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Check in' })).toBeInTheDocument()
 
     mocks.view.nav.today = '2026-08-30'
     mocks.view.nav.dateStr = '2026-08-30'
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
-    expect(screen.queryByRole('button', { name: 'todayAstra.openConversation' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Check in' })).not.toBeInTheDocument()
     expect(screen.getByTestId('today-date')).toHaveTextContent('2026-08-30')
     expect(mocks.notifications[0]?.isRead).toBe(false)
   })
@@ -216,7 +216,7 @@ describe('web Today Astra owned surfaces', () => {
 
     if (visible) {
       expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
+      expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
     } else {
       expect(screen.queryByText('todayAstra.returningElapsed:3', { exact: false })).not.toBeInTheDocument()
     }

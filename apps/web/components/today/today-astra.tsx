@@ -1,6 +1,6 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { useId, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
@@ -22,6 +22,7 @@ interface TodayAstraProps {
 
 export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const t = useTranslations()
+  const destinationId = useId()
   const { profile } = useProfile()
   const { notifications } = useNotifications()
   const markRead = useMarkNotificationRead()
@@ -38,7 +39,6 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
     () => globalThis.navigator.onLine,
     () => true,
   )
-  const openConversation = () => setConversationOpen(true)
   const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
   const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
   const proactive = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline, atLimit: atMessageLimit })
@@ -47,44 +47,47 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
 
   const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })
     ? proactive
-      ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
+      ? { text: proactive.body, destination: t('todayAstra.openConversation'), notificationId: proactive.id }
       : returning
         ? {
             text: returning.kind === 'elapsed'
               ? t('todayAstra.returningElapsed', { days: returning.days })
               : t('todayAstra.returningBounded'),
-            action: t('todayAstra.viewProgress'),
+            destination: t('todayAstra.viewProgress'),
             notificationId: null,
           }
         : null
     : null
 
+  if (!line) return null
+
+  const content = (
+    <>
+      <AstraGlyph size={20} color="var(--fg-3)" />
+      <span className="today-astra-sentence">{line.text}</span>
+    </>
+  )
+
   return (
     <>
-      {line ? (
-        <div className="flex min-h-[42px] items-start gap-3 px-4 pb-3 pt-2 text-sm leading-5 text-[var(--fg-2)]">
-          <AstraGlyph size={20} color="var(--fg-3)" />
-          <p className="m-0 min-w-0 flex-1">
-            {line.text}
-            {line.notificationId ? (
-              <button
-                type="button"
-                className="orbit-link-action orbit-link-action-persistent today-astra-action border-0 bg-transparent p-0"
-                onClick={() => {
-                  markRead.mutate(line.notificationId)
-                  openConversation()
-                }}
-              >
-                {line.action}
-              </button>
-            ) : (
-              <Link className="orbit-link-action orbit-link-action-persistent today-astra-action" href="/progress">
-                {line.action}
-              </Link>
-            )}
-          </p>
-        </div>
-      ) : null}
+      {line.notificationId ? (
+        <button
+          type="button"
+          className="today-astra-line"
+          aria-describedby={destinationId}
+          onClick={() => {
+            markRead.mutate(line.notificationId)
+            setConversationOpen(true)
+          }}
+        >
+          {content}
+        </button>
+      ) : (
+        <Link className="today-astra-line" href="/progress" aria-describedby={destinationId}>
+          {content}
+        </Link>
+      )}
+      <span id={destinationId} className="sr-only">{line.destination}</span>
     </>
   )
 }

@@ -1230,25 +1230,49 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .orbit-link-action-persistent::after {
   content: none;
 }
-
-.today-astra-action {
-  margin-inline-start: 4px;
-  color: var(--fg-1);
-  font-weight: 500;
-  text-decoration-color: var(--hairline-strong);
-  transition: text-decoration-color var(--dur-hover) var(--ease-standard);
 }
 
-.today-astra-action:active {
-  text-decoration-color: var(--fg-1);
-}
+.today-astra-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bg-well);
+  color: var(--fg-2);
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.today-astra-action::before {
-  position: absolute;
-  inset: -12px;
-  background: transparent;
-  content: '';
+.today-astra-line > svg {
+  flex-shrink: 0;
+}
+
+.today-astra-sentence {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.today-astra-line:focus-visible {
+  outline: 2px solid var(--fg-1);
+  outline-offset: 2px;
+}
+
+.today-astra-line:active {
+  background: var(--bg-hover);
 }
 
 [data-habit-row-body] {
@@ -1266,6 +1290,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .today-astra-line:hover {
+    background: var(--bg-hover);
+  }
+
   @layer components {
   .icon-btn:not(:disabled):hover,
   .icon-btn-well:not(:disabled):hover {
@@ -1294,10 +1322,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
   .orbit-link-action:hover::after {
     transform: scaleX(1);
-  }
-
-  .today-astra-action:hover {
-    text-decoration-color: var(--fg-1);
   }
   }
 }

@@ -4,7 +4,6 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { StyleSheet, Text } from 'react-native'
-import Yoga from 'yoga-layout'
 import { TodayAstra } from '@/components/today/today-astra'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useUIStore } from '@/stores/ui-store'
@@ -48,6 +47,7 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => ({
     bg: '#111111',
     bgHover: '#333333',
+    bgWell: '#444444',
     hairline: '#222222',
     fg1: '#ffffff',
     fg2: '#eeeeee',
@@ -76,11 +76,46 @@ async function renderTodayAstra(): Promise<ReactTestRenderer> {
 
 function hasText(tree: ReactTestRenderer, text: string): boolean {
   return tree.root.findAll((node) =>
-    Array.isArray(node.props.children) && node.props.children.includes(text),
+    node.props.children === text,
   ).length > 0
 }
 
 describe('mobile Today Astra', () => {
+  it.each([
+    ['proactive', 'Check in', 'todayAstra.openConversation'],
+    ['elapsed', 'todayAstra.returningElapsed:3', 'todayAstra.viewProgress'],
+    ['bounded', 'todayAstra.returningBounded', 'todayAstra.viewProgress'],
+  ])('makes the %s sentence the whole row target with a destination hint', async (variant, sentence, destination) => {
+    mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
+    if (variant === 'proactive') mocks.notifications = [createMockNotification({
+      id: 'check-in', url: '/chat', body: sentence, createdAtUtc: '2026-08-29T10:00:00Z',
+    })]
+    const tree = await renderTodayAstra()
+    const actions = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.onPress === 'function')
+    expect(actions).toHaveLength(1)
+    const action = actions[0]!
+    expect(action.props.accessibilityLabel).toBe(sentence)
+    expect(action.props.accessibilityHint).toBe(destination)
+    expect(action.props.accessibilityRole).toBe(variant === 'proactive' ? 'button' : 'link')
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minHeight: 48, paddingHorizontal: 16, borderRadius: 12 })
+    expect(action.props.hitSlop).toBeUndefined()
+    const prose = action.findAll((node) => node.type === Text)[0]!
+    expect(prose.props.children).toBe(sentence)
+    expect(prose.props.numberOfLines).toBe(2)
+    expect(prose.props.ellipsizeMode).toBe('tail')
+    expect(prose.findAll((node) => typeof node.props.onPress === 'function')).toHaveLength(0)
+    await TestRenderer.act(() => { (action.props.onPress as () => void)() })
+    if (variant === 'proactive') {
+      expect(mocks.markRead).toHaveBeenCalledWith('check-in')
+      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+      expect(mocks.navigateProgress).not.toHaveBeenCalled()
+    } else {
+      expect(mocks.navigateProgress).toHaveBeenCalledWith('/progress')
+      expect(mocks.markRead).not.toHaveBeenCalled()
+      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    }
+  })
+
   beforeEach(() => {
     mocks.notifications = []
     mocks.markRead.mockReset()
@@ -120,17 +155,6 @@ describe('mobile Today Astra', () => {
     const tree = await renderTodayAstra()
     const action = tree.root.findAll((node) => node.props.accessibilityRole === 'link')[0]
     if (!action) throw new Error('Returning action did not render')
-    expect(action.props.hitSlop).toEqual({ top: 12, right: 12, bottom: 12, left: 12 })
-    const targetStyle = StyleSheet.flatten(action.props.style) as Record<string, unknown>
-    expect(targetStyle).toMatchObject({ paddingStart: 4 })
-    expect(targetStyle.minHeight).toBeUndefined()
-    const label = action.findAll((node) => node.props.children === 'todayAstra.viewProgress')[0]
-    expect(StyleSheet.flatten(label?.props.style) as Record<string, unknown>).toMatchObject({
-      fontFamily: 'Geist_500Medium', fontSize: 14, color: '#ffffff', textDecorationLine: 'underline',
-    })
-    expect(tree.root.findAll((node) => node.type === Text &&
-      node.findAll((child) => child.props.accessibilityRole === 'link').length > 0,
-    ).length).toBeGreaterThan(0)
     await TestRenderer.act(async () => {
       ;(action.props.onPress as () => void)()
       await Promise.resolve()
@@ -153,29 +177,8 @@ describe('mobile Today Astra', () => {
     expect(hasText(tree, 'todayAstra.returningElapsed:3')).toBe(true)
     expect(tree.root.findAll((node) =>
       node.props.accessibilityRole === 'link' &&
-      node.findAll((child) => child.props.children === 'todayAstra.viewProgress').length > 0,
+      node.props.accessibilityHint === 'todayAstra.viewProgress',
     ).length).toBeGreaterThan(0)
-  })
-
-  it.each([1, 100])('includes the leading gap inside the native inline attachment for a %spx label', async (labelWidth) => {
-    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
-    const tree = await renderTodayAstra()
-    const action = tree.root.findAll((node) => node.props.accessibilityRole === 'link')[0]
-    if (!action) throw new Error('Returning action did not render')
-    const targetStyle = StyleSheet.flatten(action.props.style) as Record<string, unknown>
-    const attachment = Yoga.Node.create()
-    const label = Yoga.Node.create()
-    try {
-      if (typeof targetStyle.marginStart === 'number') attachment.setMargin(Yoga.EDGE_START, targetStyle.marginStart)
-      if (typeof targetStyle.paddingStart === 'number') attachment.setPadding(Yoga.EDGE_START, targetStyle.paddingStart)
-      label.setWidth(labelWidth)
-      attachment.insertChild(label, 0)
-      attachment.calculateLayout(undefined, undefined)
-      expect(attachment.getComputedWidth() - label.getComputedWidth()).toBe(4)
-      expect(label.getComputedLeft()).toBe(4)
-    } finally {
-      attachment.freeRecursive()
-    }
   })
 
   it.each([
@@ -189,8 +192,8 @@ describe('mobile Today Astra', () => {
 
     const tree = await renderTodayAstra()
 
-    expect(hasText(tree, 'Check in')).toBe(visible)
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link').length > 0).toBe(visible)
+    expect(tree.root.findAll((node) => node.props.children === 'Check in').length > 0).toBe(visible)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button').length > 0).toBe(visible)
   })
 
   it('renders a proactive check-in and opens its conversation', async () => {
@@ -206,39 +209,12 @@ describe('mobile Today Astra', () => {
 
     const tree = await renderTodayAstra()
 
-    expect(hasText(tree, 'Check in')).toBe(true)
-    const action = tree.root.findAll((node) =>
-      node.props.accessibilityRole === 'link' &&
-      node.findAll((child) => child.props.children === 'todayAstra.openConversation').length > 0,
-    )[0]
-    if (!action) throw new Error('Proactive conversation action did not render')
-    const label = action.findAll((node) => node.props.children === 'todayAstra.openConversation')[0]
-    expect(StyleSheet.flatten(label?.props.style) as Record<string, unknown>).toMatchObject({
-      fontFamily: 'Geist_500Medium', fontSize: 14, color: '#ffffff',
-      textDecorationLine: 'underline',
-    })
-    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).paddingStart).toBe(4)
-    expect((StyleSheet.flatten(action.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
-    const onPressIn = action.props.onPressIn
-    if (typeof onPressIn !== 'function') throw new Error('Proactive action cannot receive press feedback')
-    await TestRenderer.act(async () => {
-      onPressIn()
-      await Promise.resolve()
-    })
-    const pressedAction = tree.root.findAll((node) =>
-      node.props.accessibilityRole === 'link' &&
-      node.findAll((child) => child.props.children === 'todayAstra.openConversation').length > 0,
-    )[0]
-    if (!pressedAction) throw new Error('Pressed proactive action did not render')
-    expect((StyleSheet.flatten(pressedAction.props.style) as Record<string, unknown>).backgroundColor).toBeUndefined()
-    const pressedLabel = pressedAction.findAll((node) => node.props.children === 'todayAstra.openConversation')[0]
-    expect((StyleSheet.flatten(pressedLabel?.props.style) as Record<string, unknown>)).toMatchObject({ color: '#ffffff', opacity: 0.85 })
-    const onPressOut = pressedAction.props.onPressOut
-    if (typeof onPressOut !== 'function') throw new Error('Proactive action cannot release press feedback')
-    await TestRenderer.act(async () => {
-      onPressOut()
-      await Promise.resolve()
-    })
+    const action = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Check in')[0]!
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ backgroundColor: '#444444' })
+    await TestRenderer.act(() => { (action.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ backgroundColor: '#333333' })
+    await TestRenderer.act(() => { (action.props.onPressOut as () => void)() })
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ backgroundColor: '#444444' })
     await TestRenderer.act(async () => {
       ;(action.props.onPress as () => void)()
       await Promise.resolve()

@@ -5,22 +5,26 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { launchChrome, closeChrome } from '@/__tests__/support/chromium'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { RouterContext } from 'next/dist/shared/lib/router-context.shared-runtime'
 import type { NextRouter } from 'next/router'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { TodayAstra } from '@/components/today/today-astra'
 import { useUIStore } from '@/stores/ui-store'
 
 interface TodayAstraMocks {
+  portuguese: boolean
   notifications: NotificationItem[]
   markRead: ReturnType<typeof vi.fn>
   profile: { id: string; timeZone: string; lastCompletionDate?: string | null; aiMessagesUsed?: number; aiMessagesLimit?: number }
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
+  portuguese: false,
   notifications: [],
   markRead: vi.fn(),
   profile: { id: 'profile', timeZone: 'UTC' },
@@ -28,7 +32,9 @@ const mocks = vi.hoisted((): TodayAstraMocks => ({
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: { days: number }) =>
-    values ? `${key}:${values.days}` : key,
+    mocks.portuguese
+      ? ptBr.todayAstra[key.split('.')[1] as keyof typeof ptBr.todayAstra].replace('{days}', String(values?.days))
+      : values ? `${key}:${values.days}` : key,
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -38,15 +44,41 @@ vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: mocks.notifications }),
   useMarkNotificationRead: () => ({ mutate: mocks.markRead }),
 }))
-vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
 
 function renderTodayAstra() {
   return render(<TodayAstra today={formatAPIDateInTimeZone(new Date(), mocks.profile.timeZone)} isTodaySelected suppressed={false} />)
 }
 
 describe('web Today Astra', () => {
+  it.each([
+    ['proactive', 'Check in', 'todayAstra.openConversation'],
+    ['elapsed', 'todayAstra.returningElapsed:3', 'todayAstra.viewProgress'],
+    ['bounded', 'todayAstra.returningBounded', 'todayAstra.viewProgress'],
+  ])('makes the %s sentence the whole row target with a destination description', (variant, sentence, destination) => {
+    mocks.profile.lastCompletionDate = variant === 'bounded' ? '2026-07-29' : '2026-08-26'
+    if (variant === 'proactive') mocks.notifications = [createMockNotification({
+      id: 'check-in', url: '/chat', body: sentence, createdAtUtc: '2026-08-29T10:00:00Z',
+    })]
+    const { container } = renderTodayAstra()
+    const action = screen.getByRole(variant === 'proactive' ? 'button' : 'link', { name: sentence })
+    expect(container.querySelectorAll('button, a')).toHaveLength(1)
+    expect(action).toHaveAccessibleDescription(destination)
+    expect(action.textContent).toBe(sentence)
+    expect(action.querySelector('button, a')).toBeNull()
+    if (variant === 'proactive') {
+      fireEvent.click(action)
+      expect(mocks.markRead).toHaveBeenCalledWith('check-in')
+      expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    } else {
+      expect(action).toHaveAttribute('href', '/progress')
+      expect(mocks.markRead).not.toHaveBeenCalled()
+      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    }
+  })
+
   beforeEach(() => {
     vi.restoreAllMocks()
+    mocks.portuguese = false
     mocks.notifications = []
     mocks.markRead.mockReset()
     mocks.profile = { id: 'profile', timeZone: 'UTC' }
@@ -102,8 +134,7 @@ describe('web Today Astra', () => {
     mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
 
     renderTodayAstra()
-    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
-    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveClass('today-astra-action')
+    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
 
     expect(mocks.markRead).not.toHaveBeenCalled()
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
@@ -122,7 +153,7 @@ describe('web Today Astra', () => {
       </RouterContext.Provider>,
     )
 
-    const action = screen.getByRole('link', { name: 'todayAstra.viewProgress' })
+    const action = screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })
     expect(action).toHaveAttribute('href', '/progress')
     const click = fireEvent.click(action)
 
@@ -142,7 +173,7 @@ describe('web Today Astra', () => {
     renderTodayAstra()
 
     expect(screen.getByText('todayAstra.returningElapsed:3', { exact: false })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
+    expect(screen.getByRole('link', { name: 'todayAstra.returningElapsed:3' })).toHaveAttribute('href', '/progress')
   })
 
   it.each([
@@ -156,7 +187,7 @@ describe('web Today Astra', () => {
 
     const { container } = renderTodayAstra()
 
-    expect(screen.queryByRole('button', { name: 'todayAstra.openConversation' }) !== null).toBe(visible)
+    expect(screen.queryByRole('button', { name: 'Check in' }) !== null).toBe(visible)
     if (!visible) expect(container).toBeEmptyDOMElement()
   })
 
@@ -174,82 +205,72 @@ describe('web Today Astra', () => {
     renderTodayAstra()
 
     expect(screen.getByText(/Check in/)).toBeInTheDocument()
-    const action = screen.getByRole('button', { name: 'todayAstra.openConversation' })
-    expect(action).toHaveClass('orbit-link-action-persistent')
+    const action = screen.getByRole('button', { name: 'Check in' })
     fireEvent.click(action)
     expect(mocks.markRead).toHaveBeenCalledWith('check-in')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
-  it('renders both inline actions with the drawn emphasis and scale spacing in both themes', async () => {
+  it.each(['proactive', 'elapsed', 'bounded'])('keeps the pt-BR %s variant within two lines at 320 and grows at 200% text in both themes', async (variant) => {
     const cssPath = resolve(process.cwd(), 'app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     vi.useRealTimers()
     const launch = launchChrome()
     try {
       const browser = await launch
-      for (const proactive of [true, false]) {
-        mocks.profile.lastCompletionDate = proactive ? null : new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10)
-        mocks.notifications = proactive ? [{
-          id: 'check-in', title: 'Astra', body: 'Check in', url: '/chat', habitId: null,
-          isRead: false, createdAtUtc: new Date().toISOString(),
-        }] : []
+      const page = await browser.newPage()
+      await page.setViewportSize({ width: 320, height: 800 })
+        mocks.profile.lastCompletionDate = variant === 'proactive' ? null
+          : new Date(Date.now() - (variant === 'elapsed' ? 3 : 31) * 86_400_000).toISOString().slice(0, 10)
+        mocks.notifications = variant === 'proactive' ? [createMockNotification({
+          url: '/chat', body: 'Sua rotina mudou. Vamos conversar sobre os hábitos que você quer retomar e organizar os próximos passos?',
+          createdAtUtc: new Date().toISOString(),
+        })] : []
+        mocks.portuguese = true
         const { container, unmount } = renderTodayAstra()
         for (const mode of ['dark', 'light'] as const) {
           const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
-          const page = await browser.newPage()
-          await page.setContent(`<html class="${mode}"><style>${stylesheet.css}:root{${variables}}</style><body>${container.innerHTML}</body></html>`)
-          const action = page.getByRole(proactive ? 'button' : 'link')
-          const appearance = await action.evaluate((element) => {
-            const style = getComputedStyle(element)
-            const reference = document.createElement('span')
-            reference.style.color = 'var(--fg-1)'
-            reference.style.textDecorationColor = 'var(--hairline-strong)'
-            document.body.append(reference)
-            return {
-              fontSize: style.fontSize, fontWeight: style.fontWeight,
-              color: style.color, expectedColor: getComputedStyle(reference).color,
-              underline: style.textDecorationLine, underlineColor: style.textDecorationColor,
-              expectedUnderlineColor: getComputedStyle(reference).textDecorationColor,
-              marginStart: style.marginInlineStart,
-              previousText: element.previousSibling?.textContent,
-              background: style.backgroundColor,
-              generatedUnderline: getComputedStyle(element, '::after').content,
-            }
-          })
-          expect(appearance).toMatchObject({
-            fontSize: '14px', fontWeight: '500', color: appearance.expectedColor,
-            underline: 'underline', underlineColor: appearance.expectedUnderlineColor,
-            marginStart: '4px', background: 'rgba(0, 0, 0, 0)', generatedUnderline: 'none',
-          })
-          expect(appearance.previousText?.endsWith(' ')).toBe(false)
-          await action.hover()
-          await page.waitForFunction(() => {
-            const element = document.querySelector('button, a')!
-            const style = getComputedStyle(element)
-            return style.textDecorationColor === style.color
-          })
-          await page.close()
+          for (const fontSize of [16, 32]) {
+            await page.setContent(`<html class="${mode}" lang="pt-BR"><style>${stylesheet.css}:root{${variables}font-size:${fontSize}px}body{padding:16px}</style><body>${container.innerHTML}</body></html>`)
+            await loadAppFonts(page)
+            const action = page.getByRole(variant === 'proactive' ? 'button' : 'link')
+            const appearance = await action.evaluate((element) => {
+              const style = getComputedStyle(element)
+              const sentence = element.querySelector('.today-astra-sentence')!
+              const sentenceStyle = getComputedStyle(sentence)
+              const reference = document.createElement('span')
+              reference.style.background = 'var(--bg-well)'
+              document.body.append(reference)
+              const target = element.getBoundingClientRect()
+              const prose = sentence.getBoundingClientRect()
+              return {
+                height: target.height, width: target.width, right: target.right,
+                paddingStart: style.paddingInlineStart, paddingEnd: style.paddingInlineEnd,
+                radius: style.borderRadius, background: style.backgroundColor,
+                expectedBackground: getComputedStyle(reference).backgroundColor,
+                proseHeight: prose.height, lineHeight: parseFloat(sentenceStyle.lineHeight),
+                clamp: sentenceStyle.webkitLineClamp,
+                fullText: sentence.textContent, name: element.textContent,
+                extraTarget: getComputedStyle(element, '::before').content,
+                overflow: document.documentElement.scrollWidth > window.innerWidth,
+              }
+            })
+            expect(appearance).toMatchObject({
+              width: 288, paddingStart: '16px', paddingEnd: '16px', radius: '12px',
+              background: appearance.expectedBackground, clamp: '2', extraTarget: 'none', overflow: false,
+            })
+            expect(appearance.height).toBeGreaterThanOrEqual(48)
+            expect(appearance.proseHeight).toBeLessThanOrEqual(appearance.lineHeight * 2)
+            expect(appearance.name).toBe(appearance.fullText)
+            if (fontSize === 32) expect(appearance.height).toBeGreaterThan(48)
+            await action.focus()
+            expect(await action.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('solid')
+          }
         }
         unmount()
-      }
+      await page.close()
     } finally {
       await closeChrome(launch)
     }
-  }, 45_000)
-
-  it('shows returning Progress when a proactive check-in is unavailable offline', () => {
-    mocks.profile = { id: 'profile', timeZone: 'UTC', lastCompletionDate: '2026-08-26' }
-    mocks.notifications = [{
-      id: 'check-in', title: 'Astra', body: 'Check in', url: '/chat', habitId: null,
-      isRead: false, createdAtUtc: '2026-08-29T10:00:00Z',
-    }]
-    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
-
-    renderTodayAstra()
-
-    expect(screen.getByRole('link', { name: 'todayAstra.viewProgress' })).toHaveAttribute('href', '/progress')
-    expect(screen.queryByText('Check in', { exact: false })).not.toBeInTheDocument()
   })
-
 })
