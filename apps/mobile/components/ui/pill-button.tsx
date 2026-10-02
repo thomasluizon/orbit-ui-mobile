@@ -87,7 +87,7 @@ export function Button({
         styles.base,
         iconOnly
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
-          : { height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+          : { height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight ?? 44, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed && !disabled && !loading),
         disabled && !loading ? styles.disabled : null,
         pressed && !disabled && !loading && quietsOnPress ? styles.pressedQuiet : null,

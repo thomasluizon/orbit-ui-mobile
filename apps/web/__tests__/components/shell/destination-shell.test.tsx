@@ -682,13 +682,13 @@ describe('DestinationShell', () => {
     view.rerender(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
     expect.soft(screen.getAllByRole('list', { name: 'notifications.title' })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'notifications.markAllRead' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'notifications.options' })).not.toBeInTheDocument()
     await act(async () => {
       queryClient.setQueryData(notificationKeys.lists(), { items: [createMockNotification({ isRead: false })], unreadCount: 1 })
       await new Promise((resolve) => setTimeout(resolve, 300))
     })
     expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' }).closest('[data-shell-header]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'notifications.markAllRead' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'notifications.options' }).closest('[data-shell-header]')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     expect(mocks.push).toHaveBeenCalledWith('/profile')
     mocks.pathname = '/profile'
