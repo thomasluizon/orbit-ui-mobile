@@ -1,9 +1,14 @@
+import { getRouteMetadata } from '@/lib/route-metadata'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { serverAuthFetch } from '@/lib/server-fetch'
 import { loadTodayInitialHabits } from './today-initial-data'
 import { TodayPageClient } from './today-page-client'
+
+export function generateMetadata() {
+  return getRouteMetadata('/')
+}
 
 interface TodayPageProps {
   searchParams: Promise<{ date?: string | string[] }>

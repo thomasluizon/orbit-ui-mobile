@@ -1,6 +1,11 @@
+import { getRouteMetadata } from '@/lib/route-metadata'
 import { redirect } from 'next/navigation'
 import { isValidReferralCode } from '@orbit/shared/utils'
 import { resolveServerSession } from '@/lib/auth-api'
+
+export function generateMetadata() {
+  return getRouteMetadata('/r/[code]')
+}
 
 interface ReferralRedirectPageProps {
   params: Promise<{ code: string }>

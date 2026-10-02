@@ -5,6 +5,9 @@ import { useTranslations } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import { UsageStats } from '@/components/upgrade/usage-stats'
 import { ProviderHandoff } from '@/components/upgrade/provider-handoff'
+import { RouteContext } from '@/components/navigation/route-context'
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade' }))
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
 const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
@@ -288,6 +291,7 @@ describe('UpgradePage subscription management', () => {
     expect(screen.queryAllByText('upgrade.billing.actions.providerNote')).toHaveLength(Number(hasProviderGuidance))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
+    expect(document.title).toBe('upgrade.title · Orbit')
     if (!['loading', 'load-failed'].includes(state)) {
       expect(screen.getByRole('heading', {
         level: 2,
@@ -302,6 +306,7 @@ describe('UpgradePage subscription management', () => {
     mockIsStatusLoading = true
     const view = render(<UpgradePage />)
     expect(screen.getByRole('heading', { level: 1 })).toBeEmptyDOMElement()
+    expect(document.title).toBe('upgrade.pitchTitle · Orbit')
     expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
 
     mockProfile = { id: 'u1', hasProAccess: true, isTrialActive: false, subscriptionSource: 'stripe', aiMessagesUsed: 0, aiMessagesLimit: 20 }
@@ -309,6 +314,7 @@ describe('UpgradePage subscription management', () => {
     mockIsStatusLoading = false
     view.rerender(<UpgradePage />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
+    expect(document.title).toBe('upgrade.title · Orbit')
     expect(screen.queryByText('upgrade.pitchTitle')).not.toBeInTheDocument()
   })
 
@@ -963,5 +969,5 @@ describe('UpgradePage subscription management', () => {
 
 function render(element: React.ReactNode) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider> })
+  return renderComponent(element, { wrapper: ({ children }) => <QueryClientProvider client={client}><RouteContext>{children}</RouteContext></QueryClientProvider> })
 }

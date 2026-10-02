@@ -1,5 +1,10 @@
+import { getRouteMetadata } from '@/lib/route-metadata'
 import { supportedLocales } from '@orbit/shared/i18n'
 import { TurnstileBridge } from './turnstile-bridge'
+
+export function generateMetadata() {
+  return getRouteMetadata('/turnstile-bridge')
+}
 
 export default async function TurnstileBridgePage({
   searchParams,
