@@ -14,7 +14,7 @@ try {
     recordHandoffRequest(input?.session_id ?? "", { ...request, origin: "owner" }, new Date().toISOString())
     const state = readRunState()
     if (state?.sessionId === input?.session_id) {
-      writeRunState({ ...state, transcriptPath: input.transcript_path,
+      writeRunState({ ...state, sleep: false, transcriptPath: input.transcript_path,
         ...(state.relay?.pending ? { relay: { ...state.relay, pending: false, canceledByOwner: true } } : {}) })
     }
   }

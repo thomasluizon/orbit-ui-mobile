@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto"
 import { pathToFileURL } from "node:url"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
-import { appendChainEntry, closeSessionChain, confirmChainSuccessor, sessionChainEntry, supersededSession } from "./lib/session-chain.mjs"
+import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession } from "./lib/session-chain.mjs"
 import { HANDOFF_PROMPT_PATH, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, clearWakeSource, gitDirectoryOf, isWakeSourceAlive, processStartIdentity, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
 
@@ -145,12 +145,13 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
     execute(orca, ["terminal", "send", "--terminal", terminal, "--enter", "--json"], repoRoot, environment)
     throw new Error("successor did not confirm sleep state; sent one Enter for composer stall")
   } catch (error) {
+    const state = readRunState(repoRoot)
+    const restored = { ...attempting, relay: { ...attempting.relay, successorSessionId: null } }
+    if (state?.sessionId === successorSessionId || state?.sessionId === sessionId && state.relay?.pending) writeRunState(restored, repoRoot)
     if (terminal) {
       const orca = process.env.ORCA_CLI_COMMAND || (process.env.ORCA_DEV_REPO_ROOT ? "orca-dev" : process.platform === "linux" ? "orca-ide" : "orca")
       execute(orca, ["terminal", "close", "--terminal", terminal, "--json"], repoRoot, cleanEnvironment(process.env))
     }
-    const state = readRunState(repoRoot)
-    if (state?.sessionId === successorSessionId || state?.sessionId === sessionId && state.relay?.pending) writeRunState(attempting, repoRoot)
     appendChainEntry({ ...(await sessionChainEntry(attempting, previous.relay.transcriptPath)), failure: error.message }, repoRoot)
     throw error
   }
@@ -166,8 +167,10 @@ const main = async () => {
   const state = readRunState()
   if (!sessionId || state?.sessionId !== sessionId) throw new Error("no matching CLAUDE_CODE_SESSION_ID")
   if (args[0] === "--close-chain") {
+    if (!openSessionChain(sessionId)) return
     if (readHandoffRequest(sessionId)?.origin !== "owner") throw new Error("chain closure requires an owner-origin handoff")
     appendChainEntry(await sessionChainEntry(state, state.transcriptPath ?? state.relay?.transcriptPath))
+    await refreshChainMetrics(sessionId)
     closeSessionChain(sessionId)
     return
   }

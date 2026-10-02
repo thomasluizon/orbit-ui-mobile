@@ -28,17 +28,25 @@ Your first action must write the run state through `writeRunState` with this ses
 the Stop guard inert until this write replaces it. Read the state back with `readRunState`, and
 confirm the session id and `sleep: true` before the first turn ends.
 
+First call `adoptRelayRun(sessionId)` from `tools/lib/session-chain.mjs`. When it returns true,
+the relay tool nominated this successor and the function already wrote the inherited run
+with `sleep: true` and `relay.from` equal to the predecessor. Read it back and continue the
+existing admitted queue. Do not replan or hand-copy predecessor state. If it returns false,
+perform the ordinary first write above.
+
 If an `/orchestrate` run is active, change that run to `--sleep` in place. Do not enter the
 orchestrator again, and do not plan the queue again. Keep its admitted `remaining` queue. Preserve
 its repository-qualified `pullRequests` and append-only `readinessLedger`.
 
-`writeRunState` in `tools/lib/run-state.mjs:66` unions the previous `pullRequests` and
-`readinessLedger` forward only when the previous and new session ids match. If the write replaces a
-different session id, pass every pull request that this session owns in the same call. Otherwise,
-the write drops those ledger rows.
+`writeRunState` in `tools/lib/run-state.mjs` unions previous `pullRequests` and
+`readinessLedger` forward when session ids match or `relay.from` identifies the predecessor.
+An unrelated session starts with its own ledger.
 
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.
+Write its exact path to `decisionLogPath` in the run state once the file exists. Keep every
+unresolved owner question in `openOwnerQuestions`, including what it blocks. A relay copies
+the log in full and retains those questions in the open chain.
 
 Start it with the wake time, the head of `redesign/main`, and every open pull request with its state.
 That header is what tells you later what changed while he slept.
@@ -117,6 +125,12 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
 - If a slot is free and admission permits new ticket work, launch the next worker.
   When work waits on CI or review, start `tools/wait-ci.mjs` in the background for those pull requests.
   Verify the wake source is live; a stale pid file or an unscheduled promise to watch CI is not one.
+- With `relay.enabled: true` and `relay.pending: true`, launch nothing, including review batches.
+  Wait for existing launchers and release watchers to finish; their exits wake this session.
+  With neither live, follow `/handoff --relay --sleep` and run `node tools/relay-session.mjs`.
+  CI waiters may remain live during the drain; the relay tool stops this session's waiters.
+  A failed relay keeps this session responsible and uses `--retry-wake` for its ten minute
+  cooldown. Never invoke `/questions` or ask the owner during the relay.
 - When the owner says stop, clear `sleep` for this session and report. On queue exhaustion write
   `remaining: []` and retain the ledger. Finish only with READY receipts or recorded named blockers,
   following the canonical protocol; report blocked work as blocked.
@@ -250,6 +264,9 @@ than for code, stop spawning them, log it, and switch to work you can do without
 ## 11. The wake report
 
 He will say stop. Re-read the log file first, then answer in two parts and nothing else.
+Read the open chain through `openSessionChain` in `tools/lib/session-chain.mjs`. Include every
+entry's complete decisions and shipped rows, plus this session's log and ledger. An owner
+`/wrap-up` runs its progress and question passes across that same chain before handoff closes it.
 
 **Part one, every decision.** A numbered table: the decision, what you chose, and the one line of
 evidence under it. Include the ones you got wrong and corrected, and say so plainly.

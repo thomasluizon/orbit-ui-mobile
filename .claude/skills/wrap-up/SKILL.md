@@ -9,6 +9,11 @@ effort: medium
 
 The spec receives timeless rules and one overwritten `## Current state` section through `/handoff`.
 Timed session evidence stays in the scratchpad outside the repository.
+Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs` using this
+session's exact id. Both `/progress` and `/questions` cover every entry plus the current
+session. Keep the ledger open through those two passes and their owner handovers. The final
+owner-origin `/handoff` records the current session and closes it. Automatic relays never
+invoke this skill and never close that reporting window.
 
 Three skills, in this order, in one turn:
 

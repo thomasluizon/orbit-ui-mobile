@@ -1476,6 +1476,26 @@ with the exact decision required.
 
 ### Every turn under `--sleep` ends with a live wake source, named
 
+Context relays are the confirmed successor exception to this invariant. The Stop hook
+`relay-at-threshold.mjs` uses `relay.enabled` and `relay.thresholdTokens` from
+`.claude/orchestrator.json`. At the threshold it writes `relay.pending`; admission then
+refuses every new worker launch, including review batches. Keep the admitted queue and
+ledger. Launch nothing while existing launchers or release watchers are live. Their exits
+wake this session; finish the drain without introducing another wakeup status scan.
+
+When neither remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
+Never run `/questions` or ask the owner during this transition. Record unresolved owner
+questions in the spec and run state. The tool verifies the pushed spec and prompt, stops this
+session's CI waiters and confirms a nominated successor from its run-state write before
+marking this session superseded. The successor enters through `/sleep`, adopts the run with
+`adoptRelayRun`, and starts its first wakeup with `run-status.mjs` as usual. The open chain
+retains every session's decisions, questions and shipping ledger until an owner handoff.
+
+On relay failure, keep ownership and use `node tools/relay-session.mjs --retry-wake` as the
+background wake source for the ten minute retry cooldown. After two failures near the auto
+compact point, the hook records the fallback and permits continuation. Setting
+`relay.enabled: false` disables the relay hooks and drain admission refusal.
+
 **The invariant:** under `--sleep`, a turn may only end while at least one background task is still
 running, and the turn's last line names it. Nothing else continues the run. Ending a turn with no
 live task ends the night silently, and what it leaves behind is indistinguishable from a queue that

@@ -1160,9 +1160,12 @@ T("relay adapter: measured pending state is persisted", readRunState(wakeCheckou
 const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "/handoff --sleep" }
 isolatedRelayHook("record-handoff-request.mjs", ownerPrompt)
 T("relay adapter: owner handoff clears drain", readRunState(wakeCheckout).relay.pending, false)
+T("relay adapter: owner handoff takes the run out of unattended mode", readRunState(wakeCheckout).sleep, false)
 T("relay adapter: owner origin supersedes machine request", readHandoffRequest("relay-parent", wakeCheckout).origin, "owner")
+writeRunState({ ...relayState, relay: { pending: true } }, wakeCheckout)
 const unreadable = isolatedRelayHook("relay-at-threshold.mjs", { ...relayPayload, transcript_path: join(wakeCheckout, "absent.jsonl") })
 T("relay adapter: unreadable transcript fails open with one stderr line", { status: unreadable.status, stdout: unreadable.stdout, lines: unreadable.stderr.trim().split("\n").length }, { status: 0, stdout: "", lines: 1 })
+T("relay adapter: unreadable transcript explains the skipped relay", unreadable.stderr.startsWith("Context relay skipped:"), true)
 appendChainEntry({ sessionId: "relay-parent" }, wakeCheckout)
 confirmChainSuccessor("relay-parent", "relay-child", "term_live", 1, wakeCheckout)
 const deniedTool = JSON.parse(isolatedRelayHook("forbid-superseded-session.mjs", { ...relayPayload, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "true" } }).stdout)

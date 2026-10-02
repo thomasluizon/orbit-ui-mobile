@@ -78,6 +78,7 @@ export const sessionChainEntry = async (state, transcriptPath) => {
   const now = new Date().toISOString()
   const trigger = state.relay?.triggeredAt
   return { sessionId: state.sessionId, startedAt: metrics.startedAt, endedAt: now,
+    transcriptPath, triggeredAt: trigger ?? null,
     measuredTokens: state.relay?.measuredTokens ?? metrics.lastCall?.contextTokens,
     maximumContextTokens: metrics.maximumContextTokens, growthPerCall: metrics.growthPerCall,
     drainMinutes: trigger ? (Date.parse(now) - Date.parse(trigger)) / 60_000 : 0,
@@ -85,4 +86,20 @@ export const sessionChainEntry = async (state, transcriptPath) => {
     assistantCalls: metrics.calls, compactions: metrics.compactions,
     shipped: (state.readinessLedger ?? []).filter((row) => row.merged).map((row) => ({ repository: row.repositoryKey, pullRequest: row.prNumber, mergeSha: row.merged })),
     decisions, openOwnerQuestions: state.openOwnerQuestions ?? [], attempts: state.relay?.attempts ?? 0 }
+}
+
+export const refreshChainMetrics = async (sessionId, repoRoot = REPO_ROOT) => {
+  const ledger = readSessionChain(repoRoot)
+  const chain = ledger.chains.find((row) => !row.closedAt && row.currentSessionId === sessionId)
+  if (!chain) return
+  for (const entry of chain.entries) {
+    if (!entry.transcriptPath) continue
+    const metrics = await readSessionMetrics(entry.transcriptPath)
+    entry.maximumContextTokens = metrics.maximumContextTokens
+    entry.assistantCalls = metrics.calls
+    entry.growthPerCall = metrics.growthPerCall
+    entry.compactions = metrics.compactions
+    if (entry.triggeredAt) entry.relayTurnCalls = metrics.callTimestamps.filter((timestamp) => Date.parse(timestamp) >= Date.parse(entry.triggeredAt)).length
+  }
+  writeSessionChain(ledger, repoRoot)
 }
