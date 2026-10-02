@@ -29,7 +29,8 @@ try {
       writeRunState({ ...state, relay: { ...state.relay, pending: false, fallbackUntilCompacted: true } })
       appendChainEntry({ sessionId: state.sessionId, autoCompactFallback: true, fallbackAt: new Date().toISOString(), failures: state.relay.failures })
     }
-    if (verdict?.message) process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: "Stop", additionalContext: verdict.message } })}\n`)
+    const hookEventName = input.hook_event_name === "PostToolUse" ? "PostToolUse" : "Stop"
+    if (verdict?.message) process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName, additionalContext: verdict.message } })}\n`)
   }
 } catch (error) {
   process.stderr.write(`Context relay skipped: ${error.message.replaceAll("\n", " ")}\n`)

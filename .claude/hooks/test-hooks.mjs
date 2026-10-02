@@ -2,6 +2,7 @@
 
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { performance } from "node:perf_hooks"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -1144,6 +1145,48 @@ T("relay adapter: 400000 emits documented Stop feedback", feedback.hookSpecificO
 T("relay adapter: feedback names relay", feedback.hookSpecificOutput.additionalContext.includes("relay"), true)
 T("relay adapter: machine origin enforces sleep prompt", readHandoffRequest("relay-parent", wakeCheckout).origin, "context-relay")
 T("relay adapter: measured pending state is persisted", readRunState(wakeCheckout).relay.measuredTokens, 400000)
+const stopRelayState = readRunState(wakeCheckout)
+const stopRelayRequest = readHandoffRequest("relay-parent", wakeCheckout)
+const postToolRelayHooks = settings.hooks.PostToolUse
+  .filter((entry) => new RegExp(entry.matcher ?? ".*").test("Bash"))
+  .flatMap((entry) => entry.hooks)
+  .filter((hook) => hook.command.includes("relay-at-threshold.mjs"))
+T("relay post-tool: every tool matches exactly one relay check", postToolRelayHooks.length, 1)
+const postToolPayload = { session_id: relayPayload.session_id, transcript_path: relayTranscript, cwd: wakeCheckout,
+  permission_mode: relayPayload.permission_mode, hook_event_name: "PostToolUse", tool_name: "Bash",
+  tool_input: { command: "true" }, tool_response: { stdout: "", stderr: "", interrupted: false }, tool_use_id: "tool-call", duration_ms: 1 }
+const postToolRelay = () => postToolRelayHooks.length === 1
+  ? isolatedRelayHook("relay-at-threshold.mjs", postToolPayload) : { status: 0, stdout: "", stderr: "" }
+writeRunState(relayState, wakeCheckout)
+writeFileSync(relayTranscript, JSON.stringify({ type: "assistant", message: { id: "call", usage: { ...relayUsage, cache_read_input_tokens: 399329 } } }) + "\n")
+T("relay post-tool: below threshold prints nothing", postToolRelay().stdout, "")
+T("relay post-tool: below threshold preserves state", readRunState(wakeCheckout).relay, undefined)
+const transcriptPadding = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024) } }) + "\n"
+writeFileSync(relayTranscript, transcriptPadding.repeat(12) + JSON.stringify({ type: "assistant", message: { id: "call", usage: relayUsage } }) + "\n" + transcriptPadding)
+T("relay post-tool: performance fixture exceeds ten MiB", statSync(relayTranscript).size > 10 * 1024 * 1024, true)
+const relayCheckStarted = performance.now()
+const postToolCrossing = postToolRelay()
+const relayCheckMilliseconds = performance.now() - relayCheckStarted
+console.log(`relay post-tool timing: ${statSync(relayTranscript).size} bytes in ${relayCheckMilliseconds.toFixed(1)} ms`)
+T("relay post-tool: large transcript finishes inside half its timeout", relayCheckMilliseconds < (postToolRelayHooks[0]?.timeout ?? 1) * 500, true)
+T("relay post-tool: crossing succeeds without diagnostics", { status: postToolCrossing.status, stderr: postToolCrossing.stderr }, { status: 0, stderr: "" })
+T("relay post-tool: mid-turn crossing emits the same drain instruction", JSON.parse(postToolCrossing.stdout || "{}").hookSpecificOutput,
+  { hookEventName: "PostToolUse", additionalContext: feedback.hookSpecificOutput.additionalContext })
+const midTurnState = readRunState(wakeCheckout)
+T("relay post-tool: pending state equals Stop state except trigger time",
+  { ...midTurnState, relay: { ...midTurnState.relay, triggeredAt: stopRelayState.relay.triggeredAt } }, stopRelayState)
+T("relay post-tool: handoff request equals Stop request with its trigger time",
+  readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
+registerWakeSource({ pid: process.pid, what: "Worker launcher" }, wakeCheckout)
+T("relay post-tool: pending worker drain injects nothing", postToolRelay().stdout, "")
+T("relay post-tool: Stop does not re-begin a mid-turn relay", isolatedRelayHook("relay-at-threshold.mjs").stdout, "")
+T("relay post-tool: pending checks preserve relay state", readRunState(wakeCheckout), midTurnState)
+T("relay post-tool: pending checks preserve handoff request", readHandoffRequest("relay-parent", wakeCheckout), { ...stopRelayRequest, recordedAt: midTurnState.relay?.triggeredAt })
+clearWakeSource(process.pid, wakeCheckout)
+T("relay post-tool: drained workers receive completion context", JSON.parse(postToolRelay().stdout || "{}").hookSpecificOutput,
+  { hookEventName: "PostToolUse", additionalContext: checkRelayStop({ ...relayOptions, state: midTurnState }).message })
+writeRunState({ ...midTurnState, relay: { ...midTurnState.relay, lastAttemptAt: new Date().toISOString() } }, wakeCheckout)
+T("relay post-tool: retry cooldown injects nothing", postToolRelay().stdout, "")
 const ownerPrompt = { ...relayPayload, hook_event_name: "UserPromptSubmit", prompt: "/handoff --sleep" }
 isolatedRelayHook("record-handoff-request.mjs", ownerPrompt)
 T("relay adapter: owner handoff clears drain", readRunState(wakeCheckout).relay.pending, false)
