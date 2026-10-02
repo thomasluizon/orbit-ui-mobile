@@ -20,7 +20,13 @@
 body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
+
+.native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
+.native-bell-row a:hover,.native-composer button:hover,.native-tab-indicator:hover{background:var(--bg-hover)}
+.native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -29,21 +35,16 @@ a:hover{color:var(--fg-1)}
   <div data-screen-label="Calendario" style="display:flex;gap:32px;align-items:flex-start">
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" composer="{{ composer }}" hint-size="412px,820px">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ rootHeader }}" sheets="{{ disclosure }}" tab-bar="{{ tabBar }}" hint-size="412px,820px">
         <div style="display:flex;flex-direction:column;gap:24px;padding:16px">
 
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
-            <div style="flex:0 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px">
-              <p style="font-family:var(--font-display);font-size:var(--fs-2xl);line-height:1.15;font-weight:500;letter-spacing:-0.02em">{{ monthName }}</p>
-              <p data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.4;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ yearLabel }}</p>
+          <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}"></x-import></x-import>
+              <button type="button" onClick="{{ openMonth }}" style="display:flex;align-items:center;gap:8px;padding:8px 16px;min-height:44px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-1);font-family:var(--font-display);font-size:22px;font-weight:500;white-space:nowrap" style-hover="background:var(--bg-hover)">{{ monthTitle }}<x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-down" size="{{ n20 }}"></x-import></button>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onNext }}" dc-props="{{ nextProps }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}"></x-import></x-import>
             </div>
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-            </x-import>
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-            </x-import>
-            {{ viewSwitch }}
+            <div style="display:grid;grid-template-columns:1fr">{{ viewSwitch }}</div>
           </div>
 
           {{ viewBody }}
@@ -83,18 +84,7 @@ a:hover{color:var(--fg-1)}
               </div>
             </sc-if>
 
-            <sc-if value="{{ showLegend }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;flex-wrap:wrap;gap:12px">
-                <sc-for list="{{ legend }}" as="g" hint-placeholder-count="4">
-                  <span style="display:flex;align-items:center;gap:6px">
-                    <span aria-hidden="true" style="{{ g.swatch }}"></span>
-                    <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3)">{{ g.word }}</span>
-                  </span>
-                </sc-for>
-              </div>
-            </sc-if>
 
-            {{ recToggle }}
             <sc-if value="{{ showEmptyLine }}" hint-placeholder-val="{{ false }}">
               <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
                 <p style="font-size:var(--fs-md);line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ emptyLine }}</p>
@@ -107,23 +97,23 @@ a:hover{color:var(--fg-1)}
 
           <sc-if value="{{ showDay }}" hint-placeholder-val="{{ true }}">
             <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
-              <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;flex-direction:column;gap:4px">
                 <p style="font-size:var(--fs-lg);line-height:1.3;font-weight:500">{{ dayTitle }}</p>
                 <p style="font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.4;color:var(--fg-3)">{{ daySummary }}</p>
               </div>
 
               <sc-if value="{{ dayLoggable }}" hint-placeholder-val="{{ true }}">
-                <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                <div style="display:flex;flex-direction:column;padding:0">
                   <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CheckRow" label="{{ r.label }}" value="{{ r.time }}" checked="{{ r.done }}" on-change="{{ r.toggle }}" hint-size="100%,52px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.HabitDayRow" label="{{ r.label }}" description="{{ r.time }}" checked="{{ r.done }}" on-change="{{ r.toggle }}" hint-size="100%,52px"></x-import>
                   </sc-for>
                 </div>
               </sc-if>
 
               <sc-if value="{{ dayReadOnly }}" hint-placeholder-val="{{ false }}">
-                <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                <div style="display:flex;flex-direction:column;padding:0">
                   <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ r.label }}" value="{{ r.valueText }}" trailing="{{ r.ring }}" read-only="{{ true }}" hint-size="100%,52px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.HabitDayRow" label="{{ r.label }}" description="{{ r.valueText }}" trailing="{{ r.ring }}" read-only="{{ true }}" hint-size="100%,52px"></x-import>
                   </sc-for>
                 </div>
               </sc-if>
@@ -137,14 +127,15 @@ a:hover{color:var(--fg-1)}
                 <div style="display:flex;flex-direction:column;gap:8px">
                   <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2);line-height:1.4">{{ eventsTitle }}</p>
                   <div style="display:flex;flex-direction:column;gap:4px">
-                    <sc-for list="{{ events }}" as="e" hint-placeholder-count="2">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EventRow" time="{{ e.time }}" title="{{ e.title }}" source="{{ e.source }}" hint-size="100%,52px"></x-import>
+                    <sc-for list="{{ visibleEvents }}" as="e" hint-placeholder-count="2">
+                      <x-import component-from-global-scope="OrbitNativeMobile.EventRow" time="{{ e.time }}" title="{{ e.title }}" source="{{ e.source }}" hint-size="100%,52px"></x-import>
                     </sc-for>
                   </div>
                 </div>
               </sc-if>
 
-              {{ syncLine }}
+
+              {{ allEvents }}
               <sc-if value="{{ showPaywall }}" hint-placeholder-val="{{ false }}">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ paywallMessage }}" body="{{ paywallBody }}" action="{{ paywallAction }}" hint-size="100%,120px"></x-import>
               </sc-if>
@@ -156,10 +147,10 @@ a:hover{color:var(--fg-1)}
           </sc-if>
 
           <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+            <div class="native-figures">
+              <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+              <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+              <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
             </div>
           </sc-if>
 
@@ -169,22 +160,17 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="calendario" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="calendario" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px">
 
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
-              <div style="flex:0 1 auto;min-width:0;display:flex;align-items:baseline;gap:8px">
-                <p style="font-family:var(--font-display);font-size:var(--fs-2xl);line-height:1.15;font-weight:500;letter-spacing:-0.02em">{{ monthName }}</p>
-                <p data-mock="true" style="font-family:var(--font-mono);font-size:var(--fs-sm);line-height:1.4;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ yearLabel }}</p>
-              </div>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-              </x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
-              </x-import>
-              {{ viewSwitch }}
+            <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}"></x-import></x-import>
+              <button type="button" onClick="{{ openMonth }}" style="display:flex;align-items:center;gap:8px;padding:8px 16px;min-height:44px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-1);font-family:var(--font-display);font-size:22px;font-weight:500;white-space:nowrap" style-hover="background:var(--bg-hover)">{{ monthTitle }}<x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-down" size="{{ n20 }}"></x-import></button>
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onNext }}" dc-props="{{ nextProps }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}"></x-import></x-import>
             </div>
+            <div style="display:grid;grid-template-columns:1fr">{{ viewSwitch }}</div>
+          </div>
 
             {{ viewBody }}
 
@@ -225,18 +211,7 @@ a:hover{color:var(--fg-1)}
               </div>
             </sc-if>
 
-            <sc-if value="{{ showLegend }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;flex-wrap:wrap;gap:12px">
-                <sc-for list="{{ legend }}" as="g" hint-placeholder-count="4">
-                  <span style="display:flex;align-items:center;gap:6px">
-                    <span aria-hidden="true" style="{{ g.swatch }}"></span>
-                    <span style="font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--fg-3)">{{ g.word }}</span>
-                  </span>
-                </sc-for>
-              </div>
-            </sc-if>
 
-            {{ recToggle }}
             <sc-if value="{{ showEmptyLine }}" hint-placeholder-val="{{ false }}">
               <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
                 <p style="font-size:var(--fs-md);line-height:1.55;color:var(--fg-2);text-wrap:pretty">{{ emptyLine }}</p>
@@ -249,23 +224,23 @@ a:hover{color:var(--fg-1)}
 
           <sc-if value="{{ showDay }}" hint-placeholder-val="{{ true }}">
             <div style="display:flex;flex-direction:column;gap:16px;padding:24px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
-              <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;flex-direction:column;gap:4px">
                 <p style="font-size:var(--fs-lg);line-height:1.3;font-weight:500">{{ dayTitle }}</p>
                 <p style="font-family:var(--font-mono);font-size:var(--fs-xs);line-height:1.4;color:var(--fg-3)">{{ daySummary }}</p>
               </div>
 
               <sc-if value="{{ dayLoggable }}" hint-placeholder-val="{{ true }}">
-                <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                <div style="display:flex;flex-direction:column;padding:0">
                   <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CheckRow" label="{{ r.label }}" value="{{ r.time }}" checked="{{ r.done }}" on-change="{{ r.toggle }}" hint-size="100%,52px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.HabitDayRow" label="{{ r.label }}" description="{{ r.time }}" checked="{{ r.done }}" on-change="{{ r.toggle }}" hint-size="100%,52px"></x-import>
                   </sc-for>
                 </div>
               </sc-if>
 
               <sc-if value="{{ dayReadOnly }}" hint-placeholder-val="{{ false }}">
-                <div style="display:flex;flex-direction:column;margin-inline:-16px">
+                <div style="display:flex;flex-direction:column;padding:0">
                   <sc-for list="{{ dayRows }}" as="r" hint-placeholder-count="5">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" title="{{ r.label }}" value="{{ r.valueText }}" trailing="{{ r.ring }}" read-only="{{ true }}" hint-size="100%,52px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.HabitDayRow" label="{{ r.label }}" description="{{ r.valueText }}" trailing="{{ r.ring }}" read-only="{{ true }}" hint-size="100%,52px"></x-import>
                   </sc-for>
                 </div>
               </sc-if>
@@ -279,14 +254,15 @@ a:hover{color:var(--fg-1)}
                 <div style="display:flex;flex-direction:column;gap:8px">
                   <p style="font-size:var(--fs-sm);font-weight:500;color:var(--fg-2);line-height:1.4">{{ eventsTitle }}</p>
                   <div style="display:flex;flex-direction:column;gap:4px">
-                    <sc-for list="{{ events }}" as="e" hint-placeholder-count="2">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.EventRow" time="{{ e.time }}" title="{{ e.title }}" source="{{ e.source }}" hint-size="100%,52px"></x-import>
+                    <sc-for list="{{ visibleEvents }}" as="e" hint-placeholder-count="2">
+                      <x-import component-from-global-scope="OrbitNativeMobile.EventRow" time="{{ e.time }}" title="{{ e.title }}" source="{{ e.source }}" hint-size="100%,52px"></x-import>
                     </sc-for>
                   </div>
                 </div>
               </sc-if>
 
-              {{ syncLine }}
+
+              {{ allEvents }}
               <sc-if value="{{ showPaywall }}" hint-placeholder-val="{{ false }}">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.CapacityNotice" message="{{ paywallMessage }}" body="{{ paywallBody }}" action="{{ paywallAction }}" hint-size="100%,120px"></x-import>
               </sc-if>
@@ -298,15 +274,16 @@ a:hover{color:var(--fg-1)}
           </sc-if>
 
           <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+            <div class="native-figures">
+              <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+              <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+              <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
             </div>
           </sc-if>
 
           </div>
         </x-import>
+        {{ disclosure }}
       </div>
     </sc-if>
 
@@ -315,22 +292,22 @@ a:hover{color:var(--fg-1)}
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Calendário answers where the time actually went. Four views of one content, the shipping four (page.tsx:56): month, week, range and agenda, switched with SegmentedControl because they are views of the same thing. It is an orientation view and a way to fix one specific day, not a second habit list: one ring per day, never one ring per habit per day, and the only loggable list on the screen belongs to the selected day in the month view.</p>
-      <p><span style="color:var(--fg-3)">layout&nbsp;&nbsp;</span>At both widths the month view is one centred column: the title, chevrons and selector share a header group, followed by the bare month grid, legend, recurring switch and empty or future line, then the selected day card and three stat tiles. The selector wraps to a second line inside the header group when the title and controls cannot fit. The day card has a 24px content inset.</p>
+      <p><span style="color:var(--fg-3)">layout&nbsp;&nbsp;</span>At both widths a centred month title control sits between the chevrons. The full-width equal-segment selector is the last header line. The shell options and bell share one trailing row. Repeat, Google Calendar and legend live in disclosure; the day card has a 24 inset and three plain figures follow it.</p>
       <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>week lays the week against the clock (calendar-week-view.tsx over calendar-time-grid.tsx): a habit with a due time sits at its hour inside its day column, and a habit with none sits in the any-time strip above the clock, never at an invented hour; future day columns dim and hour marks follow the clock setting. Range has its own header (page.tsx:324): a fourteen day span stated as two dates, paged as a span, its days as read only cells with the three figures computed over the same span. Agenda lists the days ahead with each day’s habits read only. The agenda is drawn at BOTH widths: the shipping build gates it to desktop (page.tsx:77 folds it back to month below the breakpoint, :259 pushes the tab only when isDesktop), and that gate is a parity defect the code should lose, because the parity contract allows navigation chrome, the palette and hover affordances, and a whole view is none of those. The recurring toggle (show-recurring-toggle.tsx) is a real switch deciding whether recurring habits appear at all; every habit in this fixture recurs, so turning it off empties the month honestly rather than hiding what the switch means. Paging works by swipe as well as by the chevrons (page.tsx:263-268): a sideways drag past 60px pages the month.</p>
       <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>The shell composer, Astra glyph button and suggestion chips appear on Hoje only on web and Android, at every width. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation keeps its existing overlay or side panel when destinations change.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>loading, month, week, range, agenda, a month with nothing in it, error, the read only day, and the selected day with its habits and its imported events. A plan axis sits beside the state, free or Pro, defaulting to free; the old sync boundary state came off the axis because the boundary is the free side of the plan, not a state of the month. Reached by using the screen: the views through the switcher, paging by swipe as well as by the chevrons, the recurring toggle, and the day route out. A day is always selected in the month view, opening on today.</p>
       <p><span style="color:var(--fg-3)">ring&nbsp;&nbsp;</span>the month response is a list of habits and a dictionary of logs, with no per day status in it, so every ring here is arithmetic done on the device, from one count per day that the cell, the month figures and the day card all read. Logging a habit on the open day moves its arc, turns the cell to the full disc when the last one lands, and moves both figures with it. Nothing on the screen speaks as if the server judged the day: the labels count, they do not rank, and no cell carries a word like good or bad. Four shapes carry the four outcomes and colour only reinforces them: no ring at all for a day with nothing scheduled, a hollow ring for a day with nothing logged, a partial arc for a day part done, and a filled neutral disc for a day fully logged. The arc sweeps the exact completed over scheduled proportion and is never rounded: a ring can draw any angle, so rounding would buy no legibility and would lose the difference between one of three and two of three. The legend lists the three marks and the loggable well; it does not list the day with nothing scheduled, because that day carries no mark and a swatch for it would be an empty circle explaining an absence. Completion is neutral, so the full day is fg-1 and the accent is spent on the unfinished arc. The cells take the raw done and scheduled counts, and DayCell derives both the outcome and the exact fraction, so a hand computed outcome cannot drift from the arc.</p>
       <p><span style="color:var(--fg-3)">excluded&nbsp;&nbsp;</span>a habit with no schedule never appears, and the log dictionary is built for top level habits only, so a sub habit's completion never reaches a cell. No cell claims to summarise what is inside a habit, and the selected day lists top level habits only for the same reason.</p>
-      <p><span style="color:var(--fg-3)">day&nbsp;&nbsp;</span>the selected day card carries the completion summary line (calendar-day-detail.tsx:116), its own no habits line (:106), and a route out: goToDay (:241) opens that day on Hoje, drawn as the row that leaves for the Hoje document. A habit to avoid speaks its own vocabulary on a day (:74-79): a completed one reads cedeu and a missed one reads resistiu, against feito and sem registro for an ordinary habit, so the card never says the opposite of what the app says; the word rides beside the time and the ring, never colour alone. The read only rows now carry their ring in ListRow’s trailing slot, whose contract names this exact case, the ring as the row’s passenger.</p>
+      <p><span style="color:var(--fg-3)">day&nbsp;&nbsp;</span>Habit names own the headline and times the supporting line, with a completion ring and no status word. Rows use minimum heights and grow at 200% text. Imported event titles get the full width first, then up to two lines and an ellipsis with full text one tap away.</p>
       <p><span style="color:var(--fg-3)">boundary&nbsp;&nbsp;</span>only the last seven days can be logged, and the type now enforces it: a loggable day is a DayCell button that requires onPress, every other day is role img and rejects one, so a dead handler is a type error rather than a discipline this document remembers. The window is stated before anything is tapped: the seven loggable cells sit on a raised well, a read only cell carries its outcome in its accessible name, and the legend names the difference. The read only day card shows what happened with no completion control, no error and no explanation, because nothing failed and nothing is being refused. Navigation is not bounded: paging back and forward is free, since the restriction is on writing.</p>
       <p><span style="color:var(--fg-3)">settings&nbsp;&nbsp;</span>the week start and the clock are the person's own settings, resolved on the server, so neither is assumed. The grid rotates to the week start rather than hardcoding Monday, and every time on the screen is formatted by the clock setting rather than fixed to 24 hours. Both are drawn as tweaks so either can be checked.</p>
       <p><span style="color:var(--fg-3)">freeze&nbsp;&nbsp;</span>no freeze is drawn here. A freeze marks a user day and the history the API serves reaches back thirty days, while this grid pages back much further, so a marker would appear on recent cells and vanish on older months: the same day would tell two different stories depending on when it was opened. Freezes live on Progresso, which is always inside that window.</p>
-      <p><span style="color:var(--fg-3)">events&nbsp;&nbsp;</span>imported Google events sit beside the day's habits rather than behind a sync surface, so the integration is visible by existing. They are read only here, they carry the calendar glyph and their source is named on the row, so an event is never mistaken for a habit.</p>
-      <p><span style="color:var(--fg-3)">pro&nbsp;&nbsp;</span>calendar sync is Pro (D70 item 4) and both sides are drawn. Free gets the boundary in the place the events would sit: neutral tokens, one line naming what it is, one action that leaves for Orbit Pro, nothing disabled and no habit data withheld. Pro gets the imported events beside the day’s habits, the connection line, the last sync time and the auto sync switch: googleCalendarAutoSyncEnabled, googleCalendarAutoSyncStatus, googleCalendarLastSyncedAt and hasGoogleConnection are all real fields (profile.ts:52-54,38). The status vocabulary is the app’s own, so the line states the connection and the time rather than inventing status words.</p>
-      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>the grid loads as Skeleton's grid variant, held at the same seven columns, 44 cell and 4 gap, so the cells land without reflow and there is no spinner; the weekday header arrives with the month. The tiles use the component's own loading state, and the day card is a shaped list of the same height as the real one.</p>
-      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>a month with nothing scheduled still draws its dates and still pages, because the dates are real and only the rings are missing, so the chrome does not change shape on an account with no habits. The line sits inside the grid group where the legend would be, rather than replacing the grid, and the legend drops because there is no mark to explain. The tiles state no data rather than zero, since zero would claim a measurement was taken, and one line plus one action offers the way out. A month ahead of today borrows the same treatment with no action, since nothing there can be created into the past.</p>
+      <p><span style="color:var(--fg-3)">events&nbsp;&nbsp;</span>Read-only event rows have no leading glyph; time and source sit beneath the full-width title. At most three appear in the day card, followed by an entry to all events.</p>
+      <p><span style="color:var(--fg-3)">pro&nbsp;&nbsp;</span>Calendar sync keeps its Pro gate. Connection, last sync and automatic sync live only in the Google Calendar disclosure. They never occupy the day card.</p>
+      <p><span style="color:var(--fg-3)">loading&nbsp;&nbsp;</span>The grid and day card use shaped loading placeholders. The figure loading state preserves its layout.</p>
+      <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>An empty month keeps its dates and paging. A no-data line replaces figures without inventing zeroes. The legend remains reachable in the options disclosure.</p>
       <p><span style="color:var(--fg-3)">rate&nbsp;&nbsp;</span>the three figures are the shipping three (page.tsx:244-251): best streak, total logs, missed, all computed on the device from the same per day counts the rings read, over the days that had something scheduled, up to and including today. The month rate this document used to draw is not among them and is gone from this screen; the reasoning about what window a month rate covers, counting only scheduled days and only lived days, stays recorded here for the surfaces that actually render one, like the habit detail’s 30 day rate.</p>
-      <p><span style="color:var(--fg-3)">tiles&nbsp;&nbsp;</span>three tiles, three columns, labels short enough to hold one line in Portuguese, which is the longer locale. Values are tabular, so the tiles align on their own baseline regardless of digits. The range view computes the same three over its own span.</p>
+      <p><span style="color:var(--fg-3)">tiles&nbsp;&nbsp;</span>Three plain figures use whole one-line captions and tabular values. Change the number of columns when labels need room; never clamp or split a caption.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. 44 is the cell and the touch token, the ring inside it is 34, and the grid gap is 4 so a week reads as a run rather than seven separate objects.</p>
       <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells and event rows, 20 on the day card and the tiles, 28 on the shell, 999 on the cells and interactive.</p>
       <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: current position is the Calendário tab, today's ring and the selected cell, which takes the same tint and ring the day pills use elsewhere; unfinished progress is the partial arc. In the ordinary state there is no filled action at all, which is correct for a view whose job is orientation, and the two states that need one, the empty month and the sync boundary, carry exactly one. Wide: the single column sits beside the sidebar create, which is the one filled action, so those two step down to secondary.</p>
@@ -349,7 +326,7 @@ const H = React.createElement;
 const F = React.Fragment;
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 
 /* Monday 17 August 2026. 1 August 2026 is a Saturday. */
 const YEAR = 2026, MONTH = 7, TODAY = 17, WINDOW = 7;
@@ -582,7 +559,7 @@ class Component extends DCLogic {
       H('div', { style: { display: 'flex', gap: 2 } },
         H('div', { style: { width: 34, flex: '0 0 auto', position: 'relative', height: (H1 - H0 + 1) * PX } },
           [8, 12, 16, 20].map((hh) => H('p', { key: hh, style: { position: 'absolute', top: (hh - H0) * PX - 7,
-            insetInlineEnd: 4, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-4)',
+            insetInlineEnd: 4, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-4)',
             fontVariantNumeric: 'tabular-nums' } }, this.fmt(('0' + hh).slice(-2) + ':00', h12)))),
         days.map((d, i) => {
           const dow = new Date(YEAR, MONTH, d).getDay();
@@ -602,7 +579,7 @@ class Component extends DCLogic {
                   style: { position: 'absolute', insetInline: 2, top: (hh - H0) * PX + 1, height: PX - 3,
                     borderRadius: 6, background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)',
                     display: 'flex', alignItems: 'center', paddingInline: 4, overflow: 'hidden' } },
-                  H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--fg-2)',
+                  H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     fontVariantNumeric: 'tabular-nums' } },
                     wide ? nm : mock(this.fmt(h.t, h12))));
@@ -625,7 +602,7 @@ class Component extends DCLogic {
       const inMonth = d >= 1 && d <= 31;
       if (!inMonth) { cells.push(H(D.DayCell, { key: d, day: ((d + 30) % 31) + 1, outsideMonth: true, words: t.cellWords })); continue; }
       const sh = this.dayShape(0, YEAR, MONTH, d);
-      const label = new Date(YEAR, MONTH, d).toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' });
+      const label = new Date(YEAR, MONTH, d).toLocaleDateString(t.intl, { weekday: 'short', day: 'numeric', month: 'short' });
       if (sh.future) cells.push(H(D.DayCell, { key: d, day: d, outcome: 'future', words: t.cellWords, label: label }));
       else cells.push(H(D.DayCell, { key: d, day: d, done: sh.done, scheduled: sh.sched,
         today: d === TODAY, words: t.cellWords, label: label }));
@@ -651,9 +628,9 @@ class Component extends DCLogic {
       H(D.MonthGrid, { weekdayLabels: t.dayShort.slice(weekStart).concat(t.dayShort.slice(0, weekStart)),
         label: t.views.range, gap: '4px' }, cells),
       H('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 } },
-        H(D.StatTile, { label: t.statBest, value: mock(String(bestRun)) }),
-        H(D.StatTile, { label: t.statLogs, value: mock(String(done)) }),
-        H(D.StatTile, { label: t.statMiss, value: mock(String(Math.max(0, sched - done))) })));
+        H(window.OrbitNativeMobile.StatTile, { label: t.statBest, value: mock(String(bestRun)) }),
+        H(window.OrbitNativeMobile.StatTile, { label: t.statLogs, value: mock(String(done)) }),
+        H(window.OrbitNativeMobile.StatTile, { label: t.statMiss, value: mock(String(Math.max(0, sched - done))) })));
   }
 
   /* The agenda: the days ahead as a list. Drawn at BOTH widths: the shipping desktop only gate
@@ -666,14 +643,14 @@ class Component extends DCLogic {
       const schedCount = this.schedFor(0, YEAR, MONTH, d);
       const date = new Date(YEAR, MONTH, d);
       const head = (d === TODAY ? t.agendaToday + ', ' : '')
-        + date.toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' });
+        + date.toLocaleDateString(t.intl, { weekday: 'short', day: 'numeric', month: 'short' });
       out.push(H('div', { key: d, style: { display: 'flex', flexDirection: 'column', gap: 4 } },
         H('p', { style: { fontSize: 'var(--fs-sm)', fontWeight: 500, color: 'var(--fg-2)' } },
           head.replace(/^./, (c) => c.toUpperCase())),
         schedCount === 0
           ? H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)' } }, t.summaryNone)
-          : H('div', { style: { marginInline: -16 } },
-              HABITS.slice(0, schedCount).map((h, i) => H(D.ListRow, { key: i,
+          : H('div', { style: { padding: 0 } },
+              HABITS.slice(0, schedCount).map((h, i) => H(window.OrbitNativeMobile.ListRow, { key: i,
                 title: t.lang === 'en' ? h.en : h.pt,
                 value: this.fmt(h.t, h12), readOnly: true })))));
     }
@@ -740,7 +717,7 @@ class Component extends DCLogic {
       for (let d = 1; d <= monthLen; d++) {
         const sh = this.dayShape(mOff, y, m, d);
         const date = new Date(y, m, d);
-        const dateWords = date.toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' });
+        const dateWords = date.toLocaleDateString(t.intl, { weekday: 'short', day: 'numeric', month: 'short' });
         if (sh.future) { cells.push({ future: true, d: d, aria: dateWords + ', ' + t.ariaFuture }); continue; }
         const live = isCurrent && d >= firstLog && d <= TODAY;
         const isToday = isCurrent && d === TODAY;
@@ -797,8 +774,8 @@ class Component extends DCLogic {
       const ringStatus = h.bad ? (on ? 'bad' : 'done') : (on ? 'done' : 'empty');
       return {
         label: t.lang === 'en' ? h.en : h.pt,
-        time: h.bad ? time + ' \u00B7 ' + word : time, done: on,
-        valueText: H('span', null, mock(time), ' \u00B7 ', word),
+        time: time, done: on,
+        valueText: mock(time),
         /* ListRow's trailing slot is this exact case by its own contract: a row about a day carrying
            its StatusRing, the ring as the row's passenger. */
         ring: H(D.StatusRing, { status: ringStatus, size: 24, label: word }),
@@ -809,6 +786,22 @@ class Component extends DCLogic {
       time: this.fmt(e.t, h12), source: 'Google Calendar' }));
 
     return Object.assign(base, {
+      monthTitle: first.toLocaleDateString(t.intl, y === YEAR ? { month: 'long' } : { month: 'short', year: 'numeric' }),
+      openMonth: () => this.setState({ disclosure: 'month' }),
+      rootHeader: H(window.OrbitNativeMobile.BellRow, null,
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: () => this.setState({ disclosure: 'options' }) }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
+      disclosure: s.disclosure ? H(D.Sheet, { open: true, title: s.disclosure === 'legend' ? (t.lang === 'en' ? 'Legend' : 'Legenda') : s.disclosure === 'calendar' ? 'Google Calendar' : s.disclosure === 'events' ? t.eventsTitle : s.disclosure === 'month' ? (t.lang === 'en' ? 'Month' : 'Mês') : (t.lang === 'en' ? 'Options' : 'Opções'),
+        onClose: () => this.setState({ disclosure: null }) },
+        s.disclosure === 'options' ? H('div', { style: { display: 'grid', gap: 8 } },
+          H('button', { type: 'button', role: 'menuitemcheckbox', 'aria-checked': s.recOn, style: { minHeight: 52, padding: '12px 16px', border: 0, background: 'var(--bg-sheet)', color: 'var(--fg-1)', font: 'inherit', textAlign: 'start' }, onClick: () => this.setState({ recOn: !s.recOn, disclosure: null }) }, t.recLabel, s.recOn ? ' ✓' : ''),
+          H(window.OrbitNativeMobile.ListRow, { title: 'Google Calendar', onClick: () => { this.setState({ disclosure: null }); if (paywall) this.goPro(); else setTimeout(() => this.setState({ disclosure: 'calendar' }), 0); } }),
+          H(window.OrbitNativeMobile.ListRow, { title: t.lang === 'en' ? 'Legend' : 'Legenda', onClick: () => { this.setState({ disclosure: null }); setTimeout(() => this.setState({ disclosure: 'legend' }), 0); } }))
+        : s.disclosure === 'legend' ? H('div', { style: { display: 'grid', gap: 16 } }, legend.map((item, index) => H('div', { key: index, style: { display: 'flex', gap: 8 } }, H('span', { style: item.swatch }), item.word)))
+        : s.disclosure === 'events' ? evs.map((event, index) => H(window.OrbitNativeMobile.EventRow, { key: index, ...event }))
+        : s.disclosure === 'calendar' ? H('div', { style: { display: 'grid', gap: 16 } }, H('p', null, t.syncOn), H('p', null, t.syncLast('09:12')), H(D.Switch, { label: t.syncAuto, checked: s.autoSync, onChange: (value) => this.setState({ autoSync: value }) }))
+        : H('input', { type: 'month', 'aria-label': t.lang === 'en' ? 'Month' : 'Mês', value: `${y}-${String(m + 1).padStart(2, '0')}`, onChange: (event) => { const [year, month] = event.target.value.split('-').map(Number); this.setState({ mOff: (year - YEAR) * 12 + month - 1 - MONTH, sel: null, disclosure: null }); }, style: { font: 'inherit', padding: '8px 16px', minHeight: 44, background: 'var(--bg-field)', color: 'var(--fg-1)' } })) : null,
+      visibleEvents: evs.slice(0, 3),
+      allEvents: evs.length > 3 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ disclosure: 'events' }) }, t.lang === 'en' ? 'All events' : 'Ver eventos') : null,
       monthName: first.toLocaleDateString(t.intl, { month: 'long' }).replace(/^./, (c) => c.toUpperCase()),
       yearLabel: String(y),
       prevProps: { 'aria-label': t.prev, style: { width: 44, height: 44, paddingInline: 0 } },
@@ -821,7 +814,6 @@ class Component extends DCLogic {
       swipeDown: this.swipeDown, swipeUp: this.swipeUp,
       showMonthGrid: !error && !loading, showGridLoading: loading,
       showGrid: !error && isMonth,
-      showLegend: !error && !emptyMonth && !isFuture && s.recOn,
       showError: error, errorMessage: t.error,
       errorAction: H(D.Button, { size: 'sm', variant: filled, onClick: () => this.setState({ st: 'month' }) }, t.retry),
 
@@ -830,23 +822,18 @@ class Component extends DCLogic {
       showEmptyAction: emptyMonth && !isFuture,
 
       /* Four views of the same content (page.tsx:56), so the switcher is SegmentedControl. */
-      viewSwitch: (!error) ? H(D.SegmentedControl, { label: t.viewLabel, value: view,
+      viewSwitch: (!error) ? H(window.OrbitNativeMobile.SegmentedControl, { label: t.viewLabel, value: view,
         onChange: (id) => this.setState({ view: id, st: ['week', 'range', 'agenda'].indexOf(st) >= 0 ? 'month' : st }),
         options: ['month', 'week', 'range', 'agenda'].map((id) => ({ id: id, label: t.views[id] })) }) : null,
       viewBody: (!error && !loading && !isMonth)
         ? (view === 'week' ? this.weekNode(t, h12, weekStart)
           : view === 'range' ? this.rangeNode(t, weekStart)
           : this.agendaNode(t, h12)) : null,
-      recToggle: (isMonth && !error && !loading && !emptyMonth)
-        ? H('div', { style: { paddingBlock: 4 } },
-            H(D.Switch, { label: t.recLabel, checked: s.recOn, onChange: (v) => this.setState({ recOn: v, sel: null }) }))
-        : null,
-
       showDay: !error && !loading && isMonth,
       showDaySkeleton: loading && isMonth,
       dayTitle: (isCurrent && sel === TODAY)
-        ? t.today + ', ' + selDate.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' })
-        : selDate.toLocaleDateString(t.intl, { weekday: 'long', day: 'numeric', month: 'long' })
+        ? t.today + ', ' + selDate.toLocaleDateString(t.intl, { day: 'numeric', month: 'short' })
+        : selDate.toLocaleDateString(t.intl, { weekday: 'short', day: 'numeric', month: 'short' })
             .replace(/^./, (c) => c.toUpperCase()),
       daySummary: selShape.sched
         ? H(F, null, t.summaryLogged(dayRows.filter((r) => r.done).length, selShape.sched))
@@ -858,19 +845,8 @@ class Component extends DCLogic {
 
       hasEvents: !paywall && evs.length > 0, events: evs,
       /* goToDay (calendar-day-detail.tsx:241): the day card's route out, onto Hoje. */
-      goDayRow: H('div', { style: { marginInline: -16 } },
-        H(D.ListRow, { icon: 'arrow-up-right', title: t.goDay, chevron: false, onClick: this.goHoje })),
-      /* The Pro side of the sync: connection, auto sync and the last sync time are real fields
-         (profile.ts:52-54,38). The status vocabulary is the app's; the time is a fixture. */
-      syncLine: (!paywall) ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8, padding: 12,
-        background: 'var(--bg-well)', borderRadius: 'var(--r-well)' } },
-        H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-          H('span', { style: { color: 'var(--fg-3)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
-            H(D.Icon, { name: 'refresh', size: 16 })),
-          H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-sm)', color: 'var(--fg-2)' } }, t.syncOn),
-          H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
-            fontVariantNumeric: 'tabular-nums' } }, H(F, null, t.syncLast('09:12')))),
-        H(D.Switch, { label: t.syncAuto, checked: s.autoSync, onChange: (v) => this.setState({ autoSync: v }) })) : null,
+      goDayRow: H('div', null,
+        H(window.OrbitNativeMobile.ListRow, { icon: 'arrow-up-right', title: t.goDay, chevron: false, onClick: this.goHoje })),
       showPaywall: paywall,
       paywallMessage: t.paywall[0], paywallBody: t.paywall[1],
       paywallAction: H(D.Button, { size: 'sm', variant: filled, onClick: this.goPro }, t.paywallAction),
@@ -884,10 +860,8 @@ class Component extends DCLogic {
 
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       account: t.account,
-      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'calendario', onSelect: () => {} }),
-      composer: H(D.Composer, { state: 'resting', chips: error ? [] : t.chips, words: t.composerWords,
-        onOpen: () => {}, onChipPress: () => {} }),
     });
   }
 }

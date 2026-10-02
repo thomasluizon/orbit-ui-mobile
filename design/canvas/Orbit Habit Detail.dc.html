@@ -20,7 +20,13 @@
 body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
+
+.native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
+.native-bell-row a:hover,.native-composer button:hover,.native-tab-indicator:hover{background:var(--bg-hover)}
+.native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -74,7 +80,7 @@ const H = React.createElement;
 const F = React.Fragment;
 const BASE = new Date(2026, 7, 17);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const cap = (v) => v.charAt(0).toUpperCase() + v.slice(1);
 
@@ -511,7 +517,7 @@ class Component extends DCLogic {
                     this.setState((p) => ({ sched: p.sched.concat([{ time: f.time, when: f.when }]), schedForm: null }));
                   } }, x.addWord))),
               s.schedForm.err ? H('p', { role: 'alert', style: { fontSize: 'var(--fs-sm)', color: 'var(--status-bad)' } }, s.schedForm.err) : null)
-          : H('div', { style: { marginInline: -16 } }, H(D.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
+          : H('div', { style: { marginInline: -16 } }, H(window.OrbitNativeMobile.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
               onClick: () => this.setState({ schedForm: { time: '', when: 'same_day', err: null } }) })));
   }
 
@@ -581,7 +587,7 @@ class Component extends DCLogic {
             if (v) { this.ckAppend([v]); this.setState({ ckInput: '' }); }
           }),
       H('div', { style: { marginInline: -16 } },
-        H(D.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
+        H(window.OrbitNativeMobile.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
     const badRow = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
       H(D.Switch, { label: x.fBad, checked: s.badOn, onChange: (n) => this.setState({ badOn: n }) }),
       H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fBadHint));
@@ -595,8 +601,8 @@ class Component extends DCLogic {
             H(D.Switch, { label: x.fSlip, checked: s.slipOn, onChange: (n) => this.setState({ slipOn: n }) }),
             H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fSlipDesc)))
       : H('div', { style: { marginInline: -16 } },
-          H(D.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
-            trailing: H(D.Badge, null, 'Pro'), onClick: this.goPro }));
+          H(window.OrbitNativeMobile.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
+            trailing: H(window.OrbitNativeMobile.Badge, null, 'Pro'), onClick: this.goPro }));
     const tags = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
       label(x.fTags),
       s.tags.length ? H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
@@ -609,7 +615,7 @@ class Component extends DCLogic {
             if (v) this.setState((p) => ({ tags: p.tags.indexOf(v) >= 0 ? p.tags : p.tags.concat([v]).slice(0, 5), tagInput: '' }));
           }));
     const goal = H('div', { style: { marginInline: -16 } },
-      H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
+      H(window.OrbitNativeMobile.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
         chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
     return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingInline: 16 } },
       H(D.TimeField, { key: 'time-' + id, label: x.fTime, value: time, hint: x.fTimeHint,
@@ -727,13 +733,13 @@ class Component extends DCLogic {
               onClick: () => this.setState({ tplList: [{ n: s.tplName.trim(), items: srcItems.slice() }].concat(list),
                 tplSaving: false, tplName: '' }) }, x.tplGo))
         : H('div', { style: { marginInline: -24 } },
-            H(D.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
+            H(window.OrbitNativeMobile.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
               onClick: () => this.setState({ tplSaving: true }) }));
     return H(D.Sheet, { open: true, title: x.tplTitle, onClose: close },
       H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8 } },
         saveRow,
         H('div', { style: { marginInline: -24 } },
-          list.map((tp, i) => H(D.ListRow, { key: i, icon: 'template', title: tp.n,
+          list.map((tp, i) => H(window.OrbitNativeMobile.ListRow, { key: i, icon: 'template', title: tp.n,
             description: H('span', null, mock(String(tp.items.length)), ' ' + x.itemsWord),
             chevron: false,
             action: { icon: 'trash', label: x.tplDel(tp.n), danger: true,
@@ -851,7 +857,7 @@ class Component extends DCLogic {
             H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
               H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
                 H(D.AstraGlyph, { size: 20 })),
-              H(D.Badge, null, 'Pro')),
+              H(window.OrbitNativeMobile.Badge, null, 'Pro')),
             H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)' } }, x.rsFree),
             H('div', { style: { display: 'flex', gap: 8 } },
               H(D.Button, { size: 'sm', variant: filled, onClick: this.goPro }, x.rsPro),
@@ -887,17 +893,17 @@ class Component extends DCLogic {
     if (!h.oneTime) {
       if (s.mLoading) {
         rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(D.StatTile, { label: x.dStreak, state: 'loading' }),
-          H(D.StatTile, { label: x.dBest, state: 'loading' }),
-          H(D.StatTile, { label: x.holding, state: 'loading' })));
+          H(window.OrbitNativeMobile.StatTile, { label: x.dStreak, state: 'loading' }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading' }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading' })));
       } else if (!h.stat) {
         rest.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
           color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
       } else {
         rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(D.StatTile, { label: h.bad ? x.dFree : x.dStreak, value: mock(String(h.stat[0])) }),
-          H(D.StatTile, { label: x.dBest, value: mock(String(h.stat[1])) }),
-          H(D.StatTile, { label: x.holding, value: mock(h.stat[2]) })));
+          H(window.OrbitNativeMobile.StatTile, { label: h.bad ? x.dFree : x.dStreak, value: mock(String(h.stat[0])) }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, value: mock(String(h.stat[1])) }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.holding, value: mock(h.stat[2]) })));
       }
     }
     if (h.rem) {
@@ -919,7 +925,7 @@ class Component extends DCLogic {
       rest.push(H('div', { key: 'goals', style: { display: 'flex', flexDirection: 'column', gap: 4 } },
         label(x.dGoals),
         H('div', { style: { marginInline: -16 } },
-          h.goals.map((g, i) => H(D.ListRow, { key: i, icon: 'target', title: x.goals[g], chevron: true, onClick: this.goGoal })))));
+          h.goals.map((g, i) => H(window.OrbitNativeMobile.ListRow, { key: i, icon: 'target', title: x.goals[g], chevron: true, onClick: this.goGoal })))));
     }
     if (isParent) {
       rest.push(H('div', { key: 'subs', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
@@ -940,8 +946,8 @@ class Component extends DCLogic {
               menuLabel: x.moreOpts });
           })),
         H('div', { style: { marginInline: -16 } },
-          H(D.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
-            trailing: s.plan === 'Pro' ? undefined : H(D.Badge, null, 'Pro'),
+          H(window.OrbitNativeMobile.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
+            trailing: s.plan === 'Pro' ? undefined : H(window.OrbitNativeMobile.Badge, null, 'Pro'),
             onClick: () => { if (this.state.plan === 'Pro') window.location.href = encodeURI('Orbit Hoje.dc.html'); else this.goPro(); } }))));
     }
     rest.push(this.activityNode(t, id, h));
@@ -961,13 +967,13 @@ class Component extends DCLogic {
         return { days: cur.indexOf(d) >= 0 ? cur.filter((k) => k !== d) : cur.concat([d]).sort((a, b) => a - b) };
       }))));
     rest.push(H('div', { key: 'disc', style: { display: 'flex', flexDirection: 'column', gap: 12 } },
-      H(D.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
+      H(window.OrbitNativeMobile.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
         onClick: () => this.setState({ disc: !s.disc }) }),
       s.disc ? this.discNode(t, id, h) : null));
     rest.push(H('div', { key: 'start', style: { marginInline: -16 } },
       H(D.DateRow, { label: x.startLabel, value: BASE.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' }), note: x.startWhy })));
     rest.push(H('div', { key: 'del', style: { marginInline: -16 } },
-      H(D.ListRow, { icon: 'trash', title: x.del, danger: true, chevron: false,
+      H(window.OrbitNativeMobile.ListRow, { icon: 'trash', title: x.del, danger: true, chevron: false,
         onClick: () => this.setState({ confirm: true }) })));
     return H(F, null, out, H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 24 } }, rest));
   }
@@ -996,15 +1002,15 @@ class Component extends DCLogic {
     const kst = this.statusOf(id);
     return Object.assign(base, {
       body: this.body(t, filled),
-      headerNode: H(D.NavHeader, { title: t.kicker, backLabel: t.back, onBack: this.popSub }),
+      headerNode: H(window.OrbitNativeMobile.NavHeader, { title: t.kicker, backLabel: t.back, onBack: this.popSub }),
       navItems: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
       account: t.account,
-      composer: H(D.Composer, {
+      composer: H(window.OrbitNativeMobile.Composer, {
         state: st === 'at limit' ? 'atLimit' : 'resting',
         chips: (st === 'loading' || st === 'error') ? [] : t.chips,
         limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
         words: t.composerWords,
-        onChipPress: this.goConv, onOpen: this.goConv,
+        onChipPress: this.goConv, onOpen: this.goConv, onAttach: this.goConv, onVoice: this.goConv,
       }),
       sheet: s.emoOpen ? this.emojiSheet(t)
         : s.tplOpen ? this.tplNode(t)

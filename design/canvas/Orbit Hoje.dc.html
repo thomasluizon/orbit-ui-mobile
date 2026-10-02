@@ -21,7 +21,13 @@ body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
 [data-dragging="true"]{opacity:.5;box-shadow:var(--sh-2);position:relative;z-index:2}
+
+.native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
+.native-bell-row a:hover,.native-composer button:hover,.native-tab-indicator:hover{background:var(--bg-hover)}
+.native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -30,18 +36,15 @@ a:hover{color:var(--fg-1)}
   <div data-screen-label="Hoje" style="display:flex;gap:32px;align-items:flex-start">
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" fab="{{ fabNode }}" notice="{{ notice }}" composer="{{ bottom }}" conversation="{{ overlay412 }}" conversation-label="{{ panelAria }}" sheets="{{ sheet }}" hint-size="412px,820px">
-        <div style="display:flex;flex-direction:column;gap:24px;padding:16px 16px 64px;min-height:100%;box-sizing:border-box">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" header="{{ rootHeader }}" fab="{{ fabNode }}" notice="{{ notice }}" composer="{{ bottom }}" conversation="{{ overlay412 }}" conversation-label="{{ panelAria }}" sheets="{{ sheet }}" hint-size="412px,820px">
+        <div data-native-scroll="true" style="display:flex;flex-direction:column;gap:24px;padding:16px 16px 64px;min-height:100%;box-sizing:border-box">
 
+          {{ backToTop }}
           <sc-if value="{{ hasAstra }}" hint-placeholder-val="{{ true }}">
-            <div style="display:flex;align-items:flex-start;gap:8px">
-              <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:21px;color:var(--fg-3)">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
-              </span>
-              <div style="display:contents">
-                <p style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ astraLine }}<button type="button" onClick="{{ onAstraAction }}" style="display:inline;margin-inline-start:6px;background:var(--p-transparent);border:0;padding:0;font-family:var(--font-sans);font-size:14px;font-weight:500;line-height:1.5;color:var(--fg-1);cursor:pointer;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:var(--hairline-strong);transition:text-decoration-color var(--dur-fast) var(--ease-standard)" style-hover="text-decoration-color:var(--fg-1)">{{ astraAction }}</button></p>
-              </div>
-            </div>
+            <button type="button" onClick="{{ onAstraAction }}" aria-describedby="astra-destination-compact" style="display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-2);font:inherit;text-align:start;cursor:pointer" style-hover="background:var(--bg-hover)">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+              <span class="native-typed" style="font-size:14px;line-height:1.5">{{ astraLine }}</span>
+            </button><span id="astra-destination-compact" hidden>{{ astraDestination }}</span>
           </sc-if>
 
           <sc-if value="{{ showDate }}" hint-placeholder-val="{{ true }}">
@@ -49,7 +52,7 @@ a:hover{color:var(--fg-1)}
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
               </x-import>
-              <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+              <div style="min-width:0;display:flex;flex-direction:column">
                 <p style="font-family:var(--font-display);font-size:22px;font-weight:500;letter-spacing:-0.02em;color:var(--fg-1)">{{ dayLabel }}</p>
                 <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.02em;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dayDate }}</p>
               </div>
@@ -58,8 +61,6 @@ a:hover{color:var(--fg-1)}
                   <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
                     <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
                   </x-import>
-                  <sc-if value="{{ awayFromToday }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goToday }}" dc-props="{{ todayProps }}" hint-size="auto,44px">{{ todayLabel }}</x-import></sc-if>
-                  <span data-list-controls="1" style="display:contents"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ openControls }}" dc-props="{{ ctrlProps }}" hint-size="44px,44px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="adjustments-horizontal" size="{{ n20 }}" hint-size="20px,20px"></x-import></x-import></span>
                 </div>
               </sc-if>
             </div>
@@ -86,7 +87,7 @@ a:hover{color:var(--fg-1)}
                 </div>
               </div>
               <sc-if value="{{ drillDeep }}" hint-placeholder-val="{{ false }}">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="home" title="{{ drillAllLabel }}" chevron="{{ false }}" on-click="{{ drillTop }}" hint-size="100%,56px"></x-import>
+                <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="home" title="{{ drillAllLabel }}" chevron="{{ false }}" on-click="{{ drillTop }}" hint-size="100%,56px"></x-import>
               </sc-if>
             </div>
           </sc-if>
@@ -138,7 +139,7 @@ a:hover{color:var(--fg-1)}
             <p style="font-size:14px;line-height:1.5;color:var(--fg-2);padding-block:8px">{{ drillEmptyLine }}</p>
           </sc-if>
           <sc-if value="{{ drillAddShow }}" hint-placeholder-val="{{ false }}">
-            <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="plus" title="{{ drillAddLabel }}" chevron="{{ false }}" trailing="{{ drillAddTrailing }}" on-click="{{ drillAdd }}" hint-size="100%,56px"></x-import>
+            <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="plus" title="{{ drillAddLabel }}" chevron="{{ false }}" trailing="{{ drillAddTrailing }}" on-click="{{ drillAdd }}" hint-size="100%,56px"></x-import>
           </sc-if>
           <sc-if value="{{ showSkeleton }}" hint-placeholder-val="{{ false }}">
             <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n5 }}" label="{{ loadingLabel }}" hint-size="100%,400px"></x-import>
@@ -181,14 +182,10 @@ a:hover{color:var(--fg-1)}
           <div style="display:flex;flex-direction:column;gap:24px;min-height:100%;box-sizing:border-box">
 
             <sc-if value="{{ hasAstra }}" hint-placeholder-val="{{ true }}">
-              <div style="display:flex;align-items:flex-start;gap:8px">
-                <span style="flex:0 0 auto;display:grid;place-items:center;width:20px;height:21px;color:var(--fg-3)">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n18 }}" hint-size="18px,18px"></x-import>
-                </span>
-                <div style="display:contents">
-                  <p style="flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg-2);text-wrap:pretty">{{ astraLine }}<button type="button" onClick="{{ onAstraAction }}" style="display:inline;margin-inline-start:6px;background:var(--p-transparent);border:0;padding:0;font-family:var(--font-sans);font-size:14px;font-weight:500;line-height:1.5;color:var(--fg-1);cursor:pointer;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:var(--hairline-strong);transition:text-decoration-color var(--dur-fast) var(--ease-standard)" style-hover="text-decoration-color:var(--fg-1)">{{ astraAction }}</button></p>
-                </div>
-              </div>
+              <button type="button" onClick="{{ onAstraAction }}" aria-describedby="astra-destination-wide" style="display:flex;align-items:center;gap:8px;min-height:48px;padding:8px 16px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-2);font:inherit;text-align:start;cursor:pointer" style-hover="background:var(--bg-hover)">
+              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.AstraGlyph" size="{{ n20 }}" hint-size="20px,20px"></x-import>
+              <span class="native-typed" style="font-size:14px;line-height:1.5">{{ astraLine }}</span>
+            </button><span id="astra-destination-wide" hidden>{{ astraDestination }}</span>
             </sc-if>
 
             <sc-if value="{{ showDate }}" hint-placeholder-val="{{ true }}">
@@ -196,7 +193,7 @@ a:hover{color:var(--fg-1)}
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goPrev }}" dc-props="{{ prevProps }}" hint-size="44px,44px">
                   <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}" hint-size="20px,20px"></x-import>
                 </x-import>
-                <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+                <div style="min-width:0;display:flex;flex-direction:column">
                   <p style="font-family:var(--font-display);font-size:22px;font-weight:500;letter-spacing:-0.02em;color:var(--fg-1)">{{ dayLabel }}</p>
                   <p style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.02em;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dayDate }}</p>
                 </div>
@@ -205,8 +202,6 @@ a:hover{color:var(--fg-1)}
                     <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goNext }}" dc-props="{{ nextProps }}" hint-size="44px,44px">
                       <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-right" size="{{ n20 }}" hint-size="20px,20px"></x-import>
                     </x-import>
-                    <sc-if value="{{ awayFromToday }}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ goToday }}" dc-props="{{ todayProps }}" hint-size="auto,44px">{{ todayLabel }}</x-import></sc-if>
-                    <span data-list-controls="1" style="display:contents"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ openControls }}" dc-props="{{ ctrlProps }}" hint-size="44px,44px"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="adjustments-horizontal" size="{{ n20 }}" hint-size="20px,20px"></x-import></x-import></span>
                   </div>
                 </sc-if>
               </div>
@@ -233,7 +228,7 @@ a:hover{color:var(--fg-1)}
                   </div>
                 </div>
                 <sc-if value="{{ drillDeep }}" hint-placeholder-val="{{ false }}">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="home" title="{{ drillAllLabel }}" chevron="{{ false }}" on-click="{{ drillTop }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="home" title="{{ drillAllLabel }}" chevron="{{ false }}" on-click="{{ drillTop }}" hint-size="100%,56px"></x-import>
                 </sc-if>
               </div>
             </sc-if>
@@ -285,7 +280,7 @@ a:hover{color:var(--fg-1)}
               <p style="font-size:14px;line-height:1.5;color:var(--fg-2);padding-block:8px">{{ drillEmptyLine }}</p>
             </sc-if>
             <sc-if value="{{ drillAddShow }}" hint-placeholder-val="{{ false }}">
-              <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="plus" title="{{ drillAddLabel }}" chevron="{{ false }}" trailing="{{ drillAddTrailing }}" on-click="{{ drillAdd }}" hint-size="100%,56px"></x-import>
+              <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="plus" title="{{ drillAddLabel }}" chevron="{{ false }}" trailing="{{ drillAddTrailing }}" on-click="{{ drillAdd }}" hint-size="100%,56px"></x-import>
             </sc-if>
             <sc-if value="{{ showSkeleton }}" hint-placeholder-val="{{ false }}">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n5 }}" label="{{ loadingLabel }}" hint-size="100%,400px"></x-import>
@@ -368,7 +363,7 @@ a:hover{color:var(--fg-1)}
 const H = React.createElement;
 const F = React.Fragment;
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 const BASE = new Date(2026, 7, 17);
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -1475,7 +1470,7 @@ class Component extends DCLogic {
                     this.setState((p) => ({ sched: p.sched.concat([{ time: f.time, when: f.when }]), schedForm: null }));
                   } }, x.addWord))),
               s.schedForm.err ? H('p', { role: 'alert', style: { fontSize: 'var(--fs-sm)', color: 'var(--status-bad)' } }, s.schedForm.err) : null)
-          : H('div', { style: { marginInline: -16 } }, H(D.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
+          : H('div', { style: { marginInline: -16 } }, H(window.OrbitNativeMobile.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
               onClick: () => this.setState({ schedForm: { time: '', when: 'same_day', err: null } }) })));
   }
   /* Everything else behind the ONE disclosure, in this order: when it happens, how it reminds, what is
@@ -1549,7 +1544,7 @@ class Component extends DCLogic {
             if (v) { this.ckAppend([v]); this.setState({ ckInput: '' }); }
           }),
       H('div', { style: { marginInline: -16 } },
-        H(D.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
+        H(window.OrbitNativeMobile.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
     const subs = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
       label(x.fSubs),
       s.subsOwn.length ? H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
@@ -1575,8 +1570,8 @@ class Component extends DCLogic {
             H(D.Switch, { label: x.fSlip, checked: s.slipOn, onChange: (n) => this.setState({ slipOn: n }) }),
             H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fSlipDesc)))
       : H('div', { style: { marginInline: -16 } },
-          H(D.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
-            trailing: H(D.Badge, null, 'Pro'), onClick: this.goPro }));
+          H(window.OrbitNativeMobile.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
+            trailing: H(window.OrbitNativeMobile.Badge, null, 'Pro'), onClick: this.goPro }));
     const tags = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
       label(x.fTags),
       s.tags.length ? H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
@@ -1589,7 +1584,7 @@ class Component extends DCLogic {
             if (v) this.setState((p) => ({ tags: p.tags.indexOf(v) >= 0 ? p.tags : p.tags.concat([v]).slice(0, 5), tagInput: '' }));
           }));
     const goal = H('div', { style: { marginInline: -16 } },
-      H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
+      H(window.OrbitNativeMobile.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
         chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
     return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingInline: 16 } },
       H(D.TimeField, { key: 'time-' + (det ? det.src : 'new'), label: x.fTime, value: time, hint: x.fTimeHint,
@@ -1750,7 +1745,7 @@ class Component extends DCLogic {
       H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
         H(D.AstraGlyph, { size: 20 })),
       H('span', { translate: 'no', style: { fontWeight: 500 } }, 'Astra'),
-      H(D.Badge, null, 'AI'));
+      H(window.OrbitNativeMobile.Badge, null, 'AI'));
     let body = null, actions = null;
     if (phase === 'free') {
       body = H('p', { style: { lineHeight: 1.55, color: 'var(--fg-2)' } }, x.rsFree);
@@ -1894,7 +1889,7 @@ class Component extends DCLogic {
               onClick: () => this.setState({ tplList: [{ n: s.tplName.trim(), items: srcItems.slice() }].concat(list),
                 tplSaving: false, tplName: '' }) }, x.tplGo))
         : H('div', { style: { marginInline: -24 } },
-            H(D.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
+            H(window.OrbitNativeMobile.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
               onClick: () => this.setState({ tplSaving: true }) }));
     return H(D.Sheet, { open: true, title: x.tplTitle, onClose: close },
       H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8 } },
@@ -1902,7 +1897,7 @@ class Component extends DCLogic {
         /* ListRow's per-row action: a real sibling button, so the delete no longer rides a hand
            composed row. */
         H('div', { style: { marginInline: -24 } },
-          list.map((tp, i) => H(D.ListRow, { key: i, icon: 'template', title: tp.n,
+          list.map((tp, i) => H(window.OrbitNativeMobile.ListRow, { key: i, icon: 'template', title: tp.n,
             description: H('span', null, mock(String(tp.items.length)), ' ' + x.itemsWord),
             chevron: false,
             action: { icon: 'trash', label: x.tplDel(tp.n), danger: true,
@@ -2026,12 +2021,12 @@ class Component extends DCLogic {
     const dateStr = new Date(BASE.getTime()).toLocaleDateString(t.intl, { day: 'numeric', month: 'long' });
     return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
       background: 'var(--bg-elev)' } },
-      H(D.NavHeader, { title: x.createTitle, backLabel: x.back, onBack: this.closeView }),
+      H(window.OrbitNativeMobile.NavHeader, { title: x.createTitle, backLabel: x.back, onBack: this.closeView }),
       H('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column',
         gap: 24, padding: 16 } },
         field, preview,
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
-          H(D.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
+          H(window.OrbitNativeMobile.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
             onClick: () => this.setState({ disc: !s.disc }) }),
           s.disc ? this.discNode(t, x, parsed) : null),
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
@@ -2138,14 +2133,14 @@ class Component extends DCLogic {
           H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
             H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
               H(D.AstraGlyph, { size: 20 })),
-            H(D.Badge, null, 'Pro')),
+            H(window.OrbitNativeMobile.Badge, null, 'Pro')),
           H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)' } }, x.rsFree),
           H('div', { style: { display: 'flex', gap: 8 } },
             H(D.Button, { size: 'sm', variant: filled, onClick: this.goPro }, x.rsPro),
             H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ dReschedGone: true }) }, x.notNow)))) : null;
     return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
       background: 'var(--bg-elev)' } },
-      H(D.NavHeader, { title: x.detailKicker, backLabel: x.back,
+      H(window.OrbitNativeMobile.NavHeader, { title: x.detailKicker, backLabel: x.back,
         onBack: s.dStack.length > 1 ? this.popDetail : this.closeView }),
       H('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column',
         gap: 24, padding: 16 } },
@@ -2187,16 +2182,16 @@ class Component extends DCLogic {
           }))),
         /* Everything else the edit modal holds is creation's field set, behind the one disclosure. */
         H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } },
-          H(D.ListRow, { icon: s.dtDisc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
+          H(window.OrbitNativeMobile.ListRow, { icon: s.dtDisc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
             onClick: () => this.setState({ dtDisc: !s.dtDisc }) }),
           s.dtDisc ? this.discNode(t, x, { time: h.time || '' }, this.detCtx(t, key)) : null),
         H('div', { style: { marginInline: -16 } },
           H(D.DateRow, { label: x.startLabel, value: dateStr, note: x.startWhy })),
         H('div', { style: { marginInline: -16 } },
-          H(D.ListRow, { icon: 'trash', title: x.delHabit, danger: true, chevron: false,
+          H(window.OrbitNativeMobile.ListRow, { icon: 'trash', title: x.delHabit, danger: true, chevron: false,
             onClick: () => this.setState({ confirmOne: key }) }))),
       H('div', { style: { flex: '0 0 auto', paddingBlock: 12 } },
-        H(D.Composer, { state: 'resting', chips: x.detailChips, words: t.composerWords,
+        H(window.OrbitNativeMobile.Composer, { state: 'resting', chips: x.detailChips, words: t.composerWords,
           onChipPress: () => this.openConv(), onOpen: () => this.openConv() })));
   }
 
@@ -2278,17 +2273,17 @@ class Component extends DCLogic {
       const l1 = info.bad ? x.dFree : x.dStreak;
       if (s.dMetricsLoading) {
         out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(D.StatTile, { label: l1, state: 'loading' }),
-          H(D.StatTile, { label: x.dBest, state: 'loading' }),
-          H(D.StatTile, { label: x.holding, state: 'loading' })));
+          H(window.OrbitNativeMobile.StatTile, { label: l1, state: 'loading' }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading' }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading' })));
       } else if (!stat) {
         out.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
           color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
       } else {
         out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(D.StatTile, { label: l1, value: mock(String(stat[0])) }),
-          H(D.StatTile, { label: x.dBest, value: mock(String(stat[1])) }),
-          H(D.StatTile, { label: x.holding, value: mock(stat[2]) })));
+          H(window.OrbitNativeMobile.StatTile, { label: l1, value: mock(String(stat[0])) }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, value: mock(String(stat[1])) }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.holding, value: mock(stat[2]) })));
       }
     }
     if (dtl.rem) {
@@ -2310,7 +2305,7 @@ class Component extends DCLogic {
       out.push(H('div', { key: 'goals', style: { display: 'flex', flexDirection: 'column', gap: 4 } },
         label(x.dGoals),
         H('div', { style: { marginInline: -16 } },
-          dtl.goals.map((g, i) => H(D.ListRow, { key: i, icon: 'target', title: x.goals[g], chevron: true,
+          dtl.goals.map((g, i) => H(window.OrbitNativeMobile.ListRow, { key: i, icon: 'target', title: x.goals[g], chevron: true,
             onClick: this.goGoal })))));
     }
     /* A parent's detail says what is inside it: each child a HabitRow at depth 1 whose ring logs
@@ -2336,8 +2331,8 @@ class Component extends DCLogic {
               menuLabel: x.moreOpts });
           })),
         H('div', { style: { marginInline: -16 } },
-          H(D.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
-            trailing: s.plan === 'Pro' ? undefined : H(D.Badge, null, 'Pro'),
+          H(window.OrbitNativeMobile.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
+            trailing: s.plan === 'Pro' ? undefined : H(window.OrbitNativeMobile.Badge, null, 'Pro'),
             onClick: () => { if (this.state.plan === 'Pro') this.openCreate('sub', ''); else this.goPro(); } }))));
     }
     out.push(this.activityNode(t, x, key, dtl));
@@ -2498,17 +2493,18 @@ class Component extends DCLogic {
         boxShadow: 'var(--sh-3), inset 0 0 0 1px var(--hairline)', display: 'flex', flexDirection: 'column' } }, node));
   }
 
-  composerNode(t, st) {
+  composerNode(t, st, conversation = false) {
     const D = window.OrbitDesignSystem_918bd5;
     const n = Math.max(3, Math.min(6, this.props.chipCount != null ? this.props.chipCount : 4));
     const key = st === 'returning' ? 'returning' : st === 'no habits' ? 'noHabits' : st === 'all done' ? 'allDone' : 'default';
     const chips = (st === 'loading' || st === 'error') ? [] : t.chips[key].slice(0, n);
-    return H(D.Composer, {
+    return H(window.OrbitNativeMobile.Composer, {
       state: st === 'at limit' ? 'atLimit' : st === 'offline' ? 'offline' : 'resting',
-      chips: chips,
+      chips: conversation ? chips : [],
       limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
       words: t.composerWords,
-      onOpen: this.openConv,
+      onOpen: conversation ? undefined : this.openConv,
+      onAttach: this.openConv, onVoice: this.openConv,
       /* A create sentence in the composer or the conversation opens creation carrying that sentence. */
       onChipPress: (chip) => /criar|create/i.test(chip) ? this.openCreate('chat', chip) : this.openConv(),
     });
@@ -2580,7 +2576,7 @@ class Component extends DCLogic {
       ? H(D.Button, { size: 'sm', variant: filled, onClick: this.closeConv }, b.retry[0], mock(b.retry[1]), b.retry[2])
       : H(D.Button, { size: 'sm', variant: 'ghost', onClick: this.closeConv }, b.undo);
     return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
-      H(D.NavHeader, {
+      H(window.OrbitNativeMobile.NavHeader, {
         title: H('span', { translate: 'no' }, 'Astra'),
         trailing: H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close, onClick: this.closeConv,
           style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'x', size: 20 })),
@@ -2593,7 +2589,7 @@ class Component extends DCLogic {
               turn.parts ? H(F, null, turn.parts[0], mock(turn.parts[1]), turn.parts[2], mock(turn.parts[3]), turn.parts[4]) : turn.text)),
         H(D.BlockFrame, { title: b.title, count: mock(b.count), state: b.state || 'resting', items: items,
           actions: actions })),
-      H('div', { style: { flex: '0 0 auto', paddingBlock: 12 } }, this.composerNode(t, st)));
+      H('div', { style: { flex: '0 0 auto', paddingBlock: 12 } }, this.composerNode(t, st, true)));
   }
 
   renderVals() {
@@ -2701,7 +2697,13 @@ class Component extends DCLogic {
       hasAstra: hasAstra,
       astraLine: H(F, null, line[0], mock(line[1]), line[2], line[3] ? mock(line[3]) : null, line[4] || null),
       astraAction: t.astra[aKey][1],
-      onAstraAction: this.openConv,
+      astraDestination: st === 'returning' ? t.tabs[2] : 'Astra',
+      onAstraAction: st === 'returning' ? this.goGoal : this.openConv,
+      rootHeader: H(window.OrbitNativeMobile.BellRow, null,
+        off !== 0 ? H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ off: 0, prompted: [], promptKey: null }) }, t.today || (t.lang === 'en' ? 'Today' : 'Hoje')) : null,
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Search' : 'Buscar', onClick: () => { window.location.href = 'Orbit Busca.dc.html'; } }, H(D.Icon, { name: 'search', size: 24 })),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: this.openControls }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
+      backToTop: H(window.OrbitNativeMobile.BackToTop),
 
       showDate: st !== 'no habits' && !drillOn,
       drillOn: drillOn,
@@ -2712,7 +2714,7 @@ class Component extends DCLogic {
       popDrill: this.popDrill, drillTop: this.drillTop, drillAllLabel: x.drillAllLabel,
       /* The same gate as the menu's add sub habit: free routes to the upgrade, Pro opens creation. */
       drillAdd: () => { if (this.state.plan === 'Pro') this.openCreate('sub', ''); else this.goPro(); },
-      drillAddTrailing: s.plan === 'Pro' ? null : H(D.Badge, null, 'Pro'),
+      drillAddTrailing: s.plan === 'Pro' ? null : H(window.OrbitNativeMobile.Badge, null, 'Pro'),
       drillAddLabel: x.fAddSub,
       drillAddShow: drillOn && live,
       drillEmpty: drillOn && live && rows.length === 0,
@@ -2750,7 +2752,7 @@ class Component extends DCLogic {
       /* The FAB is the one filled action at 412, so it stands down wherever another view owns that fill. */
       fabNode: (s.width === '412' && !selecting && !convOpen && !view && ['no habits', 'error', 'loading'].indexOf(st) < 0)
         ? H(D.Fab, { label: t.create, onClick: () => this.openCreate('fab') }, H(D.Icon, { name: 'plus', size: 24 })) : null,
-      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'hoje', onSelect: () => {} }),
       /* Transient chrome rides the shells' notice slot, above the composer, never in its place. */
       notice: st === 'offline' ? H(D.Toast, { kind: 'neutral', icon: 'wifi-off', message: t.offlineToast }) : null,

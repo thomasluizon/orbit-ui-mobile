@@ -21,6 +21,7 @@ body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:underline;text-underline-offset:3px}
 a:hover{color:var(--fg-1)}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -143,7 +144,7 @@ const H = React.createElement;
 const F = React.Fragment;
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 
 const T = {
   'pt-BR': {
@@ -303,7 +304,7 @@ class Component extends DCLogic {
       isThrottle: st === 'throttle', filled: filled,
       blocker: blocker || softDrawer, banner: banner,
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
-      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'hoje', onSelect: () => {} }),
     });
   }
