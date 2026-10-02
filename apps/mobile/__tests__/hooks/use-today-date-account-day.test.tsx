@@ -6,7 +6,7 @@ import { useTodayDate, type TodayDate } from '@/app/(tabs)/use-today-date'
 
 const TestRenderer = require('react-test-renderer')
 
-const dateTestState = vi.hoisted(() => ({ locale: 'en', selected: '' }))
+const dateTestState = vi.hoisted(() => ({ locale: 'en', selected: '', navigate: vi.fn() }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     i18n: { language: dateTestState.locale },
@@ -18,7 +18,7 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 vi.mock('expo-router', () => ({
-  useRouter: () => ({ push: vi.fn(), navigate: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), navigate: dateTestState.navigate }),
   useLocalSearchParams: () => ({ date: dateTestState.selected || undefined }),
 }))
 vi.mock('@/hooks/use-profile', () => ({
@@ -34,6 +34,7 @@ describe('mobile Today account day', () => {
     vi.setSystemTime(new Date('2026-09-11T09:59:59Z'))
     dateTestState.locale = 'en'
     dateTestState.selected = ''
+    dateTestState.navigate.mockClear()
   })
 
   afterEach(() => {
@@ -64,6 +65,21 @@ describe('mobile Today account day', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<Probe />) })
     expect(current!.dayName).toBe(expected)
     expect(current!.numericDate).toBe(locale === 'en' ? `September ${Number(selected.slice(-2))}` : `${Number(selected.slice(-2))} de setembro`)
+    TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('returns from a pinned day to the explicit tabs index without a date parameter', () => {
+    dateTestState.selected = '2026-09-09'
+    let current: TodayDate | null = null
+    function Probe() {
+      current = useTodayDate()
+      return null
+    }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<Probe />) })
+    TestRenderer.act(() => current!.goToToday())
+    expect(dateTestState.navigate).toHaveBeenCalledExactlyOnceWith('/(tabs)')
+    expect(dateTestState.navigate).not.toHaveBeenCalledWith('/')
     TestRenderer.act(() => tree!.unmount())
   })
 

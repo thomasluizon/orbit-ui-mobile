@@ -91,7 +91,7 @@ export function useTodayDate(): TodayDate {
     if (!canNavigateToNextDay(selectedDateStr, today)) return
     router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
   }, [router, selectedDate, selectedDateStr, today])
-  const goToToday = useCallback(() => router.navigate('/'), [router])
+  const goToToday = useCallback(() => router.navigate('/(tabs)'), [router])
 
   const todayDate = new Date(`${today}T00:00:00`)
   const weekday = formatLocaleDate(selectedDate, i18n.language, { weekday: 'long' })

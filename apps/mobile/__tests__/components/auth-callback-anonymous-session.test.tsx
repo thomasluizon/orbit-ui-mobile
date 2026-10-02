@@ -22,7 +22,7 @@ import * as authSession from '@/stores/auth-store'
 import { getSessionGeneration, useAuthStore } from '@/stores/auth-store'
 import { reconcileSessionOnForeground } from '@/lib/session-resume'
 import { clearAllTokens, getToken, setToken } from '@/lib/secure-store'
-import { createAuthReturnUrlAttempt, getStoredReferralCode } from '@/lib/auth-flow'
+import { createAuthReturnUrlAttempt, getStoredReferralCode, storeAuthReturnUrl } from '@/lib/auth-flow'
 import {
   AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, getPendingGoogleAuthVerifier,
   markPendingGoogleAuthSession, setPendingGoogleAuthCallbackUrl,
@@ -225,6 +225,32 @@ it('survives both the anonymous config 401 and foreground check during the same 
   expect(requestCount(API.auth.refresh)).toBe(0)
   expect(useAuthStore.getState().isAuthenticated).toBe(true)
   expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/(tabs)')
+})
+
+it.each([
+  ['/', '/(tabs)'],
+  ['/?source=login', '/(tabs)?source=login'],
+  ['/login', '/(tabs)'],
+  ['/auth-callback?code=old', '/(tabs)'],
+  ['/(onboarding)', '/(tabs)'],
+  ['/(onboarding)/index', '/(tabs)'],
+  ['//evil.example', '/(tabs)'],
+  ['/calendar?import=1', '/calendar?import=1'],
+  ['/profile', '/profile'],
+])('leaves the signed-in callback on an available destination for %s', async (returnUrl, destination) => {
+  const attemptId = createAuthReturnUrlAttempt()
+  await storeAuthReturnUrl(returnUrl, attemptId)
+  await markPendingGoogleAuthSession(attemptId, 'verifier', 'state')
+  expect(setPendingGoogleAuthCallbackUrl(`${AUTH_CALLBACK_URL}?code=one-use&state=state`, attemptId)).toBe(true)
+
+  await mount(<AuthCallbackScreen />)
+
+  expect(requestCount(API.auth.googleCode)).toBe(1)
+  expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  await expect(getToken()).resolves.toBe(success.token)
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(destination)
+  expect(mocks.replace).not.toHaveBeenCalledWith('/')
+  await expect(AsyncStorage.getItem('auth_return_url')).resolves.toBeNull()
 })
 
 it('reports a wrong email code as invalid without recovery or navigation', async () => {

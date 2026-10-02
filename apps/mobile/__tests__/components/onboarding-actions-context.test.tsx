@@ -199,7 +199,7 @@ describe('onboarding action provider factories', () => {
     expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'completeOnboarding' }),
     )
-    expect(mocks.replace).toHaveBeenCalledWith('/')
+    expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
 
     const updater = mocks.setQueryData.mock.calls.at(-1)?.[1] as (
       old: Profile | undefined,
@@ -240,7 +240,7 @@ describe('onboarding action provider factories', () => {
         expect.any(String),
         'onboarding.flow.meetAstra.importPrompt',
       )
-      expect(mocks.replace).toHaveBeenCalledWith('/')
+      expect(mocks.replace).toHaveBeenCalledWith('/(tabs)')
     })
   })
 })
