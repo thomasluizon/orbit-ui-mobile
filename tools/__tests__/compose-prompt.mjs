@@ -179,7 +179,7 @@ export const cases = () => {
   T(`${TOOL}: composing reads no Projects board item`, existsSync(boardMarker))
   T(
     `${TOOL}: size is advisory and mandatory generated artifacts stay with their source change`,
-    /File and line counts are advisory\s+review information, never delivery gates/.test(prompt) && /migrations with their\s+model change/.test(prompt) && /architecture artifacts\s+with the module or route change/.test(prompt),
+    /File and line counts are advisory\s+review information, never delivery gates/.test(prompt) && /migrations with their\s+model change/.test(prompt) && /required lockfiles\s+or codemod output/.test(prompt),
     prompt,
   )
   T(
@@ -294,7 +294,7 @@ export const cases = () => {
   const originalFinishing = prompt.slice(prompt.indexOf("## Finishing contract"), prompt.indexOf("\n\n---\n\n## Orchestrator's brief")).trimEnd()
   T(
     `${TOOL}: local finishing section matches the reviewed contract byte for byte`,
-    createHash("sha256").update(originalFinishing).digest("hex") === "c25370efe9db1d7b71f52f917d2056bec15a602e370bdc1fce5478a961cc5f31",
+    createHash("sha256").update(originalFinishing).digest("hex") === "d13c3929c22cef1389b6b076155341a2a275ba62ee1e94a2e978c5598ddd25ce",
     originalFinishing,
   )
   const reviewOut = join(root, "compose-prompt", "review-batch.md")
@@ -553,11 +553,10 @@ export const cases = () => {
     /--review-batch \\\| --cloud\]/.test(toolsCatalog) && /`--review-batch` selects a local review fix/.test(toolsCatalog),
     "tools/README.md compose-prompt row",
   )
-  for (const [mode, order, heading] of [
-    ["local", prompt, "## Finishing contract"],
-    ["Cloud", cloudPrompt, "## Cloud finishing contract"],
+  for (const [mode, order] of [
+    ["local", prompt],
+    ["Cloud", cloudPrompt],
   ]) {
-    const contract = order.slice(order.indexOf(heading))
     T(
       `${TOOL}: ${mode} requires the unchanged covered test before edits and a failing strengthened test before the fix`,
       /When a round fixes a defect that an existing test did not catch/.test(order) &&
@@ -579,13 +578,38 @@ export const cases = () => {
           : /Put both observations in the PR body's `## Test evidence` section/.test(order)),
       order,
     )
+  }
+  const architectureRule = "You may run `node tools/arch-map.mjs` to read the generated map. Never stage or commit `architecture.json`, `architecture.html` or `architecture.mmd`."
+  for (const skill of ["orchestrate", "ticket"]) {
+    const skillText = readFileSync(join(REPO_ROOT, ".claude", "skills", skill, "SKILL.md"), "utf8")
     T(
-      `${TOOL}: ${mode} finishing regenerates architecture before committing a structural change`,
-      /Before committing, if your change alters routes, endpoints, or module structure,/.test(contract) &&
-        /run `node tools\/arch-map\.mjs`/.test(contract) &&
-        /Stage `architecture\.json` and `architecture\.html` only if the generator changed them/.test(contract) &&
-        /include the changed artifacts in the same commit as the source change/.test(contract),
-      contract,
+      `${TOOL}: ${skill} skill keeps generated architecture artifacts out of delivery`,
+      skillText.includes(architectureRule) && !/architecture artifacts/.test(skillText),
+      skillText,
+    )
+  }
+  for (const [mode, order] of [
+    ["local", prompt],
+    ["review batch", reviewRedesignPrompt],
+    ["Cloud", cloudPrompt],
+  ]) {
+    T(
+      `${TOOL}: ${mode} permits reading the architecture map and forbids staging every generated artifact`,
+      order.includes(architectureRule),
+      order,
+    )
+    const otherInstructions = order.replace(architectureRule, "")
+    for (const artifact of ["architecture.json", "architecture.html", "architecture.mmd"]) {
+      T(
+        `${TOOL}: ${mode} has no other staging or commit instruction for ${artifact}`,
+        !otherInstructions.split("\n").some((line) => line.includes(artifact) && /\b(?:stag(?:e|ed|ing)|commit(?:ted|ting)?)\b/i.test(line)),
+        otherInstructions,
+      )
+    }
+    T(
+      `${TOOL}: ${mode} scope does not require architecture artifacts in the pull request`,
+      !/architecture artifacts\s+with the module or route change/.test(order),
+      order,
     )
   }
   T(

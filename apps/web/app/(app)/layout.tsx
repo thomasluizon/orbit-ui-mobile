@@ -470,7 +470,8 @@ function GlobalOverlays({
     useOnboardingDraftStore((state) => state.pushRegistrationFailed),
   )
 
-  const showRetainedOnboarding = retainedOnboarding || showPendingPro
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const showRetainedOnboarding = isAuthenticated && (retainedOnboarding || showPendingPro)
 
   useEffect(() => {
     if (

@@ -10,7 +10,7 @@ function habit(title: string): CreateHabitRequest {
 
 describe('onboarding draft store', () => {
   beforeEach(() => {
-    useOnboardingDraftStore.getState().reset()
+    useOnboardingDraftStore.setState(useOnboardingDraftStore.getInitialState())
     globalThis.localStorage.removeItem(STORAGE_KEY)
   })
 
@@ -82,7 +82,7 @@ describe('onboarding draft store', () => {
 
     const state = useOnboardingDraftStore.getState()
     expect(state.habits).toHaveLength(0)
-    expect(state.onboardingLocallyDone).toBe(false)
+    expect(state.onboardingLocallyDone).toBe(true)
     expect(state.hasPendingAnswers()).toBe(false)
   })
 })

@@ -107,7 +107,7 @@ function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
 function DayHabitsStatus({ reasonKey, onRetry, tokens }: Readonly<{ reasonKey: ReturnType<typeof getHabitDetailChildUnavailableReasonKey>; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const status = reasonKey === 'calendar.dayCell.notScheduled' ? '' : t(reasonKey)
-  return <View style={status ? styles.dayHabitsStatus : undefined}><Text style={[styles.muted, { color: tokens.fg2 }]}>{status}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="secondary" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</View>
+  return <View style={status ? styles.dayHabitsStatus : undefined}><Text style={[styles.muted, { color: tokens.fg2 }]}>{status}</Text>{reasonKey === 'habits.detail.dayHabitsLoadError' ? <PillButton variant="ghost" size="sm" onClick={onRetry}>{t('habits.detail.retry')}</PillButton> : null}</View>
 }
 
 function UnscheduledChildReason({ reason, notScheduledReason, tokens }: Readonly<{ reason?: string; notScheduledReason: string; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -253,7 +253,7 @@ function renderRescueProposalValues(suggestion: RescheduleSuggestion, labels: Re
   </>
 }
 
-function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today, tokens, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasPro: boolean; locale: string; today: Date; tokens: ReturnType<typeof createTokensV2>; returnFocus: () => void }>) {
+function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today, tokens, scheduleEditing, returnFocus }: Readonly<{ habit: NormalizedHabit; rescue: ReturnType<typeof useHabitRescue>; hasPro: boolean; locale: string; today: Date; tokens: ReturnType<typeof createTokensV2>; scheduleEditing: boolean; returnFocus: () => void }>) {
   const { t } = useTranslation()
   const router = useRouter()
   const updateHabit = useUpdateHabit()
@@ -273,6 +273,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
     setDismissed(true)
     returnFocus()
   }
+  const actionVariant = scheduleEditing ? 'ghost' : 'primary'
   const card = [styles.rescueCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]
   const notNow = <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={close}>{t('habits.reschedule.dismiss')}</PillButton>
   if (!hasPro) {
@@ -282,7 +283,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
         <Text style={[styles.rescueBody, { color: tokens.fg2 }]}>{t('habits.reschedule.freePrompt')}</Text>
         <View style={styles.rescueActions}>
           {/* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Habit Detail.dc.html:857 (D42) */}
-          <PillButton accessibilityRole="link" variant="primary" size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
+          <PillButton accessibilityRole="link" variant={actionVariant} size="sm" onClick={() => router.push('/upgrade')}>{t('habits.reschedule.upgrade')}</PillButton>
           {notNow}
         </View>
       </View>
@@ -304,7 +305,7 @@ function RescheduleBlock({ habit, rescue: { query, open }, hasPro, locale, today
           <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading')}</Text>
         </>}</View>
         <View style={styles.rescueActions}>
-          {suggestion ? <PillButton variant="primary" size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
+          {suggestion ? <PillButton variant={actionVariant} size="sm" loading={updateHabit.isPending} onClick={() => void accept(suggestion)}>{t('habits.detail.rescheduleAccept')}</PillButton> : query.error ? <PillButton variant="ghost" size="sm" onClick={() => void query.refetch()}>{t('habits.detail.retry')}</PillButton> : null}
           {notNow}
         </View>
       </View>
@@ -567,7 +568,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
         {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /></View> : null}
       </View>
-      <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} returnFocus={focusStrip} />
+      <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} scheduleEditing={scheduleOpen} returnFocus={focusStrip} />
       <DetailChecklist editing={detailsOpen} items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
       <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
       <ReminderReadout habit={habit} tokens={tokens} />
@@ -575,7 +576,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
       <AskAstraRow habit={habit} tokens={tokens} />
       <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} tokens={tokens} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patchValue) => { void patch(patchValue).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
-      <Surface><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><Text numberOfLines={1} style={[styles.sectionTitle, styles.disclosureTitle, { color: tokens.fg1 }]}>{t('habits.detail.moreDetails')}</Text><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable>{detailsOpen ? <Animated.View style={{ opacity: detailOpacity }}><HabitDetailFields key={habit.id} habit={habit} hasProAccess={hasPro} relationshipControlsAvailable={relationshipControlsAvailable} tokens={tokens} onItemsChange={(items) => { void setItems(items) }} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View> : null}</Surface>
+      <Surface><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><Text numberOfLines={1} style={[styles.sectionTitle, styles.disclosureTitle, { color: tokens.fg1 }]}>{t('habits.detail.moreDetails')}</Text><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable><Animated.View style={{ opacity: detailOpacity, display: detailsOpen ? 'flex' : 'none' }}><HabitDetailFields key={habit.id} open={detailsOpen} habit={habit} hasProAccess={hasPro} relationshipControlsAvailable={relationshipControlsAvailable} tokens={tokens} onItemsChange={(items) => { void setItems(items) }} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View></Surface>
       <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(new Date(habit.createdAtUtc), language, { dateStyle: 'medium' })} note={t('habits.form.startDateReason')} />
       <ListRow icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />

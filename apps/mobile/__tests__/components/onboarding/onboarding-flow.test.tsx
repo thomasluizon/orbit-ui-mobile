@@ -253,6 +253,13 @@ describe('OnboardingFlow state model', () => {
     expect(findTextAction(tree, 'onboarding.flow.continue').props.hint).toBeUndefined()
   })
 
+  it('ends device onboarding when choosing sign-in', async () => {
+    useOnboardingDraftStore.setState({ onboardingLocallyDone: false })
+    const tree = await mount(false)
+    await click(tree, 'onboarding.flow.what.haveAccount')
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(true)
+  })
+
   it('hides the account action for a signed-in account', async () => {
     const tree = await mount(true)
     expect(byType(tree.root, 'PillButton').some((node) => node.props.children === 'onboarding.flow.what.haveAccount')).toBe(false)

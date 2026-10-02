@@ -81,6 +81,7 @@ function clearAccountScopedSessionState(): void {
  * it.
  */
 function endSessionLocally(): void {
+  useOnboardingDraftStore.getState().markOnboardingLocallyDone()
   sessionReadVersion += 1
   clearAccountScopedSessionState()
   resetAccountScopedState(lastObservedAccountId, null)

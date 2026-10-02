@@ -1,3 +1,4 @@
+import { PillButton } from "@/components/ui/pill-button";
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo } from "react";
@@ -44,6 +45,7 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
 }
 
 interface ScheduledReminderSectionProps {
+  inline?: boolean;
   tokens: AppTokens;
   reminderEnabled: boolean;
   scheduledReminders:
@@ -61,6 +63,7 @@ interface ScheduledReminderSectionProps {
 
 export function ScheduledReminderSection({
   tokens,
+  inline = false,
   reminderEnabled,
   scheduledReminders,
   onToggleReminder,
@@ -211,9 +214,11 @@ export function ScheduledReminderSection({
                   onClear={() => setTime("")}
                 />
                 <View style={sectionStyles.timeControls}>
+                  {inline ? <PillButton variant="ghost" size="sm" disabled={!time} onClick={addScheduledReminder}>{t("common.add")}</PillButton> : (
                   <Pressable style={({ pressed }) => [sectionStyles.timeAddButton, !time && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]} disabled={!time} accessibilityRole="button" onPress={addScheduledReminder}>
                     <Text style={sectionStyles.timeAddButtonText}>{t("common.add")}</Text>
                   </Pressable>
+                  )}
                   <Pressable style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
                     <X size={16} color={tokens.fg3} strokeWidth={1.8} />
                   </Pressable>

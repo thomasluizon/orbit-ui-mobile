@@ -11,7 +11,7 @@ const digest = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")
 
 const USAGE = `usage: record-classifier-fixtures.mjs [--output <path>]
 
-  Records real Codex CLI structured responses for every ticket classifier replay case.
+  Records real Claude CLI structured responses for every ticket classifier replay case.
   --output <path>  output JSON path (default tools/__fixtures__/ticket-classifier-responses.json)
   --help, -h       print usage
 
@@ -37,13 +37,12 @@ let agreed = 0
 let failed = false
 for (const entry of cases) {
   const started = performance.now()
-  let events = ""
+  let outputJson = ""
   try {
-    const result = await recordClassification(entry.body, { onEvents: (stream) => { events = stream }, onResponse: (response) => { responses[entry.id] = response } })
+    const result = await recordClassification(entry.body, { onOutput: (response) => { outputJson = response }, onResponse: (response) => { responses[entry.id] = response } })
     responses[entry.id] = result.response
-    const event = events.trim().split("\n").map((line) => JSON.parse(line)).findLast((item) => item.type === "turn.completed")
-    const usage = event?.usage
-    if (!usage || !Number.isInteger(usage.input_tokens) || !Number.isInteger(usage.output_tokens)) throw new Error("Codex CLI returned no token usage")
+    const usage = JSON.parse(outputJson).usage
+    if (!usage || !Number.isInteger(usage.input_tokens) || !Number.isInteger(usage.output_tokens)) throw new Error("Claude CLI returned no token usage")
     const names = new Set(entry.labels.map((label) => typeof label === "string" ? label : label.name))
     const signals = names.has("needs:conversation") ? ["LABEL"] : names.has("needs:no-conversation") ? [] : result.classification.signals.map((item) => item.kind)
     const deferrals = result.classification.deferrals.map((item) => item.reason)
@@ -53,8 +52,9 @@ for (const entry of cases) {
     process.stdout.write(`${entry.id}: ${pass ? "PASS" : "FAIL"} ${Math.round(performance.now() - started)} ms input ${usage.input_tokens} output ${usage.output_tokens}${pass ? "" : ` expected ${JSON.stringify(entry.expected)} got ${JSON.stringify({ deferrals, signals })}`}\n`)
   } catch (error) {
     failed = true
-    const completed = events.trim().split("\n").flatMap((line) => { try { return [JSON.parse(line)] } catch { return [] } }).findLast((item) => item.type === "turn.completed")
-    process.stdout.write(`${entry.id}: FAIL ${Math.round(performance.now() - started)} ms input ${completed?.usage?.input_tokens ?? "n/a"} output ${completed?.usage?.output_tokens ?? "n/a"} ${error.message}\n`)
+    let usage
+    try { usage = JSON.parse(outputJson).usage } catch { usage = null }
+    process.stdout.write(`${entry.id}: FAIL ${Math.round(performance.now() - started)} ms input ${usage?.input_tokens ?? "n/a"} output ${usage?.output_tokens ?? "n/a"} ${error.message}\n`)
   }
 }
 await mkdir(dirname(output), { recursive: true })

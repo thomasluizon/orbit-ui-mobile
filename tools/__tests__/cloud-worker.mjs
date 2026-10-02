@@ -125,6 +125,19 @@ export const cases = async () => {
   const cloud = await import(pathToFileURL(toolPath("lib/cloud-worker.mjs")).href)
   const order = "Implement the ticket.\n"
   const completed = cloud.cloudOrder(order)
+  const architectureRule = "You may run `node tools/arch-map.mjs` to read the generated map. Never stage or commit `architecture.json`, `architecture.html` or `architecture.mmd`."
+  T(
+    "cloud-worker.mjs: submitted orders permit reading the architecture map and forbid committing generated artifacts",
+    completed.includes(architectureRule),
+    completed,
+  )
+  for (const artifact of ["architecture.json", "architecture.html", "architecture.mmd"]) {
+    T(
+      `cloud-worker.mjs: submitted orders have no other staging or commit instruction for ${artifact}`,
+      !completed.replace(architectureRule, "").split("\n").some((line) => line.includes(artifact) && /\b(?:stag(?:e|ed|ing)|commit(?:ted|ting)?)\b/i.test(line)),
+      completed,
+    )
+  }
   T(
     "cloud-worker.mjs: the commit requirement and loss consequence precede all Cloud finishing steps",
     cloud.CLOUD_FINISHING_CONTRACT.startsWith("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&

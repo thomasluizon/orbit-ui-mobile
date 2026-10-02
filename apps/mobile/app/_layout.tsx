@@ -492,9 +492,10 @@ function GlobalOverlays({
   )
   const pendingPro = useOnboardingProPending()
   const liveOnboardingActions = useLiveOnboardingActions()
+  const draftHydrated = useOnboardingDraftStore((state) => state._hasHydrated)
   const showRetainedOnboarding = useRetainedOnboardingGuard(
     profile,
-    pendingOnboardingAnswers,
+    pendingOnboardingAnswers || !draftHydrated,
     useOnboardingDraftStore((state) => state.pushRegistrationFailed),
   )
 
