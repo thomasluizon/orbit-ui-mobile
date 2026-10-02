@@ -75,9 +75,9 @@ function textContents(root: RenderedNode): string {
 
 describe.each(surfaces)('$name menu ownership', ({ trigger, content }) => {
   it.each(['open', 'exiting', 'reopened'])('replaces the %s surface menu with a habit menu and back', (phase) => {
-    const completions: ((result: { finished: boolean }) => void)[] = []
+    const completions: ((result: { finished: boolean; value: number; offset: number }) => void)[] = []
     vi.spyOn(TestAnimated, 'timing').mockImplementation(() => ({
-      start: (callback?: (result: { finished: boolean }) => void) => {
+      start: (callback?: (result: { finished: boolean; value: number; offset: number }) => void) => {
         if (callback) completions.push(callback)
       },
       stop: () => {},
@@ -104,7 +104,7 @@ describe.each(surfaces)('$name menu ownership', ({ trigger, content }) => {
       if (phase === 'reopened') {
         void TestRenderer.act(() => {
           surfaceTrigger.props.onPress()
-          completions.at(-1)!({ finished: true })
+          completions.at(-1)!({ finished: true, value: 0, offset: 0 })
         })
       }
       void TestRenderer.act(() => rowTrigger.props.onPress())
@@ -117,7 +117,7 @@ describe.each(surfaces)('$name menu ownership', ({ trigger, content }) => {
       if (phase === 'reopened') {
         void TestRenderer.act(() => {
           rowTrigger.props.onPress()
-          completions.at(-1)!({ finished: true })
+          completions.at(-1)!({ finished: true, value: 0, offset: 0 })
         })
       }
       void TestRenderer.act(() => surfaceTrigger.props.onPress())
@@ -125,7 +125,7 @@ describe.each(surfaces)('$name menu ownership', ({ trigger, content }) => {
       expect(textContents(renderer!.root)).toContain(content)
       expect(textContents(renderer!.root)).not.toContain('common.edit')
       void TestRenderer.act(() => {
-        for (const complete of completions) complete({ finished: true })
+        for (const complete of completions) complete({ finished: true, value: 0, offset: 0 })
       })
       expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
     } finally {

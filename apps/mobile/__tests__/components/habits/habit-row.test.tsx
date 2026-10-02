@@ -146,9 +146,9 @@ describe('HabitRow menu (mobile)', () => {
   })
 
   it.each(['open', 'exiting', 'reopened'])('replaces the first %s row menu without retaining its actions', (phase) => {
-    const completions: ((result: { finished: boolean }) => void)[] = []
+    const completions: ((result: { finished: boolean; value: number; offset: number }) => void)[] = []
     vi.spyOn(Animated, 'timing').mockImplementation(() => ({
-      start: (callback?: (result: { finished: boolean }) => void) => {
+      start: (callback?: (result: { finished: boolean; value: number; offset: number }) => void) => {
         if (callback) completions.push(callback)
       },
       stop: () => {},
@@ -172,7 +172,7 @@ describe('HabitRow menu (mobile)', () => {
     if (phase === 'reopened') {
       TestRenderer.act(() => {
         triggers[0].props.onPress()
-        completions[0]!({ finished: true })
+        completions[0]!({ finished: true, value: 0, offset: 0 })
       })
       expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
     }
@@ -181,7 +181,7 @@ describe('HabitRow menu (mobile)', () => {
     expect(collectStrings(renderer!.toJSON())).toContain('habits.deleteHabit')
     expect(collectStrings(renderer!.toJSON())).not.toContain('common.edit')
     TestRenderer.act(() => {
-      for (const complete of completions) complete({ finished: true })
+      for (const complete of completions) complete({ finished: true, value: 0, offset: 0 })
     })
     expect(renderer!.root.findAllByType('Modal')).toHaveLength(1)
     TestRenderer.act(() => renderer!.unmount())
