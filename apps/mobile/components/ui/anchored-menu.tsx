@@ -46,6 +46,7 @@ export interface AnchoredMenuController {
 export function useAnchoredMenu(): AnchoredMenuController {
   const anchorRef = useRef<View>(null)
   const ownsActiveMenu = useRef(false)
+  const currentOpenRevision = useRef(0)
   const [phase, setPhase] = useState<'closed' | 'open' | 'closing'>('closed')
   const [openRevision, setOpenRevision] = useState(0)
   const [anchorRect, setAnchorRect] = useState<MenuAnchorRect | null>(null)
@@ -72,22 +73,25 @@ export function useAnchoredMenu(): AnchoredMenuController {
     if (!ownsActiveMenu.current) activeMenuClose?.()
     ownsActiveMenu.current = true
     activeMenuClose = dismissImmediately
+    currentOpenRevision.current += 1
     setPhase('open')
-    setOpenRevision((revision) => revision + 1)
+    setOpenRevision(currentOpenRevision.current)
     measureAnchor()
   }, [dismissImmediately, measureAnchor])
 
   useEffect(() => () => {
     if (ownsActiveMenu.current) activeMenuClose = null
+    ownsActiveMenu.current = false
   }, [])
 
   const finishClose = useCallback(() => {
+    if (currentOpenRevision.current !== openRevision) return
     if (ownsActiveMenu.current) {
       ownsActiveMenu.current = false
       activeMenuClose = null
     }
     setPhase((current) => current === 'closing' ? 'closed' : current)
-  }, [])
+  }, [openRevision])
 
   const toggle = useCallback(() => {
     open()

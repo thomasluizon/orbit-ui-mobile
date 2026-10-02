@@ -46,6 +46,8 @@ export function Popover({
 
   const {
     isOpen: hookIsOpen,
+    isDismissed,
+    presenceRevision,
     open: hookOpen,
     close: hookClose,
     toggle: hookToggle,
@@ -55,7 +57,7 @@ export function Popover({
   } = usePopoverMenu({ placement, offset, margin })
   const wasOpenRef = useRef(false)
 
-  const isOpen = isControlled ? controlledOpen : hookIsOpen
+  const isOpen = !isDismissed && (isControlled ? controlledOpen : hookIsOpen)
 
   const close = isControlled
     ? () => onOpenChange?.(false)
@@ -167,7 +169,7 @@ export function Popover({
 
       {mounted &&
         createPortal(
-          <AnimatePresence>
+          <AnimatePresence key={presenceRevision}>
             {isOpen ? (
               <motion.div
                 ref={panelRef}

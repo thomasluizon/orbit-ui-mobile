@@ -27,6 +27,8 @@ export interface UsePopoverMenuOptions {
 
 export interface UsePopoverMenuReturn {
   isOpen: boolean
+  isDismissed: boolean
+  presenceRevision: number
   open: () => void
   close: () => void
   toggle: () => void
@@ -41,7 +43,9 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
   const triggerRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const ownsActiveMenu = useRef(false)
-  const [isOpen, setIsOpen] = useState(false)
+  const [phase, setPhase] = useState<'closed' | 'open' | 'dismissed'>('closed')
+  const isOpen = phase === 'open'
+  const [presenceRevision, setPresenceRevision] = useState(0)
   const [position, setPosition] = useState<PopoverPosition>({ top: 0, left: 0 })
 
   const computePosition = useCallback(() => {
@@ -105,20 +109,22 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
   }, [placement, offset, margin])
 
   const close = useCallback(() => {
-    if (ownsActiveMenu.current) {
-      ownsActiveMenu.current = false
-      activeMenuClose = null
-    }
-    setIsOpen(false)
+    setPhase((current) => current === 'dismissed' ? current : 'closed')
+  }, [])
+
+  const dismissImmediately = useCallback(() => {
+    ownsActiveMenu.current = false
+    setPhase('dismissed')
+    setPresenceRevision((revision) => revision + 1)
   }, [])
 
   const open = useCallback(() => {
     if (!ownsActiveMenu.current) activeMenuClose?.()
     ownsActiveMenu.current = true
-    activeMenuClose = close
+    activeMenuClose = dismissImmediately
     computePosition()
-    setIsOpen(true)
-  }, [close, computePosition])
+    setPhase('open')
+  }, [dismissImmediately, computePosition])
 
   const toggle = useCallback(() => {
     if (isOpen) {
@@ -171,5 +177,5 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     }
   }, [isOpen, close])
 
-  return { isOpen, open, close, toggle, triggerRef, panelRef, position }
+  return { isOpen, isDismissed: phase === 'dismissed', presenceRevision, open, close, toggle, triggerRef, panelRef, position }
 }
