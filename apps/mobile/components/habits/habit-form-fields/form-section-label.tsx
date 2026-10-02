@@ -10,5 +10,5 @@ export function FormSectionLabel({ children }: Readonly<{ children: ReactNode }>
 }
 
 const styles = StyleSheet.create({
-  label: { fontFamily: 'Geist_500Medium', fontSize: 14, marginBottom: 8 },
+  label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
 })

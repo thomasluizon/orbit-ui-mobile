@@ -147,7 +147,7 @@ interface EndDateEditorProps {
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
   if (!visible) return null
   return (
-    <View>
+    <View style={{ gap: 8 }}>
       <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
       <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
     </View>
@@ -175,7 +175,7 @@ function SlipAlertEditor({
 }: Readonly<SlipAlertEditorProps>) {
   if (!visible) return null
   return (
-    <View>
+    <View style={{ gap: 8 }}>
       <FormSectionLabel>{t('habits.form.slipAlert')}</FormSectionLabel>
       <SlipAlertSection inline tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
     </View>
@@ -190,7 +190,7 @@ function SubHabitSection({
   t,
 }: Readonly<SubHabitSectionProps>) {
   return (
-    <View>
+    <View style={{ gap: 8 }}>
       <FormSectionLabel>{t('habits.form.subHabits')}</FormSectionLabel>
       {canUseSubHabits ? (
         <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
@@ -445,7 +445,7 @@ export function HabitFormFields({
                 onClear={controller.clearDueTime}
               />
             </View>
-            <View>
+            <View style={{ gap: 8 }}>
               <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
@@ -460,7 +460,7 @@ export function HabitFormFields({
                 t={t}
               />
             </View>
-            <View>
+            <View style={{ gap: 8 }}>
               <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
               <HabitChecklist items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
               <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />

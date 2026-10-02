@@ -135,7 +135,7 @@ interface EndDateEditorProps {
 function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
   if (!visible) return null
   return (
-    <section>
+    <section className="flex flex-col gap-2">
       <FormSectionLabel>{t('habits.form.endDate')}</FormSectionLabel>
       <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
     </section>
@@ -159,7 +159,7 @@ function SlipAlertEditor({
 }: Readonly<SlipAlertEditorProps>) {
   if (!visible) return null
   return (
-    <section>
+    <section className="flex flex-col gap-2">
       <FormSectionLabel>{t('habits.form.slipAlert')}</FormSectionLabel>
       <SlipAlertSection inline hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} t={t} />
     </section>
@@ -174,7 +174,7 @@ function SubHabitSection({
   t,
 }: Readonly<SubHabitSectionProps>) {
   return (
-    <section>
+    <section className="flex flex-col gap-2">
       <FormSectionLabel>{t('habits.form.subHabits')}</FormSectionLabel>
       {canUseSubHabits ? (
         <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
@@ -444,7 +444,7 @@ export function HabitFormFields({
               />
             </section>
 
-            <section>
+            <section className="flex flex-col gap-2">
               <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
@@ -459,7 +459,7 @@ export function HabitFormFields({
               />
             </section>
 
-            <section>
+            <section className="flex flex-col gap-2">
               <FormSectionLabel>{t('habits.form.checklist')}</FormSectionLabel>
               <HabitChecklist
                 items={checklistItems}
