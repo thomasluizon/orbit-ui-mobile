@@ -17,11 +17,12 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface TodayAstraProps {
+  today: string
   isTodaySelected: boolean
   suppressed: boolean
 }
 
-export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
+export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<TodayAstraProps>) {
   const { t } = useTranslation()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -35,7 +36,7 @@ export function TodayAstra({ isTodaySelected, suppressed }: Readonly<TodayAstraP
   const atMessageLimit = profile != null && profile.aiMessagesUsed >= profile.aiMessagesLimit
   const returning = getReturningInterval(profile?.lastCompletionDate, profile?.timeZone)
   const proactive = shouldShowTodayAstraLine({ isTodaySelected, inDrillOrSurface: suppressed, isOnline: offline.isOnline, atLimit: atMessageLimit })
-    ? selectNewestUnreadProactiveCheckin(notifications)
+    ? selectNewestUnreadProactiveCheckin(notifications, today, profile?.timeZone)
     : null
 
   const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })

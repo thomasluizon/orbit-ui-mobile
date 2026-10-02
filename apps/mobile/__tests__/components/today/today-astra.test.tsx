@@ -1,5 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { StyleSheet, Text } from 'react-native'
 import Yoga from 'yoga-layout'
@@ -64,7 +66,7 @@ async function renderTodayAstra(): Promise<ReactTestRenderer> {
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(
       <Shell412 tabBar={React.createElement('TabBar')}>
-        <TodayAstra isTodaySelected suppressed={false} />
+        <TodayAstra today={formatAPIDateInTimeZone(new Date(), mocks.profile.timeZone)} isTodaySelected suppressed={false} />
       </Shell412>,
     )
     await Promise.resolve()
@@ -176,6 +178,21 @@ describe('mobile Today Astra', () => {
     }
   })
 
+  it.each([
+    ['23:59 yesterday locally', '2026-08-29T02:59:00Z', false, false],
+    ['00:01 today locally', '2026-08-29T03:01:00Z', false, true],
+    ['read today', '2026-08-29T03:01:00Z', true, false],
+  ])('filters the proactive line using the profile timezone: %s', async (_scenario, createdAtUtc, isRead, visible) => {
+    mocks.profile.timeZone = 'America/Sao_Paulo'
+    vi.setSystemTime(new Date('2026-08-29T03:02:00Z'))
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc, isRead })]
+
+    const tree = await renderTodayAstra()
+
+    expect(hasText(tree, 'Check in')).toBe(visible)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link').length > 0).toBe(visible)
+  })
+
   it('renders a proactive check-in and opens its conversation', async () => {
     mocks.notifications = [{
       id: 'check-in',
@@ -249,7 +266,7 @@ describe('mobile Today Astra', () => {
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <Shell412 tabBar={React.createElement('TabBar')}>
-          <TodayAstra isTodaySelected suppressed={false} />
+          <TodayAstra today={formatAPIDateInTimeZone(new Date(), mocks.profile.timeZone)} isTodaySelected suppressed={false} />
           {Array.from({ length: 50 }, (_, index) => React.createElement('HabitRow', { key: index }))}
         </Shell412>,
       )

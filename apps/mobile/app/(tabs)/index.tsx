@@ -182,6 +182,7 @@ function TodayScreenContent() {
       <ScreenReaderHeading title={t('nav.today')} />
       {todayFocused ? (
         <TodayAstra
+          today={date.today}
           isTodaySelected={date.dateStr === date.today}
           suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data)}
         />

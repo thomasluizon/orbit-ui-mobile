@@ -112,6 +112,7 @@ function TodayPageContent({ initialToday, initialHabits, preloadedProfile }: Rea
     <div className="relative mx-auto w-full max-w-[740px]">
       <TodayDayTransition date={view.nav.dateStr}>
         <TodayAstra
+          today={view.nav.today}
           isTodaySelected={view.nav.dateStr === view.nav.today}
           suppressed={view.isSelectMode || view.showCreateModal || view.listSurfaceOpen || view.data.isFetching || view.data.showLoadError}
         />
