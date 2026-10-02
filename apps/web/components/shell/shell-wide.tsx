@@ -115,8 +115,9 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
       className="z-sticky hidden h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex"
     >
       <div className="flex flex-col gap-6">
-        <div className="flex h-11 items-center">
+        <div className="flex min-h-12 items-center justify-between">
           <Lockup />
+          {props.notifications}
         </div>
 
         {props.onPalette ? (

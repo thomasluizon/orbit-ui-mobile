@@ -1,7 +1,6 @@
 
-import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
-import { View, ScrollView, StyleSheet } from 'react-native'
+import { Pressable, ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -13,9 +12,9 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { PageHeader } from '@/components/ui/page-header'
-import { Button } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { NotificationBellDisplay } from './notification-bell'
+import { MoreVertical } from '@/components/ui/icons'
+import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationList } from './notification-list'
 
@@ -33,6 +32,7 @@ export function NotificationInbox() {
   const [selected, setSelected] = useState<NotificationItem | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const menu = useAnchoredMenu()
 
   function requestDeleteNotification(item: NotificationItem) {
     queuePendingNotificationDelete(item.id, () => deleteNotification.mutateAsync(item.id))
@@ -41,17 +41,22 @@ export function NotificationInbox() {
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: tokens.bg }]}>
       <PageHeader title={t('notifications.title')} backLabel={t('common.back')}
-        onBack={() => goBack('/')} action={<NotificationBellDisplay count={inbox.visibleUnreadCount} />}
-        footer={inbox.visibleUnreadCount > 0 || inbox.visibleNotifications.length > 0 ? <View style={styles.actions}><ActionRow>
-          {inbox.visibleUnreadCount > 0 ? (
-            /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:206 (D42) */
-            <Button variant="ghost" size="sm" accessibleName={t('notifications.markAllRead')}
-              onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button>
-          ) : null}
-          {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.deleteAll')}
-            onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
-        </ActionRow></View> : undefined}
-      />
+        onBack={() => goBack('/')} action={inbox.visibleNotifications.length > 0 ? <MenuAnchorHost anchorRef={menu.anchorRef}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.options')}
+            accessibilityState={{ expanded: menu.visible }} onPress={menu.toggle}
+            style={({ pressed }) => [styles.options, pressed && { backgroundColor: tokens.bgHover }]}>
+            <MoreVertical size={20} color={tokens.fg2} />
+          </Pressable>
+        </MenuAnchorHost> : undefined} />
+      <Menu open={menu.visible} anchorRef={menu.anchorRef} title={t('notifications.options')}
+        items={[
+          ...(inbox.visibleUnreadCount > 0 ? [{ id: 'read', label: t('notifications.markAllRead'), icon: 'check' }] : []),
+          ...(inbox.visibleNotifications.length > 0 ? [{ id: 'clear', label: t('notifications.deleteAll'), icon: 'trash', destructive: true }] : []),
+        ]}
+        onClose={menu.close} onSelect={(id) => {
+          if (id === 'read') markAllAsRead.mutate()
+          else if (id === 'clear') setConfirmOpen(true)
+        }} />
       <ScrollView style={styles.scroller} contentContainerStyle={{ paddingBottom: clearance }}>
         <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
           onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
@@ -77,6 +82,6 @@ export function NotificationInbox() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center' },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingBottom: 8 },
+  options: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   scroller: { flex: 1 },
 })

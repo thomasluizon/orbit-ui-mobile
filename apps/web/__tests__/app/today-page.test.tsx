@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, within, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -14,7 +14,7 @@ import { Icon } from '@/components/ui/icon'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { useUIStore } from '@/stores/ui-store'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }))
 
 const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   locale: string
@@ -39,8 +39,7 @@ vi.mock('@/components/ui/icons', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/icons')>()),
   ChevronLeft: () => null,
   ChevronRight: () => null,
-  MoreVertical: () => null,
-  AdjustmentsHorizontal: () => <svg data-testid="adjustments-icon" />,
+  MoreVertical: () => <svg data-testid="adjustments-icon" />,
 }))
 
 vi.mock('@/components/ui/menu', () => ({
@@ -245,28 +244,28 @@ describe('Hoje date control', () => {
   })
 
   it('shows the day name over the numeric date', () => {
-    render(<TodayDateControl {...baseProps} />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
     expect(screen.getByText('Wednesday')).not.toHaveClass('truncate')
     expect(screen.getByText('08/04/2026')).toBeInTheDocument()
     expect(screen.getByText('Wednesday').parentElement).toHaveAttribute('title', 'Wednesday, 08/04/2026')
     expect(screen.getByText('Wednesday').parentElement).not.toHaveClass('text-center')
-    expect(screen.getByText('Wednesday').parentElement).toHaveClass('flex-[1_0_auto]', 'max-w-full')
-    expect(screen.getByRole('button', { name: 'Previous day' }).parentElement).toHaveClass('flex-wrap')
-    expect(screen.getByText('Wednesday')).toHaveClass('font-display', 'text-[22px]')
+    expect(screen.getByText('Wednesday').parentElement).toHaveClass('shrink-0', 'grow-0')
+    expect(screen.getByRole('button', { name: 'Previous day' }).parentElement).not.toHaveClass('flex-wrap')
+    expect(screen.getByText('Wednesday')).toHaveClass('font-display', 'text-[1.375rem]')
   })
 
   it('opens search from the compact date row', () => {
     const onSearch = vi.fn()
-    render(<TodayDateControl {...baseProps} onSearch={onSearch} />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} onSearch={onSearch} /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(onSearch).toHaveBeenCalledTimes(1)
   })
 
   it('shows the jump only away from today', () => {
     const onGoToToday = vi.fn()
-    render(<TodayDateControl {...baseProps} isTodaySelected={false} onGoToToday={onGoToToday} />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isTodaySelected={false} onGoToToday={onGoToToday} /></NextIntlClientProvider>)
     const jump = screen.getByRole('button', { name: 'Go to today' })
-    expect(jump.previousElementSibling).toBe(screen.getByRole('button', { name: 'Next day' }))
+    expect(jump.parentElement).not.toBe(screen.getByRole('button', { name: 'Next day' }).parentElement)
     expect(jump).toHaveAttribute('data-variant', 'ghost')
     expect(jump).toHaveAttribute('data-size', 'sm')
     fireEvent.click(jump)
@@ -274,23 +273,23 @@ describe('Hoje date control', () => {
   })
 
   it('lets an off-today date keep its preferred width as controls wrap at 400px and enlarged text', () => {
-    render(<TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} dayName="Quarta-feira" isTodaySelected={false} /></NextIntlClientProvider>)
     const date = screen.getByText('Quarta-feira').parentElement
     const row = screen.getByRole('button', { name: 'Previous day' }).parentElement
-    expect(row).toHaveClass('flex-wrap')
+    expect(row).not.toHaveClass('flex-wrap')
     expect(row).not.toHaveClass('max-[399px]:flex-wrap')
-    expect(date).toHaveClass('flex-[1_0_auto]', 'max-w-full')
+    expect(date).toHaveClass('shrink-0', 'grow-0')
     expect(date).not.toHaveClass('max-[399px]:min-w-[150px]')
     expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
   })
 
   it('disables the forward step at the instance horizon', () => {
-    render(<TodayDateControl {...baseProps} nextDisabled />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} nextDisabled /></NextIntlClientProvider>)
     expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled()
   })
 
   it('keeps the date arrows on the control hover token and duration', () => {
-    render(<TodayDateControl {...baseProps} />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
 
     for (const name of ['Previous day', 'Next day']) {
       const className = screen.getByRole('button', { name }).className
@@ -300,7 +299,7 @@ describe('Hoje date control', () => {
   })
 
   it('connects the list options button to its menu', async () => {
-    render(<TodayDateControl {...baseProps} />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
     const button = screen.getByRole('button', { name: 'List options' })
     fireEvent.click(button)
     expect(await screen.findByRole('menu')).toBeInTheDocument()
@@ -529,7 +528,7 @@ describe('Hoje date control', () => {
   })
 
   it('opens the four list actions from the date row', () => {
-    render(<TodayDateControl {...baseProps} />)
+    render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: 'List options' }))
 
     expect(screen.getByTestId('adjustments-icon')).toBeInTheDocument()
@@ -551,7 +550,7 @@ describe('Hoje date control', () => {
       refreshLabel: labels.refresh,
       completedLabel: labels.showCompleted,
     }
-    const { rerender } = render(<TodayDateControl {...controlProps} />)
+    const { rerender } = render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...controlProps} /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: labels.listOptions }))
     const menu = screen.getByRole('menu', { name: labels.listOptions })
     expect(menu).toBeInTheDocument()
@@ -564,8 +563,18 @@ describe('Hoje date control', () => {
       const item = screen.getByRole('menuitem', { name: label })
       expect(item.querySelector(`[data-icon="${glyph}"] svg`)).toBeInTheDocument()
     }
-    rerender(<TodayDateControl {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} />)
+    rerender(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...controlProps} allCollapsed showCompleted collapseLabel={labels.expandAll} completedLabel={labels.hideCompleted} /></NextIntlClientProvider>)
     expect(screen.getByRole('menuitem', { name: labels.expandAll }).querySelector('[data-icon="chevrons-down"] svg')).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: labels.hideCompleted }).querySelector('[data-icon="eye-off"] svg')).toBeInTheDocument()
   })
+})
+
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+
+it('separates the header actions from the grouped date arrows', () => {
+  render(<NextIntlClientProvider locale="en" messages={en}><TodayDateControl {...baseProps} isTodaySelected={false} /></NextIntlClientProvider>)
+  const row = screen.getByRole('button', { name: 'Previous day' }).parentElement!
+  expect(row).not.toContainElement(screen.getByRole('button', { name: 'Search' }))
+  expect(within(row).getAllByRole('button')).toHaveLength(2)
+  expect(screen.getByRole('button', { name: 'Alerts' })).toBeInTheDocument()
 })

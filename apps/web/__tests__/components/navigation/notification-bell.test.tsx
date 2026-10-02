@@ -12,6 +12,7 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+import { ShellWide } from '@/components/shell/shell-wide'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
@@ -108,16 +109,16 @@ describe('alerts', () => {
     const back = screen.getByRole('button', { name: en.common.back })
     const list = screen.getByRole('list', { name: en.notifications.title })
     expect(heading.parentElement).toHaveClass('ps-2', 'gap-2')
-    expect(back).toHaveClass('size-11')
-    expect(list.parentElement).toHaveClass('lg:ms-12', 'lg:ps-3')
+    expect(back).toHaveClass('min-h-12', 'w-12')
+    expect(list.parentElement).toHaveClass('lg:ms-12', 'lg:ps-4')
     expect(list).toHaveClass('lg:max-w-[560px]', 'lg:px-0')
     const wideRule = (selector: string, property: string) => layoutRules.find((rule) =>
       rule.selector === selector && rule.media === '(width >= 64rem)',
     )?.declarations[property]
     expect(1352).toBeGreaterThan(1024)
     expect(wideRule('.lg\\:ms-12', 'margin-inline-start')).toBe('calc(var(--spacing) * 12)')
-    expect(wideRule('.lg\\:ps-3', 'padding-inline-start')).toBe('calc(var(--spacing) * 3)')
-    expect(12 * 4 + 3 * 4).toBe(8 + 44 + 8)
+    expect(wideRule('.lg\\:ps-4', 'padding-inline-start')).toBe('calc(var(--spacing) * 4)')
+    expect(12 * 4 + 4 * 4).toBe(8 + 48 + 8)
     expect(wideRule('.lg\\:max-w-\\[560px\\]', 'max-width')).toBe('560px')
     expect(wideRule('.lg\\:px-0', 'padding-inline')).toBe('0px')
   })
@@ -213,10 +214,11 @@ describe('alerts', () => {
     seed(1)
     showInbox()
     expect(screen.getByRole('button', { name: 'Delete: Alert 0' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
     for (const name of [en.notifications.markAllRead, en.notifications.deleteAll]) {
-      expect(screen.getByRole('button', { name })).toHaveAttribute('data-variant', 'ghost')
-      expect(screen.getByRole('button', { name })).toHaveAttribute('data-size', 'sm')
+      expect(screen.getByRole('menuitem', { name })).toBeInTheDocument()
     }
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'close-overlay' }))
     fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: en.notifications.markAsRead })).toHaveAttribute('data-variant', 'ghost')
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'destructive')
@@ -230,7 +232,9 @@ describe('alerts', () => {
     seed(1)
     showInbox()
 
-    expect(screen.getByRole('button', { name: bulkLabel })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: state.locale === 'en' ? en.notifications.options : pt.notifications.options }))
+    expect(screen.getByRole('menuitem', { name: bulkLabel })).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'close-overlay' }))
     fireEvent.click(screen.getByRole('button', { name: /^Alert 0\./ }))
     expect(
       within(screen.getByRole('dialog')).getByRole('button', { name: singleLabel }),
@@ -249,32 +253,16 @@ describe('alerts', () => {
     expect(notice).toHaveAttribute('data-kind', 'neutral')
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
   })
-  it.each(['en', 'pt-BR'])('keeps the inbox header count passive and updates it from inbox state in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('renders the inbox bell once in the wide sidebar in %s', (locale) => {
     state.locale = locale
     state.pathname = '/notifications'
     seed(2)
     const messages = locale === 'en' ? en : pt
-    const view = showInbox()
-    const expectCount = (count: number) => {
-      const label = messages.notifications.bellWithCount.replace('{count}', String(count))
-      expect(screen.queryByRole('button', { name: label })).toBeNull()
-      const indicator = screen.getByRole('img', { name: label })
-      expect(indicator).not.toHaveAttribute('tabindex')
-      expect(indicator.querySelector('[data-notification-count]')).toHaveTextContent(String(count))
-    }
-    expectCount(2)
-    deleteFromSheet('Alert 0')
-    expectCount(1)
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteUndo }))
-    expectCount(2)
-    state.unreadCount = 4
-    view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
-    expectCount(4)
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.markAllRead }))
-    view.rerender(<NotificationInbox />)
-    expect(view.container.querySelector('[data-notification-count]')).toBeNull()
-    expect(screen.getByRole('img', { name: messages.notifications.bell })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: messages.notifications.bell })).toBeNull()
+    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" notifications={<NotificationBell />}><NotificationInbox /></ShellWide>)
+    const indicators = screen.getAllByRole('img', { name: messages.notifications.bellWithCount.replace('{count}', '2') })
+    expect(indicators).toHaveLength(1)
+    expect(container.querySelector('[data-shell-sidebar]')).toContainElement(indicators[0]!)
+    expect(container.querySelector('section [data-notification-count]')).toBeNull()
   })
   it('renders the standalone bell passively on the current inbox route', () => {
     state.pathname = '/notifications'
@@ -368,11 +356,12 @@ describe('alerts', () => {
   it('marks all read and removes the header action at zero', () => {
     seed(2)
     const view = showInbox()
-    fireEvent.click(screen.getByRole('button', { name: en.notifications.markAllRead }))
+    chooseInboxAction(en.notifications.markAllRead)
     view.rerender(<NotificationInbox />)
     expect(screen.queryByRole('button', { name: en.notifications.markAllRead })).toBeNull()
     expect(screen.getAllByRole('button', { name: /Alert \d. read/ })).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.notifications.options }))
+    expect(screen.getByRole('menuitem', { name: 'Clear all' })).toBeInTheDocument()
   })
 
   it('deletes through the sibling row action and offers undo until its delete commits', () => {
@@ -408,13 +397,13 @@ describe('alerts', () => {
     seed(50)
     const messages = locale === 'en' ? en : pt
     const view = showInbox()
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
+    chooseInboxAction(messages.notifications.deleteAll)
     expect(screen.getByText(confirmBody)).toBeInTheDocument()
     expect(state.clear).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
     expect(screen.getAllByRole('listitem')).toHaveLength(50)
     deleteFromSheet('Alert 0')
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
+    chooseInboxAction(messages.notifications.deleteAll)
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAllAction }))
     view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
     expect(screen.getByText(messages.notifications.empty)).toBeInTheDocument()
@@ -431,7 +420,7 @@ describe('alerts', () => {
     seed(1)
     const messages = locale === 'en' ? en : pt
     showInbox()
-    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
+    chooseInboxAction(messages.notifications.deleteAll)
     expect(screen.getByText(confirmBody)).toBeInTheDocument()
   })
 
@@ -484,3 +473,9 @@ describe('alerts', () => {
     expect(screen.getByText(metadata, { exact: true }).textContent).toBe(metadata)
   })
 })
+
+function chooseInboxAction(label: string) {
+  const messages = state.locale === 'en' ? en : pt
+  fireEvent.click(screen.getByRole('button', { name: messages.notifications.options }))
+  fireEvent.click(screen.getByRole('menuitem', { name: label }))
+}

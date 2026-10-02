@@ -30,8 +30,8 @@ export function NotificationBellDisplay({ count, onClick }: { count: number; onC
   </>
   return onClick ? <button type="button" aria-label={label}
     style={{ transition: 'background-color var(--dur-hover-control) var(--ease-standard)' }}
-    className="relative grid size-11 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-[var(--fg-2)] hover:bg-[var(--bg-hover)]"
+    className="relative grid min-h-12 w-12 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-[var(--fg-2)] hover:bg-[var(--bg-hover)]"
     onClick={onClick}>{content}</button>
     : <span role="img" aria-label={label}
-      className="relative grid size-11 shrink-0 place-items-center text-[var(--fg-2)]">{content}</span>
+      className="relative grid min-h-12 w-12 shrink-0 place-items-center text-[var(--fg-2)]">{content}</span>
 }

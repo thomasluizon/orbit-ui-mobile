@@ -23,7 +23,7 @@ type ConversationSlot =
 interface Shell412Base {
   children?: React.ReactNode
   /** PINNED above the scroller: it does not scroll with the content. A screen with no header passes
-   *  nothing and the scroller takes the full height, which is what Hoje does. */
+   *  nothing and the scroller takes the full height. */
   header?: React.ReactNode
   /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. A toast
    *  or a celebration rides here so it cannot evict Astra's front door (D69). */

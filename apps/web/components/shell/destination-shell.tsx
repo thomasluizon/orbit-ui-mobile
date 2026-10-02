@@ -20,6 +20,7 @@ import { resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
+import { NotificationBell } from '@/components/navigation/notification-bell'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -290,6 +291,7 @@ function DestinationShellContent({
         {...wideCreate}
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
+        notifications={wide ? <NotificationBell /> : undefined}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}

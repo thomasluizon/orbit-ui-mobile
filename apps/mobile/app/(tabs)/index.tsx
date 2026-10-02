@@ -188,6 +188,8 @@ function TodayScreenContent() {
         />
       ) : null}
       <TodayDateControl
+        headerActive={todayFocused}
+        shortDayName={date.shortDayName}
         searchLabel={t('habits.search.title')}
         onSearch={() => router.push('/search')}
         dayName={date.dayName}

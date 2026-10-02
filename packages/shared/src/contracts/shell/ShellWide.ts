@@ -74,6 +74,7 @@ export type ShellWideNavProps = ShellWideBase &
     navLabel: string
     /** The account row at the foot of the sidebar. */
     account?: string
+    notifications?: React.ReactNode
     /** Astra's front door, pinned to the bottom of the 740 main column, matching the mobile
      *  placement. THE COMPOSER AND NOTHING ELSE: transient chrome goes in `notice`, above it. */
     composer?: React.ReactNode
@@ -92,6 +93,7 @@ export type ShellWideNoNavProps = ShellWideBase &
     onCreate?: never
     createLabel?: never
     account?: never
+    notifications?: never
     onPalette?: never
     paletteLabel?: never
     paletteHint?: never

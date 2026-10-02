@@ -54,7 +54,7 @@ vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 
 type Node = {
   type: unknown
-  props: { accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onFocus?: () => void; onBlur?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
+  props: { onClose?: () => void; title?: string; accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onFocus?: () => void; onBlur?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
   parent: Node | null
   findAll: (predicate: (node: Node) => boolean) => Node[]
 }
@@ -75,6 +75,10 @@ function deleteFromSheet(tree: Tree, title: string, target = 'Progress') {
   press(tree, state.locale === 'en' ? en.notifications.delete : pt.notifications.delete)
 }
 function press(tree: Tree, label: string) {
+  const messages = state.locale === 'en' ? en : pt
+  if ([messages.notifications.markAllRead, messages.notifications.deleteAll].includes(label) && hosts(tree, 'Pressable', label).length === 0 && text(tree, label).length === 0) {
+    press(tree, messages.notifications.options)
+  }
   const button = hosts(tree, 'Pressable', label)[0] ?? hosts(tree, 'Pressable').find(
     (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
   )
@@ -226,9 +230,11 @@ describe('mobile alerts', () => {
     const action = (label: string) => hosts(tree, 'Pressable').find(
       (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
     )!
+    press(tree, en.notifications.options)
     for (const label of [en.notifications.markAllRead, en.notifications.deleteAll]) {
-      expect(action(label).props.testID).toBe('button-ghost-sm')
+      expect(action(label).props.accessibilityRole).toBe('menuitem')
     }
+    press(tree, 'attempt-dismiss')
     press(tree, 'Alert 0. unread. Progress')
     expect(action(en.notifications.markAsRead).props.testID).toBe('button-ghost-sm')
     expect(action('Delete').props.testID).toBe('button-destructive-sm')
@@ -276,7 +282,9 @@ describe('mobile alerts', () => {
     const tree = render()
     const messages = locale === 'en' ? en : pt
 
-    expect(hosts(tree, 'Pressable', bulkLabel)).toHaveLength(1)
+    press(tree, messages.notifications.options)
+    expect(text(tree, bulkLabel)).toHaveLength(1)
+    press(tree, 'attempt-dismiss')
     press(tree, `Alert 0. ${messages.notifications.unread}. ${messages.nav.progress}`)
     const singleActions = hosts(tree, 'Pressable').filter((node) =>
       node.findAll(
@@ -297,36 +305,14 @@ describe('mobile alerts', () => {
     expect(icons[0]!.props).toMatchObject({ size: 20, color: createTokensV2('purple', 'dark').fg2 })
     expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(1)
   })
-  it.each(['en', 'pt-BR'])('keeps the inbox header count passive and updates it from inbox state in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('omits the on-page inbox bell in %s', (locale) => {
     state.locale = locale
     state.pathname = '/notifications'
     seed(2)
-    const messages = locale === 'en' ? en : pt
     const tree = render()
-    const expectCount = (count: number) => {
-      const label = messages.notifications.bellWithCount.replace('{count}', String(count))
-      expect(hosts(tree, 'Pressable', label)).toHaveLength(0)
-      const indicator = hosts(tree, 'View', label)[0]!
-      expect(indicator.props).toMatchObject({ accessible: true, accessibilityRole: 'image' })
-      expect(indicator.props.onPress).toBeUndefined()
-      const displayStyle = StyleSheet.flatten(indicator.props.style as StyleProp<ViewStyle>)
-      expect(displayStyle.overflow).not.toBe('hidden')
-      expect(displayStyle.borderRadius).not.toBe(999)
-      expect(testId(tree, 'notification-count')[0]!.props.children).toBe(count)
-    }
-    expectCount(2)
-    deleteFromSheet(tree, 'Alert 0')
-    expectCount(1)
-    press(tree, messages.notifications.deleteUndo)
-    expectCount(2)
-    state.unreadCount = 4
-    refresh(tree)
-    expectCount(4)
-    press(tree, messages.notifications.markAllRead)
-    refresh(tree)
     expect(testId(tree, 'notification-count')).toHaveLength(0)
-    expect(hosts(tree, 'View', messages.notifications.bell)[0]!.props.accessibilityRole).toBe('image')
-    expect(hosts(tree, 'Pressable', messages.notifications.bell)).toHaveLength(0)
+    press(tree, locale === 'en' ? en.notifications.options : pt.notifications.options)
+    expect(text(tree, locale === 'en' ? en.notifications.markAllRead : pt.notifications.markAllRead)).toHaveLength(1)
   })
   it('renders the standalone bell passively on the current inbox route', () => {
     state.pathname = '/notifications'
@@ -421,7 +407,8 @@ describe('mobile alerts', () => {
     refresh(tree)
     expect(hosts(tree, 'Pressable', en.notifications.markAllRead)).toHaveLength(0)
     expect(testId(tree, 'notification-read')).toHaveLength(2)
-    expect(hosts(tree, 'Pressable', 'Clear all')).toHaveLength(1)
+    press(tree, en.notifications.options)
+    expect(text(tree, 'Clear all')).toHaveLength(1)
   })
   it.each(['en', 'pt-BR'])('deletes through the sibling row action with Undo in %s', (locale) => {
     state.locale = locale

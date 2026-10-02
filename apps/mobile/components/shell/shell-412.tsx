@@ -7,6 +7,7 @@ import { zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
+import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
@@ -58,6 +59,8 @@ function ShellBottomChrome({
 }
 
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
+  const registeredHeader = useShellHeaderHost()
+  const header = registeredHeader.content ?? props.header
   const registeredComposer = useShellComposerHost()
   const registeredNotice = useShellNoticeHost()
   const navigationEnabled = props.nav !== false
@@ -101,8 +104,8 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         style={[styles.background, { width: columnWidth, paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
         importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
       >
-        {props.header !== undefined ? (
-          <View testID="shell-header">{props.header}</View>
+        {header !== undefined ? (
+          <View testID="shell-header">{header}</View>
         ) : null}
 
         <View testID="shell-scroller" style={styles.scroller}>
@@ -138,6 +141,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   )
 
   return (
+    <ShellHeaderSlotProvider value={registeredHeader.value}>
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotProvider value={registeredComposer.value}>
         <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
@@ -147,6 +151,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         </KeyboardAwareView>
       </ShellComposerSlotProvider>
     </ShellNoticeSlotProvider>
+    </ShellHeaderSlotProvider>
   )
 }
 

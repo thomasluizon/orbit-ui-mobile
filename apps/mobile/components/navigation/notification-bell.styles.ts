@@ -4,11 +4,11 @@ import type { createTokensV2 } from '@/lib/theme'
 export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     bellDisplay: {
-      width: 44, height: 44,
+      width: 48, minHeight: 48,
       alignItems: 'center', justifyContent: 'center',
     },
     bellButton: {
-      width: 44, height: 44, borderRadius: 999, overflow: 'hidden',
+      width: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden',
       alignItems: 'center', justifyContent: 'center',
     },
     countMarker: { position: 'absolute', top: 0, right: 0 },
