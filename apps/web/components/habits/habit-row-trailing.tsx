@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { MoreVertical } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -11,8 +11,6 @@ import { CheckCircle } from './habit-row-check-circle'
 import type { HabitRowActions } from './habit-row'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
-
-let activeHabitMenuClose: (() => void) | null = null
 
 function completionIsDisabled(completionReadOnly: boolean, canLog: boolean, isDone: boolean): boolean {
   return completionReadOnly || (!canLog && !isDone)
@@ -193,24 +191,9 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
     onDrillInto,
   } = actions
   const [menuOpen, setMenuOpen] = useState(false)
-  const ownsActiveMenu = useRef(false)
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
-  const closeMenu = useCallback(() => {
-    if (ownsActiveMenu.current) {
-      ownsActiveMenu.current = false
-      activeHabitMenuClose = null
-    }
-    setMenuOpen(false)
-  }, [])
-  const openMenu = useCallback(() => {
-    if (!ownsActiveMenu.current) activeHabitMenuClose?.()
-    ownsActiveMenu.current = true
-    activeHabitMenuClose = closeMenu
-    setMenuOpen(true)
-  }, [closeMenu])
-  useEffect(() => () => {
-    if (ownsActiveMenu.current) activeHabitMenuClose = null
-  }, [])
+  const closeMenu = () => setMenuOpen(false)
+  const openMenu = () => setMenuOpen(true)
   const menuId = useId()
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess, completionReadOnly, state)
 

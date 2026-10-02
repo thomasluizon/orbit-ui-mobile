@@ -21,6 +21,8 @@ const AnchoredPopover = dynamic(
   { ssr: false },
 )
 
+let activeMenuDismiss: (() => void) | null = null
+
 const DEFAULT_WIDE_FROM = 900
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
 const TAB_STOP_SELECTOR = 'a[href], button, input, select, textarea, [tabindex]'
@@ -145,6 +147,29 @@ function adjacentTabStop(
   return null
 }
 
+function useMenuOwnership(open: boolean, onClose: (() => void) | undefined, restoreFocusRef: RefObject<boolean>) {
+  const [visibility, setVisibility] = useState({ open, dismissed: false })
+  if (visibility.open !== open) setVisibility({ open, dismissed: false })
+  const dismissed = visibility.open === open && visibility.dismissed
+  const dismissMenu = useEffectEvent(() => {
+    restoreFocusRef.current = false
+    setVisibility({ open, dismissed: true })
+    onClose?.()
+  })
+
+  useEffect(() => {
+    if (!open || dismissed) return
+    const dismiss = () => dismissMenu()
+    activeMenuDismiss?.()
+    activeMenuDismiss = dismiss
+    return () => {
+      if (activeMenuDismiss === dismiss) activeMenuDismiss = null
+    }
+  }, [open, dismissed])
+
+  return dismissed
+}
+
 /** One overflow menu. Width, never platform or caller identity, chooses its presentation. */
 export function Menu({
   id,
@@ -162,6 +187,7 @@ export function Menu({
   const panelRef = useRef<HTMLDivElement>(null)
   const focusReturnTargetRef = useRef<HTMLElement | null>(null)
   const restoreFocusOnCleanupRef = useRef(true)
+  const dismissed = useMenuOwnership(open && items.length > 0, onClose, restoreFocusOnCleanupRef)
   const portalTarget = useSyncExternalStore(
     subscribeToPortalTarget,
     getPortalTarget,
@@ -172,7 +198,7 @@ export function Menu({
   const closeMenu = useEffectEvent(() => onClose?.())
 
   useEffect(() => {
-    if (!open || resolvedPresentation !== 'anchored') return
+    if (!open || dismissed || resolvedPresentation !== 'anchored') return
     const anchor = anchorElement(anchorRef)
     const activeElement = activeFocusReturnTarget()
     const focusReturnTarget = activeElement && anchor?.contains(activeElement) ? activeElement : anchor
@@ -202,7 +228,7 @@ export function Menu({
       if (restoreFocusOnCleanupRef.current) focusReturnTarget?.focus()
       focusReturnTargetRef.current = null
     }
-  }, [anchorRef, open, resolvedPresentation])
+  }, [anchorRef, dismissed, open, resolvedPresentation])
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'Tab') {
@@ -230,7 +256,7 @@ export function Menu({
     buttons[nextIndex]?.focus()
   }
 
-  if (!open || items.length === 0) return null
+  if (!open || dismissed || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
     return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} />
