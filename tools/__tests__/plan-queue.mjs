@@ -118,7 +118,7 @@ export const classifyConversationFirst = async (body) => body.includes("STUB_CLA
   const failedCli = stage("plan-queue/classifier-failed-cli.mjs", "#!/usr/bin/env node\nprocess.exit(1)\n")
   chmodSync(failedCli, 0o755)
   const labeledClassifier = ticket("ORB-1", { body: "## Scope\n\n- Fix labeled code", labels: ["repo:ui", "needs:no-conversation"] })
-  const executeFailure = (flags = []) => run(TOOL, ["--tickets", "ORB-1", ...flags], { path: liveClassifier.path, env: { ORBIT_TICKET_STUB: JSON.stringify([labeledClassifier]), ORBIT_CLASSIFIER_CODEX_BIN: failedCli } })
+  const executeFailure = (flags = []) => run(TOOL, ["--tickets", "ORB-1", ...flags], { path: liveClassifier.path, env: { ORBIT_TICKET_STUB: JSON.stringify([labeledClassifier]), ORBIT_CLASSIFIER_CLAUDE_BIN: failedCli } })
   const labeledClassifierSleep = planOf(executeFailure(["--sleep"]))
   T(`${TOOL}: off label cannot admit an unreadable ticket under sleep`, labeledClassifierSleep?.deferred[0]?.reason === "NEEDS_CONVERSATION")
   const labeledClassifierAttended = planOf(executeFailure())
