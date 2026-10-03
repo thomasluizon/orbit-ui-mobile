@@ -117,7 +117,7 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
         role="dialog"
         aria-modal="true"
         aria-label={t('command.title')}
-        className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)] sm:max-h-[calc(100dvh-7rem)]"
+        className="relative flex max-h-[calc(100dvh-max(16px,var(--safe-top))-16px)] w-full max-w-[560px] flex-col overflow-hidden rounded-[var(--r-card)] bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline),var(--sh-3)] sm:max-h-[calc(100dvh-max(96px,var(--safe-top))-16px)]"
       >
         <CommandMenu
           navItems={navItems}
