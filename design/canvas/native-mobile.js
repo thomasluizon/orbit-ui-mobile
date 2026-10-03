@@ -89,8 +89,8 @@ window.OrbitNativeMobile = (() => {
     return node('div', { style: { minWidth: 0, padding: 16, borderRadius: 20, background: 'var(--bg-card)',
       boxShadow: 'inset 0 0 0 1px var(--hairline)', display: 'flex', flexDirection: 'column', gap: 8 } },
       node('span', { style: { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600,
-        fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' } }, state === 'loading' ? loadingLabel : state === 'empty' ? emptyLabel : value),
-      node('span', { style: { fontSize: 14, lineHeight: '20px', color: 'var(--fg-2)', whiteSpace: 'nowrap' } }, label));
+        fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 } }, state === 'loading' ? loadingLabel : state === 'empty' ? emptyLabel : value),
+      node('span', { style: { fontSize: 14, lineHeight: 20 / 14, color: 'var(--fg-2)', whiteSpace: 'normal' } }, label));
   }
   function PlainFigure(props) {
     return node('div', { style: { display: 'grid', gap: 8, minWidth: 0 } },

@@ -2269,22 +2269,23 @@ class Component extends DCLogic {
         (!hh.flex && !hh.oneTime) ? H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55,
           color: 'var(--fg-3)', textWrap: 'pretty' } }, x.checklistRule) : null));
     }
-    /* The grid renders only when the habit has a frequency or is a general one (the drawer's own
+    /* The figures render only when the habit has a frequency or is a general one (the drawer's own
        gate), and it holds three states: the numbers, a loading row, and ONE centred no data line,
        never three zeros. The third number is the 30 day rate (HabitMetricsCalculator.cs:29). */
     if (!hh.oneTime) {
       const stat = dtl.stat;
       const l1 = info.bad ? x.dFree : x.dStreak;
       if (s.dMetricsLoading) {
-        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(window.OrbitNativeMobile.StatTile, { label: l1, state: 'loading' }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading' }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading' })));
+        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
+          H(window.OrbitNativeMobile.StatTile, { label: l1, state: 'loading', loadingLabel: t.loading }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading', loadingLabel: t.loading }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading', loadingLabel: t.loading })));
       } else if (!stat) {
-        out.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
-          color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
+        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
+          H('p', { role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
+            color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet)));
       } else {
-        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
+        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
           H(window.OrbitNativeMobile.StatTile, { label: l1, value: mock(String(stat[0])) }),
           H(window.OrbitNativeMobile.StatTile, { label: x.dBest, value: mock(String(stat[1])) }),
           H(window.OrbitNativeMobile.StatTile, { label: x.holding, value: mock(stat[2]) })));

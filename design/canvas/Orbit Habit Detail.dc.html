@@ -896,15 +896,16 @@ class Component extends DCLogic {
     }
     if (!h.oneTime) {
       if (s.mLoading) {
-        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(window.OrbitNativeMobile.StatTile, { label: x.dStreak, state: 'loading' }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading' }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading' })));
+        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
+          H(window.OrbitNativeMobile.StatTile, { label: h.bad ? x.dFree : x.dStreak, state: 'loading', loadingLabel: x.loading }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading', loadingLabel: x.loading }),
+          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading', loadingLabel: x.loading })));
       } else if (!h.stat) {
-        rest.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
-          color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
+        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
+          H('p', { role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
+            color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet)));
       } else {
-        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
+        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
           H(window.OrbitNativeMobile.StatTile, { label: h.bad ? x.dFree : x.dStreak, value: mock(String(h.stat[0])) }),
           H(window.OrbitNativeMobile.StatTile, { label: x.dBest, value: mock(String(h.stat[1])) }),
           H(window.OrbitNativeMobile.StatTile, { label: x.holding, value: mock(h.stat[2]) })));
