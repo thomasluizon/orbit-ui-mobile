@@ -78,11 +78,16 @@ function position(node: YogaNode): { left: number; top: number; right: number } 
 
 export function measureProfileRow(host: HostRow, width: number, scale: number) {
   const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined }[] = []
+  const controls: { node: YogaNode; labels: string[] }[] = []
+  function labelsOf(host: HostRow): string[] {
+    return (host.children ?? []).flatMap((child) => typeof child === 'string' ? [child] : labelsOf(child))
+  }
   function layoutHost(host: HostRow): YogaNode {
     const node = Yoga.Node.create()
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
     applyStyle(node, style)
+    if (host.type === 'Pressable') controls.push({ node, labels: labelsOf(host) })
     const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
     if (host.type === 'Text' && label) {
       texts.push({ node, label, style, limit: host.props.numberOfLines })
@@ -100,7 +105,11 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
   const layout = layoutHost(host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    return { height: layout.getComputedHeight(), texts: texts.map(({ node, label, style, limit }) => {
+    return { height: layout.getComputedHeight(), controls: controls.map(({ node, labels }) => {
+      const bounds = position(node)
+      const content = Array.from({ length: node.getChildCount() }, (_, index) => position(node.getChild(index)))
+      return { labels, ...bounds, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
+    }), texts: texts.map(({ node, label, style, limit }) => {
       const lines = wrappedLines(label, node.getComputedWidth(), style, scale)
       return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize) * 1.4) / Number(style.fontSize) }
     }) }

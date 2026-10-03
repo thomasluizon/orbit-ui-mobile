@@ -42,9 +42,9 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
     onClick={() => openEvent(event.id)}
   />)
   return <>
-    <View style={styles.list}>{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</View>
+    <View style={[styles.list, { paddingHorizontal: 8 }]}>{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</View>
     {/* eslint-disable-next-line local/max-button-words -- #1143 requires this event disclosure label. */}
-    {!sheetOnly && calendarEvents.length > 3 ? <View style={{ paddingHorizontal: 8 }}><ListRow inset={false} textMode="label" title={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /></View> : null}
+    {!sheetOnly && calendarEvents.length > 3 ? <ListRow textMode="label" title={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /> : null}
     {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={finishClose}>
       <View style={styles.list}>
         {calendarEvents.length >= 8 ? <Text style={[styles.count, { color: tokens.fg3 }]}>{plural(t('calendar.eventsFound', { count: calendarEvents.length }), calendarEvents.length)}</Text> : null}
@@ -52,9 +52,9 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
         {eventRows(matchingEvents.slice(0, visibleCount))}
         {matchingEvents.length === 0 ? <>
           <Text style={[styles.empty, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noMatchingEvents', { query: query.trim() })}</Text>
-          <ListRow inset={false} textMode="label" title={t('calendar.dayDetail.clearEventSearch')} onClick={() => setQuery('')} />
+          <ListRow textMode="label" title={t('calendar.dayDetail.clearEventSearch')} onClick={() => setQuery('')} />
         </> : null}
-        {matchingEvents.length > visibleCount ? <ListRow inset={false} textMode="label" title={t('calendar.showMore')} onClick={() => setVisibleCount((count) => count + 20)} /> : null}
+        {matchingEvents.length > visibleCount ? <ListRow textMode="label" title={t('calendar.showMore')} onClick={() => setVisibleCount((count) => count + 20)} /> : null}
       </View>
     </Sheet> : null}
   </>

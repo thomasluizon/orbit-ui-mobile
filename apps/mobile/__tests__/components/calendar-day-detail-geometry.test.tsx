@@ -30,6 +30,8 @@ describe('Android day card geometry', () => {
       for (const scale of [1, 2]) {
         const measured = measureProfileRow(tree.toJSON(), width - 32, scale)
         const event = measured.texts.find((text) => text.label === events[0]!.title)!
+        const disclosure = measured.controls.find((control) => control.labels.includes(i18n.t('calendar.dayDetail.viewAllEvents', { count: 21 })))!
+        expect(disclosure.inlineClearance).toBeGreaterThanOrEqual(8)
         expect(event.lines).toBeLessThanOrEqual(2)
         if (scale === 1) {
           expect(event.clipped).toBe(false)

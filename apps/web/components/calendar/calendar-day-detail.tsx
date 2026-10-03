@@ -54,17 +54,17 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   onOpenEvents?: () => void
 }>) {
   const t = useTranslations()
-  if (state === 'pro-boundary') return <div data-testid="calendar-pro-boundary" style={{ paddingInline: 16 }}>
-    <ListRow inset={false} textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
+  if (state === 'pro-boundary') return <div data-testid="calendar-pro-boundary">
+    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
   </div>
-  if (state === 'not-connected') return <div style={{ paddingInline: 16 }}>
-    <ListRow inset={false} textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
+  if (state === 'not-connected') return <div>
+    <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </div>
-  return <div className="flex flex-col gap-2" style={{ paddingInline: 8 }}>
-    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, paddingInline: 8, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
-    {state === 'loading' ? <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /> : null}
-    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow inset={false} textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
-    {state === 'ready' && calendarEvents.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
+  return <div className="flex flex-col gap-2">
+    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, paddingInline: 16, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
+    {state === 'loading' ? <div style={{ paddingInline: 16 }}><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></div> : null}
+    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
+    {state === 'ready' && calendarEvents.length === 0 ? <p className="px-4 text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
     {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
   </div>
 }

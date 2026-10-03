@@ -60,16 +60,16 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   tokens: Tokens
   styles: ReturnType<typeof createStyles>
 }>) {
-  if (state === 'pro-boundary') return <View testID="calendar-pro-boundary" style={[styles.eventSection, { paddingHorizontal: 16 }]}>
-    <ListRow inset={false} textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
+  if (state === 'pro-boundary') return <View testID="calendar-pro-boundary" style={styles.eventSection}>
+    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
   </View>
-  if (state === 'not-connected') return <View style={[styles.eventSection, { paddingHorizontal: 16 }]}>
-    <ListRow inset={false} textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
+  if (state === 'not-connected') return <View style={styles.eventSection}>
+    <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </View>
   return <View style={styles.eventSection}>
     <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>{t('calendar.dayDetail.eventsTitle')}</Text>
-    {state === 'loading' ? <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /> : null}
-    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow inset={false} textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
+    {state === 'loading' ? <View style={{ paddingHorizontal: 16 }}><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></View> : null}
+    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
     {state === 'ready' && calendarEvents.length === 0 ? <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text> : null}
     {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents t={t} displayTime={displayTime} calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
   </View>
@@ -266,9 +266,9 @@ function createStyles(tokens: Tokens) {
     dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
     summaryText: { fontFamily: 'Geist_400Regular', fontSize: 12 },
     emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22, paddingVertical: 24, textAlign: 'center' },
-    eventSection: { gap: 8, paddingHorizontal: 8 },
-    eventTitle: { paddingHorizontal: 8, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
-    emptyEventText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
+    eventSection: { gap: 8 },
+    eventTitle: { paddingHorizontal: 16, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
+    emptyEventText: { paddingHorizontal: 16, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
     fullTitle: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
   })
 }

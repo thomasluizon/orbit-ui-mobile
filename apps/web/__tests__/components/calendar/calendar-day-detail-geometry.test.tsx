@@ -62,7 +62,8 @@ describe('day card compact geometry', () => {
             labels,
             targets: [...document.querySelectorAll<HTMLElement>('button, a')].map((target) => {
               const box = target.getBoundingClientRect()
-              return { label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth }
+              const style = getComputedStyle(target)
+              return { label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth, listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
             }),
           }
         })
@@ -82,6 +83,10 @@ describe('day card compact geometry', () => {
           expect(target.left).toBeGreaterThanOrEqual(16)
           expect(target.right).toBeLessThanOrEqual(width - 16)
           expect(target.clipped, JSON.stringify(target)).toBe(false)
+          if (target.listRow) {
+            expect(target.inlinePadding, JSON.stringify(target)).toBeGreaterThanOrEqual(8)
+            expect(target.blockPadding, JSON.stringify(target)).toBeGreaterThanOrEqual(4)
+          }
         }
       }
     } finally { await page.close() }
