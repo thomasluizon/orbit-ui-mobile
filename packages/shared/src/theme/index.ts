@@ -7,6 +7,7 @@ export type {
 export { schemes } from './color-schemes'
 export {
   neutralColors,
+  elevatedControlHoverFill,
   statusConstants,
   selectionAlpha,
   primaryTintAlphas,

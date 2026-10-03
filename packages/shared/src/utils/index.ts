@@ -776,3 +776,5 @@ export { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, resolveHabitCreateReturn
 
 export { DESTINATION_ICONS, SHELL_DESTINATION_IDS, getDestinationForLabel, getDestinationForCommand } from './destination-icons'
 export type { DestinationIconName } from './destination-icons'
+
+export { updateScrollToTopState, type ScrollToTopState } from './scroll-to-top'

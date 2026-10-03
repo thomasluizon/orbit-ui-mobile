@@ -18,6 +18,7 @@ type ExpectedButtonBase = {
   size?: 'md' | 'sm'
   loading?: boolean
   minimumHeight?: number
+  elevated?: boolean
   disabled?: boolean
   matchedWidth?: boolean
   onClick?: () => void

@@ -40,6 +40,22 @@ describe('ShellWide', () => {
     })))
   })
 
+  it('hosts the pill below the header outside the scroller and suppresses it during conversation', () => {
+    const shell = (conversation?: ReactNode) => <ShellWide items={items} activeId="hoje" navLabel="Main navigation"
+      header={<div>Header</div>} tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}
+      scrollToTop={<button type="button">Top</button>}
+      conversation={conversation} conversationLabel="Conversation"><h1>Today</h1></ShellWide>
+    const { container, rerender } = render(shell())
+    const slot = container.querySelector<HTMLElement>('[data-shell-scroll-to-top]')!
+    const scroller = container.querySelector<HTMLElement>('[data-shell-scroller]')!
+    expect(slot.parentElement).toBe(scroller.parentElement)
+    expect(slot.parentElement?.previousElementSibling).toBe(container.querySelector<HTMLElement>('[data-shell-header]'))
+    expect(scroller).not.toContainElement(slot)
+    expect(container.querySelector<HTMLElement>('[data-shell-bottom]')).not.toContainElement(slot)
+    rerender(shell(<button type="button">Reply</button>))
+    expect(container.querySelector<HTMLElement>('[data-shell-scroll-to-top]')).toBeNull()
+  })
+
   it('centres compact notice, dock, and FAB inside the full-width bottom chrome', () => {
     media.width = 900
     const { container } = render(

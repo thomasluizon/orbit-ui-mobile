@@ -10,7 +10,7 @@ import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonSize, type ButtonVariant }
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
   secondary: 'bg-[var(--fg-1)] text-[var(--bg)]',
-  ghost: 'bg-transparent text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]',
+  ghost: 'text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]',
   destructive: 'bg-[var(--status-bad)] text-[var(--fg-on-bad)]',
   caution: 'bg-[var(--status-overdue)] text-[var(--fg-on-overdue)]',
 }
@@ -33,14 +33,16 @@ const linkInteractionClasses: Record<ButtonVariant, string> = {
 
 const baseClasses = 'orbit-pill-action inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium disabled:cursor-not-allowed'
 
-function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false) {
+function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'button' | 'link', loading = false, quiet = false, elevated = false) {
   const variantInteractions = element === 'button'
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
-  const interactionClasses = quiet && variant === 'ghost'
+  const interactionClasses = elevated && variant === 'ghost'
+    ? 'overflow-hidden enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)] motion-safe:enabled:active:scale-[0.96]'
+    : quiet && variant === 'ghost'
     ? 'overflow-hidden enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
     : variantInteractions
-  return [baseClasses, variantClasses[variant], interactionClasses,
+  return [baseClasses, variantClasses[variant], variant === 'ghost' ? elevated ? 'bg-[var(--bg-elev)]' : 'bg-transparent' : undefined, interactionClasses,
     element === 'button' && !loading ? 'disabled:opacity-40' : undefined,
     size === 'sm' ? 'touch-target' : undefined]
     .filter(Boolean)
@@ -73,6 +75,7 @@ function SmallPillTarget({ small, matchedWidth = false, children }: Readonly<{ s
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
+  elevated = false,
   variant = 'primary',
   size: requestedSize = 'sm',
   onClick,
@@ -107,7 +110,7 @@ export function Button({
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
-      className={actionClasses(variant, size, 'button', loading, quiet)}
+      className={actionClasses(variant, size, 'button', loading, quiet, elevated)}
       style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
     >
       {loading ? (

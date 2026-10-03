@@ -2,6 +2,7 @@ import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from 
 import {
   motionDurations,
   neutralColors,
+  elevatedControlHoverFill,
   selectionAlpha,
   schemes,
   statusConstants,
@@ -45,6 +46,7 @@ export function resolveWebThemeVariables(
     '--bg-elev-2': neutral.bgElev2,
     '--bg-hover': neutral.bgHover,
     '--bg-hover-opaque': neutral.bgHoverOpaque,
+    '--bg-elev-hover': elevatedControlHoverFill(theme),
     '--bg-sheet': neutral.bgElev,
     '--bg-sunk': neutral.bgSunk,
     '--hairline': neutral.hairline,
