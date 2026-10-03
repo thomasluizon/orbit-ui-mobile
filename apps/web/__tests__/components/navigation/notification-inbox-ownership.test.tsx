@@ -97,9 +97,25 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-it('renders clear-all actions with small ghost cancel before destructive confirm', () => {
+it.each([412, 1352])('offers both inbox menu actions and small clear-all confirmation actions at %ipx', async (width) => {
+  vi.useRealTimers()
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    matches: width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? Infinity),
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }))
   render(shell(true))
-  chooseInboxAction('Clear all')
+  const trigger = screen.getByRole('button', { name: 'Alert options' })
+  fireEvent.click(trigger)
+  const menu = await screen.findByRole('menu', { name: 'Alert options' })
+  expect(menu).toHaveAttribute('id', trigger.getAttribute('aria-controls'))
+  expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Mark all read', 'Clear all'])
+  fireEvent.click(within(menu).getByRole('menuitem', { name: 'Clear all' }))
 
   const actions = within(screen.getByRole('dialog')).getAllByRole('button').filter(
     (button) => button.closest('[data-slot="action-row"]'),

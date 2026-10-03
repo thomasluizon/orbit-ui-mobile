@@ -133,6 +133,10 @@ for (const width of [412, 1352]) {
           if (route === '/upgrade') await expect(page.getByRole('button', { name: messages.upgrade.billing.payment.change, exact: true })).toBeVisible()
           if (route === '/progress') await expect(page.locator('[data-goal-id]')).toHaveCount(2)
           if (route === '/notifications') {
+            const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
+            await expect(consent).toBeVisible()
+            await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
+            await expect(consent).toHaveCount(0)
             const header = column.locator('[data-shell-header]')
             await expect(header.getByRole('button', { name: messages.notifications.options, exact: true })).toBeVisible()
             await expect(main.getByText(notifications.items[0]!.title, { exact: true })).toBeVisible()
