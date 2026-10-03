@@ -105,8 +105,7 @@ export function PushDevicesRow({
     <View accessibilityState={{ busy: loading }}>
     <RowList>
       <View>
-      {/* eslint-disable-next-line local/max-button-words -- #1108 specifies the full device notification label. */}
-      <ListRow readOnly title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
+      <ListRow readOnly textMode="label" title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
         <Switch checked={currentDeviceRegistered} disabled={disabled} onChange={() => {
           setLimitReached(!currentDeviceRegistered)
           if (!currentDeviceRegistered && !canEnable) return

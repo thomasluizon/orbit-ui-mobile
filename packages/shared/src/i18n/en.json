@@ -1803,7 +1803,7 @@
       "deleteAccount": "Delete account",
       "reminders": "Habit reminders",
       "remindersNote": "Each habit's reminders live on the habit itself.",
-      "alertsOnThisDevice": "Notifications on this device",
+      "alertsOnThisDevice": "This device",
       "devicesUnavailable": "Could not load devices.",
       "pushDeviceLimit": "Turn off notifications on another device to use this one."
     },

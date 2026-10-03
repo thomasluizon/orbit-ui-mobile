@@ -182,7 +182,7 @@ it.each(['en', 'pt-BR'])('keeps every value caller inside its Android row at 412
 })
 
 
-it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1440].map((width) => ({ locale, width }))))('keeps the Android notification label readable in $locale at $width px', async ({ locale, width }) => {
+it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1440].map((width) => ({ locale, width }))))('keeps the Android notification label readable in $locale at $width px', async ({ locale, width }) => {
   await i18n.changeLanguage(locale)
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<PushDevicesRow tokens={createTokensV2()} count={5} max={5} currentDeviceRegistered={false} supported loading={false} error={false} permissionStatus="undetermined" registrationStatus="idle" onToggle={() => {}} onOpenSettings={() => {}} onRetry={() => {}} />) })

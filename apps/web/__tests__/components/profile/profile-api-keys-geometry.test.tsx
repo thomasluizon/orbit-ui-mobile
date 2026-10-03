@@ -131,20 +131,29 @@ describe('Profile API key row geometry', () => {
       }
     } finally { await page.close() }
   })
-  it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1440].map((width) => ({ locale, width }))))('keeps the notification label and switch readable in $locale at $width px', async ({ locale, width }) => {
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1440].flatMap((width) => [1, 2].map((textScale) => ({ locale, width, textScale })))))('keeps the notification label and switch readable in $locale at $width px and $textScale text scale', async ({ locale, width, textScale }) => {
     settings.locale = locale as 'en' | 'pt-BR'
     const { container } = render(<div style={{ padding: 16 }}><PushDevicesRow count={5} max={5} currentDeviceRegistered={false} supported loading={false} error={false} permission="default" status="not-registered" onToggle={() => {}} onRetry={() => {}} /></div>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const measured = await page.evaluate(() => {
+      const measured = await page.evaluate((textScale) => {
         const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
         const control = document.querySelector<HTMLElement>('[role="switch"]')!
+        title.style.fontSize = `${17 * textScale}px`
         const titleBox = title.getBoundingClientRect()
         const switchBox = control.getBoundingClientRect()
-        return { titleFits: title.scrollWidth <= title.clientWidth, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
-      })
+        const range = document.createRange()
+        range.selectNodeContents(title)
+        const style = getComputedStyle(title)
+        const rowBox = title.closest('.orbit-list-row-shell')!.getBoundingClientRect()
+        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, separated: titleBox.right <= switchBox.left || titleBox.bottom <= switchBox.top, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
+      }, textScale)
+      expect(measured.textOverflow).not.toBe('ellipsis')
+      expect(measured.unclipped).toBe(true)
+      if (textScale === 1) expect(measured.lines).toBe(1)
+      else expect(measured.rowHeight).toBeGreaterThan(52)
       expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 48, switches: 1 })
       expect(measured.text).not.toContain('5 of 5')
       expect(measured.text).not.toContain('5 de 5')
@@ -172,7 +181,7 @@ describe('Profile API key row geometry', () => {
         expect(row, JSON.stringify(measured)).toMatchObject({ height: 52, inset: 24, controlHeight: 48, titleClipped: false })
       }
       expect(measured[0]!.right).toBe(measured[1]!.right)
-      expect(measured[0]!.bottom).toBeLessThan(measured[1]!.top)
+      expect(measured[1]!.top - measured[0]!.bottom).toBe(24)
     } finally { await page.close() }
   })
 

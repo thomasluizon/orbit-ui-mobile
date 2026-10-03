@@ -43,8 +43,7 @@ export function PushDevicesRow({
     <div aria-busy={loading || checking}>
     <RowList>
       <div>
-      {/* eslint-disable-next-line local/max-button-words -- #1108 specifies the full device notification label. */}
-      <ListRow readOnly title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
+      <ListRow readOnly textMode="label" title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
         <fieldset disabled={disabled} aria-hidden={checking || undefined} className={`m-0 border-0 p-0${checking ? ' invisible' : ''}`}>
           <Switch checked={currentDeviceRegistered} onChange={() => {
             if (!currentDeviceRegistered && !canEnable) { setLimitReached(true); return }

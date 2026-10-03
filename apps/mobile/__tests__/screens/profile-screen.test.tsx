@@ -22,6 +22,7 @@ import ProfileAccountRoute from '@/app/profile/account'
 import ProfilePreferencesRoute from '@/app/profile/preferences'
 import ProfileAstraRoute from '@/app/profile/astra'
 import ProfileNotificationsRoute from '@/app/profile/notifications'
+import { ProfileNotificationsContent } from '@/app/(tabs)/profile/_components/profile-notifications-content'
 
 interface MockDeviceState {
   count: number | undefined
@@ -1508,6 +1509,35 @@ describe('ProfileScreen', () => {
           node.props.accessibilityState?.checked === true,
       ).length,
     ).toBeGreaterThan(0)
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => [1, 2].map((textScale) => ({ locale, width, textScale })))))('keeps the Android device label whole in $locale at $width dp and $textScale text scale', async ({ locale, width, textScale }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockPushSupported.current = true
+    mockRealConsentSection.current = true
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({ marketingEmailConsent: true })
+    const tree = await renderProfileSubscreen('notifications')
+    try {
+      const content = tree.root.findByType(ProfileNotificationsContent)
+      const group = content.find((node: { type: unknown; props: { style?: StyleProp<ViewStyle> } }) =>
+        node.type === 'View' && StyleSheet.flatten(node.props.style ?? {}).gap !== undefined)
+      expect(StyleSheet.flatten(group.props.style).gap).toBe(24)
+      const label = (locale === 'en' ? en : ptBR).profile.settingsRows.alertsOnThisDevice
+      const row = content.findAllByType(ListRow).find((node: { props: { title: string } }) => node.props.title === label)!
+      let rowTree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+      try {
+        const text = rowTree.root.find((node: { type: unknown; props: { children?: string } }) => node.type === 'Text' && node.props.children === label)
+        expect(text.props.numberOfLines).toBeUndefined()
+        const geometry = measureProfileRow(rowTree.toJSON(), width - 32, textScale)
+        const title = geometry.texts.find((text) => text.label === label)!
+        expect(title.clipped).toBe(false)
+        expect(title.right).toBeLessThanOrEqual(width - 32)
+        if (textScale === 1) expect(title.lines).toBe(1)
+        else expect(geometry.height).toBeGreaterThan(52)
+      } finally { TestRenderer.act(() => rowTree.unmount()) }
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   it.each([true, false])('renders answered email consent %s before the matching device row and reminders note', async (consent) => {
