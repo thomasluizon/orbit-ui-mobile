@@ -1,14 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createElement } from 'react'
+import { cloneElement, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
 import { CheckRow } from '@/components/ui/check-row'
+import { ListRow } from '@/components/ui/list-row'
+import { HabitRow } from '@/components/habits/habit-row'
+import { EventRow } from '@/components/dates/event-row'
 import { loadAppFonts } from './app-fonts'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { expectLabelsFit, expectLegendFits, markUserText } from '@/e2e/layout/label-fit-contract'
@@ -32,6 +37,58 @@ describe('label and interaction fill guards in Chromium', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    it.each([320, 360, 384, 412])(`measures the merged personal Calendar CheckRow and EventRow at %ipx in ${locale}`, async (width) => {
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
+      const eventTitle = 'Reunião de planejamento com todas as pessoas da minha equipe'
+      const source = 'Meu calendário pessoal de compromissos e encontros'
+      const rows = renderToStaticMarkup(createElement('div', null,
+        createElement(CheckRow, { label: title, textMode: 'personal', onOpenLabel: () => {}, checked: false, value: words.calendar.status.missed, onChange: () => {} }),
+        createElement(EventRow, { title: eventTitle, time: '09:00', source, onClick: () => {} }),
+      ))
+      try {
+        await page.setContent(`<style>${stylesheet}</style><main style="padding: 0 32px">${rows}<button>Edit</button></main>`)
+        await loadAppFonts(page)
+        await markUserText(page, [title, eventTitle, source])
+        await markUserText(page, [title, eventTitle, source])
+        expect(await page.locator('[data-layout-text-origin="user"]').count()).toBe(3)
+        await expectLabelsFit(page, page.getByRole('main'), [title, eventTitle, source])
+      } finally {
+        await page.close()
+      }
+    })
+
+    it.each([320, 360, 384, 412])(`measures the Hoje HabitRow before and after its options disclosure at %ipx in ${locale}`, async (width) => {
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
+      const row = renderToStaticMarkup(cloneElement(createElement(NextIntlClientProvider),
+        { locale, messages: words, timeZone: 'UTC' },
+        createElement(HabitRow, { habit: createMockHabit({ title }), actions: { onDetail: () => {} } }),
+      ))
+      try {
+        await page.setContent(`<style>${stylesheet}</style><main style="padding: 0 16px">${row}<button>Edit</button></main>
+          <div role="dialog" hidden><div role="menu"><button role="menuitem">${words.habits.refresh}</button></div></div>`)
+        await loadAppFonts(page)
+        await markUserText(page, [title])
+        await expectLabelsFit(page, page, [title])
+        await page.evaluate(() => {
+          document.querySelector('main')!.setAttribute('aria-hidden', 'true')
+          document.querySelector<HTMLElement>('[role="dialog"]')!.hidden = false
+        })
+        await markUserText(page, [title])
+        await expect(expectLabelsFit(page, page, [title])).rejects.toThrow('required user field must retain its rendered mark')
+        await expectLabelsFit(page, page.getByRole('dialog'))
+        await page.evaluate(() => {
+          document.querySelector('main')!.removeAttribute('aria-hidden')
+          document.querySelector<HTMLElement>('[role="dialog"]')!.hidden = true
+        })
+        await markUserText(page, [title])
+        await expectLabelsFit(page, page, [title])
+      } finally {
+        await page.close()
+      }
+    })
+
     it.each([320, 360, 384, 412])(`rejects the unclamped Calendar CheckRow title at %ipx in ${locale}`, async (width) => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
@@ -278,6 +335,28 @@ describe('label and interaction fill guards in Chromium', () => {
         document.querySelector('[data-layout-text-origin]')!.removeAttribute('data-layout-text-origin')
       })
       await expect(expectLabelsFit(page, page, [title])).rejects.toThrow('required user field must retain its rendered mark')
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each(['display: none', 'visibility: hidden', 'visibility: collapse'])('ignores a sidebar copy hidden with %s when measuring the Perfil account row', async (hiddenStyle) => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const name = 'Pessoa com um nome completo escrito no próprio perfil'
+    const email = 'pessoa.com.um.endereco.longo@exemplo.org'
+    const row = renderToStaticMarkup(createElement(ListRow, { title: name, description: email, textMode: 'personal', href: '/profile/account' }))
+    try {
+      await page.setContent(`<style>${stylesheet}</style>
+        <aside style="${hiddenStyle}; width: 60px"><span>${name}</span><span>${email}</span></aside>
+        <main>${row}<button>Edit</button></main>`)
+      await loadAppFonts(page)
+      await expect(page.getByText(name, { exact: true }).isVisible()).rejects.toThrow('strict mode violation')
+      expect(await page.getByRole('main').getByText(name, { exact: true }).isVisible()).toBe(true)
+      expect(await page.getByRole('main').getByText(email, { exact: true }).isVisible()).toBe(true)
+      await markUserText(page, [name, email])
+      await expectLabelsFit(page, page, [name, email])
+      await page.getByRole('main').evaluate((element) => element.remove())
+      await expect(expectLabelsFit(page, page, [name, email])).rejects.toThrow('required user field must retain its rendered mark')
     } finally {
       await page.close()
     }

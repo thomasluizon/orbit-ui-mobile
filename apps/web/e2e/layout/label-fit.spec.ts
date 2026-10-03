@@ -2,7 +2,7 @@ import { expect, type BrowserContext, type Locator, type Page } from '@playwrigh
 import { API } from '@orbit/shared/api'
 import { createMockCalendarSyncEvent, createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { calendarEventsResponseSchema } from '@orbit/shared/types/calendar'
+import { calendarEventsResponseSchema, userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { retrospectiveResponseSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
 import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -41,6 +41,10 @@ const goals = paginatedGoalResponseSchema.parse({
 const events = calendarEventsResponseSchema.parse([createMockCalendarSyncEvent({
   title: userFields.eventTitle, calendarName: userFields.calendarName, startDate: reviewDay, startTime: '09:00',
 })])
+const calendars = userCalendarsSchema.parse([
+  { id: 'calendar-1', name: userFields.calendarName, accessRole: 'owner', primary: true, backgroundColor: null, isSynced: true },
+  { id: 'calendar-2', name: 'Trabalho', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true },
+])
 const retrospective = retrospectiveResponseSchema.parse({
   period: 'month', metrics: createMockRetrospectiveMetrics({
     topHabits: [{ ...createMockRetrospectiveMetrics().topHabits[0]!, name: userFields.habitTitle }],
@@ -64,7 +68,7 @@ async function installLabelFixtures(context: BrowserContext, locale: 'en' | 'pt-
     [API.profile.get, profile], [API.habits.list, habits], [API.goals.list, goals],
     [API.habits.retrospective, retrospective], [API.gamification.streak, streak],
     [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [habit], logs: {} })],
-    [API.calendar.events, events],
+    [API.calendar.events, events], [API.calendar.calendars, calendars],
   ]
   for (const [path, response] of responses) {
     await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path,
@@ -92,11 +96,12 @@ async function checkProgressLabels(page: Page, words: typeof en | typeof ptBR) {
 
 async function checkCalendarLabels(page: Page, words: typeof en | typeof ptBR) {
   await expect(page.getByRole('radio', { name: words.calendar.view.month, exact: true })).toBeVisible()
-  const dayCard = page.locator('section[data-field-surface="card"]')
-  await expect(dayCard.getByText(userFields.habitTitle, { exact: true })).toBeVisible()
-  const eventRow = dayCard.getByRole('img').filter({ hasText: userFields.eventTitle })
+  const dayCard = page.locator('section[data-field-surface="card"]').filter({ has: page.getByText(userFields.habitTitle, { exact: true }) })
+  await expect(dayCard.getByRole('button', { name: userFields.habitTitle, exact: true })
+    .getByText(userFields.habitTitle, { exact: true })).toBeVisible()
+  const eventRow = dayCard.getByRole('button').filter({ has: page.getByText(userFields.eventTitle, { exact: true }) })
   await expect(eventRow.getByText(userFields.eventTitle, { exact: true })).toBeVisible()
-  await expect(eventRow.getByText(userFields.calendarName, { exact: true })).toBeVisible()
+  await expect(eventRow.getByText(userFields.calendarName)).toBeVisible()
   await markRequiredLabels(eventRow)
   await checkSurfaceLabels(page, page, [userFields.habitTitle, userFields.eventTitle, userFields.calendarName])
 }
@@ -146,7 +151,11 @@ for (const width of [320, 360, 384, 412]) {
         await page.goto(`/?date=${reviewDay}`)
         await checkTodayLabels(page)
         await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
-        await expect(page.getByRole('menu', { name: words.habits.listOptions })).toBeVisible()
+        const sheet = page.getByRole('dialog', { name: words.habits.listOptions, exact: true })
+        await expect(sheet.getByRole('menu', { name: words.habits.listOptions, exact: true })).toBeVisible()
+        await checkSurfaceLabels(page, sheet)
+        await sheet.getByRole('button', { name: words.common.close, exact: true }).click()
+        await expect(sheet).toHaveCount(0)
         await checkTodayLabels(page)
       })
 
@@ -167,9 +176,10 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Profile row titles remain whole with long personal text', async ({ page }) => {
         await page.goto('/profile')
-        await expect(page.locator('[data-slot="list-row-title"]').first()).toBeVisible()
-        await expect(page.getByText(userFields.name, { exact: true })).toBeVisible()
-        await expect(page.getByText(userFields.email, { exact: true })).toBeVisible()
+        const profile = page.getByRole('main')
+        const accountRow = profile.locator('a[href="/profile/account"]')
+        await expect(accountRow.getByText(userFields.name, { exact: true })).toBeVisible()
+        await expect(accountRow.getByText(userFields.email, { exact: true })).toBeVisible()
         await checkSurfaceLabels(page, page, [userFields.name, userFields.email])
       })
 

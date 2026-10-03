@@ -12,11 +12,26 @@ export const authoredLabelSelector = `${logicalLabelSelector}, [data-state] > sp
 export async function markUserText(page: Page, values: readonly string[]) {
   await page.evaluate((fields) => {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-    while (walker.nextNode()) {
-      const node = walker.currentNode as Text
-      if (fields.includes(node.textContent.trim()) && !node.parentElement!.closest('svg, [aria-hidden="true"]')) {
-        node.parentElement!.setAttribute('data-layout-text-origin', 'user')
+    const nodes: Text[] = []
+    while (walker.nextNode()) nodes.push(walker.currentNode as Text)
+    for (const node of nodes) {
+      const owner = node.parentElement!
+      const bounds = owner.getBoundingClientRect()
+      if (owner.closest('svg, [aria-hidden="true"]') || getComputedStyle(owner).visibility !== 'visible'
+        || !bounds.width || !bounds.height || bounds.width <= 1) continue
+      const field = fields.find((value) => node.textContent.includes(value))
+      if (!field) continue
+      if (node.textContent.trim() === field) {
+        owner.setAttribute('data-layout-text-origin', 'user')
+        continue
       }
+      const start = node.textContent.indexOf(field)
+      const fieldNode = node.splitText(start)
+      fieldNode.splitText(field.length)
+      const mark = document.createElement('span')
+      mark.setAttribute('data-layout-text-origin', 'user')
+      fieldNode.replaceWith(mark)
+      mark.append(fieldNode)
     }
   }, values)
 }
@@ -41,7 +56,7 @@ export async function expectLabelsFit(page: Page, surface: Page | Locator = page
       const owner = node.parentElement!
       const style = getComputedStyle(owner)
       const bounds = owner.getBoundingClientRect()
-      if (style.visibility === 'hidden' || !bounds.width || !bounds.height || bounds.width <= 1) return null
+      if (style.visibility !== 'visible' || !bounds.width || !bounds.height || bounds.width <= 1) return null
       const range = document.createRange()
       range.selectNodeContents(node)
       const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
