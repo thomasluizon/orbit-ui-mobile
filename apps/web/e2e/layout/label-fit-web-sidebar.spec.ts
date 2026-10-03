@@ -50,7 +50,6 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         }
         await markUserText(page, [name, email])
         await expectLabelsFit(page, sidebar, [name, email])
-        await expectInteractionFill(account)
         await sidebar.getByRole('button', { name: words.nav.today, exact: true }).click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
         await account.click()
@@ -58,6 +57,20 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         await expect(profileAccount.getByText(name, { exact: true })).toBeVisible()
         await expect(profileAccount.getByText(email, { exact: true })).toBeVisible()
       })
+
+      if (width >= 1024) {
+        test.describe('account interaction fill', () => {
+          test.use({ layoutProfile: { name: 'Ada', email: 'ada@example.com' } })
+
+          test('paints the complete padded account target on hover and press', async ({ page }) => {
+            await page.goto(`${LAYOUT_ORIGIN}/profile`)
+            const account = page.locator('[data-shell-sidebar] [data-shell-account]:not([data-loading])')
+            await expect(account.getByText('Ada', { exact: true })).toBeVisible()
+            await expect(account.getByText('ada@example.com', { exact: true })).toBeVisible()
+            await expectInteractionFill(account)
+          })
+        })
+      }
     })
   }
 }

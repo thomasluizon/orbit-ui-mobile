@@ -44,7 +44,8 @@ describe('Foldable shell geometry', () => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
-        await page.setContent(`<style>${stylesheet}\n:root { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
+        const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
+        await page.setContent(`<style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
         const account = page.getByRole('link', { name: `${name} ${email}` })
         expect(await account.getAttribute('href')).toBe('/profile')
         const geometry = await account.evaluate((element) => {
@@ -52,7 +53,7 @@ describe('Foldable shell geometry', () => {
           const fields = [...element.querySelectorAll<HTMLElement>('[data-shell-account-name], [data-shell-account-email]')].map((text) => {
             const style = getComputedStyle(text)
             const bounds = text.getBoundingClientRect()
-            return { lines: bounds.height / Number.parseFloat(style.lineHeight), clamp: style.webkitLineClamp,
+            return { lines: bounds.height / Number.parseFloat(style.lineHeight), clamp: style.webkitLineClamp, fontSize: Number.parseFloat(style.fontSize),
               clipped: text.scrollHeight > text.clientHeight, width: bounds.width,
               availableWidth: text.parentElement!.clientWidth, top: bounds.top, bottom: bounds.bottom }
           })
@@ -61,6 +62,7 @@ describe('Foldable shell geometry', () => {
             overflow: document.documentElement.scrollWidth > innerWidth }
         })
         expect(geometry.fields).toHaveLength(2)
+        expect(geometry.fields.map((field) => field.fontSize)).toEqual([14 * textScale, 12 * textScale])
         for (const field of geometry.fields) {
           expect(field.lines).toBeCloseTo(2, 0)
           expect(field.clamp).toBe('2')
