@@ -52,6 +52,20 @@ type ValidMenu = Accepts<{
   onSelect: (id: string) => void
 }, MenuProps>
 
+type CheckedMenu = Accepts<{
+  items: [
+    { id: 'enabled'; label: 'Enabled'; checked: true },
+    { id: 'disabled'; label: 'Disabled'; checked: false },
+    { id: 'route'; label: 'Route' },
+  ]
+}, MenuProps>
+
+// @ts-expect-error checked is a boolean toggle state
+type BadChecked = Accepts<{ checked: 'true' }, MenuItem>
+
+// @ts-expect-error checked belongs to an item
+type CheckedAtMenuLevel = Accepts<{ checked: true }, MenuProps>
+
 // @ts-expect-error presentation is a closed union
 type BadPresentation = Accepts<{ presentation: 'popover' }, MenuProps>
 
@@ -81,6 +95,7 @@ export type MenuTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<MenuItem['icon'], string | undefined>>,
   Assert<IsExactWidth<MenuItem['destructive'], boolean | undefined>>,
   Assert<IsExactWidth<MenuItem['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<MenuItem['checked'], boolean | undefined>>,
   Assert<IsExactWidth<MenuItem['badge'], string | undefined>>,
   Assert<IsExactWidth<MenuProps['open'], boolean | undefined>>,
   Assert<IsExactWidth<MenuProps['id'], string | undefined>>,
@@ -96,6 +111,9 @@ export type MenuTypeAssertionsWidthAssertions = [
 
 export type MenuTypeAssertions =
   | ValidMenu
+  | CheckedMenu
+  | BadChecked
+  | CheckedAtMenuLevel
   | BadPresentation
   | BadAlign
   | TwoBadges

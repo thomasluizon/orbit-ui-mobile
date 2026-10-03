@@ -1910,6 +1910,7 @@
       "proHint": "Manage your subscription",
       "free": "Free Plan",
       "freeHint": "Upgrade for every feature",
+      "active": "Active",
       "trial": "Pro Trial",
       "trialUntil": "{plan} until {date}",
       "trialDaysLeft": "{days} day remaining | {days} days remaining",

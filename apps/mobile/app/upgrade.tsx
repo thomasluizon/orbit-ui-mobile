@@ -1,6 +1,8 @@
+import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
+import Constants from 'expo-constants'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { API } from '@orbit/shared/api'
@@ -188,9 +190,14 @@ export default function UpgradeScreen() {
 
   function handleManagePlay() {
     if (!isOnline) return
+    const packageName = Constants.expoConfig?.android?.package
+    if (!packageName) {
+      setPortalState('failed')
+      return
+    }
     setPortalState('opening')
     returningFromBillingRef.current = true
-    Linking.openURL(playManageSubscriptionUrl())
+    Linking.openURL(playManageSubscriptionUrl(packageName))
       .catch(() => {
         returningFromBillingRef.current = false
         setPortalState('failed')
@@ -259,6 +266,7 @@ export default function UpgradeScreen() {
         isLoadingPlans={isLoadingPlans}
         isPlansError={isPlansError}
         isOnline={isOnline}
+        dateHint={getProfileTrialEndHint(status, locale, t)}
         trialDaysLeft={trialDaysLeft}
         selectedInterval={selectedInterval}
         onSelectInterval={setSelectedInterval}

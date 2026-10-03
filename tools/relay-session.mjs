@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { redactSecrets } from "./lib/github-auth.mjs"
 import { readSessionContext, readSessionMetrics } from "./lib/session-context.mjs"
+import { readBackgroundRuns } from "./lib/background-runs.mjs"
 import { appendChainEntry, closeSessionChain, confirmChainSuccessor, openSessionChain, readSessionChain, refreshChainMetrics, sessionChainEntry, supersededSession, writeSessionChain } from "./lib/session-chain.mjs"
 import { HANDOFF_PROMPT_PATH, readHandoffRequest, recordHandoffRequest, validateHandoffPrompt } from "./lib/handoff-prompt.mjs"
 import { REPO_ROOT, acquireRelayLock, clearWakeSource, isWakeSourceAlive, readRunState, readWakeSourceStates, readWorkerLaunches, registerWakeSource, writeRunState } from "./lib/run-state.mjs"
@@ -139,7 +140,7 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   const metrics = await readSessionMetrics(previous.relay.transcriptPath)
   if (metrics.calls < 20) throw new Error(`session has ${metrics.calls} assistant calls; relay requires at least 20`)
   if (previous.relay.lastAttemptAt && Date.now() - Date.parse(previous.relay.lastAttemptAt) < 600_000) throw new Error("relay retry is not due for ten minutes")
-  assertDrained(repoRoot)
+  assertDrained(repoRoot, sessionId)
   let releaseLock
   let result
   try {
@@ -162,12 +163,15 @@ export const relaySession = async ({ repoRoot = REPO_ROOT, sessionId = process.e
   return result
 }
 
-const assertDrained = (repoRoot) => {
+const assertDrained = (repoRoot, sessionId) => {
   const sources = readWakeSourceStates(repoRoot)
   const blockers = [...sources.live.filter((source) => !source.what?.startsWith("CI ") && source.what !== "Context relay retry"), ...sources.orphaned]
   const launchers = readWorkerLaunches(repoRoot).filter((launch) => isWakeSourceAlive({ pid: launch.launcherPid, processStartIdentity: launch.launcherProcessStartIdentity }))
   const pids = [...new Set([...blockers.map((source) => source.workerPid ?? source.pid), ...launchers.map((launch) => launch.launcherPid)])]
-  if (pids.length) throw new Error(`relay drain has live pid ${pids.join(", ")}`)
+  const backgroundRuns = readBackgroundRuns(sessionId, repoRoot)
+  const blockersMessage = [pids.length ? `live pid ${pids.join(", ")}` : "",
+    ...backgroundRuns.map((run) => `background ${run.type} ${run.id}`)].filter(Boolean)
+  if (blockersMessage.length) throw new Error(`relay drain has ${blockersMessage.join("; ")}`)
 }
 
 const provePromptPublished = (repoRoot, execute) => {
@@ -211,7 +215,7 @@ const launchSuccessor = async ({ previous, metrics, sessionId, repoRoot, execute
   const prompt = provePromptPublished(repoRoot, execute)
   const successorSessionId = randomUUID()
   const command = successorCommand(metrics.lastCall.model, previous.relay.permissionMode, successorSessionId, repoRoot)
-  assertDrained(repoRoot)
+  assertDrained(repoRoot, sessionId)
   const current = readRunState(repoRoot)
   if (current?.sessionId !== sessionId || !current.relay?.pending) throw new Error("owner canceled the relay drain")
   const attempting = { ...current, relay: { ...current.relay, successorSessionId, lastAttemptAt: now, attempts: (current.relay.attempts ?? 0) + 1 } }

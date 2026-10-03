@@ -1910,6 +1910,7 @@
       "proHint": "Gerencie sua assinatura",
       "free": "Plano grátis",
       "freeHint": "Faça upgrade para ter tudo",
+      "active": "Ativo",
       "trial": "Teste Pro",
       "trialUntil": "{plan} até {date}",
       "trialDaysLeft": "falta {days} dia | faltam {days} dias",

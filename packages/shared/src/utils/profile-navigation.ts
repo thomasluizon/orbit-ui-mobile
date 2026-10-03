@@ -1,5 +1,5 @@
-import type { Profile } from '../types/profile'
 import { formatLocaleDate } from './locale-format'
+import type { Profile } from '../types/profile'
 import {
   canAccessEntitlement,
   type UpgradeEntitlementMode,
@@ -22,41 +22,50 @@ export const PROFILE_SETTINGS_GROUPS: readonly ProfileSettingsGroupDefinition[] 
 ]
 
 export const PROFILE_SUBMENUS = [
-  { id: 'account', route: '/profile/account', labelKey: 'profile.submenus.account' },
-  { id: 'preferences', route: '/profile/preferences', labelKey: 'profile.submenus.preferences' },
-  { id: 'astra', route: '/profile/astra', labelKey: 'profile.groups.astra' },
-  { id: 'notifications', route: '/profile/notifications', labelKey: 'profile.groups.notifications' },
+  { id: 'account', iconKey: 'account', route: '/profile/account', labelKey: 'profile.submenus.account' },
+  { id: 'preferences', iconKey: 'preferences', route: '/profile/preferences', labelKey: 'profile.submenus.preferences' },
+  { id: 'astra', iconKey: 'astra', route: '/profile/astra', labelKey: 'profile.groups.astra' },
+  { id: 'notifications', iconKey: 'notifications', route: '/profile/notifications', labelKey: 'profile.groups.notifications' },
 ] as const
 
 export type ProfileSubmenuId = typeof PROFILE_SUBMENUS[number]['id']
 
 export function getProfileProEntry(
   profile: Profile,
-  locale: string,
   t: (key: string, values?: Record<string, string>) => string,
 ): { value: string; href: '/upgrade' | undefined } {
   if (profile.isLifetimePro) {
-    return { value: t('upgrade.billing.plan.lifetime'), href: undefined }
+    return { value: t('upgrade.billing.plan.lifetimeBadge'), href: undefined }
   }
   if (profile.isTrialActive) {
-    const plan = t('profile.subscription.trial')
-    const value = profile.trialEndsAt
-      ? t('profile.subscription.trialUntil', {
-        plan,
-        date: formatLocaleDate(profile.trialEndsAt, locale, { day: 'numeric', month: 'short', year: 'numeric' }),
-      })
-      : plan
+    const value = t('upgrade.billing.plan.trialBadge')
     return { value, href: '/upgrade' }
   }
   return {
-    value: t(profile.hasProAccess ? 'profile.allowance.pro' : 'profile.allowance.free'),
+    value: t(profile.hasProAccess ? 'profile.subscription.active' : 'profile.allowance.free'),
     href: '/upgrade',
   }
+}
+
+export function getProfileTrialEndHint(
+  profile: Pick<Profile, 'isTrialActive' | 'trialEndsAt'> | null | undefined,
+  locale: string,
+  t: (key: string, values?: Record<string, string>) => string,
+): string | undefined {
+  if (!profile?.isTrialActive || !profile.trialEndsAt) return undefined
+  return t('upgrade.billing.plan.trialHint', {
+    date: formatLocaleDate(profile.trialEndsAt, locale, { day: 'numeric', month: 'short', year: 'numeric' }),
+  })
 }
 
 export type ProfileNavVariant = 'default' | 'primary'
 
 export type ProfileNavIconKey =
+  | 'account'
+  | 'pro'
+  | 'preferences'
+  | 'astra'
+  | 'notifications'
   | 'wrapped'
   | 'widget'
   | 'calendar'
@@ -104,7 +113,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     action: 'openWidget',
     iconKey: 'widget',
     titleKey: 'profile.widgetTitle',
-    hintKey: 'profile.widgetHint',
+    hintKey: null,
     variant: 'default',
     proBadge: false,
     hintMode: 'static',
@@ -117,7 +126,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     route: '/calendar',
     iconKey: 'calendar',
     titleKey: 'profile.calendarSync.title',
-    hintKey: 'profile.calendarSync.hint',
+    hintKey: null,
     variant: 'primary',
     proBadge: true,
     hintMode: 'static',

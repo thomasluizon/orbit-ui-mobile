@@ -1,26 +1,12 @@
-/** The composer: Astra's front door, living in the shell on every primary screen. One input bar plus
- *  3 to 6 suggestion chips built from live state, so the chips take their labels as DATA and are never
- *  a fixed list. Astra is a layer, not a destination: there is no Astra tab and no bubble, and focusing
- *  this field is what opens the conversation (overlay at 412, side panel wide).
- *  The accent enters twice and only twice: the focus ring (current position) and the next action - the
- *  send button once there is something to send, or the STOP control while recording. Every other control
- *  on the bar (microphone, attach, the Astra glyph) is neutral at rest.
- *
- *  SENDING AND BUSY ARE DIFFERENT FACTS AND NEVER LOOK ALIKE. sending: the person's message was ACCEPTED
- *  and is in flight - accent send button, animated dots. busy: the concurrent chat limit is exactly one, so
- *  a second message is REFUSED, not accepted and not queued - the send control is inactive and NEUTRAL, and
- *  the refusal is stated inline. There is no queue and no draft buffer: nothing is held for later, and
- *  drawing busy like sending would tell the person their message was accepted when it was not.
- *
- *  THE WORDS ARE THE CALLER'S. `words` is REQUIRED with no default in either language: the composer's whole
- *  vocabulary - placeholders, control names, the busy and offline reasons - arrives per screen per locale,
- *  so an en screen cannot speak Portuguese by omission (the defect class DayCell shipped once).
- *
- *  atLimit states the ALLOWANCE ONLY. It carries no upgrade call to action, and it never states when the
- *  allowance returns: no endpoint returns that moment, so any component that asserted one would be
- *  instructing its caller to invent a value. `limitReason` is therefore REQUIRED when state is 'atLimit'
- *  and has NO DEFAULT, so nothing can render a fabricated return time by omission. */
-/** The composer's whole vocabulary, caller-supplied per locale. Every key is required. */
+/** One-line composer on Hoje and habit detail, and inside the conversation.
+ * Minimum height 56 at rest: Astra glyph inside the leading edge on Hoje and habit detail,
+ * input, one + menu control, filled send inside the trailing edge. The conversation omits the glyph.
+ * Hoje suggestions live in the conversation; habit detail keeps 3 to 6 live chips in one scroll row.
+ * App-authored labels never wrap or ellipsize. Input grows upward to five lines, then scrolls inside.
+ * Attachments sit in a tray inside the container above the input. Recording replaces the input with
+ * a timer and visible stop; transcribing uses a one-line status. Limit and offline reason and recovery
+ * sit above the pill. Retry occupies the send position; sending shows progress. The top rule stays.
+ * Closing the attach menu preserves the draft and attachments. */
 export interface ComposerWords {
   /** the field's placeholder in resting/focused/composing/sending/busy, e.g. "Peça algo ao Astra" */
   placeholder: string;
@@ -45,12 +31,12 @@ export interface ComposerWords {
   /** the inline reason when offline */
   offlineReason: string;
   /** REQUIRED with `onRetry` (the pairing below narrows `words` to demand it): the retry control's
-   *  visible word inside the offline reason line, e.g. "Tentar de novo" */
+   *  visible word at the send position, e.g. "Tentar de novo" */
   retry?: string;
 }
 /** The voice vocabulary. All four keys required; no default exists in either language. */
 export interface ComposerVoiceWords {
-  /** the microphone's accessible name, e.g. "Falar" */
+  /** the voice menu entry's accessible name, e.g. "Falar" */
   start: string;
   /** the stop control's accessible name, e.g. "Parar gravação" */
   stop: string;
@@ -84,28 +70,20 @@ interface ComposerBase {
   /** focusing the field opens the conversation */
   onOpen?: () => void;
 }
-/** VOICE. When `onVoice` is absent the microphone is ABSENT, not disabled - this system's rule for a
- *  control that cannot be used. When present, the microphone (neutral at rest) sits at the field's inline
- *  end before the send control, and `onVoice` toggles: press to start, press the stop control to stop.
- *  SPEAKING SPENDS NOTHING FROM THE DAILY ALLOWANCE: ChatController.cs:107 transcribes without calling
- *  TryConsumeAiMessage. Never write a cost line beside the microphone.
- *  `voiceWords` is REQUIRED with `onVoice` at the type level; without `onVoice` it is forbidden, and the
- *  'recording'/'transcribing' states are not constructible. */
+/** Voice starts from the + menu when onVoice is present. The recording stop remains visible
+ * in the input area. voiceWords is required with onVoice; unavailable capabilities are absent. */
 export type ComposerVoice =
   | { onVoice: () => void; voiceWords: ComposerVoiceWords }
   | { onVoice?: never; voiceWords?: never };
-/** ATTACHMENTS. When `onAttach` is absent both controls are ABSENT. When present, a file and an image
- *  control sit beside the microphone; both go unavailable in the 'offline' state, because that is what
- *  the app does (chat-composer-bar.tsx:390-402). A non-empty `attachments` draws a tray above the field:
- *  one row per attachment with its kind glyph, its name truncated, and a remove control firing
- *  `onAttachRemove(id)`. `attachWords` is REQUIRED with `onAttach` at the type level. `attachments`
- *  without `onAttach` is a TYPE ERROR: a tray a person cannot add to is a tray they cannot have filled. */
+/** Photo and document entries share the + menu with voice; there are no separate inline
+ * capability controls. Unavailable entries are absent, offline entries unavailable. attachWords is
+ * required with onAttach. A non-empty tray holds one to three attachments, with a full-width name
+ * wrapping to at most two lines before ellipsis and full text one tap away, plus a named remove action. */
 export type ComposerAttach =
   | { onAttach: (kind: 'file' | 'image') => void; attachWords: ComposerAttachWords; attachments?: ComposerAttachment[]; onAttachRemove?: (id: string) => void }
   | { onAttach?: never; attachWords?: never; attachments?: never; onAttachRemove?: never };
-/** OFFLINE'S WAY BACK. `onRetry` is valid only in the 'offline' state (it renders nowhere else) and sits
- *  inside the offline reason line the component already draws. Passing it narrows `words` to require
- *  `retry`. */
+/** Offline retry uses the send position. The reason remains above the pill.
+ * Passing onRetry requires the caller's localized retry word. */
 export type ComposerRetry =
   | { onRetry: () => void; words: ComposerWords & { retry: string } }
   | { onRetry?: never };
