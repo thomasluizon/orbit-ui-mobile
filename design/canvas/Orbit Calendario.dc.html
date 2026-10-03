@@ -23,7 +23,11 @@ a:hover{color:var(--fg-1)}
 
 .native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
 .native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.native-figure-group{container:native-figures / inline-size;font-size:var(--fs-sm)}
+.native-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.native-figure-caption{white-space:nowrap}
+/* Reflow with the text measure, retaining three columns at the default compact widths. */
+@container native-figures (width < 20em){.native-figures{grid-template-columns:minmax(0,1fr)}.native-figure-caption{white-space:normal}}
 .native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
 .native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .native-send:hover:not(:disabled){background:var(--primary-hover)}
@@ -151,11 +155,11 @@ a:hover{color:var(--fg-1)}
           </sc-if>
 
           <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
-            <div class="native-figures">
+            <div class="native-figure-group"><div class="native-figures">
               <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
               <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
               <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
-            </div>
+            </div></div>
           </sc-if>
 
         </div>
@@ -278,11 +282,11 @@ a:hover{color:var(--fg-1)}
           </sc-if>
 
           <sc-if value="{{ showStats }}" hint-placeholder-val="{{ true }}">
-            <div class="native-figures">
+            <div class="native-figure-group"><div class="native-figures">
               <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statBestValue }}" label="{{ statBestLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
               <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statLogsValue }}" label="{{ statLogsLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
               <x-import component-from-global-scope="OrbitNativeMobile.PlainFigure" value="{{ statMissValue }}" label="{{ statMissLabel }}" state="{{ statState }}" empty-label="{{ emptyStat }}" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
-            </div>
+            </div></div>
           </sc-if>
 
           </div>
@@ -390,7 +394,7 @@ const T = {
     viewLabel: 'Visualização',
     views: { month: 'Mês', week: 'Semana', range: 'Período', agenda: 'Agenda' },
     recLabel: 'Mostrar hábitos recorrentes',
-    statBest: 'Melhor sequência', statLogs: 'Registros', statMiss: 'Sem registro',
+    statBest: 'Recorde', statLogs: 'Registros', statMiss: 'Sem registro',
     goDay: 'Abrir este dia no Hoje',
     anytime: 'Sem hora certa',
     syncOn: 'Google Calendar conectado', syncLast: (v) => ['Última sincronização ', mock(v)],
@@ -440,7 +444,7 @@ const T = {
     viewLabel: 'View',
     views: { month: 'Month', week: 'Week', range: 'Range', agenda: 'Agenda' },
     recLabel: 'Show recurring habits',
-    statBest: 'Best streak', statLogs: 'Logs', statMiss: 'Missed',
+    statBest: 'Best', statLogs: 'Logged', statMiss: 'Not logged',
     goDay: 'Open this day on Today',
     anytime: 'No set time',
     syncOn: 'Google Calendar connected', syncLast: (v) => ['Last synced ', mock(v)],
@@ -631,10 +635,11 @@ class Component extends DCLogic {
           style: { width: 44, height: 44, paddingInline: 0 } }, H(D.Icon, { name: 'chevron-right', size: 20 }))),
       H(D.MonthGrid, { weekdayLabels: t.dayShort.slice(weekStart).concat(t.dayShort.slice(0, weekStart)),
         label: t.views.range, gap: '4px' }, cells),
-      H('div', { style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 } },
-        H(window.OrbitNativeMobile.StatTile, { label: t.statBest, value: mock(String(bestRun)) }),
-        H(window.OrbitNativeMobile.StatTile, { label: t.statLogs, value: mock(String(done)) }),
-        H(window.OrbitNativeMobile.StatTile, { label: t.statMiss, value: mock(String(Math.max(0, sched - done))) })));
+      H('div', { className: 'native-figure-group' },
+        H('div', { className: 'native-figures' },
+          H(window.OrbitNativeMobile.PlainFigure, { label: t.statBest, value: mock(String(bestRun)) }),
+          H(window.OrbitNativeMobile.PlainFigure, { label: t.statLogs, value: mock(String(done)) }),
+          H(window.OrbitNativeMobile.PlainFigure, { label: t.statMiss, value: mock(String(Math.max(0, sched - done))) }))));
   }
 
   /* The agenda: the days ahead as a list. Drawn at BOTH widths: the shipping desktop only gate

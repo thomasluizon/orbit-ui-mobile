@@ -86,17 +86,17 @@ window.OrbitNativeMobile = (() => {
         node('span', { style: { fontSize: 12, fontWeight: 500, lineHeight: '16px', whiteSpace: 'nowrap' } }, item.label))));
   }
   function StatTile({ label, value, state, emptyLabel, loadingLabel }) {
-    return node('div', { style: { minWidth: 0, padding: 16, borderRadius: 20, background: 'var(--bg-card)',
+    return node('div', { style: { container: 'native-stat / inline-size', fontSize: 'var(--fs-sm)', minWidth: 0, padding: 16, borderRadius: 20, background: 'var(--bg-card)',
       boxShadow: 'inset 0 0 0 1px var(--hairline)', display: 'flex', flexDirection: 'column', gap: 8 } },
-      node('span', { style: { fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600,
+      node('span', { style: { fontFamily: 'var(--font-display)', fontSize: 'var(--fs-xl)', fontWeight: 600,
         fontVariantNumeric: 'tabular-nums', lineHeight: 1.3 } }, state === 'loading' ? loadingLabel : state === 'empty' ? emptyLabel : value),
-      node('span', { style: { fontSize: 14, lineHeight: 20 / 14, color: 'var(--fg-2)', whiteSpace: 'normal' } }, label));
+      node('span', { className: 'native-stat-caption', style: { fontSize: 'var(--fs-sm)', lineHeight: 20 / 14, color: 'var(--fg-2)' } }, label));
   }
   function PlainFigure(props) {
     return node('div', { style: { display: 'grid', gap: 8, minWidth: 0 } },
-      node('span', { style: { fontFamily: 'var(--font-display)', fontSize: 22, fontVariantNumeric: 'tabular-nums' } },
+      node('span', { style: { fontFamily: 'var(--font-display)', fontSize: props.state === 'loading' || props.state === 'empty' ? 'var(--fs-sm)' : 'var(--fs-xl)', fontVariantNumeric: 'tabular-nums' } },
         props.state === 'loading' ? props.loadingLabel : props.state === 'empty' ? props.emptyLabel : props.value),
-      node('span', { style: { fontSize: 14, whiteSpace: 'nowrap' } }, props.label));
+      node('span', { className: 'native-figure-caption', style: { fontSize: 'var(--fs-sm)', lineHeight: 20 / 14 } }, props.label));
   }
   function EventRow({ title, time, source }) {
     const [expanded, setExpanded] = React.useState(false);

@@ -24,7 +24,7 @@ a:hover{color:var(--fg-1)}
 
 .native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
 .native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.native-stat-label{white-space:normal}
 .native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
 .native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .native-send:hover:not(:disabled){background:var(--primary-hover)}
@@ -735,7 +735,7 @@ const X = {
     dClearTitle: 'Limpar a lista de itens?', dClearGo: 'Limpar',
     dClearBody: 'Os itens saem deste hábito. Não há como restaurar por aqui.',
     dLogNowBody: 'Todos os itens estão feitos. Registrar o hábito agora?',
-    dStreak: 'Sequência atual', dFree: 'Dias livres', dBest: 'Maior sequência', dMonth: 'Neste mês',
+    dStreak: 'Sequência atual', dFree: 'Sem recaída', dBest: 'Maior sequência', dMonth: 'Neste mês',
     dNoData: 'sem dados', dRemDue: 'hora do hábito', dRemSame: 'no dia', dRemEve: 'na véspera',
     dEnd: 'Termina', dGoals: 'Metas', dActivity: 'Atividade', dPrevM: 'Mês anterior', dNextM: 'Mês seguinte',
     dLoggedAt: (v) => ['Registrado às ', mock(v)], dDescOpen: 'Abrir a descrição inteira',
@@ -2274,21 +2274,21 @@ class Component extends DCLogic {
        never three zeros. The third number is the 30 day rate (HabitMetricsCalculator.cs:29). */
     if (!hh.oneTime) {
       const stat = dtl.stat;
-      const l1 = info.bad ? x.dFree : x.dStreak;
-      if (s.dMetricsLoading) {
-        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
-          H(window.OrbitNativeMobile.StatTile, { label: l1, state: 'loading', loadingLabel: t.loading }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading', loadingLabel: t.loading }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading', loadingLabel: t.loading })));
-      } else if (!stat) {
-        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
-          H('p', { role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
-            color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet)));
+      if (!s.dMetricsLoading && !stat) {
+        out.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
+          color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
       } else {
-        out.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
-          H(window.OrbitNativeMobile.StatTile, { label: l1, value: mock(String(stat[0])) }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, value: mock(String(stat[1])) }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.holding, value: mock(stat[2]) })));
+        const labels = [info.bad ? x.dFree : x.dStreak, x.dBest, x.holding];
+        out.push(H('div', { key: 'stat', className: 'native-stat-card', 'aria-busy': s.dMetricsLoading || undefined,
+          style: { padding: 24, background: 'var(--bg-card)', borderRadius: 'var(--r-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+          labels.map((caption, index) => H('div', { key: caption, className: 'native-stat-row',
+            style: { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, minHeight: 48, paddingBlock: 8 } },
+            H('span', { className: 'native-stat-label', style: { minWidth: 0, fontSize: 'var(--fs-sm)',
+              lineHeight: 20 / 14, color: 'var(--fg-2)' } }, caption),
+            H('span', { style: { marginInlineStart: 'auto', minWidth: 0, textAlign: 'end', fontFamily: 'var(--font-display)',
+              fontSize: s.dMetricsLoading ? 'var(--fs-sm)' : 'var(--fs-xl)', fontWeight: 600, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums' } },
+              s.dMetricsLoading ? t.loading : mock(String(stat[index])))))));
       }
     }
     if (dtl.rem) {

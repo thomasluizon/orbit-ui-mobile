@@ -23,7 +23,7 @@ a:hover{color:var(--fg-1)}
 
 .native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
 .native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.native-stat-label{white-space:normal}
 .native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
 .native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .native-send:hover:not(:disabled){background:var(--primary-hover)}
@@ -61,7 +61,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly three gates: the reschedule, add a sub habit, and the slip alert inside the disclosure. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
       <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>a 76px emoji well, the name with rename in place, a summary line, and every tag as a plain word pill. The well IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid; with no emoji the well shows a plus, because here it is an empty control and not a label. The tags lose the shipping colour dot deliberately: colour as data is dead (DESIGN.md:737) and a habit is told apart by its emoji, its name and its ring. The header ring is a real 44px button on HabitRow's pairing, its accessible name the action and its direction, the ring inside it decorative. Logging from here resets the checklist ONLY under Habit.cs:186-190: a frequency, not flexible, the due date advances; a flexible habit's list does not reset.</p>
       <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number, so the picture and the number describe one window. A freeze marks a user and a date (StreakFreeze.Create), never a habit, so frozen is absent from the habit union and no snowflake can appear here; the freeze lives on Progresso where the day is the subject.</p>
-      <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled days free on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, a loading row of three tiles, and ONE centred no data line when metrics is null, never three zeros. The grid renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
+      <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled free of relapse on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, the same card with a loading value in each of its three rows, and ONE centred no data line when metrics is null, never three zeros. The card renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
       <p><span style="color:var(--fg-3)">slipping&nbsp;&nbsp;</span>drawn from the numbers, not a status: the streak at zero, the rate down, nothing logged for three days. The line names the circumstance and never the person, and it carries no red. The reschedule appears only here, because the app offers it only on an overdue habit (habit-list.tsx:906), and it needs Pro (reschedule-sheet.tsx:119): on Pro it is a proposal carrying its reason, with accept and not now; on free the same place carries the upgrade route in the shipping sheet's words, never an empty space.</p>
       <p><span style="color:var(--fg-3)">checklist&nbsp;&nbsp;</span>ONE list with two jobs, never drawn twice at once. In the open part it is interactive: a progress bar with the mono count, uncheck everything appearing only once something is checked, clear asking first, and the last item checked on an unlogged habit asking whether to log the habit now. While the disclosure is open the same list is creation's editable one, where an item is retyped in place, duplicated, removed or dragged, with saved templates in a listed sheet. The reset rule line renders only where Habit.cs makes it true.</p>
       <p><span style="color:var(--fg-3)">inside&nbsp;&nbsp;</span>each child is a HabitRow at depth 1 whose ring logs through onLog, a real sibling button; its body makes it the subject of this screen with the parent one step back, and its overflow holds log, open and delete. A child with its own children drills rather than nesting a third level inline. Add a sub habit follows the plan (startAddSubHabit, habit-list.tsx:702): on free the row carries the Pro badge and leaves for the upgrade; on Pro it would open creation, which lives in Hoje's create surface.</p>
@@ -119,7 +119,7 @@ const EMO = [
 ];
 
 /* The subjects. kids are ids; stat is [current streak, longest streak, 30 day rate] or null for no
-   data; slip marks the slipping walk; oneTime draws no stats grid (no frequency, not general). */
+   data; slip marks the slipping walk; oneTime draws no stats card (no frequency, not general). */
 const HB = {
   walk: { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', time: '18:00', days: [1, 2, 3, 4, 5], status: 'done',
     stat: [12, 21, '86%'], goals: [0],
@@ -160,7 +160,7 @@ const T = {
     holding: 'Últimos 30 dias',
     stripWords: { done: 'feito', missed: 'sem registro', notScheduled: 'não programado' },
     slipLine: ['Nenhum registro nos últimos ', '3', ' dias. A sequência voltou para ', '0', ' e a taxa dos últimos ', '30', ' dias caiu.'],
-    dStreak: 'Sequência atual', dFree: 'Dias livres', dBest: 'Maior sequência',
+    dStreak: 'Sequência atual', dFree: 'Sem recaída', dBest: 'Maior sequência',
     noDataYet: 'Ainda sem dados',
     proposedBy: 'Proposto pelo Astra',
     rsFree: 'Com o Pro, o Astra transforma um hábito atrasado em um plano realista.',
@@ -895,20 +895,22 @@ class Component extends DCLogic {
           textWrap: 'pretty' } }, x.checklistRule) : null));
     }
     if (!h.oneTime) {
-      if (s.mLoading) {
-        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
-          H(window.OrbitNativeMobile.StatTile, { label: h.bad ? x.dFree : x.dStreak, state: 'loading', loadingLabel: x.loading }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, state: 'loading', loadingLabel: x.loading }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.holding, state: 'loading', loadingLabel: x.loading })));
-      } else if (!h.stat) {
-        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
-          H('p', { role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
-            color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet)));
+      const stat = h.stat;
+      if (!s.mLoading && !stat) {
+        rest.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
+          color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
       } else {
-        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 } },
-          H(window.OrbitNativeMobile.StatTile, { label: h.bad ? x.dFree : x.dStreak, value: mock(String(h.stat[0])) }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.dBest, value: mock(String(h.stat[1])) }),
-          H(window.OrbitNativeMobile.StatTile, { label: x.holding, value: mock(h.stat[2]) })));
+        const labels = [h.bad ? x.dFree : x.dStreak, x.dBest, x.holding];
+        rest.push(H('div', { key: 'stat', className: 'native-stat-card', 'aria-busy': s.mLoading || undefined,
+          style: { padding: 24, background: 'var(--bg-card)', borderRadius: 'var(--r-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+          labels.map((caption, index) => H('div', { key: caption, className: 'native-stat-row',
+            style: { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, minHeight: 48, paddingBlock: 8 } },
+            H('span', { className: 'native-stat-label', style: { minWidth: 0, fontSize: 'var(--fs-sm)',
+              lineHeight: 20 / 14, color: 'var(--fg-2)' } }, caption),
+            H('span', { style: { marginInlineStart: 'auto', minWidth: 0, textAlign: 'end', fontFamily: 'var(--font-display)',
+              fontSize: s.mLoading ? 'var(--fs-sm)' : 'var(--fs-xl)', fontWeight: 600, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums' } },
+              s.mLoading ? x.loading : mock(String(stat[index])))))));
       }
     }
     if (h.rem) {

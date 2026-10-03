@@ -25,6 +25,9 @@ a:hover{color:var(--fg-1)}
 .native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
 .native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.native-stat-caption{white-space:nowrap}
+/* A tile grows when larger text outgrows its available measure. */
+@container native-stat (width < 12em){.native-stat-caption{white-space:normal}}
 .native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
 .native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .native-send:hover:not(:disabled){background:var(--primary-hover)}
