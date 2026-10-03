@@ -87,7 +87,6 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
         compact
         icon={<ProfileNavIcon iconKey={submenu.iconKey} />}
         textMode={submenu.id === 'account' ? 'personal' : 'label'}
-        chevron={submenu.id !== 'account'}
         title={submenu.id === 'account' ? profile?.name ?? t(submenu.labelKey) : t(submenu.labelKey)}
         accessibilityLabel={submenu.id === 'account' ? t('profile.submenus.accountLabel', { name: profile?.name ?? t(submenu.labelKey), email: profile?.email ?? '' }) : t(submenu.labelKey)}
         description={submenu.id === 'account' ? profile?.email : undefined}

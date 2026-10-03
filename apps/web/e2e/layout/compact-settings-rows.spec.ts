@@ -45,7 +45,20 @@ for (const width of [412, 1280]) {
         await page.goto('/profile')
         const navigation = page.getByTestId('profile-settings-group-you')
         await expect(navigation.getByRole('link')).toHaveCount(5)
-        await expect(navigation.locator('svg')).toHaveCount(5)
+        for (const row of await navigation.getByRole('link').all()) {
+          await expect(row.locator('svg')).toHaveCount(2)
+          const iconOrder = await row.evaluate((element) => {
+            const [leading, trailing] = element.querySelectorAll('svg')
+            const title = element.querySelector('[data-slot="list-row-title"]')!
+            return {
+              leadingBeforeTitle: Boolean(leading!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING),
+              trailingAfterTitle: Boolean(title.compareDocumentPosition(trailing!) & Node.DOCUMENT_POSITION_FOLLOWING),
+              leadingInIconSlot: leading!.closest('span[aria-hidden="true"]') !== null,
+              trailingOutsideIconSlot: trailing!.closest('span[aria-hidden="true"]') === null,
+            }
+          })
+          expect(iconOrder).toEqual({ leadingBeforeTitle: true, trailingAfterTitle: true, leadingInIconSlot: true, trailingOutsideIconSlot: true })
+        }
         const proEntry = navigation.getByRole('link', { name: new RegExp(`^${messages.upgrade.pitchTitle}`) })
         await expect(proEntry).toHaveAttribute('href', '/upgrade')
         await assertCompactTarget(proEntry)

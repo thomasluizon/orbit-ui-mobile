@@ -376,10 +376,6 @@ vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/components/profile/profile-nav-icon', () => ({
-  ProfileNavIcon: () => null,
-}))
-
 vi.mock('@/components/gamification/streak-badge', () => ({
   StreakBadge: () => React.createElement('StreakBadge'),
 }))
@@ -477,7 +473,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
 
 vi.mock('react-native-svg', () => ({
   __esModule: true,
-  default: () => null,
+  default: (props: Record<string, unknown>) => React.createElement('Svg', props),
   Path: () => null,
   Defs: () => null,
   Stop: () => null,
@@ -665,6 +661,25 @@ describe('ProfileScreen', () => {
       })
       const tree = await renderProfileScreen()
       const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
+      const rows = group.findAllByType(ListRow)
+      expect(rows).toHaveLength(5)
+      const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
+      for (const [index, row] of rows.entries()) {
+        const contents = row.findAll((node: { type: unknown }) =>
+          typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
+        const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
+        const navigates = !(index === 1 && plan.isLifetimePro)
+        expect(icons, row.props.title).toHaveLength(navigates ? 2 : 1)
+        expect(contents[0].type).toBe(leadingIcons[index])
+        expect(contents[1].type).toBe('Text')
+        expect(icons[0].props.size ?? icons[0].props.width).toBe(24)
+        if (navigates) {
+          expect(contents.at(-1).type).toBe('ChevronRight')
+        }
+        const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
+          node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
+        expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+      }
       const expectedValue = locale === 'en' ? plan.en : plan.pt
       const text = nodeText(group)
       expect(text.indexOf(mockProfileState.current.profile.name)).toBeLessThan(text.indexOf('Orbit Pro'))

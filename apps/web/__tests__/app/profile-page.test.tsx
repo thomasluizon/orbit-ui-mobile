@@ -388,6 +388,22 @@ describe('ProfilePage', () => {
       })
       render(<ProfilePage />)
       const group = screen.getByTestId('profile-settings-group-you')
+      const rows = group.querySelectorAll('.orbit-list-row-shell')
+      expect(rows).toHaveLength(5)
+      for (const row of rows) {
+        const title = row.querySelector('[data-slot="list-row-title"]')!
+        const icons = row.querySelectorAll('svg')
+        const navigates = row.querySelector('a') !== null
+        expect(icons, title.textContent!).toHaveLength(navigates ? 2 : 1)
+        expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
+        expect(icons[0]!.getAttribute('width')).toBe('24')
+        expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        if (navigates) {
+          expect(title.compareDocumentPosition(icons[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+          expect(icons[1]!.getAttribute('aria-hidden')).toBe('true')
+          expect(icons[1]!.getAttribute('focusable')).toBe('false')
+        }
+      }
       const titles = Array.from(group.querySelectorAll('[data-slot="list-row-title"]')).map((node) => node.textContent)
       expect(titles.slice(0, 3)).toEqual([mockProfileState.current.profile.name, 'Orbit Pro', locale === 'en' ? 'Preferences' : 'Preferências'])
       const expectedValue = locale === 'en' ? plan.en : plan.pt
