@@ -84,8 +84,8 @@ describe('CalendarRangeView', () => {
     expect(screen.getByTestId('month-grid-days').children).toHaveLength(14)
     expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: 'var(--calendar-grid-gap)' })
     expect(screen.queryAllByRole('img')).toHaveLength(0)
-    expect(screen.queryByText('Logs')).not.toBeInTheDocument()
     const loadingStats = screen.getByTestId('calendar-stats')
+    expect(screen.getByText('Logs').closest('[aria-hidden="true"]')).toBe(loadingStats)
     const loadingStatsStyle = loadingStats.style.cssText
     expect(loadingStats.children).toHaveLength(3)
     expect(loadingStats.querySelectorAll('[data-state="loading"]')).toHaveLength(3)

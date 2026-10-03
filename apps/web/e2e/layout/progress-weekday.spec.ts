@@ -28,9 +28,8 @@ for (const width of [320, 344, 360, 411, 412]) {
         await setLayoutProfileSession(context, profile)
         await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
         await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
-        const weekdayIndex = locale === 'en' ? 2 : 6
         const weeklyConsistency = Array(7).fill(0) as number[]
-        weeklyConsistency[weekdayIndex] = 100
+        weeklyConsistency[0] = 100
         const retrospective = retrospectiveResponseSchema.parse({
           period: 'month',
           metrics: createMockRetrospectiveMetrics({ weeklyConsistency }),
@@ -43,13 +42,28 @@ for (const width of [320, 344, 360, 411, 412]) {
         await page.goto('/progress')
         const tile = page.getByText(messages.progressScreen.window.bestWeekday, { exact: true }).locator('..')
         const value = tile.locator('span').first()
-        const weekday = locale === 'en' ? messages.dates.daysValue.wednesday : messages.dates.daysValue.sunday
-        await expect(value).toHaveText(weekday)
+        await expect(value).toHaveText(messages.dates.daysAbbreviated.monday)
+        await page.evaluate(() => document.fonts.ready)
+        const weekdays = Object.values(messages.dates.daysAbbreviated)
+        const weekdayWidths = await value.evaluate((element, labels) => labels.map((label) => {
+          const unwrapped = element.cloneNode(true) as HTMLElement
+          unwrapped.textContent = label
+          Object.assign(unwrapped.style, {
+            position: 'absolute', width: 'max-content', maxWidth: 'none', whiteSpace: 'nowrap', visibility: 'hidden',
+          })
+          element.parentElement!.append(unwrapped)
+          const width = unwrapped.getBoundingClientRect().width
+          unwrapped.remove()
+          return width
+        }), weekdays)
+        const weekdayIndex = weekdayWidths.indexOf(Math.max(...weekdayWidths))
+        retrospective.metrics.weeklyConsistency = weekdays.map((_, index) => index === weekdayIndex ? 100 : 0)
+        await page.goto('/progress')
+        await expect(value).toHaveText(weekdays[weekdayIndex]!)
         await page.evaluate(() => document.fonts.ready)
         const siblingSizes = await Promise.all([
           messages.progressScreen.window.completionRate,
           messages.progressScreen.window.activeDays,
-          messages.progressScreen.window.topHabit,
         ].map((label) => page.getByText(label, { exact: true }).locator('..').locator('span').first()
           .evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))))
 
@@ -68,17 +82,21 @@ for (const width of [320, 344, 360, 411, 412]) {
             fontSize: Number.parseFloat(style.fontSize),
             lineHeight: Number.parseFloat(style.lineHeight),
             mustWrap: unwrappedWidth > valueBounds.width,
+            ellipsized: style.textOverflow === 'ellipsis',
+            clipped: style.overflow === 'hidden',
             scrollWidth: element.scrollWidth,
             clientWidth: element.clientWidth,
             valueBounds: { left: valueBounds.left, right: valueBounds.right, top: valueBounds.top, bottom: valueBounds.bottom },
             tileBounds: { left: tileBounds.left, right: tileBounds.right, top: tileBounds.top, bottom: tileBounds.bottom },
           }
         })
-        expect(siblingSizes).toEqual([geometry.fontSize, geometry.fontSize, geometry.fontSize])
-        expect(geometry.fontSize).toBe(24)
+        expect(siblingSizes).toEqual([geometry.fontSize, geometry.fontSize])
+        expect(geometry.fontSize).toBe(22)
         const valueHeight = geometry.valueBounds.bottom - geometry.valueBounds.top
-        if (geometry.mustWrap) expect(valueHeight).toBeGreaterThan(geometry.lineHeight)
-        else expect(valueHeight).toBeCloseTo(geometry.lineHeight, 1)
+        expect(geometry.mustWrap).toBe(false)
+        expect(geometry.ellipsized).toBe(false)
+        expect(geometry.clipped).toBe(false)
+        expect(valueHeight).toBeCloseTo(geometry.lineHeight, 1)
         expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth)
         expect(geometry.valueBounds.left).toBeGreaterThanOrEqual(geometry.tileBounds.left)
         expect(geometry.valueBounds.right).toBeLessThanOrEqual(geometry.tileBounds.right)
