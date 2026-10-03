@@ -70,7 +70,7 @@ describe('upgrade utils', () => {
       trialHeading: 'The 50 a day stay, or go back to 5.',
       freeAllowance: '5',
       proAllowance: '50',
-      perDay: 'messages a day',
+      perDay: 'messages/day',
     })
     expect(ptBR.upgrade.convert).toMatchObject({
       promise: 'O plano muda a Astra, nunca os seus hábitos e registros.',
@@ -78,7 +78,7 @@ describe('upgrade utils', () => {
       trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.',
       freeAllowance: '5',
       proAllowance: '50',
-      perDay: 'mensagens por dia',
+      perDay: 'mensagens/dia',
     })
     for (const messages of [en, ptBR]) {
       expect(Object.keys(messages.upgrade.outcomes)).toEqual(['label', 'astra', 'calendar', 'retrospective', 'noticing'])
