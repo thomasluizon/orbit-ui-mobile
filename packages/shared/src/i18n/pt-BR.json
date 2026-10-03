@@ -971,7 +971,8 @@
     "dayDetail": {
       "completionSummary": "{done} de {total} registrados",
       "nothingDue": "nada programado",
-      "viewAllEvents": "Ver todos os eventos ({count})",
+      "viewAllEventsLabel": "Ver todos",
+      "viewAllEvents": "Ver todos ({count})",
       "eventsTitle": "Na sua agenda",
       "importEvents": "Importar eventos",
       "searchEvents": "Buscar eventos",

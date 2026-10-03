@@ -669,7 +669,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({ id: `event-${index}`, title: `Event ${index}`, description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }))
     const tree = renderDetail({ calendarEvents })
     expect(nodes(tree, 'InputMock')).toHaveLength(0)
-    const all = nodes(tree, 'ListRowMock').find((row) => row.props.title === 'calendar.dayDetail.viewAllEvents')
+    const all = nodes(tree, 'ListRowMock').find((row) => row.props.accessibilityLabel === 'calendar.dayDetail.viewAllEvents')
     TestRenderer.act(() => (all?.props.onClick as () => void)())
     const search = nodes(tree, 'InputMock')[0]
     expect(search?.props.label).toBe('calendar.dayDetail.searchEvents')
@@ -738,6 +738,6 @@ describe('day card disclosure regression', () => {
     expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
     TestRenderer.act(() => (nodes(tree, 'EventRowMock')[0]?.props.onClick as () => void)())
     expect(onOpenCalendarImport).toHaveBeenCalledWith('preview-0')
-    expect(nodes(tree, 'ListRowMock').some((row) => row.props.title === 'calendar.dayDetail.viewAllEvents')).toBe(true)
+    expect(nodes(tree, 'ListRowMock').find((row) => row.props.accessibilityLabel === 'calendar.dayDetail.viewAllEvents')?.props).toMatchObject({ title: 'calendar.dayDetail.viewAllEventsLabel', value: `(${count})` })
   })
 })

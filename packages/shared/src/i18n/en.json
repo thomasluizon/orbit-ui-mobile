@@ -971,7 +971,8 @@
     "dayDetail": {
       "completionSummary": "{done} of {total} logged",
       "nothingDue": "nothing due",
-      "viewAllEvents": "View all events ({count})",
+      "viewAllEventsLabel": "View all",
+      "viewAllEvents": "View all ({count})",
       "eventsTitle": "On your calendar",
       "importEvents": "Import events",
       "searchEvents": "Search events",

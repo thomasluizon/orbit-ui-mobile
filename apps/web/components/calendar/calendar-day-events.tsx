@@ -41,8 +41,7 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
   />)
   return <>
     <div className="flex flex-col gap-2 px-2">{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</div>
-    {/* eslint-disable-next-line local/max-button-words -- #1143 requires this event disclosure label. */}
-    {!sheetOnly && calendarEvents.length > 3 ? <ListRow textMode="label" title={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /> : null}
+    {!sheetOnly && calendarEvents.length > 3 ? <ListRow textMode="label" title={t('calendar.dayDetail.viewAllEventsLabel')} value={`(${calendarEvents.length})`} accessibilityLabel={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /> : null}
     {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={finishClose}>
       <div className="flex flex-col gap-2">
         {calendarEvents.length >= 8 ? <p className="m-0 font-mono text-xs tabular-nums text-[var(--fg-3)]">{plural(t('calendar.eventsFound', { count: calendarEvents.length }), calendarEvents.length)}</p> : null}
