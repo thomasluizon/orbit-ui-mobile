@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
@@ -8,6 +9,7 @@ import { test } from './upgrade-fixtures'
 
 const name = 'W'.repeat(60)
 const email = `${'W'.repeat(48)}@example.com`
+const accountRoute = PROFILE_SUBMENUS.find((submenu) => submenu.id === 'account')!.route
 
 for (const width of [320, 360, 384, 412, 1100, 1440]) {
   for (const locale of ['pt-BR', 'en'] as const) {
@@ -17,7 +19,7 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
       test('keeps one growing account link and reaches the profile account row', async ({ page }) => {
         const words = locale === 'pt-BR' ? ptBR : en
         await page.goto(`${LAYOUT_ORIGIN}/profile`)
-        const profileAccount = page.locator('a[href="/account"]')
+        const profileAccount = page.locator(`a[href="${accountRoute}"]`)
         await expect(profileAccount.getByText(name, { exact: true })).toBeVisible()
         await expect(profileAccount.getByText(email, { exact: true })).toBeVisible()
         const sidebar = page.locator('[data-shell-sidebar]')
