@@ -31,7 +31,7 @@
     },
     "homeScreen": {
       "title": "Tela inicial",
-      "showGeneral": "Hábitos sem dia certo no Hoje",
+      "showGeneral": "Sem dia certo",
       "showGeneralDesc": "Os hábitos sem programação aparecem na lista de hoje."
     },
     "clock": {
