@@ -129,6 +129,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm
+
+      # The scanner resolves tsconfig extends and dependency types from node_modules.
+      - run: npm ci
 
       - name: Download coverage reports
         uses: actions/download-artifact@v8
