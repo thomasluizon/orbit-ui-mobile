@@ -89,11 +89,9 @@ describe('mobile calendar events reconciliation', () => {
       return (
         <CalendarSyncBoundary
           autoSyncState={autoSyncState}
-          displayTime={(time) => time}
           onAutoSyncChange={async () => {}}
           onSyncNow={async () => {}}
-          t={((key: string) => key) as never}
-          tokens={createTokensV2('purple', 'dark')}
+          t={((key: string) => key) as never} locale="en" tokens={createTokensV2('purple', 'dark')}
         />
       )
     }
@@ -174,15 +172,13 @@ describe('mobile Calendar Sync now control', () => {
       const mutation = useRunCalendarSyncNow()
       return <CalendarSyncBoundary
         autoSyncState={autoSyncState}
-        displayTime={(time) => time}
         onAutoSyncChange={() => Promise.resolve()}
         onSyncNow={() => runCalendarSyncNowWithFeedback(
           () => mutation.mutateAsync(),
           (error) => { reportedErrors.push((error as Error).message) },
           getAccountGeneration,
         )}
-        t={((key: string) => key) as never}
-        tokens={createTokensV2('purple', 'dark')}
+        t={((key: string) => key) as never} locale="en" tokens={createTokensV2('purple', 'dark')}
       />
     }
 

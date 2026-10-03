@@ -1848,6 +1848,6 @@ describe('ProfileScreen', () => {
 
     expect(calendarRow.props.chevron).toBe(true)
     expect(calendarRow.props.hasTrailing).toBe(false)
-    expect(mockRouterPush).toHaveBeenCalledWith('/calendar')
+    expect(mockRouterPush).toHaveBeenCalledWith('/calendar?import=1')
   })
 })

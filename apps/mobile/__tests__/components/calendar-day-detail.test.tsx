@@ -16,6 +16,9 @@ import { createTokensV2 } from '@/lib/theme'
 import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-day-detail'
 
 const TestRenderer = require('react-test-renderer')
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+
 
 const network = { isOnline: true }
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => network }))
@@ -182,7 +185,6 @@ function CalendarDayDetailHarness({
       title='Sunday, Jun 15'
       filteredEntries={entries}
       calendarEvents={calendarEvents}
-      autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
       onOpenCalendarImport={onOpenCalendarImport}
@@ -191,8 +193,6 @@ function CalendarDayDetailHarness({
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       pendingEntryStates={pendingEntryStates}
-      onCalendarAutoSyncChange={onCalendarAutoSyncChange}
-      onCalendarSyncNow={async () => {}}
       onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
       displayTime={(time) => time}
@@ -235,69 +235,24 @@ describe('CalendarDayDetail (mobile)', () => {
       borderWidth: 1,
       paddingVertical: 24,
     })
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 24)).toBe(true)
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 8)).toBe(true)
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 16)).toBe(true)
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 8)).toBe(true)
     expect(nodes(tree, 'Text').some((node) => node.props.children === 'Sunday, Jun 15')).toBe(true)
     expect(nodes(tree, 'Pressable').some((node) => node.props.accessibilityLabel === 'Show recurring habits')).toBe(false)
   })
 
-  it('renders timed and all-day Google events through the read-only event row', () => {
+  it('opens timed and all-day events without an import pill', () => {
     const onOpenCalendarImport = vi.fn()
-    const tree = renderDetail({
-      entries: [makeEntry()],
-      onOpenCalendarImport,
-      calendarEventsState: 'ready',
-      calendarEvents: [
-        {
-          id: 'event-1',
-          title: 'Team meeting',
-          description: null,
-          startDate: '2025-06-15',
-          startTime: '09:00',
-          endTime: null,
-          isRecurring: false,
-          recurrenceRule: null,
-          reminders: [],
-          calendarName: 'Work',
-          isImported: false,
-        },
-        {
-          id: 'event-2',
-          title: 'Company holiday',
-          description: null,
-          startDate: '2025-06-15',
-          startTime: null,
-          endTime: null,
-          isRecurring: false,
-          recurrenceRule: null,
-          reminders: [],
-          calendarName: 'Personal',
-          isImported: true,
-          importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa',
-        },
-      ],
-    })
-
-    expect(nodes(tree, 'EventRowMock').map((event) => event.props)).toEqual([
-      expect.objectContaining({
-        time: '09:00',
-        title: 'Team meeting',
-        source: 'Work',
-      }),
-      expect.objectContaining({
-        allDayLabel: 'calendar.timeGrid.allDay',
-        title: 'Company holiday',
-        source: 'Personal',
-      }),
-    ])
-    const importButtons = nodes(tree, 'PillButtonMock').filter((button) =>
-      button.props.children === 'calendar.dayDetail.importEvents')
-    expect(importButtons).toHaveLength(1)
-    const openImport = importButtons[0]?.props.onClick as () => void
-    openImport()
-    expect(onOpenCalendarImport).toHaveBeenCalledWith(null)
-    expect(nodes(tree, 'PillButtonMock').some((button) =>
-      typeof button.props.accessibleName === 'string' && button.props.accessibleName.includes('Company holiday'))).toBe(false)
+    const tree = renderDetail({ onOpenCalendarImport, calendarEvents: [
+      { id: 'event-1', title: 'Team meeting', description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Work' },
+      { id: 'event-2', title: 'Holiday', description: null, startDate: '2025-06-15', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Work' },
+    ] })
+    const rows = nodes(tree, 'EventRowMock')
+    expect(rows[0]?.props).toMatchObject({ title: 'Team meeting', time: '09:00', source: undefined })
+    expect(rows[1]?.props.allDayLabel).toBe('calendar.timeGrid.allDay')
+    TestRenderer.act(() => (rows[1]?.props.onClick as () => void)())
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-2')
+    expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
   })
 
   it('renders a failed events request instead of the empty result', () => {
@@ -331,55 +286,26 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(errors).toHaveLength(0)
   })
 
-  it('offers reconnection without rendering the connected-empty treatment', () => {
+  it('opens Calendars from the disconnected row even while offline', () => {
     const onReconnectCalendarEvents = vi.fn()
-    const tree = renderDetail({
-      entries: [makeEntry()],
-      calendarEventsState: 'not-connected',
-      onReconnectCalendarEvents,
-    })
-    const text = nodes(tree, 'Text').map((node) => node.props.children)
-    const reconnectButton = nodes(tree, 'PillButtonMock')[0]
-
-    expect(text).toContain('Google Calendar disconnected')
-    expect(text).toContain('Reconnect to see the events you can import.')
-    expect(text).not.toContain('calendar.noEvents')
-    const onClick = reconnectButton?.props.onClick
-    expect(typeof onClick).toBe('function')
-    if (typeof onClick === 'function') TestRenderer.act(() => onClick())
-    expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
-    expect(tree.root.findAll((node) => node.props.testID === 'calendar-sync-line')).toHaveLength(0)
+    const tree = renderDetail({ calendarEventsState: 'not-connected', onReconnectCalendarEvents })
+    const row = nodes(tree, 'ListRowMock').find((row) => row.props.title === 'calendar.calendars.title')
+    expect(row).toBeDefined()
+    TestRenderer.act(() => (row?.props.onClick as () => void)())
+    expect(onReconnectCalendarEvents).toHaveBeenCalledOnce()
+    expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
   })
 
-  it('renders the free sync boundary with one route to Orbit Pro', () => {
+  it('keeps habits and one Pro badge row for a free account', () => {
     const onViewPro = vi.fn()
-    const tree = renderDetail({
-      entries: [makeEntry()],
-      calendarEventsState: 'pro-boundary',
-      onViewPro,
-    })
-    const boundary = tree.root.findAll(
-      (node) => node.props.testID === 'calendar-pro-boundary',
-    )[0]
-    const notices = boundary?.findAll(
-      (node: TestNode) => node.type === 'CapacityNoticeMock',
-    ) ?? []
-    const actions = boundary?.findAll(
-      (node: TestNode) => node.type === 'PillButtonMock',
-    ) ?? []
-
-    expect(notices).toHaveLength(1)
-    expect(notices[0]?.props).toMatchObject({
-      message: 'Syncing with Google Calendar is part of Orbit Pro.',
-      body: 'With it, your commitments show up beside the habits for the day.',
-    })
-    expect(actions).toHaveLength(1)
-    expect(actions[0]?.props.disabled).not.toBe(true)
-    expect(actions[0]?.props.variant).toBe('primary')
-    const onClick = actions[0]?.props.onClick
-    expect(typeof onClick).toBe('function')
-    if (typeof onClick === 'function') TestRenderer.act(() => onClick())
-    expect(onViewPro).toHaveBeenCalledTimes(1)
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
+    expect(nodes(tree, 'ListRowMock').some((row) => row.props.title === 'Meditate')).toBe(true)
+    const row = nodes(tree, 'ListRowMock').find((row) => row.props.title === 'calendar.calendars.title')
+    expect(row?.props.trailing).toBeDefined()
+    TestRenderer.act(() => (row?.props.onClick as () => void)())
+    expect(onViewPro).toHaveBeenCalledOnce()
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(0)
+    expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
   })
 
   it('renders the empty events state after an empty response resolves', () => {
@@ -407,13 +333,13 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(rows.slice(0, 3).every((row) => row.props.compact === true)).toBe(true)
     expect(rows.slice(0, 3).map((row) => ({
       title: row.props.title,
-      value: row.props.value,
+      value: row.props.description,
       readOnly: row.props.readOnly,
       ringStatus: (row.props.trailing as React.ReactElement<{ status: string }>).props.status,
     }))).toEqual([
-      { title: 'Read', value: '08:00 · done', readOnly: true, ringStatus: 'done' },
-      { title: 'Walk', value: '08:00 · not logged', readOnly: true, ringStatus: 'empty' },
-      { title: 'Swim', value: '08:00 · not logged', readOnly: true, ringStatus: 'empty' },
+      { title: 'Read', value: '08:00', readOnly: true, ringStatus: 'done' },
+      { title: 'Walk', value: '08:00', readOnly: true, ringStatus: 'empty' },
+      { title: 'Swim', value: '08:00', readOnly: true, ringStatus: 'empty' },
     ])
   })
 
@@ -427,13 +353,13 @@ describe('CalendarDayDetail (mobile)', () => {
     })
     const rows = nodes(tree, 'ListRowMock')
     expect(rows.slice(0, 3).map((row) => ({
-      value: row.props.value,
+      value: row.props.description,
       ringStatus: (row.props.trailing as React.ReactElement<{ status: string }>).props.status,
       ringLabel: (row.props.trailing as React.ReactElement<{ label: string }>).props.label,
     }))).toEqual([
-      { value: '08:00 · indulged', ringStatus: 'bad', ringLabel: 'indulged' },
-      { value: '08:00 · resisted', ringStatus: 'done', ringLabel: 'resisted' },
-      { value: '08:00 · resisted', ringStatus: 'empty', ringLabel: 'not logged' },
+      { value: '08:00', ringStatus: 'bad', ringLabel: 'indulged' },
+      { value: '08:00', ringStatus: 'done', ringLabel: 'resisted' },
+      { value: '08:00', ringStatus: 'empty', ringLabel: 'not logged' },
     ])
   })
 
@@ -442,7 +368,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const onEntryChange = vi.fn(async () => {})
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
     const row = nodes(tree, 'CheckRowMock')[0]
-    expect(row?.props).toMatchObject({ label: 'Read', checked: true, value: '08:00 · done' })
+    expect(row?.props).toMatchObject({ label: 'Read', checked: true, value: '08:00' })
     ;(row?.props.onChange as (checked: boolean) => void)(false)
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
   })
@@ -469,7 +395,7 @@ describe('CalendarDayDetail (mobile)', () => {
       })
 
       const values = nodes(tree, 'CheckRowMock').map((row) => row.props.value)
-      expect(values).toEqual(['08:00 · not logged', '08:00 · resisted'])
+      expect(values).toEqual(['08:00', '08:00'])
     } finally {
       vi.useRealTimers()
     }
@@ -682,7 +608,7 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(row?.props).toMatchObject({
       checked: true,
       loading: true,
-      value: '08:00 · done',
+      value: '08:00',
     })
     TestRenderer.act(() => {
       ;(row?.props.onChange as (checked: boolean) => void)(false)
@@ -698,7 +624,7 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(row?.props).toMatchObject({
       checked: false,
       loading: false,
-      value: '08:00 · not logged',
+      value: '08:00',
     })
 
     TestRenderer.act(() => {
@@ -719,101 +645,33 @@ describe('CalendarDayDetail (mobile)', () => {
     const routeRow = nodes(tree, 'ListRowMock').at(-1)
     expect(routeRow?.props).toMatchObject({
       title: 'Open this day on Today',
-      wrapTitle: true,
+      textMode: 'label',
       icon: 'external-link',
       chevron: false,
       onClick: onGoToDay,
     })
   })
 
-  it('keeps habits visible while replacing events with the free plan boundary', () => {
-    const onViewPro = vi.fn()
-    const tree = renderDetail({
-      entries: [makeEntry({ title: 'Read' })],
-      calendarEvents: [{
-        id: 'event-1', title: 'Team meeting', description: null,
-        startDate: '2025-06-15', startTime: '09:00', endTime: null,
-        isRecurring: false, recurrenceRule: null, reminders: [],
-      }],
-      calendarEventsState: 'pro-boundary',
-      onViewPro,
-    })
 
-    expect(nodes(tree, 'ListRowMock').map((row) => row.props.title)).toContain('Read')
-    expect(nodes(tree, 'EventRowMock')).toHaveLength(0)
-    expect(nodes(tree, 'CapacityNoticeMock')).toHaveLength(1)
-    const action = nodes(tree, 'PillButtonMock')[0]
-    expect(action?.props.variant).toBe('primary')
-    TestRenderer.act(() => (action?.props.onClick as () => void)())
-    expect(onViewPro).toHaveBeenCalledOnce()
-  })
 
-  it('builds the Pro sync line and switch from the profile fields', () => {
-    const onCalendarAutoSyncChange = vi.fn(async () => {})
-    const tree = renderDetail({
-      entries: [makeEntry()],
-      autoSyncState: proAutoSyncState,
-      onCalendarAutoSyncChange,
-    })
 
-    const text = nodes(tree, 'Text').map((node) => node.props.children)
-    expect(text).toContain('calendar.dayDetail.googleConnected')
-    const autoSync = nodes(tree, 'SwitchMock')[0]
-    expect(autoSync?.props.accessibilityState).toEqual({ checked: true })
-    TestRenderer.act(() => (autoSync?.props.onPress as () => void)())
-    expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
-  })
 
-  it('does not offer auto-sync as enabled without a Google connection', () => {
-    const tree = renderDetail({
-      entries: [makeEntry()],
-      autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
-    })
 
-    expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
-  })
 
-  it('shows one offline disconnected state without a reconnect action', () => {
-    network.isOnline = false
-    try {
-      const onReconnectCalendarEvents = vi.fn()
-      const tree = renderDetail({
-        calendarEventsState: 'not-connected',
-        autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
-        onReconnectCalendarEvents,
-      })
-      const text = nodes(tree, 'Text').map((node) => node.props.children)
-      expect(text).toContain('offline.calendar.title')
-      expect(text).toContain('offline.calendar.reason')
-      expect(text).not.toContain('Google Calendar disconnected')
-      expect(nodes(tree, 'PillButtonMock').some((node) => node.props.children === 'Reconnect')).toBe(false)
-      expect(onReconnectCalendarEvents).not.toHaveBeenCalled()
-    } finally {
-      network.isOnline = true
-    }
-  })
 
-  it('searches and pages a busy day within twenty event rows', () => {
-    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 23 }, (_, index) => ({
-      id: `event-${index}`, title: `Event ${index}`, description: null,
-      startDate: '2025-06-15', startTime: '09:00', endTime: null,
-      isRecurring: false, recurrenceRule: null, reminders: [],
-    }))
+
+  it('searches a busy day only after opening its events sheet', () => {
+    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({ id: `event-${index}`, title: `Event ${index}`, description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }))
     const tree = renderDetail({ calendarEvents })
-    expect(nodes(tree, 'EventRowMock')).toHaveLength(20)
+    expect(nodes(tree, 'InputMock')).toHaveLength(0)
+    const all = nodes(tree, 'ListRowMock').find((row) => row.props.title === 'calendar.dayDetail.viewAllEvents')
+    TestRenderer.act(() => (all?.props.onClick as () => void)())
     const search = nodes(tree, 'InputMock')[0]
     expect(search?.props.label).toBe('calendar.dayDetail.searchEvents')
-    const next = nodes(tree, 'PillButtonMock').find((node) => node.props.children === 'common.next')
-    TestRenderer.act(() => (next?.props.onClick as () => void)())
-    expect(nodes(tree, 'EventRowMock')).toHaveLength(3)
-    TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('Event 22'))
-    expect(nodes(tree, 'EventRowMock')).toHaveLength(1)
-    expect(nodes(tree, 'EventRowMock')[0]?.props.title).toBe('Event 22')
+    TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('Event 20'))
+    expect(nodes(tree, 'EventRowMock').filter((row) => row.props.title === 'Event 20')).toHaveLength(1)
     TestRenderer.act(() => (search?.props.onChange as (value: string) => void)('No such event'))
-    expect(nodes(tree, 'Text').some((node) => node.props.children === 'calendar.dayDetail.noMatchingEvents')).toBe(true)
-    const clear = nodes(tree, 'PillButtonMock').find((node) => node.props.children === 'calendar.dayDetail.clearEventSearch')
-    TestRenderer.act(() => (clear?.props.onClick as () => void)())
-    expect(nodes(tree, 'EventRowMock')).toHaveLength(20)
+    expect(nodes(tree, 'Text').some((row) => String(row.props.children).startsWith('calendar.dayDetail.noMatchingEvents'))).toBe(true)
   })
 })
 
@@ -860,5 +718,23 @@ describe('CalendarDayDetail mixed-type family carry', () => {
     expect(ring.props.status).toBe('done')
     expect(ring.props.label).toBe(en.calendar.status.completed)
     expect(ring.props.label).not.toBe(en.calendar.status.indulged)
+  })
+})
+
+
+describe('day card disclosure regression', () => {
+  it.each([8, 21])('limits %i events to three tappable preview rows without sync controls', (count) => {
+    const onOpenCalendarImport = vi.fn()
+    const tree = renderDetail({ onOpenCalendarImport, calendarEvents: Array.from({ length: count }, (_, index) => ({
+      id: `preview-${index}`, title: `Preview ${index}`, description: null,
+      startDate: '2025-06-15', startTime: '09:00', endTime: null,
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    })) })
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(3)
+    expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
+    expect(nodes(tree, 'PillButtonMock')).toHaveLength(0)
+    TestRenderer.act(() => (nodes(tree, 'EventRowMock')[0]?.props.onClick as () => void)())
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('preview-0')
+    expect(nodes(tree, 'ListRowMock').some((row) => row.props.title === 'calendar.dayDetail.viewAllEvents')).toBe(true)
   })
 })

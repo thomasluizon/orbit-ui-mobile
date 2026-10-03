@@ -143,7 +143,7 @@ export {
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   filterCalendarSyncEventsByDate,
-  getCalendarSyncClockValue,
+  formatCalendarSyncTimestamp,
   getCalendarSyncImportIssue,
   getCalendarSyncImportIssueMessageKey,
   isCalendarAutoSyncStatusReconnectRequired,

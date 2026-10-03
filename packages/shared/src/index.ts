@@ -178,7 +178,7 @@ export {
   buildCalendarAutoSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
-  getCalendarSyncClockValue,
+  formatCalendarSyncTimestamp,
   getCalendarSyncImportIssue,
   getCalendarSyncImportIssueMessageKey,
   isCalendarSyncConnectionActive,

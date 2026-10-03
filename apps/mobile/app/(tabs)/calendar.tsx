@@ -1,3 +1,4 @@
+import { useCalendars } from '@/hooks/use-calendars';
 import { CalendarOptions } from './calendar/_components/calendar-options';
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import {
@@ -50,12 +51,10 @@ import {
   resolveCalendarMonthDisplayState,
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
-  getFriendlyErrorMessage,
   calendarMonthForDay,
   shouldOpenCalendarImportSheet,
   calendarImportTitleKey,
   calendarImportRouteRequestKey,
-  runCalendarSyncNowWithFeedback,
 } from "@orbit/shared/utils";
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
@@ -66,11 +65,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import {
   useCalendarAutoSyncState,
-  useSetCalendarAutoSync,
-  useRunCalendarSyncNow,
 } from "@/hooks/use-calendar-auto-sync";
-import { useAppToast } from "@/hooks/use-app-toast";
-import { getAccountGeneration } from "@/lib/session-epoch";
 import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-session-reset';
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
@@ -416,7 +411,6 @@ function CalendarScreenContent({
   const params = useLocalSearchParams<{ mode?: string; import?: string }>();
   const { sheetRef, closeSheet } = useSheetHost();
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
-  const { showError, showSuccess } = useAppToast();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
   const setCalendarHasError = useUIStore((state) => state.setCalendarHasError);
@@ -460,6 +454,8 @@ function CalendarScreenContent({
     setInitialImportEventId(null);
     if (importRequested) router.replace('/calendar');
   }, [importRequested, router, setInitialImportEventId, setIsImportOpen]);
+  const { data: connectedCalendars } = useCalendars({ enabled: profile.hasProAccess });
+  const showEventSource = (connectedCalendars?.length ?? 0) > 1;
   const showRecurring = useUIStore((state) => state.calendarShowRecurring);
   const {
     data: calendarEventsResult,
@@ -470,7 +466,7 @@ function CalendarScreenContent({
     enabled: profile.hasProAccess,
     timeZone: profile.timeZone,
   });
-  const { data: autoSyncState } = useCalendarAutoSyncState({
+  useCalendarAutoSyncState({
     enabled: profile.hasProAccess,
     initialData: {
       enabled: profile.googleCalendarAutoSyncEnabled,
@@ -479,34 +475,6 @@ function CalendarScreenContent({
       hasGoogleConnection: profile.hasGoogleConnection,
     },
   });
-  const setCalendarAutoSync = useSetCalendarAutoSync();
-  const runCalendarSyncNow = useRunCalendarSyncNow();
-
-  const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
-    const requestAccount = getAccountGeneration();
-    try {
-      await setCalendarAutoSync.mutateAsync({ enabled });
-      if (getAccountGeneration() !== requestAccount) return;
-      showSuccess(t(enabled ? 'calendar.autoSync.enableSuccess' : 'calendar.autoSync.disableSuccess'));
-    } catch (error: unknown) {
-      if (getAccountGeneration() !== requestAccount) return;
-      showError(getFriendlyErrorMessage(
-        error,
-        t,
-        'calendar.autoSync.syncFailed',
-        'generic',
-      ));
-    }
-  }, [setCalendarAutoSync, showError, showSuccess, t]);
-
-  const handleCalendarSyncNow = useCallback(async () => {
-    await runCalendarSyncNowWithFeedback(
-      () => runCalendarSyncNow.mutateAsync(),
-      (error) => showError(getFriendlyErrorMessage(error, t, 'calendar.autoSync.syncFailed', 'textless')),
-      getAccountGeneration,
-    );
-  }, [runCalendarSyncNow, showError, t]);
-
   const openOrbitPro = useCallback(() => {
     closeSheet(() => {
       setIsDayDetailOpen(false);
@@ -867,7 +835,7 @@ function CalendarScreenContent({
             title={formattedSelectedDate}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
-            autoSyncState={autoSyncState}
+            showEventSource={showEventSource}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
             onReconnectCalendarEvents={() => openImport(null)}
@@ -876,8 +844,6 @@ function CalendarScreenContent({
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             pendingEntryStates={pendingEntryStates}
-            onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-            onCalendarSyncNow={handleCalendarSyncNow}
             onEntryChange={changeSelectedEntry}
             onGoToDay={() => router.push(`/?date=${selectedDay}`)}
             displayTime={displayTime}
@@ -1015,7 +981,7 @@ function CalendarScreenContent({
             showTitle={false}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
-            autoSyncState={autoSyncState}
+            showEventSource={showEventSource}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
             onReconnectCalendarEvents={() => openImport(null)}
@@ -1024,8 +990,6 @@ function CalendarScreenContent({
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             pendingEntryStates={pendingEntryStates}
-            onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-            onCalendarSyncNow={handleCalendarSyncNow}
             onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}

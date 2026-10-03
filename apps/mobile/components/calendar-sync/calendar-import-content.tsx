@@ -1,3 +1,4 @@
+import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useImperativeHandle, useMemo, type Ref } from 'react'
@@ -31,6 +32,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import {
+  useSetCalendarAutoSync,
+  useRunCalendarSyncNow,
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
   useDismissCalendarSuggestion,
@@ -91,7 +94,7 @@ interface ImportResult {
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const router = useRouter()
   const isReviewMode = reviewMode
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { profile, isLoading: isProfileLoading } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -112,6 +115,8 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const hasProAccess = profile?.hasProAccess ?? false
   const weekStartDay = profile?.weekStartDay ?? 1
 
+  const setCalendarAutoSync = useSetCalendarAutoSync()
+  const runCalendarSyncNow = useRunCalendarSyncNow()
   const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: hasProAccess })
   const suggestionsQuery = useCalendarSyncSuggestions({
     enabled: hasProAccess && isReviewMode,
@@ -405,7 +410,12 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   return (
     <View>
-      <CalendarPickerSection
+      {hasProAccess ? <CalendarSyncBoundary autoSyncState={autoSyncStateQuery.data}
+          onAutoSyncChange={async (enabled) => { await setCalendarAutoSync.mutateAsync({ enabled }) }}
+          onSyncNow={async () => { await runCalendarSyncNow.mutateAsync() }}
+          tokens={tokens} t={t} locale={i18n.language} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock}
+        /> : null}
+        <CalendarPickerSection
         styles={styles}
         tokens={tokens}
         t={t}

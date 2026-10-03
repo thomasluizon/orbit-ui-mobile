@@ -53,7 +53,7 @@ function applyFlexStyle(node: YogaNode, style: ViewStyle) {
 
 function applyStyle(node: YogaNode, style: ViewStyle) {
   applyFlexStyle(node, style)
-  if (style.minWidth === 0) node.setMinWidth(0)
+  if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
   if (style.maxWidth === '100%') node.setMaxWidthPercent(100)
   if (style.maxWidth === '50%') node.setMaxWidthPercent(50)
   if (typeof style.width === 'number') node.setWidth(style.width)

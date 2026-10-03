@@ -119,8 +119,8 @@ describe('useCalendarEvents', () => {
       useCalendarEvents({ timeZone: 'UTC' })
       const { data: autoSyncState } = useCalendarAutoSyncState()
       return React.createElement(CalendarSyncBoundary, {
+        locale: 'en',
         autoSyncState,
-        displayTime: (time: string) => time,
         onAutoSyncChange: async () => {},
         onSyncNow: async () => {},
       })
@@ -261,8 +261,8 @@ describe('CalendarSyncBoundary account replacement', () => {
       hasGoogleConnection: true,
     }
     render(React.createElement(CalendarSyncBoundary, {
+        locale: 'en',
       autoSyncState,
-      displayTime: (value: string) => value,
       onAutoSyncChange,
       onSyncNow: async () => {},
     }))

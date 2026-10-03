@@ -137,7 +137,6 @@ function CalendarDayDetailHarness({
       today="2025-06-15"
       entries={entries}
       calendarEvents={calendarEvents}
-      autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
       onOpenCalendarImport={onOpenCalendarImport}
@@ -146,10 +145,7 @@ function CalendarDayDetailHarness({
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
-      onCalendarAutoSyncChange={onCalendarAutoSyncChange}
-      onCalendarSyncNow={async () => {}}
       onEntryChange={changeEntry}
-      proActionVariant={proActionVariant}
     />
   )
 }
@@ -203,175 +199,43 @@ describe('CalendarDayDetail', () => {
     )
   })
 
-  it('renders timed and all-day Google events as read-only context', () => {
+  it('opens timed and all-day events without an import pill', () => {
     const onOpenCalendarImport = vi.fn()
-    renderDetail({
-      entries: [makeEntry({ title: 'Read' })],
-      onOpenCalendarImport,
-      calendarEventsState: 'ready',
-      calendarEvents: [
-        {
-          id: 'event-1',
-          title: 'Team meeting',
-          description: null,
-          startDate: '2025-06-15',
-          startTime: '09:00',
-          endTime: null,
-          isRecurring: false,
-          recurrenceRule: null,
-          reminders: [],
-          calendarName: 'Work',
-          isImported: false,
-        },
-        {
-          id: 'event-2',
-          title: 'Company holiday',
-          description: null,
-          startDate: '2025-06-15',
-          startTime: null,
-          endTime: null,
-          isRecurring: false,
-          recurrenceRule: null,
-          reminders: [],
-          calendarName: 'Personal',
-          isImported: true,
-          importedHabitId: '4a16a8be-cd9b-4baf-bcaf-ec0ce6d59dfa',
-        },
-      ],
-    })
-
-    expect(screen.getByText('calendar.dayDetail.eventsTitle')).toBeInTheDocument()
-    const timedEvent = screen.getByRole('img', {
-      name: '09:00, Team meeting, Work',
-    })
-    const allDayEvent = screen.getByRole('img', {
-      name: 'calendar.timeGrid.allDay, Company holiday, Personal',
-    })
-    expect(within(timedEvent).queryByRole('button')).toBeNull()
-    expect(within(allDayEvent).queryByRole('button')).toBeNull()
-    const importAction = screen.getByRole('button', { name: 'calendar.dayDetail.importEvents' })
-    expect(importAction).toHaveAttribute('data-size', 'sm')
-    expect(importAction.closest('[data-slot=action-row]')).not.toBeNull()
-    expect(timedEvent.parentElement?.querySelectorAll('button')).toHaveLength(1)
-    fireEvent.click(importAction)
-    expect(onOpenCalendarImport).toHaveBeenCalledWith(null)
-    expect(screen.queryByRole('button', { name: /Company holiday/ })).toBeNull()
+    renderDetail({ onOpenCalendarImport, calendarEvents: [
+      { id: 'event-1', title: 'Team meeting', description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Work' },
+      { id: 'event-2', title: 'Holiday', description: null, startDate: '2025-06-15', startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Work' },
+    ] })
+    fireEvent.click(screen.getByRole('button', { name: '09:00, Team meeting' }))
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-1')
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.timeGrid.allDay, Holiday' }))
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('event-2')
+    expect(screen.queryByText('calendar.dayDetail.importEvents')).not.toBeInTheDocument()
   })
 
-  it('searches and pages a busy day without growing the event list past twenty rows', () => {
-    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 23 }, (_, index) => ({
-      id: `event-${index}`, title: `Event ${index}`, description: null,
-      startDate: '2025-06-15', startTime: '09:00', endTime: null,
-      isRecurring: false, recurrenceRule: null, reminders: [],
-    }))
+  it('searches a busy day only after opening its events sheet', () => {
+    const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({ id: `event-${index}`, title: `Event ${index}`, description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }))
     renderDetail({ calendarEvents })
-
-    expect(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' })).toBeInTheDocument()
-    expect(screen.getByText('Event 19')).toBeInTheDocument()
-    expect(screen.queryByText('Event 20')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'common.next' }))
-    expect(screen.getByText('Event 20')).toBeInTheDocument()
-    expect(screen.queryByText('Event 0')).not.toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' }), { target: { value: 'Event 22' } })
-    expect(screen.getByText('Event 22')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'common.next' })).not.toBeInTheDocument()
-    fireEvent.change(screen.getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' }), { target: { value: 'No such event' } })
-    expect(screen.getByText('calendar.dayDetail.noMatchingEvents')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
-    expect(screen.getByText('Event 0')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.dayDetail.viewAllEvents' }))
+    const sheet = screen.getByRole('dialog')
+    const search = within(sheet).getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' })
+    fireEvent.change(search, { target: { value: 'Event 20' } })
+    expect(within(sheet).getByText('Event 20')).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'No such event' } })
+    expect(within(sheet).getByText('calendar.dayDetail.noMatchingEvents')).toBeInTheDocument()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
+    expect(within(sheet).getByText('Event 0')).toBeInTheDocument()
   })
 
-  it('keeps habit data visible while replacing Google events with the free plan boundary', () => {
-    const onViewPro = vi.fn()
-    renderDetail({
-      dateStr: '2025-06-15',
-      entries: [makeEntry({ title: 'Read' })],
-      calendarEvents: [{
-        id: 'event-1', title: 'Team meeting', description: null,
-        startDate: '2025-06-15', startTime: '09:00', endTime: null,
-        isRecurring: false, recurrenceRule: null, reminders: [],
-      }],
-      calendarEventsState: 'pro-boundary',
-      onViewPro,
-    })
 
-    expect(screen.getByText('Read')).toBeInTheDocument()
-    expect(screen.queryByText('Team meeting')).not.toBeInTheDocument()
-    const boundary = screen.getByTestId('calendar-pro-boundary')
-    expect(within(boundary).getByText(
-      'Syncing with Google Calendar is part of Orbit Pro.',
-    )).toBeInTheDocument()
-    expect(within(boundary).getByText(
-      'With it, your commitments show up beside the habits for the day.',
-    )).toBeInTheDocument()
-    const upgradeAction = within(boundary).getByRole('button', { name: 'See Pro' })
-    expect(upgradeAction).toHaveAttribute('data-variant', 'primary')
-    expect(upgradeAction).not.toBeDisabled()
-    expect(within(boundary).queryAllByRole('switch')).toHaveLength(0)
-    fireEvent.click(upgradeAction)
-    expect(onViewPro).toHaveBeenCalledOnce()
-  })
 
-  it('builds the Pro sync line and switch from the profile fields', () => {
-    const onCalendarAutoSyncChange = vi.fn(async () => {})
-    renderDetail({
-      dateStr: '2025-06-15',
-      entries: [makeEntry()],
-      autoSyncState: proAutoSyncState,
-      onCalendarAutoSyncChange,
-    })
 
-    expect(screen.getByText('calendar.dayDetail.googleConnected')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('calendar.dayDetail.lastSynced')
-    const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
-    expect(autoSync).toHaveAttribute('aria-checked', 'true')
-    fireEvent.click(autoSync)
-    expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
-  })
 
-  it('refuses calendar sync beside the day control while offline', () => {
-    network.isOnline = false
-    try {
-      const onCalendarAutoSyncChange = vi.fn(async () => {})
-      renderDetail({ autoSyncState: proAutoSyncState, onCalendarAutoSyncChange })
-      expect(screen.getByText('offline.calendar.title')).toBeInTheDocument()
-      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
-      const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
-      expect(autoSync).toBeDisabled()
-      fireEvent.click(autoSync)
-      expect(onCalendarAutoSyncChange).not.toHaveBeenCalled()
-    } finally {
-      network.isOnline = true
-    }
-  })
 
-  it('does not offer auto-sync as enabled without a Google connection', () => {
-    renderDetail({
-      dateStr: '2025-06-15',
-      entries: [makeEntry()],
-      autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
-    })
 
-    const switches = screen.queryAllByRole('switch', { name: 'calendar.dayDetail.autoSync' })
-    expect(switches.every((control) => control.getAttribute('aria-checked') !== 'true')).toBe(true)
-  })
 
-  it('refuses disconnected calendar reconnection in place while offline', () => {
-    network.isOnline = false
-    try {
-      const onReconnectCalendarEvents = vi.fn()
-      renderDetail({
-        calendarEventsState: 'not-connected',
-        autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
-        onReconnectCalendarEvents,
-      })
-      expect(screen.getByText('offline.calendar.reason')).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Reconnect' })).not.toBeInTheDocument()
-      expect(onReconnectCalendarEvents).not.toHaveBeenCalled()
-    } finally {
-      network.isOnline = true
-    }
-  })
+
+
 
   it('renders a failed events request instead of the empty result', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'failed' })
@@ -388,54 +252,26 @@ describe('CalendarDayDetail', () => {
     expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
   })
 
-  it('offers reconnection without rendering the connected-empty treatment', () => {
+  it('opens Calendars from the disconnected row', () => {
     const onReconnectCalendarEvents = vi.fn()
-    renderDetail({
-      entries: [makeEntry()],
-      calendarEventsState: 'not-connected',
-      onReconnectCalendarEvents,
-    })
-    expect(screen.getByText('Google Calendar disconnected')).toBeInTheDocument()
-    expect(screen.getByText('Reconnect to see the events you can import.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
-    expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+    renderDetail({ calendarEventsState: 'not-connected', onReconnectCalendarEvents })
+    fireEvent.click(screen.getByRole('button', { name: /calendar.calendars.title/ }))
+    expect(onReconnectCalendarEvents).toHaveBeenCalledOnce()
     expect(document.querySelector('[data-calendar-sync-line]')).toBeNull()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('renders the free sync boundary with one route to Orbit Pro', () => {
+  it('keeps habits and one Pro badge row for a free account', () => {
     const onViewPro = vi.fn()
-    renderDetail({
-      entries: [makeEntry()],
-      calendarEventsState: 'pro-boundary',
-      onViewPro,
-    })
-
+    renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
+    expect(screen.getByText('Meditate')).toBeInTheDocument()
     const boundary = screen.getByTestId('calendar-pro-boundary')
-    expect(boundary).toHaveTextContent('Syncing with Google Calendar is part of Orbit Pro.')
-    expect(boundary).toHaveTextContent(
-      'With it, your commitments show up beside the habits for the day.',
-    )
-    const actions = within(boundary).getAllByRole('button')
-    expect(actions).toHaveLength(1)
-    expect(actions[0]).toBeEnabled()
-    expect(actions[0]).toHaveAttribute('data-variant', 'primary')
-    fireEvent.click(actions[0]!)
-    expect(onViewPro).toHaveBeenCalledTimes(1)
+    expect(within(boundary).getByText('common.proBadge')).toBeInTheDocument()
+    fireEvent.click(within(boundary).getByRole('button', { name: /calendar.calendars.title/ }))
+    expect(onViewPro).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
   })
 
-  it('uses the neutral Pro action beside the wide sidebar action', () => {
-    renderDetail({
-      entries: [makeEntry()],
-      calendarEventsState: 'pro-boundary',
-      proActionVariant: 'secondary',
-    })
 
-    expect(
-      within(screen.getByTestId('calendar-pro-boundary')).getByRole('button'),
-    ).toHaveAttribute('data-variant', 'secondary')
-  })
 
   it('renders the empty events state after an empty response resolves', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
@@ -457,9 +293,9 @@ describe('CalendarDayDetail', () => {
 
     expect(screen.getByText('Read').closest('.orbit-list-row-shell')?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)' })
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.getByText('08:00 · done')).toBeInTheDocument()
-    expect(screen.getByText('09:00 · not logged')).toBeInTheDocument()
-    expect(screen.getByText('10:00 · not logged')).toBeInTheDocument()
+    expect(screen.getByText('08:00')).toBeInTheDocument()
+    expect(screen.getByText('09:00')).toBeInTheDocument()
+    expect(screen.getByText('10:00')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'done' })).toHaveAttribute('data-status', 'done')
     expect(screen.getAllByRole('img', { name: 'not logged' })).toHaveLength(2)
     expect(screen.getAllByRole('img', { name: 'not logged' }).every((ring) => ring.getAttribute('data-status') === 'empty')).toBe(true)
@@ -474,8 +310,7 @@ describe('CalendarDayDetail', () => {
       ],
     })
 
-    expect(screen.getByText('08:00 · indulged')).toBeInTheDocument()
-    expect(screen.getAllByText('08:00 · resisted')).toHaveLength(2)
+    expect(screen.getAllByText('08:00')).toHaveLength(3)
     expect(screen.getByRole('img', { name: 'indulged' })).toHaveAttribute('data-status', 'bad')
     expect(screen.getByRole('img', { name: 'resisted' })).toHaveAttribute('data-status', 'done')
     expect(screen.getByRole('img', { name: 'not logged' })).toHaveAttribute('data-status', 'empty')
@@ -487,7 +322,7 @@ describe('CalendarDayDetail', () => {
     renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     const row = screen.getByRole('checkbox', { name: 'Read' })
-    expect(within(row).getByText('08:00 · done')).toBeInTheDocument()
+    expect(screen.getByText('08:00')).toBeInTheDocument()
     fireEvent.click(row)
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
   })
@@ -510,8 +345,8 @@ describe('CalendarDayDetail', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
       fireEvent.click(screen.getByRole('checkbox', { name: 'Sweets' }))
 
-      expect(within(screen.getByRole('checkbox', { name: 'Read' })).getByText('08:00 · not logged')).toBeInTheDocument()
-      expect(within(screen.getByRole('checkbox', { name: 'Sweets' })).getByText('08:00 · resisted')).toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'Read' })).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByRole('checkbox', { name: 'Sweets' })).toHaveAttribute('aria-checked', 'false')
     } finally {
       vi.useRealTimers()
     }
@@ -725,7 +560,7 @@ describe('CalendarDayDetail', () => {
 
     expect(row).toHaveAttribute('aria-checked', 'true')
     expect(row).toBeDisabled()
-    expect(within(row).getByText('08:00 · done')).toBeInTheDocument()
+    expect(screen.getByText('08:00')).toBeInTheDocument()
     fireEvent.click(row)
     expect(onEntryChange).toHaveBeenCalledTimes(1)
 
@@ -736,7 +571,7 @@ describe('CalendarDayDetail', () => {
 
     expect(row).toHaveAttribute('aria-checked', 'false')
     expect(row).toBeEnabled()
-    expect(within(row).getByText('08:00 · not logged')).toBeInTheDocument()
+    expect(screen.getByText('08:00')).toBeInTheDocument()
 
     rendered.rerender(
       <CalendarDayDetailHarness
@@ -777,8 +612,8 @@ describe('CalendarDayDetail', () => {
     expect(card).toContainElement(screen.getByRole('heading', { level: 2 }))
     expect(card).toContainElement(screen.getByText('1 of 1 logged'))
     expect(card).toContainElement(screen.getByRole('link', { name: 'Open this day on Today' }))
-    expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '24px' })
-    expect(screen.getByText('Meditate').closest('[style*="padding-inline: 8px"]')).not.toBeNull()
+    expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '16px' })
+    expect(screen.getByRole('button', { name: 'Meditate' })).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()
   })
 
@@ -825,5 +660,23 @@ describe('CalendarDayDetail mixed-type family carry', () => {
     expect(screen.getByLabelText(en.calendar.status.completed)).toBeInTheDocument()
     expect(screen.queryByLabelText(en.calendar.status.indulged)).not.toBeInTheDocument()
     expect(screen.queryByText('Bad parent')).not.toBeInTheDocument()
+  })
+})
+
+
+describe('day card disclosure regression', () => {
+  it.each([8, 21])('limits %i events to three tappable preview rows without sync controls', (count) => {
+    const onOpenCalendarImport = vi.fn()
+    renderDetail({ onOpenCalendarImport, calendarEvents: Array.from({ length: count }, (_, index) => ({
+      id: `preview-${index}`, title: index === 0 ? '1:1 FutureProofing Engineering' : `Preview ${index}`,
+      description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null,
+      isRecurring: false, recurrenceRule: null, reminders: [],
+    })) })
+    expect(screen.queryByText('Preview 3')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.queryByText('calendar.dayDetail.importEvents')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /1:1 FutureProofing Engineering/ }))
+    expect(onOpenCalendarImport).toHaveBeenCalledWith('preview-0')
+    expect(screen.getByRole('button', { name: 'calendar.dayDetail.viewAllEvents' })).toBeInTheDocument()
   })
 })

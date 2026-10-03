@@ -455,8 +455,8 @@ describe('remaining calendar mutations', () => {
     function Harness() {
       const mutation = useRunCalendarSyncNow()
       return React.createElement(CalendarSyncBoundary, {
+        locale: 'en',
         autoSyncState: connectedState,
-        displayTime: (value: string) => value,
         onAutoSyncChange: async () => {},
         onSyncNow: () => runCalendarSyncNowWithFeedback(
           () => mutation.mutateAsync(),

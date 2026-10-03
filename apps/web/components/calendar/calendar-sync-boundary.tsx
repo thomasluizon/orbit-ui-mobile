@@ -2,93 +2,56 @@
 
 import { useTranslations } from 'next-intl'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
-import {
-  getCalendarSyncClockValue,
-  isCalendarSyncConnectionActive,
-} from '@orbit/shared/utils'
-import { RefreshCw } from '@/components/ui/icons'
+import { formatCalendarSyncTimestamp, getFriendlyErrorMessage, isCalendarSyncConnectionActive } from '@orbit/shared/utils'
 import { Switch } from '@/components/ui/switch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useOffline } from '@/hooks/use-offline'
-import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { PillButton } from '@/components/ui/pill-button'
 
 interface CalendarSyncBoundaryProps {
+  locale: string
+  timeZone?: string | null
+  uses24HourClock?: boolean
   autoSyncState: CalendarAutoSyncState | undefined
-  displayTime: (time: string) => string
   onAutoSyncChange: (enabled: boolean) => Promise<void>
   onSyncNow: () => Promise<void>
 }
 
-export function CalendarSyncBoundary({
-  autoSyncState,
-  displayTime,
-  onAutoSyncChange,
-  onSyncNow,
-}: Readonly<CalendarSyncBoundaryProps>) {
+export function CalendarSyncBoundary({ autoSyncState, onAutoSyncChange, onSyncNow, locale, timeZone, uses24HourClock }: Readonly<CalendarSyncBoundaryProps>) {
   const t = useTranslations()
-  const [isSaving, setIsSaving] = useAccountScopedState(false)
-  const [isSyncing, setIsSyncing] = useAccountScopedState(false)
   const { isOnline } = useOffline()
+  const [pendingAction, setPendingAction] = useAccountScopedState<'toggle' | 'sync' | null>(null)
+  const [error, setError] = useAccountScopedState<string | null>(null)
+  const connected = isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle')
+  const lastSynced = formatCalendarSyncTimestamp(autoSyncState?.lastSyncedAt ?? null, locale, timeZone, uses24HourClock)
 
-  const connected = isCalendarSyncConnectionActive(
-    autoSyncState?.hasGoogleConnection ?? false,
-    autoSyncState?.status ?? 'Idle',
-  )
-  const connectionLabel = connected
-    ? t('calendar.dayDetail.googleConnected')
-    : t('calendar.autoSync.reconnectTitle')
-  const clockValue = getCalendarSyncClockValue(autoSyncState?.lastSyncedAt ?? null)
-  const lastSynced = clockValue
-    ? t('calendar.dayDetail.lastSynced', { time: displayTime(clockValue) })
-    : t('calendar.autoSync.lastSyncedNever')
-
-  const handleAutoSyncChange = async (enabled: boolean) => {
-    if (isSaving || !isOnline) return
-    setIsSaving(true)
-    try {
-      await onAutoSyncChange(enabled)
+  async function runAction(kind: 'toggle' | 'sync', action: () => Promise<void>) {
+    if (pendingAction || !isOnline) return
+    const generation = getAccountGeneration()
+    setPendingAction(kind)
+    setError(null)
+    try { await action() }
+    catch (failure: unknown) {
+      if (generation === getAccountGeneration()) setError(getFriendlyErrorMessage(failure, t, 'calendar.autoSync.syncFailed', 'generic'))
     } finally {
-      setIsSaving(false)
+      if (generation === getAccountGeneration()) setPendingAction(null)
     }
   }
 
-  const handleSyncNow = async () => {
-    if (isSyncing || !isOnline) return
-    setIsSyncing(true)
-    try {
-      await onSyncNow()
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  return (
-    <div
-      className="flex flex-col gap-2 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3"
-      data-calendar-sync-line
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        <RefreshCw size={16} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
-        <p className="min-w-0 flex-1 text-sm text-[var(--fg-2)]">
-          {connectionLabel}
-        </p>
-        <p className="shrink-0 font-mono text-xs tabular-nums text-[var(--fg-3)]">
-          {lastSynced}
-        </p>
-      </div>
-      {connected ? (
-        <>
-          <div className="flex min-h-11 items-center justify-between gap-3">
-            <span className="text-sm text-[var(--fg-2)]">{t('calendar.dayDetail.autoSync')}</span>
-            <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline} onChange={(enabled) => void handleAutoSyncChange(enabled)} label={t('calendar.dayDetail.autoSync')} />
-          </div>
-          <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline} loading={isSyncing} onClick={() => void handleSyncNow()}>{t('calendar.autoSync.syncNow')}</PillButton></div>
-        </>
-      ) : null}
-      <div aria-live="polite" aria-atomic="true">
-        {!isOnline && connected ? <OfflineRefusal icon="calendar" embedded title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
-      </div>
+  return <div className="flex min-w-0 flex-col gap-2" data-calendar-sync-line>
+    <p className="text-sm text-[var(--fg-2)]">{t(connected ? 'calendar.dayDetail.googleConnected' : 'calendar.autoSync.reconnectTitle')}</p>
+    <div className="flex flex-col gap-1 text-xs text-[var(--fg-3)]">
+      <span>{t('calendar.dayDetail.lastSyncedLabel')}</span>
+      <span className="font-mono tabular-nums">{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</span>
     </div>
-  )
+    {connected ? <>
+      <div className="flex min-h-12 items-start justify-between gap-3">
+        <span className="min-w-0 self-center text-sm text-[var(--fg-2)]">{t('calendar.dayDetail.autoSync')}</span>
+        <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline || pendingAction !== null} onChange={(enabled) => void runAction('toggle', () => onAutoSyncChange(enabled))} label={t('calendar.dayDetail.autoSync')} />
+      </div>
+      <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></div>
+    </> : null}
+    {error || autoSyncState?.status === 'TransientError' ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error ?? t('calendar.autoSync.syncFailed')}</p> : null}
+  </div>
 }

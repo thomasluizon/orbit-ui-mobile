@@ -1,5 +1,7 @@
 'use client'
 
+import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useEffect, useMemo, useImperativeHandle, type Ref } from 'react'
@@ -15,7 +17,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -24,6 +26,8 @@ import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useAccountGeneration, useAccountScopedState } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import {
+  useSetCalendarAutoSync,
+  useRunCalendarSyncNow,
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
   useDismissCalendarSuggestion,
@@ -73,6 +77,7 @@ type CalendarEvent = CalendarSyncEvent
 
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
   const t = useTranslations()
+  const locale = useLocale()
   const { showError } = useAppToast()
   const router = useRouter()
   const { profile } = useProfile()
@@ -99,6 +104,8 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     enabled: isProUser && !isReviewMode,
     timeZone: profile?.timeZone ?? null,
   })
+  const setCalendarAutoSync = useSetCalendarAutoSync()
+  const runCalendarSyncNow = useRunCalendarSyncNow()
   const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: isProUser })
   const googleConnected = isCalendarSyncConnectionActive(
     autoSyncStateQuery.data?.hasGoogleConnection ?? false,
@@ -303,6 +310,10 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   return (
     <div className="flex flex-col">
       <div className="flex-1 min-h-0">
+        {isProUser ? <CalendarSyncBoundary locale={locale} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock} autoSyncState={autoSyncStateQuery.data}
+          onAutoSyncChange={async (enabled) => { await setCalendarAutoSync.mutateAsync({ enabled }) }}
+          onSyncNow={async () => { await runCalendarSyncNow.mutateAsync() }}
+        /> : null}
         <CalendarPickerSection enabled={hasProAccess && googleConnected && isOnline} />
         <div>
       {step === 'loading' && (
