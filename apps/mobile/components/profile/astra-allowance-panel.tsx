@@ -88,25 +88,21 @@ export function AstraAllowancePanel({
 const styles = StyleSheet.create({
   panel: {
     gap: 12,
-    padding: 24,
+    padding: 16,
     borderRadius: radius.xl,
     borderWidth: 1,
   },
   header: {
     minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 12,
+    gap: 4,
   },
   title: {
     minWidth: 0,
-    flex: 1,
     fontFamily: 'Geist_400Regular',
     fontSize: 17,
     lineHeight: 23.8,
   },
   usage: {
-    flexShrink: 0,
     fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     lineHeight: 16.8,

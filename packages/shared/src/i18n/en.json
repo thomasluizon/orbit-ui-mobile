@@ -1868,10 +1868,10 @@
       "description": "Select your preferred language"
     },
     "aiSummary": {
-      "title": "Daily summary from Astra"
+      "title": "Daily recap"
     },
     "proactiveAstra": {
-      "title": "Astra tells you when something slips"
+      "title": "Check-ins"
     },
     "marketingEmails": {
       "title": "Product email",

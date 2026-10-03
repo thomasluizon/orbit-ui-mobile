@@ -13,9 +13,6 @@ import {
   type AstraSettingsController,
   useAstraSettingsController,
 } from '@/components/profile/astra-settings-controller'
-import {
-  ProfileValueRow,
-} from '@/components/profile/profile-settings-frame'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -46,23 +43,27 @@ function buildAstraRows(
   const astraFeatures = deriveProfileAstraFeatures(Boolean(profile?.hasProAccess), settings)
   return (
     <div className="flex flex-col" style={{ gap: 32 }}>
-      <div className="flex flex-col" style={{ gap: 12 }}>
-      {profile ? (
-        <AstraAllowancePanel profile={profile} />
-      ) : null}
-      {profile ? (
-        <RowList>
-          {astraFeatures.map((feature) => !feature.locked ? (
-            <ProfileValueRow
-              key={feature.key}
-              label={t(feature.labelKey)}
-              control={<AstraSettingsSwitch checked={feature.checked} pending={feature.pending} label={t(feature.labelKey)} onToggle={feature.onToggle} />}
-            />
-          ) : (
-            <ListRow key={feature.key} compact icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
-          ))}
-        </RowList>
-      ) : null}
+      <div className="flex flex-col" style={{ gap: 24 }}>
+        {profile ? (
+          <AstraAllowancePanel profile={profile} />
+        ) : null}
+        {profile ? (
+          <RowList>
+            {astraFeatures.map((feature) => !feature.locked ? (
+              <ListRow
+                key={feature.key}
+                compact
+                textMode="label"
+                title={t(feature.labelKey)}
+                trailing={<AstraSettingsSwitch checked={feature.checked} pending={feature.pending} label={t(feature.labelKey)} onToggle={feature.onToggle} />}
+                chevron={false}
+                readOnly
+              />
+            ) : (
+              <ListRow key={feature.key} compact textMode="label" icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+            ))}
+          </RowList>
+        ) : null}
       </div>
       <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </div>

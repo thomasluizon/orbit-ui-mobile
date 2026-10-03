@@ -1808,7 +1808,7 @@
       "pushDeviceLimit": "Desligue as notificações em outro aparelho para usar este."
     },
     "allowance": {
-      "title": "Mensagens de hoje",
+      "title": "Mensagens hoje",
       "usage": "{used} de {limit} usadas",
       "spent": "As mensagens de hoje foram usadas. A sua lista continua funcionando sem elas.",
       "plan": "Plano",
@@ -1868,10 +1868,10 @@
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
-      "title": "Resumo do dia pela Astra"
+      "title": "Resumo diário"
     },
     "proactiveAstra": {
-      "title": "Astra avisa quando algo escapa"
+      "title": "Check-ins"
     },
     "marketingEmails": {
       "title": "Email sobre o produto",
