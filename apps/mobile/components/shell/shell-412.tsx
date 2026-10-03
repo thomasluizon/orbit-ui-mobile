@@ -174,7 +174,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           accessibilityLabel={props.conversationLabel}
           accessibilityViewIsModal
           testID="shell-conversation"
-          style={[styles.conversation, { backgroundColor: tokens.bg, width: columnWidth }]}
+          style={[styles.conversation, { backgroundColor: tokens.bg, width: columnWidth, paddingTop: insets.top }]}
         >
           {props.conversation}
         </View>
