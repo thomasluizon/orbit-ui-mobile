@@ -6,14 +6,16 @@ import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: check-dependency-edits.mjs [--root <path>] [--tolerance-seconds <n>]
 
-  Walks every node_modules tree under <root> and fails on any file whose mtime is later than
+  Walks installed node_modules trees under <root> and fails on any file whose mtime is later than
   its own package's earliest file. That is a write that did not come from the install.
+  Generated .next/standalone copies are excluded, including roots inside that output.
 
   --root <path>              tree to scan (defaults to the parent of this tool's directory)
   --tolerance-seconds <n>    how much later than the earliest file is still extraction (default 300)
   --help, -h                 print this usage and exit 0
 
-  Repair what it finds with: rm -rf node_modules/<package> && npm install
+  Repair what it finds with: rm -rf '<affected package path>' && npm install
+  Run the reinstall in the project that owns the affected dependency tree.
   A plain npm install leaves a complete package alone and will not repair it.
 
 exit codes: 0 no file was written after its install, 1 at least one was, 2 usage error`
@@ -89,7 +91,7 @@ function collectPackageFiles(directory, collected) {
   }
 }
 
-function scanPackage(packageDirectory, packageName) {
+function scanPackage(packageDirectory) {
   try {
     statSync(join(packageDirectory, "package.json"))
   } catch {
@@ -104,7 +106,7 @@ function scanPackage(packageDirectory, packageName) {
   for (const file of collected) if (file.modifiedAtMs < extractedAtMs) extractedAtMs = file.modifiedAtMs
   for (const file of collected) {
     if (file.modifiedAtMs > extractedAtMs + toleranceSeconds * 1000) {
-      findings.push({ path: file.path, packageName, lateSeconds: Math.round((file.modifiedAtMs - extractedAtMs) / 1000) })
+      findings.push({ path: file.path, packageDirectory, lateSeconds: Math.round((file.modifiedAtMs - extractedAtMs) / 1000) })
     }
   }
 }
@@ -115,17 +117,20 @@ function scanInstalledTree(nodeModulesDirectory) {
     if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name.startsWith(".")) continue
     const path = join(nodeModulesDirectory, entry.name)
     if (!entry.name.startsWith("@")) {
-      scanPackage(path, entry.name)
+      scanPackage(path)
       continue
     }
     for (const scoped of readEntries(path)) {
       if (!scoped.isDirectory() || scoped.isSymbolicLink()) continue
-      scanPackage(join(path, scoped.name), `${entry.name}/${scoped.name}`)
+      scanPackage(join(path, scoped.name))
     }
   }
 }
 
 function findInstalledTrees(directory) {
+  /** Standalone output copies traced files; their mtimes do not describe an npm extraction. */
+  const segments = directory.split(sep)
+  if (segments.some((segment, index) => segment === ".next" && segments[index + 1] === "standalone")) return
   for (const entry of readEntries(directory)) {
     if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name === ".git") continue
     const path = join(directory, entry.name)
@@ -149,17 +154,19 @@ if (findings.length === 0) {
   process.exit(0)
 }
 
-const editedPackages = [...new Set(findings.map((finding) => finding.packageName))].sort()
+const editedPackages = [...new Set(findings.map((finding) => finding.packageDirectory))].sort()
 console.error(`\n${findings.length} file(s) in ${editedPackages.length} package(s) were written after their install:`)
 for (const finding of findings.slice(0, MAXIMUM_LISTED_FINDINGS)) {
-  console.error(`  ${relativePath(finding.path)}  (+${finding.lateSeconds}s after its package.json)`)
+  console.error(`  ${relativePath(finding.path)}  (+${finding.lateSeconds}s after its package's earliest file)`)
 }
 if (findings.length > MAXIMUM_LISTED_FINDINGS) {
   console.error(`  ... and ${findings.length - MAXIMUM_LISTED_FINDINGS} more`)
 }
 console.error("\nRepair each package, then read it again before citing it:")
-for (const packageName of editedPackages.slice(0, MAXIMUM_LISTED_FINDINGS)) {
-  console.error(`  rm -rf node_modules/${packageName} && npm install`)
+for (const packageDirectory of editedPackages.slice(0, MAXIMUM_LISTED_FINDINGS)) {
+  const quotedDirectory = `'${packageDirectory.split(sep).join("/").replaceAll("'", "'\\''")}'`
+  console.error(`  rm -rf ${quotedDirectory} && npm install`)
 }
+console.error("\nRun the reinstall in the project that owns the affected dependency tree.")
 console.error("\nA plain npm install leaves a complete package alone and will not repair this.")
 process.exit(1)
