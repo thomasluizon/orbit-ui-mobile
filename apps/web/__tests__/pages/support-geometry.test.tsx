@@ -70,8 +70,26 @@ describe('support form geometry in Chromium', () => {
         if (geometry.clipped) expect(geometry.clamp).toBe('2')
         for (const mode of ['light', 'dark'] as const) {
           const variables = resolveWebThemeVariables('purple', mode)
-          expect(contrastOnSurface(variables['--fg-1']!, [variables['--bg']!, variables['--bg-well']!])).toBeGreaterThanOrEqual(4.5)
-          expect(contrastOnSurface(variables['--fg-2']!, [variables['--bg']!, variables['--bg-well']!])).toBeGreaterThanOrEqual(4.5)
+          await page.addStyleTag({ content: `:root { ${Object.entries(variables).map(([name, value]) => `${name}: ${value};`).join(' ')} }` })
+          const control = email.locator('..')
+          await page.mouse.move(0, 0)
+          const readFill = () => control.evaluate((element) => {
+            for (const animation of element.getAnimations()) animation.finish()
+            const canvas = document.createElement('canvas')
+            const context = canvas.getContext('2d')!
+            context.fillStyle = getComputedStyle(document.body).backgroundColor
+            context.fillRect(0, 0, 1, 1)
+            context.fillStyle = getComputedStyle(element).backgroundColor
+            context.fillRect(0, 0, 1, 1)
+            const [red, green, blue] = context.getImageData(0, 0, 1, 1).data
+            return `rgb(${red},${green},${blue})`
+          })
+          const resting = await readFill()
+          await control.hover()
+          const hovered = await readFill()
+          expect(contrastOnSurface(hovered, [resting])).toBeGreaterThanOrEqual(1.25)
+          expect(contrastOnSurface(variables['--fg-1']!, [hovered])).toBeGreaterThanOrEqual(4.5)
+          expect(contrastOnSurface(variables['--fg-2']!, [hovered])).toBeGreaterThanOrEqual(4.5)
         }
       } finally {
         await page.close()

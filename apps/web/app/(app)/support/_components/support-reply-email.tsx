@@ -19,7 +19,7 @@ export function SupportReplyEmail({ email }: Readonly<{ email: string }>) {
         aria-expanded={expanded}
         disabled={!email}
         onClick={() => setExpanded(!expanded)}
-        className="flex min-h-[48px] w-full min-w-0 flex-col gap-2 rounded-[var(--r-well)] bg-[var(--bg-well)] px-4 py-3 text-start text-[var(--fg-1)] enabled:cursor-pointer enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="flex overflow-hidden min-h-[48px] w-full min-w-0 flex-col gap-2 rounded-[var(--r-well)] bg-transparent px-4 py-3 text-start text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] enabled:cursor-pointer enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <span className="flex w-full items-center justify-between gap-3 text-sm text-[var(--fg-2)]">
           <span id={`${id}-label`}>{t('profile.support.email')}</span>
