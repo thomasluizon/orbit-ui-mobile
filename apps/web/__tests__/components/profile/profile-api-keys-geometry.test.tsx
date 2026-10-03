@@ -136,7 +136,7 @@ describe('Profile API key row geometry', () => {
         const switchBox = control.getBoundingClientRect()
         return { titleFits: title.scrollWidth <= title.clientWidth, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
       })
-      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 44, switches: 1 })
+      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 48, switches: 1 })
       expect(measured.text).not.toContain('5 of 5')
       expect(measured.text).not.toContain('5 de 5')
     } finally { await page.close() }

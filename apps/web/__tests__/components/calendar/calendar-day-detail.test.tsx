@@ -1,3 +1,4 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
@@ -153,8 +154,6 @@ function CalendarDayDetailHarness({
 function renderDetail(props: RenderProps = {}) {
   return render(<CalendarDayDetailHarness {...props} />)
 }
-
-import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 describe('CalendarDayDetail', () => {
   it('retires a full habit title when the account is replaced', () => {

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
-import { formatCalendarSyncTimestamp, getFriendlyErrorMessage, isCalendarSyncConnectionActive } from '@orbit/shared/utils'
+import { formatCalendarSyncTimestamp, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { useOffline } from '@/hooks/use-offline'
@@ -10,6 +10,7 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { AppTokensV2 } from '@/lib/theme'
 
 interface CalendarSyncBoundaryProps {
+  isConnected: boolean
   autoSyncState: CalendarAutoSyncState | undefined
   onAutoSyncChange: (enabled: boolean) => Promise<void>
   onSyncNow: () => Promise<void>
@@ -20,11 +21,10 @@ interface CalendarSyncBoundaryProps {
   tokens: AppTokensV2
 }
 
-export function CalendarSyncBoundary({ autoSyncState, onAutoSyncChange, onSyncNow, tokens, t, locale, timeZone, uses24HourClock }: Readonly<CalendarSyncBoundaryProps>) {
+export function CalendarSyncBoundary({ isConnected, autoSyncState, onAutoSyncChange, onSyncNow, tokens, t, locale, timeZone, uses24HourClock }: Readonly<CalendarSyncBoundaryProps>) {
   const { isOnline } = useOffline()
   const [pendingAction, setPendingAction] = useAccountScopedState<'toggle' | 'sync' | null>(null)
   const [error, setError] = useAccountScopedState<string | null>(null)
-  const connected = isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle')
   const lastSynced = formatCalendarSyncTimestamp(autoSyncState?.lastSyncedAt ?? null, locale, timeZone, uses24HourClock)
 
   async function runAction(kind: 'toggle' | 'sync', action: () => Promise<void>) {
@@ -41,12 +41,12 @@ export function CalendarSyncBoundary({ autoSyncState, onAutoSyncChange, onSyncNo
   }
 
   return <View style={styles.container} testID="calendar-sync-line">
-    <Text style={[styles.label, { color: tokens.fg2 }]}>{t(connected ? 'calendar.dayDetail.googleConnected' : 'calendar.autoSync.reconnectTitle')}</Text>
+    <Text style={[styles.label, { color: tokens.fg2 }]}>{t(isConnected ? 'calendar.dayDetail.googleConnected' : 'calendar.autoSync.reconnectTitle')}</Text>
     <View style={styles.timestamp}>
       <Text style={[styles.meta, { color: tokens.fg3 }]}>{t('calendar.dayDetail.lastSyncedLabel')}</Text>
       <Text style={[styles.date, { color: tokens.fg3 }]}>{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</Text>
     </View>
-    {connected ? <>
+    {isConnected ? <>
       <View style={styles.switchLine}>
         <Text style={[styles.switchLabel, { color: tokens.fg2 }]}>{t('calendar.dayDetail.autoSync')}</Text>
         <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline || pendingAction !== null} onChange={(enabled) => void runAction('toggle', () => onAutoSyncChange(enabled))} label={t('calendar.dayDetail.autoSync')} />

@@ -445,7 +445,6 @@ describe("CalendarSyncScreen", () => {
 
   it("starts Google calendar consent and leaves callback navigation to the App Link", async () => {
     mocks.eventsQuery.data = { status: "not-connected" };
-    mocks.hasGoogleConnection = false;
     mocks.startGoogleAuth.mockResolvedValue({ type: "success", url: "https://app.useorbit.org/auth-callback?code=google-code" });
 
     const tree = await pressConnect();

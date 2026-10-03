@@ -1,3 +1,4 @@
+import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
@@ -220,8 +221,6 @@ function nodes(tree: Tree, type: string): TestNode[] {
 function readOnlyHabitRows(tree: Tree) {
   return nodes(tree, 'Pressable').filter((row) => row.findAll((node) => node.type === 'StatusRingMock').length > 0)
 }
-
-import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 describe('CalendarDayDetail (mobile)', () => {
   it('retires a full habit title when the account is replaced', () => {

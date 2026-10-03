@@ -881,7 +881,7 @@ describe('CalendarSyncPage', () => {
     expect(mockDismissSuggestion).not.toHaveBeenCalled()
   })
 
-  it('lists imported habits on the done step and toasts partial failures', async () => {
+  it('lists imported habits on the done step and keeps partial failures visible', async () => {
     const events = [
       { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
       { id: 'e2', title: 'Team Meeting', description: null, startDate: '2025-06-01', startTime: '10:00', endTime: '11:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
@@ -921,7 +921,8 @@ describe('CalendarSyncPage', () => {
     })
     expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
-    expect(toastError).toHaveBeenCalledWith('calendar.importPartialFailure:{"count":1}')
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent === 'calendar.importPartialFailure:{"count":1}')).toBe(true)
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('drops the import result when another account replaces the tab', async () => {

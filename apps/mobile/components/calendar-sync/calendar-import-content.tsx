@@ -1,7 +1,7 @@
 import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
 
 import { ActionRow } from '@/components/ui/action-row'
-import { useCallback, useEffect, useImperativeHandle, useMemo, type Ref } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, type ComponentProps, type Ref } from 'react'
 import {
   Pressable,
   Text,
@@ -206,7 +206,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     isQueryError: activeQuery.isError,
     eventsStatus: eventsQuery.data?.status,
   })
-  const googleConnected = isCalendarSyncConnectionActive(
+  const googleConnected = (isReviewMode || eventsQuery.data?.status !== 'not-connected') && isCalendarSyncConnectionActive(
     autoSyncStateQuery.data?.hasGoogleConnection ?? false,
     autoSyncStateQuery.data?.status ?? 'Idle',
   )
@@ -413,11 +413,11 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
   return (
     <View>
-      {hasProAccess ? <CalendarSyncBoundary autoSyncState={autoSyncStateQuery.data}
+      <CalendarImportSyncBoundary enabled={hasProAccess} isConnected={googleConnected} autoSyncState={autoSyncStateQuery.data}
           onAutoSyncChange={async (enabled) => { await setCalendarAutoSync.mutateAsync({ enabled }) }}
           onSyncNow={async () => { await runCalendarSyncNow.mutateAsync() }}
           tokens={tokens} t={t} locale={i18n.language} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock}
-        /> : null}
+        />
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.statusBadText }}>{actionError ?? ''}</Text>
       <OpenedCalendarEventTitle eventId={initialEventId} eventsResult={eventsQuery.data} reviewMode={isReviewMode} enabled={hasProAccess} tokens={tokens} />
       <CalendarPickerSection
@@ -634,6 +634,10 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
     </View>
   )
+}
+
+function CalendarImportSyncBoundary({ enabled, ...props }: Readonly<ComponentProps<typeof CalendarSyncBoundary> & { enabled: boolean }>) {
+  return enabled ? <CalendarSyncBoundary {...props} /> : null
 }
 
 function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled, tokens }: Readonly<{ eventId: string | null; eventsResult: CalendarEventsResult | undefined; reviewMode: boolean; enabled: boolean; tokens: ReturnType<typeof createTokensV2> }>) {

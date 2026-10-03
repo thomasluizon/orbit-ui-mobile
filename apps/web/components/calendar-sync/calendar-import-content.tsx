@@ -4,7 +4,7 @@ import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-bounda
 
 import { ActionRow } from '@/components/ui/action-row'
 
-import { useEffect, useMemo, useImperativeHandle, type Ref } from 'react'
+import { useEffect, useMemo, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Check,
@@ -106,7 +106,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const setCalendarAutoSync = useSetCalendarAutoSync()
   const runCalendarSyncNow = useRunCalendarSyncNow()
   const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: isProUser })
-  const googleConnected = isCalendarSyncConnectionActive(
+  const googleConnected = (isReviewMode || eventsQuery.data?.status !== 'not-connected') && isCalendarSyncConnectionActive(
     autoSyncStateQuery.data?.hasGoogleConnection ?? false,
     autoSyncStateQuery.data?.status ?? 'Idle',
   )
@@ -313,10 +313,10 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   return (
     <div className="flex flex-col">
       <div className="flex-1 min-h-0">
-        {isProUser ? <CalendarSyncBoundary locale={locale} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock} autoSyncState={autoSyncStateQuery.data}
+        <CalendarImportSyncBoundary enabled={isProUser} isConnected={googleConnected} locale={locale} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock} autoSyncState={autoSyncStateQuery.data}
           onAutoSyncChange={async (enabled) => { await setCalendarAutoSync.mutateAsync({ enabled }) }}
           onSyncNow={async () => { await runCalendarSyncNow.mutateAsync() }}
-        /> : null}
+        />
       <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)]">{actionError ?? ''}</p>
       <OpenedCalendarEventTitle eventId={initialEventId} eventsResult={eventsQuery.data} reviewMode={isReviewMode} enabled={isProUser} />
         <CalendarPickerSection enabled={hasProAccess && googleConnected && isOnline} />
@@ -567,6 +567,10 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       </div>
     </div>
   )
+}
+
+function CalendarImportSyncBoundary({ enabled, ...props }: Readonly<ComponentProps<typeof CalendarSyncBoundary> & { enabled: boolean }>) {
+  return enabled ? <CalendarSyncBoundary {...props} /> : null
 }
 
 function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled }: Readonly<{ eventId: string | null; eventsResult: CalendarEventsResult | undefined; reviewMode: boolean; enabled: boolean }>) {
