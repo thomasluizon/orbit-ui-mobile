@@ -1,25 +1,57 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
+import { CheckRow } from '@/components/ui/check-row'
+import { loadAppFonts } from './app-fonts'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
-import { expectLabelsFit, expectLegendFits } from '@/e2e/layout/label-fit-contract'
+import { expectLabelsFit, expectLegendFits, markUserText } from '@/e2e/layout/label-fit-contract'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('label and interaction fill guards in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
+  let stylesheet: string
 
   registerChromeLaunchHook(beforeAll, async (launch) => {
     browserLaunch = launch
     browser = await launch
   })
 
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    it.each([320, 360, 384, 412])(`rejects the unclamped Calendar CheckRow title at %ipx in ${locale}`, async (width) => {
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
+      const row = renderToStaticMarkup(createElement(CheckRow, {
+        label: title, checked: false, value: words.calendar.status.missed, onChange: () => {},
+      }))
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div style="padding: 0 48px">${row}</div>`)
+        await loadAppFonts(page)
+        await markUserText(page, [title])
+        await expect(expectLabelsFit(page, page, [title])).rejects.toThrow('user text must stay within two visible lines')
+        await page.locator('[data-layout-text-origin="user"]').evaluate((element) => {
+          element.classList.add('line-clamp-2')
+        })
+        await expectLabelsFit(page, page, [title])
+      } finally {
+        await page.close()
+      }
+    })
+
     it.each([
       { name: 'whole labels', labelStyle: '', error: null },
       { name: 'wrapped label', labelStyle: 'max-width: 40px;', error: 'app-authored labels must stay on one line' },
@@ -191,6 +223,61 @@ describe('label and interaction fill guards in Chromium', () => {
         button { width: 60px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
       </style><button><span>Completion</span> <span>rate</span></button>`)
       await expect(expectLabelsFit(page)).rejects.toThrow('app-authored labels must remain whole')
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each([
+    { name: 'two-line title and separate metadata', title: 'Typed title<br>second line', metadata: '3 / 12 books', error: null },
+    { name: 'three-line typed title', title: 'Typed title<br>second line<br>third line', metadata: '3 / 12 books', error: 'user text must stay within two visible lines' },
+    { name: 'wrapped metadata beneath typed text', title: 'Typed title', metadata: '3 / 12<br>books', error: 'app-authored labels must stay on one line' },
+  ])('measures $name by its text origin', async ({ title, metadata, error }) => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>span { display: block; }</style>
+        <button><span><span data-layout-text-origin="user">${title}</span><span>${metadata}</span></span></button>`)
+      const assertion = expectLabelsFit(page)
+      if (error) await expect(assertion).rejects.toThrow(error)
+      else await assertion
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each([
+    { name: 'two-line ellipsis', clamp: 2, overflow: 'hidden', error: null },
+    { name: 'three-line ellipsis', clamp: 3, overflow: 'hidden', error: 'user text must stay within two visible lines' },
+    { name: 'hard clipping', clamp: 0, overflow: 'hidden', error: 'user text must use an ellipsis when clipped' },
+  ])('checks user text with $name', async ({ clamp, overflow, error }) => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>
+        [data-layout-text-origin] { display: -webkit-box; -webkit-box-orient: vertical;
+          -webkit-line-clamp: ${clamp}; width: 100px; line-height: 20px; overflow: ${overflow};
+          ${clamp ? '' : 'max-height: 40px;'} }
+      </style><button>Edit</button><span data-layout-text-origin="user">A person wrote a long title that needs several lines to display completely</span>`)
+      const assertion = expectLabelsFit(page)
+      if (error) await expect(assertion).rejects.toThrow(error)
+      else await assertion
+    } finally {
+      await page.close()
+    }
+  })
+
+  it('marks the typed field beside a decorative emoji and requires its current rendered mark', async () => {
+    const page = await browser.newPage()
+    const title = 'A title written by a person'
+    try {
+      await page.setContent(`<button>Edit</button><span><span aria-hidden="true">🌱 </span>${title}</span>`)
+      await markUserText(page, [title])
+      await expectLabelsFit(page, page, [title])
+      expect(await page.locator('[data-layout-text-origin="user"]').count()).toBe(1)
+      await page.locator('[data-layout-text-origin="user"]').evaluate((element) => {
+        element.replaceWith(element.cloneNode(true))
+        document.querySelector('[data-layout-text-origin]')!.removeAttribute('data-layout-text-origin')
+      })
+      await expect(expectLabelsFit(page, page, [title])).rejects.toThrow('required user field must retain its rendered mark')
     } finally {
       await page.close()
     }

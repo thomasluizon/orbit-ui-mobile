@@ -72,9 +72,38 @@ async function installLabelFixtures(context: BrowserContext, locale: 'en' | 'pt-
   }
 }
 
-async function checkSurfaceLabels(page: Page, surface: Page | Locator = page) {
+async function checkSurfaceLabels(page: Page, surface: Page | Locator = page, requiredUserValues: readonly string[] = []) {
   await markUserText(page, Object.values(userFields))
-  await expectLabelsFit(page, surface)
+  await expectLabelsFit(page, surface, requiredUserValues)
+}
+
+async function checkProgressLabels(page: Page, words: typeof en | typeof ptBR) {
+  await expect(page.locator(`[data-goal-id="${goals.items[0]!.id}"]`).getByText(userFields.goalTitle, { exact: true })).toBeVisible()
+  await expect(page.locator('[data-component="freeze-bank"]')).toBeVisible()
+  await expect(page.getByTestId('progress-top-habit').getByText(userFields.habitTitle)).toBeVisible()
+  for (const caption of [
+    words.progressScreen.window.completionRate, words.progressScreen.window.activeDays,
+    words.progressScreen.window.bestWeekday, words.progressScreen.window.topHabit,
+    words.progressScreen.streak.longest, words.streakDisplay.detail.tierTileLabel,
+    words.progressScreen.streak.banked, words.progressScreen.streak.used, words.progressScreen.streak.next,
+  ]) await markRequiredLabels(page.getByText(caption, { exact: true }))
+  await checkSurfaceLabels(page, page, [userFields.goalTitle, userFields.habitTitle])
+}
+
+async function checkCalendarLabels(page: Page, words: typeof en | typeof ptBR) {
+  await expect(page.getByRole('radio', { name: words.calendar.view.month, exact: true })).toBeVisible()
+  const dayCard = page.locator('section[data-field-surface="card"]')
+  await expect(dayCard.getByText(userFields.habitTitle, { exact: true })).toBeVisible()
+  const eventRow = dayCard.getByRole('img').filter({ hasText: userFields.eventTitle })
+  await expect(eventRow.getByText(userFields.eventTitle, { exact: true })).toBeVisible()
+  await expect(eventRow.getByText(userFields.calendarName, { exact: true })).toBeVisible()
+  await markRequiredLabels(eventRow)
+  await checkSurfaceLabels(page, page, [userFields.habitTitle, userFields.eventTitle, userFields.calendarName])
+}
+
+async function checkTodayLabels(page: Page) {
+  await expect(page.locator('[data-habit-row-body]').getByText(userFields.habitTitle, { exact: true })).toBeVisible()
+  await checkSurfaceLabels(page, page, [userFields.habitTitle])
 }
 
 for (const width of [320, 360, 384, 412]) {
@@ -85,14 +114,7 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Progress captions and selector remain whole', async ({ page }) => {
         await page.goto('/progress')
-        await expect(page.getByText(userFields.goalTitle, { exact: true })).toBeVisible()
-        for (const caption of [
-          words.progressScreen.window.completionRate, words.progressScreen.window.activeDays,
-          words.progressScreen.window.bestWeekday, words.progressScreen.window.topHabit,
-          words.progressScreen.streak.longest, words.streakDisplay.detail.tierTileLabel,
-          words.progressScreen.streak.banked, words.progressScreen.streak.used, words.progressScreen.streak.next,
-        ]) await markRequiredLabels(page.getByText(caption, { exact: true }))
-        await checkSurfaceLabels(page)
+        await checkProgressLabels(page, words)
         await page.getByRole('button', {
           name: `${words.progressScreen.goals.filter}: ${words.progressScreen.goals.all}`, exact: true,
         }).click()
@@ -110,7 +132,7 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Progress legend remains whole', async ({ page }) => {
         await page.goto('/progress')
-        await checkSurfaceLabels(page)
+        await checkProgressLabels(page, words)
         await page.getByRole('button', { name: words.progressScreen.streak.legend, exact: true }).click()
         const sheet = page.getByRole('dialog', { name: words.progressScreen.streak.legend, exact: true })
         await markRequiredLabels(sheet.getByRole('heading', { name: words.progressScreen.streak.legend, exact: true }))
@@ -122,17 +144,15 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Today tabs, buttons and menu titles remain whole', async ({ page }) => {
         await page.goto(`/?date=${reviewDay}`)
-        await expect(page.locator('[data-habit-row-body]')).toBeVisible()
-        await checkSurfaceLabels(page)
+        await checkTodayLabels(page)
         await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
         await expect(page.getByRole('menu', { name: words.habits.listOptions })).toBeVisible()
-        await checkSurfaceLabels(page)
+        await checkTodayLabels(page)
       })
 
       test('Calendar selector and legend remain whole', async ({ page }) => {
         await page.goto('/calendar')
-        await expect(page.getByRole('radio', { name: words.calendar.view.month, exact: true })).toBeVisible()
-        await checkSurfaceLabels(page)
+        await checkCalendarLabels(page, words)
         await page.getByRole('button', { name: words.calendar.options, exact: true }).click()
         await page.getByRole('menu', { name: words.calendar.options, exact: true })
           .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
@@ -148,8 +168,9 @@ for (const width of [320, 360, 384, 412]) {
       test('Profile row titles remain whole with long personal text', async ({ page }) => {
         await page.goto('/profile')
         await expect(page.locator('[data-slot="list-row-title"]').first()).toBeVisible()
-        await checkSurfaceLabels(page)
-        await expect(page.locator('[data-layout-text-origin="user"]')).not.toHaveCount(0)
+        await expect(page.getByText(userFields.name, { exact: true })).toBeVisible()
+        await expect(page.getByText(userFields.email, { exact: true })).toBeVisible()
+        await checkSurfaceLabels(page, page, [userFields.name, userFields.email])
       })
 
       test('hover and press fills follow Principle 3', async ({ page }) => {
