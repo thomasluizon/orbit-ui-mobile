@@ -34,7 +34,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
         await context.route(new RegExp(`${API.habits.list}(?:\\?.*)?$`), (route) => route.fulfill({ json: habits }))
         await page.goto('/')
         await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
-        await page.getByRole('menu', { name: messages.common.options, exact: true })
+        await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: messages.habits.refresh }).click()
         await expect(page.locator('[data-habit-title="Rotina da casa"]')).toBeVisible()
         await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()

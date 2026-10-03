@@ -22,6 +22,7 @@ type ExpectedBase = {
   onSelect?: (id: string) => void
   onClose?: () => void
   title?: string
+  shortTitle?: string
   align?: 'start' | 'end'
 }
 type ExpectedAutomaticVariant = ExpectedBase & {
@@ -88,6 +89,7 @@ export type MenuTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<MenuProps['onSelect'], ((id: string) => void) | undefined>>,
   Assert<IsExactWidth<MenuProps['onClose'], (() => void) | undefined>>,
   Assert<IsExactWidth<MenuProps['title'], string | undefined>>,
+  Assert<IsExactWidth<MenuProps['shortTitle'], string | undefined>>,
   Assert<IsExactWidth<MenuProps['align'], 'start' | 'end' | undefined>>,
   Assert<IsExactWidth<MenuProps['presentation'], 'auto' | 'sheet' | 'anchored' | undefined>>,
   Assert<IsExactWidth<MenuProps['anchorRef'], React.RefObject<unknown> | undefined>>,

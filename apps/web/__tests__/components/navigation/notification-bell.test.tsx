@@ -232,8 +232,10 @@ describe('alerts', () => {
     seed(1)
     showInbox()
 
-    fireEvent.click(screen.getByRole('button', { name: state.locale === 'en' ? en.notifications.options : pt.notifications.options }))
-    expect(screen.getByRole('menuitem', { name: bulkLabel })).toBeInTheDocument()
+    const messages = locale === 'en' ? en : pt
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.options }))
+    expect(screen.getByRole('dialog', { name: messages.notifications.options })).toBeInTheDocument()
+    expect(within(screen.getByRole('menu', { name: messages.notifications.options })).getByRole('menuitem', { name: bulkLabel })).toBeInTheDocument()
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'close-overlay' }))
     fireEvent.click(screen.getByRole('button', { name: /^Alert 0\./ }))
     expect(

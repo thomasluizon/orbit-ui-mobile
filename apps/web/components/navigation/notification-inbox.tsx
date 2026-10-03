@@ -51,7 +51,7 @@ export function NotificationInbox() {
           <MoreVertical size={20} aria-hidden="true" />
         </button> : undefined}
         refreshKey={`${inbox.visibleUnreadCount}:${inbox.visibleNotifications.length}:${menuOpen}`} />
-      <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={t('common.options')}
+      <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={t('notifications.options')} shortTitle={t('common.options')}
         items={[
           ...(inbox.visibleUnreadCount > 0 ? [{ id: 'read', label: t('notifications.markAllReadMenu'), icon: 'check' }] : []),
           ...(inbox.visibleNotifications.length > 0 ? [{ id: 'clear', label: t('notifications.deleteAll'), icon: 'trash', destructive: true }] : []),

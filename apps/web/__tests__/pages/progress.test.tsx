@@ -229,10 +229,16 @@ describe('ProgressContent', () => {
           const column = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
           const section = document.querySelector('section')!.getBoundingClientRect()
           const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
-          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left, columnWidth: column.width }
+          const header = document.querySelector('[data-root-notification-header]')?.getBoundingClientRect()
+          const bell = document.querySelector('[data-root-notification-header] button')?.getBoundingClientRect()
+          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left,
+            columnWidth: column.width, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
+            trailingInset: bell && bell.width > 0 ? column.right - bell.right : null }
         })
         const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
-        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth })
+        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,
+          topInset: width < 1024 ? 96 : 16, headerHeight: width < 1024 ? 48 : 0,
+          trailingInset: width < 1024 ? gutter : null })
       } finally {
         media.mockRestore()
         await page.close()

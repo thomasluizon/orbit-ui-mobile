@@ -102,7 +102,7 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
       <TodayDateControl
         {...view.nav.dateNav}
         moreLabel={t('habits.listOptions')}
-        menuTitle={t('common.options')}
+        menuHeading={t('common.options')}
         searchLabel={t('habits.search.title')}
         onSearch={() => router.push('/search')}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}

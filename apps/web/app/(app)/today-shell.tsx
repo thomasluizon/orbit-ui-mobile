@@ -9,10 +9,10 @@ import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
-  'grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
+  'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
 
 export interface TodayDateControlProps {
-  menuTitle?: string
+  menuHeading?: string
   shortDayName?: string
   headerActive?: boolean
   dayName: string
@@ -58,7 +58,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       <MoreVertical size={20} strokeWidth={1.8} aria-hidden="true" />
     </button>
     {!wide ? <NotificationBell /> : null}
-    <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={props.menuTitle ?? props.moreLabel}
+    <Menu id={menuId} open={menuOpen} anchorRef={menuAnchorRef} title={props.moreLabel} shortTitle={props.menuHeading}
       items={[
         { id: 'select', label: props.selectLabel, icon: 'checkbox' },
         { id: 'collapse', label: props.collapseLabel, icon: props.allCollapsed ? 'chevrons-down' : 'chevrons-up' },
@@ -86,8 +86,8 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
       <div className="shrink-0 grow-0 text-start" title={`${props.dayName}, ${props.numericDate}`}>
         <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
           {props.shortDayName ? <>
-            <span className="@[15rem]:inline hidden">{props.dayName}</span>
-            <span className="@[15rem]:hidden">{props.shortDayName}</span>
+            <span className="@[15rem]:contents hidden">{props.dayName}</span>
+            <span className="@[15rem]:hidden contents">{props.shortDayName}</span>
           </> : props.dayName}
         </p>
         <p className="m-0 whitespace-nowrap font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{props.numericDate}</p>

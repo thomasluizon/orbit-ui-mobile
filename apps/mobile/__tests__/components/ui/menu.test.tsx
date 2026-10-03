@@ -71,6 +71,22 @@ describe('Menu (mobile)', () => {
     },
   )
 
+  it('names the native menu sheet after the trigger while showing a short heading', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Menu open title="List options" shortTitle="Options" items={items} />)
+      await Promise.resolve()
+    })
+    const header = tree.root.findAll((node: ReactTestInstance) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!.props.header as React.ReactElement<{
+      accessibilityLabel?: string
+      children: React.ReactElement<{ accessibilityLabel?: string; children?: React.ReactNode }>[]
+    }>
+    expect(header.props.accessibilityLabel).toBe('List options')
+    expect(header.props.children[0]!.props.accessibilityLabel).toBe('List options')
+    expect(header.props.children[0]!.props.children).toBe('Options')
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('matches menu icon stroke to medium-weight labels', async () => {
     let tree: any
     await TestRenderer.act(async () => {
@@ -92,7 +108,7 @@ describe('Menu (mobile)', () => {
     expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([56, 56])
     expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([undefined, undefined])
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(1)
-    const sheet = tree.root.findAll((node: any) => node.type?.name === 'TrueSheet')[0]
+    const sheet = tree.root.findAll((node: any) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]
     if (!sheet) throw new Error('Sheet presentation did not render its native backdrop')
     expect(sheet.props.dimmed).toBe(true)
     await TestRenderer.act(() => tree.unmount())

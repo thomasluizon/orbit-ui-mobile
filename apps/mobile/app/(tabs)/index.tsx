@@ -201,7 +201,7 @@ function TodayScreenContent() {
         goToTodayLabel={t('dates.goToToday')}
         nextLabel={t('dates.nextDay')}
         moreLabel={t('habits.listOptions')}
-        menuTitle={t('common.options')}
+        menuHeading={t('common.options')}
         selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
         allCollapsed={habitListAllCollapsed}

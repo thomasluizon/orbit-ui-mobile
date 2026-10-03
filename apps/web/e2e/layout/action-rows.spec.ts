@@ -112,7 +112,7 @@ for (const width of [412, 1352]) {
         '/habits/new': '[data-habit-create-screen] form',
         [`/habits/${habitId}`]: '[data-habit-detail-content] h1',
         '/upgrade': '.orbit-pill-action',
-        '/notifications': '[role="list"] [role="listitem"]',
+        '/notifications': 'ul[aria-busy="false"] > li[data-read]',
         '/about': '[data-testid="about-content"]',
         '/support': 'form .orbit-pill-action',
       }
@@ -138,7 +138,7 @@ for (const width of [412, 1352]) {
             await expect(main.getByText(notifications.items[0]!.title, { exact: true })).toBeVisible()
             await expect(main.getByText(notifications.items[1]!.title, { exact: true })).toBeVisible()
             await header.getByRole('button', { name: messages.notifications.options, exact: true }).click()
-            const menu = page.getByRole('menu', { name: messages.common.options, exact: true })
+            const menu = page.getByRole('menu', { name: messages.notifications.options, exact: true })
             await expect(menu.getByRole('menuitem', { name: messages.notifications.markAllReadMenu, exact: true })).toBeVisible()
             await menu.getByRole('menuitem', { name: messages.notifications.deleteAll, exact: true }).click()
             const confirmation = page.getByRole('dialog', { name: messages.notifications.deleteAllAction, exact: true })

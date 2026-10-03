@@ -45,6 +45,14 @@ describe('Menu', () => {
     expect(stylesheet).toMatch(/\.orbit-sheet-panel \.orbit-menu-item \{\s*min-height: 56px;/)
   })
 
+  it('names a compact menu and its sheet after the trigger while showing a short heading', async () => {
+    setWide(false)
+    render(<Menu open title="List options" shortTitle="Options" items={items} />)
+    expect(await screen.findByRole('dialog', { name: 'List options' })).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'List options' })).toBeInTheDocument()
+    expect(document.querySelector('.orbit-sheet-title')).toHaveTextContent('Options')
+  })
+
   it('matches menu icon stroke to medium-weight labels', async () => {
     setWide(false)
     render(<Menu open title="List options" items={[{ id: 'select', label: 'Select', icon: 'checkbox' }]} />)

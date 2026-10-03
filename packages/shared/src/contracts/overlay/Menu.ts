@@ -15,6 +15,7 @@ interface MenuBaseProps {
   onSelect?: (id: string) => void
   onClose?: () => void
   title?: string
+  shortTitle?: string
   align?: 'start' | 'end'
 }
 

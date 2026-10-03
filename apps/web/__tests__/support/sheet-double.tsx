@@ -65,7 +65,7 @@ export function Sheet({ title, accessibleTitle, actions, onClose, children, ref 
   return (
     <div
       role="dialog"
-      aria-label={title ?? accessibleTitle}
+      aria-label={accessibleTitle ?? title}
       aria-hidden={presented ? undefined : true}
       data-testid="sheet"
     >

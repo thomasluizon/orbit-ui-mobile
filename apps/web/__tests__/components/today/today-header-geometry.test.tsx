@@ -16,7 +16,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 
 const noop = () => {}
 const props = {
-  menuTitle: ptBr.common.options,
+  menuHeading: ptBr.common.options,
   dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.', isTodaySelected: false, nextDisabled: false,
   previousLabel: ptBr.dates.previousDay, nextLabel: ptBr.dates.nextDay, todayLabel: ptBr.dates.today,
   goToTodayLabel: ptBr.dates.goToToday, moreLabel: ptBr.habits.listOptions, searchLabel: ptBr.habits.search.title,
@@ -45,15 +45,28 @@ describe('Hoje header geometry', () => {
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
-  it.each([320, 412].flatMap((width) => [1, 2].map((scale) => ({ width, scale }))))('fits both rows at $width px with $scale text scale', async ({ width, scale }) => {
-    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}><TodayDateControl {...props} /></NextIntlClientProvider>)
+  const headerCases = (['en', 'pt-BR'] as const).flatMap((locale) => [
+    ...[320, 400, 412].flatMap((width) => [1, 2].map((scale) => ({ locale, width, scale, labelResize: false }))),
+    ...[1, 2].map((scale) => ({ locale, width: 400, scale, labelResize: true })),
+  ])
+  it.each(headerCases)('fits both $locale rows at $width px with $scale text scale, label resize=$labelResize', async ({ locale, width, scale, labelResize }) => {
+    const messages = locale === 'en' ? en : ptBr
+    const dayName = locale === 'en' ? 'Tuesday' : 'Terça-feira'
+    const shortDayName = locale === 'en' ? 'Tue' : 'Ter.'
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
+      dayName={dayName} shortDayName={shortDayName} todayLabel={messages.dates.today} /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      await page.evaluate(async (textScale) => {
+      await page.evaluate(async ({ textScale, labelsOnly }) => {
         await document.fonts.ready
-        document.documentElement.style.fontSize = `${16 * textScale}px`
-      }, scale)
+        if (labelsOnly) {
+          const labels = document.querySelectorAll<HTMLElement>('[data-today-date-row] p')
+          labels[0]!.style.fontSize = `${22 * textScale}px`
+          labels[1]!.style.fontSize = `${12 * textScale}px`
+          document.querySelector<HTMLElement>('[data-today-header-actions] .orbit-pill-action span')!.style.fontSize = `${14 * textScale}px`
+        } else document.documentElement.style.fontSize = `${16 * textScale}px`
+      }, { textScale: scale, labelsOnly: labelResize })
       const geometry = await page.evaluate(() => {
         const box = (element: Element) => {
           const rectangle = element.getBoundingClientRect()
@@ -63,19 +76,19 @@ describe('Hoje header geometry', () => {
         const header = document.querySelector('[data-today-header-actions]')!
         const dateBlock = date.querySelector('[title]')!
         const day = dateBlock.querySelector('p')!
-        const visibleDay = Array.from(day.children).find((element) => getComputedStyle(element).display !== 'none')!
         const range = document.createRange()
-        range.selectNodeContents(visibleDay)
+        range.selectNodeContents(day)
         return {
           date: box(date), header: box(header), dateBlock: box(dateBlock),
           arrows: Array.from(date.querySelectorAll('button')).map(box),
           actions: Array.from(header.querySelectorAll('button')).map(box),
-          dayLines: range.getClientRects().length,
+          dayLines: range.getClientRects().length, dayFontSize: Number.parseFloat(getComputedStyle(day).fontSize),
           documentWidth: document.documentElement.scrollWidth,
         }
       })
       expect(geometry.documentWidth).toBe(width)
       expect(geometry.dayLines).toBe(1)
+      expect(geometry.dayFontSize).toBe(22 * scale)
       expect(geometry.arrows[1]!.left - geometry.dateBlock.right).toBeCloseTo(4)
       for (const controls of [geometry.arrows, geometry.actions]) {
         for (const [index, control] of controls.entries()) {
@@ -92,7 +105,7 @@ describe('Hoje header geometry', () => {
   it.each(['en', 'pt-BR'] as const)('fits the open %s menu at 320 pixels and 200 percent text', async (locale) => {
     const messages = locale === 'en' ? en : ptBr
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
-      menuTitle={messages.common.options} moreLabel={messages.habits.listOptions}
+      menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
       selectLabel={messages.common.select} collapseLabel={messages.habits.collapseAll}
       refreshLabel={messages.habits.refresh} completedLabel={messages.habits.showCompletedMenu} /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
@@ -123,10 +136,11 @@ describe('Hoje header geometry', () => {
     const messages = locale === 'en' ? en : ptBr
     const refresh = vi.fn()
     render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
-      menuTitle={messages.common.options} moreLabel={messages.habits.listOptions}
+      menuHeading={messages.common.options} moreLabel={messages.habits.listOptions}
       refreshLabel={messages.habits.refresh} onRefresh={refresh} /></NextIntlClientProvider>)
     fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
-    const menu = screen.getByRole('menu', { name: messages.common.options })
+    const menu = screen.getByRole('menu', { name: messages.habits.listOptions })
+    expect(screen.getByRole('dialog', { name: messages.habits.listOptions })).toBeInTheDocument()
     fireEvent.click(within(menu).getByRole('menuitem', { name: messages.habits.refresh }))
     await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())

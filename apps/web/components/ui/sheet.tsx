@@ -130,7 +130,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
-              <Dialog.Title translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'}>
+              <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'}>
                 {title ?? accessibleTitle ?? t('common.appName')}
               </Dialog.Title>
               {headerAccessory}

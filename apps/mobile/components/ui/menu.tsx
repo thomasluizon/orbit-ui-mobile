@@ -86,6 +86,7 @@ export function Menu({
   onSelect,
   onClose,
   title,
+  shortTitle,
   presentation = 'auto',
   anchorRef,
   wideFrom,
@@ -121,7 +122,7 @@ export function Menu({
 
   if (sheetPresentation) {
     return (
-      <MenuSheet items={orderedItems} onClose={onClose} onSelect={onSelect} title={title} />
+      <MenuSheet items={orderedItems} onClose={onClose} onSelect={onSelect} title={title} shortTitle={shortTitle} />
     )
   }
 
@@ -171,11 +172,12 @@ function MenuSheet({
   onSelect,
   onClose,
   title,
-}: Readonly<Pick<MenuProps, 'items' | 'onSelect' | 'onClose' | 'title'>>) {
+  shortTitle,
+}: Readonly<Pick<MenuProps, 'items' | 'onSelect' | 'onClose' | 'title' | 'shortTitle'>>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
   return (
-    <Sheet ref={sheetRef} open title={title} onClose={onClose}>
+    <Sheet ref={sheetRef} open title={shortTitle ?? title} accessibleTitle={title} onClose={onClose}>
       <MenuItems
         items={items}
         sheetPresentation

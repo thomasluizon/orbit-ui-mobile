@@ -24,7 +24,7 @@ const callbacks = {
 }
 
 const props = {
-  menuTitle: 'Options',
+  menuHeading: 'Options',
   shortDayName: 'Wed',
   dayName: 'Wednesday',
   numericDate: '08/04/2026',
@@ -113,7 +113,7 @@ describe('Today date control feedback (mobile)', () => {
     expect(control.findAllByType(MoreVertical)).toHaveLength(1)
     TestRenderer.act(() => control.props.onPress())
     const menu = renderer.root.findByType(Menu)
-    expect(menu.props.title).toBe('Options')
+    expect(menu.props.title).toBe('List options')
     expect(menu.props.open).toBe(true)
   })
 
@@ -122,7 +122,7 @@ describe('Today date control feedback (mobile)', () => {
     expect([labels.collapseAll, labels.expandAll]).toEqual(['Recolher tudo', 'Expandir tudo'])
     const controlProps = {
       moreLabel: labels.listOptions,
-      menuTitle: ptBr.common.options,
+      menuHeading: ptBr.common.options,
       selectLabel: ptBr.common.select,
       collapseLabel: labels.collapseAll,
       refreshLabel: labels.refresh,
@@ -133,7 +133,7 @@ describe('Today date control feedback (mobile)', () => {
     if (!control) throw new Error('List options control did not render')
     TestRenderer.act(() => control.props.onPress())
     const menu = renderer.root.findByType(Menu)
-    expect(menu.props.title).toBe(ptBr.common.options)
+    expect(menu.props.title).toBe(ptBr.habits.listOptions)
     expect(menu.props.open).toBe(true)
     expect(menu.props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
       [ptBr.common.select, 'checkbox'],
@@ -258,13 +258,13 @@ it('pins one header in the owning shell and clears it when Hoje loses focus', ()
 
 it.each([false, true])('keeps the open Portuguese menu labels inside 320 dp at 200 percent, completed=%s', (showCompleted) => {
   __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
-  const renderer = renderControl({ moreLabel: ptBr.habits.listOptions, menuTitle: ptBr.common.options, selectLabel: ptBr.common.select,
+  const renderer = renderControl({ moreLabel: ptBr.habits.listOptions, menuHeading: ptBr.common.options, selectLabel: ptBr.common.select,
     collapseLabel: ptBr.habits.collapseAll, refreshLabel: ptBr.habits.refresh,
     completedLabel: showCompleted ? ptBr.habits.hideCompletedMenu : ptBr.habits.showCompletedMenu, showCompleted })
   try {
     TestRenderer.act(() => button(renderer, ptBr.habits.listOptions)!.props.onPress())
     const menu = renderer.root.findByType(Menu)
-    expect(measuredTextWidth(menu.props.title, 'Geist', 44,
+    expect(measuredTextWidth(menu.props.shortTitle, 'Geist', 44,
       require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'))).toBeLessThanOrEqual(320 - 2 * 24 - 16 - 48)
     for (const item of menu.props.items) {
       const text = renderer.root.findAllByType(Text).find((node: { props: Record<string, unknown> }) => node.props.children === item.label)!

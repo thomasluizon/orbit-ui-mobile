@@ -8,7 +8,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface TodayDateControlProps {
-  menuTitle?: string
+  menuHeading?: string
   shortDayName?: string
   headerActive?: boolean
   dayName: string
@@ -58,7 +58,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
       </Pressable>
     </MenuAnchorHost>
     <NotificationBell />
-    <Menu open={menu.visible} anchorRef={menu.anchorRef} title={props.menuTitle ?? props.moreLabel}
+    <Menu open={menu.visible} anchorRef={menu.anchorRef} title={props.moreLabel} shortTitle={props.menuHeading}
       items={[
         { id: 'select', label: props.selectLabel, icon: 'checkbox' },
         { id: 'collapse', label: props.collapseLabel, icon: props.allCollapsed ? 'chevrons-down' : 'chevrons-up' },
