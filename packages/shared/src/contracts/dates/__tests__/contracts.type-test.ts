@@ -68,12 +68,14 @@ type ExpectedReadOnlyCell = ExpectedDayCellBase & {
   onPress?: never
 }
 type ExpectedTimedEvent = {
+  onClick?: () => void
   title: string
   source?: string
   time: string
   allDayLabel?: never
 }
 type ExpectedAllDayEvent = {
+  onClick?: () => void
   title: string
   source?: string
   time?: never
@@ -176,7 +178,6 @@ type EventWithStatus = Accepts<{ title: 'Standup'; time: '09:00'; status: 'done'
 type EventWithOnLog = Accepts<{ title: 'Standup'; time: '09:00'; onLog: () => void }, EventRowProps>
 // @ts-expect-error external events have no menu
 type EventWithOnMenu = Accepts<{ title: 'Standup'; time: '09:00'; onMenu: () => void }, EventRowProps>
-// @ts-expect-error external events are read only
 type EventWithOnClick = Accepts<{ title: 'Standup'; time: '09:00'; onClick: () => void }, EventRowProps>
 
 export type DateContractTypeAssertionsWidthAssertions = [

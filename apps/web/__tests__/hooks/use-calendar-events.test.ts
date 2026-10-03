@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { ZodError } from 'zod'
 import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
-import { filterCalendarSyncEventsByDate } from '@orbit/shared/utils'
+import { filterCalendarSyncEventsByDate, isCalendarSyncConnectionActive } from '@orbit/shared/utils'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
@@ -119,8 +119,9 @@ describe('useCalendarEvents', () => {
       useCalendarEvents({ timeZone: 'UTC' })
       const { data: autoSyncState } = useCalendarAutoSyncState()
       return React.createElement(CalendarSyncBoundary, {
+        isConnected: isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle'),
+        locale: 'en',
         autoSyncState,
-        displayTime: (time: string) => time,
         onAutoSyncChange: async () => {},
         onSyncNow: async () => {},
       })
@@ -261,8 +262,9 @@ describe('CalendarSyncBoundary account replacement', () => {
       hasGoogleConnection: true,
     }
     render(React.createElement(CalendarSyncBoundary, {
+      locale: 'en',
+      isConnected: isCalendarSyncConnectionActive(autoSyncState.hasGoogleConnection, autoSyncState.status),
       autoSyncState,
-      displayTime: (value: string) => value,
       onAutoSyncChange,
       onSyncNow: async () => {},
     }))

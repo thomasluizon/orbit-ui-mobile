@@ -1,29 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useMemo } from 'react'
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
-import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import {
-  determineHabitDayStatus,
-  isCalendarSyncConnectionActive,
-  parseAPIDate,
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import { CheckRow } from '@/components/ui/check-row'
-import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ErrorState } from '@/components/ui/error-state'
+import { Badge } from '@/components/ui/badge'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { CalendarDayEvents } from './calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
-import { ActionRow } from '@/components/ui/action-row'
-import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
-import { EventRow } from '@/components/dates/event-row'
-import { Input } from '@/components/ui/input'
-import { useOffline } from '@/hooks/use-offline'
 import { createTokensV2, radius } from '@/lib/theme'
-import { CalendarSyncBoundary } from './calendar-sync-boundary'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -33,17 +28,17 @@ interface CalendarDayDetailProps {
   showTitle?: boolean
   filteredEntries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
-  autoSyncState: CalendarAutoSyncState | undefined
+  showEventSource?: boolean
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
   onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
+  onOpenEvents?: () => void
+  onOpenHabitTitle?: (title: string) => void
   completedCount: number
   loggable: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
-  onCalendarAutoSyncChange: (value: boolean) => Promise<void>
-  onCalendarSyncNow: () => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onGoToDay: () => void
   displayTime: (time: string) => string
@@ -51,129 +46,36 @@ interface CalendarDayDetailProps {
   tokens: Tokens
 }
 
-function CalendarReadyEvents({ calendarEvents, onOpenImport, displayTime, t, tokens, styles }: Readonly<{
+function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry, onReconnect, onOpenImport, onOpenEvents, onViewPro, displayTime, t, tokens, styles }: Readonly<{
   calendarEvents: CalendarSyncEvent[]
-  onOpenImport: (eventId: string | null) => void
+  showEventSource: boolean
   displayTime: (time: string) => string
-  t: TFunction
-  tokens: Tokens
-  styles: ReturnType<typeof createStyles>
-}>) {
-  const [eventQuery, setEventQuery] = useState('')
-  const [eventPage, setEventPage] = useState(0)
-  const matchingEvents = useMemo(() => calendarEvents.filter((event) =>
-    event.title.toLocaleLowerCase().includes(eventQuery.trim().toLocaleLowerCase()),
-  ), [calendarEvents, eventQuery])
-  const currentPage = Math.min(eventPage, Math.max(0, Math.ceil(matchingEvents.length / 20) - 1))
-  const visibleEvents = matchingEvents.slice(currentPage * 20, (currentPage + 1) * 20)
-
-  return <View style={styles.eventList}>
-    {calendarEvents.length > 20 ? (
-      <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" />
-    ) : null}
-    {visibleEvents.map((event) => event.startTime ? (
-      <EventRow key={event.id} time={displayTime(event.startTime)} title={event.title} source={event.calendarName || t('calendar.title')} />
-    ) : (
-      <EventRow key={event.id} allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={event.calendarName || t('calendar.title')} />
-    ))}
-    {matchingEvents.length === 0 ? <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</Text> : null}
-    {calendarEvents.length >= 8 ? <Text style={[styles.eventCount, { color: tokens.fg3 }]}>{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</Text> : null}
-    <ActionRow>
-      {matchingEvents.length > 20 ? <>
-        <PillButton variant="ghost" disabled={currentPage === 0} onClick={() => setEventPage(currentPage - 1)}>{t('common.previous')}</PillButton>
-        <PillButton variant="ghost" disabled={(currentPage + 1) * 20 >= matchingEvents.length} onClick={() => setEventPage(currentPage + 1)}>{t('common.next')}</PillButton>
-      </> : null}
-      {matchingEvents.length === 0 ? <PillButton variant="ghost" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton> : null}
-      <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.dayDetail.importEvents')}</PillButton>
-    </ActionRow>
-  </View>
-}
-
-function CalendarEventsSection({
-  calendarEvents,
-  state,
-  onRetry,
-  onReconnect,
-  onOpenImport,
-  onViewPro,
-  displayTime,
-  t,
-  tokens,
-  styles,
-}: Readonly<{
-  calendarEvents: CalendarSyncEvent[]
   state: CalendarEventsDisplayState
   onRetry: () => void
   onReconnect: () => void
   onOpenImport: (eventId: string | null) => void
   onViewPro: () => void
-  displayTime: (time: string) => string
+  onOpenEvents?: () => void
   t: TFunction
   tokens: Tokens
   styles: ReturnType<typeof createStyles>
 }>) {
-  const { isOnline } = useOffline()
-  if (state === 'pro-boundary') {
-    return (
-      <View testID="calendar-pro-boundary" style={styles.proBoundary}>
-        <CapacityNotice
-          message={t('calendar.proBoundary.title')}
-          body={t('calendar.proBoundary.body')}
-          action={
-            /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this granted canvas label. */
-            <PillButton size="sm" onClick={onViewPro}>
-              {t('calendar.proBoundary.action')}
-            </PillButton>
-          }
-        />
-      </View>
-    )
-  }
-
-  return (
-    <View style={styles.eventSection}>
-      <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>
-        {t('calendar.dayDetail.eventsTitle')}
-      </Text>
-      {state === 'loading' ? (
-        <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} />
-      ) : null}
-      {state === 'failed' ? (
-        <ErrorState
-          message={t('calendar.fetchError')}
-          action={
-            <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
-          }
-        />
-      ) : null}
-      {state === 'not-connected' ? (
-        <View style={styles.reconnectState}>
-          <Text style={[styles.reconnectTitle, { color: tokens.fg1 }]}>
-            {t(isOnline ? 'calendar.dayDetail.disconnectedTitle' : 'offline.calendar.title')}
-          </Text>
-          <Text style={[styles.reconnectBody, { color: tokens.fg3 }]}>
-            {t(isOnline ? 'calendar.dayDetail.disconnectedBody' : 'offline.calendar.reason')}
-          </Text>
-          {isOnline ? <PillButton variant="ghost" onClick={onReconnect}>
-            {t('calendar.autoSync.reconnectCta')}
-          </PillButton> : null}
-        </View>
-      ) : null}
-      {state === 'ready' && calendarEvents.length === 0 ? (
-        <View style={styles.reconnectState}>
-          <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text>
-          <ActionRow><PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.dayDetail.importEvents')}</PillButton></ActionRow>
-        </View>
-      ) : null}
-      {state === 'ready' && calendarEvents.length > 0 ? (
-        <CalendarReadyEvents calendarEvents={calendarEvents} onOpenImport={onOpenImport} displayTime={displayTime} t={t} tokens={tokens} styles={styles} />
-      ) : null}
-    </View>
-  )
+  if (state === 'pro-boundary') return <View testID="calendar-pro-boundary" style={styles.eventSection}>
+    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
+  </View>
+  if (state === 'not-connected') return <View style={styles.eventSection}>
+    <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
+  </View>
+  return <View style={styles.eventSection}>
+    <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>{t('calendar.dayDetail.eventsTitle')}</Text>
+    {state === 'loading' ? <View style={{ paddingHorizontal: 16 }}><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></View> : null}
+    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
+    {state === 'ready' && calendarEvents.length === 0 ? <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>{t('calendar.dayDetail.noEventsToImport')}</Text> : null}
+    {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents t={t} displayTime={displayTime} calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
+  </View>
 }
 
 type EntryOutcome = {
-  label: string
   ringLabel: string
   status: NonNullable<StatusRingProps['status']>
 }
@@ -184,7 +86,6 @@ function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
   if (entry.isBadHabit) {
     const label = t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted')
     return {
-      label,
       ringLabel: entry.status === 'upcoming' ? t('calendar.status.missed') : label,
       status: completed ? 'bad' : entry.status === 'upcoming' ? 'empty' : 'done',
     }
@@ -192,46 +93,32 @@ function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
 
   const label = t(completed ? 'calendar.status.completed' : 'calendar.status.missed')
   return {
-    label,
     ringLabel: label,
     status: completed ? 'done' : 'empty',
   }
 }
 
 function CalendarDayCheckRow({
-  selectedDate,
   entry,
   displayTime,
   isPending,
   pendingChecked,
   onEntryChange,
-  t,
+  onOpenTitle,
 }: Readonly<{
-  selectedDate: string
   entry: CalendarDayEntry
   displayTime: (time: string) => string
   isPending: boolean
   pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
-  t: TFunction
+  onOpenTitle: (title: string) => void
 }>) {
   const sourceChecked = entry.status === 'completed'
   const displayedChecked = pendingChecked === undefined || pendingChecked === sourceChecked
     ? null
     : pendingChecked
   const checked = displayedChecked ?? sourceChecked
-  const displayedEntry: CalendarDayEntry = displayedChecked === null
-    ? entry
-    : {
-        ...entry,
-        status: displayedChecked
-          ? 'completed'
-          : determineHabitDayStatus(parseAPIDate(selectedDate), false),
-      }
-  const outcome = getEntryOutcome(displayedEntry, t)
-  const value = entry.dueTime
-    ? `${displayTime(entry.dueTime)} · ${outcome.label}`
-    : outcome.label
+  const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
 
   async function changeChecked(nextChecked: boolean) {
     const entryChange = onEntryChange(entry, nextChecked)
@@ -242,6 +129,8 @@ function CalendarDayCheckRow({
   return (
     <CheckRow
       label={entry.title}
+      textMode="personal"
+      onOpenLabel={() => onOpenTitle(entry.title)}
       checked={checked}
       value={value}
       loading={isPending}
@@ -256,23 +145,25 @@ export function CalendarDayDetail({
   showTitle = true,
   filteredEntries,
   calendarEvents,
-  autoSyncState,
+  showEventSource = false,
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
   onOpenCalendarImport,
   onViewPro,
+  onOpenEvents,
+  onOpenHabitTitle,
   completedCount,
   loggable,
   pendingEntryStates,
-  onCalendarAutoSyncChange,
-  onCalendarSyncNow,
   onEntryChange,
   onGoToDay,
   displayTime,
   t,
   tokens,
 }: Readonly<CalendarDayDetailProps>) {
+  const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
+  const { sheetRef } = useSheetHost()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const summary = filteredEntries.length > 0
     ? t('calendar.dayDetail.completionSummary', {
@@ -283,6 +174,9 @@ export function CalendarDayDetail({
 
   return (
     <View style={styles.container}>
+      {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
+        <Text style={styles.fullTitle}>{expandedTitle}</Text>
+      </Sheet> : null}
       <View style={styles.copyBlock}>
         {showTitle ? <Text style={[styles.dayTitle, { color: tokens.fg1 }]}>{title}</Text> : null}
         <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
@@ -299,37 +193,32 @@ export function CalendarDayDetail({
           {filteredEntries.map((entry) => {
             const entryKey = getCalendarEntryMutationKey(selectedDate, entry.habitId)
             const outcome = getEntryOutcome(entry, t)
-            const value = entry.dueTime
-              ? `${displayTime(entry.dueTime)} · ${outcome.label}`
-              : outcome.label
+            const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
 
             if (loggable) {
               return (
                 <CalendarDayCheckRow
                   key={`${selectedDate}:${entry.habitId}`}
-                  selectedDate={selectedDate}
                   entry={entry}
                   displayTime={displayTime}
                   isPending={pendingEntryStates.has(entryKey)}
                   pendingChecked={pendingEntryStates.get(entryKey)}
                   onEntryChange={onEntryChange}
-                  t={t}
+                  onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
                 />
               )
             }
 
             return (
-              <ListRow
-                compact
-                key={`${selectedDate}:${entry.habitId}`}
-                title={entry.title}
-                value={value}
-                trailing={
+              <Pressable key={`${selectedDate}:${entry.habitId}`} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={({ pressed }) => [styles.habitDisclosure, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
+                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                    <Text numberOfLines={2} style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</Text>
+                    {value ? <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2 }}>{value}</Text> : null}
+                  </View>
                   <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
-                }
-                chevron={false}
-                readOnly
-              />
+                </View>
+              </Pressable>
             )
           })}
         </View>
@@ -341,7 +230,7 @@ export function CalendarDayDetail({
           compact
           icon="external-link"
           title={t('calendar.goToDay')}
-          wrapTitle
+          textMode="label"
           accessibilityLabel={t('calendar.goToDay')}
           chevron={false}
           onClick={onGoToDay}
@@ -350,10 +239,12 @@ export function CalendarDayDetail({
       <CalendarEventsSection
         key={selectedDate}
         calendarEvents={calendarEvents}
+        showEventSource={showEventSource}
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
         onOpenImport={onOpenCalendarImport}
+        onOpenEvents={onOpenEvents}
         onViewPro={onViewPro}
         displayTime={displayTime}
         t={t}
@@ -361,19 +252,6 @@ export function CalendarDayDetail({
         styles={styles}
       />
 
-      {calendarEventsState !== 'pro-boundary' && calendarEventsState !== 'not-connected' &&
-        isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle') ? (
-        <View style={styles.syncBoundary}>
-          <CalendarSyncBoundary
-            autoSyncState={autoSyncState}
-            displayTime={displayTime}
-            onAutoSyncChange={onCalendarAutoSyncChange}
-            onSyncNow={onCalendarSyncNow}
-            t={t}
-            tokens={tokens}
-          />
-        </View>
-      ) : null}
 
     </View>
   )
@@ -381,79 +259,16 @@ export function CalendarDayDetail({
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    container: {
-      backgroundColor: tokens.bgCard,
-      borderColor: tokens.hairlineGhost,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      gap: 16,
-      paddingVertical: 24,
-    },
-    copyBlock: {
-      gap: 16,
-      paddingHorizontal: 24,
-    },
-    rowList: {
-      paddingHorizontal: 8,
-    },
-    dayTitle: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 20,
-    },
-    summaryText: {
-      color: tokens.fg3,
-      fontFamily: 'Geist_400Regular',
-      fontSize: 12,
-    },
-    emptyDayText: {
-      color: tokens.fg3,
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 22,
-      paddingVertical: 24,
-      textAlign: 'center',
-    },
-    eventSection: {
-      gap: 8,
-      paddingHorizontal: 24,
-    },
-    eventTitle: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      lineHeight: 20,
-    },
-    eventList: {
-      gap: 12,
-    },
-    eventCount: { fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
-    reconnectState: {
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 24,
-    },
-    proBoundary: {
-      paddingHorizontal: 24,
-    },
-    reconnectTitle: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-      textAlign: 'center',
-    },
-    reconnectBody: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
-      textAlign: 'center',
-    },
-    emptyEventText: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 22,
-      paddingVertical: 24,
-      textAlign: 'center',
-    },
-    syncBoundary: {
-      paddingHorizontal: 24,
-    },
+    container: { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, borderRadius: radius.xl, borderWidth: 1, gap: 24, paddingVertical: 24 },
+    copyBlock: { gap: 8, paddingHorizontal: 16 },
+    rowList: { gap: 8 },
+    habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
+    dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
+    summaryText: { fontFamily: 'Geist_400Regular', fontSize: 12 },
+    emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22, paddingVertical: 24, textAlign: 'center' },
+    eventSection: { gap: 8 },
+    eventTitle: { paddingHorizontal: 16, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
+    emptyEventText: { paddingHorizontal: 16, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
+    fullTitle: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
   })
 }

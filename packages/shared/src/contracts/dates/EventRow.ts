@@ -1,6 +1,7 @@
 interface EventRowBase {
   title: string
   source?: string
+  onClick?: () => void
 }
 
 export interface TimedEventRowProps extends EventRowBase {

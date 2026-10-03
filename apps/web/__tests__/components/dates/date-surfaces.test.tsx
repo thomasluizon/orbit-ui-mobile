@@ -193,7 +193,7 @@ describe('MonthGrid', () => {
 describe('EventRow', () => {
   it('renders timed and all-day events as read-only rows', () => {
     const { rerender } = render(<EventRow time="09:00" title="Standup" source="Work" />)
-    expect(screen.getByRole('img', { name: '09:00, Standup, Work' })).toHaveTextContent('09:00StandupWork')
+    expect(screen.getByRole('img', { name: '09:00, Standup, Work' })).toHaveTextContent('Standup09:00 · Work')
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
 
     rerender(<EventRow allDayLabel="All day" title="Holiday" source="Personal" />)

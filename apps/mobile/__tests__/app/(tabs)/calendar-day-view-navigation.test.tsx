@@ -24,6 +24,7 @@ let autoSyncQueryOptions: {
 } | undefined
 let calendarDayMap = new Map<string, CalendarDayEntry[]>()
 const mockLogHabit = vi.fn(async () => {})
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')
@@ -220,7 +221,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
     })
     TestRenderer.act(() => {
-      pressButton(tree.root, 'calendar.proBoundary.action')
+      pressButton(tree.root, 'calendar.calendars.title')
     })
 
     expect(mockPush).toHaveBeenCalledOnce()
@@ -228,45 +229,11 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
   })
 
-  it('keeps the changed auto-sync value after selecting another day and returning', async () => {
+  it('seeds sync state without placing sync controls in day detail', () => {
     let tree!: TestTree
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />)
-    })
-
-    expect(autoSyncQueryOptions).toEqual({
-      enabled: true,
-      initialData: {
-        enabled: true,
-        status: 'Idle',
-        lastSyncedAt: '2026-09-12T09:12:00Z',
-        hasGoogleConnection: true,
-      },
-    })
-    TestRenderer.act(() => {
-      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
-    })
-
-    const autoSync = tree.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync',
-    )[0]!
-    await TestRenderer.act(() => {
-      ;(autoSync.props.onPress as () => void)()
-      return Promise.resolve()
-    })
-
-    TestRenderer.act(() => {
-      ;(findGridDayCell(tree.root, '2026-08-14').props.onPress as () => void)()
-    })
-    TestRenderer.act(() => {
-      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
-    })
-
-    const returned = tree.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync',
-    )[0]!
-    const accessibilityState = returned.props.accessibilityState as { checked?: boolean }
-    expect(accessibilityState.checked).toBe(false)
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
+    expect(autoSyncQueryOptions?.initialData).toEqual(autoSyncState)
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync')).toHaveLength(0)
   })
 
   it('opens an older current-month day through its read-only selection path', () => {

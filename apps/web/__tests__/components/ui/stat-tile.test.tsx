@@ -37,6 +37,54 @@ describe('StatTile', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+    it.each([320, 360, 412].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('contains loading placeholders inside compact tile content at $width with root text scale $fontScale', async ({ width, fontScale }) => {
+      for (const catalog of [en, ptBR]) {
+        const { container, unmount } = render(
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${fontScale === 1 ? 3 : 2}, minmax(0, 1fr))`, gap: 12, padding: '1rem' }}>
+            {[1, 2, 3].map((key) => <StatTile key={key} state="loading" loadingLabel={catalog.calendar.loading} label={catalog.calendar.bestStreak} />)}
+          </div>,
+        )
+        expect(screen.getAllByRole('status', { name: catalog.calendar.loading })).toHaveLength(3)
+        const page = await browser.newPage({ viewport: { width, height: 915 } })
+        try {
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          await loadAppFonts(page)
+          await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, fontScale)
+          const geometry = await page.evaluate(() => ({
+            pageWidth: document.documentElement.clientWidth,
+            scrollWidth: document.documentElement.scrollWidth,
+            tiles: [...document.querySelectorAll<HTMLElement>('[data-state="loading"]')].map((tile) => {
+              const bounds = tile.getBoundingClientRect()
+              const style = getComputedStyle(tile)
+              const value = tile.querySelector<HTMLElement>('[aria-hidden="true"]')!
+              const placeholder = value.lastElementChild!.getBoundingClientRect()
+              const label = tile.lastElementChild!.getBoundingClientRect()
+              return { left: bounds.left, right: bounds.right, height: bounds.height,
+                contentLeft: bounds.left + parseFloat(style.paddingLeft), contentRight: bounds.right - parseFloat(style.paddingRight),
+                placeholderLeft: placeholder.left, placeholderRight: placeholder.right, placeholderWidth: placeholder.width,
+                valueHeight: value.getBoundingClientRect().height, gap: label.top - value.getBoundingClientRect().bottom,
+                busy: tile.getAttribute('aria-busy'), hidden: value.getAttribute('aria-hidden') }
+            }),
+          }))
+          expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
+          expect(geometry.tiles).toHaveLength(3)
+          for (const tile of geometry.tiles) {
+            expect(tile.left).toBeGreaterThanOrEqual(16 * fontScale)
+            expect(tile.right).toBeLessThanOrEqual(width - 16 * fontScale + 0.5)
+            expect(tile.placeholderLeft).toBeGreaterThanOrEqual(tile.contentLeft - 0.5)
+            expect(tile.placeholderRight).toBeLessThanOrEqual(tile.contentRight + 0.5)
+            expect(tile.placeholderWidth).toBeGreaterThan(0)
+            expect(tile.placeholderWidth).toBeLessThanOrEqual(64)
+            expect(tile.height).toBeGreaterThanOrEqual(STAT_TILE_MIN_HEIGHT)
+            expect(tile.valueHeight).toBeCloseTo(22 * 1.4, 1)
+            expect(tile.gap).toBe(8 * fontScale)
+            expect(tile.busy).toBe('true')
+            expect(tile.hidden).toBe('true')
+          }
+        } finally { await page.close(); unmount() }
+      }
+    })
+
     it.each([320, 360, 384, 412].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('keeps captions and values on one line at $width with text scale $fontScale in both locales', async ({ width, fontScale }) => {
       for (const catalog of [en, ptBR]) {
         const { container, unmount } = render(
@@ -56,6 +104,9 @@ describe('StatTile', () => {
               { key: 'totalLogs', value: 0, label: catalog.calendar.totalLogs },
               { key: 'missed', value: 0, label: catalog.calendar.missedCount },
             ]} />
+            <div data-testid="loading-stat-tiles" className="flex flex-wrap gap-3" style={{ padding: 16 }}>
+              {(['completionRate', 'activeDays', 'bestWeekday'] as const).map((key) => <StatTile key={key} state="loading" loadingLabel={catalog.calendar.loading} label={catalog.progressScreen.window[key]} />)}
+            </div>
             <div className="flex flex-wrap gap-3" style={{ padding: 16 }}>
               <StatTile value="100%" label={catalog.progressScreen.window.completionRate} />
               <StatTile value={30} label={catalog.progressScreen.window.activeDays} />
@@ -73,6 +124,33 @@ describe('StatTile', () => {
             const sizes = elements.map((element) => ({ element, size: parseFloat(getComputedStyle(element).fontSize), line: parseFloat(getComputedStyle(element).lineHeight) }))
             for (const { element, size, line } of sizes) { element.style.fontSize = `${size * scale}px`; if (Number.isFinite(line)) element.style.lineHeight = `${line * scale}px` }
           }, fontScale)
+          const loadingGeometry = await page.locator('[data-testid="loading-stat-tiles"] > [data-state="loading"]').evaluateAll((tiles) => tiles.map((tile) => {
+            const bounds = tile.getBoundingClientRect()
+            const style = getComputedStyle(tile)
+            const value = tile.querySelector<HTMLElement>('[aria-hidden="true"]')!
+            const placeholder = value.lastElementChild!.getBoundingClientRect()
+            const label = tile.lastElementChild!
+            const text = document.createRange()
+            text.selectNodeContents(label)
+            const labelBounds = text.getBoundingClientRect()
+            return { left: bounds.left, right: bounds.right, height: bounds.height,
+              contentLeft: bounds.left + parseFloat(style.paddingLeft), contentRight: bounds.right - parseFloat(style.paddingRight),
+              placeholderLeft: placeholder.left, placeholderRight: placeholder.right,
+              labelLeft: labelBounds.left, labelRight: labelBounds.right,
+              valueFontSize: parseFloat(getComputedStyle(value).fontSize), labelFontSize: parseFloat(getComputedStyle(label).fontSize) }
+          }))
+          expect(loadingGeometry).toHaveLength(3)
+          for (const tile of loadingGeometry) {
+            expect(tile.left).toBeGreaterThanOrEqual(16)
+            expect(tile.right).toBeLessThanOrEqual(width - 16 + 0.5)
+            expect(tile.placeholderLeft).toBeGreaterThanOrEqual(tile.contentLeft - 0.5)
+            expect(tile.placeholderRight).toBeLessThanOrEqual(tile.contentRight + 0.5)
+            expect(tile.labelLeft).toBeGreaterThanOrEqual(tile.contentLeft - 0.5)
+            expect(tile.labelRight).toBeLessThanOrEqual(tile.contentRight + 0.5)
+            expect(tile.valueFontSize).toBe(22 * fontScale)
+            expect(tile.labelFontSize).toBe(14 * fontScale)
+            expect(tile.height).toBeGreaterThanOrEqual(STAT_TILE_MIN_HEIGHT)
+          }
           const calendarHeights = await page.locator('[data-testid="calendar-stats"]').evaluateAll((rows) => rows.slice(0, 2).map((row) => Array.from(row.children, (figure) => figure.getBoundingClientRect().height)))
           expect(calendarHeights[0]).toEqual(calendarHeights[1])
           const geometry = await page.locator('[data-state="default"] > span, [data-state="empty"] > span').evaluateAll((elements) => elements.map((element) => {

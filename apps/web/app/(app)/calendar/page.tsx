@@ -1,5 +1,7 @@
 'use client'
 
+import { useCalendars } from '@/hooks/use-calendars'
+
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, Suspense, type Dispatch, type SetStateAction, type ReactNode } from 'react'
 import {
   addMonths,
@@ -15,7 +17,6 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useAppToast } from '@/hooks/use-app-toast'
 import {
   formatAPIDate,
   formatWeekdayLabels,
@@ -33,23 +34,18 @@ import {
   resolveCalendarMonthDisplayState,
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
-  getFriendlyErrorMessage,
   calendarMonthForDay,
   shouldOpenCalendarImportSheet,
   calendarImportTitleKey,
   calendarImportRouteRequestKey,
-  runCalendarSyncNowWithFeedback,
 } from '@orbit/shared/utils'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { useCalendarEntryMutationLock } from '@/hooks/use-calendar-entry-mutation-lock'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-session-reset'
-import { getAccountGeneration } from '@/lib/session-epoch'
 import {
   useCalendarAutoSyncState,
-  useSetCalendarAutoSync,
-  useRunCalendarSyncNow,
 } from '@/hooks/use-calendar-auto-sync'
 import { useLogHabit } from '@/hooks/use-habits'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -60,6 +56,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
@@ -286,7 +283,6 @@ function CalendarPageContent({
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations()
-  const { showError, showSuccess } = useAppToast()
   const { sheetRef, closeSheet } = useSheetHost()
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost()
   const locale = useLocale()
@@ -308,6 +304,14 @@ function CalendarPageContent({
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [rangeOffset, setRangeOffset] = useState(0)
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
+  const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
+  const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
+  const disclosedWeekDay = view === 'week' ? selectedDay : null
+  const openGoogleCalendar = () => {
+    if (profile.hasProAccess) openImport(null)
+    else router.push('/upgrade')
+  }
+  const openDayDisclosure = (open: () => void) => closeSheet(() => { setIsDayDetailOpen(false); open() })
   const [isImportOpen, setIsImportOpen] = useAccountScopedState(false)
   const [importActionState, setImportActionState] = useAccountScopedState<CalendarImportActionState | null>(null)
   const importActionRef = useRef<CalendarImportActionHandle>(null)
@@ -327,13 +331,15 @@ function CalendarPageContent({
     }
     if (isDayDetailOpen && view === 'week') closeSheet(open)
     else open()
-  }, [closeSheet, isDayDetailOpen, setIsDayDetailOpen, setIsImportOpen, view])
+  }, [closeSheet, isDayDetailOpen, setIsDayDetailOpen, setInitialImportEventId, setIsImportOpen, view])
 
   const closeImport = useCallback(() => {
     setIsImportOpen(false)
     setInitialImportEventId(null)
     if (importRequested) router.replace('/calendar')
-  }, [importRequested, router, setIsImportOpen])
+  }, [importRequested, router, setInitialImportEventId, setIsImportOpen])
+  const { data: connectedCalendars } = useCalendars({ enabled: profile.hasProAccess })
+  const showEventSource = (connectedCalendars?.length ?? 0) > 1
   const showRecurring = useUIStore((state) => state.calendarShowRecurring)
   const {
     data: calendarEventsResult,
@@ -344,7 +350,7 @@ function CalendarPageContent({
     enabled: profile.hasProAccess,
     timeZone: profile.timeZone,
   })
-  const { data: autoSyncState } = useCalendarAutoSyncState({
+  useCalendarAutoSyncState({
     enabled: profile.hasProAccess,
     initialData: {
       enabled: profile.googleCalendarAutoSyncEnabled,
@@ -353,34 +359,6 @@ function CalendarPageContent({
       hasGoogleConnection: profile.hasGoogleConnection,
     },
   })
-  const setCalendarAutoSync = useSetCalendarAutoSync()
-  const runCalendarSyncNow = useRunCalendarSyncNow()
-
-  const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
-    const requestAccount = getAccountGeneration()
-    try {
-      await setCalendarAutoSync.mutateAsync({ enabled })
-      if (getAccountGeneration() !== requestAccount) return
-      showSuccess(t(enabled ? 'calendar.autoSync.enableSuccess' : 'calendar.autoSync.disableSuccess'))
-    } catch (error: unknown) {
-      if (getAccountGeneration() !== requestAccount) return
-      showError(getFriendlyErrorMessage(
-        error,
-        t,
-        'calendar.autoSync.syncFailed',
-        'generic',
-      ))
-    }
-  }, [setCalendarAutoSync, showError, showSuccess, t])
-
-  const handleCalendarSyncNow = useCallback(async () => {
-    await runCalendarSyncNowWithFeedback(
-      () => runCalendarSyncNow.mutateAsync(),
-      (error) => showError(getFriendlyErrorMessage(error, t, 'calendar.autoSync.syncFailed', 'textless')),
-      getAccountGeneration,
-    )
-  }, [runCalendarSyncNow, showError, t])
-
   const openOrbitPro = useCallback(() => {
     closeSheet(() => {
       setIsDayDetailOpen(false)
@@ -693,7 +671,7 @@ function CalendarPageContent({
     <div className="relative">
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className="relative z-[1]">
-        <CalendarOptions onGoogleCalendar={() => profile.hasProAccess ? openImport(null) : router.push('/upgrade')} />
+        <CalendarOptions onGoogleCalendar={openGoogleCalendar} />
         {calendarHeader}
 
         {activeError ? (
@@ -738,7 +716,7 @@ function CalendarPageContent({
                         today={todayKey}
                         entries={selectedEntries}
                         calendarEvents={selectedCalendarEvents}
-                        autoSyncState={autoSyncState}
+                        showEventSource={showEventSource}
                         calendarEventsState={calendarEventsState}
                         onRetryCalendarEvents={() => void refetchCalendarEvents()}
                         onReconnectCalendarEvents={() => openImport(null)}
@@ -747,10 +725,7 @@ function CalendarPageContent({
                         loggable={selectedDayLoggable}
                         showRecurring={showRecurring}
                         pendingEntryStates={pendingEntryStates}
-                        onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-                        onCalendarSyncNow={handleCalendarSyncNow}
                         onEntryChange={changeSelectedEntry}
-                        proActionVariant={calendarActionVariant(isWideDesktop)}
                       />
                   </CalendarDayCardSlot>
                   <div style={{ paddingBlockStart: 24 }}><CalendarStats
@@ -827,20 +802,22 @@ function CalendarPageContent({
           showTitle={false}
           entries={selectedEntries}
           calendarEvents={selectedCalendarEvents}
-          autoSyncState={autoSyncState}
+          showEventSource={showEventSource}
           calendarEventsState={calendarEventsState}
           onRetryCalendarEvents={() => void refetchCalendarEvents()}
           onReconnectCalendarEvents={() => openImport(null)}
           onOpenCalendarImport={openImport}
+          onOpenEvents={() => openDayDisclosure(() => setIsEventsOpen(true))}
+          onOpenHabitTitle={(title) => openDayDisclosure(() => setExpandedHabitTitle(title))}
           onViewPro={openOrbitPro}
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
           pendingEntryStates={pendingEntryStates}
-          onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-          onCalendarSyncNow={handleCalendarSyncNow}
           onEntryChange={changeSelectedEntry}
         />
       </Sheet>) : null}
+      {disclosedWeekDay ? <CalendarDayEvents key={disclosedWeekDay} sheetOnly open={isEventsOpen} onClose={() => setIsEventsOpen(false)} calendarEvents={selectedCalendarEvents} showEventSource={showEventSource} onOpenImport={openImport} /> : null}
+      <ExpandedHabitTitleSheet title={expandedHabitTitle} onClose={() => setExpandedHabitTitle(null)} />
       {showImportSheet ? <Sheet
         ref={importSheetRef}
         open
@@ -862,4 +839,12 @@ function CalendarPageContent({
       </Sheet> : null}
     </div>
   )
+}
+
+function ExpandedHabitTitleSheet({ title, onClose }: Readonly<{ title: string | null; onClose: () => void }>) {
+  const t = useTranslations()
+  if (!title) return null
+  return <Sheet open title={t('habits.form.title')} onClose={onClose}>
+    <p className="text-base text-[var(--fg-1)] [overflow-wrap:anywhere]">{title}</p>
+  </Sheet>
 }

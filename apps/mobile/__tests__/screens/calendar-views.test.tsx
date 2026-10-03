@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCalendarMonthModel,
   buildHabitCreateHref,
+  createTimeDisplay,
   formatAPIDate,
   formatAPIDateInTimeZone,
   parseAPIDate,
@@ -21,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <View testID="notification-bell" /> }));
 
 const TestRenderer = require("react-test-renderer");
@@ -106,8 +108,12 @@ vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      key === 'dates.today' ? (state.language === 'en' ? en.dates.today : ptBR.dates.today) : params ? `${key}:${JSON.stringify(params)}` : key,
+    t: (key: string, params?: Record<string, unknown>) => {
+      const messages = state.language === 'en' ? en : ptBR;
+      if (key === 'dates.today') return messages.dates.today;
+      if (key === 'calendar.agenda.timedEntryLabel') return messages.calendar.agenda.timedEntryLabel.replace('{title}', String(params?.title)).replace('{time}', String(params?.time));
+      return params ? `${key}:${JSON.stringify(params)}` : key;
+    },
     i18n: { language: state.language },
   }),
 }));
@@ -121,7 +127,7 @@ vi.mock("@/hooks/use-profile", () => ({
 }));
 
 vi.mock("@/hooks/use-time-format", () => ({
-  useTimeFormat: () => ({ displayTime: (time: string) => time }),
+  useTimeFormat: () => createTimeDisplay(state.language, state.language !== 'en'),
 }));
 
 vi.mock("@/hooks/use-calendar-events", () => ({
@@ -377,6 +383,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   beforeEach(() => {
+    sheetTestControls.defer(false);
     useUIStore.setState({ calendarShowRecurring: true, setCalendarHasError: state.setCalendarHasError });
     state.language = "en";
     state.routeParams = {};
@@ -432,30 +439,7 @@ describe("CalendarScreen views (mobile)", () => {
     ]);
   });
 
-  it('drops the previous account day-detail toggle error after replacement', async () => {
-    state.profile = { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: true };
-    let failFirst!: (error: Error) => void;
-    state.setAutoSync.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = reject; }));
-    let tree!: Tree;
-    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
-    const headerTree = openSelectedDay(tree, getMockAccountDateKey());
-    let first!: Promise<void>;
-    TestRenderer.act(() => { first = calendarDayDetailProps.current!.onCalendarAutoSyncChange(false); });
-    expect(state.setAutoSync).toHaveBeenCalledTimes(1);
-    TestRenderer.act(() => { advanceAccountGeneration(); });
-    await TestRenderer.act(async () => { await calendarDayDetailProps.current!.onCalendarAutoSyncChange(true); });
-    expect(state.setAutoSync).toHaveBeenCalledTimes(2);
-    expect(state.showSuccess).toHaveBeenCalledExactlyOnceWith('calendar.autoSync.enableSuccess');
-    await TestRenderer.act(async () => { failFirst(new Error('old failure')); await first; });
-    expect(state.showError).not.toHaveBeenCalled();
-    TestRenderer.act(() => headerTree.update(<></>));
-    TestRenderer.act(() => tree.update(<></>));
-  });
 
-  afterEach(() => {
-    sheetTestControls.defer(false);
-    vi.useRealTimers();
-  });
   it('leaves the top safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
@@ -525,12 +509,50 @@ describe("CalendarScreen views (mobile)", () => {
       ),
     ).toHaveLength(8);
     for (const row of agendaRows) {
-      expect(row.props.readOnly).toBe(true);
+      expect(row.props.readOnly).not.toBe(true);
       expect(row.props.compact).toBe(true);
-      expect(row.props.wrapTitle).toBe(true);
+      expect(row.props.textMode).toBe("personal");
+      expect(row.props.value).toBeUndefined();
       expect(row.props.onPress).toBeUndefined();
-      expect(row.props.onClick).toBeUndefined();
+      expect(row.props.onClick).toBeTypeOf("function");
     }
+  });
+
+  it.each(['en', 'pt-BR'])('announces a full clamped agenda title and formatted time in %s before disclosure', (language) => {
+    state.language = language;
+    const title = 'A complete calendar title with all preparation steps and its destination '.repeat(8).trim();
+    state.rangeMap = new Map([[getMockAccountDateKey(), [
+      makeEntry({ habitId: 'timed', title, dueTime: '09:00' }),
+      makeEntry({ habitId: 'untimed', title: 'Untimed', dueTime: null }),
+    ]]]);
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      pressView(tree, 'agenda');
+      const buttons = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button');
+      expect(buttons.some((node) => node.props.accessibilityLabel === `${title}, ${language === 'en' ? '9:00 AM' : '09:00'}`)).toBe(true);
+      expect(buttons.some((node) => node.props.accessibilityLabel === 'Untimed')).toBe(true);
+      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0);
+      const preview = tree.root.findAll((node) => node.type === 'Text' && node.props.children === title)[0]!;
+      expect(preview.props.numberOfLines).toBe(2);
+    } finally { TestRenderer.act(() => tree.update(<></>)); }
+  });
+
+  it('discloses an agenda name and preserves the view after native dismissal', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    pressView(tree, 'agenda');
+    const row = tree.root.findAll((node) => node.type === ListRow)[1]!;
+    TestRenderer.act(() => row.props.onClick());
+    const sheet = tree.root.findAll((node) => node.type === 'Sheet')[0]!;
+    expect(sheet).toBeDefined();
+    expect(hostTexts(tree)).toContain('OneTime');
+    const dismiss = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!;
+    TestRenderer.act(() => dismiss.props.onPress());
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-agenda-view')).toHaveLength(1);
+    expect(state.routerPush).not.toHaveBeenCalled();
+    TestRenderer.act(() => tree.update(<></>));
   });
 
   it.each(['month', 'range'] as const)('keeps the %s first-load skeleton and shows no indicator during a refetch', (view) => {
@@ -682,7 +704,7 @@ describe("CalendarScreen views (mobile)", () => {
       calendarDayDetailProps.current?.onReconnectCalendarEvents();
     });
     expect(sheetTestControls.isDismissPending).toBe(false);
-    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'calendar.title')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.title === 'calendar.calendars.title')).toHaveLength(1);
     expect(state.routerPush).not.toHaveBeenCalledWith("/calendar-sync");
     TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => tree.update(<></>));
@@ -1008,8 +1030,11 @@ describe("CalendarScreen views (mobile)", () => {
           node.props.testID === "calendar-time-grid",
       ),
     ).toHaveLength(1);
+    const timed = tree!.root.findAll((node) => node.type === "Pressable" && node.props.testID === "time-grid-event");
+    expect(timed).toHaveLength(2);
+    expect(timed.map((node) => node.props.accessibilityLabel).join(' ')).toContain("OneTime");
+    TestRenderer.act(() => timed[0]!.props.onPress());
     expect(hostTexts(tree!)).toContain("Recurring");
-    expect(hostTexts(tree!)).toContain("OneTime");
   });
 
   it("hides recurring habits from the week grid when show-recurring is turned off", () => {
@@ -1031,7 +1056,8 @@ describe("CalendarScreen views (mobile)", () => {
       });
 
       pressView(tree, "week");
-      expect(hostTexts(tree)).toContain("Recurring");
+      const timed = tree.root.findAll((node) => node.type === "Pressable" && node.props.testID === "time-grid-event");
+      expect(timed).toHaveLength(2);
 
       const switches = tree.root.findAll(
         (node) =>
@@ -1041,8 +1067,13 @@ describe("CalendarScreen views (mobile)", () => {
       expect(switches).toHaveLength(0);
       toggleRecurring(tree);
 
+      const filtered = tree.root.findAll((node) => node.type === "Pressable" && node.props.testID === "time-grid-event");
+      expect(filtered).toHaveLength(1);
+      TestRenderer.act(() => filtered[0]!.props.onPress());
       expect(hostTexts(tree)).not.toContain("Recurring");
       expect(hostTexts(tree)).toContain("OneTime");
+      const dismiss = tree.root.findAll((node) => node.type === "Pressable" && node.props.accessibilityLabel === "attempt-dismiss")[0]!;
+      TestRenderer.act(() => dismiss.props.onPress());
 
       pressView(tree, "agenda");
       expect(hostTexts(tree)).not.toContain("Recurring");
@@ -1374,6 +1405,32 @@ describe("CalendarScreen views (mobile)", () => {
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.type === 'Sheet')).toHaveLength(1);
     expect(calendarDayDetailProps.current?.selectedDate).toBe('2026-09-10');
     TestRenderer.act(() => tree.update(<></>));
+  });
+
+  it.each(['events', 'habit'])('closes the week day sheet before opening %s disclosure', (disclosure) => {
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    pressView(tree, 'week');
+    const week = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
+    TestRenderer.act(() => { week.props.onSelectDay('2026-09-10'); });
+    sheetTestControls.defer(true);
+    try {
+      TestRenderer.act(() => {
+        if (disclosure === 'events') calendarDayDetailProps.current!.onOpenEvents?.();
+        else calendarDayDetailProps.current!.onOpenHabitTitle?.('Long habit title');
+      });
+      expect(sheetTestControls.isDismissPending).toBe(true);
+      expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.open)).toHaveLength(0);
+      TestRenderer.act(() => { sheetTestControls.completeDismissal(); });
+      const sheets = tree.root.findAll((node) => node.type === 'Sheet');
+      expect(sheets).toHaveLength(1);
+      expect(sheets[0]!.props.title).toBe(disclosure === 'events' ? 'calendar.dayDetail.eventsTitle' : 'habits.form.title');
+      TestRenderer.act(() => { tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]!.props.onPress(); });
+      TestRenderer.act(() => { sheetTestControls.completeDismissal(); });
+      TestRenderer.act(() => { week.props.onSelectDay('2026-09-10'); });
+      expect(calendarDayDetailProps.current?.selectedDate).toBe('2026-09-10');
+    } finally { sheetTestControls.defer(false); TestRenderer.act(() => { tree.update(<></>); }); }
   });
 
   it('returns from a later week to the month containing the selected day', () => {

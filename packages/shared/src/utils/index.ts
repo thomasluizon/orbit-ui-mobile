@@ -143,7 +143,7 @@ export {
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   filterCalendarSyncEventsByDate,
-  getCalendarSyncClockValue,
+  formatCalendarSyncTimestamp,
   getCalendarSyncImportIssue,
   getCalendarSyncImportIssueMessageKey,
   isCalendarAutoSyncStatusReconnectRequired,
@@ -317,6 +317,7 @@ export {
   filterRecurringDayMap,
   filterRecurringEntries,
   resolveCalendarEventsDisplayState,
+  calendarEntryOutcome,
 } from './calendar-entries'
 export type { CalendarEventsDisplayState } from './calendar-entries'
 export {

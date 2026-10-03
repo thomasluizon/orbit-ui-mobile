@@ -6,6 +6,7 @@ import type {
   CalendarSyncSuggestion,
 } from '../types/calendar'
 import { plural } from './plural'
+import { formatLocaleDateTime, resolveHourCycle } from './locale-format'
 
 export const CALENDAR_RECONNECT_REQUIRED_ERROR_CODE = 'CALENDAR_RECONNECT_REQUIRED'
 export const CALENDAR_NOT_CONNECTED_ERROR_CODE = 'CALENDAR_NOT_CONNECTED'
@@ -838,13 +839,18 @@ export function isCalendarSyncConnectionActive(
   return hasGoogleConnection && status !== 'ReconnectRequired'
 }
 
-export function getCalendarSyncClockValue(isoTimestamp: string | null): string | null {
-  if (!isoTimestamp) return null
-  const syncedAt = new Date(isoTimestamp)
-  if (Number.isNaN(syncedAt.getTime())) return null
-  const hours = String(syncedAt.getHours()).padStart(2, '0')
-  const minutes = String(syncedAt.getMinutes()).padStart(2, '0')
-  return `${hours}:${minutes}`
+export function formatCalendarSyncTimestamp(
+  timestamp: string | null,
+  locale: string,
+  timeZone: string | null | undefined,
+  uses24HourClock: boolean | undefined,
+): string | null {
+  if (!timestamp || Number.isNaN(new Date(timestamp).getTime())) return null
+  return formatLocaleDateTime(timestamp, locale, {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: uses24HourClock ? '2-digit' : 'numeric', minute: '2-digit',
+    hourCycle: resolveHourCycle(uses24HourClock, locale),
+    ...(timeZone ? { timeZone } : {}),
+  })
 }
 
 /**
@@ -921,8 +927,8 @@ export function calendarImportRouteRequestKey(reviewRequested: boolean, importRe
   return importRequested ? 'import' : ''
 }
 
-export function calendarImportTitleKey(reviewMode: boolean): 'calendar.autoSync.reviewModeTitle' | 'calendar.title' {
-  return reviewMode ? 'calendar.autoSync.reviewModeTitle' : 'calendar.title'
+export function calendarImportTitleKey(reviewMode: boolean): 'calendar.autoSync.reviewModeTitle' | 'calendar.calendars.title' {
+  return reviewMode ? 'calendar.autoSync.reviewModeTitle' : 'calendar.calendars.title'
 }
 
 export function selectInitialCalendarImportEvent(

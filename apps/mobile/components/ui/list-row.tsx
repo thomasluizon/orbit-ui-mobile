@@ -18,8 +18,8 @@ function getDisabledStyle(disabled: boolean) {
   return disabled ? styles.disabled : null
 }
 
-function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean) {
-  return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null]
+function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean, hasTrailing: boolean) {
+  return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null, compact && hasTrailing ? styles.controlRowBody : null]
 }
 
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
@@ -39,8 +39,12 @@ function wrappedTitleStyle(textMode: ListRowProps['textMode'], wrapTitle: ListRo
   return textMode === 'label' || wrapTitle ? styles.wrappedTitle : null
 }
 
-function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing'> & { titleColor: string; valueColor: string }>) {
-  const text = <View style={[styles.textBlock, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]}>
+function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRowProps['wrapValue'], compact: boolean, hasTrailing: boolean) {
+  return [styles.textBlock, compact && hasTrailing ? styles.controlRowText : null, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]
+}
+
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact'> & { titleColor: string; valueColor: string }>) {
+  const text = <View style={getTextBlockStyle(textMode, wrapValue, compact, !!trailing)}>
     <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Text>
     {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
   </View>
@@ -64,7 +68,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const compactForm = inForm && props.compact === true
-  const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, compactForm)
+  const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, compactForm, !!trailing)
   const body: ReactNode = (
     <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' ? styles.labelContent : null, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
@@ -107,6 +111,8 @@ const styles = StyleSheet.create({
   formBody: { paddingHorizontal: 12 },
   bareBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 0, paddingStart: 0, paddingEnd: 0 },
   bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  controlRowBody: { paddingVertical: 0 },
+  controlRowText: { paddingVertical: 4 },
   bodyWithAction: { paddingEnd: 0 },
   action: { width: 44, height: 44, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, minHeight: 24, flexShrink: 0, alignItems: 'center' },

@@ -5,33 +5,22 @@ import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { getAccountDateTime, nowDate } from '@orbit/shared/utils'
+import { calendarEntryOutcome, getAccountDateTime, nowDate } from '@orbit/shared/utils'
+
+import { X } from '@/components/ui/icons'
+import { StatusRing } from '@/components/ui/status-ring'
+import { CalendarEntryDetails } from './calendar-entry-details'
 
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
-const BLOCK_HEIGHT = 44
-const BLOCK_MIN_WIDTH = 44
+const BLOCK_HEIGHT = 48
+const BLOCK_MIN_WIDTH = 48
 const BLOCK_HORIZONTAL_INSET = 4
-const GUTTER = 56
 const MIN_LANE_WIDTH = BLOCK_MIN_WIDTH + BLOCK_HORIZONTAL_INSET
 const HEADER_HEIGHT = 52
 const BODY_MAX_HEIGHT = 520
-const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 40 + BODY_MAX_HEIGHT
-const ALL_DAY_MAX_VISIBLE = 5
+const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 64 + BODY_MAX_HEIGHT
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
-
-/** Caps the all-day stack so a heavy day cannot push the timed grid off-screen:
- *  the first chips show, the rest collapse into a single tappable "+N". */
-function splitAllDay(allDay: CalendarDayEntry[]): {
-  visible: CalendarDayEntry[]
-  overflow: number
-} {
-  if (allDay.length <= ALL_DAY_MAX_VISIBLE) return { visible: allDay, overflow: 0 }
-  return {
-    visible: allDay.slice(0, ALL_DAY_MAX_VISIBLE - 1),
-    overflow: allDay.length - (ALL_DAY_MAX_VISIBLE - 1),
-  }
-}
 
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
@@ -97,7 +86,7 @@ function layoutTimed(entries: CalendarDayEntry[]): PlacedEntry[] {
         lane = laneEnds.length
         laneEnds.push(0)
       }
-      laneEnds[lane] = top + BLOCK_HEIGHT
+      laneEnds[lane] = top + BLOCK_HEIGHT + 4
       local.push({ entry: item.entry, hour: Math.floor(item.minutes / 60), top, lane, laneCount: 0 })
     }
     for (const block of local) {
@@ -114,7 +103,7 @@ function layoutTimed(entries: CalendarDayEntry[]): PlacedEntry[] {
       clusterEnd = -Infinity
     }
     cluster.push(item)
-    clusterEnd = Math.max(clusterEnd, top + BLOCK_HEIGHT)
+    clusterEnd = Math.max(clusterEnd, top + BLOCK_HEIGHT + 4)
   }
   if (cluster.length > 0) flush()
 
@@ -132,17 +121,19 @@ function TimedBlock({
   onSelect: () => void
   isFuture: boolean
 }>) {
-  const completed = block.entry.status === 'completed'
+  const t = useTranslations()
+  const outcome = calendarEntryOutcome(block.entry)
   return (
     <button
       type="button"
       data-testid="time-grid-event"
       data-hour={block.hour}
       onClick={onSelect}
-      className={`absolute flex flex-col justify-center overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
+      aria-label={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
+      className={`absolute flex items-center justify-center overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
       style={{
         top: block.top,
-        height: BLOCK_HEIGHT,
+        minHeight: BLOCK_HEIGHT,
         left: `calc(${(block.lane / block.laneCount) * 100}% + ${BLOCK_HORIZONTAL_INSET / 2}px)`,
         width: `calc(${100 / block.laneCount}% - ${BLOCK_HORIZONTAL_INSET}px)`,
         minWidth: BLOCK_MIN_WIDTH,
@@ -153,107 +144,26 @@ function TimedBlock({
         boxShadow: `inset 0 0 0 1px var(${isFuture ? '--hairline-ghost' : '--hairline'})`,
       }}
     >
-      <span
-        className="truncate"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 12,
-          fontWeight: 500,
-          lineHeight: 1.2,
-          color: completed || isFuture ? 'var(--fg-3)' : 'var(--fg-1)',
-          textDecoration: completed ? 'line-through' : 'none',
-        }}
-      >
-        {block.entry.title}
+      <span aria-hidden="true" className="relative inline-flex">
+        <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
+        {outcome.status === 'bad' ? <span className="absolute inset-0 flex items-center justify-center"><X size={16} color="var(--status-bad)" strokeWidth={1.5} /></span> : null}
       </span>
-      {block.entry.dueTime && (
-        <span
-          className="truncate"
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
-            color: 'var(--fg-3)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {displayTime(block.entry.dueTime)}
-        </span>
-      )}
     </button>
   )
 }
 
-function AllDayChip({ entry, isFuture }: Readonly<{ entry: CalendarDayEntry; isFuture: boolean }>) {
-  const completed = entry.status === 'completed'
-  return (
-    <div
-      data-testid="time-grid-all-day-event"
-      className="flex items-center gap-1 overflow-hidden"
-      style={{
-        padding: '4px 8px',
-        borderRadius: 8,
-        background: isFuture ? 'transparent' : 'var(--bg-well)',
-        boxShadow: `inset 0 0 0 1px var(${isFuture ? '--hairline-ghost' : '--hairline'})`,
-      }}
-    >
-      <span
-        className="truncate"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 12,
-          fontWeight: 500,
-          color: completed || isFuture ? 'var(--fg-3)' : 'var(--fg-1)',
-          textDecoration: completed ? 'line-through' : 'none',
-        }}
-      >
-        {entry.title}
-      </span>
-    </div>
-  )
-}
-
-function AllDayMoreChip({
-  count,
-  accessibilityLabel,
-  onSelect,
-}: Readonly<{ count: number; accessibilityLabel: string; onSelect: () => void }>) {
-  return (
-    <button
-      type="button"
-      data-testid="time-grid-all-day-more"
-      onClick={onSelect}
-      aria-label={accessibilityLabel}
-      className="touch-target flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)]"
-      style={{
-        appearance: 'none',
-        cursor: 'pointer',
-        minHeight: 44,
-        minWidth: 44,
-        padding: '4px 8px',
-        borderRadius: 8,
-        border: 0,
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-      }}
-    >
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          fontWeight: 500,
-          color: 'var(--fg-3)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        +{count}
-      </span>
-    </button>
-  )
+function AllDaySummary({ count, accessibilityLabel, onSelect }: Readonly<{ count: number; accessibilityLabel: string; onSelect: () => void }>) {
+  return <button type="button" data-testid="time-grid-all-day-summary" onClick={onSelect} aria-label={accessibilityLabel}
+    className="flex items-center justify-center overflow-hidden bg-transparent cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)]"
+    style={{ minHeight: 48, minWidth: 48, padding: 8, borderRadius: 8, border: 0, boxShadow: 'inset 0 0 0 1px var(--hairline)', color: 'var(--fg-1)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4 }}>
+    {count}
+  </button>
 }
 
 /** Google-Calendar-style time grid: a day column per entry in `columns`, an
  *  untimed all-day band on top, and timed habits placed as blocks by dueTime.
- *  Day columns keep a readable minimum width and scroll horizontally — the left
- *  time gutter and the header/all-day rows stay pinned — so labels never
+ *  Day columns keep a readable minimum width and scroll horizontally, with the
+ *  time gutter and the header/all-day rows pinned, so labels never
  *  compress. Shared by the week view (7 columns) and custom-range view (N). */
 export function CalendarTimeGrid({
   columns,
@@ -267,6 +177,7 @@ export function CalendarTimeGrid({
   isLoading = false,
 }: Readonly<CalendarTimeGridProps>) {
   const t = useTranslations()
+  const [disclosure, setDisclosure] = useState<{ entries: CalendarDayEntry[]; title: string } | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [now, setNow] = useState<Date>(() => nowDate())
   const nowMinutes = getAccountDateTime(now, timeZone).minutes
@@ -298,10 +209,13 @@ export function CalendarTimeGrid({
     1,
     ...perColumn.flatMap(({ timed }) => timed.map(({ laneCount }) => laneCount)),
   )
-  const minColumnWidth = maxLaneCount * MIN_LANE_WIDTH
-  const columnTrack = `minmax(${minColumnWidth}px, 1fr)`
-  const gridTemplate = `${GUTTER}px repeat(${columns.length}, ${columnTrack})`
-  const gridMinWidth = GUTTER + columns.length * minColumnWidth
+  const minColumnWidth = Math.max(60, maxLaneCount * MIN_LANE_WIDTH)
+  const longestHourLabel = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, '0')}:00`).length))
+  const gutterWidth = `max(96px, calc(${longestHourLabel}ch + 16px))`
+  const columnMinWidth = `max(${minColumnWidth}px, 3.25rem)`
+  const columnTrack = `minmax(${columnMinWidth}, 1fr)`
+  const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack})`
+  const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
 
   const isEmpty =
     !isLoading &&
@@ -311,7 +225,7 @@ export function CalendarTimeGrid({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 16px 16px' }}>
       <span
         data-testid="time-grid-any-time-label"
-        style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}
+        style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', color: 'var(--fg-2)' }}
       >
         {allDayLabel}
       </span>
@@ -330,126 +244,121 @@ export function CalendarTimeGrid({
         <div
           ref={bodyRef}
           className="thin-scrollbar"
-          style={{ overflow: 'auto', maxHeight: SCROLLER_MAX_HEIGHT }}
+          style={{ overflow: 'auto', maxHeight: SCROLLER_MAX_HEIGHT, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
-          <div
-            className="grid sticky top-0 z-[3]"
-            style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth, ...pinnedPaneBackground }}
-          >
+          <div className="sticky top-0 z-[3]" style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div
-              aria-hidden="true"
-              className="sticky left-0 z-[1]"
-              style={{ height: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', ...pinnedPaneBackground }}
-            />
-            {perColumn.map(({ column }) => (
-              <button
-                key={column.dateStr}
-                type="button"
-                data-testid="time-grid-col-header"
-                data-focus-inset="panel"
-                onClick={() => onSelectDay(column.dateStr)}
-                className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
-                style={{
-                  appearance: 'none',
-                  border: 0,
-                  height: HEADER_HEIGHT,
-                  borderLeft: '1px solid var(--hairline)',
-                  borderBottom: '1px solid var(--hairline)',
-                  cursor: 'pointer',
-                  padding: '0 4px',
-                  gap: 4,
-                }}
-              >
-                <span
-                  className="uppercase"
+              className="grid"
+              style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth, ...pinnedPaneBackground }}
+            >
+              <div
+                aria-hidden="true"
+                className="sticky left-0 z-[1]"
+                style={{ minHeight: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', ...pinnedPaneBackground }}
+              />
+              {perColumn.map(({ column }) => (
+                <button
+                  key={column.dateStr}
+                  type="button"
+                  data-testid="time-grid-col-header"
+                  data-focus-inset="panel"
+                  onClick={() => onSelectDay(column.dateStr)}
+                  className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover-opaque)] active:scale-[0.96]"
                   style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    letterSpacing: '0.04em',
-                    color: column.isToday ? 'var(--primary)' : 'var(--fg-3)',
+                    appearance: 'none',
+                    border: 0,
+                    minHeight: HEADER_HEIGHT,
+                    borderLeft: '1px solid var(--hairline)',
+                    borderBottom: '1px solid var(--hairline)',
+                    cursor: 'pointer',
+                    padding: '8px 4px',
+                    gap: 4,
                   }}
                 >
-                  {format(column.date, 'EEE', { locale: dateFnsLocale })}
-                </span>
-                <span
-                  data-testid="time-grid-col-date"
-                  className="inline-flex items-center justify-center rounded-full"
-                  style={{
-                    width: 24,
-                    height: 24,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 13,
-                    fontWeight: column.isToday ? 700 : 500,
-                    fontVariantNumeric: 'tabular-nums',
-                    color: column.isToday
-                      ? 'var(--fg-on-primary)'
-                      : column.isFuture
-                        ? 'var(--fg-3)'
-                        : 'var(--fg-1)',
-                    background: column.isToday ? 'var(--primary)' : 'transparent',
-                  }}
-                >
-                  {format(column.date, 'd', { locale: dateFnsLocale })}
-                </span>
-              </button>
-            ))}
-          </div>
+                  <span
+                    className="uppercase"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      letterSpacing: '0.04em',
+                      color: column.isToday ? 'var(--primary-text)' : 'var(--fg-2)',
+                    }}
+                  >
+                    {format(column.date, 'EEE', { locale: dateFnsLocale })}
+                  </span>
+                  <span
+                    data-testid="time-grid-col-date"
+                    className="inline-flex items-center justify-center rounded-full"
+                    style={{
+                      minWidth: '1.5rem',
+                      minHeight: '1.5rem',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      fontVariantNumeric: 'tabular-nums',
+                      color: column.isToday
+                        ? 'var(--fg-on-primary)'
+                        : column.isFuture
+                          ? 'var(--fg-2)'
+                          : 'var(--fg-1)',
+                      background: column.isToday ? 'var(--primary)' : 'transparent',
+                    }}
+                  >
+                    {format(column.date, 'd', { locale: dateFnsLocale })}
+                  </span>
+                </button>
+              ))}
+            </div>
 
-          <div
-            data-testid="time-grid-all-day-band"
-            className="grid sticky z-[2]"
-            style={{
-              gridTemplateColumns: gridTemplate,
-              minWidth: gridMinWidth,
-              top: HEADER_HEIGHT,
-              ...pinnedPaneBackground,
-            }}
-          >
             <div
-              className="sticky left-0 z-[1] flex items-start justify-end"
+              data-testid="time-grid-all-day-band"
+              className="grid"
               style={{
-                padding: '8px 8px 0',
-                borderBottom: '1px solid var(--hairline)',
+                gridTemplateColumns: gridTemplate,
+                minWidth: gridMinWidth,
                 ...pinnedPaneBackground,
               }}
-            />
-            {perColumn.map(({ column, allDay }) => {
-              const { visible, overflow } = splitAllDay(allDay)
-              return (
-                <div
-                  key={column.dateStr}
-                  data-testid="time-grid-all-day"
-                  data-date={column.dateStr}
-                  className="flex flex-col"
-                  style={{
-                    gap: 4,
-                    minHeight: 34,
-                    padding: '8px 4px',
-                    borderLeft: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
-                    borderBottom: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
-                  }}
-                >
-                  {visible.map((entry) => (
-                    <AllDayChip key={entry.habitId} entry={entry} isFuture={column.isFuture} />
-                  ))}
-                  {overflow > 0 && (
-                    <AllDayMoreChip
-                      count={overflow}
-                      accessibilityLabel={t('calendar.timeGrid.moreLabel', { count: overflow })}
-                      onSelect={() => onSelectDay(column.dateStr)}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
+            >
+              <div
+                className="sticky left-0 z-[1] flex items-start justify-end"
+                style={{
+                  padding: '8px 8px 0',
+                  borderBottom: '1px solid var(--hairline)',
+                  ...pinnedPaneBackground,
+                }}
+              />
+              {perColumn.map(({ column, allDay }) => {
+                return (
+                  <div
+                    key={column.dateStr}
+                    data-testid="time-grid-all-day"
+                    data-date={column.dateStr}
+                    className="flex flex-col"
+                    style={{
+                      gap: 4,
+                      minHeight: 64,
+                      padding: '8px 4px',
+                      borderLeft: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
+                      borderBottom: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
+                    }}
+                  >
+                    {allDay.length > 0 ? <AllDaySummary
+                      count={allDay.length}
+                      accessibilityLabel={t('calendar.timeGrid.untimedCount', { count: allDay.length })}
+                      onSelect={() => setDisclosure({ entries: allDay, title: allDayLabel })}
+                    /> : null}
+                  </div>
+                )
+              })}
+            </div>
 
+          </div>
           <div className="grid" style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth }}>
             <div
               aria-hidden="true"
               className="sticky left-0 z-[1]"
-              style={{ height: DAY_HEIGHT, ...pinnedPaneBackground }}
+              style={{ height: DAY_HEIGHT + BLOCK_HEIGHT, ...pinnedPaneBackground }}
             >
               {HOURS.map((hour) => (
                 <span
@@ -459,8 +368,8 @@ export function CalendarTimeGrid({
                   style={{
                     top: hour * HOUR_HEIGHT + 2,
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    color: 'var(--fg-3)',
+                    fontSize: '0.75rem',
+                    color: 'var(--fg-2)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
@@ -475,7 +384,7 @@ export function CalendarTimeGrid({
                 data-date={column.dateStr}
                 style={{
                   position: 'relative',
-                  height: DAY_HEIGHT,
+                  height: DAY_HEIGHT + BLOCK_HEIGHT,
                   borderLeft: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
                 }}
               >
@@ -496,7 +405,7 @@ export function CalendarTimeGrid({
                     key={block.entry.habitId}
                     block={block}
                     displayTime={displayTime}
-                    onSelect={() => onSelectDay(column.dateStr)}
+                    onSelect={() => setDisclosure({ entries: [block.entry], title: t('calendar.entryDetails') })}
                     isFuture={column.isFuture}
                   />
                 ))}
@@ -525,12 +434,13 @@ export function CalendarTimeGrid({
             className="absolute inset-0 flex items-center justify-center"
             style={{ pointerEvents: 'none', padding: 24 }}
           >
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '0.875rem', color: 'var(--fg-2)' }}>
               {t('calendar.timeGrid.empty')}
             </span>
           </div>
         )}
       </div>
+      {disclosure ? <CalendarEntryDetails entries={disclosure.entries} title={disclosure.title} displayTime={displayTime} onClose={() => setDisclosure(null)} /> : null}
     </div>
   )
 }

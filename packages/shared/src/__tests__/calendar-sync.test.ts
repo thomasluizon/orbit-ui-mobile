@@ -11,7 +11,7 @@ import {
   calendarImportTitleKey,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
-  getCalendarSyncClockValue,
+  formatCalendarSyncTimestamp,
   filterCalendarSyncEventsByDate,
   getCalendarSyncImportIssue,
   getCalendarSyncImportIssueMessageKey,
@@ -106,7 +106,7 @@ describe('calendar-sync utils', () => {
     expect(calendarImportRouteRequestKey(false, true)).toBe('import')
     expect(calendarImportRouteRequestKey(false, false)).toBe('')
     expect(calendarImportTitleKey(true)).toBe('calendar.autoSync.reviewModeTitle')
-    expect(calendarImportTitleKey(false)).toBe('calendar.title')
+    expect(calendarImportTitleKey(false)).toBe('calendar.calendars.title')
   })
 
   it('keeps imported events out of manual import and preserves review selection on refresh', () => {
@@ -1100,10 +1100,10 @@ describe('calendar-sync utils', () => {
     expect(isCalendarSyncConnectionActive(false, 'Idle')).toBe(false)
   })
 
-  it('extracts the local clock value from the last sync timestamp', () => {
-    expect(getCalendarSyncClockValue('2026-09-12T09:12:00')).toBe('09:12')
-    expect(getCalendarSyncClockValue(null)).toBeNull()
-    expect(getCalendarSyncClockValue('invalid')).toBeNull()
+  it('formats the last sync date and clock in the account timezone', () => {
+    expect(formatCalendarSyncTimestamp('2026-09-12T09:12:00Z', 'pt-BR', 'America/Sao_Paulo', true)).toBe('12/09/2026, 06:12')
+    expect(formatCalendarSyncTimestamp(null, 'en', 'UTC', true)).toBeNull()
+    expect(formatCalendarSyncTimestamp('invalid', 'en', 'UTC', true)).toBeNull()
   })
 
   it('recognizes not-connected messages', () => {

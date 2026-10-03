@@ -967,7 +967,8 @@
   "calendar": {
     "agenda": {
       "today": "Today",
-      "empty": "Nothing scheduled"
+      "empty": "Nothing scheduled",
+      "timedEntryLabel": "{title}, {time}"
     },
     "legend": {
       "loggable": "can log",
@@ -997,12 +998,15 @@
     "dayDetail": {
       "completionSummary": "{done} of {total} logged",
       "nothingDue": "nothing due",
+      "viewAllEventsLabel": "View all",
+      "viewAllEvents": "View all ({count})",
       "eventsTitle": "On your calendar",
       "importEvents": "Import events",
       "searchEvents": "Search events",
       "noMatchingEvents": "No events match \"{query}\".",
       "clearEventSearch": "Clear search",
       "googleConnected": "Google Calendar connected",
+      "lastSyncedLabel": "Last sync",
       "lastSynced": "Last synced {time}",
       "autoSync": "Sync on its own",
       "disconnectedTitle": "Google Calendar disconnected",
@@ -1038,14 +1042,21 @@
       "pickEndHint": "Now pick the end day",
       "rangeMaxDays": "Range limited to {max} days.",
       "empty": "Nothing scheduled",
-      "moreLabel": "{count} more"
+      "moreLabel": "{count} more",
+      "untimedCount": "{count} without a set time"
     },
     "status": {
       "completed": "done",
       "missed": "not logged",
       "indulged": "indulged",
-      "resisted": "resisted"
+      "resisted": "resisted",
+      "upcoming": "scheduled"
     },
+    "entryDetails": "Details",
+    "entrySearch": "Search",
+    "entrySearchEmpty": "No matches for \"{query}\"",
+    "entryLabel": "{title}, {time}, {status}",
+    "entryMeta": "{time} · {status}",
     "completionHistory": "Completion History",
     "showRecurring": "Show habits that repeat",
     "googleCalendar": "Google Calendar",
