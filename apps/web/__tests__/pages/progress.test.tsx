@@ -7,6 +7,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createTranslator } from 'next-intl'
@@ -78,7 +79,7 @@ const mocks = vi.hoisted(() => ({
         bestStreak: 9,
         badHabitSlips: 0,
         weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
-        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
+        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined as string | null | undefined }],
         needsAttention: [],
       },
       narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
@@ -657,7 +658,7 @@ describe('ProgressContent', () => {
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
     mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
-    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', (query) => {
@@ -835,16 +836,18 @@ describe('ProgressContent', () => {
 
   it.each([320, 360, 384, 412])('keeps the owning Progress figures readable at %ipx with large text', async (width) => {
     for (const catalog of [en, ptBR]) {
+      for (const habitId of [undefined, 'a08892c2-9a7c-4dc9-b70f-388be528420e']) {
       mocks.usePortugueseCatalog = catalog === ptBR
       mocks.useEnglishCatalog = catalog === en
       mocks.goals.data.allGoals = [createMockGoal()]
       const habitName = 'Read a very long chapter title before the morning conversation '.repeat(5)
       mocks.retrospective.data.metrics.topHabits[0]!.name = habitName
       mocks.retrospective.data.metrics.topHabits[0]!.emoji = '📚'
+      mocks.retrospective.data.metrics.topHabits[0]!.habitId = habitId
       const { container, unmount } = render(<ProgressContent />)
       const page = await browser.newPage({ viewport: { width, height: 1600 } })
       try {
-        await page.setContent(`<style>${stylesheet}</style><div style="width:${width}px">${container.innerHTML}</div>`)
+        await page.setContent(`<style>${stylesheet}</style><div style="width:${width}px;padding:0 16px">${container.innerHTML}</div>`)
         await loadAppFonts(page)
         await page.evaluate(() => {
           const elements = Array.from(document.querySelectorAll<HTMLElement>('div, span, p, button'))
@@ -862,18 +865,48 @@ describe('ProgressContent', () => {
           const title = element.querySelector('[title]')!
           const style = getComputedStyle(title)
           const bounds = title.getBoundingClientRect()
-          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: !!element.querySelector('a, button') }
+          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: element.matches('a'), href: element.getAttribute('href'), labelLines: (() => { const range = document.createRange(); range.selectNodeContents(element.firstElementChild!.firstElementChild!); return range.getClientRects().length })() }
         })
         expect(habit.full).toContain(habitName)
         expect(habit.emoji).toContain('📚')
         expect(habit.title).toBe(habitName)
         expect(habit.lines).toBeCloseTo(2, 1)
-        expect(habit.width).toBe(habit.rowWidth)
-        expect(habit.interactive).toBe(false)
+        expect(habit.width).toBe(habit.rowWidth - 32)
+        expect(habit.interactive).toBe(!!habitId)
+        expect(habit.href).toBe(habitId ? `/habits/${habitId}` : null)
+        expect(habit.labelLines).toBe(1)
         expect(geometry).toHaveLength(10)
         for (const figure of geometry) { expect(figure.lines, figure.text!).toBe(1); expect(figure.inside, figure.text!).toBe(true) }
       } finally { await page.close(); unmount(); mocks.usePortugueseCatalog = false; mocks.useEnglishCatalog = false }
+      }
     }
+  })
+
+  it('opens the top habit using the response id when ranked habits share a title', () => {
+    const habitId = 'a08892c2-9a7c-4dc9-b70f-388be528420e'
+    const topHabit = mocks.retrospective.data.metrics.topHabits[0]!
+    const response = retrospectiveResponseSchema.parse({ ...mocks.retrospective.data,
+      metrics: { ...mocks.retrospective.data.metrics, topHabits: [
+        { ...topHabit, habitId },
+        { ...topHabit, habitId: 'c61da295-ea54-409c-84ec-5e0dca97a73f' },
+      ] },
+    })
+    Object.assign(topHabit, response.metrics.topHabits[0])
+    render(<ProgressContent />)
+    const row = screen.getByRole('link', { name: /Read/ })
+    expect(row).toHaveAttribute('href', `/habits/${habitId}`)
+    expect(row).toBe(screen.getByTestId('progress-top-habit'))
+    expect(within(row).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it.each([undefined, null])('keeps a top habit without an id static (%s)', (habitId) => {
+    mocks.retrospective.data.metrics.topHabits[0]!.habitId = habitId
+    render(<ProgressContent />)
+    const row = screen.getByTestId('progress-top-habit')
+    expect(row).not.toHaveAttribute('href')
+    expect(row).not.toHaveAttribute('tabindex')
+    fireEvent.click(row)
+    expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
   it('discloses the streak legend and keeps the top habit outside the figures', async () => {
