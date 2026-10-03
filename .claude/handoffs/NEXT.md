@@ -20,7 +20,7 @@ The owner found the redesign crowded and desktop-like on his phone. His answers 
 | item | disposition |
 |---|---|
 | `ui#1512` (`#1139`) at `48f483bd` | approved there, CI layout red (onboarding scroller clearance). Fix `b524085e` committed, NOT pushed, in `ticket-1139-tab-bar-padding`; full local layout project passed 576 of 576 on it: merge report (log `#1139-44277-1790995689965.log` from line 22072), push, fresh review |
-| `ui#1516` (`#1142`) at `3bde5d2d` | approved there; unpushed base merges `679eb1bb` and `94f064d4`. The worker for `94f064d4` (log `#1142-16383-1790998125991.log`) was running at handoff and died with the session: read its worktree and log, finish its checks, full local layout project, merge both reports (`679eb1bb` report in log `#1142-46117-1790995786504.log` from line 18086), push, fresh review |
+| `ui#1516` (`#1142`) at `3bde5d2d` | approved there; unpushed base merges `679eb1bb` and `94f064d4`. The worker for `94f064d4` (log `#1142-16383-1790998125991.log`) exited cleanly after the handoff with a clean tree; its report starts at line 17367: full local layout project, merge both reports (`679eb1bb` report in log `#1142-46117-1790995786504.log` from line 18086), push, fresh review |
 | `ui#1517` (`#1140`) at `982d26ce` | pushed, thread resolved; waiting on CI and a fresh Pullfrog review; combined merge check, then merge |
 | `ui#1518` (`#1150`) at `7f1749a2` | approved, threads resolved, Layout Guard red by design; merges once the screen tickets turn it green (base-merge it then) |
 | Merged this chain | `ui#1513` (`#1135`), `ui#1511` (`#1133`), `ui#1514` (`#1145`), `ui#1515` (`#1137`); tickets closed |
@@ -32,7 +32,7 @@ The owner found the redesign crowded and desktop-like on his phone. His answers 
 | Unpushed commits | `b524085e` on `fix/ticket-1139-tab-bar-padding`; `679eb1bb` and `94f064d4` on `fix/ticket-1142-calendar-header-menu` |
 | Branches with no pull request | none new; 17 merged worktrees were torn down this chain (local branches kept); the spec's Worktrees line lists what is ready for teardown |
 | Detached HEADs | scratch merge-check worktrees in old session scratchpads (no authored commits): `git worktree remove` each, then prune; `questions-manual-steps` holds a local merge of `pr/1441` that no remote branch contains: read it before deleting |
-| Running workers | the `#1142` base-merge worker (above), outcome unknown; none other |
+| Running workers | none (the `#1142` base-merge worker exited cleanly after the handoff commit) |
 | Waiters | all belong to the old session and stop with it; start fresh ones, at most three |
 | Ignored files | decision log and helpers stay in the previous session's scratchpad (`gated-launch.sh`, `batch-launch.sh`, `body-merge.sh`, `body-append.sh`, `log-append.sh`, `scrub-report.mjs`, `layout-run.sh`, `base-build.sh`, `red-run.sh`, `combined-tc.sh`, `mc-run.sh`, `merge-check.sh`, `worker-result.sh`, `teardown-batch.sh`, `reconcile.mjs` and the rest); copy them with the session id replaced; `cont-*.md` there are the last review-batch order heads |
 | Throwaway AVD | `Orbit_Repro_Throwaway` still exists; delete it once no repro needs it |
