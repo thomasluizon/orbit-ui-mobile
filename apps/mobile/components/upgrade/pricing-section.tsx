@@ -10,6 +10,7 @@ import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 export function PricingSection({
   inset = true,
   focusOnMount = false,
+  dateHint,
   profile,
   plans,
   isLoadingPlans,
@@ -34,6 +35,7 @@ export function PricingSection({
   tokens,
 }: Readonly<{
   inset?: boolean
+  dateHint?: string
   focusOnMount?: boolean
   profile: { isTrialActive?: boolean } | null
   plans: SubscriptionPlans | null | undefined
@@ -60,7 +62,7 @@ export function PricingSection({
 }>) {
   return (
     <View style={styles.pricingSections}>
-      <ProPitch inset={inset} profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} tokens={tokens} />
+      <ProPitch dateHint={dateHint} inset={inset} profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} tokens={tokens} />
 
       <View style={styles.purchaseGroup}>
         <View style={styles.purchaseActions}>

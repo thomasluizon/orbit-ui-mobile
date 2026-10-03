@@ -8,6 +8,7 @@ export interface ListRowAction {
 
 export interface ListRowBase {
   icon?: string | React.ReactNode
+  textMode?: 'label' | 'personal'
   title: string
   wrapTitle?: boolean
   accessibilityLabel?: string

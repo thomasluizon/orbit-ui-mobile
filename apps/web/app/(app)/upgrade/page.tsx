@@ -1,5 +1,7 @@
 'use client'
 
+import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
+
 import { useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
@@ -193,6 +195,7 @@ export default function UpgradePage() {
           isLoadingPlans={isLoadingPlans}
           isPlansError={isPlansError}
           isOnline={isOnline}
+          dateHint={getProfileTrialEndHint(status, locale, t)}
           trialDaysLeft={trialDaysLeft}
           checkoutLoading={checkoutLoading}
           checkoutError={checkoutError}

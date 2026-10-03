@@ -1,4 +1,8 @@
 import {
+  Bell,
+  Crown,
+  Settings,
+  User,
   CalendarPlus,
   Gift,
   HelpCircle,
@@ -6,6 +10,7 @@ import {
   Smartphone,
   type Icon,
 } from '@/components/ui/icons'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {
@@ -16,7 +21,11 @@ interface ProfileNavIconProps {
   size?: number
 }
 
-const ICON_BY_KEY: Record<ProfileNavIconKey, Icon> = {
+const ICON_BY_KEY: Record<Exclude<ProfileNavIconKey, 'astra'>, Icon> = {
+  account: User,
+  pro: Crown,
+  preferences: Settings,
+  notifications: Bell,
   wrapped: Gift,
   widget: Smartphone,
   calendar: CalendarPlus,
@@ -29,6 +38,7 @@ export function ProfileNavIcon({
   color,
   size = 24,
 }: Readonly<ProfileNavIconProps>) {
+  if (iconKey === 'astra') return <AstraGlyph size={size} color={color} />
   const Icon = ICON_BY_KEY[iconKey]
   return <Icon size={size} strokeWidth={1.5} color={color} />
 }

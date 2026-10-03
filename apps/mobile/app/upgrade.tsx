@@ -1,3 +1,4 @@
+import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
@@ -265,6 +266,7 @@ export default function UpgradeScreen() {
         isLoadingPlans={isLoadingPlans}
         isPlansError={isPlansError}
         isOnline={isOnline}
+        dateHint={getProfileTrialEndHint(status, locale, t)}
         trialDaysLeft={trialDaysLeft}
         selectedInterval={selectedInterval}
         onSelectInterval={setSelectedInterval}
