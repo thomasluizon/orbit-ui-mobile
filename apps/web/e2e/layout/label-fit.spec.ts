@@ -63,12 +63,12 @@ async function installLabelFixtures(context: BrowserContext, locale: 'en' | 'pt-
     ...profileFixture, name: userFields.name, email: userFields.email,
     language: locale, hasProAccess: true, canViewGamification: true,
   })
-  await setLayoutProfileSession(context, profile)
+  await setLayoutProfileSession(context, profile, calendars)
   const responses: ReadonlyArray<readonly [string, unknown]> = [
     [API.profile.get, profile], [API.habits.list, habits], [API.goals.list, goals],
     [API.habits.retrospective, retrospective], [API.gamification.streak, streak],
     [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [habit], logs: {} })],
-    [API.calendar.events, events], [API.calendar.calendars, calendars],
+    [API.calendar.events, events],
   ]
   for (const [path, response] of responses) {
     await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path,

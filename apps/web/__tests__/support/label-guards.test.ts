@@ -1,4 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { IncomingMessage, Server, ServerResponse } from 'node:http'
+import { Socket } from 'node:net'
 import { cloneElement, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
@@ -9,6 +11,10 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { userCalendarsSchema } from '@orbit/shared/types/calendar'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { mintHermeticJwt } from '@/test-support/hermetic/hermetic-session'
+import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
@@ -18,6 +24,65 @@ import { loadAppFonts } from './app-fonts'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { expectLabelsFit, expectLegendFits, markUserText } from '@/e2e/layout/label-fit-contract'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
+
+describe('label fixture calendars through the hermetic session', () => {
+  let server: Server
+  const calendars = userCalendarsSchema.parse([
+    { id: 'calendar-1', name: 'Meu calendário pessoal de compromissos e encontros', accessRole: 'owner', primary: true, backgroundColor: null, isSynced: true },
+    { id: 'calendar-2', name: 'Trabalho', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true },
+  ])
+
+  beforeAll(async () => {
+    const listen = vi.spyOn(Server.prototype, 'listen').mockReturnThis()
+    try {
+      await import('@/test-support/hermetic/mock-api/server')
+      server = listen.mock.contexts[0] as Server
+    } finally {
+      listen.mockRestore()
+    }
+  })
+
+  function requestFixture(path: string, token?: string) {
+    const request = new IncomingMessage(new Socket())
+    request.method = 'GET'
+    request.url = path
+    if (token) request.headers.authorization = `Bearer ${token}`
+    const response = new ServerResponse(request)
+    const end = vi.spyOn(response, 'end').mockReturnValue(response)
+    try {
+      server.emit('request', request, response)
+      return { status: response.statusCode, body: JSON.parse(String(end.mock.calls[0]?.[0])) as unknown }
+    } finally {
+      end.mockRestore()
+      request.destroy()
+    }
+  }
+
+  it('returns a schema-valid empty list without a calendars claim', () => {
+    for (const token of [undefined, mintHermeticJwt(profileFixture)]) {
+      const response = requestFixture('/api/calendar/calendars', token)
+      expect(response.status).toBe(200)
+      expect(userCalendarsSchema.parse(response.body)).toEqual([])
+    }
+  })
+
+  it('carries two connected calendars alongside the profile to the server-side route', () => {
+    const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR' })
+    const token = mintHermeticJwt(profile, calendars)
+    const response = requestFixture('/api/calendar/calendars', token)
+    expect(response.status).toBe(200)
+    expect(userCalendarsSchema.parse(response.body)).toEqual(calendars)
+    expect(profileSchema.parse(requestFixture('/api/profile', token).body)).toEqual(profile)
+    expect(requestFixture('/api/calendar/calendars', mintHermeticJwt(profile)).body).toEqual([])
+  })
+
+  it('rejects invalid calendars and malformed sessions at the mock API boundary', () => {
+    const invalidCalendars = Reflect.apply(mintHermeticJwt, undefined, [profileFixture, [{}]]) as string
+    for (const token of [invalidCalendars, 'invalid.payload.signature']) {
+      expect(requestFixture('/api/calendar/calendars', token).status).toBe(400)
+    }
+  })
+})
 
 describe('label and interaction fill guards in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
