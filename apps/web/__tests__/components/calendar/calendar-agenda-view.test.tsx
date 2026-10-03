@@ -6,7 +6,9 @@ import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, params?: Record<string, string>) => key === 'calendar.agenda.timedEntryLabel'
+    ? `${params?.title}, ${params?.time}`
+    : key,
 }))
 
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
@@ -55,10 +57,19 @@ describe('CalendarAgendaView', () => {
   it('discloses a full name from a row with metadata beneath the title', () => {
     renderAgenda()
     const row = screen.getByRole('button', { name: /Morning walk/ })
-    expect(row).toHaveTextContent('08:00')
+    expect(row).toHaveAccessibleName('Morning walk, 08:00')
     expect(row.querySelector('[data-slot="list-row-value"]')).toBeNull()
     fireEvent.click(row)
     expect(screen.getByRole('dialog')).toHaveTextContent('Morning walk')
+  })
+
+  it('announces the full clamped title and the formatted scheduled time before disclosure', () => {
+    const title = 'Morning walk with every preparation step and the complete destination '.repeat(8).trim()
+    render(<CalendarAgendaView startDate={startDate} dayMap={new Map([[formatAPIDate(startDate), [entry({ title })]]])}
+      displayTime={() => '8:00 AM'} displayWeekdayDate={(date) => `Day ${date.getDate()}`}
+      todayKey={formatAPIDate(startDate)} isLoading={false} loadingLabel="common.loading" />)
+    expect(screen.getByRole('button', { name: `${title}, 8:00 AM` })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('renders a shaped placeholder instead of definitive empty days while loading', () => {

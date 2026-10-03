@@ -190,7 +190,7 @@ function AllDaySummary({ count, accessibilityLabel, onPress, tokens }: Readonly<
   tokens: Tokens;
 }>) {
   return <InsetFocusPressable testID="time-grid-all-day-summary" accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
-    style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: tokens.hairline, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHoverOpaque : 'transparent' })}>
+    style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: tokens.hairline, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
     <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg1 }}>{count}</Text>
   </InsetFocusPressable>;
 }

@@ -63,6 +63,7 @@ function renderGrid(
   isLoading = false,
   formatTime = displayTime,
   timeZone: string | null = "UTC",
+  gridTokens = tokens,
 ): Tree {
   let tree: Tree;
   TestRenderer.act(() => {
@@ -77,7 +78,7 @@ function renderGrid(
         nowLabel="Now"
         isLoading={isLoading}
         t={translate}
-        tokens={tokens}
+        tokens={gridTokens}
         timeZone={timeZone}
       />,
     );
@@ -333,17 +334,24 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
   });
 
-  it("labels the untimed summary with a localized count for screen readers", () => {
+  it.each(['dark', 'light'] as const)("labels and fills the untimed summary in %s", (mode) => {
     const col = column("2025-06-16");
     const entries = Array.from({ length: 8 }, (_, i) =>
       makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
     );
-    const tree = renderGrid([col], new Map([[col.dateStr, entries]]));
+    const gridTokens = createTokensV2('purple', mode);
+    const tree = renderGrid([col], new Map([[col.dateStr, entries]]), vi.fn(), false, displayTime, 'UTC', gridTokens);
 
     const more = hostsByTestID(tree, "time-grid-all-day-summary");
     expect(more[0]!.props.accessibilityLabel).toBe(
       'calendar.timeGrid.untimedCount:{"count":8}',
     );
+    expect(resolveStyle(more[0]!.props.style)).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 8 });
+    expect(StyleSheet.flatten(more[0]!.props.style({ pressed: true }))).toMatchObject({
+      backgroundColor: gridTokens.bgHover,
+      borderRadius: 8,
+      overflow: 'hidden',
+    });
   });
 
   it("shows the empty message when no visible day has entries", () => {

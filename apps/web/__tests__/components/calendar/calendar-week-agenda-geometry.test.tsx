@@ -14,6 +14,7 @@ import { CalendarTimeGrid } from '@/components/calendar/calendar-time-grid'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const date = new Date(2026, 8, 30)
 const dateStr = '2026-09-30'
@@ -45,6 +46,47 @@ describe('Week and agenda geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['dark', 'light'] as const)('fills the untimed summary hit area at radius 8 in %s', async (theme) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <CalendarTimeGrid columns={[{ date, dateStr, isToday: false, isFuture: false }]}
+        dayMap={new Map([[dateStr, [{ ...entry, dueTime: null }]]])} onSelectDay={vi.fn()}
+        displayTime={timeLabel} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime}
+        nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage()
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', theme)).map(([name, value]) => `${name}:${value}`).join(';')
+      await page.setContent(`<html class="${theme}"><style>${stylesheet}\n:root{${variables}}</style>${container.innerHTML}</html>`)
+      await loadAppFonts(page)
+      for (const width of [412, 1280]) {
+        await page.setViewportSize({ width, height: 915 })
+        await page.locator('[data-testid="time-grid-all-day-summary"]').hover()
+        await page.waitForFunction(() => {
+          const button = document.querySelector('[data-testid="time-grid-all-day-summary"]')!
+          return button.getAnimations().every((animation) => animation.playState === 'finished')
+        })
+        const fill = await page.locator('[data-testid="time-grid-all-day-summary"]').evaluate((button) => {
+          const style = getComputedStyle(button)
+          const rect = button.getBoundingClientRect()
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = 'var(--bg-hover)'
+          button.append(probe)
+          const expected = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          return { width: rect.width, height: rect.height, background: style.backgroundColor, expected,
+            radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius],
+            padding: [style.paddingLeft, style.paddingRight, style.paddingTop, style.paddingBottom] }
+        })
+        expect(fill.width).toBeGreaterThanOrEqual(48)
+        expect(fill.height).toBeGreaterThanOrEqual(48)
+        expect(fill.background).toBe(fill.expected)
+        expect(fill.background).not.toBe('rgba(0, 0, 0, 0)')
+        expect(fill.radii).toEqual(['8px', '8px', '8px', '8px'])
+        expect(fill.padding).toEqual(['8px', '8px', '8px', '8px'])
+      }
+    } finally { await page.close() }
+  })
 
   it.each(locales.flatMap((settings) => [false, true].map((crowded) => ({ ...settings, crowded }))))('keeps week labels and every crowded target clear in $locale at 320 and 200% text (crowded=$crowded)', async ({ locale, messages, dateLocale, crowded }) => {
     const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 8, 30 + index), dateStr: `day-${index}`, isToday: index === 0, isFuture: index > 0 }))

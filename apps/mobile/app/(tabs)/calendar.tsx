@@ -266,7 +266,9 @@ function CalendarAgendaView({
                     description={entry.dueTime ? displayTime(entry.dueTime) : undefined}
                     textMode="personal"
                     chevron={false}
-                    accessibilityLabel={entry.title}
+                    accessibilityLabel={entry.dueTime
+                      ? t('calendar.agenda.timedEntryLabel', { title: entry.title, time: displayTime(entry.dueTime) })
+                      : entry.title}
                     onClick={() => setSelectedEntry(entry)}
                   />
                 ))}
