@@ -221,7 +221,18 @@ function readOnlyHabitRows(tree: Tree) {
   return nodes(tree, 'Pressable').filter((row) => row.findAll((node) => node.type === 'StatusRingMock').length > 0)
 }
 
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+
 describe('CalendarDayDetail (mobile)', () => {
+  it('retires a full habit title when the account is replaced', () => {
+    const tree = renderDetail({ entries: [makeEntry({ title: 'Private habit title' })] })
+    const row = nodes(tree, 'Pressable').find((node) => node.props.accessibilityLabel === 'Private habit title, done')!
+    TestRenderer.act(() => { (row.props.onPress as () => void)() })
+    expect(nodes(tree, 'Sheet')).toHaveLength(1)
+    TestRenderer.act(() => { advanceAccountGeneration() })
+    expect(nodes(tree, 'Sheet')).toHaveLength(0)
+  })
+
   it('keeps the summary and its own no-habits line when the day is empty', () => {
     const tree = renderDetail()
     const text = nodes(tree, 'Text').map((node) => node.props.children)

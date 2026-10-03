@@ -154,7 +154,17 @@ function renderDetail(props: RenderProps = {}) {
   return render(<CalendarDayDetailHarness {...props} />)
 }
 
+import { advanceAccountGeneration } from '@/lib/session-epoch'
+
 describe('CalendarDayDetail', () => {
+  it('retires a full habit title when the account is replaced', () => {
+    renderDetail({ entries: [makeEntry({ title: 'Private habit title' })] })
+    fireEvent.click(screen.getByRole('button', { name: 'Private habit title, done' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    act(() => advanceAccountGeneration())
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   describe.each(['UTC', 'America/Sao_Paulo', 'Pacific/Auckland'])('day card headings in %s', (timeZone) => {
     it.each([
       ['en', 'Today, June 15', 'Saturday, June 14'],

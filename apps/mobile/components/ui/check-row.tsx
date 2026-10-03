@@ -65,8 +65,8 @@ export function CheckRow({
 
 const styles = StyleSheet.create({
   personalRow: { minHeight: 68, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 8, paddingVertical: 8 },
-  personalCopy: { minWidth: 0, flex: 1, minHeight: 48, justifyContent: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  personalControl: { minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+  personalCopy: { minWidth: 0, flex: 1, minHeight: 48, justifyContent: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
+  personalControl: { minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
   row: { width: '100%', minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },

@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -174,7 +175,7 @@ function CalendarDayRows({
     }
 
     return (
-      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
         <span className="flex min-w-0 items-start gap-2 px-4 py-2">
           <span className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="line-clamp-2 text-base [overflow-wrap:anywhere] text-[var(--fg-1)]">{entry.title}</span>
@@ -206,7 +207,7 @@ export function CalendarDayDetail({
   onEntryChange,
   showTitle = true,
 }: Readonly<CalendarDayDetailProps>) {
-  const [expandedTitle, setExpandedTitle] = useState<string | null>(null)
+  const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
   const { sheetRef } = useSheetHost()
   const t = useTranslations()
   const { displayTime } = useTimeFormat()

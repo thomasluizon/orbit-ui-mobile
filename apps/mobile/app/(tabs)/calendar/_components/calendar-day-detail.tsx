@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
@@ -161,7 +162,7 @@ export function CalendarDayDetail({
   t,
   tokens,
 }: Readonly<CalendarDayDetailProps>) {
-  const [expandedTitle, setExpandedTitle] = useState<string | null>(null)
+  const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
   const { sheetRef } = useSheetHost()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const summary = filteredEntries.length > 0
@@ -261,7 +262,7 @@ function createStyles(tokens: Tokens) {
     container: { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost, borderRadius: radius.xl, borderWidth: 1, gap: 24, paddingVertical: 24 },
     copyBlock: { gap: 8, paddingHorizontal: 16 },
     rowList: { gap: 8 },
-    habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12 },
+    habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
     dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
     summaryText: { fontFamily: 'Geist_400Regular', fontSize: 12 },
     emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22, paddingVertical: 24, textAlign: 'center' },

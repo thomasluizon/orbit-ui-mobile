@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -25,11 +25,11 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
-  const [localOpen, setLocalOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useAccountScopedState(false)
   const open = controlledOpen ?? localOpen
   const finishClose = () => { setLocalOpen(false); onClose?.() }
-  const [query, setQuery] = useState('')
-  const [visibleCount, setVisibleCount] = useState(20)
+  const [query, setQuery] = useAccountScopedState('')
+  const [visibleCount, setVisibleCount] = useAccountScopedState(20)
   const matchingEvents = calendarEvents.filter((event) => event.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const openEvent = (eventId: string) => {
     if (open) closeSheet(() => { finishClose(); onOpenImport(eventId) })

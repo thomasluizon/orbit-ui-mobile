@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useTranslations } from 'next-intl'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { EventRow } from '@/components/dates/event-row'
@@ -23,11 +23,11 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [localOpen, setLocalOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useAccountScopedState(false)
   const open = controlledOpen ?? localOpen
   const finishClose = () => { setLocalOpen(false); onClose?.() }
-  const [query, setQuery] = useState('')
-  const [visibleCount, setVisibleCount] = useState(20)
+  const [query, setQuery] = useAccountScopedState('')
+  const [visibleCount, setVisibleCount] = useAccountScopedState(20)
   const matchingEvents = calendarEvents.filter((event) => event.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const openEvent = (eventId: string) => {
     if (open) closeSheet(() => { finishClose(); onOpenImport(eventId) })
