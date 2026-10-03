@@ -9,7 +9,7 @@ import SupportScreen from '@/app/support'
 import { getAppVersion } from '@/lib/app-version'
 import { ShellScrollerClearanceContext } from '@/components/shell/shell-scroller-clearance'
 import { i18n } from '@/lib/i18n'
-import { __resetTestHostConfig, __setFocusImpl, __setTouchMode } from '../../test-mocks/react-native'
+import { __resetTestHostConfig, __setFocusImpl, __setTouchMode, __setWindowDimensions } from '../../test-mocks/react-native'
 import { focusHost, withFocusProvenance } from '../support/focus-provenance'
 
 const TestRenderer = require('react-test-renderer')
@@ -158,14 +158,31 @@ function sentRequestBody() {
 }
 
 describe('SupportScreen', () => {
-  it('shows subject labels without redundant descriptions or ellipsis', async () => {
-    const tree = await renderScreen()
-    for (const subject of ['problem', 'billing', 'account', 'other']) {
-      expect(tree.root.findAll((node) => node.type === Text && node.props.children === `profile.support.subjects.${subject}.description`)).toHaveLength(0)
-      const label = tree.root.findAll((node) => node.type === Text && node.props.children === `profile.support.subjects.${subject}.label`)[0]!
-      expect(label.props.numberOfLines).toBeUndefined()
-    }
-  })
+  for (const messages of [ptBR, en]) {
+    it.each([320, 360, 384, 412])('keeps localized subject rows unclamped at %ipx', async (width) => {
+      __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+      for (const [subject, words] of Object.entries(messages.profile.support.subjects)) {
+        mocks.translations.set(`profile.support.subjects.${subject}.label`, words.label)
+      }
+      const tree = await renderScreen()
+      const rows = findSubjectChoices(tree.root)
+      expect(rows).toHaveLength(4)
+      for (const [index, words] of Object.values(messages.profile.support.subjects).entries()) {
+        const label = rows[index]!.findAll((node) => node.type === Text && node.props.children === words.label)[0]!
+        expect(label.props.numberOfLines).toBeUndefined()
+        expect(label.props.ellipsizeMode).toBeUndefined()
+        expect(label.props.allowFontScaling).not.toBe(false)
+        const resolveStyle = rows[index]!.props.style as (state: { pressed: boolean }) => ViewStyle
+        const style = StyleSheet.flatten<ViewStyle>(resolveStyle({ pressed: false }))
+        expect(style.minHeight).toBe(52)
+        expect(style.height).toBeUndefined()
+        expect(style.paddingVertical).toBe(8)
+        expect(style.paddingRight).toBe(16)
+        expect(style.gap).toBe(12)
+        expect(rows[index]!.findAll((node) => node.type === Text)).toHaveLength(1)
+      }
+    })
+  }
 
   it('gives the reply email two lines and discloses it without changing the draft', async () => {
     const email = `${'a'.repeat(48)}@example.com`
