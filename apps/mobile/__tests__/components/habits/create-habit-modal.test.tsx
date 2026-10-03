@@ -7,6 +7,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/shared/utils'
 
+import { NotificationBell } from '@/components/navigation/notification-bell'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -28,6 +29,7 @@ const mockShowSuccess = vi.fn()
 const mockShowInfo = vi.fn()
 const mockValidateAll = vi.fn((): string | null => null)
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
 const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
@@ -50,10 +52,12 @@ vi.mock('react-hook-form', () => ({
 
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }))
 
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('expo-router', () => ({
+  usePathname: () => '/',
   useRouter: () => ({
     push: mockPush,
-    replace: vi.fn(),
+    replace: mockReplace,
     back: vi.fn(),
   }),
 }))
@@ -307,6 +311,34 @@ describe('CreateHabitModal (mobile)', () => {
     TestRenderer.act(() => { dismissTopOverlay('system-back') })
     await TestRenderer.act(async () => { discard().props.onDiscard(); await Promise.resolve() })
     expect(close).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
+
+  it.each(['cancel', 'confirm'] as const)('guards a mounted Android bell and handles %s without leaving a draft in history', async (choice) => {
+    mockFormStatus.dirty = true
+    const close = vi.fn()
+    const tree = renderModal(<><CreateHabitModal open presentation="screen" onClose={close} /><NotificationBell /></>)
+    const bell = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'notifications.bell')[0]
+    const discard = () => tree.root.findAll((node) => node.type === DiscardChangesSheet)[0]
+    TestRenderer.act(() => bell.props.onPress())
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(discard().props.open).toBe(true)
+    if (choice === 'cancel') {
+      TestRenderer.act(() => discard().props.onKeepEditing())
+      expect(discard().props.open).toBe(false)
+      expect(mockFormStatus.dirty).toBe(true)
+      expect(mockReplace).not.toHaveBeenCalled()
+      TestRenderer.act(() => { dismissTopOverlay('system-back') })
+      await TestRenderer.act(async () => { discard().props.onDiscard(); await Promise.resolve() })
+      expect(close).toHaveBeenCalledOnce()
+      expect(mockReplace).not.toHaveBeenCalled()
+    } else {
+      await TestRenderer.act(async () => { discard().props.onDiscard(); await Promise.resolve() })
+      expect(mockReplace).toHaveBeenCalledExactlyOnceWith('/notifications')
+      expect(close).not.toHaveBeenCalled()
+    }
+    expect(mockPush).not.toHaveBeenCalled()
     tree.unmount()
   })
 

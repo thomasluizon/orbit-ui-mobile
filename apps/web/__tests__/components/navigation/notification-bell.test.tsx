@@ -399,6 +399,11 @@ describe('alerts', () => {
     const view = showInbox()
     chooseInboxAction(messages.notifications.deleteAll)
     expect(screen.getByText(confirmBody)).toBeInTheDocument()
+    const actions = screen.getByRole('dialog').querySelector<HTMLElement>('[data-slot="action-row"]')!
+    expect(actions.style.justifyContent).toBe('flex-end')
+    expect(actions.style.gap).toBe('12px')
+    expect(actions.querySelectorAll('.orbit-pill-action')).toHaveLength(2)
+    for (const pill of actions.querySelectorAll('.orbit-pill-action')) expect(pill).toHaveAttribute('data-size', 'sm')
     expect(state.clear).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
     expect(screen.getAllByRole('listitem')).toHaveLength(50)

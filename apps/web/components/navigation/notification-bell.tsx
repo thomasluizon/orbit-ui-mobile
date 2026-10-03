@@ -6,15 +6,16 @@ import { Bell } from '@/components/ui/icons'
 import { useNotificationInbox } from '@/hooks/use-notification-inbox'
 import { plural } from '@/lib/plural'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 
 export function NotificationBell() {
   const router = useRouter()
   const pathname = usePathname()
   const { visibleUnreadCount: count } = useNotificationInbox()
-  return <NotificationBellDisplay count={count} onClick={pathname === '/notifications' ? undefined : () => {
+  return <NotificationBellDisplay count={count} onClick={pathname === '/notifications' ? undefined : () => requestHabitCreateNavigation(() => {
     setRouteTransitionIntent('forward')
     router.push('/notifications')
-  }} />
+  })} />
 }
 
 export function NotificationBellDisplay({ count, onClick }: { count: number; onClick?: () => void }) {

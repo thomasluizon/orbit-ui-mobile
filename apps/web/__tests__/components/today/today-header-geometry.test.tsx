@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -117,6 +117,19 @@ describe('Hoje header geometry', () => {
       expect(geometry.close.width).toBeGreaterThanOrEqual(48)
       expect(geometry.close.height).toBeGreaterThanOrEqual(48)
     } finally { await page.close() }
+  })
+
+  it.each(['en', 'pt-BR'] as const)('refreshes through the header options menu in %s', async (locale) => {
+    const messages = locale === 'en' ? en : ptBr
+    const refresh = vi.fn()
+    render(<NextIntlClientProvider locale={locale} messages={messages}><TodayDateControl {...props}
+      menuTitle={messages.common.options} moreLabel={messages.habits.listOptions}
+      refreshLabel={messages.habits.refresh} onRefresh={refresh} /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: messages.habits.listOptions }))
+    const menu = screen.getByRole('menu', { name: messages.common.options })
+    fireEvent.click(within(menu).getByRole('menuitem', { name: messages.habits.refresh }))
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
   })
 
   it.each(['en', 'pt-BR'] as const)('fits the %s clear confirmation at 320 pixels and 200 percent text', async (locale) => {
