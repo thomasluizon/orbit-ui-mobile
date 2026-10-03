@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: 16, paddingVertical: 12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   gapWell: { borderRadius: 12, gap: 12, padding: 16 }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
-  topHabit: { minHeight: 68, paddingHorizontal: 16, paddingVertical: 16, borderRadius: 12, gap: 4, minWidth: 0 },
+  topHabit: { minHeight: 68, paddingHorizontal: 16, paddingVertical: 16, borderRadius: 12, overflow: 'hidden', gap: 4, minWidth: 0 },
   topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },

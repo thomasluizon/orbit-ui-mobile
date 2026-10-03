@@ -836,16 +836,18 @@ describe('ProgressContent', () => {
 
   it.each([320, 360, 384, 412])('keeps the owning Progress figures readable at %ipx with large text', async (width) => {
     for (const catalog of [en, ptBR]) {
+      for (const habitId of [undefined, 'a08892c2-9a7c-4dc9-b70f-388be528420e']) {
       mocks.usePortugueseCatalog = catalog === ptBR
       mocks.useEnglishCatalog = catalog === en
       mocks.goals.data.allGoals = [createMockGoal()]
       const habitName = 'Read a very long chapter title before the morning conversation '.repeat(5)
       mocks.retrospective.data.metrics.topHabits[0]!.name = habitName
       mocks.retrospective.data.metrics.topHabits[0]!.emoji = '📚'
+      mocks.retrospective.data.metrics.topHabits[0]!.habitId = habitId
       const { container, unmount } = render(<ProgressContent />)
       const page = await browser.newPage({ viewport: { width, height: 1600 } })
       try {
-        await page.setContent(`<style>${stylesheet}</style><div style="width:${width}px">${container.innerHTML}</div>`)
+        await page.setContent(`<style>${stylesheet}</style><div style="width:${width}px;padding:0 16px">${container.innerHTML}</div>`)
         await loadAppFonts(page)
         await page.evaluate(() => {
           const elements = Array.from(document.querySelectorAll<HTMLElement>('div, span, p, button'))
@@ -863,17 +865,20 @@ describe('ProgressContent', () => {
           const title = element.querySelector('[title]')!
           const style = getComputedStyle(title)
           const bounds = title.getBoundingClientRect()
-          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: !!element.querySelector('a, button') }
+          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: element.matches('a'), href: element.getAttribute('href'), labelLines: (() => { const range = document.createRange(); range.selectNodeContents(element.firstElementChild!.firstElementChild!); return range.getClientRects().length })() }
         })
         expect(habit.full).toContain(habitName)
         expect(habit.emoji).toContain('📚')
         expect(habit.title).toBe(habitName)
         expect(habit.lines).toBeCloseTo(2, 1)
         expect(habit.width).toBe(habit.rowWidth - 32)
-        expect(habit.interactive).toBe(false)
+        expect(habit.interactive).toBe(!!habitId)
+        expect(habit.href).toBe(habitId ? `/habits/${habitId}` : null)
+        expect(habit.labelLines).toBe(1)
         expect(geometry).toHaveLength(10)
         for (const figure of geometry) { expect(figure.lines, figure.text!).toBe(1); expect(figure.inside, figure.text!).toBe(true) }
       } finally { await page.close(); unmount(); mocks.usePortugueseCatalog = false; mocks.useEnglishCatalog = false }
+      }
     }
   })
 

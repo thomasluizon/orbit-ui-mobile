@@ -1,4 +1,5 @@
 import React from 'react'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import * as ReactNative from 'react-native'
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
@@ -40,7 +41,10 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
+type HabitRowHost = Parameters<typeof measureProfileRow>[0]
+
 type TestTree = {
+  toJSON: () => HabitRowHost | HabitRowHost[] | null
   root: TestNode
   update: (element: React.ReactElement) => void
 }
@@ -250,6 +254,11 @@ function captureGoalCardRendering(card: TestNode) {
     return { resting: resolve(false), pressed: resolve(true) }
   })
   return { structure: structure(card)[0], styles }
+}
+
+function findProgressHabitHost(host: HabitRowHost): HabitRowHost | undefined {
+  if ('testID' in host.props && host.props.testID === 'progress-top-habit') return host
+  return (host.children ?? []).filter((child): child is HabitRowHost => typeof child !== 'string').map(findProgressHabitHost).find(Boolean)
 }
 
 function findPill(root: TestNode, label: string): TestNode {
@@ -817,6 +826,33 @@ describe('mobile ProgressContent', () => {
     expect(title.props.numberOfLines).toBe(2)
     expect(title.props.selectable).toBe(true)
     expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+  })
+
+  it.each([320, 412].flatMap((width) => ['en', 'pt-BR'].flatMap((language) =>
+    [undefined, 'a08892c2-9a7c-4dc9-b70f-388be528420e'].map((habitId) => ({ width, language, habitId })),
+  )))('keeps the top habit label whole and title full width at $width pt ($language, $habitId)', async ({ width, language, habitId }) => {
+    await i18n.changeLanguage(language)
+    mocks.usePortugueseCatalog = true
+    try {
+      const name = 'Read a long chapter before discussing it with the reading group '.repeat(5)
+      Object.assign(mocks.retrospective.data.metrics.topHabits[0]!, { name, habitId })
+      const tree = await renderProgress()
+      const hosts = tree.toJSON()
+      const row = (Array.isArray(hosts) ? hosts : hosts ? [hosts] : []).map(findProgressHabitHost).find(Boolean)!
+      for (const scale of [1, 2]) {
+        const geometry = measureProfileRow(row, width - 32, scale)
+        const label = geometry.texts.find((text) => text.label === i18n.t('progressScreen.window.topHabit'))!
+        const title = geometry.texts.find((text) => text.label === name)!
+        expect(label.lines).toBe(1)
+        expect(label.clipped).toBe(false)
+        expect(label.right).toBeLessThanOrEqual(width - 48 - (habitId ? 36 : 0))
+        expect(title.left).toBe(16)
+        expect(title.right).toBe(width - 48)
+        expect(title.lines).toBe(2)
+        expect(title.clipped).toBe(true)
+        expect(geometry.height).toBeGreaterThanOrEqual(68)
+      }
+    } finally { mocks.usePortugueseCatalog = false; await i18n.changeLanguage('en') }
   })
 
   it('opens the top habit using the response id when ranked habits share a title', async () => {
