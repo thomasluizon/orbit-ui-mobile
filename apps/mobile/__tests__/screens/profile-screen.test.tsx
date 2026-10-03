@@ -969,10 +969,10 @@ describe('ProfileScreen', () => {
   })
 
   it.each([
-    ['pt-BR', false, 'Astra avisa', 'Resumo diário'],
-    ['pt-BR', true, 'Astra avisa', 'Resumo diário'],
-    ['en', false, 'Astra alerts', 'Daily recap'],
-    ['en', true, 'Astra alerts', 'Daily recap'],
+    ['pt-BR', false, 'Check-ins', 'Resumo diário'],
+    ['pt-BR', true, 'Check-ins', 'Resumo diário'],
+    ['en', false, 'Check-ins', 'Daily recap'],
+    ['en', true, 'Check-ins', 'Daily recap'],
   ] as const)('renders the %s Astra labels for Pro access %s', async (locale, hasProAccess, proactive, summary) => {
     mockLocale.current = locale
     const messages = locale === 'pt-BR' ? ptBR : en
