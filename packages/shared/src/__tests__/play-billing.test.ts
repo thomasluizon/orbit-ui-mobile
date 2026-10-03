@@ -14,9 +14,9 @@ describe('play-billing constants', () => {
     expect(PLAY_BASE_PLAN_YEARLY).toBe('yearly')
   })
 
-  it('opens the exact Orbit subscription in Google Play', () => {
-    expect(playManageSubscriptionUrl()).toBe(
-      'https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=org.useorbit.app',
+  it.each(['org.useorbit.app.staging', 'org.useorbit.app'])('opens the subscription bought in %s', (packageName) => {
+    expect(playManageSubscriptionUrl(packageName)).toBe(
+      `https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=${packageName}`,
     )
   })
 })

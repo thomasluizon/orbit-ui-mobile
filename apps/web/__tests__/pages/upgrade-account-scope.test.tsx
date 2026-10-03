@@ -125,6 +125,7 @@ describe('UpgradePage across an account change', () => {
       observe() {}
       disconnect() {}
     })
+    vi.stubEnv('NEXT_PUBLIC_PLAY_PACKAGE_NAME', 'org.useorbit.app')
     vi.stubGlobal('fetch', vi.fn())
     status = LAPSED_STATUS
     billing = { status: 'active', cancelAtPeriodEnd: false }
@@ -141,6 +142,7 @@ describe('UpgradePage across an account change', () => {
     vi.useRealTimers()
     cleanup()
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
     vi.clearAllMocks()
   })
 
