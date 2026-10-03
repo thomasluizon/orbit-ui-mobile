@@ -76,23 +76,32 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   } else expect(measured.pill.height, evidence).toBe(56)
 }
 
-const chipScenarios = ['empty', 'pending', 'returning', 'completed', 'habitDetail', 'longTitle', 'unbrokenTitle'] as const
+const chipScenarios = ['empty', 'pending', 'returning', 'completed', 'habitDetail', 'longTitle', 'unbrokenTitle', 'namedActions'] as const
 
 function liveChipSuggestions(scenario: typeof chipScenarios[number], messages: typeof en) {
-  const surface = scenario === 'habitDetail' ? 'habitDetail' : 'today'
+  const surface = scenario === 'habitDetail' ? 'habitDetail' as const : 'today' as const
   const title = scenario === 'unbrokenTitle' ? 'a'.repeat(200) : scenario === 'longTitle'
     ? messages === en ? 'Read a chapter of my favorite book before breakfast' : 'Ler um capítulo do meu livro favorito antes do café da manhã'
     : messages === en ? 'Read' : 'Ler'
   const habits = scenario === 'empty' || scenario === 'habitDetail' ? [] : [createMockHabit({
     title, isOverdue: scenario === 'pending', hasSubHabits: true, isCompleted: scenario === 'completed',
   })]
-  const chips = buildComposerChips({ surface, status: 'success', habits, totalHabitCount: habits.length,
+  const chipState = { surface, status: 'success' as const, habits, totalHabitCount: habits.length,
     profile: createMockProfile({ lastCompletionDate: scenario === 'returning' ? '2026-09-01' : null }),
-    now: new Date('2026-09-10T12:00:00Z'), detailHabit: { title, checklistItems: [] } })
-  const labels: Record<string, string> = messages.shell.composer.chips[surface]
-  return { surface, suggestions: chips.map(({ id, params }) => ({ id,
-    label: labels[id.split('.')[1]!]!.replace('{title}', params?.title ?? ''),
-  })) }
+    now: new Date('2026-09-10T12:00:00Z'), detailHabit: { title, checklistItems: [] } }
+  const namedHabit = createMockHabit({ title: 'a'.repeat(200), hasSubHabits: true, isOverdue: true })
+  const chips = scenario === 'namedActions' ? [
+    buildComposerChips({ ...chipState, habits: [namedHabit], totalHabitCount: 1 }),
+    buildComposerChips({ ...chipState, habits: [namedHabit], totalHabitCount: 1, profile: createMockProfile({ lastCompletionDate: '2026-09-01' }) }),
+    buildComposerChips({ ...chipState, habits: [{ ...namedHabit, isCompleted: true }], totalHabitCount: 1 }),
+    buildComposerChips({ ...chipState, surface: 'progress', habits: [namedHabit], totalHabitCount: 1 }),
+  ].flat().filter((chip, index, all) => chip.params && all.findIndex(candidate => candidate.id === chip.id) === index)
+    : buildComposerChips(chipState)
+  return { surface, suggestions: chips.map(({ id, params }) => {
+    const [group, name] = id.split('.')
+    const labels: Record<string, string> = messages.shell.composer.chips[group as keyof typeof messages.shell.composer.chips]
+    return { id, label: labels[name!]!.replace('{title}', params?.title ?? '') }
+  }) }
 }
 
 describe('Composer compact geometry in Chromium', () => {
@@ -184,7 +193,7 @@ describe('Composer compact geometry in Chromium', () => {
               range.selectNodeContents(text)
               const lines = [...range.getClientRects()]
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
-                label: text.textContent, lines: lines.length, textOverflow: style.textOverflow,
+                label: text.textContent, accessibleName: button.getAttribute('aria-label'), lines: lines.length, textOverflow: style.textOverflow,
                 textFits: lines.every(line => line.left >= bounds.left && line.right <= bounds.right && line.bottom <= bounds.bottom),
                 iconTop: button.querySelector('svg')!.getBoundingClientRect().top, firstLineTop: lines[0]!.top }
             })
@@ -202,6 +211,7 @@ describe('Composer compact geometry in Chromium', () => {
           } else expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           for (const control of measured.controls) {
             expect(control.textFits, evidence).toBe(true)
+            expect(control.accessibleName, evidence).toBe(control.label)
             expect(control.textOverflow, evidence).not.toBe('ellipsis')
             expect(control.height, evidence).toBeGreaterThanOrEqual(48)
             expect(control.width, evidence).toBeLessThanOrEqual(measured.viewport)

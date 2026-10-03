@@ -1,7 +1,7 @@
 import React from 'react'
 import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { buildComposerChips } from '@orbit/shared/chat'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -246,14 +246,20 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale =>
-    (['today', 'habitDetail'] as const).map(surface => ({ messages, fontScale, surface })))))(
-    'bounds live $surface labels and aligns icons with the first line at $fontScale text', ({ messages, fontScale, surface }) => {
+    (['pending', 'returning', 'completed', 'progress', 'habitDetail'] as const).map(scenario => ({ messages, fontScale, scenario })))))(
+    'bounds live $scenario labels and aligns icons with the first line at $fontScale text', ({ messages, fontScale, scenario }) => {
       __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
-      const chips = buildComposerChips({ surface, status: 'success', habits: [], totalHabitCount: 0,
-        profile: createMockProfile(), detailHabit: { title: 'Reading', checklistItems: [] } })
-      const labels = messages.shell.composer.chips[surface]
-      const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id, label: labels[id.split('.')[1] as keyof typeof labels],
-        icon: <Square size={20} />, onSelect: vi.fn() })))
+      const title = 'Ler um capítulo com acentos e detalhes '.repeat(5)
+      const surface = scenario === 'habitDetail' ? 'habitDetail' : scenario === 'progress' ? 'progress' : 'today'
+      const habit = createMockHabit({ title, hasSubHabits: true, isOverdue: true, isCompleted: scenario === 'completed' })
+      const chips = buildComposerChips({ surface, status: 'success', habits: [habit], totalHabitCount: 1,
+        profile: createMockProfile({ lastCompletionDate: scenario === 'returning' ? '2026-09-01' : null }),
+        now: new Date('2026-09-10T12:00:00Z'), detailHabit: { title, checklistItems: [] } })
+      const suggestions = toComposerSuggestions(chips.map(({ id, params }) => {
+        const [group, name] = id.split('.')
+        const labels: Record<string, string> = messages.shell.composer.chips[group as keyof typeof messages.shell.composer.chips]
+        return { id, label: labels[name!]!.replace('{title}', params?.title ?? ''), icon: <Square size={20} />, onSelect: vi.fn() }
+      }))
       const tree = renderComposer(props({ suggestions, words: messages.shell.composer }))
       try {
         const host = tree.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!
@@ -267,6 +273,7 @@ describe('Composer (mobile)', () => {
           expect(style.height).toBeUndefined()
           expect(style.alignItems).toBe('flex-start')
           expect(text.props.children).toBe(suggestion.label)
+          expect(suggestion.label).not.toContain(title)
           expect(text.props.numberOfLines).toBeUndefined()
           expect(StyleSheet.flatten(text.props.style)).toMatchObject({ flexShrink: 1, lineHeight: 20 })
           const icon = chip.findAllByType('View').find((node: { props: Record<string, unknown> }) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).justifyContent === 'center')!

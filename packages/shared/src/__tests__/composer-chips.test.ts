@@ -188,6 +188,10 @@ describe('composer chips', () => {
       expect(labels[name as keyof typeof labels]).not.toContain('{title}')
       expect(chip.params?.title).toBe(title)
       expect(chip.promptKey).toBe(`shell.composer.prompts.${chip.id}`)
+      const prompts: Record<string, string> = locale.shell.composer.prompts[group as keyof typeof locale.shell.composer.prompts]
+      const prompt = prompts[name!]!
+      expect(prompt.replace('{title}', chip.params!.title)).toContain(title)
+      expect(prompt.match(/\{title\}/g)).toHaveLength(1)
     }
   })
 
