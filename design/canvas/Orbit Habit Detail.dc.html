@@ -59,7 +59,7 @@ a:hover{color:var(--fg-1)}
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>One surface, two documents: this one is the authority for the habit detail, and Hoje's detail state is the same surface reached from Hoje. The order is the shipping drawer's (habit-detail-drawer.tsx): the header, the interactive checklist, the three numbers, the reminders it holds, the end date, the linked goals, the month calendar and the ask Astra row, with the redesign's strip and slipping line up top, then the editable half behind ONE disclosure, the immutable start date, and delete last.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly three gates: the reschedule, add a sub habit, and the slip alert inside the disclosure. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
-      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>a 76px emoji well, the name with rename in place, a summary line, and every tag as a plain word pill. The well IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid; with no emoji the well shows a plus, because here it is an empty control and not a label. The tags lose the shipping colour dot deliberately: colour as data is dead (DESIGN.md:737) and a habit is told apart by its emoji, its name and its ring. The header ring is a real 44px button on HabitRow's pairing, its accessible name the action and its direction, the ring inside it decorative. Logging from here resets the checklist ONLY under Habit.cs:186-190: a frequency, not flexible, the due date advances; a flexible habit's list does not reset.</p>
+      <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>a controls row with the 76px emoji well and trailing rename button and 44px header ring, then the full-width name with rename in place and its summary below. The name wraps to show the full title. Tags and description follow the header copy with 12px gaps, and the strip follows the last content with 24px. Every tag is a plain word pill. The well IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid; with no emoji the well shows a plus, because here it is an empty control and not a label. The tags lose the shipping colour dot deliberately: colour as data is dead (DESIGN.md:737) and a habit is told apart by its emoji, its name and its ring. The header ring is a real 44px button on HabitRow's pairing, its accessible name the action and its direction, the ring inside it decorative. Logging from here resets the checklist ONLY under Habit.cs:186-190: a frequency, not flexible, the due date advances; a flexible habit's list does not reset.</p>
       <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number, so the picture and the number describe one window. A freeze marks a user and a date (StreakFreeze.Create), never a habit, so frozen is absent from the habit union and no snowflake can appear here; the freeze lives on Progresso where the day is the subject.</p>
       <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled free of relapse on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, the same card with a loading value in each of its three rows, and ONE centred no data line when metrics is null, never three zeros. The card renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
       <p><span style="color:var(--fg-3)">slipping&nbsp;&nbsp;</span>drawn from the numbers, not a status: the streak at zero, the rate down, nothing logged for three days. The line names the circumstance and never the person, and it carries no red. The reschedule appears only here, because the app offers it only on an overdue habit (habit-list.tsx:906), and it needs Pro (reschedule-sheet.tsx:119): on Pro it is a proposal carrying its reason, with accept and not now; on free the same place carries the upgrade route in the shipping sheet's words, never an empty space.</p>
@@ -797,32 +797,32 @@ class Component extends DCLogic {
       ? H(D.ProgressRing, { value: kids.length ? (doneKids / kids.length) * 100 : 0, size: 30, label: doneKids + ' / ' + kids.length })
       : H(D.StatusRing, { status: status, size: 30, label: x.status[status] });
     const out = [];
-    out.push(H('div', { key: 'head', style: { display: 'flex', alignItems: 'center', gap: 12 } },
-      H('button', { type: 'button', 'aria-label': x.emoWellLabel(name),
-        onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
-        style: { width: 76, height: 76, flex: '0 0 auto', borderRadius: 'var(--r-well)', background: 'var(--bg-well)',
-          border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: 34, color: 'var(--fg-3)' } },
-        emoji ? H('span', { 'aria-hidden': 'true' }, emoji) : H(D.Icon, { name: 'plus', size: 24 })),
-      s.editing
-        ? H('div', { style: { flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-end', gap: 8 } },
-            H('div', { style: { flex: 1, minWidth: 0 } },
-              H(D.Input, { defaultValue: name, 'aria-label': x.rename, autoFocus: true })),
-            H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ editing: false }) }, x.done))
-        : H(F, null,
-            H('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } },
-              H('p', { style: { fontFamily: 'var(--font-display)', fontSize: s.width === 'wide' ? 28 : 22, fontWeight: 500,
-                letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, name),
-              H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
-                fontVariantNumeric: 'tabular-nums' } }, sum)),
-            H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.rename,
-              onClick: () => this.setState({ editing: true }),
-              style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none', flex: '0 0 auto' } },
-              H(D.Icon, { name: 'pencil', size: 20 })),
-            /* The header ring: HabitRow's pairing as a real button, its name the action and direction. */
-            H('button', { type: 'button', 'aria-label': logged ? x.ringUnlog(name) : x.ringLog(name), onClick: fireHeader,
-              style: { width: 44, height: 44, flex: '0 0 auto', display: 'grid', placeItems: 'center',
-                borderRadius: 'var(--r-pill)', background: 'var(--p-transparent)', border: 0, cursor: 'pointer' } },
-              H('span', { 'aria-hidden': 'true', style: { display: 'grid', placeItems: 'center' } }, ringNode)))));
+    out.push(H('div', { key: 'head', style: { display: 'flex', flexDirection: 'column', gap: 12 } },
+      H('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+        H('button', { type: 'button', 'aria-label': x.emoWellLabel(name),
+          onClick: () => this.setState({ emoOpen: true, emoQ: '', emoCat: null }),
+          style: { width: 76, height: 76, flex: '0 0 auto', borderRadius: 'var(--r-well)', background: 'var(--bg-well)',
+            border: 0, cursor: 'pointer', display: 'grid', placeItems: 'center', fontSize: 34, color: 'var(--fg-3)' } },
+          emoji ? H('span', { 'aria-hidden': 'true' }, emoji) : H(D.Icon, { name: 'plus', size: 24 })),
+        H('div', { style: { flex: 1 } }),
+        H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': x.rename,
+          onClick: () => this.setState({ editing: true }),
+          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none', flex: '0 0 auto' } },
+          H(D.Icon, { name: 'pencil', size: 20 })),
+        H('button', { type: 'button', 'aria-label': logged ? x.ringUnlog(name) : x.ringLog(name), onClick: fireHeader,
+          style: { width: 44, height: 44, flex: '0 0 auto', display: 'grid', placeItems: 'center',
+            borderRadius: 'var(--r-pill)', background: 'var(--p-transparent)', border: 0, cursor: 'pointer' } },
+          H('span', { 'aria-hidden': 'true', style: { display: 'grid', placeItems: 'center' } }, ringNode))),
+      H('div', { style: { width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
+        s.editing
+          ? H('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 8 } },
+              H('div', { style: { flex: 1, minWidth: 0 } },
+                H(D.Input, { defaultValue: name, 'aria-label': x.rename, autoFocus: true })),
+              H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ editing: false }) }, x.done))
+          : H('p', { style: { fontFamily: 'var(--font-display)', fontSize: s.width === 'wide' ? 28 : 22, fontWeight: 500,
+              letterSpacing: '-0.02em', lineHeight: 1.4, whiteSpace: 'normal', overflowWrap: 'anywhere' } }, name),
+        H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums' } }, sum))));
     if (h.tags) out.push(H('div', { key: 'tags', style: { display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 12 } },
       h.tags[lang].map((tag, i) => H('span', { key: i, style: { height: 28, display: 'inline-flex', alignItems: 'center',
         paddingInline: 10, borderRadius: 'var(--r-chip)', background: 'var(--bg-well)', color: 'var(--fg-2)',

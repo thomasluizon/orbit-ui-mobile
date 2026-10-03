@@ -1,10 +1,12 @@
 import React from 'react'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import * as ReactNative from 'react-native'
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -39,7 +41,10 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
+type HabitRowHost = Parameters<typeof measureProfileRow>[0]
+
 type TestTree = {
+  toJSON: () => HabitRowHost | HabitRowHost[] | null
   root: TestNode
   update: (element: React.ReactElement) => void
 }
@@ -104,7 +109,7 @@ const mocks = vi.hoisted(() => ({
         bestStreak: 9,
         badHabitSlips: 0,
         weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
-        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
+        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined as string | null | undefined }],
         needsAttention: [],
       },
       narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
@@ -249,6 +254,11 @@ function captureGoalCardRendering(card: TestNode) {
     return { resting: resolve(false), pressed: resolve(true) }
   })
   return { structure: structure(card)[0], styles }
+}
+
+function findProgressHabitHost(host: HabitRowHost): HabitRowHost | undefined {
+  if ('testID' in host.props && host.props.testID === 'progress-top-habit') return host
+  return (host.children ?? []).filter((child): child is HabitRowHost => typeof child !== 'string').map(findProgressHabitHost).find(Boolean)
 }
 
 function findPill(root: TestNode, label: string): TestNode {
@@ -615,7 +625,7 @@ describe('mobile ProgressContent', () => {
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
     mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
-    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
@@ -816,6 +826,61 @@ describe('mobile ProgressContent', () => {
     expect(title.props.numberOfLines).toBe(2)
     expect(title.props.selectable).toBe(true)
     expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+  })
+
+  it.each([320, 412].flatMap((width) => ['en', 'pt-BR'].flatMap((language) =>
+    [undefined, 'a08892c2-9a7c-4dc9-b70f-388be528420e'].map((habitId) => ({ width, language, habitId })),
+  )))('keeps the top habit label whole and title full width at $width pt ($language, $habitId)', async ({ width, language, habitId }) => {
+    await i18n.changeLanguage(language)
+    mocks.usePortugueseCatalog = true
+    try {
+      const name = 'Read a long chapter before discussing it with the reading group '.repeat(5)
+      Object.assign(mocks.retrospective.data.metrics.topHabits[0]!, { name, habitId })
+      const tree = await renderProgress()
+      const hosts = tree.toJSON()
+      const row = (Array.isArray(hosts) ? hosts : hosts ? [hosts] : []).map(findProgressHabitHost).find(Boolean)!
+      for (const scale of [1, 2]) {
+        const geometry = measureProfileRow(row, width - 32, scale)
+        const label = geometry.texts.find((text) => text.label === i18n.t('progressScreen.window.topHabit'))!
+        const title = geometry.texts.find((text) => text.label === name)!
+        expect(label.lines).toBe(1)
+        expect(label.clipped).toBe(false)
+        expect(label.right).toBeLessThanOrEqual(width - 48 - (habitId ? 36 : 0))
+        expect(title.left).toBe(16)
+        expect(title.right).toBe(width - 48)
+        expect(title.lines).toBe(2)
+        expect(title.clipped).toBe(true)
+        expect(geometry.height).toBeGreaterThanOrEqual(68)
+      }
+    } finally { mocks.usePortugueseCatalog = false; await i18n.changeLanguage('en') }
+  })
+
+  it('opens the top habit using the response id when ranked habits share a title', async () => {
+    const habitId = 'a08892c2-9a7c-4dc9-b70f-388be528420e'
+    const topHabit = mocks.retrospective.data.metrics.topHabits[0]!
+    const response = retrospectiveResponseSchema.parse({ ...mocks.retrospective.data,
+      metrics: { ...mocks.retrospective.data.metrics, topHabits: [
+        { ...topHabit, habitId },
+        { ...topHabit, habitId: 'c61da295-ea54-409c-84ec-5e0dca97a73f' },
+      ] },
+    })
+    Object.assign(topHabit, response.metrics.topHabits[0])
+    const tree = await renderProgress()
+    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'progress-top-habit')[0]
+    expect(row).toBeDefined()
+    expect(row!.props.accessibilityRole).toBe('link')
+    expect(row!.props.accessibilityLabel).toContain('Read')
+    await TestRenderer.act(() => { (row!.props.onPress as () => void)() })
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith({ pathname: '/habits/[id]', params: { id: habitId } })
+  })
+
+  it.each([undefined, null])('keeps a top habit without an id static (%s)', async (habitId) => {
+    mocks.retrospective.data.metrics.topHabits[0]!.habitId = habitId
+    const tree = await renderProgress()
+    const row = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
+    expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+    expect(row.props.onPress).toBeUndefined()
+    expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
   it('discloses the streak legend and keeps the top habit outside the figures', async () => {
