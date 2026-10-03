@@ -41,24 +41,26 @@ export default function ProfileScreen() {
         ref={scrollRef}
         testID="profile-scroller"
         style={styles.container}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
+        contentContainerStyle={{ paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
       >
-        <RootNotificationHeader inset={0} />
-        {error ? (
-          <View style={styles.errorBlock}>
-            <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
-              {__DEV__ && error instanceof Error
-                ? error.message
-                : t('errors.loadProfile')}
-            </Text>
-          </View>
-        ) : null}
-        <ProfileSettingsContent
-          profile={profile}
-          isLoading={isLoading}
-          patchProfile={patchProfile}
-        />
+        <RootNotificationHeader />
+        <View testID="profile-content" style={styles.scrollContent}>
+          {error ? (
+            <View style={styles.errorBlock}>
+              <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
+                {__DEV__ && error instanceof Error
+                  ? error.message
+                  : t('errors.loadProfile')}
+              </Text>
+            </View>
+          ) : null}
+          <ProfileSettingsContent
+            profile={profile}
+            isLoading={isLoading}
+            patchProfile={patchProfile}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
