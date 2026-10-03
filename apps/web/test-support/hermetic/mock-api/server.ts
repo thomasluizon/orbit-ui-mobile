@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { z, type ZodType } from 'zod'
 import { profileSchema, subscriptionStatusSchema } from '@orbit/shared/types/profile'
+import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { appConfigSchema } from '@orbit/shared/types/config'
 import { billingDetailsSchema, subscriptionPlansSchema } from '@orbit/shared/types/subscription'
 import { gamificationProfileSchema } from '@orbit/shared/types/gamification'
@@ -40,6 +41,7 @@ interface MockRoute {
 
 const routes: MockRoute[] = [
   { method: 'GET', path: '/api/profile', schema: profileSchema, body: profileFixture },
+  { method: 'GET', path: '/api/calendar/calendars', schema: userCalendarsSchema, body: [] },
   { method: 'GET', path: '/api/config', schema: appConfigSchema, body: configFixture },
   {
     method: 'GET',
@@ -143,6 +145,21 @@ function profileForRequest(req: IncomingMessage): unknown {
   }
 }
 
+function calendarsForRequest(req: IncomingMessage): unknown {
+  const authorization = req.headers.authorization
+  if (!authorization?.startsWith('Bearer ')) return []
+  const encodedPayload = authorization.slice('Bearer '.length).split('.')[1]
+  if (!encodedPayload) return []
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as unknown
+    const session = z.object({ hermeticCalendars: userCalendarsSchema.optional() }).parse(payload)
+    return session.hermeticCalendars ?? []
+  } catch {
+    return null
+  }
+}
+
 function handleCatchAll(method: string, pathname: string, res: ServerResponse): void {
   log(`unmapped ${method} ${pathname}`)
   if (method === 'POST' && pathname === '/api/auth/refresh') {
@@ -170,9 +187,12 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
   const route = routes.find((entry) => entry.method === method && entry.path === pathname)
   if (route) {
     log(`${method} ${pathname}`)
-    const body = pathname === '/api/profile' ? profileForRequest(req) : route.body
+    let body = route.body
+    if (pathname === '/api/profile') body = profileForRequest(req)
+    if (pathname === '/api/calendar/calendars') body = calendarsForRequest(req)
     if (body === null) {
-      sendJson(res, 400, { error: 'Invalid hermetic profile session' })
+      const fixture = pathname === '/api/profile' ? 'profile' : 'calendars'
+      sendJson(res, 400, { error: `Invalid hermetic ${fixture} session` })
       return
     }
     sendJson(res, 200, body)

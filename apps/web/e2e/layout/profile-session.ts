@@ -1,9 +1,10 @@
 import type { BrowserContext } from '@playwright/test'
+import type { UserCalendar } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
 import { HERMETIC_SESSION_EXPIRES, mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
 
-export async function setLayoutProfileSession(context: BrowserContext, profile: Profile): Promise<void> {
-  const token = mintHermeticJwt(profile)
+export async function setLayoutProfileSession(context: BrowserContext, profile: Profile, calendars?: UserCalendar[]): Promise<void> {
+  const token = mintHermeticJwt(profile, calendars)
   await context.addCookies(['auth_token', 'refresh_token'].map((name) => ({
     name,
     value: token,
