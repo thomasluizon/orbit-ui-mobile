@@ -4,6 +4,9 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
+import { createTokensV2 } from '@/lib/theme'
+import { buildYearRange } from '@orbit/shared/utils'
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
 import { useUIStore } from '@/stores/ui-store'
@@ -13,7 +16,7 @@ vi.unmock('@/components/ui/sheet')
 const pickerData = vi.hoisted(() => ({ goals: [] as Record<string, unknown>[] }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
@@ -29,11 +32,11 @@ vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRow', props),
 }))
 vi.mock('@lodev09/react-native-true-sheet', () => ({
-  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; footer?: React.ReactNode }> {
+  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
     present = vi.fn(() => Promise.resolve())
     dismiss = vi.fn(() => Promise.resolve())
     render() {
-      return <>{this.props.children}{this.props.footer}</>
+      return <><View testID="native-sheet-header">{this.props.header}</View>{this.props.children}<View testID="native-sheet-footer">{this.props.footer}</View></>
     }
   },
 }))
@@ -113,7 +116,18 @@ function scrolledRowsHeight(list: HostJson): number {
 function buildLayoutTree(element: HostJson, nodes: Map<HostJson, YogaNode>): YogaNode {
   const node = Yoga.Node.create()
   nodes.set(element, node)
-  const style = (StyleSheet.flatten(element.props.style as never) as LayoutStyle | undefined) ?? {}
+  const resolvedStyle = typeof element.props.style === 'function' ? (element.props.style as (state: { pressed: boolean }) => unknown)({ pressed: false }) : element.props.style
+  const style = (StyleSheet.flatten(resolvedStyle as never) as LayoutStyle | undefined) ?? {}
+  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (element.type === 'ScrollView') {
+    applyLayoutStyle(node, { ...SCROLL_VIEW_BASE_STYLE, ...style })
+    node.setOverflow(Yoga.OVERFLOW_SCROLL)
+    const content = Yoga.Node.create()
+    const rows = Math.ceil(hostChildren(element).length / 3)
+    content.setHeight(rows * 52 + 8)
+    node.insertChild(content, 0)
+    return node
+  }
   if (element.type === 'FlatList') {
     applyLayoutStyle(node, { ...SCROLL_VIEW_BASE_STYLE, ...style })
     node.setOverflow(Yoga.OVERFLOW_SCROLL)
@@ -199,6 +213,58 @@ describe('Sheet virtualized body (mobile)', () => {
 
   afterEach(() => {
     __resetTestHostConfig()
+  })
+
+  it.each([320, 412])('contains the calendar years and pinned action at 640x%i', async (height) => {
+    __setWindowDimensions({ width: 640, height, scale: 1, fontScale: 1 })
+    let tree: any
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08" previousMonthLabel="Previous" nextMonthLabel="Next"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={createTokensV2('orange', 'dark')} />)
+    })
+    const press = (label: string) => TestRenderer.act(() => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityLabel === label)[0].props.onPress())
+    press('February, calendar.monthPicker')
+    press('2026, common.selectYear')
+    const sheet = tree.root.findByType(TrueSheet)
+    const measured = ['native-sheet-header', 'native-sheet-footer'].map((testID) => {
+      const host = findHost(tree.toJSON(), (element) => element.props.testID === testID)!
+      const layout = buildLayoutTree(host, new Map())
+      try { layout.calculateLayout(640, undefined); return layout.getComputedHeight() } finally { layout.freeRecursive() }
+    })
+    expect(measured).toEqual([72, 108])
+    TestRenderer.act(() => {
+      sheet.props.header.props.onLayout({ nativeEvent: { layout: { height: measured[0] } } })
+      sheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: measured[1] } } })
+    })
+    const bodyElement = findHost(tree.toJSON(), (element) => element.props.testID === 'sheet-virtualized-body')!
+    const scrollElement = findHost(bodyElement, (element) => element.props.testID === 'year-picker-scroll')!
+    const spacerElement = findHost(bodyElement, (element) => element.props.testID === 'sheet-footer-space')!
+    const nodes = new Map<HostJson, YogaNode>()
+    const body = buildLayoutTree(bodyElement, nodes)
+    try {
+      body.calculateLayout(640, undefined)
+      const scroller = nodes.get(scrollElement)!
+      const viewport = scroller.getComputedHeight()
+      const scrollTop = topWithin(scroller, body)
+      const footerTop = topWithin(nodes.get(spacerElement)!, body)
+      expect(scrollTop + viewport).toBeLessThanOrEqual(body.getComputedHeight() - body.getComputedPadding(Yoga.EDGE_BOTTOM))
+      expect(footerTop + nodes.get(spacerElement)!.getComputedHeight()).toBeLessThanOrEqual(body.getComputedHeight() - body.getComputedPadding(Yoga.EDGE_BOTTOM))
+      expect(scrollTop + viewport).toBeLessThanOrEqual(footerTop)
+      expect(viewport).toBeGreaterThanOrEqual(48)
+      expect(viewport).toBeLessThan(240)
+      expect(body.getComputedHeight()).toBeLessThanOrEqual(height * 0.85 - 24 - measured[0]! - 24)
+      expect(findHost(bodyElement, (element) => element.props.testID === 'sheet-body-scroll')).toBeNull()
+      const years = buildYearRange(2026)
+      const contentHeight = scroller.getChild(0).getComputedHeight()
+      for (const index of [0, years.length - 1]) {
+        const rowTop = 4 + Math.floor(index / 3) * 52
+        const scrollOffset = index === 0 ? 0 : contentHeight - viewport
+        expect(rowTop - scrollOffset).toBeGreaterThanOrEqual(0)
+        expect(rowTop + 48 - scrollOffset).toBeLessThanOrEqual(viewport)
+      }
+      press(String(years.at(-1)!))
+      expect(tree.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === `${years.at(-1)}, common.selectYear`).length).toBeGreaterThan(0)
+    } finally { body.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
   })
 
   for (const picker of PICKERS) {

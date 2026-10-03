@@ -3,12 +3,13 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import type { CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
+vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <button aria-label="Avisos" /> }))
+vi.mock('@/components/shell/destination-shell', () => ({ useShellHeaderSlot: () => false }))
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import {
   buildCalendarMonthModel,
-  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   formatAPIDate,
   formatAPIDateInTimeZone,
 } from '@orbit/shared/utils'
@@ -299,18 +300,16 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
   CalendarWeekView: ({
-    onShowRecurringChange,
     onSelectDay,
     onNextWeek,
     columns,
   }: {
-    onShowRecurringChange: (value: boolean) => void
     onSelectDay: (date: string) => void
     onNextWeek: () => void
     columns: { dateStr: string }[]
   }) => (
     <>
-      <button type="button" data-testid="week-view" onClick={() => onShowRecurringChange(false)} />
+      <button type="button" data-testid="week-view" />
       <button type="button" data-testid="week-day" onClick={() => onSelectDay('2026-09-12')} />
       <button type="button" data-testid="next-week" onClick={onNextWeek} />
       <button type="button" data-testid="visible-week-day" onClick={() => onSelectDay(columns[3]!.dateStr)} />
@@ -385,6 +384,7 @@ describe('CalendarPage view switcher', () => {
   })
 
   beforeEach(() => {
+    useUIStore.setState({ calendarShowRecurring: true });
     calendarLocale = 'en'
     isWideDesktopValue = false
     calendarRouteSearch = ''
@@ -484,7 +484,7 @@ describe('CalendarPage view switcher', () => {
 
     expect(calendarDataCalls).toHaveBeenCalledTimes(1)
     expect(screen.getAllByRole('progressbar', { name: 'calendar.loading' })).toHaveLength(2)
-    expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '4')
+    expect(screen.getByTestId('calendar-grid-card').querySelector('[role="progressbar"]')).toHaveAttribute('data-cols', '7')
   })
 
   it('does not enable the calendar event request for a free profile', () => {
@@ -524,8 +524,7 @@ describe('CalendarPage view switcher', () => {
     vi.setSystemTime(now)
     profileQueryState.profile = undefined
     const { rerender } = render(<CalendarPage />)
-    const loadingRows = Number(document.querySelector('[data-variant="grid"] > [data-rows]')?.getAttribute('data-rows'))
-    const loadingHeight = loadingRows * 44 + (loadingRows - 1) * 4
+    const loadingRows = Number(screen.getByTestId('calendar-grid-card').querySelector('[role="progressbar"]')?.getAttribute('data-rows'))
 
     profileQueryState.profile = { weekStartDay, timeZone: 'UTC', hasProAccess: false }
     rerender(<CalendarPage />)
@@ -536,11 +535,12 @@ describe('CalendarPage view switcher', () => {
       weekStartDay,
       formatAPIDate(now),
     ).gridDays.length / 7
-    const loadedHeight = Number(screen.getByTestId('month-grid-days').style.minHeight.replace('px', ''))
+    const loadedHeight = screen.getByTestId('month-grid-days').style.minHeight
 
     expect(loadedRows).toBe(expectedRows)
-    expect(loadingHeight).toBe(loadedHeight)
-    expect(loadedHeight).toBe(CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT)
+    const expectedLoadingRows = buildCalendarMonthModel(loadedMonth, new Map(), 1, formatAPIDate(now)).gridDays.length / 7
+    expect(loadingRows).toBe(expectedLoadingRows)
+    expect(loadedHeight).toBe('')
   })
 
   it('shows a retryable error when the profile request fails', () => {
@@ -683,7 +683,7 @@ describe('CalendarPage view switcher', () => {
     expect(agendaViewProps.isLoading).toBe(true)
   })
 
-  it('shows all agenda habits after recurring entries are hidden in another view', () => {
+  it('keeps recurring entries hidden when switching to agenda', () => {
     const today = getMockAccountDateKey()
     rangeDayMap = new Map([
       [today, [
@@ -694,11 +694,11 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
-    fireEvent.click(screen.getByTestId('week-view'))
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
 
     expect(agendaViewProps.dayMap?.get(today)?.map((entry) => entry.habitId)).toEqual([
-      'recurring',
       'one-time',
     ])
   })
@@ -730,7 +730,7 @@ describe('CalendarPage view switcher', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
     const { container } = render(<div style={{ width: 412 }}><CalendarPage /></div>)
     const gridTrack = screen.getByTestId('calendar-grid-card') as HTMLElement
-    expect(Number.parseInt(gridTrack.style.width, 10)).toBeLessThanOrEqual(412)
+    expect(gridTrack).toHaveClass('orbit-calendar-grid-card')
     fireEvent.click(screen.getByTestId('month-view'))
     expect(container.querySelector('[data-testid="day-detail"]')).not.toBeNull()
     expect(calendarDayDetailProps.dateStr).toBe(calendarGridSelectionDate)
@@ -808,15 +808,16 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     expect(screen.getByTestId('day-detail')).toBeDefined()
-    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+    expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
     fireEvent.click(screen.getByTestId('calendar-header'))
     fireEvent.click(screen.getByTestId('month-view'))
 
     expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 1, 1))
     expect(calendarGridProps.selectedDateStr).toBe(futureDay)
-    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+    expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
   })
 
   it('logs a selected writable day with its selected date', async () => {
@@ -1060,6 +1061,9 @@ describe('CalendarPage view switcher', () => {
     }]]])
     render(<CalendarPage />)
 
+    expect(screen.queryByTestId('calendar-legend')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'calendar.legendTitle' }))
     expect(screen.getByTestId('calendar-legend')).toBeDefined()
     expect(calendarStatsProps.state).toBe('default')
   })
@@ -1092,8 +1096,9 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.getByTestId('day-detail')).toBeDefined()
     expect(screen.getByTestId('month-stats')).toBeDefined()
-    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
-    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+    expect(screen.queryByRole('switch', { name: 'calendar.showRecurring' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
 
     expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
     expect(screen.getByTestId('month-stats').getAttribute('data-state')).toBe('empty')
@@ -1115,7 +1120,8 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
 
     expect(screen.queryByRole('img', { name: /calendar\.dayCell\.none 0 calendar\.dayCell\.of 1/ })).not.toBeInTheDocument()
     expect(screen.getAllByRole('img', { name: /calendar\.dayCell\.notScheduled/ })).toHaveLength(14)

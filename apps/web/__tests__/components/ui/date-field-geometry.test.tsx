@@ -147,10 +147,10 @@ describe('DateField sheet geometry in Chromium', () => {
       }, years)
       expect(measured.owners).toBe(1)
       expect(measured.contained).toBe(true)
-      expect(measured.viewportHeight).toBeGreaterThanOrEqual(44)
+      expect(measured.viewportHeight).toBeGreaterThanOrEqual(48)
       expect(measured.targets).toHaveLength(years.length)
-      expect(measured.targets[3]!.top - measured.targets[0]!.top).toBe(48)
-      expect(measured.targets.every((target) => target.height === 44 && target.width >= 44)).toBe(true)
+      expect(measured.targets[3]!.top - measured.targets[0]!.top).toBe(52)
+      expect(measured.targets.every((target) => target.height === 48 && target.width >= 48)).toBe(true)
       expect(measured.reachable).toEqual([true, true, true])
     } finally { await page.close() }
   })

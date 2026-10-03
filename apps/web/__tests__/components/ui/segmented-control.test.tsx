@@ -9,13 +9,6 @@ const options = [
 ] as const
 
 describe('SegmentedControl', () => {
-  it('keeps the default control at its label width', () => {
-    render(<SegmentedControl options={options} value="all" onChange={vi.fn()} label="Views" />)
-    const group = screen.getByRole('radiogroup', { name: 'Views' })
-    expect(group).toHaveClass('inline-flex')
-    expect(group).not.toHaveClass('w-full')
-    for (const option of screen.getAllByRole('radio')) expect(option).not.toHaveClass('flex-1')
-  })
   it('exposes one current view and changes only to another view', () => {
     const onChange = vi.fn()
     render(

@@ -158,11 +158,11 @@ describe('DateField sheet geometry (mobile)', () => {
       try {
         body.calculateLayout(640, undefined)
         const viewportHeight = viewport.getComputedHeight()
-        expect(viewportHeight).toBeGreaterThanOrEqual(44)
+        expect(viewportHeight).toBeGreaterThanOrEqual(48)
         expect(viewport.getComputedTop() + viewportHeight).toBeLessThanOrEqual(body.getComputedHeight() - bodyStyle.paddingBottom)
         const years = buildYearRange(2025)
         expect(targets).toHaveLength(years.length)
-        expect(targets[3]!.getComputedTop() - targets[0]!.getComputedTop()).toBe(48)
+        expect(targets[3]!.getComputedTop() - targets[0]!.getComputedTop()).toBe(52)
         TestRenderer.act(() => {
           yearScroll.props.onLayout({ nativeEvent: { layout: { height: viewportHeight } } })
           yearScroll.props.onContentSizeChange(592, content.getComputedHeight())
@@ -174,8 +174,8 @@ describe('DateField sheet geometry (mobile)', () => {
         for (const index of [0, years.length - 1]) {
           const target = targets[index]!
           const offset = index === 0 ? 0 : content.getComputedHeight() - viewportHeight
-          expect(target.getComputedWidth()).toBeGreaterThanOrEqual(44)
-          expect(target.getComputedHeight()).toBe(44)
+          expect(target.getComputedWidth()).toBeGreaterThanOrEqual(48)
+          expect(target.getComputedHeight()).toBe(48)
           expect(target.getComputedTop() - offset).toBeGreaterThanOrEqual(0)
           expect(target.getComputedTop() - offset + target.getComputedHeight()).toBeLessThanOrEqual(viewportHeight)
         }

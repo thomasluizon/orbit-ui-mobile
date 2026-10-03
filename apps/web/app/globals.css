@@ -366,6 +366,19 @@
   flex: 1;
 }
 
+.orbit-menu-item[role="menuitemcheckbox"] {
+  align-items: flex-start;
+  padding-block: 16px;
+}
+
+.orbit-menu-check {
+  display: inline-flex;
+  flex: 0 0 20px;
+  height: 1.4em;
+  align-items: center;
+  justify-content: center;
+}
+
 .orbit-step-up {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1925,5 +1938,22 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
   .orbit-streak-badge:hover {
     --streak-count-color: var(--fg-2);
+  }
+}
+
+.orbit-calendar-grid-frame {
+  container-type: inline-size;
+}
+
+.orbit-calendar-grid-card {
+  --calendar-grid-gap: 4px;
+  width: 100%;
+  max-width: 332px;
+  margin-inline: auto;
+}
+
+@container (max-width: 331px) {
+  .orbit-calendar-grid-card {
+    --calendar-grid-gap: 0px;
   }
 }
