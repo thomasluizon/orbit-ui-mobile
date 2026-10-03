@@ -220,11 +220,13 @@ describe("HabitUnderstanding mobile", () => {
     TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} sentence={null} />));
     expect(tree.root.findAll((node) => node.type === "Proposed")).toHaveLength(0);
     const emojiSelectors = tree.root.findAll((node) => node.type === "HabitEmojiSelector");
-    expect(emojiSelectors).toHaveLength(1);
-    expect(emojiSelectors[0]!.props.selectedEmoji).toBe("🏃");
-    TestRenderer.act(() => (emojiSelectors[0]!.props.onSelect as (emoji: string) => void)(""));
+    expect(emojiSelectors).toHaveLength(0);
+    TestRenderer.act(() => tree.update(<HabitUnderstanding {...props} />));
+    const restoredSelector = tree.root.findAll((node) => node.type === "HabitEmojiSelector")[0]!;
+    expect(restoredSelector.props.selectedEmoji).toBe("🏃");
+    TestRenderer.act(() => (restoredSelector.props.onSelect as (emoji: string) => void)(""));
     expect(props.onEmojiSelect).toHaveBeenCalledWith("");
-    expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === labels.unresolved)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === labels.unresolved)).toHaveLength(0);
     expect(button(tree, "Segunda-feira").props.accessibilityState).toEqual({ selected: true });
   });
 
