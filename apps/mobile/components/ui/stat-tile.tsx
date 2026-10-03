@@ -94,9 +94,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
-  loadingValue: { minWidth: 64, alignItems: 'center', justifyContent: 'center' },
+  loadingValue: { width: '100%', maxWidth: 64, alignItems: 'center', justifyContent: 'center' },
   valueSkeleton: {
-    width: 64,
+    width: '100%',
     height: 24,
     borderRadius: 8,
   },

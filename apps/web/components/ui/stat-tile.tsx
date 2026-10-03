@@ -48,7 +48,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
       aria-busy={isLoading || undefined}
     >
       {isLoading ? (
-        <span aria-hidden="true" className="relative" style={{ minWidth: 64, fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.4 }}>
+        <span aria-hidden="true" className="relative" style={{ width: '100%', maxWidth: 64, fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.4 }}>
           <span className="invisible">0</span><span className="absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
         </span>
       ) : (

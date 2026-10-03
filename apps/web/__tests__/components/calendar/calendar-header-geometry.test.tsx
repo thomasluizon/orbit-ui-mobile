@@ -276,26 +276,55 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([false, true])('contains the range header and grid at 320 and 200% (loading=%s)', async (isLoading) => {
+  it.each([320, 360, 412].flatMap((width) => [false, true].map((isLoading) => ({ width, isLoading }))))('contains the production range statistics, header and grid at $width and 200% (loading=$isLoading)', async ({ width, isLoading }) => {
     const model = buildCalendarRangeModel(new Date(2026, 9, 6), seededDayMap('2026-10'), 1, '2026-10-06')
     const rangeLabel = ptBR.calendar.range.label.replace('{start}', format(model.start, 'd MMM', { locale: dateLocale })).replace('{end}', format(model.end, 'd MMM', { locale: dateLocale }))
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
       <CalendarRangeView model={model} weekdayLabels={['S', 'T', 'Q', 'Q', 'S', 'S', 'D']} rangeLabel={rangeLabel} previousRangeLabel="Previous range" nextRangeLabel="Next range" onPreviousRange={vi.fn()} onNextRange={vi.fn()} nextRangeDisabled={false} isLoading={isLoading} loadingLabel={ptBR.calendar.loading}
         stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: ptBR.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: ptBR.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: ptBR.calendar.missedCount }]} />
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
-        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await page.evaluate((scale) => {
+          document.documentElement.style.fontSize = `${16 * scale}px`
+          if (scale === 2) {
+            const fixedMetrics = [...document.querySelectorAll<HTMLElement>('section, div, p, span')].map((element) => ({
+              element, fontSize: element.style.fontSize, lineHeight: element.style.lineHeight,
+            }))
+            for (const { element, fontSize, lineHeight } of fixedMetrics) {
+              if (fontSize.endsWith('px')) element.style.fontSize = `${parseFloat(fontSize) * scale}px`
+              if (lineHeight.endsWith('px')) element.style.lineHeight = `${parseFloat(lineHeight) * scale}px`
+            }
+          }
+        }, scale)
         const geometry = await page.evaluate(() => {
           const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
-          return { gridWidth: frame.clientWidth, gridScroll: frame.scrollWidth, label: document.querySelector('p')!.getBoundingClientRect().left, targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right })) }
+          const stats = document.querySelector<HTMLElement>('[data-testid="calendar-stats"]')!
+          return { pageWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
+            statsLeft: stats.getBoundingClientRect().left, statsRight: stats.getBoundingClientRect().right,
+            placeholders: [...stats.querySelectorAll<HTMLElement>('[role="status"]')].map((value) => {
+              const bounds = value.lastElementChild!.getBoundingClientRect()
+              const figure = value.parentElement!.getBoundingClientRect()
+              return { left: bounds.left, right: bounds.right, width: bounds.width, figureLeft: figure.left, figureRight: figure.right, fontSize: parseFloat(getComputedStyle(value).fontSize) }
+            }), gridWidth: frame.clientWidth, gridScroll: frame.scrollWidth, label: document.querySelector('p')!.getBoundingClientRect().left, targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right })) }
         })
+        expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
+        expect(geometry.statsLeft).toBeGreaterThanOrEqual(0)
+        expect(geometry.statsRight).toBeLessThanOrEqual(width)
+        expect(geometry.placeholders).toHaveLength(isLoading ? 3 : 0)
+        for (const placeholder of geometry.placeholders) {
+          expect(placeholder.left).toBeGreaterThanOrEqual(placeholder.figureLeft)
+          expect(placeholder.right).toBeLessThanOrEqual(placeholder.figureRight)
+          expect(placeholder.width).toBeGreaterThan(0)
+          expect(placeholder.width).toBeLessThanOrEqual(64)
+          expect(placeholder.fontSize).toBe(22 * scale)
+        }
         expect(geometry.gridScroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.gridWidth)
         expect(geometry.label).toBe(16)
-        for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(48); expect(target.height).toBeGreaterThanOrEqual(48); expect(target.left).toBeGreaterThanOrEqual(16); expect(target.right).toBeLessThanOrEqual(304) }
+        for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(48); expect(target.height).toBeGreaterThanOrEqual(48); expect(target.left).toBeGreaterThanOrEqual(16); expect(target.right).toBeLessThanOrEqual(width - 16) }
       }
     } finally { await page.close() }
   })
