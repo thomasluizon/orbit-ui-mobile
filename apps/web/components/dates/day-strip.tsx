@@ -32,7 +32,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
             aria-current={state === 'today' ? 'date' : undefined}
             data-state={state}
             className="inline-flex items-center justify-center"
-            style={{ width: account ? size : `min(100%, var(--habit-strip-cell-size, ${size}px))`, height: account ? size : `var(--habit-strip-cell-size, ${size}px)`, flexShrink: account ? 1 : undefined, minWidth: 0, borderRadius: 8, ...cellStyle(state) }}
+            style={{ width: account ? size : `min(100%, var(--habit-strip-cell-size, ${size}px))`, height: account ? undefined : `var(--habit-strip-cell-size, ${size}px)`, aspectRatio: account ? 1 : undefined, flexShrink: account ? 1 : undefined, minWidth: 0, borderRadius: 8, ...cellStyle(state) }}
           >
             {state === 'frozen' ? (
               <Snowflake aria-hidden="true" size={16} strokeWidth={2} color="var(--bg)" />

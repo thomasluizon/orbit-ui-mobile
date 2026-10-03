@@ -29,7 +29,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
             accessibilityLabel={`${cellLabel}, ${getDayStripStateWord(props, state)}`}
             accessibilityState={{ selected: state === 'today' }}
             testID={`day-strip-cell-${state}`}
-            style={[{ width: size, height: size, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor, borderColor, borderWidth: borderColor === 'transparent' ? 0 : state === 'today' ? 2 : 1 }, account && styles.accountCell]}
+            style={[{ width: size, height: account ? undefined : size, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor, borderColor, borderWidth: borderColor === 'transparent' ? 0 : state === 'today' ? 2 : 1 }, account && styles.accountCell]}
           >
             {state === 'frozen' ? <Snowflake size={16} strokeWidth={2} color={tokens.bg} /> : null}
           </View>
@@ -43,5 +43,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   accountRow: { width: '100%', minWidth: 0, justifyContent: 'space-between', gap: 4 },
   habitRow: { width: '100%', minWidth: 0, justifyContent: 'space-between', gap: 0 },
-  accountCell: { flexShrink: 1, minWidth: 0 },
+  accountCell: { aspectRatio: 1, flexShrink: 1, minWidth: 0 },
 })
