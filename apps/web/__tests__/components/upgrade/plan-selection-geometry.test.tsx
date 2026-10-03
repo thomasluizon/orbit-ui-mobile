@@ -50,6 +50,61 @@ describe('Pro tier geometry in Chromium', () => {
   afterEach(cleanup)
   afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
+
+  const compactCases = [320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const)
+    .map((locale) => ({ width, locale })))
+
+  it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }])('fills the content column with equal period segments at $width in $locale', async ({ width, locale }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={false} /></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const geometry = await page.locator('[role="radiogroup"]').evaluate((group) => {
+        const bounds = group.getBoundingClientRect()
+        const column = group.parentElement!.getBoundingClientRect()
+        const segments = [...group.querySelectorAll('[role="radio"]')].map((segment) => {
+          const box = segment.getBoundingClientRect()
+          return { width: box.width, top: box.top, height: box.height }
+        })
+        return { width: bounds.width, columnWidth: column.width, segments }
+      })
+      expect(geometry.segments).toHaveLength(2)
+      expect(geometry.width).toBeCloseTo(width >= 1024 ? 320 : width - 32, 0)
+      expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
+      expect(geometry.segments[0]!.top).toBeCloseTo(geometry.segments[1]!.top, 0)
+      expect(geometry.segments[0]!.width).toBeCloseTo(geometry.segments[1]!.width, 0)
+      for (const segment of geometry.segments) expect(segment.height).toBeGreaterThanOrEqual(48)
+    } finally { await page.close() }
+  })
+
+  it.each(compactCases)('keeps both allowance captions whole on one line at $width in $locale', async ({ width, locale }) => {
+    const messages = locale === 'en' ? en : ptBR
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={false} /></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const captions = page.getByText(messages.upgrade.convert.perDay, { exact: true })
+      expect(await captions.count()).toBe(2)
+      const geometry = await captions.evaluateAll((elements) => elements.map((element) => {
+        const bounds = element.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        const fragments = [...range.getClientRects()]
+        const style = getComputedStyle(element)
+        return {
+          lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+          outside: fragments.some((fragment) => fragment.left < bounds.left - 1 || fragment.right > bounds.right + 1),
+          ellipsis: style.textOverflow === 'ellipsis' || Number.parseInt(style.webkitLineClamp) > 0,
+          fontSize: Number.parseFloat(style.fontSize),
+        }
+      }))
+      expect(geometry).toEqual(Array.from({ length: 2 }, () => ({ lines: 1, outside: false, ellipsis: false, fontSize: 14 })))
+    } finally { await page.close() }
+  })
+
   it.each([412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('measures loaded onboarding cards at $width in $locale', async ({ width, locale }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>

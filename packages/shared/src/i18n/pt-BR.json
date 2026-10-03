@@ -2598,7 +2598,7 @@
       "allowanceLabel": "Cota diária da Astra",
       "freeAllowance": "5",
       "proAllowance": "50",
-      "perDay": "mensagens por dia",
+      "perDay": "mensagens/dia",
       "allowanceNote": "As 5 do plano grátis dão para registrar o dia e pedir um ajuste. As 50 dão para reorganizar a semana quantas vezes precisar."
     },
     "outcomes": {
