@@ -288,7 +288,18 @@ describe('Calendar header geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
-        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        await page.evaluate((scale) => {
+          document.documentElement.style.fontSize = `${16 * scale}px`
+          if (scale === 2) {
+            const fixedMetrics = [...document.querySelectorAll<HTMLElement>('section, div, p, span')].map((element) => ({
+              element, fontSize: element.style.fontSize, lineHeight: element.style.lineHeight,
+            }))
+            for (const { element, fontSize, lineHeight } of fixedMetrics) {
+              if (fontSize.endsWith('px')) element.style.fontSize = `${parseFloat(fontSize) * scale}px`
+              if (lineHeight.endsWith('px')) element.style.lineHeight = `${parseFloat(lineHeight) * scale}px`
+            }
+          }
+        }, scale)
         const geometry = await page.evaluate(() => {
           const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
           const stats = document.querySelector<HTMLElement>('[data-testid="calendar-stats"]')!
@@ -297,7 +308,7 @@ describe('Calendar header geometry in Chromium', () => {
             placeholders: [...stats.querySelectorAll<HTMLElement>('[role="status"]')].map((value) => {
               const bounds = value.lastElementChild!.getBoundingClientRect()
               const figure = value.parentElement!.getBoundingClientRect()
-              return { left: bounds.left, right: bounds.right, width: bounds.width, figureLeft: figure.left, figureRight: figure.right }
+              return { left: bounds.left, right: bounds.right, width: bounds.width, figureLeft: figure.left, figureRight: figure.right, fontSize: parseFloat(getComputedStyle(value).fontSize) }
             }), gridWidth: frame.clientWidth, gridScroll: frame.scrollWidth, label: document.querySelector('p')!.getBoundingClientRect().left, targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right })) }
         })
         expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
@@ -309,6 +320,7 @@ describe('Calendar header geometry in Chromium', () => {
           expect(placeholder.right).toBeLessThanOrEqual(placeholder.figureRight)
           expect(placeholder.width).toBeGreaterThan(0)
           expect(placeholder.width).toBeLessThanOrEqual(64)
+          expect(placeholder.fontSize).toBe(22 * scale)
         }
         expect(geometry.gridScroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.gridWidth)
         expect(geometry.label).toBe(16)
