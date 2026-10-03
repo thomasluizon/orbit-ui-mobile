@@ -559,10 +559,11 @@ describe('ProfileScreen', () => {
     await TestRenderer.act(() => tree!.unmount())
     __setScrollToImpl(() => {})
   })
-  it('owns the drawn 16px top inset on the destination scroller', async () => {
+  it('owns the drawn 16px content inset below the destination bell', async () => {
     const tree = await renderProfileScreen()
     const scroller = tree.root.findByProps({ testID: 'profile-scroller' })
-    expect(StyleSheet.flatten(scroller.props.contentContainerStyle)).toMatchObject({
+    const content = scroller.findByProps({ testID: 'profile-content' })
+    expect(StyleSheet.flatten(content.props.style)).toMatchObject({
       paddingTop: 16,
       paddingHorizontal: 16,
     })
@@ -1868,7 +1869,7 @@ describe('ProfileScreen', () => {
 it('places the Perfil bell inside the page scroller and opens Avisos', async () => {
   const tree = await renderProfileScreen()
   const scroller = tree.root.findByProps({ testID: 'profile-scroller' })
-  const row = scroller.findByProps({ testID: 'root-notification-header' })
+  const row = scroller.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'root-notification-header')[0]!
   expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, justifyContent: 'flex-end' })
   const bell = row.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]
   TestRenderer.act(() => bell.props.onPress())
