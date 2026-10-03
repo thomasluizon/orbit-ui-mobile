@@ -42,14 +42,18 @@ export async function expectLabelsFit(page: Page) {
       const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
       const lines = new Set(fragments.map((rect) => Math.round(rect.top)))
       let clipped = false
+      let scrollsInline = false
+      let scrollsBlock = false
       for (let ancestor: HTMLElement | null = owner; ancestor; ancestor = ancestor.parentElement) {
         const ancestorStyle = getComputedStyle(ancestor)
         const clip = ancestor.getBoundingClientRect()
-        const clipsInline = ['hidden', 'clip'].includes(ancestorStyle.overflowX)
-        const clipsBlock = ['hidden', 'clip'].includes(ancestorStyle.overflowY)
+        const clipsInline = !scrollsInline && ['hidden', 'clip'].includes(ancestorStyle.overflowX)
+        const clipsBlock = !scrollsBlock && ['hidden', 'clip'].includes(ancestorStyle.overflowY)
         clipped ||= fragments.some((rect) =>
           (clipsInline && (rect.left < clip.left - 1 || rect.right > clip.right + 1))
           || (clipsBlock && (rect.top < clip.top - 1 || rect.bottom > clip.bottom + 1)))
+        scrollsInline ||= ['auto', 'scroll'].includes(ancestorStyle.overflowX)
+        scrollsBlock ||= ['auto', 'scroll'].includes(ancestorStyle.overflowY)
       }
       const outsideOwner = fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1)
       return [{ text: node.textContent.trim(), lines: lines.size, clipped: clipped || outsideOwner }]
