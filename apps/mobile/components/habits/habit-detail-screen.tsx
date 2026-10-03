@@ -141,13 +141,13 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
   )
 }
 
-function Metrics({ visible, loading, metrics, isBadHabit, tokens }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
+function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Readonly<{ visible: boolean; loading: boolean; error: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
   const { width, fontScale } = useWindowDimensions()
   const gridStyle = [styles.tileGrid, width / fontScale < 600 && styles.stackedTiles]
   if (!visible) return null
   if (loading) return <View accessible accessibilityRole="progressbar" accessibilityLabel={t('habits.detail.loading')} style={gridStyle}>{[isBadHabit ? 'daysFree' : 'currentStreak', 'longestStreak', 'monthlyRate'].map((key) => <View key={key} style={{ flex: 1 }} importantForAccessibility="no-hide-descendants"><StatTile state="loading" label={t(`habits.detail.${key}`)} loadingLabel={t('habits.detail.loading')} /></View>)}</View>
-  if (!metrics || metrics.totalCompletions === 0) return <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3, textAlign: 'center', paddingVertical: 16 }]}>{t('habits.detail.noDataYet')}</Text>
+  if (error || !metrics || metrics.totalCompletions === 0) return <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3, textAlign: 'center', paddingVertical: 16 }]}>{t('habits.detail.noDataYet')}</Text>
   const values = [
     { label: t(isBadHabit ? 'habits.detail.daysFree' : 'habits.detail.currentStreak'), value: String(metrics.currentStreak) },
     { label: t('habits.detail.longestStreak'), value: String(metrics.longestStreak) },
@@ -581,7 +581,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       </View>
       <FocusedRescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasPro={hasPro} locale={language} today={today} tokens={tokens} scheduleEditing={scheduleOpen} returnFocus={focusStrip} />
       <DetailChecklist editing={detailsOpen} items={habit.checklistItems} interactive onToggle={(index) => void toggleItem(index)} onItemsChange={(items) => { void setItems(items) }} onReset={() => { void setItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
-      <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
+      <Metrics visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} tokens={tokens} />
       <ReminderReadout habit={habit} tokens={tokens} />
       {children.length > 0 ? <Surface>
         <SectionTitle color={tokens.fg1}>{t('habits.detail.inside')}</SectionTitle>

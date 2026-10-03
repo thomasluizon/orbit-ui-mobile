@@ -12,15 +12,19 @@ import {
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {
-  HabitDetail,
-  HabitFullDetail,
-  HabitMetrics,
   HabitsFilter,
   HabitScheduleItem,
   NormalizedHabit,
   PaginatedResponse,
 } from '@orbit/shared/types/habit'
-import type { HabitLog } from '@orbit/shared/types/calendar'
+import {
+  createPaginatedSchema,
+  habitDetailSchema,
+  habitFullDetailSchema,
+  habitMetricsSchema,
+  habitScheduleItemSchema,
+} from '@orbit/shared/types/habit'
+import { habitLogSchema } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -32,6 +36,8 @@ export interface NormalizedHabitsData {
   totalPages: number
   currentPage: number
 }
+
+const habitPageSchema = createPaginatedSchema(habitScheduleItemSchema)
 
 const selectNormalizedHabits = (items: HabitScheduleItem[]): NormalizedHabitsData =>
   normalizeHabitQueryData(items)
@@ -53,7 +59,7 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
     queryFn: async (): Promise<HabitScheduleItem[]> => {
       const requestFilters = withDefaultPageSize(filters)
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
-      const firstPage = await apiClient<PaginatedResponse<HabitScheduleItem>>(firstQuery)
+      const firstPage = habitPageSchema.parse(await apiClient<unknown>(firstQuery))
 
       if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
@@ -66,7 +72,7 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
 
           const pageFilters = { ...requestFilters, page }
           const pageUrl = buildUrlWithQuery(API.habits.list, buildHabitQueryString(pageFilters))
-          return apiClient<PaginatedResponse<HabitScheduleItem>>(pageUrl)
+          return habitPageSchema.parse(await apiClient<unknown>(pageUrl))
         },
       )
       queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
@@ -99,7 +105,7 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
 export function useHabitDetail(id: string | null) {
   return useQuery({
     queryKey: habitKeys.detail(id ?? ''),
-    queryFn: () => apiClient<HabitDetail>(API.habits.get(id ?? '')),
+    queryFn: async () => habitDetailSchema.parse(await apiClient<unknown>(API.habits.get(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -108,7 +114,7 @@ export function useHabitDetail(id: string | null) {
 export function useHabitMetrics(id: string | null) {
   const query = useQuery({
     queryKey: habitKeys.metrics(id ?? ''),
-    queryFn: () => apiClient<HabitMetrics>(API.habits.metrics(id ?? '')),
+    queryFn: async () => habitMetricsSchema.parse(await apiClient<unknown>(API.habits.metrics(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -123,7 +129,7 @@ export function useHabitMetrics(id: string | null) {
 export function useHabitLogs(id: string | null) {
   return useQuery({
     queryKey: habitKeys.logs(id ?? ''),
-    queryFn: () => apiClient<HabitLog[]>(`${API.habits.get(id ?? '')}/logs`),
+    queryFn: async () => habitLogSchema.array().parse(await apiClient<unknown>(`${API.habits.get(id ?? '')}/logs`)),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -132,7 +138,7 @@ export function useHabitLogs(id: string | null) {
 export function useHabitFullDetail(id: string | null) {
   return useQuery({
     queryKey: habitKeys.fullDetail(id ?? ''),
-    queryFn: () => apiClient<HabitFullDetail>(API.habits.detail(id ?? '')),
+    queryFn: async () => habitFullDetailSchema.parse(await apiClient<unknown>(API.habits.detail(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })

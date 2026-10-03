@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   realReminderSections: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
+  metricsError: false,
   detail: null as HabitDetail | null,
   detailLoading: false,
   detailError: false,
@@ -95,7 +96,7 @@ vi.mock('@/app/(app)/today-provider', async () => {
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
-  useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
+  useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false, isError: mocks.metricsError }),
   useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, _initialItems?: unknown, options?: { completeDay?: boolean }) => {
     if (filters.dateFrom) {
       mocks.scopedCompleteDay = options?.completeDay ?? false
@@ -279,6 +280,16 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('dialog', { name: 'Create habit' })).toBeVisible()
   })
 
+  it.each(['valid', 'malformed'])('shows no data on a metrics error with %s cached values', (cached) => {
+    if (cached === 'malformed') mocks.metrics = {} as HabitMetrics
+    mocks.metricsError = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByText('noDataYet')).toBeInTheDocument()
+    expect(screen.queryByText('NaN%')).not.toBeInTheDocument()
+    expect(screen.queryByText('undefined')).not.toBeInTheDocument()
+    expect(screen.queryByText('75%')).not.toBeInTheDocument()
+  })
+
   it('groups a parent label, populated child card and creation row without empty status text', () => {
     render(<HabitDetailScreen habitId="habit-1" />)
     const section = screen.getByRole('heading', { name: 'habits.detail.inside' }).closest('section')!
@@ -313,6 +324,7 @@ describe('HabitDetailScreen', () => {
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
       { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
     ]
+    mocks.metricsError = false
     mocks.metrics = {
       currentStreak: 2,
       longestStreak: 4,
