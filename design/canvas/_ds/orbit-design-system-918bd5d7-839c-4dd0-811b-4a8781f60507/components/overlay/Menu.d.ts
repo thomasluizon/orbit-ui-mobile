@@ -17,6 +17,8 @@ export interface MenuItem {
   icon?: string;
   /** moves the item last, behind a separator, in --status-bad. Usually exactly one. */
   destructive?: boolean;
+  /** Present for a toggle item; exposes its selected state without changing selection on dismissal. */
+  checked?: boolean;
   disabled?: boolean;
   /** ONE short word at the row's inline end, rendered through the neutral Badge - e.g. 'Pro' on a
    *  plan-gated item ("Pro" is never translated). A badged item is a ROUTE, never a dead control: it

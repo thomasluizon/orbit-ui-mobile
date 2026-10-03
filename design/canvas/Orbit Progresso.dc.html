@@ -21,7 +21,20 @@ body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
 [data-dragging="true"]{opacity:.5;box-shadow:var(--sh-2);position:relative;z-index:2}
+
+.native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
+.native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.native-stat-caption{white-space:nowrap}
+/* A tile grows when larger text outgrows its available measure. */
+@container native-stat (width < 12em){.native-stat-caption{white-space:normal}}
+.native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
+.native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-send:hover:not(:disabled){background:var(--primary-hover)}
+.native-send:active:not(:disabled){background:var(--primary-pressed)}
+.native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -30,8 +43,9 @@ a:hover{color:var(--fg-1)}
   <div data-screen-label="Progresso" style="display:flex;gap:32px;align-items:flex-start">
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" tab-bar="{{ tabBar }}" composer="{{ composer }}" sheets="{{ sheet }}" hint-size="412px,820px">
-        <div style="display:flex;flex-direction:column;gap:32px;padding:16px">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ header }}" tab-bar="{{ tabBar }}" sheets="{{ sheet }}" hint-size="412px,820px">
+        <div data-native-scroll="true" style="display:flex;flex-direction:column;gap:32px;padding:16px">
+          {{ rootBell }}
 
           <sc-if value="{{ showMain }}" hint-placeholder-val="{{ true }}">
             <div style="display:flex;flex-direction:column;gap:16px">
@@ -41,10 +55,10 @@ a:hover{color:var(--fg-1)}
               </div>
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayStrip" scope="account" days="{{ strip }}" labels="{{ stripLabels }}" words="{{ stripWords }}" size="{{ n20 }}" label="{{ lblStripAria }}" hint-size="100%,20px"></x-import>
               {{ frozenBanner }}
-              {{ legend }}
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
+              {{ legendEntry }}
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
+                <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
+                <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
               </div>
               {{ bankCard }}
               {{ protectedBlock }}
@@ -77,7 +91,7 @@ a:hover{color:var(--fg-1)}
                   <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
                     <span style="font-size:17px;line-height:1.3;font-weight:500;color:{{ g.nameColor }}">{{ g.name }}</span>
                     <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ g.badgeVariant }}" hint-size="auto,22px">{{ g.badge }}</x-import>
+                      <x-import component-from-global-scope="OrbitNativeMobile.Badge" variant="{{ g.badgeVariant }}" hint-size="auto,22px">{{ g.badge }}</x-import>
                       <sc-if value="{{ g.hasFigure }}" hint-placeholder-val="{{ true }}">
                         <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ g.figure }}</span>
                       </sc-if>
@@ -97,11 +111,12 @@ a:hover{color:var(--fg-1)}
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblWindow }}</x-import>
               <sc-if value="{{ figGated }}" hint-placeholder-val="{{ false }}">{{ figLockCard }}</sc-if>
               <sc-if value="{{ figOpen }}" hint-placeholder-val="{{ true }}">
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                 <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ f.value }}" label="{{ f.label }}" state="{{ f.state }}" hint-size="100%,88px"></x-import>
+                  <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ f.value }}" label="{{ f.label }}" state="{{ f.state }}" hint-size="100%,88px"></x-import>
                 </sc-for>
               </div>
+              {{ topHabit }}
               </sc-if>
             </div>
 
@@ -136,7 +151,7 @@ a:hover{color:var(--fg-1)}
                         <p style="font-size:12px;line-height:1.4;color:var(--fg-3);text-wrap:pretty">{{ a.desc }}</p>
                       </div>
                       <sc-if value="{{ a.earned }}" hint-placeholder-val="{{ false }}">
-                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ a.earnedWord }}</x-import>
+                        <x-import component-from-global-scope="OrbitNativeMobile.Badge" hint-size="auto,22px">{{ a.earnedWord }}</x-import>
                       </sc-if>
                     </div>
                     <sc-if value="{{ a.hasBar }}" hint-placeholder-val="{{ true }}">
@@ -157,7 +172,7 @@ a:hover{color:var(--fg-1)}
                 <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
                   <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ dName }}</p>
                   <div style="display:flex;align-items:center;gap:8px">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ dBadgeVariant }}" hint-size="auto,22px">{{ dBadge }}</x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.Badge" variant="{{ dBadgeVariant }}" hint-size="auto,22px">{{ dBadge }}</x-import>
                     <sc-if value="{{ dHasFigure }}" hint-placeholder-val="{{ true }}">
                       <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dFigure }}</p>
                     </sc-if>
@@ -207,21 +222,21 @@ a:hover{color:var(--fg-1)}
                 </sc-if>
                 <div style="margin-inline:-16px">
                   <sc-for list="{{ dLinked }}" as="h" hint-placeholder-count="3">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ h.icon }}" title="{{ h.title }}" value="{{ h.value }}" on-click="{{ h.open }}" hint-size="100%,56px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="{{ h.icon }}" title="{{ h.title }}" value="{{ h.value }}" on-click="{{ h.open }}" hint-size="100%,56px"></x-import>
                   </sc-for>
                 </div>
               </div>
 
               {{ dHistory }}
               <div style="margin-inline:-16px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="pencil" title="{{ dEditLabel }}" chevron="{{ no }}" on-click="{{ dEdit }}" hint-size="100%,56px"></x-import>
+                <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="pencil" title="{{ dEditLabel }}" chevron="{{ no }}" on-click="{{ dEdit }}" hint-size="100%,56px"></x-import>
                 <sc-if value="{{ dCanReopen }}" hint-placeholder-val="{{ false }}">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="rotate" title="{{ dReopenLabel }}" chevron="{{ no }}" on-click="{{ dReopen }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="rotate" title="{{ dReopenLabel }}" chevron="{{ no }}" on-click="{{ dReopen }}" hint-size="100%,56px"></x-import>
                 </sc-if>
                 <sc-if value="{{ dCanAbandon }}" hint-placeholder-val="{{ true }}">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="circle-off" title="{{ dAbandonLabel }}" chevron="{{ no }}" on-click="{{ dAbandon }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="circle-off" title="{{ dAbandonLabel }}" chevron="{{ no }}" on-click="{{ dAbandon }}" hint-size="100%,56px"></x-import>
                 </sc-if>
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="trash" title="{{ dDeleteLabel }}" danger="{{ yes }}" chevron="{{ no }}" on-click="{{ dDelete }}" hint-size="100%,56px"></x-import>
+                <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="trash" title="{{ dDeleteLabel }}" danger="{{ yes }}" chevron="{{ no }}" on-click="{{ dDelete }}" hint-size="100%,56px"></x-import>
               </div>
             </div>
           </sc-if>
@@ -229,9 +244,9 @@ a:hover{color:var(--fg-1)}
           <sc-if value="{{ showLoading }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:32px">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="settings" rows="{{ n2 }}" label="{{ loadingLabel }}" hint-size="100%,120px"></x-import>
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                 <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" label="{{ f.label }}" state="loading" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+                  <x-import component-from-global-scope="OrbitNativeMobile.StatTile" label="{{ f.label }}" state="loading" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
                 </sc-for>
               </div>
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ loadingLabel }}" hint-size="100%,240px"></x-import>
@@ -254,7 +269,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" header="{{ header }}" items="{{ navItems }}" active-id="progresso" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" header="{{ header }}" items="{{ navItems }}" active-id="progresso" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:32px">
 
             <sc-if value="{{ showMain }}" hint-placeholder-val="{{ true }}">
@@ -265,10 +280,10 @@ a:hover{color:var(--fg-1)}
                 </div>
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.DayStrip" scope="account" days="{{ strip }}" labels="{{ stripLabels }}" words="{{ stripWords }}" size="{{ n24 }}" label="{{ lblStripAria }}" hint-size="100%,24px"></x-import>
                 {{ frozenBanner }}
-              {{ legend }}
-              <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
-                <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
+              {{ legendEntry }}
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
+                <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileBest }}" label="{{ lblBest }}" hint-size="100%,88px"></x-import>
+                <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ tileTier }}" label="{{ lblTier }}" hint-size="100%,88px"></x-import>
               </div>
               {{ bankCard }}
               {{ protectedBlock }}
@@ -303,7 +318,7 @@ a:hover{color:var(--fg-1)}
                     <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
                       <span style="font-size:17px;line-height:1.3;font-weight:500;color:{{ g.nameColor }}">{{ g.name }}</span>
                       <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ g.badgeVariant }}" hint-size="auto,22px">{{ g.badge }}</x-import>
+                        <x-import component-from-global-scope="OrbitNativeMobile.Badge" variant="{{ g.badgeVariant }}" hint-size="auto,22px">{{ g.badge }}</x-import>
                         <sc-if value="{{ g.hasFigure }}" hint-placeholder-val="{{ true }}">
                           <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ g.figure }}</span>
                         </sc-if>
@@ -325,9 +340,10 @@ a:hover{color:var(--fg-1)}
                 <sc-if value="{{ figOpen }}" hint-placeholder-val="{{ true }}">
                 <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px">
                   <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" value="{{ f.value }}" label="{{ f.label }}" state="{{ f.state }}" hint-size="100%,88px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.StatTile" value="{{ f.value }}" label="{{ f.label }}" state="{{ f.state }}" hint-size="100%,88px"></x-import>
                   </sc-for>
                 </div>
+              {{ topHabit }}
                 </sc-if>
               </div>
 
@@ -342,7 +358,7 @@ a:hover{color:var(--fg-1)}
               <div style="display:flex;flex-direction:column;gap:12px">
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.SectionTitle" hint-size="100%,28px">{{ lblAchievements }}</x-import>
               {{ achLockCard }}
-                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10em),1fr));gap:16px">
                   <sc-for list="{{ achievements }}" as="a" hint-placeholder-count="4">
                     <sc-if value="{{ a.catStart }}" hint-placeholder-val="{{ false }}"><p style="grid-column:1/-1;font-size:14px;font-weight:500;color:var(--fg-2);padding-top:4px">{{ a.cat }}</p></sc-if>
                     <div style="display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--bg-card);border-radius:var(--r-card);box-shadow:inset 0 0 0 1px var(--hairline-ghost)">
@@ -362,7 +378,7 @@ a:hover{color:var(--fg-1)}
                           <p style="font-size:12px;line-height:1.4;color:var(--fg-3);text-wrap:pretty">{{ a.desc }}</p>
                         </div>
                         <sc-if value="{{ a.earned }}" hint-placeholder-val="{{ false }}">
-                          <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" hint-size="auto,22px">{{ a.earnedWord }}</x-import>
+                          <x-import component-from-global-scope="OrbitNativeMobile.Badge" hint-size="auto,22px">{{ a.earnedWord }}</x-import>
                         </sc-if>
                       </div>
                       <sc-if value="{{ a.hasBar }}" hint-placeholder-val="{{ true }}">
@@ -383,7 +399,7 @@ a:hover{color:var(--fg-1)}
                   <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
                     <p style="font-family:var(--font-display);font-size:28px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ dName }}</p>
                     <div style="display:flex;align-items:center;gap:8px">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Badge" variant="{{ dBadgeVariant }}" hint-size="auto,22px">{{ dBadge }}</x-import>
+                      <x-import component-from-global-scope="OrbitNativeMobile.Badge" variant="{{ dBadgeVariant }}" hint-size="auto,22px">{{ dBadge }}</x-import>
                       <sc-if value="{{ dHasFigure }}" hint-placeholder-val="{{ true }}">
                       <p style="font-family:var(--font-mono);font-size:12px;color:var(--fg-3);font-variant-numeric:tabular-nums">{{ dFigure }}</p>
                     </sc-if>
@@ -433,21 +449,21 @@ a:hover{color:var(--fg-1)}
                   </sc-if>
                   <div>
                     <sc-for list="{{ dLinked }}" as="h" hint-placeholder-count="3">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="{{ h.icon }}" title="{{ h.title }}" value="{{ h.value }}" on-click="{{ h.open }}" hint-size="100%,56px"></x-import>
+                      <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="{{ h.icon }}" title="{{ h.title }}" value="{{ h.value }}" on-click="{{ h.open }}" hint-size="100%,56px"></x-import>
                     </sc-for>
                   </div>
                 </div>
 
                 {{ dHistory }}
                 <div>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="pencil" title="{{ dEditLabel }}" chevron="{{ no }}" on-click="{{ dEdit }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="pencil" title="{{ dEditLabel }}" chevron="{{ no }}" on-click="{{ dEdit }}" hint-size="100%,56px"></x-import>
                   <sc-if value="{{ dCanReopen }}" hint-placeholder-val="{{ false }}">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="rotate" title="{{ dReopenLabel }}" chevron="{{ no }}" on-click="{{ dReopen }}" hint-size="100%,56px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="rotate" title="{{ dReopenLabel }}" chevron="{{ no }}" on-click="{{ dReopen }}" hint-size="100%,56px"></x-import>
                   </sc-if>
                   <sc-if value="{{ dCanAbandon }}" hint-placeholder-val="{{ true }}">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="circle-off" title="{{ dAbandonLabel }}" chevron="{{ no }}" on-click="{{ dAbandon }}" hint-size="100%,56px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="circle-off" title="{{ dAbandonLabel }}" chevron="{{ no }}" on-click="{{ dAbandon }}" hint-size="100%,56px"></x-import>
                   </sc-if>
-                  <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ListRow" icon="trash" title="{{ dDeleteLabel }}" danger="{{ yes }}" chevron="{{ no }}" on-click="{{ dDelete }}" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="OrbitNativeMobile.ListRow" icon="trash" title="{{ dDeleteLabel }}" danger="{{ yes }}" chevron="{{ no }}" on-click="{{ dDelete }}" hint-size="100%,56px"></x-import>
                 </div>
               </div>
             </sc-if>
@@ -459,7 +475,7 @@ a:hover{color:var(--fg-1)}
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:12px">
                   <sc-for list="{{ figures }}" as="f" hint-placeholder-count="4">
-                    <x-import component-from-global-scope="OrbitDesignSystem_918bd5.StatTile" label="{{ f.label }}" state="loading" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
+                    <x-import component-from-global-scope="OrbitNativeMobile.StatTile" label="{{ f.label }}" state="loading" loading-label="{{ loadingLabel }}" hint-size="100%,88px"></x-import>
                   </sc-for>
                 </div>
                 <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Skeleton" variant="habit-row" rows="{{ n3 }}" label="{{ loadingLabel }}" hint-size="100%,240px"></x-import>
@@ -490,13 +506,13 @@ a:hover{color:var(--fg-1)}
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Progresso answers am I moving. It composes what used to be three screens, so the thing that keeps it one answer is a single descending column: the streak is the focal element, at 60px, bare on the canvas with no card around it, because it is the only thing here in the present tense and the only thing carrying an action. Goals come second as the toward what. Four figures come third in one window. Achievements come last, smallest type on the screen. Nothing is a card unless it is a separable object, so the four sections carry only a section title and space between them, never a panel each.</p>
       <p><span style="color:var(--fg-3)">not&nbsp;&nbsp;</span>not a trophy cabinet and not a chart gallery. No chart, no new shape: every figure is StatTile, ProgressBar or ProgressRing, and nothing needed a shape the system cannot draw.</p>
-      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>The shell composer, Astra glyph button and suggestion chips appear on Hoje only on web and Android, at every width. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation keeps its existing overlay or side panel when destinations change.</p>
+      <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>The one-line composer appears on Hoje and habit detail on both platforms. Hoje suggestions move into the conversation; habit detail keeps its chips. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation keeps its existing overlay or side panel when destinations change.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>default, gap, no freeze, bank full, frozen today, goal at 100, abandoned goal, goal detail, linked at limit, loading, error, empty, Astra at limit. A plan axis sits beside the state, free or Pro, defaulting to free: a plan is an account fact that survives a state change, so it never sits on the state axis. Reached by using the screen rather than the axis: the goal detail by tapping a goal, the filters and their empty case by tapping completed, the edit sheet, the reopen on an abandoned goal, the history’s show all, and reordering by dragging a goal card.</p>
       <p><span style="color:var(--fg-3)">record&nbsp;&nbsp;</span>a record is not a next action, so the accent is absent from every finished thing: an earned achievement is neutral, the streak total is neutral, and a goal at 100 renders status-done as a filled disc with a check rather than a ring at full sweep, so there is no intermediate flip between the two shapes. Below 100 the ring sweeps primary over the status-empty track. The accent enters only on progress toward something unfinished.</p>
-      <p><span style="color:var(--fg-3)">streak&nbsp;&nbsp;</span>one streak per person, never one per habit. Three figures, the shipping three (StreakStatsRow, streak-sections.tsx:46-61): the current streak as the focal 60px number, and the longest streak and the tier as two tiles under the strip; the tier’s vocabulary lives in streakDisplay.detail.tierTileLabel, so the word drawn is a fixture of that ladder. The strip carries exactly four derived values, active frozen missed today, and under it the legend names its marks in words (StreakTimelineCard): day active, day frozen, day missed, because colour and shape alone are not carriers. The freeze bank is drawn as FreezeProgressCard draws it: freezes banked over the ceiling of 3, freezes used this month, and the days toward the next freeze as a bar over the 7 day earn rate, resting while the bank is full. Protected days list each frozen day by date, protected today included, with their own empty line when none exist. When today itself is frozen the frozen banner says so above the strip (streak-frozen-banner.tsx, mounted at page.tsx:88); the earlier claim here that today can never be frozen contradicted that mounted banner and is gone. An unlogged today still renders as today, not as missed, and the number stands while the day is open.</p>
+      <p><span style="color:var(--fg-3)">streak&nbsp;&nbsp;</span>one streak per person, never one per habit. Three figures, the shipping three (StreakStatsRow, streak-sections.tsx:46-61): the current streak as the focal 60px number, and the longest streak and the tier as two tiles under the strip; the tier’s vocabulary lives in streakDisplay.detail.tierTileLabel, so the word drawn is a fixture of that ladder. The strip carries exactly four derived values, active frozen missed today, and an info button opens a sheet naming its marks in words (StreakTimelineCard): day active, day frozen, day missed, because colour and shape alone are not carriers. The freeze bank is drawn as FreezeProgressCard draws it: freezes banked over the ceiling of 3, freezes used this month, and the days toward the next freeze as a bar over the 7 day earn rate, resting while the bank is full. Protected days list each frozen day by date, protected today included, with their own empty line when none exist. When today itself is frozen the frozen banner says so above the strip (streak-frozen-banner.tsx, mounted at page.tsx:88); the earlier claim here that today can never be frozen contradicted that mounted banner and is gone. An unlogged today still renders as today, not as missed, and the number stands while the day is open.</p>
       <p><span style="color:var(--fg-3)">repair&nbsp;&nbsp;</span>the person comes back, the surface shows the gap, and spending a freeze on it is an action they take. Nothing is applied silently on their behalf. The copy names the circumstance and never the person, states how many days are open and how many freezes exist, and the button states how many it will spend. When the bank is empty there is no action and no blame: the line says what happens next and when the next freeze arrives. The bank ceiling is 3, one earned every 7 streak days, and a full bank is the one genuine at capacity state here: neutral, stating the limit, no upgrade action.</p>
       <p><span style="color:var(--fg-3)">plan&nbsp;&nbsp;</span>free is the default because it is the account most people have and the harder case to get right. Two gates draw from both sides, and both state which way the decisions point: achievements are hard gated on Pro in the shipping code, so a free account sees the locked state (achievements-locked-state.tsx) with the route to Orbit Pro and the line naming api #332 as the ungating; the four figures come from the retrospective, whose endpoint defaults Pro (PayGateService.cs:141, RetrospectiveProOnly), so the window section gets the same two sided treatment. Goals are ungated and stay ungated: D70 item 3 moved them out of the paywall, and a gate a decision removed does not come back. Every gated tap leaves for Orbit Pro through one route; a gated affordance is never a disabled control and never a silent no-op.</p>
-      <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>three statuses and no others, active completed abandoned, under four views of one list: all, active, completed, abandoned (goals-view.tsx:29-32), a SegmentedControl because they are views of the same thing. A filter that matches nothing gets its own empty line and an action that clears the filter (:55-58); completed shows it against this fixture, since no goal here has been completed yet. Goals reorder by dragging with the whole card as the handle, the same gesture Hoje’s list uses: hold and move, at 300ms with a 5px tolerance on touch and a 5px drag with a pointer, the order written on release (ReorderGoalsCommand, the reorder_goals tool); dragging runs on the unfiltered list. An active goal carries one tracking word, on track at risk behind or no deadline, and an abandoned goal reports nothing: no ring, no tracking word, no figure. No goal has a colour, an icon or an emoji. There is no create entry: a goal is made from a habit or by asking, which is why the empty state’s action routes to a habit rather than to a form. The detail gained the rest of the shipping surface: the goal’s own progress history with its show all toggle (goal-detail-sections.tsx:30-111), the linked habits section (:216), and the full footer, edit, mark abandoned, delete with a confirmation naming what goes, and REOPEN on an abandoned goal, which exists twice in the code (goal-action-footer.tsx:55 renders reactivate, UpdateGoalStatusCommand.cs:44 runs goal.Reactivate(), and RestoreGoalCommand.cs is its own command), so the earlier open question claiming no restore path was false and is deleted.</p>
+      <p><span style="color:var(--fg-3)">goals&nbsp;&nbsp;</span>three statuses and no others, active completed abandoned, under four filters in one menu: all, active, completed, abandoned. The selected filter labels the visible entry. A filter that matches nothing gets its own empty line and an action that clears the filter (:55-58); completed shows it against this fixture, since no goal here has been completed yet. Goals reorder by dragging with the whole card as the handle, the same gesture Hoje’s list uses: hold and move, at 300ms with a 5px tolerance on touch and a 5px drag with a pointer, the order written on release (ReorderGoalsCommand, the reorder_goals tool); dragging runs on the unfiltered list. An active goal carries one tracking word, on track at risk behind or no deadline, and an abandoned goal reports nothing: no ring, no tracking word, no figure. No goal has a colour, an icon or an emoji. There is no create entry: a goal is made from a habit or by asking, which is why the empty state’s action routes to a habit rather than to a form. The detail gained the rest of the shipping surface: the goal’s own progress history with its show all toggle (goal-detail-sections.tsx:30-111), the linked habits section (:216), and the full footer, edit, mark abandoned, delete with a confirmation naming what goes, and REOPEN on an abandoned goal, which exists twice in the code (goal-action-footer.tsx:55 renders reactivate, UpdateGoalStatusCommand.cs:44 runs goal.Reactivate(), and RestoreGoalCommand.cs is its own command), so the earlier open question claiming no restore path was false and is deleted.</p>
       <p><span style="color:var(--fg-3)">derived&nbsp;&nbsp;</span>only a streak goal derives its progress, from the smallest current streak among its linked habits, so it hides the manual input and the surface names what the number comes from. Every other goal keeps its manual input however many habits are linked, because that input is the only control that can move it. A derived value is not a proposed value: it renders like a typed one and wears no dashed hairline. That is today's behaviour and the drawing is right. D69's wording says a goal with linked habits derives its progress, so the rule is half implemented on the api side; ticket #340 on the api carries the gap, and until it lands the manual input on a linked goal is correct rather than a bug.</p>
       <p><span style="color:var(--fg-3)">completion&nbsp;&nbsp;</span>a streak goal can sit at 100 while still active, because the read path refreshes the value and never changes the status. So completion is drawn as a write the person makes: at 100 an active goal shows one neutral action that finishes it, with a line stating why it is not automatic. The action is the fg-1 fill rather than the accent, because the accent never marks completion, which also leaves the repair as the only accent-filled action on the screen.</p>
       <p><span style="color:var(--fg-3)">achievements&nbsp;&nbsp;</span>grouped, not flat: achievements/page.tsx:96-99 maps achievementsByCategory through a section per category, so the grid carries a heading at each category start; the category names here are fixtures of that grouping. The XP row stays exactly as ruled on 2026-08-20: one row above the grid, level and title on one line, the figure on the other end, one bar beneath. Earned and unearned differ by shape before colour: earned is a filled status-done disc with the glyph knocked out, unearned a hollow ring at hairline-strong with the glyph at fg-3. In progress is derived from a current over a target, both null on a one shot achievement, so that tile has no bar rather than an empty one. Social, Sharing and Together stay hidden, and stopping the API from returning them is the real fix, api #332. Nothing is secret: every name and description shows while unearned.</p>
@@ -522,7 +538,7 @@ const H = React.createElement;
 const F = React.Fragment;
 const BASE = new Date(2026, 7, 18);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 
 const A = 'active', FR = 'frozen', M = 'missed', TD = 'today';
@@ -551,7 +567,7 @@ const T = {
     completedWord: 'concluída', abandonedWord: 'abandonada',
     goalRing: (n) => 'Progresso de ' + n,
     window: 'Últimos 30 dias',
-    figures: ['Taxa de conclusão', 'Dias com registro', 'Melhor dia da semana', 'Hábito mais constante'],
+    figures: ['Conclusão', 'Registros', 'Melhor dia', 'Hábito'],
     figureValues: ['78%', '24', 'quinta', 'Caminhada'],
     level: ['Nível ', '7', ' · Constante'],
     xp: ['', '340', ' / ', '500', ' XP'],
@@ -650,7 +666,7 @@ const T = {
     completedWord: 'completed', abandonedWord: 'abandoned',
     goalRing: (n) => 'Progress of ' + n,
     window: 'Last 30 days',
-    figures: ['Completion rate', 'Days logged', 'Best day of the week', 'Most consistent habit'],
+    figures: ['Completion', 'Logs', 'Best day', 'Habit'],
     figureValues: ['78%', '24', 'Thursday', 'Walk'],
     level: ['Level ', '7', ' · Steady'],
     xp: ['', '340', ' / ', '500', ' XP'],
@@ -870,7 +886,7 @@ class Component extends DCLogic {
       : kind === 'f'
         ? H('span', { 'aria-hidden': 'true', style: { color: 'var(--status-frozen)', display: 'grid', placeItems: 'center', flex: '0 0 auto' } }, H(D.Icon, { name: 'snowflake', size: 16 }))
         : H('span', { 'aria-hidden': 'true', style: { width: 12, height: 12, borderRadius: 'var(--r-pill)', boxShadow: 'inset 0 0 0 1.5px var(--status-empty)', flex: '0 0 auto' } });
-    const legend = H('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } },
+    const legend = H('div', { style: { display: 'grid', gap: 16 } },
       ['a', 'f', 'm'].map((k) => H('span', { key: k, style: { display: 'inline-flex', alignItems: 'center', gap: 6,
         fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, swatch(k), t.lgd[k])));
     const frozenBanner = frozenToday ? H('div', { role: 'status', style: { display: 'flex', alignItems: 'center', gap: 12,
@@ -951,7 +967,7 @@ class Component extends DCLogic {
     const dDone = gStatus === 'completed' || (!dAbandoned && dPct >= 100);
 
     const figures = t.figures.map((label, i) => ({
-      label: label, value: mock(t.figureValues[i]), state: 'default',
+      label: label, value: mock(i === 2 ? t.figureValues[i].slice(0, 3) : t.figureValues[i]), state: 'default',
     }));
 
     /* achievementsByCategory: the grid is grouped, a heading at each category start; Social, Sharing
@@ -977,7 +993,7 @@ class Component extends DCLogic {
       H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
         H('span', { style: { color: 'var(--fg-3)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
           H(D.Icon, { name: 'lock', size: 20 })),
-        H(D.Badge, null, 'Pro')),
+        H(window.OrbitNativeMobile.Badge, null, 'Pro')),
       H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)', textWrap: 'pretty' } }, lineTxt),
       H('div', null, H(D.Button, { variant: 'ghost', size: 'sm', onClick: this.goPro }, t.seePro)));
 
@@ -988,12 +1004,14 @@ class Component extends DCLogic {
     return Object.assign(base, {
       /* No page title on the main view: the tab already names the place, and the streak is the
          first thing. The header exists only where there is something to go back to. */
-      header: detailOpen ? H(D.NavHeader, { title: t.goals, onBack: this.closeGoal, backLabel: t.back }) : null,
+      header: detailOpen ? H(window.OrbitNativeMobile.NavHeader, { title: t.goals, onBack: this.closeGoal, backLabel: t.back }) : null,
 
       showMain: showMain,
       streak: streak, lblStreak: t.streakLabel(streak),
       strip: strip, stripLabels: labels,
-      frozenBanner: frozenBanner, legend: legend,
+      rootBell: H(window.OrbitNativeMobile.BellRow),
+      frozenBanner: frozenBanner,
+      legendEntry: H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Legend' : 'Legenda', onClick: () => this.setState({ legendOpen: true }) }, H(D.Icon, { name: 'info-circle', size: 24 })),
       tileBest: mock('21'), lblBest: t.lblBest,
       tileTier: mock(t.tierValue), lblTier: t.lblTier,
       bankCard: bankCard, protectedBlock: protectedBlock,
@@ -1011,9 +1029,7 @@ class Component extends DCLogic {
       goals: (s.ord || [0, 1, 2, 3, 4]).map((i) => goalNode(t.goalsData[i], i))
         .filter((g) => s.filter === 'all' || g.status === s.filter),
       /* goals-view.tsx:29-32: all, active, completed, abandoned, one list under four views. */
-      goalFilter: H(D.SegmentedControl, { label: t.filterLabel, value: s.filter,
-        onChange: (id) => this.setState({ filter: id }),
-        options: ['all', 'active', 'completed', 'abandoned'].map((id) => ({ id: id, label: t.filters[id] })) }),
+      goalFilter: H(D.Button, { variant: 'ghost', size: 'sm', onClick: () => this.setState({ filterOpen: true }) }, t.filters[s.filter]),
       goalsEmptyFiltered: showMain && s.filter !== 'all'
         && (s.ord || [0, 1, 2, 3, 4]).map((i) => goalNode(t.goalsData[i], i))
           .filter((g) => g.status === s.filter).length === 0,
@@ -1027,7 +1043,8 @@ class Component extends DCLogic {
       figGated: !pro, figOpen: pro,
       figLockCard: lockCard(t.figLockedLine),
 
-      figures: figures,
+      figures: figures.slice(0, 3),
+      topHabit: H(window.OrbitNativeMobile.ListRow, { title: t.figures[3], description: mock(t.figureValues[3]), onClick: () => { window.location.href = 'Orbit Habit Detail.dc.html'; } }),
       levelLine: line(t.level, [1]), xpLine: line(t.xp, [1, 3]), xpValue: 340, xpMax: 500,
       achievements: achievements,
 
@@ -1088,17 +1105,10 @@ class Component extends DCLogic {
       showEmpty: st === 'empty', emptyTitle: t.empty,
       emptyAction: H(D.Button, { size: 'sm', variant: filled, onClick: () => {} }, t.emptyAction),
 
-      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'progresso', onSelect: () => {} }),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
-      composer: H(D.Composer, {
-        state: st === 'at limit' ? 'atLimit' : 'resting',
-        chips: (st === 'loading' || st === 'error') ? [] : t.chips,
-        limitReason: H('span', null, line(t.limit, [1])),
-        words: t.composerWords,
-        onOpen: () => {}, onChipPress: () => {},
-      }),
-      sheet: s.editOpen ? H(D.Sheet, { open: true, title: t.editTitle,
+      sheet: s.filterOpen ? H(D.Menu, { open: true, title: t.filterLabel, onClose: () => this.setState({ filterOpen: false }), items: Object.entries(t.filters).map(([id, label]) => ({ id, label, checked: s.filter === id })), onSelect: (id) => this.setState({ filter: id, filterOpen: false }) }) : s.legendOpen ? H(D.Sheet, { open: true, title: t.lang === 'en' ? 'Legend' : 'Legenda', onClose: () => this.setState({ legendOpen: false }) }, legend) : s.editOpen ? H(D.Sheet, { open: true, title: t.editTitle,
         onClose: () => this.setState({ editOpen: false }),
         actions: H(F, null,
           H(D.Button, { size: 'sm', variant: 'ghost', onClick: () => this.setState({ editOpen: false }) }, t.cancel),

@@ -20,7 +20,13 @@
 body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
+.native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
+.native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-send:hover:not(:disabled){background:var(--primary-hover)}
+.native-send:active:not(:disabled){background:var(--primary-pressed)}
+.native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -109,7 +115,7 @@ const H = React.createElement;
 const F = React.Fragment;
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 
 const T = {
   'pt-BR': {
@@ -276,7 +282,7 @@ class Component extends DCLogic {
         limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
         words: t.composerWords, onOpen: () => {}, onChipPress: () => {} }),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
-      tabBar: H(D.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
+      tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'hoje', onSelect: () => {} }),
     });
   }

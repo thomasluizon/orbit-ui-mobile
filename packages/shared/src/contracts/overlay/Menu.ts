@@ -4,6 +4,8 @@ export interface MenuItem {
   label: string
   icon?: string
   destructive?: boolean
+  /** Present for a toggle item; exposes its selected state without changing selection on dismissal. */
+  checked?: boolean
   disabled?: boolean
   badge?: string
 }

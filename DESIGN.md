@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including the native mobile rule, disclosure, label and typed-text handling, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -64,9 +64,10 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 **Astra is not a place.** There is no Astra tab, no Astra screen in the navigation, and no bubble.
 
-1. **The front door** is ONE persistent composer in the shell on Hoje only. Above
-   it sit **3 to 6 suggestion chips built from live state**, never from a static list: what is
-   overdue, which streak is at risk, which habit has no goal.
+1. **The front door** is ONE persistent one-line composer in the shell on Hoje. The
+   **3 to 6 suggestion chips built from live state**, never from a static list, open with the
+   conversation above its input: what is overdue, which streak is at risk, which habit has no goal.
+   Habit detail keeps its own composer with its habit chips in one scroll row, never ellipsized.
 2. **The layer** is an inline AI affordance on every object it can improve. Schedule, breakdown,
    emoji, reschedule and goal link are all **proposals a person accepts or edits**, never silent
    writes.
@@ -94,7 +95,7 @@ client asks for them deliberately.
 | **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on Hoje only |
 | **web** | sidebar, the same four | composer pinned at the bottom of the 740 column, on Hoje only |
 
-**No drawer and no hamburger on either platform.** The composer and its suggestion chips stay visible on Hoje only.
+**No navigation drawer and no hamburger on either platform.** Navigation is the four destinations and nothing else. A bottom sheet, menu or dialog that holds secondary content is not navigation; in the compact shell (Android at every width, web below 1024) it is the default home for that content. The composer stays visible on Hoje and on habit detail only.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 
 **The conversation renders as an overlay on mobile and as a side panel at the wide breakpoint.** That
@@ -102,13 +103,25 @@ is one feature in two presentations, which the responsive rules already govern. 
 shell divergence.
 
 **The composer sits in the same place on both platforms: pinned to the bottom of the content column.**
-A 232px sidebar cannot hold the input, 3 to 6 chips and send control at their minimum sizes.
-The sidebar carries navigation and identity only: the lockup, search control, four destinations,
-one filled create action, and account row.
+A 232px sidebar cannot hold the input, attach menu and send control at their minimum sizes.
+The sidebar carries navigation, identity and the notifications entry only: the lockup, search
+control, four destinations, the Avisos bell with its neutral count pill, one filled create action, and account row.
 
-**The way in must be visible.** Focus alone is not an affordance, so the Astra glyph at the head of
-the composer is a real button with a 44px target, a hover state and a focus ring, labelled
-`Abrir conversa`. A person who never types into the bar can still find the conversation.
+**The way in must be visible.** Focus alone is not an affordance, so the Astra glyph at the leading
+edge inside the composer pill is a real button with a hit area at the touch floor, a padded hover and press fill and a
+focus ring, labelled `Abrir conversa`. A person who never types into the bar can still find the conversation.
+
+**Avisos is reachable from every destination.** In the compact shell (Android at every width,
+web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
+The Avisos bell is the last control at the trailing edge, with a hit area at the touch floor and
+a neutral count pill: absent at zero, capped at 9+, no dot, no accent. Hoje holds the Hoje jump pill
+only on another day, then search, options (`dots-vertical`) and the bell. Calendário holds options
+and the bell. Progresso and Perfil start with a minimum-height 48 row holding only the bell at the
+same trailing edge; that row scrolls with the page and carries no screen title. Avisos does not
+repeat the bell. Screen options always use `dots-vertical`.
+
+**Back-to-top belongs only to Hoje**, as a small top-centre pill below its pinned header, separate
+from the create FAB. Reselecting the active root tab scrolls that root to the top on every root.
 
 ### What each surface IS
 
@@ -134,7 +147,10 @@ for, and building that instead is the defect.
 ### Perfil settings navigation
 
 Perfil starts with the account row, then Preferências, Astra and Notificações. Each entry opens
-one sub-screen with a page title and a visible back control returning to Perfil. The account row
+one sub-screen with a page title and a visible back control returning to Perfil. Every top-level row
+carries a 24 leading icon: `User` for the account row, `Crown` for Orbit Pro, `Settings`
+for Preferências, `AstraGlyph` for Astra, `Bell` for Notificações. A row title and its value or
+description each take one line. The trial end date lives on the Pro screen. Calendar sync opens the Calendários sheet, its one home. The account row
 keeps the name and email; the position directly beneath it stays available for Orbit Pro.
 
 Conta owns edit name, data export, usage analytics, fresh start and account deletion, in that order.
@@ -144,7 +160,8 @@ feature switches and Pro gates, then API keys and MCP. Notificações owns the c
 controls, product email consent and the note that habit reminders live on each habit.
 
 Mais do Orbit stays inline with Orbit Wrapped, Android widget, calendar sync, support and about,
-in that order. Calendar sync keeps its Pro gate. Sign out is the final top-level row. Each setting
+in that order. Calendar sync opens the Calendários sheet, its one home, and keeps its Pro gate.
+Mais do Orbit rows carry no descriptions that repeat their titles. Sign out is the final top-level row. Each setting
 has one home; the retired Preferências, Avançado and Recursos de IA pages redirect to the new
 sub-screens and never carry a second copy.
 
@@ -178,7 +195,7 @@ gate cannot be dropped before undo exists.
 ### The proactive line
 
 Astra reaches the person before the person opens the app. The push is a **pointer**, never the only
-copy: the same content sits as one line at the top of Hoje with one action. Two consequences are
+copy: the same content sits at the top of Hoje, and **the whole line is its action**: one press target with a minimum height of 48, with a padded press and hover fill and no separate link. The sentence is prose: at most 2 lines, with the full text in the conversation. Its accessible name is the visible sentence; the destination goes in the Android hint and the web description. The name is never `Abrir conversa`, which the composer glyph owns. Two consequences are
 deliberate. The proactive layer has a visible place to be audited instead of only firing into the
 void, and a person who denies notification permission still gets the whole mechanism.
 
@@ -333,7 +350,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 - Families: `--font-sans` **Geist Sans** (UI), `--font-display` **Space Grotesk** (display numerals and hero), `--font-mono` **Geist Mono** (meta and tabular numerals).
 - Weights loaded: Geist Sans 400/500/600 · Space Grotesk 500/600 · Geist Mono 400/500. Any other weight is a bug, not a rendering.
 - Scale: `--fs-xs 12 / sm 14 / base 16 / md 17 / lg 20 / xl 22 / 2xl 28 / 3xl 34 / 4xl 44 / 5xl 60`.
-- **Size floors:** long-form body about 16, inputs and menus about 14, captions 13, rarely below 12. Below 18, stay at weight 400 or above; weights under 300 do not exist in this system.
+- **Size floors:** long-form body 16, inputs and menus 14, captions 12. Nothing renders below 12 (see Bans). Below 18, stay at weight 400 or above; weights under 300 do not exist in this system.
 - **Emphasis within a role is one weight step up, never a size change.**
 - Line-height by role: display 1.05 / heading 1.15 to 1.2 / row 1.35 / body 1.55 / meta 1.4. Unitless values only. **Anything that wraps to 3 or more lines takes at least 1.4**, even in a height-constrained row.
 - **Tracking is size-specific.** Large display text takes negative tracking; body sits at 0; small uppercase labels take positive tracking. A single `letter-spacing` value across the scale is wrong somewhere.
@@ -742,22 +759,26 @@ price response does not shift the layout.
 ### Measure and wrapping
 
 - **Cap body and prose measure at 45 to 75 characters, target about 65ch.** A paragraph never spans the full container. Tune line-height with the measure: a wider line needs more leading.
-- **Break an unbroken token only when running prose cannot otherwise fit.** Paragraphs, links, headings, list items and inline code use `overflow-wrap: anywhere`.
+- **Break an unbroken token only when running prose cannot otherwise fit.** Paragraphs, links and inline code use `overflow-wrap: anywhere`. Labels, row titles, tile captions and headings never break inside a word; a label that does not fit is a copy or layout defect.
 - `text-wrap: balance` on headings, `text-wrap: pretty` on body and description copy. Skip both in long-form. **Never hand-break with `<br>`.**
-- **A display or hero heading never exceeds 2 to 3 lines.** Test heading copy at every breakpoint in **both** locales. Fix an over-wrapping heading by widening the container and reducing the size, never by accepting the wrap.
+- **App-authored headings stay on one line at the default text size.** Test both locales at every compact width; shorten copy, restructure the layout or move secondary content to disclosure. Never shrink the text to make it fit. Large accessibility text follows the large-text rule in **Voice**.
 - **Ration eyebrows: at most one per three sections, hero included.** An eyebrow labels a section, it never enumerates one. Numbered meta-labels are banned outright.
-- **When text is truncated, keep the full value reachable** if the hidden text carries meaning.
+- **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap to at most two lines, then use an ellipsis with the full text one tap away. App-authored labels never truncate.
 - **Text aligns to the start edge.** Numbers in a table align to the trailing edge. Justified text does not exist in this interface.
 - **Underlines take their metrics from the font**: `text-underline-position: from-font` and `text-decoration-thickness: from-font`, with `text-decoration-skip-ink: auto`. Only colour animates reliably on a real underline; build any other animated underline as its own element.
 
 ## Layout & spacing
+
+- **In the compact shell (Android at every width, web below 1024), a screen shows one primary task.** Name it before building. Filters, sync status, legends, attachments and per-item extras go behind one visible, labelled entry into a sheet or menu. Each view keeps one primary view switch inline (for example Mês, Semana, Período, Agenda). Each group gets 24 of space from the next. Before a new element joins a compact screen, answer: what does the person lose if it leaves?
+- **Row heights are minimum heights, never fixed heights.** Rows grow with text size; every screen works at 200% text without clipping or overlap. At the default text size, restructure labels into separate rows or move controls to disclosure instead of wrapping or shrinking them; at large accessibility text a label may wrap inside the taller row, as the large-text rule in **Voice** says.
+- **Disclosure preserves selection.** Closing a sheet or menu keeps the selected date, view mode, scroll position and draft.
 
 - **A card is not a layout primitive.** Group with space and alignment first. A card earns its place only when its content is a genuinely separable, actionable object. This is the upstream rule that stops eight identical rectangles.
 - **Group with space, not lines**, in this order: negative space, then a background shape when a group must read as one unit, then a separator line as a last resort for dense data. When a separator is genuinely earned, keep it quiet, and **never pair it with a large gap: the gap already did the job**.
 - **Keep controls distinct from content, in both directions.** An interactive element carries a background, a border, or a consistent control zone. A static element never wears control styling.
 - **Name one focal element per view before building.** Make it win by size, weight, contrast and surrounding space, and demote everything else deliberately. Only one element animates prominently at a time.
 - **At any decision point keep simultaneously-considered options at 4 or fewer.** Top-level nav 5 or fewer, form fields 4 or fewer per visual group, 1 primary plus 1 to 2 secondary actions with the rest in a menu. 5 to 7 needs grouping or progressive disclosure; 8 or more is a defect.
-- **Give flex and grid children `min-width: 0`** so long unbroken content shrinks instead of blowing out the track. **Never put a fixed width or a fixed height on a text container**; use `max-width` plus wrapping, and `min-height` where a floor is needed. Plan for substantial pt-BR growth rather than one universal percentage.
+- **Give flex and grid children `min-width: 0`** so long unbroken content shrinks instead of blowing out the track. **Never put a fixed width or a fixed height on a text container**; use `max-width`, and `min-height` where a floor is needed. Prose and descriptions may wrap. An app-authored label never wraps and never ends in an ellipsis: see **Labels at compact width**. Plan for substantial pt-BR growth rather than one universal percentage.
 - **Align to shared edges.** Every stray edge reads as noise. Use one spacing step per level of subordination.
 - **Order by importance.** The most important content sits near the top and the leading edge. Within a row, identifying content leads and metadata and actions trail. Think in leading and trailing, never left and right, and use logical properties (`margin-inline-start`, `padding-inline-end`, `inset-inline-start`, `text-align: start`) for anything direction-dependent.
 - **Hint at hidden content.** Progressive disclosure needs a visible affordance: let the next item peek 16 to 32px past the scroll edge, or show a disclosure control whose label states what is hidden.
@@ -778,18 +799,18 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 
 | Primitive | Key specs | Web | Mobile |
 |---|---|---|---|
-| NavHeader | Object views: 56px, centred uppercase Geist Mono 13/500 +0.09em title, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
-| PageHeader | Pushed pages: 8px row gap, 8px top and bottom padding, 8px start and 16px end padding, hairline below; ghost back button 44px with arrow-left 20; start-aligned sentence-case title at `--fs-lg`/500 on one truncated line. Avisos adds a bell and a second action row. Drawn in Orbit Busca, Sobre, Pro, Assinatura and Avisos. | `ui/page-header.tsx` | `ui/page-header.tsx` |
+| NavHeader | Object views: 56px, centred sentence-case Geist Mono 12/500 +0.09em title, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
+| PageHeader | Pushed pages: 8px row gap, 8px top and bottom padding, 8px start and 16px end padding, hairline below; ghost back button 44px with arrow-left 20; start-aligned sentence-case title at `--fs-lg`/500 on one line, never truncated. Avisos adds an options button (`dots-vertical`) at the trailing end of the first row; its menu holds 'mark all read' and 'clear all' (with a confirmation). Avisos shows no bell, because it is the destination. Drawn in Orbit Busca, Sobre, Pro, Assinatura and Avisos. | `ui/page-header.tsx` | `ui/page-header.tsx` |
 | Pager | caller-controlled segments and back/forward controls, unavailable handlers disable controls, closing action replaces forward | `ui/pager.tsx` | `ui/pager.tsx` |
-| SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
+| SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states. In the compact shell it is the last line of its screen header group (never above the header), spans the content column, centred, with equal segments; each label is one word on one line at 320; it never wraps and never truncates | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
 | SectionTitle | Geist Sans 20/500 -0.01em, optional mono uppercase eyebrow, fixed scale spacing, no action slot | `ui/section-label.tsx` | `ui/section-label.tsx` |
-| ListRow | icon 24/1.5 in a 28px slot, title Geist Sans 17/400, desc 14 fg-3, value fg-3 + trailing chevron 24 fg-3, **draws no rule of its own**, danger icon = status-bad and danger title = status-bad-text | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| ListRow | minimum height `--row-h-compact` (52) for one line or `--row-h` (68) for two lines; rows grow at larger text sizes; icon 24/1.5 in a 28px slot, title Geist Sans 17/400 on one line, desc 14 fg-3 on one line or absent, value fg-3 + trailing chevron 24 fg-3; when title and value do not fit one line at 320, the value moves to the supporting line; in one group every row has an icon or none does; **draws no rule of its own**, danger icon = status-bad and danger title = status-bad-text | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
 | Switch | 48x28 pill, 22px thumb, on = primary / off = `--track-empty` | `ui/switch.tsx` | `ui/switch.tsx` |
 | Radio/RadioRow | 24px, selected = primary fill + 9px dot, else inset 2px `--track-empty` ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
-| Badge | **radius 8 chip, never a pill**, Geist Mono 10.5/500 +0.06em UPPERCASE, `text-box` trimmed; variants solid / outline. The solid badge uses `--bg-well` fill with `--fg-1` text meeting 4.5:1 contrast in both themes. | `ui/badge.tsx` | same |
+| Badge | **radius 8 chip, never a pill**, Geist Mono 12/500 +0.06em sentence case, `text-box` trimmed; variants solid / outline. The solid badge uses `--bg-well` fill with `--fg-1` text meeting 4.5:1 contrast in both themes. | `ui/badge.tsx` | same |
 | PillButton | pill CTA, radius 999, 5 variants x 2 sizes off shared `BUTTON_SIZES`. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
-| StatTile | radius 20, `--bg-card` + inset hairline ring, value Space Grotesk 24/600 tabular held to one line, label 14/20 fg-2 clamped to 2 lines in a fixed reservation | `ui/stat-tile.tsx` | same |
+| StatTile | radius 20, `--bg-card` + inset hairline ring, padding 16 in the compact shell, value Space Grotesk 22/600 tabular on one line, label 14/20 fg-2 on one line, never clamped and never broken inside a word. A row holds only as many tiles as keep every label on one line at 320 in pt-BR, at most 3. A long value (a weekday, a habit name) uses its short form or becomes a list row. A plain figure row with no tile chrome is preferred where the figures are not separable objects | `ui/stat-tile.tsx` | same |
 | TierCard (composed) | radius 20, selected = `--primary-dim` tint + inset 1.5px primary ring; price Space Grotesk 22/600 | `upgrade/plan-selection.tsx` | same |
 | InfoCard | radius 20, borderless tonal aside, **one tone**: `--bg-elev` with an fg-3 icon. There is no accent variant, because a static informational card is not one of the four accent roles | `ui/info-card.tsx` | same |
 | Input | min-height 54, radius 12, `--bg-field` + inset `--border-control`, **visible persistent label** 14/500 fg-2, single line or multiline | `ui/input.tsx` | `ui/input.tsx` |
@@ -798,11 +819,11 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | CheckRow | whole-row checkbox hit target, required label, error replaces description, trailing mono value | `ui/check-row.tsx` | `ui/check-row.tsx` |
 | TimeField | min-height 54, radius 12, 24-hour wire value with `h23` or `h12` presentation | `ui/time-field.tsx` | `ui/time-field.tsx` |
 | DateRow | formatted immutable date and optional reason, with no control role, focus or chevron | `ui/date-row.tsx` | `ui/date-row.tsx` |
-| Composer | one input, 3 to 6 neutral suggestion chips, one filled send action, paired voice, image attachment and retry capabilities, state exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
+| Composer | a one-line pill at rest, minimum height 56 (`--touch-comfy`): the Astra glyph button at the leading edge inside (Hoje and habit detail), one input, an attach `+` icon button, and one filled send action at the trailing edge, hit areas adjacent. Photo, document and voice open from the `+` Menu, which follows the Menu width rule. The input grows to 5 lines, then scrolls inside. Recording shows the timer and a visible stop; transcribing shows a one-line status; attachments show as a tray inside the container; at limit and offline show the reason and recovery above the pill; retry takes the send position. The top rule stays. State exposed without class hooks | `shell/composer.tsx` | `shell/composer.tsx` |
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
-| Toast | neutral / working / done / lost; stable live region; only done self-dismisses, at 5000ms minimum; working draws three dots; done uses `--status-done`; text action only | `ui/toast.tsx` | `ui/app-toast.tsx` |
+| Toast | brief confirmation and undo only; stable live region; timed confirmation uses a 5000ms minimum; undo stays available until dismissed; done uses `--status-done`; actionable errors and sync failures stay in a persistent surface | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
-| TabBar | caller-owned items and words, one current position, top hairline on opaque canvas, icon 24 (active primary 2.0 / inactive fg-3 1.5), label 12/500 (active primary-soft / inactive fg-3); create belongs to the shell | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
+| TabBar | caller-owned items and words, one current position, top hairline on opaque canvas, 80 tall above the gesture inset: a 56x32 indicator that carries the press and hover fill around icon 24 (active filled primary / inactive outline fg-3 1.5), 4 of space, label 12/500 on a 16 line, one line (active primary-soft / inactive fg-3), the block centred with 14 above and below; navigation only; a tap on the active item scrolls it to the top; create belongs to the shell | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
 | ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
@@ -813,7 +834,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | DayCell | 44px default target, tabular day number, read-only by default; `scheduled={0}` derives not scheduled, counts derive none, partial, or full, partial uses the exact fraction, full is neutral, and only today or selected uses primary position treatment | `dates/day-cell.tsx` | `dates/day-cell.tsx` |
 | MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |
 | EventRow | read-only timed or all-day event row with required title and optional source; time and all-day label are mutually exclusive | `dates/event-row.tsx` | `dates/event-row.tsx` |
-| HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 13 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
+| HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 12 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 | BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
 | Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
 
@@ -998,6 +1019,8 @@ A collection whose item count can exceed 20 declares its "too many" behaviour be
 ### Rules
 
 - **Strings stay short:** 1 to 2 words on buttons, chips, tabs and labels. Sentences live only in body, description and empty-state copy.
+- **Labels at compact width.** A tab or segment label is one word. A tile caption fits its measured column (about 90 at 320 for three columns). Write pt-BR first. Every app-authored label holds one line with no ellipsis at 320, 360, 384 and 412, in both locales, at font scale 1.0.
+- **Large accessibility text.** Above Android font scale 1.3 or web text zoom 130%, up to 200%, an app-authored label may wrap to more lines inside a taller row. It never ends in an ellipsis and is never clipped, and its icon and trailing control align to the first line. Keeping one line there would mean clipping or shrinking text the person asked to be large.
 - **Say it once.** No header restating the intro beneath it. Each element does exactly one job.
 - **Ban supporting copy by default.** Do not add a subtitle, a helper line, or a descriptive sentence beneath a heading, a label, a card, or a settings row. Prefer one concise, self-explanatory heading. Add supporting copy only when the owner asks for it, or when it genuinely prevents a misunderstanding or an error, and **never** to restate the heading above it. **The form-field carve-out is explicit and survives unchanged:** an input still carries a visible, persistent label, and its helper text still lives in the markup, per "a placeholder is never a field's only label" in **Accessibility**. The two rules are not in conflict, because a field label is not supporting copy.
 - **Name every control by what the person controls**, never by how the system is built.
@@ -1055,7 +1078,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
 - **Match a feature's flow shape to its neighbours**, not just its surface.
-- **A modal is never the first thought.** Exhaust inline and progressive-disclosure alternatives first.
+- **In the compact shell, a sheet or menu is the first home for secondary content.** Keep one visible, labelled entry for it. A menu or sheet closes before the next sheet opens; a confirmation dialog over a sheet stays allowed, per the Overlay dismissal contract. At wide width, inline progressive disclosure comes first.
 - **Do not overload the entry point.** The first screenful is a table of contents, not the whole book.
 
 ### The allowed shell divergences, enumerated
@@ -1140,8 +1163,10 @@ error treatment. An autofilled `Input` keeps its overlay perimeter unchanged on 
 The OTP cells share the real input's hover and disabled state; focus leaves only the active
 cell with the focus ring. A field wrapper suppresses hover over its interactive buttons.
 
-Neutral control hover and press fills use `--bg-hover` (`bgHover` on Android), clipped to the tap
-target at its own radius. Primary-filled actions use `--primary-hover` on hover and
+Neutral control hover, press and focus fills use `--bg-hover` (`bgHover` on Android), clipped to the
+control's own shape at its own radius. **The fill never touches its content**: it extends at least 8
+past the content on the inline axis and at least 4 on the block axis. Text that needs a fill is a
+control and takes a control's shape. Primary-filled actions use `--primary-hover` on hover and
 `--primary-pressed` (`primaryPressed` on Android) on press. Press fills remain visible beside scale
 feedback, including when reduced motion suppresses the scale.
 A control with an opaque resting fill layers `--bg-hover-opaque` over that fill; dark resolves
@@ -1208,7 +1233,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 - **Measure the pair that actually renders**, not the page background, and remeasure in both modes. A pair that passes in light can fail in dark.
 - **Honour `prefers-reduced-transparency`** (raise surface opacity toward solid) and **`prefers-contrast: more`** (see derivation rule 9). The whole dark ladder is white-alpha translucency, so reduced-transparency is directly load-bearing.
 - **Never ship a full-viewport moving background, a slow oscillation near 0.2 Hz, or an abrupt light/dark brightness jump.**
-- **When text is truncated, keep the full value reachable** if the hidden text carries meaning.
+- **Person-typed and Google-provided text gets the full row width first**: habit names, event titles and emails own the headline, with time, source and other metadata beneath. If the headline still does not fit, wrap to at most two lines, then use an ellipsis with the full text one tap away. App-authored labels never truncate.
 
 ### Keyboard and focus
 
@@ -1254,7 +1279,7 @@ Work down this list and stop at the first match: focus already moves there, so n
 
 - **Render the live region empty and stable before updating its text.** A region inserted together with its content is announced inconsistently.
 - **Default to polite.** Overusing `assertive` interrupts whatever the reader was on.
-- **A toast is never the only channel for information the user must act on.** Never move focus to a toast. A toast carrying an action or an error stays until dismissed; a timed one uses a 5 second floor and pauses on hover or focus.
+- **Toasts carry brief confirmation and undo only.** Actionable errors and sync failures stay in a persistent surface. Never move focus to a toast. Undo remains until dismissed; a timed confirmation uses a 5 second floor and pauses on hover or focus.
 - **Anything moving, blinking or updating automatically for more than 5 seconds needs a visible pause control.**
 - **Under reduced motion**, replace slides, scales and parallax with opacity cross-fades, kill autoplay, and start carousels paused. Keep spinners, progress, instant state changes and brief press feedback. Wrap motion in `@media (prefers-reduced-motion: no-preference)` so it is opt-in; where a global kill switch is the only option, use `0.01ms` rather than `none` so `transitionend` still fires.
 - **The `.sr-only` pattern uses 1px boxes, not zero**, with `clip-path: inset(50%)` and `white-space: nowrap`. Never `display: none`.
@@ -1309,6 +1334,13 @@ The same test governs any future external component, from any source. Nothing en
 - No ad-hoc raw pill button, no hand-tuned button height or padding.
 - No fabricated numbers in a shipped UI.
 - No numeric design score.
+
+- **No app-authored label, title, caption, chip, tab, segment or button text that wraps or ends in an ellipsis**, in either locale, at 320, 360, 384 or 412, at the default text size; at large accessibility text a label may wrap but never ellipsizes or clips. Person-typed and Google-provided text follows the full-width, two-line rule in Type roles.
+- **No hover, press or focus fill that touches its content.**
+- **No screen-level setting, sync status or legend inline on a destination root in the compact shell.** It lives in a sheet or menu with one visible entry. The one primary view switch of a view is exempt.
+- **No two floating controls in one screen position, no floating control that covers content at the end of a scroll, and no back-to-top control outside Hoje.**
+- **No inline link inside a sentence as a row's only action.** The row is the action.
+- **No rendered text below 12.**
 
 ## Working model
 

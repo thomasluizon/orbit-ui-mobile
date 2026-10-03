@@ -22,14 +22,19 @@ type ConversationSlot =
 
 interface Shell412Base {
   children?: React.ReactNode
-  /** PINNED above the scroller: it does not scroll with the content. A screen with no header passes
-   *  nothing and the scroller takes the full height. */
+  /** Pinned above the scroller. Hoje and Calendário pass a minimum-height 48 row with a trailing
+   * Avisos bell; Hoje also has its conditional day jump, search and options, Calendário its options.
+   * Progresso and Perfil put their bell-only minimum-height 48 row in children so it scrolls, with
+   * no screen title. A detail header keeps its title and back control visible. A screen with no
+   * header passes nothing and the scroller takes the full height. */
   header?: React.ReactNode
   /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. A toast
    *  or a celebration rides here so it cannot evict Astra's front door (D69). */
   notice?: React.ReactNode
   /** Floats above the composer. A screen that puts its create action in the header passes nothing. */
   fab?: React.ReactNode
+  /** Hoje only: top-centre back-to-top below the pinned header, separate from the create FAB. */
+  scrollToTop?: React.ReactNode
   sheets?: React.ReactNode
 }
 
@@ -39,7 +44,7 @@ export type Shell412NavProps = Shell412Base &
     nav?: true
     /** Four destinations, never five. Required with navigation on. */
     tabBar: React.ReactNode
-    /** Astra's front door, pinned above the tab bar on all four destinations. THE COMPOSER AND
+    /** Astra's front door, pinned above the tab bar on Hoje only; habit detail keeps its own composer. THE COMPOSER AND
      *  NOTHING ELSE: transient chrome goes in `notice`, above it. */
     composer?: React.ReactNode
     /** Rejected on a destination: a flow's forward action exists only where `nav` is false. */

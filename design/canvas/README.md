@@ -1,7 +1,7 @@
 # The canvas documents
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
-> Twenty-one screens plus the design system tokens, with the Perfil sub-menu amendment. Build from these. The eleven documents in
+> Twenty-one screens plus the design system tokens, with the native mobile rule and Perfil sub-menu amendments. Build from these. The eleven documents in
 > `superseded/` are a record of an earlier pass and are not a target.
 
 ## The authority
@@ -16,9 +16,10 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, grouped date controls and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch-floor migration is separate. |
 | Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
-| Hoje composer | The shell composer, Astra glyph button and suggestion chips appear on Hoje only on web and Android, at every width; Calendário, Progresso and Perfil clear navigation or the column bottom | The owner limits the conversation front door to Hoje. An open conversation keeps its existing presentation and state when destinations change. |
+| Hoje composer | A one-line pill with inside Astra glyph, input, + menu and send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
 | Opaque control hover | Added `--bg-hover-opaque`: dark reuses `--p-hover`, light uses `--p-l-hover-opaque` at `rgba(9,9,11,0.11)` | Layered over the resting elevated fill, the hover step measures 1.477:1 dark and 1.271:1 light, clearing the 1.25:1 floor. |
 | 2026-09-29 | `Orbit Entrar` and `Orbit Verificacao` centre their compact columns with equal vertical padding | The owner's phone layout decision places both sign-in steps between the safe areas. |

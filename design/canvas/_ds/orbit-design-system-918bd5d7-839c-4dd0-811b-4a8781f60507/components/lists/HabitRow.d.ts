@@ -1,3 +1,4 @@
+/** Supporting meta uses 12; typed titles own the headline, wrap to two lines, then ellipsize with full text one tap away. */
 /** The canonical habit row. depth 0 is the top-level row (46px well, 17 title, 30 StatusRing) on its OWN panel; depth 1 is the sub-habit row (indented, 32px well, --fs-sm title in --fg-2, 24 StatusRing, compact height) - zero connector or tree lines; a family is one panel carrying the parent row and its sub rows. The body button's hit area is the well and the text ONLY: the trailing node (ring, control or caller node) is a SIBLING of the body button, never a child of it - a caller can never nest a control inside a button. The row suppresses its own hover while the pointer is on the log or menu button, so two surfaces never light at once. Log and menu keep 44px targets at every depth. */
 export interface HabitRowBase {
   /** user-chosen emoji shown in the well (--bg-well, radius 12). OPTIONAL: when absent the component

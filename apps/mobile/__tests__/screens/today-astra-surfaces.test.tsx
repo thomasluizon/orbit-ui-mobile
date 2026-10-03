@@ -159,12 +159,12 @@ describe('mobile Today Astra owned surfaces', () => {
       tree = TestRenderer.create(<TodayScreen />)
       await Promise.resolve()
     })
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button').length).toBeGreaterThan(0)
 
     mocks.today = '2026-08-30'
     await TestRenderer.act(() => { tree.update(<TodayScreen />) })
 
-    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'button')).toHaveLength(0)
     expect(tree.root.findAll((node) => String(node.type) === 'TodayDate')[0]?.props.date).toBe('2026-08-30')
     expect(mocks.notifications[0]?.isRead).toBe(false)
   })
@@ -205,7 +205,7 @@ describe('mobile Today Astra owned surfaces', () => {
     })
 
     const returning = tree.root.findAll((node) =>
-      Array.isArray(node.props.children) && node.props.children.includes('todayAstra.returningElapsed:3'),
+      node.props.children === 'todayAstra.returningElapsed:3',
     )
     expect(returning.length > 0).toBe(visible)
     vi.useRealTimers()
