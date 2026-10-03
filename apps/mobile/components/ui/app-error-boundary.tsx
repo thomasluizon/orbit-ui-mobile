@@ -1,12 +1,13 @@
 import { useEffect, useState, useTransition } from 'react'
 import { AppState, ScrollView, Text, useWindowDimensions } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { getErrorSurface, getRetryCountdown } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { errorSurfaceStyles as styles } from './error-surface-styles'
 
-export function AppErrorScreen({ error, retry }: Readonly<{ error: unknown; retry: () => void | Promise<void> }>) {
+export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ error: unknown; retry: () => void | Promise<void>; standalone?: boolean }>) {
   const { width } = useWindowDimensions()
   const tokens = createTokensV2()
   const { requestId, retryAt } = getErrorSurface(error)
@@ -25,7 +26,7 @@ export function AppErrorScreen({ error, retry }: Readonly<{ error: unknown; retr
     if (retryAt !== null && getRetryCountdown(retryAt, Date.now()).seconds > 0) return
     startRetry(async () => { await retry() })
   }
-  return (
+  const screen = (
     <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={styles.root} testID={countdown ? 'throttle-screen' : 'failure-screen'}>
       <Text accessibilityRole="header" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{i18n.t(countdown ? 'errorScreen.throttleTitle' : 'errorScreen.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{i18n.t(countdown ? 'errorScreen.throttleBody' : 'errorScreen.body')}</Text>
@@ -34,4 +35,5 @@ export function AppErrorScreen({ error, retry }: Readonly<{ error: unknown; retr
       {!countdown && requestId ? <Text selectable style={[styles.reference, { color: tokens.fg3 }]}>{i18n.t('errorScreen.reference', { requestId })}</Text> : null}
     </ScrollView>
   )
+  return standalone ? <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: tokens.bg }}>{screen}</SafeAreaView> : screen
 }

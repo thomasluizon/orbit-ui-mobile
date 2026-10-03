@@ -546,7 +546,7 @@ export function ErrorBoundary({ error, retry }: Readonly<ErrorBoundaryProps>) {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AppErrorScreen error={error} retry={() => void retry()} />
+      <AppErrorScreen error={error} retry={() => void retry()} standalone />
     </GestureHandlerRootView>
   )
 }
