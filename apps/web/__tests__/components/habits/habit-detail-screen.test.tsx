@@ -1877,6 +1877,40 @@ describe('HabitDetailScreen', () => {
       }
     })
 
+    it.each([320, 412])('shows the full long habit title at %ipx with large text', async (width) => {
+      vi.useRealTimers()
+      const habitTitle = 'Read a long chapter and discuss the details with the reading group '.repeat(3)
+      mocks.detail = { ...makeDetail(), title: habitTitle }
+      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
+          const button = element.querySelector('button')!
+          const style = getComputedStyle(button)
+          const fontSize = parseFloat(style.fontSize) * 2
+          const lineHeight = parseFloat(style.lineHeight) * 2
+          button.style.fontSize = `${fontSize}px`
+          button.style.lineHeight = `${lineHeight}px`
+          const range = document.createRange()
+          range.selectNodeContents(button)
+          const text = range.getBoundingClientRect()
+          const bounds = button.getBoundingClientRect()
+          const column = element.closest('[data-habit-detail-content]')!
+          const columnStyle = getComputedStyle(column)
+          return { whiteSpace: style.whiteSpace, textOverflow: style.textOverflow,
+            lines: range.getClientRects().length, inside: text.right <= bounds.right + 1 && text.bottom <= bounds.bottom + 1,
+            width: bounds.width, available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
+        })
+        expect(geometry.whiteSpace).toBe('normal')
+        expect(geometry.textOverflow).not.toBe('ellipsis')
+        expect(geometry.lines).toBeGreaterThan(2)
+        expect(geometry.inside).toBe(true)
+        expect(geometry.leading).toBeGreaterThanOrEqual(1.4)
+        expect(geometry.width).toBe(geometry.available)
+      } finally { await page.close() }
+    })
+
     it.each([
       [412, 'Read'],
       [1280, 'Read'],

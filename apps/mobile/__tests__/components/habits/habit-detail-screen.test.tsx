@@ -1,6 +1,6 @@
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
-import { AccessibilityInfo, StyleSheet } from 'react-native'
+import { AccessibilityInfo, StyleSheet, type ViewStyle } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -377,6 +377,31 @@ vi.mock('@/components/habits/habit-row', () => ({
 }))
 
 describe('HabitDetailScreen', () => {
+  it.each([320, 412, 1280])('shows the full habit title below the controls without a line limit at %s', (width) => {
+    __setWindowDimensions({ width, height: 892, scale: 1, fontScale: 1 })
+    const title = 'Read a long chapter and discuss the details with the reading group '.repeat(3)
+    mocks.detail = { ...makeDetail(), title }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const target = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === title)[0]!
+    const visibleTitle = target.findAll((node: TestNode) => node.type === 'Text' && node.props.children === title)[0]!
+    expect(visibleTitle.props.numberOfLines).toBeUndefined()
+    const titleStyle = StyleSheet.flatten(visibleTitle.props.style as { fontSize: number; lineHeight: number })
+    expect(titleStyle.lineHeight / titleStyle.fontSize).toBeGreaterThanOrEqual(1.4)
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
+    expect(copy.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(1)
+    expect(StyleSheet.flatten(header.props.style)).toEqual({ gap: 12 })
+    expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 4 })
+    const views = header.findAll((node: TestNode) => node.type === 'View')
+    const controls = views.find((node: TestNode) => StyleSheet.flatten(node.props.style as ViewStyle).flexDirection === 'row')!
+    expect(views.indexOf(controls)).toBeLessThan(views.indexOf(copy))
+    expect(controls.findAllByType('HabitLogButton')).toHaveLength(1)
+    expect(controls.findAllByType('PillButton').map((node: TestNode) => node.props.label)).toContain('habits.detail.rename')
+    expect(controls.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(0)
+    expect(copy.findAll((node: TestNode) => node.type === 'Text' && node.props.numberOfLines === 1)).toHaveLength(1)
+  })
+
   it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
     mocks.detail = { ...makeDetail(), children: [] }
     mocks.scopedLoading = state === 'loading'
@@ -1445,6 +1470,27 @@ describe('HabitDetailScreen', () => {
     const description = tree.root.findAllByType('Pressable').filter((node: TestNode) => node.props.testID === 'habit-detail-description')
     expect(tags).toHaveLength(hasTags ? 1 : 0)
     expect(description).toHaveLength(hasDescription ? 1 : 0)
+    const header = tree.root.findAllByType('View').find((node: TestNode) => node.props.testID === 'habit-detail-header-row')!
+    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
+    let parent = header.parent
+    while (typeof parent.type !== 'string') parent = parent.parent
+    const slots = parent.findAll((node: { type: unknown; parent: { type: unknown; parent: unknown } | null }) => {
+      if (typeof node.type !== 'string') return false
+      let owner = node.parent
+      while (owner && typeof owner.type !== 'string') owner = owner.parent as typeof owner
+      return owner === parent
+    })
+    const contentSlots = slots.filter((node: TestNode) => node.props.accessibilityLiveRegion !== 'polite')
+    expect(contentSlots.slice(0, 2 + Number(hasTags) + Number(hasDescription)).map((node: TestNode) => node.props.testID)).toEqual([
+      'habit-detail-header-row',
+      ...(hasTags ? ['habit-detail-tags'] : []),
+      ...(hasDescription ? ['habit-detail-description'] : []),
+      'habit-detail-strip-section',
+    ])
+    expect(header.findAll((node: TestNode) => node.type === 'View').at(-1)).toBe(copy)
+    expect(StyleSheet.flatten(parent.props.style)).toBeUndefined()
+    const strip = contentSlots[1 + Number(hasTags) + Number(hasDescription)]!
+    expect(StyleSheet.flatten(strip.props.style)).toEqual({ gap: 8, paddingTop: 24 })
     for (const metadata of [...tags, ...description]) {
       expect(StyleSheet.flatten(metadata.props.style)).toEqual({ paddingTop: 12 })
     }
@@ -1500,7 +1546,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), dueTime: '19:30' }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const header = JSON.stringify(tree!.root.findByProps({ testID: 'header-log' }).parent.parent.findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children))
+    const header = JSON.stringify(tree!.root.findByProps({ testID: 'habit-detail-header-row' }).findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children))
     expect(header).toContain(expected)
     expect(header).not.toContain(excluded)
     const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
@@ -1512,7 +1558,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: '08:00' }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const header = tree!.root.findByProps({ testID: 'header-log' }).parent.parent
+    const header = tree!.root.findByProps({ testID: 'habit-detail-header-row' }).parent
     expect(header.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === '8:00 AM')).toBe(true)
     expect(JSON.stringify(header.findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children))).not.toContain(' · ')
   })
@@ -1521,7 +1567,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null, dueTime: null }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const header = tree!.root.findByProps({ testID: 'header-log' }).parent.parent
+    const header = tree!.root.findByProps({ testID: 'habit-detail-header-row' }).parent
     expect(header.findAllByType('Text').some((node: { props: { children?: string } }) => node.props.children === '')).toBe(false)
   })
 

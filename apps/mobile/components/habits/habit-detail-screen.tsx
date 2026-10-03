@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import { useReducedMotion } from 'react-native-reanimated'
-import { motionEasings } from '@orbit/shared/theme'
+import { motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
 import {
   buildHabitDetailUpdateRequest,
   createAccountScopedHabitDetailWriteQueue,
@@ -161,6 +161,8 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
   const { width } = useWindowDimensions()
   const [editing, setEditing] = useState(false)
   const [descriptionOpen, setDescriptionOpen] = useState(false)
+  const titleType = responsiveTypeStyle('habitTitle', width)
+  const titleLineHeight = resolveResponsiveTypeRole('habitTitle', width).size * 1.4
   const [title, setTitle] = useState(habit.title)
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const save = async () => {
@@ -175,14 +177,17 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
   return (
     <>
       <View testID="habit-detail-header-row" style={styles.header}>
-        <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={(emoji) => { void onPatch({ emoji }) }} wellSize={76} tokens={tokens} styles={formStyles} />
+        <View style={styles.headerActions}>
+          <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={(emoji) => { void onPatch({ emoji }) }} wellSize={76} tokens={tokens} styles={formStyles} />
+          <View style={styles.headerSpacer} />
+          <PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.rename')} onClick={() => setEditing(true)}><Pencil size={20} color={tokens.fg1} /></PillButton>
+          <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
+        </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><Text numberOfLines={1} style={[responsiveTypeStyle('habitTitle', width), { color: tokens.fg1 }]}>{habit.title}</Text></Pressable>}
+          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><Text style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</Text></Pressable>}
           {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
-        <PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.rename')} onClick={() => setEditing(true)}><Pencil size={20} color={tokens.fg1} /></PillButton>
-        <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
       </View>
       {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text numberOfLines={1} style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name}</Text></View>)}</View></View> : null}
       {habit.description ? <Pressable testID="habit-detail-description" style={styles.headerMetadata} accessibilityRole="button" accessibilityLabel={habit.description} accessibilityHint={t('habits.detail.viewDescription')} accessibilityState={{ expanded: descriptionOpen }} onPress={() => setDescriptionOpen((open) => !open)} hitSlop={{ bottom: 12 }}><Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { color: tokens.fg3 }]}>{habit.description}</Text></Pressable> : null}
@@ -619,8 +624,10 @@ const styles = StyleSheet.create({
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16, padding: 16 },
   surface: { gap: 8 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerCopy: { flex: 1, minWidth: 0, gap: 4 },
+  header: { gap: 12 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerSpacer: { flex: 1 },
+  headerCopy: { width: '100%', minWidth: 0, gap: 4 },
   renameTarget: { minWidth: 44, paddingVertical: 8, marginVertical: -8 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { borderBottomWidth: 2, padding: 0 },

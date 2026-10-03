@@ -5,11 +5,30 @@ import {
   nextRewardCarrotSchema,
   recapResponseSchema,
   reportEventResponseSchema,
+  retrospectiveHabitStatSchema,
   streakInfoSchema,
 } from '../types/gamification'
 import { profileSchema } from '../types/profile'
 import { deriveStreakRepairState } from '../utils/progress'
 import { createMockGamificationProfile, createMockProfile } from './factories'
+
+describe('retrospectiveHabitStatSchema', () => {
+  const stat = { name: 'Read', emoji: null, completionRate: 100, completedCount: 7, scheduledCount: 7, isOneTime: false }
+
+  it('preserves the nullable UUID supplied by the API', () => {
+    const habitId = 'a08892c2-9a7c-4dc9-b70f-388be528420e'
+    expect(retrospectiveHabitStatSchema.parse({ ...stat, habitId })).toEqual({ ...stat, habitId })
+    expect(retrospectiveHabitStatSchema.parse({ ...stat, habitId: null })).toEqual({ ...stat, habitId: null })
+  })
+
+  it('accepts a cached stat without an id', () => {
+    expect(retrospectiveHabitStatSchema.parse(stat)).toEqual(stat)
+  })
+
+  it('rejects an id outside the API UUID contract', () => {
+    expect(retrospectiveHabitStatSchema.safeParse({ ...stat, habitId: 'Read' }).success).toBe(false)
+  })
+})
 
 describe('nextRewardCarrotSchema', () => {
   it('parses a Pro carrot with a null teaser', () => {
