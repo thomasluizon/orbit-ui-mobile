@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 
 import SupportScreen from '@/app/support'
 import { getAppVersion } from '@/lib/app-version'
@@ -128,6 +128,10 @@ function findInputByLabel(root: TestNode, label: string) {
   )[0]
 }
 
+function findReplyEmail(root: TestNode) {
+  return root.findAll((node) => node.type === Pressable && node.props.accessibilityLabel === 'profile.support.email')[0]
+}
+
 function findSendButton(root: TestNode) {
   return root.findAll(
     (node) => node.props.testID === 'button-primary-md',
@@ -154,6 +158,51 @@ function sentRequestBody() {
 }
 
 describe('SupportScreen', () => {
+  it('shows subject labels without redundant descriptions or ellipsis', async () => {
+    const tree = await renderScreen()
+    for (const subject of ['problem', 'billing', 'account', 'other']) {
+      expect(tree.root.findAll((node) => node.type === Text && node.props.children === `profile.support.subjects.${subject}.description`)).toHaveLength(0)
+      const label = tree.root.findAll((node) => node.type === Text && node.props.children === `profile.support.subjects.${subject}.label`)[0]!
+      expect(label.props.numberOfLines).toBeUndefined()
+    }
+  })
+
+  it('gives the reply email two lines and discloses it without changing the draft', async () => {
+    const email = `${'a'.repeat(48)}@example.com`
+    mocks.profile = createMockProfile({ email })
+    const tree = await renderScreen()
+    await selectSubject(tree.root)
+    const message = findInputByLabel(tree.root, 'profile.support.message')!
+    await TestRenderer.act(async () => {
+      ;(message.props.onChangeText as (value: string) => void)('Saved message')
+      await Promise.resolve()
+    })
+    const reply = () => tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityLabel === 'profile.support.email')[0]!
+    const text = () => tree.root.findAll((node) => node.type === Text && node.props.children === email)[0]!
+    expect(reply()).toBeDefined()
+    expect(text().props.numberOfLines).toBe(2)
+    expect(text().props.ellipsizeMode).toBe('tail')
+    const resolveStyle = reply().props.style as (state: { pressed: boolean }) => Parameters<typeof StyleSheet.flatten>[0]
+    const style = StyleSheet.flatten<ViewStyle>(resolveStyle({ pressed: false }) as ViewStyle)
+    expect(style.minHeight).toBeGreaterThanOrEqual(48)
+    expect(style.width).toBe('100%')
+    expect(style.paddingHorizontal).toBe(16)
+    expect(style.paddingVertical).toBe(12)
+    await TestRenderer.act(async () => {
+      ;(reply().props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(text().props.numberOfLines).toBeUndefined()
+    expect(reply().props.accessibilityState).toMatchObject({ expanded: true })
+    await TestRenderer.act(async () => {
+      ;(reply().props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(text().props.numberOfLines).toBe(2)
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('Saved message')
+    expect(findSubjectChoices(tree.root)[0]!.props.accessibilityState).toMatchObject({ checked: true })
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     __resetTestHostConfig()
@@ -208,7 +257,7 @@ describe('SupportScreen', () => {
     expect(choices).toHaveLength(4)
     expect(choices.every((choice) => choice.props.accessibilityHint === requiredSubjectHint)).toBe(true)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.accessibilityHint).toBe(messages.common.required)
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint).toBe('profile.support.emailLockedReason')
+    expect(findReplyEmail(tree.root)!.props.accessibilityHint).toContain('profile.support.emailLockedReason')
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired')).toHaveLength(0)
 
@@ -226,10 +275,11 @@ describe('SupportScreen', () => {
     expect(findInputByLabel(tree.root, 'profile.support.name')).toBeUndefined()
   })
 
-  it('orders subject, message, and locked reply email', async () => {
+  it('orders subject, message, and read-only reply email', async () => {
     const tree = await renderScreen()
     const controls = tree.root.findAll((node) =>
       node.props.accessibilityRole === 'radiogroup'
+      || (node.type === Pressable && node.props.accessibilityLabel === 'profile.support.email')
       || (typeof node.props.onChangeText === 'function' && [
         'profile.support.message', 'profile.support.email',
       ].includes(node.props.accessibilityLabel as string)),
@@ -239,7 +289,7 @@ describe('SupportScreen', () => {
     expect(labels).toEqual([
       'profile.support.subject', 'profile.support.message', 'profile.support.email',
     ])
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+    expect(findReplyEmail(tree.root)!.props.disabled).toBe(false)
   })
 
   it('shows both field errors when the empty controls lose focus', async () => {
@@ -279,20 +329,18 @@ describe('SupportScreen', () => {
     expect(separators).toHaveLength(0)
   })
 
-  it('uses the system inputs, including a six-row message and the disabled account email', async () => {
+  it('uses a six-row message and a read-only account email display', async () => {
     const tree = await renderScreen()
 
     expect(
       tree.root.findAll((node) => node.props['data-multiline'] === '').length,
     ).toBeGreaterThan(0)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.numberOfLines).toBe(6)
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe(
-      'alex@example.com',
-    )
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+    expect(tree.root.findAll((node) => node.type === Text && node.props.children === 'alex@example.com')).not.toHaveLength(0)
+    expect(findReplyEmail(tree.root)!.props.disabled).toBe(false)
     expect(
-      findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint,
-    ).toBe('profile.support.emailLockedReason')
+      findReplyEmail(tree.root)!.props.accessibilityHint,
+    ).toContain('profile.support.emailLockedReason')
     expect(
       tree.root.findAll(
         (node) => node.props.children === 'profile.support.emailLockedReason',
@@ -311,7 +359,7 @@ describe('SupportScreen', () => {
       tree.root.findAll(
         (node) => node.props.children === 'profile.support.subjects.problem.description',
       ),
-    ).not.toHaveLength(0)
+    ).toHaveLength(0)
 
     await TestRenderer.act(async () => {
       ;(choices[0]!.props.onPress as () => void)()
@@ -397,9 +445,8 @@ describe('SupportScreen', () => {
   it('keeps the reply field locked while the profile loads', async () => {
     mocks.profile = null
     const tree = await renderScreen()
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe('')
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint)
+    expect(findReplyEmail(tree.root)!.props.disabled).toBe(true)
+    expect(findReplyEmail(tree.root)!.props.accessibilityHint)
       .toBe('profile.support.emailLockedReason')
     expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint)
@@ -578,9 +625,8 @@ describe('SupportScreen', () => {
       tree.update(withFocusProvenance(<SupportScreen />))
       await Promise.resolve()
     })
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value)
-      .toBe('profile@example.com')
-    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+    expect(tree.root.findAll((node) => node.type === Text && node.props.children === 'profile@example.com')).not.toHaveLength(0)
+    expect(findReplyEmail(tree.root)!.props.disabled).toBe(false)
     await TestRenderer.act(async () => {
       ;(findSendButton(tree.root)!.props.onPress as () => void)()
       await Promise.resolve()

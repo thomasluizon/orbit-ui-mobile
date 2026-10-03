@@ -25,6 +25,7 @@ import {
 import { createTokensV2, radius } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { SupportReplyEmail } from '@/components/support-reply-email'
 import { Input } from '@/components/ui/input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
@@ -157,7 +158,6 @@ function SupportForm({
               <RadioRow
                 key={option.id}
                 label={t(option.labelKey)}
-                description={t(option.descriptionKey)}
                 selected={subject === option.id}
                 disabled
                 reason={t('profile.support.subjectSendingReason')}
@@ -166,7 +166,6 @@ function SupportForm({
               <RadioRow
                 key={option.id}
                 label={t(option.labelKey)}
-                description={t(option.descriptionKey)}
                 selected={subject === option.id}
                 onSelect={() => onChangeSubject(option.id)}
               />
@@ -195,16 +194,7 @@ function SupportForm({
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
       />
-      <Input
-        label={t('profile.support.email')}
-        value={email}
-        onChange={() => {}}
-        disabled
-        hint={t('profile.support.emailLockedReason')}
-        kind="email"
-        inputMode="email"
-        autoComplete="off"
-      />
+      <SupportReplyEmail email={email} />
       {appVersion ? (
         <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
           {t('profile.support.versionIncluded', { version: appVersion })}
