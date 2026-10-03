@@ -171,33 +171,24 @@ describe('composer chips', () => {
     }
   })
 
-  it.each([
-    [en, 'Meditate', 'Log', 'Simplify', 'Keep only', 'Review', 'Move', 'to tonight'],
-    [en, 'House routine', 'Log', 'Simplify', 'Keep only', 'Review', 'Move', 'to tonight'],
-    [ptBR, 'Caminhar', 'Registrar', 'Simplificar', 'Manter só', 'Rever', 'Mover', 'para hoje à noite'],
-    [ptBR, 'Rotina da casa', 'Registrar', 'Simplificar', 'Manter só', 'Rever', 'Mover', 'para hoje à noite'],
-  ] as const)('quotes verb and noun titles in every localized Today action', (locale, title, log, trim, keep, review, move, tonight) => {
+  it.each([en, ptBR])('separates short labels from requests with complete habit titles', locale => {
+    const title = 'A habit title with spaces, "quotes", accents and '.repeat(5)
     const habit = createMockHabit({ title, hasSubHabits: true, isOverdue: true })
     const variants = [
       state({ habits: [habit] }),
       state({ habits: [habit], profile: createMockProfile({ lastCompletionDate: '2026-09-08' }) }),
       state({ habits: [{ ...habit, isCompleted: true }] }),
+      state({ surface: 'progress', habits: [habit] }),
     ]
-    const chips = variants.flatMap(buildComposerChips)
-    const expected = {
-      logHabit: `${log} "${title}"`,
-      trimHabit: `${trim} "${title}"`,
-      keepOnlyHabit: `${keep} "${title}"`,
-      reviewHabit: `${review} "${title}"`,
-      moveOverdue: `${move} "${title}" ${tonight}`,
+    const chips = variants.flatMap(buildComposerChips).filter(chip => chip.params)
+    expect(new Set(chips.map(chip => chip.id)).size).toBe(6)
+    for (const chip of chips) {
+      const [, , , group, name] = chip.key.split('.')
+      const labels = locale.shell.composer.chips[group as keyof typeof locale.shell.composer.chips]
+      expect(labels[name as keyof typeof labels]).not.toContain('{title}')
+      expect(chip.params?.title).toBe(title)
+      expect(chip.promptKey).toBe(`shell.composer.prompts.${chip.id}`)
     }
-    for (const name of Object.keys(expected) as (keyof typeof expected)[]) {
-      const chip = chips.find((candidate) => candidate.id === `today.${name}`)
-      expect(chip).toBeDefined()
-      expect(chip?.params?.title).toBe(title)
-      expect(locale.shell.composer.chips.today[name].replace('{title}', chip?.params?.title ?? '')).toBe(expected[name])
-    }
-    expect(locale.habits.detail.log.replace('{title}', title)).toBe(expected.logHabit)
   })
 
   it('never returns one, two, or more than six chips', () => {

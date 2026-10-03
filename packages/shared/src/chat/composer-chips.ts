@@ -55,7 +55,7 @@ export type ComposerChipState = {
 const chip = (id: string, params?: { title: string }): ComposerChip => ({
   id,
   key: `shell.composer.chips.${id}`,
-  ...(params ? { params } : {}),
+  ...(params ? { params, promptKey: `shell.composer.prompts.${id}` } : {}),
 })
 
 export function resolveComposerChipStatus(surface: ComposerChipSurface, state: {
