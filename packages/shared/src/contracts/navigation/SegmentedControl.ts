@@ -14,5 +14,4 @@ export type SegmentedControlProps<TValue extends string> = {
   label: string
   disabled?: boolean
   fullWidth?: boolean
-  wideFill?: boolean
 }
