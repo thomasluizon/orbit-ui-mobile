@@ -14,6 +14,10 @@ async function readFill(control: Locator) {
     const fill = element.querySelector<HTMLElement>('[data-press-fill]') ?? element
     const bounds = fill.getBoundingClientRect()
     const style = getComputedStyle(fill)
+    let effectiveOpacity = 1
+    for (let ancestor: Element | null = fill; ancestor; ancestor = ancestor.parentElement) {
+      effectiveOpacity *= Number.parseFloat(getComputedStyle(ancestor).opacity)
+    }
     const controlBounds = element.getBoundingClientRect()
     const controlStyle = getComputedStyle(element)
     const content: DOMRect[] = [...fill.querySelectorAll('svg')].map((icon) => icon.getBoundingClientRect())
@@ -38,7 +42,7 @@ async function readFill(control: Locator) {
       block: Math.min(rect.top - bounds.top, bounds.bottom - rect.bottom),
     }))
     return {
-      background: style.backgroundColor, opacity: style.opacity,
+      background: style.backgroundColor, opacity: style.opacity, effectiveOpacity,
       radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius]
         .map((value) => radius(value, bounds.width, bounds.height)),
       controlRadii: [controlStyle.borderTopLeftRadius, controlStyle.borderTopRightRadius, controlStyle.borderBottomRightRadius, controlStyle.borderBottomLeftRadius]
@@ -54,6 +58,7 @@ export async function expectFillShape(control: Locator, state: string) {
   const fill = await readFill(control)
   expect.soft(fill.matchesHitArea, `${state}: fill covers the control's entire hit area`).toBe(true)
   expect.soft(fill.background, `${state}: the fill paints a visible surface`).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
+  expect.soft(fill.effectiveOpacity, `${state}: the fill has visible effective opacity`).toBeGreaterThan(0)
   for (const [index, radius] of fill.radii.entries()) {
     expect.soft(radius, `${state}: fill uses the control's corner radius`).toBeCloseTo(fill.controlRadii[index]!, 1)
   }

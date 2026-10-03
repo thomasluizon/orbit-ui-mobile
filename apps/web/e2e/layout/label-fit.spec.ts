@@ -19,6 +19,9 @@ import { test } from './upgrade-fixtures'
 const reviewDay = '2026-09-04'
 const userFields = {
   habitTitle: 'Caminhar pelo bairro depois do trabalho e conversar com os amigos',
+  timedHabitTitle: 'Ler o livro que escolhi antes de começar o trabalho',
+  parentHabitTitle: 'Preparar tudo para os compromissos da próxima semana',
+  childHabitTitle: 'Organizar os materiais que vou levar para os encontros',
   goalTitle: 'Ler os livros que escolhi para aprender uma nova habilidade',
   eventTitle: 'Reunião de planejamento com todas as pessoas da minha equipe',
   calendarName: 'Meu calendário pessoal de compromissos e encontros',
@@ -31,7 +34,21 @@ const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
   dueDate: reviewDay, scheduledDates: [reviewDay],
 }))
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
-  ...emptyHabitsPageFixture, items: [habit], totalCount: 1,
+  ...emptyHabitsPageFixture,
+  items: [
+    { ...habit, dueDate: '2026-09-03', isOverdue: true },
+    makeHabitScheduleItem({
+      id: 'timed-habit', title: userFields.timedHabitTitle, children: [], hasSubHabits: false,
+      dueDate: reviewDay, dueTime: '08:00:00', scheduledDates: [reviewDay],
+    }),
+    makeHabitScheduleItem({
+      id: 'parent-habit', title: userFields.parentHabitTitle, dueDate: reviewDay, scheduledDates: [reviewDay],
+      children: [makeHabitScheduleItem({
+        id: 'child-habit', title: userFields.childHabitTitle, children: [], hasSubHabits: false,
+        dueDate: reviewDay, scheduledDates: [reviewDay],
+      })],
+    }),
+  ], totalCount: 3,
 })
 const goals = paginatedGoalResponseSchema.parse({
   items: [createMockGoal({ title: userFields.goalTitle })],
@@ -100,9 +117,18 @@ async function checkCalendarLabels(page: Page, words: typeof en | typeof ptBR) {
   await checkSurfaceLabels(page, page, [userFields.habitTitle, userFields.eventTitle, userFields.calendarName])
 }
 
-async function checkTodayLabels(page: Page) {
-  await expect(page.locator('[data-habit-row-body]').getByText(userFields.habitTitle, { exact: true })).toBeVisible()
-  await checkSurfaceLabels(page, page, [userFields.habitTitle])
+async function checkTodayLabels(page: Page, words: typeof en | typeof ptBR) {
+  const rows = page.getByTestId('habit-row')
+  for (const title of [userFields.habitTitle, userFields.timedHabitTitle, userFields.parentHabitTitle]) {
+    await expect(rows.locator('[data-habit-row-body]').getByText(title, { exact: true })).toBeVisible()
+  }
+  await expect(rows.filter({ has: page.getByText(userFields.habitTitle, { exact: true }) })
+    .locator('[data-habit-row-meta]').getByText(words.habits.overdue, { exact: true })).toBeVisible()
+  await expect(rows.filter({ has: page.getByText(userFields.timedHabitTitle, { exact: true }) })
+    .locator('[data-habit-row-meta]')).toHaveText('08:00')
+  await expect(rows.filter({ has: page.getByText(userFields.parentHabitTitle, { exact: true }) })
+    .locator('[data-habit-row-meta]')).toHaveText(words.habits.rowProgress.replace('{done}', '0').replace('{total}', '1'))
+  await checkSurfaceLabels(page, page, [userFields.habitTitle, userFields.timedHabitTitle, userFields.parentHabitTitle])
 }
 
 for (const width of [320, 360, 384, 412]) {
@@ -150,14 +176,14 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Today tabs, buttons and menu titles remain whole', async ({ page }) => {
         await page.goto(`/?date=${reviewDay}`)
-        await checkTodayLabels(page)
+        await checkTodayLabels(page, words)
         await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
         const sheet = page.getByRole('dialog', { name: words.habits.listOptions, exact: true })
         await expect(sheet.getByRole('menu', { name: words.habits.listOptions, exact: true })).toBeVisible()
         await checkSurfaceLabels(page, sheet)
         await sheet.getByRole('button', { name: words.common.close, exact: true }).click()
         await expect(sheet).toHaveCount(0)
-        await checkTodayLabels(page)
+        await checkTodayLabels(page, words)
       })
 
       test('Calendar selector and legend remain whole', async ({ page }) => {

@@ -19,6 +19,7 @@ import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { HabitRow } from '@/components/habits/habit-row'
+import { HabitRowContent } from '@/components/habits/habit-row-content'
 import { EventRow } from '@/components/dates/event-row'
 import { loadAppFonts } from './app-fonts'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
@@ -102,6 +103,32 @@ describe('label and interaction fill guards in Chromium', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    it.each([
+      { name: 'fitting', clipped: false },
+      { name: 'clipped', clipped: true },
+    ])(`checks $name status metadata from HabitRowContent in ${locale}`, async ({ clipped }) => {
+      const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+      const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
+      const content = renderToStaticMarkup(createElement(HabitRowContent, {
+        habit: createMockHabit({ title }), titleSize: 17, titleColor: 'var(--fg-1)',
+        meta: [{ kind: 'overdue', label: words.habits.overdue }, '08:00',
+          words.habits.rowProgress.replace('{done}', '1').replace('{total}', '2')],
+      }))
+      try {
+        await page.setContent(`<style>${stylesheet}
+          [data-habit-row-meta] { ${clipped ? 'width: 10px;' : ''} }
+        </style><main style="padding: 0 16px"><button data-habit-row-body style="display: flex; width: 100%; text-align: left">
+          ${content}<span>Description<br>continues<br>as prose</span></button><button>Edit</button></main>`)
+        await loadAppFonts(page)
+        await markUserText(page, [title])
+        const assertion = expectLabelsFit(page, page, [title])
+        if (clipped) await expect(assertion).rejects.toThrow('app-authored labels must remain whole')
+        else await assertion
+      } finally {
+        await page.close()
+      }
+    })
+
     it.each([320, 360, 384, 412])(`measures the merged personal Calendar CheckRow and EventRow at %ipx in ${locale}`, async (width) => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       const title = 'Caminhar pelo bairro depois do trabalho e conversar com os amigos'
@@ -223,6 +250,31 @@ describe('label and interaction fill guards in Chromium', () => {
         button:active { background: rgb(140, 140, 140); }
       </style><button>Options</button>`)
       await expectInteractionFill(page.locator('button'))
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each([
+    { name: 'visible layer', hoverOpacity: '0.5', pressOpacity: '0.5', ancestorOpacity: '1', error: null },
+    { name: 'invisible hover layer', hoverOpacity: '0', pressOpacity: '1', ancestorOpacity: '1', error: 'hover: the fill has visible effective opacity' },
+    { name: 'invisible held press layer', hoverOpacity: '1', pressOpacity: '0', ancestorOpacity: '1', error: 'press: the fill has visible effective opacity' },
+    { name: 'invisible fill ancestor', hoverOpacity: '1', pressOpacity: '1', ancestorOpacity: '0', error: 'hover: the fill has visible effective opacity' },
+  ])('checks effective opacity for the $name through the full interaction sequence', async ({ hoverOpacity, pressOpacity, ancestorOpacity, error }) => {
+    const page = await browser.newPage()
+    try {
+      await page.bringToFront()
+      await page.setContent(`<!doctype html><style>
+        button { position: relative; width: 100px; height: 48px; border: 0; border-radius: 8px;
+          background: transparent; opacity: ${ancestorOpacity}; }
+        [data-press-fill] { position: absolute; inset: 0; border-radius: 8px; display: grid;
+          place-items: center; background: rgb(220, 220, 220); }
+        button:hover [data-press-fill] { background: rgb(180, 180, 180); opacity: ${hoverOpacity}; }
+        button:active [data-press-fill] { background: rgb(140, 140, 140); opacity: ${pressOpacity}; }
+      </style><button><span data-press-fill>Options</span></button>`)
+      const assertion = expectInteractionFill(page.locator('button'))
+      if (error) await expect(assertion).rejects.toThrow(error)
+      else await assertion
     } finally {
       await page.close()
     }

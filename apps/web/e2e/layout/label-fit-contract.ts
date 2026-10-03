@@ -4,6 +4,7 @@ const logicalLabelSelector = [
   'button:not([data-habit-row-body]):not(.orbit-list-row-body)',
   '[role="menuitem"]', '[role="tab"]', '[role="radio"]',
   '[data-slot="list-row-title"]', '[data-slot="list-row-value"]', 'h1', 'h2', 'h3', 'label',
+  '[data-habit-row-meta]',
   '[data-layout-label]',
 ].join(', ')
 
