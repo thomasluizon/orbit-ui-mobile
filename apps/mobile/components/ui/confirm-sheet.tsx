@@ -133,5 +133,5 @@ export function ConfirmSheet({
 }
 
 const styles = StyleSheet.create({
-  message: { fontFamily: 'Geist_400Regular', fontSize: 15, lineHeight: 22 },
+  message: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24.8 },
 })

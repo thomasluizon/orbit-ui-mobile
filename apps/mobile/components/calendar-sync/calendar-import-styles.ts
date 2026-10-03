@@ -29,13 +29,13 @@ export function createStyles() {
     },
     connectionTitle: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 18,
-      lineHeight: 22.5,
+      fontSize: 17,
+      lineHeight: 22.95,
     },
     connectionMeta: {
       fontFamily: 'GeistMono_400Regular',
-      fontSize: 13,
-      lineHeight: 18,
+      fontSize: 12,
+      lineHeight: 16.8,
       marginTop: 4,
     },
     syncNowRow: {
@@ -69,8 +69,8 @@ export function createStyles() {
     },
     stateTitle: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 18,
-      lineHeight: 22.5,
+      fontSize: 17,
+      lineHeight: 22.95,
       textAlign: 'center',
     },
     stateGlyphCircle: {
@@ -102,7 +102,7 @@ export function createStyles() {
     },
     eventTitle: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 15,
+      fontSize: 17,
     },
     eventMeta: {
       fontFamily: 'GeistMono_400Regular',
@@ -122,11 +122,11 @@ export function createStyles() {
     },
     eventDescription: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 13,
+      fontSize: 14,
     },
     importIssue: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 13,
+      fontSize: 14,
     },
     dismissButton: {
       overflow: 'hidden',
@@ -155,7 +155,7 @@ export function createStyles() {
     },
     quietActionText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 14,
     },
     quietActionIcon: {
       overflow: 'hidden',

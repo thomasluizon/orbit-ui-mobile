@@ -349,7 +349,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             <h2
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
                 marginBottom: 4,
@@ -489,7 +489,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             <h2
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
                 marginBottom: 4,
@@ -536,7 +536,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             <h2
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
                 marginBottom: 4,

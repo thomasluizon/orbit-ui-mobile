@@ -15,7 +15,7 @@ export const styles = StyleSheet.create({
   },
   statusText: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 13,
+    fontSize: 14,
   },
   linkChip: {
     alignSelf: 'flex-start',
@@ -35,7 +35,7 @@ export const styles = StyleSheet.create({
   },
   linkText: {
     fontFamily: 'Geist_500Medium',
-    fontSize: 13,
+    fontSize: 14,
   },
   sheetScroll: {
     flexGrow: 0,

@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   flame: {
-    fontSize: 15,
+    fontSize: 16,
     lineHeight: 18,
   },
   flameDormant: {

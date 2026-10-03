@@ -17,7 +17,7 @@ export function WidgetInfoOverlay({
     <Sheet open onClose={() => onOpenChange(false)} title={t('profile.widgetTitle')}>
       <div className="flex flex-col gap-4">
         <div>
-          <h3 className="mb-2 font-sans text-[15px] font-medium text-[var(--fg-1)]">
+          <h3 className="mb-2 font-sans text-[16px] font-medium text-[var(--fg-1)]">
             {t('profile.widgetHow.title')}
           </h3>
           <ol className="flex flex-col gap-2 font-sans text-sm leading-[1.55] text-[var(--fg-2)]">
@@ -30,7 +30,7 @@ export function WidgetInfoOverlay({
           </ol>
         </div>
         <div>
-          <h3 className="mb-2 font-sans text-[15px] font-medium text-[var(--fg-1)]">
+          <h3 className="mb-2 font-sans text-[16px] font-medium text-[var(--fg-1)]">
             {t('profile.widgetHow.featuresTitle')}
           </h3>
           <ul className="flex flex-col gap-2 font-sans text-sm leading-[1.55] text-[var(--fg-2)]">

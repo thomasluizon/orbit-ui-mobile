@@ -29,7 +29,7 @@ export function QuietLink({
         minHeight: TOUCH_TARGET_MIN,
         padding: '4px 12px',
         fontFamily: 'var(--font-sans)',
-        fontSize: emphasized ? 14 : 13,
+        fontSize: 14,
         fontWeight: emphasized ? 500 : 400,
         color: emphasized ? 'var(--fg-2)' : 'var(--fg-3)',
       }}

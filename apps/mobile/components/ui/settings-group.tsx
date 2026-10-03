@@ -130,8 +130,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 18,
-    lineHeight: 22.5,
+    fontSize: 17,
+    lineHeight: 22.95,
     flexShrink: 1,
   },
   trailingBlock: {

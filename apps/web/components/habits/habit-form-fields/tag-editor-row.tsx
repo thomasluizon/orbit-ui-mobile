@@ -33,7 +33,7 @@ export function TagEditorRow({
         placeholder={placeholder}
         maxLength={MAX_TAG_NAME_LENGTH}
         disabled={disabled}
-        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-[13px] shadow-[inset_0_0_0_1px_var(--hairline)] border-0 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-[14px] shadow-[inset_0_0_0_1px_var(--hairline)] border-0 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -48,7 +48,7 @@ export function TagEditorRow({
         style={{
           padding: '8px 12px',
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: 500,
         }}
         disabled={disabled}

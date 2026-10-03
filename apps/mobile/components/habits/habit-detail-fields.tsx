@@ -158,5 +158,5 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderRadius: 999, overflow: 'hidden', borderWidth: 1, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 12 },
   dayChip: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1, height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
-  chipText: { fontFamily: 'Geist_500Medium', fontSize: 13 },
+  chipText: { fontFamily: 'Geist_500Medium', fontSize: 14 },
 })

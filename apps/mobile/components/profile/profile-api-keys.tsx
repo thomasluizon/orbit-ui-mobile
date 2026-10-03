@@ -504,9 +504,9 @@ const styles = StyleSheet.create({
   errorState: { alignItems: 'flex-start', gap: 8 },
   mcpWell: { borderRadius: 12, gap: 4, padding: 16 },
   mcpTitle: { fontFamily: 'Geist_500Medium', fontSize: 14 },
-  mcpEndpoint: { fontFamily: 'GeistMono_400Regular', fontSize: 13, lineHeight: 18.2 },
+  mcpEndpoint: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8 },
   sheetContent: { gap: 12 },
   warning: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 21 },
   keyWell: { alignItems: 'center', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, padding: 16 },
-  keyValue: { flex: 1, fontFamily: 'GeistMono_400Regular', fontSize: 13, lineHeight: 18.2 },
+  keyValue: { flex: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8 },
 })

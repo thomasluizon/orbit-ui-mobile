@@ -294,7 +294,7 @@ export function CalendarTimeGrid({
                       minWidth: '1.5rem',
                       minHeight: '1.5rem',
                       fontFamily: 'var(--font-mono)',
-                      fontSize: '0.8125rem',
+                      fontSize: '0.75rem',
                       fontWeight: 500,
                       fontVariantNumeric: 'tabular-nums',
                       color: column.isToday

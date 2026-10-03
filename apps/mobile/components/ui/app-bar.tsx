@@ -27,9 +27,9 @@ export function AppBar({ title, onBack, backLabel, action, titleRef, titleIsHead
 }
 
 const styles = StyleSheet.create({
-  row: { height: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 16 },
-  leading: { flex: 1, minWidth: TOUCH_TARGET_MIN, alignItems: 'flex-start' },
+  row: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 16 },
+  leading: { minWidth: TOUCH_TARGET_MIN, alignItems: 'flex-start' },
   back: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  title: { flexShrink: 1, fontFamily: 'GeistMono_500Medium', fontSize: 13, letterSpacing: 1.17, textTransform: 'uppercase', textAlign: 'center' },
-  action: { flex: 1, minWidth: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
+  title: { flex: 1, fontFamily: 'GeistMono_500Medium', fontSize: 12, textAlign: 'left' },
+  action: { minWidth: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
 })

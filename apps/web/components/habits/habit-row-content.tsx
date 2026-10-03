@@ -75,7 +75,7 @@ export function MetaStrip({ tokens, expanded = false }: Readonly<MetaStripProps>
       className={`habit-row-meta block min-w-0 ${expanded ? 'whitespace-normal' : 'overflow-hidden whitespace-nowrap text-ellipsis'}`}
       style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: '0.8125rem',
+        fontSize: '0.75rem',
         fontVariantNumeric: 'tabular-nums',
       }}
     >

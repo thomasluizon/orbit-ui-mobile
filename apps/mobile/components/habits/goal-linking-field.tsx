@@ -81,7 +81,7 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8 },
     chip: { backgroundColor: tokens.bgWell, borderRadius: 8, maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 8 },
-    chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 13, flexShrink: 1 },
+    chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14, flexShrink: 1 },
     list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
     search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 12 },
     virtualList: { maxHeight: 320 },

@@ -9,10 +9,10 @@ export const APP_BAR_CONTROL_CLASS =
   'orbit-pill-action flex size-[var(--touch-min)] items-center justify-center rounded-full text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.96]'
 
 export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true, titleIsBrandName = false, titleRef }: Readonly<NavHeaderProps & { titleIsHeading?: boolean; titleIsBrandName?: boolean; titleRef?: Ref<HTMLHeadingElement> }>) {
-  const titleClassName = 'min-w-0 text-center font-mono text-[13px] font-medium uppercase tracking-[0.09em] text-[var(--fg-1)]'
+  const titleClassName = 'min-w-0 text-start font-mono text-[12px] font-medium text-[var(--fg-1)]'
   const titleTranslate = titleIsBrandName ? 'no' : undefined
   return (
-    <header data-back={onBack ? true : undefined} className="grid h-14 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-1 px-4">
+    <header data-back={onBack ? true : undefined} className="grid min-h-14 shrink-0 grid-cols-[auto_1fr_auto] items-center gap-1 px-4">
       <div className="flex min-w-[var(--touch-min)] justify-start">
         {onBack && (
           <button type="button" aria-label={backLabel} onClick={onBack} className={APP_BAR_CONTROL_CLASS}>

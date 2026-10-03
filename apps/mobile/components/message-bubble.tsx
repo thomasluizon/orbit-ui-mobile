@@ -409,7 +409,7 @@ function createStyles(tokens: AppTokens) {
     },
     relatedChipText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
 

@@ -105,7 +105,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
             style={{
               margin: 0,
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontSize: 14,
               color: 'var(--status-bad-text)',
             }}
           >

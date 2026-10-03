@@ -799,7 +799,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 
 | Primitive | Key specs | Web | Mobile |
 |---|---|---|---|
-| NavHeader | Object views: 56px, centred sentence-case Geist Mono 12/500 +0.09em title, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
+| NavHeader | Object views: minimum height 56px, start-aligned sentence-case Geist Mono 12/500 title with no tracking, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
 | PageHeader | Pushed pages: 8px row gap, 8px top and bottom padding, 8px start and 16px end padding, hairline below; ghost back button 48px with arrow-left 20; start-aligned sentence-case title at `--fs-lg`/500 on one line, never truncated. Avisos adds an options button (`dots-vertical`) at the trailing end of the first row; its menu holds 'mark all read' and 'clear all' (with a confirmation). Avisos shows no bell, because it is the destination. Drawn in Orbit Busca, Sobre, Pro, Assinatura and Avisos. | `ui/page-header.tsx` | `ui/page-header.tsx` |
 | Pager | caller-controlled segments and back/forward controls, unavailable handlers disable controls, closing action replaces forward | `ui/pager.tsx` | `ui/pager.tsx` |
 | SegmentedControl | 2 to 4 views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states. In the compact shell it is the last line of its screen header group (never above the header), spans the content column, centred, with equal segments; each label is one word on one line at 320; it never wraps and never truncates | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |

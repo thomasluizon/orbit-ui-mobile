@@ -81,9 +81,9 @@ export function SettingsRow({
           className="overflow-hidden line-clamp-2"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: 400,
-            lineHeight: 1.25,
+            lineHeight: 1.35,
             color: titleColor,
             overflowWrap: 'anywhere',
           }}
@@ -110,7 +110,7 @@ export function SettingsRow({
           gap: 8,
           color: 'var(--fg-3)',
           fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
-          fontSize: mono ? 13 : 14,
+          fontSize: mono ? 12 : 14,
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
         }}
       >

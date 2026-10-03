@@ -47,7 +47,7 @@ export function EditGoalDeadlineField({
             <p
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--status-overdue-text)',
               }}
             >
@@ -61,7 +61,7 @@ export function EditGoalDeadlineField({
           className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 500,
             minHeight: TOUCH_TARGET_MIN,
             padding: 0,

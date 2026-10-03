@@ -190,7 +190,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     sectionDesc: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 13.5,
+      fontSize: 14,
       color: tokens.fg3,
       lineHeight: 21,
     },
