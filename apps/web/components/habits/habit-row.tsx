@@ -104,7 +104,7 @@ function HabitRowStructuralColumn({
   collapseLabel: string
   expandLabel: string
 }>) {
-  if (!hasChildren) return <span aria-hidden="true" className="h-11 w-11 shrink-0" />
+  if (!hasChildren) return null
   return (
     <button
       type="button"
@@ -113,7 +113,7 @@ function HabitRowStructuralColumn({
       aria-label={expanded ? collapseLabel : expandLabel}
       aria-expanded={expanded}
       aria-controls={childPanelId}
-      className="flex h-11 w-11 shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer active:scale-[0.96]"
+      className="flex min-h-[48px] w-[48px] shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-3)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer active:scale-[0.96]"
     >
       <ChevronDown
         size={20}
@@ -190,35 +190,17 @@ export function HabitRow({
       data-depth={depth}
       data-status={state}
       tabIndex={-1}
-      className={`relative flex items-center ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
+      className={`relative flex items-center gap-[4px] ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{
         minHeight: isChild ? 52 : 68,
       }}
     >
-      {structuralColumn && selectMode ? (
-        <button type="button" data-habit-row-control="selection" aria-label={habit.title}
-          aria-pressed={selected} onClick={() => onToggleSelection?.()}
-          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
-          <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
-        </button>
-      ) : null}
-      {structuralColumn ? (
-        <HabitRowStructuralColumn
-          hasChildren={hasChildren}
-          expanded={expanded}
-          childPanelId={childPanelId}
-          onToggleExpand={onToggleExpand}
-          collapseLabel={t('common.collapse')}
-          expandLabel={t('common.expand')}
-        />
-      ) : null}
-
       <button
         type="button"
         onClick={handleRowClick}
         data-habit-row-body=""
         className="flex min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
-        style={{ gap: 12, paddingBlock: isChild ? 4 : 8, paddingInlineStart: isChild ? 24 : 0 }}
+        style={{ gap: 12, paddingBlock: isChild ? 4 : 8, paddingInlineStart: 0 }}
       >
         <HabitRowLeading
           title={habit.title}
@@ -235,6 +217,24 @@ export function HabitRow({
           meta={meta}
         />
       </button>
+
+      {structuralColumn && selectMode ? (
+        <button type="button" data-habit-row-control="selection" aria-label={habit.title}
+          aria-pressed={selected} onClick={() => onToggleSelection?.()}
+          className="flex min-h-[48px] w-[48px] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96]">
+          <Checkbox checked={selected} onChange={() => onToggleSelection?.()} as="span" />
+        </button>
+      ) : null}
+      {structuralColumn ? (
+        <HabitRowStructuralColumn
+          hasChildren={hasChildren}
+          expanded={expanded}
+          childPanelId={childPanelId}
+          onToggleExpand={onToggleExpand}
+          collapseLabel={t('common.collapse')}
+          expandLabel={t('common.expand')}
+        />
+      ) : null}
 
       <HabitRowTrailing
         habit={habit}

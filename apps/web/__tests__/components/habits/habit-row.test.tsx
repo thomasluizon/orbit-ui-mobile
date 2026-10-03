@@ -265,12 +265,12 @@ describe('HabitRow neutral metadata contrast', () => {
 })
 
 describe('HabitRow canonical content', () => {
-  it('omits the structural column by default and indents only a child body', () => {
+  it('keeps a child body on the shared leading edge', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={1} />)
     const row = screen.getByTestId('habit-row')
     expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
     expect(row.style.paddingInlineStart).toBe('')
-    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '24px' })
+    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '0px' })
   })
 
   it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {
@@ -279,24 +279,24 @@ describe('HabitRow canonical content', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Parent' })} structuralColumn selectMode selected
       hasChildren expanded childProgress={{ done: 1, total: 2 }} actions={{ onToggleExpand, onToggleSelection }} />)
     const row = screen.getByTestId('habit-row')
-    expect(row.children[0]).toHaveAttribute('data-habit-row-control', 'selection')
-    expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'disclosure')
-    expect(row.children[2]).toHaveAttribute('data-habit-row-body')
-    expect(row.children[0]!.querySelector('span[aria-hidden="true"]')).toHaveStyle({ background: 'var(--status-done)' })
-    expect(row.children[0]!.querySelector('[style*="--primary"]')).toBeNull()
-    fireEvent.click(row.children[1]!)
+    expect(row.children[0]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'selection')
+    expect(row.children[2]).toHaveAttribute('data-habit-row-control', 'disclosure')
+    expect(row.children[1]!.querySelector('span[aria-hidden="true"]')).toHaveStyle({ background: 'var(--status-done)' })
+    expect(row.children[1]!.querySelector('[style*="--primary"]')).toBeNull()
+    fireEvent.click(row.children[2]!)
     expect(onToggleExpand).toHaveBeenCalledOnce()
     expect(onToggleSelection).not.toHaveBeenCalled()
     expect(within(row).queryByRole('button', { name: /habits\.statusDot/ })).toBeNull()
     expect(within(row).getByRole('img', { name: 'habits.statusDot.empty, 1/2' })).toBeInTheDocument()
   })
 
-  it('keeps the leaf spacer and a named status glyph while selecting', () => {
+  it('keeps selection and a named status glyph without a leaf gutter', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn selectMode completionReadOnly />)
     const row = screen.getByTestId('habit-row')
-    expect(row.children[0]).toHaveAttribute('data-habit-row-control', 'selection')
-    expect(row.children[1]).toHaveAttribute('aria-hidden', 'true')
-    expect(row.children[2]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[0]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'selection')
+    expect(row.querySelector('[data-habit-row-control="disclosure"]')).toBeNull()
     expect(within(row).getByRole('img', { name: 'habits.statusDot.empty' })).toBeInTheDocument()
     expect(within(row).queryByTestId('habit-status-toggle')).toBeNull()
   })

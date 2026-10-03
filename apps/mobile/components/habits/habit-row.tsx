@@ -130,7 +130,7 @@ function HabitRowStructuralColumn({
   collapseLabel: string
   expandLabel: string
 }>) {
-  if (!hasChildren) return <View style={styles.structuralColumn} />
+  if (!hasChildren) return null
   return (
     <Pressable
       onPress={actions.onToggleExpand}
@@ -209,9 +209,6 @@ function buildRowStyle({
   }
 }
 
-/**
- * Habit row: structural column · emoji well · title/meta · trailing status.
- */
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitRow = memo(function HabitRow({
   habit,
@@ -341,25 +338,6 @@ export const HabitRow = memo(function HabitRow({
           style,
         ]}
       >
-        {structuralColumn && isSelectMode ? (
-          <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
-            accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
-            style={({ pressed }) => [styles.structuralColumn,
-              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
-            <Checkbox checked={isSelected} onChange={() => actions.onToggleSelection?.()} as="span" />
-          </Pressable>
-        ) : null}
-        {structuralColumn ? (
-          <HabitRowStructuralColumn
-            hasChildren={hasChildren}
-            expanded={isExpanded}
-            actions={actions}
-            tokens={tokens}
-            collapseLabel={t('common.collapse')}
-            expandLabel={t('common.expand')}
-          />
-        ) : null}
-
         <Pressable
           onPress={handlePress}
           onPressIn={bodyPressFeedback.onPressIn}
@@ -371,7 +349,7 @@ export const HabitRow = memo(function HabitRow({
           accessibilityHint={futureHint?.label}
           style={({ pressed }) => [
             styles.bodyButton,
-            { paddingVertical: isChild ? 4 : 8, paddingLeft: isChild ? 24 : 0 },
+            { paddingVertical: isChild ? 4 : 8, paddingLeft: 0 },
             pressed ? [styles.bodyButtonPressed, { backgroundColor: tokens.bgHover }] : null,
           ]}
         >
@@ -393,6 +371,25 @@ export const HabitRow = memo(function HabitRow({
             tokens={tokens}
           />
         </Pressable>
+
+        {structuralColumn && isSelectMode ? (
+          <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
+            accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
+            style={({ pressed }) => [styles.structuralColumn,
+              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+            <Checkbox checked={isSelected} onChange={() => actions.onToggleSelection?.()} as="span" />
+          </Pressable>
+        ) : null}
+        {structuralColumn ? (
+          <HabitRowStructuralColumn
+            hasChildren={hasChildren}
+            expanded={isExpanded}
+            actions={actions}
+            tokens={tokens}
+            collapseLabel={t('common.collapse')}
+            expandLabel={t('common.expand')}
+          />
+        ) : null}
 
         <HabitRowTrailing
           habit={habit}
