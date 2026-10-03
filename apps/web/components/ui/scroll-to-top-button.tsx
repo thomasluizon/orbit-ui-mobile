@@ -24,6 +24,10 @@ function ScrollerButton({ scroller }: Readonly<{ scroller: HTMLElement }>) {
     <PillButton variant="ghost" quiet elevated minimumHeight={48} accessibleName={t('common.backToTop')}
       leadingIcon={<ArrowUp size={20} strokeWidth={2} aria-hidden="true" />} onClick={() => {
         scroller.scrollTo({ top: 0, behavior: 'instant' })
+        const heading = document.querySelector<HTMLElement>('[data-shell-header] h1') ?? scroller.querySelector<HTMLElement>('h1')
+        const target = heading ?? scroller
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
+        target.focus({ preventScroll: true })
         scrollState.current = { offset: 0, visible: false }
         setVisible(false)
       }}>

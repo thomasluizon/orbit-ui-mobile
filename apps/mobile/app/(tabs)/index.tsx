@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Animated, StyleSheet, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { AccessibilityInfo, Animated, StyleSheet, View, type Text } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useShellScrollToTopSlot } from '@/components/shell/shell-scroll-to-top-slot'
@@ -82,16 +82,33 @@ function TodayScreenContent() {
   const [todayFocused, setTodayFocused] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
-  const [viewportHeight, setViewportHeight] = useState(0)
+  const headingRef = useRef<Text>(null)
+  const viewportHeight = useRef(0)
   const scrollState = useRef({ offset: 0, visible: false })
-  const [scrollToTopVisible, setScrollToTopVisible] = useState(false)
-  const scrollToTop = useCallback(() => {
-    habitListRef.current?.scrollToOffset(0, false)
-    scrollState.current = { offset: 0, visible: false }
-    setScrollToTopVisible(false)
+  const scrollVisibility = useMemo(() => {
+    const listeners = new Set<() => void>()
+    return {
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+      getSnapshot: () => scrollState.current.visible,
+      update: (offset: number) => {
+        const previous = scrollState.current
+        const next = updateScrollToTopState(previous, offset, viewportHeight.current)
+        scrollState.current = next
+        if (next.visible !== previous.visible) listeners.forEach((listener) => listener())
+      },
+    }
   }, [])
+  const scrollToTopVisible = useSyncExternalStore(scrollVisibility.subscribe, scrollVisibility.getSnapshot)
+  const scrollToTop = useCallback((focusHeading = false) => {
+    habitListRef.current?.scrollToOffset(0, false)
+    if (focusHeading && headingRef.current) AccessibilityInfo.sendAccessibilityEvent(headingRef.current, 'focus')
+    scrollVisibility.update(0)
+  }, [scrollVisibility])
   useRootScrollToTop('hoje', scrollToTop)
-  useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={scrollToTop} />)
+  useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={() => scrollToTop(true)} />)
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
@@ -192,7 +209,6 @@ function TodayScreenContent() {
 
   const listHeader = (
     <View style={styles.header}>
-      <ScreenReaderHeading title={t('nav.today')} />
       {todayFocused ? (
         <TodayAstra
           today={date.today}
@@ -242,7 +258,8 @@ function TodayScreenContent() {
   )
 
   return (
-    <View testID="today-content-column" onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)} style={[styles.screen, { backgroundColor: tokens.bg }]}>
+    <View testID="today-content-column" onLayout={(event) => { viewportHeight.current = event.nativeEvent.layout.height }} style={[styles.screen, { backgroundColor: tokens.bg }]}>
+      <ScreenReaderHeading ref={headingRef} title={t('nav.today')} />
       <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
         <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
           <HabitList
@@ -268,11 +285,7 @@ function TodayScreenContent() {
             onAllLoadedIdsChange={setAllLoadedIds}
             onAllCollapsedChange={setHabitListAllCollapsed}
             onSurfaceOpenChange={setListSurfaceOpen}
-            onScroll={(offset) => {
-              const next = updateScrollToTopState(scrollState.current, offset, viewportHeight)
-              if (next.visible !== scrollState.current.visible) setScrollToTopVisible(next.visible)
-              scrollState.current = next
-            }}
+            onScroll={scrollVisibility.update}
           />
         </Animated.View>
       </Animated.View>

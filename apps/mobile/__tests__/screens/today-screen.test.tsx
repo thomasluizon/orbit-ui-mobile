@@ -1,7 +1,7 @@
 import React from 'react'
 import { Shell412 } from '@/components/shell/shell-412'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
-import { Animated, StyleSheet } from 'react-native'
+import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -534,6 +534,10 @@ describe('Hoje date boundaries', () => {
     await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 header={<></>} tabBar={<DestinationTabBar pathname="/" />}><TodayScreen /></Shell412>) })
     let blur: void | (() => void)
     await TestRenderer.act(() => { blur = mocks.focusCallback?.() })
+    let accessibilityTarget: unknown = null
+    const focusEvent = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent').mockImplementation((handle, eventType) => {
+      if (eventType === 'focus') accessibilityTarget = handle
+    })
     const selectedDate = mocks.date.dateStr
     const column = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-content-column')[0]!
     await TestRenderer.act(() => (column.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: 500 } } }))
@@ -544,7 +548,12 @@ describe('Hoje date boundaries', () => {
     await scroll(700)
     expect(pills()).toHaveLength(1)
     expect(flattenText(pills()[0]!.props.children)).toContain(en.common.top)
+    accessibilityTarget = { __nativeTag: pills()[0]!.props.__nativeTag }
+    expect(accessibilityTarget).toEqual({ __nativeTag: pills()[0]!.props.__nativeTag })
     await TestRenderer.act(() => (pills()[0]!.props.onPress as () => void)())
+    const heading = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === en.nav.today)[0]!
+    expect(accessibilityTarget).toMatchObject({ __nativeTag: heading.props.__nativeTag })
+    expect(focusEvent).toHaveBeenCalledOnce()
     expect(mocks.scrollToOffset).toHaveBeenCalledWith(0, false)
     expect(pills()).toHaveLength(0)
     await scroll(900)

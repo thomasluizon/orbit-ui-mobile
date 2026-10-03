@@ -5,6 +5,7 @@ import { LayoutDashboard, LayoutDashboardFilled } from '@/components/ui/icons'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { ShellScrollerProvider, useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
 import { Composer } from '@/components/shell/composer'
 import en from '@orbit/shared/i18n/en.json'
@@ -885,9 +886,19 @@ it.each(['/', '/calendar', '/progress', '/profile'].flatMap((pathname) => [false
   expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Written draft')
 })
 
-it('offers the Hoje pill after a viewport while scrolling up and hides it at the top', async () => {
+function HeaderSlotProbe({ children }: { children: ReactNode }) {
+  useShellHeaderSlot(() => children, 'today-focus')
+  return null
+}
+
+it.each(['heading', 'main', 'pinned heading'])('offers the Hoje pill and restores keyboard focus to %s', async (target) => {
+  const user = userEvent.setup()
   mocks.pathname = '/'
-  const view = render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell></ShellScrollerProvider>)
+  const view = render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}>
+    {target === 'pinned heading' ? <HeaderSlotProbe><h1>Today</h1></HeaderSlotProbe> : null}
+    {target === 'heading' ? <h1>Today</h1> : null}
+    <input aria-label="Top draft" defaultValue="Written draft" />
+  </DestinationShell></ShellScrollerProvider>)
   const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
   Object.defineProperty(scroller, 'clientHeight', { value: 500 })
   const scrollTo = vi.fn()
@@ -902,7 +913,14 @@ it('offers the Hoje pill after a viewport while scrolling up and hides it at the
   await scroll(700)
   const pill = screen.getByRole('button', { name: 'common.backToTop' })
   expect(pill).toHaveTextContent('common.top')
-  fireEvent.click(pill)
+  pill.focus()
+  expect(document.activeElement).toBe(pill)
+  await user.keyboard('{Enter}')
+  const focusTarget = target === 'main' ? scroller : screen.getByRole('heading', { name: 'Today' })
+  expect(document.activeElement).toBe(focusTarget)
+  await user.tab()
+  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Top draft' }))
+  expect(screen.getByRole('textbox', { name: 'Top draft' })).toHaveValue('Written draft')
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
   expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
   await scroll(900)
