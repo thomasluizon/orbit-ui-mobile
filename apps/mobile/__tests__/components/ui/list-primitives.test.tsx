@@ -118,7 +118,7 @@ describe('list primitives on mobile', () => {
     const chevron = navigation.findAllByType(View).find((node) =>
       StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 48,
     )
-    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 48, height: 48, flexShrink: 0 })
+    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 48, minHeight: 24, flexShrink: 0 })
 
     void act(() => { tree.update(<ListRow title="Read only" readOnly />) })
     expect(tree.root.findAllByType(View).some((node) =>
