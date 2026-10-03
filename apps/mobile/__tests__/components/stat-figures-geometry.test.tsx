@@ -61,7 +61,7 @@ function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; in
   if (host.type === 'Text') {
     const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
     const intrinsic = textWidth(label, style, fontScale)
-    if (figure) labels.push({ node, intrinsic, host })
+    if (figure || label === en.progressScreen.streak.next || label === ptBR.progressScreen.streak.next) labels.push({ node, intrinsic, host })
     node.setMeasureFunc((width, mode) => ({ width: mode === Yoga.MEASURE_MODE_UNDEFINED ? intrinsic : Math.min(width, intrinsic), height: Math.ceil(intrinsic / Math.max(width, 1)) * (style.lineHeight ?? 20) * fontScale }))
   } else {
     (host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => node.insertChild(buildLayout(child, fontScale, labels, figures, figure), index))
@@ -89,7 +89,7 @@ it.each([en, ptBR].flatMap((catalog) => [320, 360, 384, 412].flatMap((width) => 
         tierLabel={catalog.streakDisplay.detail.tierTileLabel} protectedDays={[]} words={{
           active: catalog.progressScreen.streak.active, frozen: catalog.progressScreen.streak.frozen, missed: catalog.progressScreen.streak.missed, today: catalog.progressScreen.streak.today,
           legendLabel: catalog.progressScreen.streak.legend, bankedLabel: catalog.progressScreen.streak.banked, usedLabel: catalog.progressScreen.streak.used,
-          nextLabel: catalog.progressScreen.streak.next, nextProgressLabel: catalog.progressScreen.streak.nextProgress, nextFreezeProgress: '4/7',
+          nextLabel: catalog.progressScreen.streak.next, nextProgressLabel: catalog.progressScreen.streak.nextProgress, nextFreezeProgress: catalog.progressScreen.streak.nextOf.replace('{current}', '4').replace('{total}', '7'),
           protectedLabel: catalog.progressScreen.streak.protectedDays, protectedEmpty: catalog.progressScreen.streak.protectedEmpty,
           protectedDay: catalog.progressScreen.streak.protected, protectedToday: catalog.progressScreen.streak.protectedToday,
         }} />
@@ -107,7 +107,13 @@ it.each([en, ptBR].flatMap((catalog) => [320, 360, 384, 412].flatMap((width) => 
     figures.filter((figure) => figure.state === 'calendar-figure-loading').forEach((figure, index) => expect(Math.abs(figure.node.getComputedHeight() - loadedHeights[index]!)).toBeLessThanOrEqual(1))
     expect(labels.length).toBeGreaterThan(20)
     for (const label of labels) {
-      expect(label.node.getComputedWidth(), label.host.children?.filter((child): child is string => typeof child === 'string').join('')).toBeGreaterThanOrEqual(label.intrinsic)
+      const text = label.host.children?.filter((child): child is string => typeof child === 'string').join('')
+      const nextCaption = text === catalog.progressScreen.streak.next
+      if (!nextCaption || fontScale <= 1.3) expect(label.node.getComputedWidth(), text).toBeGreaterThanOrEqual(label.intrinsic)
+      if (nextCaption) {
+        expect(label.node.getComputedWidth()).toBeLessThanOrEqual(width - 66)
+        expect(label.node.getComputedHeight()).toBeGreaterThanOrEqual(Math.ceil(label.intrinsic / label.node.getComputedWidth()) * 20 * fontScale)
+      }
       expect(label.host.props.numberOfLines).toBeUndefined()
       expect(label.node.getComputedHeight()).toBeGreaterThanOrEqual(20 * fontScale)
     }
