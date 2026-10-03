@@ -68,7 +68,7 @@ export const cases = () => {
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: " group-hover:text-[var(--primary-text)]", after: "" },
     { path: "apps/web/components/shell/shell-wide.tsx", before: " hover:text-[var(--primary-text)]", after: "" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active && pressed ? tokens.primaryText : active ? tokens.primarySoft : tokens.fg3", after: "active ? tokens.primarySoft : tokens.fg3" },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3", after: "active ? tokens.primarySoft : tokens.fg3" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
@@ -99,6 +99,15 @@ export const cases = () => {
     ["bad-hover-override", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-text)] hover:text-[var(--primary-soft)]">Item</button>` }, 1],
     ["reversed-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primarySoft : tokens.primaryText }}>Item</Text>}</Pressable></View>` }, 1],
     ["direct-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primaryText : tokens.primarySoft }}>Item</Text>}</Pressable></View>` }, 0],
+    ["native-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3 }}>Item</Text></Pressable></View>` }, 0],
+    ["native-unpaired-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? tokens.primarySoft : tokens.fg3 }}>Item</Text></Pressable></View>` }, 1],
+    ["native-wrong-hover-owner", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === other.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hoveredId === item.id ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 1],
+    ["native-reversed-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hovered && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hovered ? tokens.primarySoft : tokens.primaryText }}>Item</Text></Pressable></View>` }, 1],
+    ["native-negated-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hovered && { backgroundColor: tokens.bgHover }]}><Text style={{ color: !hovered ? tokens.primarySoft : tokens.primaryText }}>Item</Text></Pressable></View>` }, 0],
+    ["native-ternary-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={{ backgroundColor: hovered ? tokens.bgHover : 'transparent' }}><Text style={{ color: hovered ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 0],
+    ["native-disjunction-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[!hovered || { backgroundColor: tokens.bgHover }]}><Text style={{ color: hovered ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 0],
+    ["native-icon-well-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable>{({ pressed }) => <><View style={[pressed && { backgroundColor: tokens.bgHover }]}><Icon color={tokens.fg3} /></View><Text style={{ color: tokens.primarySoft }}>Item</Text></>}</Pressable></View>` }, 0],
+    ["native-label-well-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable>{({ pressed }) => <View style={[pressed && { backgroundColor: tokens.bgHover }]}><Text style={{ color: tokens.primarySoft }}>Item</Text></View>}</Pressable></View>` }, 1],
   ]
   for (const [label, source, status] of stateCases) {
     const repository = stageRepository(label, source)

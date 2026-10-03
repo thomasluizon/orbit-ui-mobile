@@ -304,7 +304,7 @@ function classifiedRole(node, source, matchIndex, graphicTags) {
 
 function matchedSurface(text, match, state) {
   const utility = text.slice(0, match.index).match(/(?:^|[\s"'`])([^\s"'`]*)$/)?.[1] ?? ""
-  if (state === "rest" && /(?:^|:)hover:|group-hover:/.test(utility)) return undefined
+  if (state?.interaction === "rest" && /(?:^|:)hover:|group-hover:/.test(utility)) return undefined
   return SURFACE_TOKENS.get(match.token)
 }
 
@@ -328,7 +328,7 @@ function booleanAssignments(expression, expected, state, assignments) {
     }
   }
   const key = expression.getText()
-  const known = key === "pressed" && state !== "hover" ? state === "pressed"
+  const known = key === "pressed" && state.interaction !== "hover" ? state.interaction === "pressed"
     : expression.kind === ts.SyntaxKind.TrueKeyword ? true
     : expression.kind === ts.SyntaxKind.FalseKeyword ? false
     : assignments.get(key)
@@ -336,17 +336,28 @@ function booleanAssignments(expression, expected, state, assignments) {
   return [new Map([...assignments, [key, expected]])]
 }
 
-function reachableInState(node, state) {
-  if (!state) return true
-  let assignments = [new Map()]
+function branchAssignments(node, state) {
+  let assignments = state.assignments ?? [new Map()]
   for (let current = node; current.parent; current = current.parent) {
     const parent = current.parent
-    if (!ts.isConditionalExpression(parent) || current === parent.condition) continue
-    const expected = current === parent.whenTrue
-    assignments = assignments.flatMap((values) => booleanAssignments(parent.condition, expected, state, values))
-    if (assignments.length === 0) return false
+    let condition
+    let expected
+    if (ts.isConditionalExpression(parent) && current !== parent.condition) {
+      condition = parent.condition
+      expected = current === parent.whenTrue
+    } else if (ts.isBinaryExpression(parent) && current === parent.right
+      && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken].includes(parent.operatorToken.kind)) {
+      condition = parent.left
+      expected = parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+    } else continue
+    assignments = assignments.flatMap((values) => booleanAssignments(condition, expected, state, values))
+    if (assignments.length === 0) break
   }
-  return true
+  return assignments
+}
+
+function reachableInState(node, state) {
+  return !state || branchAssignments(node, state).length > 0
 }
 
 function expressionSurfaces(expression, sourceFile, state) {
@@ -357,7 +368,7 @@ function expressionSurfaces(expression, sourceFile, state) {
     if (!reachableInState(node, state)) continue
     const literal = ancestor(node, ts.isStringLiteralLike)
     const utility = text.slice(0, match.index).match(/(?:^|[\s"'`])([^\s"'`]*)$/)?.[1] ?? ""
-    if (state === "hover" && utility.startsWith("bg-[")
+    if (state?.interaction === "hover" && utility.startsWith("bg-[")
       && literal && /(?:^|\s)hover:bg-\[var\(--/.test(literal.text)) continue
     const surface = matchedSurface(text, match, state)
     if (surface) surfaces.add(surface)
@@ -395,8 +406,8 @@ function ancestorHoverSurface(node, sourceFile) {
   for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
     if (!ts.isJsxElement(current)) continue
     const opening = current.openingElement
-    const resting = openingSurfaces(opening, sourceFile, "rest")
-    if (openingSurfaces(opening, sourceFile, "hover").some((surface) => !resting.includes(surface))) return true
+    const resting = openingSurfaces(opening, sourceFile, { interaction: "rest" })
+    if (openingSurfaces(opening, sourceFile, { interaction: "hover" }).some((surface) => !resting.includes(surface))) return true
   }
   return false
 }
@@ -745,8 +756,9 @@ function componentSurfaces(files, contentSurfaces, state) {
 function inspectSources(repositoryRoot, declarations) {
   const files = ["apps/web", "apps/mobile"].flatMap((path) => collectSourceFiles(resolve(repositoryRoot, path)))
   const stateSurfaces = new Map(["rest", "hover", "pressed"].map((state) => {
-    const contentSurfaces = componentContentSurfaces(files, state)
-    return [state, { contentSurfaces, callSurfaces: componentSurfaces(files, contentSurfaces, state) }]
+    const interactionState = { interaction: state }
+    const contentSurfaces = componentContentSurfaces(files, interactionState)
+    return [state, { contentSurfaces, callSurfaces: componentSurfaces(files, contentSurfaces, interactionState) }]
   }))
   const usages = []
   const undeclared = []
@@ -768,9 +780,11 @@ function inspectSources(repositoryRoot, declarations) {
       }
       if (roles.length === 0) continue
       const states = path.startsWith("apps/mobile/") ? ["rest", "pressed"] : webForegroundStates(node, match.index, syntax)
-      for (const state of states) {
-        if (!reachableInState(node, state)) continue
-        const { contentSurfaces, callSurfaces } = stateSurfaces.get(state)
+      for (const interaction of states) {
+        const assignments = branchAssignments(node, { interaction })
+        if (assignments.length === 0) continue
+        const state = { interaction, assignments }
+        const { contentSurfaces, callSurfaces } = stateSurfaces.get(interaction)
         const ownSurfaces = contextSurfaces(node, syntax, contentSurfaces, state)
         const owner = owningFunctionName(node)
         const variable = ancestor(node, ts.isVariableDeclaration)
