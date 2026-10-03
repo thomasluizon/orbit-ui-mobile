@@ -199,15 +199,10 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
     if (props.state !== 'offline' && props.state !== 'atLimit') return
     const input = inputRef.current
     if (!input) return
-    let observingFonts = false
     function updatePlaceholder() {
       const style = getComputedStyle(input!)
       const availableWidth = input!.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
       if (availableWidth <= 0) return
-      if (!observingFonts) {
-        document.fonts.addEventListener('loadingdone', updatePlaceholder)
-        observingFonts = true
-      }
       const context = document.createElement('canvas').getContext('2d')!
       context.font = style.font
       context.letterSpacing = style.letterSpacing
@@ -215,10 +210,11 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
     }
     const observer = new ResizeObserver(updatePlaceholder)
     observer.observe(input)
+    document.fonts.addEventListener('loadingdone', updatePlaceholder)
     updatePlaceholder()
     return () => {
       observer.disconnect()
-      if (observingFonts) document.fonts.removeEventListener('loadingdone', updatePlaceholder)
+      document.fonts.removeEventListener('loadingdone', updatePlaceholder)
     }
   }, [props.state, props.words.placeholder])
   const inputDisabled = props.state !== 'idle'
