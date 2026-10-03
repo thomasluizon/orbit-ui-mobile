@@ -105,7 +105,7 @@ export function PushDevicesRow({
     <View accessibilityState={{ busy: loading }}>
     <RowList>
       <View>
-      <ListRow readOnly textMode="label" title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
+      <ListRow readOnly wrapTitle title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
         <Switch checked={currentDeviceRegistered} disabled={disabled} onChange={() => {
           setLimitReached(!currentDeviceRegistered)
           if (!currentDeviceRegistered && !canEnable) return

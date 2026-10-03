@@ -148,10 +148,11 @@ describe('Profile API key row geometry', () => {
         range.selectNodeContents(title)
         const style = getComputedStyle(title)
         const rowBox = title.closest('.orbit-list-row-shell')!.getBoundingClientRect()
-        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, separated: titleBox.right <= switchBox.left || titleBox.bottom <= switchBox.top, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
+        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, firstLineAligned: Math.abs(titleBox.top - switchBox.top) <= 16, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
       }, textScale)
       expect(measured.textOverflow).not.toBe('ellipsis')
       expect(measured.unclipped).toBe(true)
+      expect(measured.firstLineAligned).toBe(true)
       if (textScale === 1) expect(measured.lines).toBe(1)
       else expect(measured.rowHeight).toBeGreaterThan(52)
       expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 48, switches: 1 })

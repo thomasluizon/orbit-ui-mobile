@@ -1534,6 +1534,8 @@ describe('ProfileScreen', () => {
         const title = geometry.texts.find((text) => text.label === label)!
         expect(title.clipped).toBe(false)
         expect(title.right).toBeLessThanOrEqual(width - 32)
+        expect(geometry.controls).toHaveLength(1)
+        expect(Math.abs(geometry.controls[0]!.top - title.top)).toBeLessThanOrEqual(16)
         if (textScale === 1) expect(title.lines).toBe(1)
         else expect(geometry.height).toBeGreaterThan(52)
       } finally { TestRenderer.act(() => rowTree.unmount()) }
