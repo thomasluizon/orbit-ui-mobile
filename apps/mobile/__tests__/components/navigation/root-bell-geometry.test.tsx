@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react'
-import { StyleSheet, type ViewStyle } from 'react-native'
+import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, expect, it, vi } from 'vitest'
 import ProgressScreen from '@/app/(tabs)/progress'
@@ -26,7 +26,7 @@ vi.mock('@/hooks/use-logout', () => ({ useLogout: () => ({ logout: vi.fn(), isPe
 interface Host {
   type: string
   props: {
-    style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle)
+    style?: (ViewStyle & TextStyle) | ((state: { pressed: boolean }) => ViewStyle & TextStyle)
     contentContainerStyle?: ViewStyle
     accessibilityLabel?: string
     accessibilityRole?: string
@@ -75,6 +75,8 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.paddingTop === 'number') node.setPadding(Yoga.EDGE_TOP, style.paddingTop)
   if (typeof style.paddingBottom === 'number') node.setPadding(Yoga.EDGE_BOTTOM, style.paddingBottom)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
+  if (typeof style.paddingStart === 'number') node.setPadding(Yoga.EDGE_START, style.paddingStart)
+  if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   if (style.display === 'none') node.setDisplay(Yoga.DISPLAY_NONE)
 }
@@ -87,15 +89,26 @@ function bounds(node: YogaNode) {
   return { right: left + node.getComputedWidth(), centerY: top + node.getComputedHeight() / 2, width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
-function measureBell(host: Host, width: number) {
+function measureBell(host: Host, width: number, fontScale: number) {
   const bells: YogaNode[] = []
   const rows: YogaNode[] = []
   function build(host: Host): YogaNode {
     const node = Yoga.Node.create()
     const declared = host.props.style
-    applyStyle(node, StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}))
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+    applyStyle(node, style)
     if (host.props.accessibilityRole === 'button' && host.props.accessibilityLabel === 'notifications.bell') bells.push(node)
     if (['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')) rows.push(node)
+    if (host.type === 'Text') {
+      const text = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
+      const intrinsicWidth = text.length * (style.fontSize ?? 14) * 0.5 * fontScale
+      const lineHeight = (style.lineHeight ?? 24) * fontScale
+      node.setMeasureFunc((available, mode) => ({
+        width: mode === Yoga.MEASURE_MODE_UNDEFINED ? intrinsicWidth : Math.min(available, intrinsicWidth),
+        height: lineHeight,
+      }))
+      return node
+    }
     let owner = node
     if (host.props.contentContainerStyle) {
       owner = Yoga.Node.create()
@@ -115,7 +128,7 @@ function measureBell(host: Host, width: number) {
 }
 
 const noop = () => {}
-const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected nextDisabled={false}
+const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
   previousLabel="Previous" todayLabel="Today" goToTodayLabel="Today" nextLabel="Next" moreLabel="Options"
   selectLabel="Select" collapseLabel="Collapse" allCollapsed={false} refreshLabel="Refresh" completedLabel="Completed"
   showCompleted={false} isFetching={false} searchLabel="Search" onSearch={noop} onToggleSelect={noop}
@@ -137,14 +150,22 @@ it.each([320, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, f
       let tree!: Tree
       await renderer.act(() => { tree = renderer.create(<Shell412 tabBar={null}>{surface}</Shell412>) as Tree })
       try {
-        const geometry = measureBell(tree.toJSON(), width)
+        const host = tree.toJSON()
+        const geometry = measureBell(host, width, fontScale)
         reference ??= geometry
         expect(Math.abs(geometry.bell.right - reference.bell.right), `${name} trailing edge`).toBeLessThanOrEqual(1)
-        expect.soft(Math.abs(geometry.bell.centerY - reference.bell.centerY), `${name} vertical centre`).toBeLessThanOrEqual(1)
+        if (fontScale === 1) expect.soft(Math.abs(geometry.bell.centerY - reference.bell.centerY), `${name} vertical centre`).toBeLessThanOrEqual(1)
         expect(geometry.bell.width).toBeGreaterThanOrEqual(48)
         expect(geometry.bell.height).toBeGreaterThanOrEqual(48)
-        expect(geometry.row.height).toBe(48)
-        expect(geometry.bell.centerY).toBe(geometry.row.centerY)
+        expect(geometry.row.height).toBeGreaterThanOrEqual(48)
+        expect(Math.abs(geometry.bell.centerY - geometry.row.centerY), `${name} row centre`).toBeLessThanOrEqual(1)
+        if (name === 'Hoje') {
+          const baseline = measureBell(host, width, 1)
+          expect(geometry.bell.right).toBe(baseline.bell.right)
+          if (fontScale === 2) expect(geometry.row.height).toBeGreaterThan(baseline.row.height)
+          const jump = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Today' && node.props.accessibilityRole === 'button')
+          expect(jump).toBeDefined()
+        }
         const bell = tree.root.find((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'notifications.bell' && node.props.accessibilityRole === 'button')
         await renderer.act(() => bell.props.onPress())
         expect(navigation.push).toHaveBeenLastCalledWith('/notifications')
