@@ -14,7 +14,7 @@ export function ThrottleScreen() {
   }, [error])
   return (
     <dialog ref={dialog} aria-labelledby="throttle-heading" onCancel={(event) => event.preventDefault()}
-      className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-[var(--bg)] p-0 text-[var(--fg-1)]">
+      className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none border-0 bg-[var(--bg)] p-0 pt-[var(--safe-top)] text-[var(--fg-1)]">
       {error ? <FailureScreen error={error} titleId="throttle-heading" retry={async () => {
         clear()
         await getQueryClient().refetchQueries({ type: 'active' })
