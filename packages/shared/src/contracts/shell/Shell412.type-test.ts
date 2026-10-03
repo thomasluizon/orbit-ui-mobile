@@ -20,6 +20,7 @@ type ExpectedBase = {
   header?: React.ReactNode
   notice?: React.ReactNode
   fab?: React.ReactNode
+  scrollToTop?: React.ReactNode
   sheets?: React.ReactNode
 }
 type ExpectedPlainConversation = {
@@ -54,6 +55,7 @@ export type Shell412TypeContract = [
   Assert<IsExactWidth<Shell412Props['header'], React.ReactNode>>,
   Assert<IsExactWidth<Shell412Props['notice'], React.ReactNode>>,
   Assert<IsExactWidth<Shell412Props['fab'], React.ReactNode>>,
+  Assert<IsExactWidth<Shell412Props['scrollToTop'], React.ReactNode>>,
   Assert<IsExactWidth<Shell412Props['sheets'], React.ReactNode>>,
   Assert<IsExactWidth<Shell412Props['conversation'], React.ReactNode>>,
   Assert<IsExactWidth<Shell412Props['conversationOpen'], boolean | undefined>>,

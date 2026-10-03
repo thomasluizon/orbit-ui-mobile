@@ -20,7 +20,17 @@
 body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
+
+.native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
+.native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
+.native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-send:hover:not(:disabled){background:var(--primary-hover)}
+.native-send:active:not(:disabled){background:var(--primary-pressed)}
+.native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -96,7 +106,7 @@ a:hover{color:var(--fg-1)}
   <sc-if value="{{ showReport }}" hint-placeholder-val="{{ true }}">
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>The conversation exists so a person can say what they did or what they want and have it happen. It is not a transcript and not a help desk: every answer that touches data comes back as a block with controls in it, because a read only card is a screenshot of the app pasted into a chat. Prose appears only where there is nothing to operate on.</p>
-      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>empty, preview, preview acting, stale, habits, goals, goals empty, clarification, metrics, breakdown, conflict, batch failed, the five operation outcomes, streaming, busy, recording, transcribing, attachments, offline, at limit, model error, copy, loading. A plan axis sits beside the state, free or Pro, defaulting to free: at limit free and at limit Pro came OFF the state axis in the same edit, because a plan is an account fact that survives a state change, and one at limit state now reads its ceiling from the plan, 5 against 50 (D70 item 1). Reached by using the screen rather than the axis: recording by pressing the microphone, transcribing by pressing stop, the transcript landing in the field as composing, the attachment tray by attaching, a remove per item, the empty state’s suggestions each opening a drawn answer, and the goal rows and chip leaving for Progresso. The logging check, the pagination, the frequency pills, the accept confirmation and the copy control all work.</p>
+      <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>empty, preview, preview acting, stale, habits, goals, goals empty, clarification, metrics, breakdown, conflict, batch failed, the five operation outcomes, streaming, busy, recording, transcribing, attachments, offline, at limit, model error, copy, loading. A plan axis sits beside the state, free or Pro, defaulting to free: at limit free and at limit Pro came OFF the state axis in the same edit, because a plan is an account fact that survives a state change, and one at limit state now reads its ceiling from the plan, 5 against 50 (D70 item 1). Reached by using the screen rather than the axis: recording from the voice entry in the + menu, transcribing by pressing stop, the transcript landing in the field as composing, the attachment tray by attaching, a remove per item, the empty state’s suggestions each opening a drawn answer, and the goal rows and chip leaving for Progresso. The logging check, the pagination, the frequency pills, the accept confirmation and the copy control all work.</p>
       <p><span style="color:var(--fg-3)">preview&nbsp;&nbsp;</span>one batch preview, per item edit, one accept. Three actions, approve edit reject, never a single OK, because a single OK gives the person no way to change one line without discarding the rest. The payload is withheld until approval, so the preview is a preview: nothing in it has been written. It never auto dismisses. Rejecting it collapses the block in place to one line naming what was declined: keeping the block with spent actions would read as broken rather than finished, and removing it would leave a person scrolling back unable to tell a decline from a failure. An irreversible row differs from a reversible one by the frame's own neutral mark, so it is a shape and a word rather than colour alone, and because one row is irreversible the frame states in the action row that the accept asks for a confirmation. Bulk log and bulk skip carry none, since both are reversible. Answered 2026-08-18: a partially failed bulk create keeps the rows it created and the retry covers only the failures. There is no batch undo, so the partially failed frame offers the retry and nothing that promises a rollback.</p>
       <p><span style="color:var(--fg-3)">habits&nbsp;&nbsp;</span>the same two controls the list has everywhere: the trailing ring logs optimistically and rides in the row's control slot, and the label is the tap target that opens the habit. The chat teaches no new gesture. Pagination pages in place and the header count moves with it, so a reply never drills out into a full list.</p>
       <p><span style="color:var(--fg-3)">clarification&nbsp;&nbsp;</span>one short question with tappable answers, which the contract requires whenever Astra cannot resolve what was said. It is not politeness: guessing between two habits with the same verb writes the wrong log, and a wrong log is worse than a question.</p>
@@ -108,8 +118,8 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">operation&nbsp;&nbsp;</span>five typed outcomes, each with its risk class stated as a neutral badge: pending confirmation on a destructive batch, step up where identity has to be reconfirmed, denied where the account cannot do it, unsupported by policy where Astra is not the place, and the terminal succeeded. Failed is the same per item shape as the partially failed batch. Risk is low, destructive or high, stated in the frame's header slot beside the count, and on the destructive batch every row also carries the frame's irreversible mark, so risk is never carried by one badge alone. Step up, answered 2026-08-18: it is a hand off, and the hand off is structural now rather than a drawing choice. StepUp has no children prop and no slot of any kind, and every prop on it is a string, a boolean or a handler, so no caller can nest a credential field into it. A credential field inside a chat is the shape of a phishing screen, and prose lost to that defect twice before the type carried it.</p>
       <p><span style="color:var(--fg-3)">boundaries&nbsp;&nbsp;</span>managing the subscription, the API keys and the account left the chat and live only in Perfil, so those three arrive as unsupported by policy with one action that opens Perfil. Astra never pitches the paywall and never starts a checkout, which is why the denied outcome states the boundary and stops there, with no upgrade action anywhere on this surface.</p>
       <p><span style="color:var(--fg-3)">limit&nbsp;&nbsp;</span>the allowance is daily, 5 free and 50 Pro, one at limit state reading its ceiling from the plan axis. Both refusals say the list keeps working and that speaking does not spend a message, and neither carries an upgrade path: Astra never pitches the paywall and never starts a checkout, so this screen passes the plan axis and still has no route to Orbit Pro. That is not an omission: the axis exists to draw the two ceilings honestly, and the no-upsell boundary is the decision. The refusal arrives on the stream as an inline error event, so it renders in the thread where the answer would have been. Nothing says when the allowance returns, because no endpoint returns that moment.</p>
-      <p><span style="color:var(--fg-3)">busy&nbsp;&nbsp;</span>the concurrent limit is exactly one, so a second message while one is in flight is refused rather than queued. The composer's own busy state carries it: the send control goes neutral and inactive rather than accent, which is what separates refused from accepted, and the refusal sits inline under the bar. There is no queue and no draft buffer, because a queued message would act on state the person can no longer see.</p>
-      <p><span style="color:var(--fg-3)">composer&nbsp;&nbsp;</span>the composer carries its whole shipping contract now. Voice (chat-composer-bar.tsx:10,263,283,288): the microphone is neutral at rest, recording replaces the field with the live row and an accent stop, transcribing shows the word with the stop inactive and neutral, and the transcript lands in the field as composing. Speaking spends NOTHING from the daily allowance (ChatController.cs:107 transcribes with no TryConsumeAiMessage), so the allowance refusals say so and no cost line sits anywhere near the microphone. Attachments (:390-402): a file and an image control beside the microphone, both unavailable while offline because that is what the app does, and a pending tray above the field with a named remove per item (:149,:189). Offline has a way back (:103-104,128): the retry sits inside the offline reason line, and passing it narrows the words contract to require the retry word. All three vocabularies arrive from this document in both locales, required by the component with no default in either.</p>
+      <p><span style="color:var(--fg-3)">busy&nbsp;&nbsp;</span>the concurrent limit is exactly one, so a second message while one is in flight is refused rather than queued. The composer's own busy state carries it: the send control goes neutral and inactive rather than accent, which is what separates refused from accepted, and the refusal sits above the pill. There is no queue and no draft buffer, because a queued message would act on state the person can no longer see.</p>
+      <p><span style="color:var(--fg-3)">composer&nbsp;&nbsp;</span>The conversation input is a one-line pill without a leading Astra glyph. Live suggestion chips sit above it. One + menu holds photo, document and voice; recording keeps a visible stop, attachments stay inside the container, and typing grows to five lines before internal scrolling. Closing disclosure preserves the draft.</p>
       <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>the first thing a person sees (chat-empty-state.tsx): the Astra mark, the title, the prompt over the suggestions (chat.suggestion.prompt), and the suggestions themselves, each opening a drawn answer. Under them the one line saying what Astra is not, aiDisclosure.notMedicalAdvice, at fg-4 and never styled as a warning: it is a fact, not an alarm.</p>
       <p><span style="color:var(--fg-3)">copy&nbsp;&nbsp;</span>the copy control is explicit and always visible on both platforms, never hover only, since a touch device has no hover and a copy affordance that appears on hover does not exist on a phone.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24, gap only. 44 is the touch token for the log ring and the row edit, 40 the frequency pill and the small button, 52 the compact row, 32 the emoji well.</p>
@@ -130,7 +140,7 @@ a:hover{color:var(--fg-1)}
 const H = React.createElement;
 const F = React.Fragment;
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const line = (parts, marks) => H(F, null, parts.map((p, i) =>
   marks.indexOf(i) >= 0 ? H('span', { key: i, 'data-mock': 'true' }, p) : p));
@@ -557,7 +567,7 @@ class Component extends DCLogic {
   /* The risk class sits in the frame's header slot, beside the count. */
   risk(word) {
     const D = window.OrbitDesignSystem_918bd5;
-    return H(D.Badge, { variant: 'outline' }, word);
+    return H(window.OrbitNativeMobile.Badge, { variant: 'outline' }, word);
   }
 
   /* ShellWide's conversation slot takes markup, but a template cannot fill a named prop, so the
@@ -885,7 +895,7 @@ class Component extends DCLogic {
       copyProps: { style: { paddingInline: '14px 16px' } },
       conversationOpen: true,
 
-      navHeader: H(D.NavHeader, {
+      navHeader: H(window.OrbitNativeMobile.NavHeader, {
         title: H('span', { translate: 'no' }, 'Astra'),
         trailing: H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close, onClick: () => {},
           style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
@@ -914,7 +924,7 @@ class Component extends DCLogic {
           words: t.composerWords,
           value: s.draft || undefined,
           onChange: (val) => this.setState({ draft: val }),
-          onOpen: () => {}, onChipPress: () => {},
+          onChipPress: () => {},
           onVoice: this.onVoice, voiceWords: t.voiceWords,
           onAttach: this.onAttach, attachWords: t.attachWords,
           attachments: s.atts,
@@ -923,7 +933,7 @@ class Component extends DCLogic {
         /* .reason is a flex row, so each sentence arrives as one child. */
         if (atLimit) props.limitReason = H('span', null, line(s.plan === 'Pro' ? t.limitPro : t.limitFree, [1]));
         if (cState === 'offline') props.onRetry = () => this.setState({ st: 'habits' });
-        return H(D.Composer, props);
+        return H(window.OrbitNativeMobile.Composer, props);
       })(),
 
       sheet: s.confirm ? H(D.Sheet, { open: true, title: t.pv.confirmTitle,
