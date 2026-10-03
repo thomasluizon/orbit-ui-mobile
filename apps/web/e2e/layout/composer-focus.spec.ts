@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { expectOneFieldIndicator } from './focus-indicators'
+import en from '@orbit/shared/i18n/en.json'
 
 async function expectOneControlRing(control: Locator, forcedColors: boolean): Promise<void> {
   await expect(control).toBeFocused()
@@ -34,17 +35,28 @@ async function expectOneControlRing(control: Locator, forcedColors: boolean): Pr
 async function expectComposerKeyboardRings(page: Page, container: Locator, forcedColors: boolean): Promise<void> {
   const mode = forcedColors ? 'forced colors' : 'normal colors'
   const field = container.locator('[data-composer-input]')
+  await field.fill('Draft')
   await expectOneFieldIndicator(page, field, '[data-composer-input-row]', `composer field in ${mode}`, { forcedColors })
 
   for (const control of [
-    container.locator('[data-composer-controls]').getByRole('button').nth(0),
-    container.locator('[data-composer-controls]').getByRole('button').nth(1),
-    container.locator('[data-composer-controls]').getByRole('button').nth(2),
+    container.getByRole('button', { name: en.shell.composer.actions, exact: true }),
+    container.getByRole('button', { name: en.shell.composer.send, exact: true }),
   ]) {
     await expect(control).toBeVisible()
     await page.keyboard.press('Tab')
     await expectOneControlRing(control, forcedColors)
   }
+  await container.getByRole('button', { name: en.shell.composer.actions, exact: true }).click()
+  const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
+  for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]) {
+    const control = menu.getByRole('menuitem', { name, exact: true })
+    await expect(control).toBeVisible()
+    await page.keyboard.press('ArrowDown')
+    await control.focus()
+    await expectOneControlRing(control, forcedColors)
+  }
+  await page.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
 }
 
 for (const width of [412, 1280] as const) {

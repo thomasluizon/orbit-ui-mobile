@@ -10,7 +10,7 @@ import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
-import { ChevronDown, RefreshCw, X } from '@/components/ui/icons'
+import { ChevronDown, X } from '@/components/ui/icons'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
@@ -66,10 +66,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
-    isOnline,
-    sendError,
-    canRetryLastSend,
-    retryLastSend,
     composerProps,
   } = chat
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
@@ -189,23 +185,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
       <div className="shrink-0">
         {notice !== undefined ? <div data-shell-notice="">{notice}</div> : null}
-        {sendError ? (
-          <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad-text)]">
-            <p className="m-0">{sendError}</p>
-            {canRetryLastSend && isOnline ? (
-              /* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */
-              <button
-                type="button"
-                onClick={() => void retryLastSend()}
-                className="orbit-link-action flex min-h-11 items-center gap-2 border-0 bg-transparent font-medium text-[var(--fg-2)]"
-              >
-                <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
-                {t('shell.composer.retry')}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        <Composer {...composerProps} autoFocus suggestions={messages.length === 0 ? [] : composerProps.suggestions} />
+        <Composer {...composerProps} autoFocus suggestions={composerProps.suggestions} />
       </div>
 
       {selectedGoalId && (

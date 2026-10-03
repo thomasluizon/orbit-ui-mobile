@@ -35,7 +35,7 @@ async function markup(surface: Surface, focused = false, disabled = false, error
     time: <TimeField label="Time" value="14:30" onChange={noop} disabled={disabled} error={error} />,
     goal: <FieldWell label="Goal" id="goal" type="text" value="" onChange={noop} />,
     command: <Command><CommandSearchField search="" setSearch={noop} activePageLabel={null} onBack={noop} /></Command>,
-    composer: <Composer {...(disabled ? { state: 'sending' as const } : { state: 'idle' as const })} value="" onChangeValue={noop} onSend={noop} suggestions={[]} words={{ placeholder: 'Message', send: 'Send', suggestionsLabel: 'Suggestions' }} />,
+    composer: <Composer {...(disabled ? { state: 'sending' as const } : { state: 'idle' as const })} value="" onChangeValue={noop} onSend={noop} suggestions={[]} words={{ placeholder: 'Message', send: 'Send', actions: 'Add to message', suggestionsLabel: 'Suggestions' }} />,
     code: <OtpInput label="Code" value="" onChange={noop} autoFocus={false} disabled={disabled} error={error} />,
     habit: <HabitUnderstanding value="" emoji="" days={[]} dayOptions={[]} quantity={1} mode="fixed" sentence={null} consumed={[]} onValueChange={noop} onEmojiSelect={noop} onToggleDay={noop} onQuantityChange={noop} labels={{ field: 'Habit', placeholder: 'Habit', understood: 'Understood', understoodAstra: 'Understood', unresolved: 'Choose a schedule', days: 'Days', less: 'Less', more: 'More', count: String, repeat: String, repeatLess: 'Less', repeatMore: 'More', proposed: 'Proposed' }} />,
   }
@@ -219,7 +219,7 @@ describe.each(['dark', 'light'] as const)('field hover in Chromium, %s', (mode) 
 
   it.each(['recording', 'transcribing'] as const)('does not hover a composer showing %s instead of an editable field', async (state) => {
     const mode = state === 'recording' ? { state: 'recording' as const } : { state: 'transcribing' as const }
-    const content = <Composer {...mode} value="" onChangeValue={noop} onSend={noop} suggestions={[]} words={{ placeholder: 'Message', send: 'Send', suggestionsLabel: 'Suggestions' }} onVoice={noop} voiceWords={{ start: 'Record', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }} />
+    const content = <Composer {...mode} value="" onChangeValue={noop} onSend={noop} suggestions={[]} words={{ placeholder: 'Message', send: 'Send', actions: 'Add to message', suggestionsLabel: 'Suggestions' }} onVoice={noop} voiceWords={{ start: 'Record', stop: 'Stop', recording: 'Recording', transcribing: 'Transcribing' }} />
     const page = await browser.newPage()
     try {
       await page.setContent(`<!doctype html><style>${stylesheet}</style>${await renderedMarkup(content)}`)

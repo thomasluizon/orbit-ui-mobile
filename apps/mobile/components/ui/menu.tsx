@@ -125,7 +125,7 @@ export function Menu({
     )
   }
 
-  const estimatedHeight = Math.min(orderedItems.length * 48 + 16, height - 16)
+  const estimatedHeight = Math.min(orderedItems.length * 44 + 16, height - 16)
   const position = getPopoverPosition({
     anchorRect: anchorRect ?? getFallbackPopoverAnchorRect(width),
     viewportWidth: width,
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexDirection: 'row',
     gap: 12,
-    minHeight: 48,
+    minHeight: 44,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },

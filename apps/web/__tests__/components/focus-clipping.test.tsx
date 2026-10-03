@@ -96,7 +96,7 @@ describe('clipped focus perimeters in Chromium', () => {
           expect(await chip.evaluate((element) => element === document.activeElement), `chip ${index} ${forcedColors}`).toBe(true)
           expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
           expect(await readOutlineVisibility(chip)).toMatchObject({ visible: true, clippedBy: [] })
-          expect(await chip.evaluate((element) => element.getBoundingClientRect().height)).toBe(44)
+          expect(await chip.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48)
           const clearance = await chip.evaluate((element) => {
             const bounds = element.getBoundingClientRect()
             const scroller = element.parentElement!.getBoundingClientRect()

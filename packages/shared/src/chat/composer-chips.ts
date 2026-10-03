@@ -1,3 +1,4 @@
+import type { ComposerSuggestions } from '../contracts/composer'
 import type { HabitDetail, NormalizedHabit } from '../types/habit'
 import type { Profile } from '../types/profile'
 import { getReturningInterval } from '../utils/returning-interval'
@@ -141,4 +142,8 @@ export function resolveComposerChipSurface(pathname: string): ComposerChipSurfac
   if (pathname === '/progress') return 'progress'
   if (pathname === '/profile') return 'profile'
   return 'today'
+}
+
+export function resolveComposerDockSuggestions(pathname: string, suggestions: ComposerSuggestions): ComposerSuggestions {
+  return pathname === '/' ? [] : suggestions
 }

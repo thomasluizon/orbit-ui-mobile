@@ -1,5 +1,7 @@
 'use client'
 
+import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
+
 import { useEffect, useCallback, useId, useState, useSyncExternalStore, useLayoutEffect, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
@@ -337,6 +339,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         composer={
           <Composer
             {...chat.composerProps}
+            suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
             inputId={chat.composerInputId}
             onOpenConversation={() => setAstraConversationOpen(true)}
             conversationLabel={t('todayAstra.openConversation')}

@@ -134,6 +134,7 @@
       "m-overlay-habit-list-move-parent-dialog",
       "m-overlay-habits-habit-row",
       "m-overlay-habits-habit-row-trailing",
+      "m-overlay-shell-composer",
       "m-overlay-today-today-date-control",
       "m-overlay-today-today-modals",
       "m-route-tabs-index",
