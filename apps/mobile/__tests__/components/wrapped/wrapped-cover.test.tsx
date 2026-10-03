@@ -139,7 +139,7 @@ describe('mobile WrappedCover', () => {
         const selected = RECAP_SHARE_PERIODS[index] === period
         const resolveStyle = chip.props.style as (state: { pressed: boolean }) => unknown
         expect(StyleSheet.flatten(resolveStyle({ pressed: false }))).toMatchObject({
-          minHeight: 44,
+          minHeight: 48,
           backgroundColor: selected ? palette.primaryDim : palette.bgWell,
           borderColor: selected ? palette.primary : palette.hairline,
           borderWidth: selected ? 1.5 : 1,

@@ -130,7 +130,9 @@ describe('Referral drawer sheet geometry (mobile)', () => {
         expect(bounds(nodes.get(surface)!)).toEqual({ left: 24, right: panelWidth - 24 })
       }
       const share = findHost(elements, (element) => element.type === 'Pressable' && (element.children ?? []).some((child) => typeof child !== 'string' && child.children?.includes('referral.drawer.share')))
-      expect(bounds(nodes.get(share)!).right).toBe(panelWidth - 24)
+      const target = nodes.get(share)!.getParent()!
+      expect(bounds(target).right).toBe(panelWidth - 24)
+      expect(bounds(nodes.get(share)!).right).toBe(panelWidth - 26)
     } finally {
       layout.freeRecursive()
       await TestRenderer.act(() => { tree!.unmount() })

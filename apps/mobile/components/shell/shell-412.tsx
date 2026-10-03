@@ -65,15 +65,14 @@ function FlowViewport({ enabled, constrained, minimumHeight, children }: Readonl
   minimumHeight: number
   children: ReactNode
 }>) {
-  if (!enabled) return children
   return (
     <ScrollView
       testID="shell-flow-viewport"
-      scrollEnabled={constrained}
-      nestedScrollEnabled={constrained}
+      scrollEnabled={enabled && constrained}
+      nestedScrollEnabled={enabled && constrained}
       keyboardShouldPersistTaps="handled"
       style={styles.flowViewport}
-      contentContainerStyle={constrained
+      contentContainerStyle={enabled && constrained
         ? { flexGrow: 1, minHeight: minimumHeight + TOUCH_TARGET_MIN }
         : styles.flowViewportContent}
     >
