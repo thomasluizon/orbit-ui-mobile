@@ -48,12 +48,11 @@ const CACHE_KEY_PREFIX = '@orbit/query-cache'
 const LEGACY_CACHE_KEY = '@orbit/query-cache'
 
 /**
- * Version stamp for the persisted query cache. Restored entries bypass the
- * hooks' Zod parsing, so a cache written by an older build can carry response
- * shapes the current UI no longer tolerates. Bump this whenever a persisted
- * response schema changes shape; mismatched caches are discarded on restore.
+ * Restored entries bypass hook validation. Bump this version when a persisted
+ * response schema changes shape or adds validation so restore discards older
+ * caches containing responses the current UI cannot trust.
  */
-export const QUERY_CACHE_VERSION = 2
+export const QUERY_CACHE_VERSION = 3
 
 let cacheScopeUserId: string | null = null
 

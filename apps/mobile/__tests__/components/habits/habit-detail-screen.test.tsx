@@ -1,5 +1,8 @@
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
+import { queryClient, restoreQueryCache, setQueryCacheScope, QUERY_CACHE_VERSION } from '@/lib/query-client'
 import { AccessibilityInfo, StyleSheet, type ViewStyle } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -66,6 +69,10 @@ const mocks = vi.hoisted(() => ({
   realReminderSections: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
+  metricsError: false,
+  realMetrics: false,
+  getStorage: vi.fn(),
+  removeStorage: vi.fn(),
   detail: null as HabitDetail | null,
   detailLoading: false,
   detailError: false,
@@ -125,18 +132,21 @@ vi.mock('expo-router', () => ({
     React.useEffect(callback, [callback])
   },
 }))
-vi.mock('@/hooks/use-habit-queries', () => ({
-  useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
-  useHabitLogs: () => ({ data: mocks.logs }),
-  useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, options?: { completeDay?: boolean }) => {
-    if (filters.dateFrom) {
-      mocks.scopedCompleteDay = options?.completeDay ?? false
-      mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
-    }
-    return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
-  },
-}))
+vi.mock('@/hooks/use-habit-queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-habit-queries')>()
+  return {
+    useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
+    useHabitLogs: () => ({ data: mocks.logs }),
+    useHabitMetrics: (id: string) => mocks.realMetrics ? actual.useHabitMetrics(id) : ({ data: mocks.metrics, isLoading: false, isError: mocks.metricsError }),
+    useHabits: (filters: { dateFrom?: string; includeOverdue?: boolean }, options?: { completeDay?: boolean }) => {
+      if (filters.dateFrom) {
+        mocks.scopedCompleteDay = options?.completeDay ?? false
+        mocks.scopedRequests.push({ dateFrom: filters.dateFrom, includeOverdue: filters.includeOverdue === true })
+      }
+      return { data: filters.dateFrom && mocks.scopedLoading ? undefined : { habitsById: filters.dateFrom ? mocks.scopedHabitsByDate.get(filters.dateFrom) ?? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: !!filters.dateFrom && mocks.scopedLoading, isError: filters.dateFrom ? mocks.scopedError : mocks.allHabitsError, refetch: filters.dateFrom ? mocks.scopedRefetch : mocks.allHabitsRefetch }
+    },
+  }
+})
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
   useUpdateHabit: () => ({ mutate: mocks.update, mutateAsync: mocks.update, isPending: mocks.updatePending }),
@@ -229,16 +239,16 @@ vi.mock('expo-sqlite', () => ({
   }),
 }))
 
-vi.mock('@/lib/api-client', () => ({ apiClient: offlineMocks.apiClient }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (endpoint: string) => mocks.realMetrics && endpoint.endsWith('/metrics') ? Promise.reject(new Error('metrics request failed')) : offlineMocks.apiClient(endpoint) }))
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { setItem: mocks.setStorage, getItem: () => Promise.resolve(null) },
+  default: { setItem: mocks.setStorage, getItem: mocks.getStorage, removeItem: mocks.removeStorage },
 }))
 vi.mock('@/lib/offline-runtime', () => ({
   getCurrentConnectivity: () => Promise.resolve(offlineMocks.isOnline()),
 }))
-vi.mock('@/lib/query-client', () => ({
+vi.mock('@/lib/query-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/query-client')>()),
   persistQueryCache: () => Promise.resolve(),
-  queryClient: { invalidateQueries: () => Promise.resolve() },
 }))
 vi.mock('@/lib/offline-state', () => ({
   clearOfflineEntity: () => Promise.resolve(),
@@ -443,6 +453,11 @@ describe('HabitDetailScreen', () => {
     expect(editingHeaders).toHaveLength(1)
   })
   beforeEach(() => {
+    mocks.metricsError = false
+    mocks.realMetrics = false
+    mocks.getStorage.mockReset().mockResolvedValue(null)
+    mocks.removeStorage.mockReset().mockResolvedValue(undefined)
+    queryClient.clear()
     mocks.realTimeField = false;
     mocks.realReminderSections = false;
     vi.useFakeTimers()
@@ -499,6 +514,46 @@ describe('HabitDetailScreen', () => {
     mocks.language = 'en'
     mocks.uses24HourClock = undefined
     useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
+  })
+
+  it.each(['valid', 'malformed'])('shows no data on a metrics error with %s cached values', (cached) => {
+    if (cached === 'malformed') mocks.metrics = {} as HabitMetrics
+    mocks.metricsError = true
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree.root)).toContain('habits.detail.noDataYet')
+    expect(tree.root.findAllByType('StatTile')).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each([
+    { label: 'pre-validation version', version: 2, discarded: true },
+    { label: 'current version', version: QUERY_CACHE_VERSION, discarded: false },
+  ])('never shows restored malformed metrics after a rejected refetch from $label', async ({ version, discarded }) => {
+    await setQueryCacheScope('account-a')
+    const producer = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
+    queryClient.setQueryData(habitKeys.metrics('habit-1'), {}, { updatedAt: 1 })
+    await producer.persistQueryCache()
+    const snapshot = JSON.parse(mocks.setStorage.mock.lastCall![1] as string)
+    snapshot.version = version
+    queryClient.clear()
+    mocks.getStorage.mockResolvedValue(JSON.stringify(snapshot))
+    await restoreQueryCache()
+    if (discarded) expect(queryClient.getQueryData(habitKeys.metrics('habit-1'))).toBeUndefined()
+    else expect(queryClient.getQueryData(habitKeys.metrics('habit-1'))).toEqual({})
+
+    mocks.realMetrics = true
+    queryClient.setQueryDefaults(habitKeys.metrics('habit-1'), { retry: false })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<QueryClientProvider client={queryClient}><HabitDetailScreen habitId="habit-1" /></QueryClientProvider>)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(10) })
+    expect(queryClient.getQueryState(habitKeys.metrics('habit-1'))?.status).toBe('error')
+    expect(textsOf(tree.root)).toContain('habits.detail.noDataYet')
+    expect(tree.root.findAllByType('StatTile')).toHaveLength(0)
+    TestRenderer.act(() => tree.unmount())
   })
 
   it('opens Creation controls seeded from the habit in one disclosure', () => {

@@ -282,11 +282,11 @@ function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
   )
 }
 
-function MetricsSection({ visible, loading, metrics, isBadHabit }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean }>) {
+function MetricsSection({ visible, loading, error, metrics, isBadHabit }: Readonly<{ visible: boolean; loading: boolean; error: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean }>) {
   const t = useTranslations('habits.detail')
   if (!visible) return null
   if (loading) return <div role="status" aria-label={t('loading')} className="flex flex-wrap gap-2">{[isBadHabit ? 'daysFree' : 'currentStreak', 'longestStreak', 'monthlyRate'].map((key) => <div key={key} aria-hidden="true" className="flex flex-1" style={{ minWidth: 'max-content' }}><StatTile state="loading" label={t(key)} loadingLabel={t('loading')} /></div>)}</div>
-  if (!metrics || metrics.totalCompletions === 0) return <p role="status" className="py-4 text-center text-sm text-[var(--fg-3)]">{t('noDataYet')}</p>
+  if (error || !metrics || metrics.totalCompletions === 0) return <p role="status" className="py-4 text-center text-sm text-[var(--fg-3)]">{t('noDataYet')}</p>
   const values = [
     { label: t(isBadHabit ? 'daysFree' : 'currentStreak'), value: String(metrics.currentStreak) },
     { label: t('longestStreak'), value: String(metrics.longestStreak) },
@@ -618,7 +618,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       {strip ? <section ref={stripRef} tabIndex={-1} className="habit-detail-strip flex flex-col gap-2" style={{ containerType: 'inline-size' }}><p className="text-xs text-[var(--fg-3)]">{t('habits.detail.lastThirtyDays')}</p><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} /></section> : null}
       <RescheduleBlock key={habit.id} habit={habit} rescue={rescue} hasProAccess={hasProAccess} locale={language} today={today} scheduleEditing={scheduleOpen} returnFocus={() => stripRef.current?.focus()} />
       <DetailChecklist editing={detailsOpen} items={habit.checklistItems} interactive onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} />
-      <MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} />
+      <MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} error={metricsQuery.isError} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} />
       <ReminderReadout habit={habit} />
       {children.length > 0 ? <Surface>
         <SectionTitle>{t('habits.detail.inside')}</SectionTitle>
