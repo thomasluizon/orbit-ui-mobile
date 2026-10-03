@@ -29,7 +29,7 @@ for (const width of [320, 360, 384, 412]) {
         await expect(surface.locator('[data-slot="list-row-value"]')).toHaveCount(4)
         for (const label of [
           words.profile.settingsRows.timezone, profile.timeZone!,
-          words.profile.settingsRows.weekStart, words.settings.weekStartDay.monday,
+          words.profile.settingsRows.weekStart, words.dates.daysValue.monday,
           words.settings.clock.title, words.settings.clock.hour24,
           words.profile.language.title,
           locale === 'pt-BR' ? words.profile.language.brazilianPortuguese : 'English',
