@@ -1898,20 +1898,16 @@
       "offlineReason": "No connection. Your words stay on this device, so you can send when the connection returns.",
       "subjects": {
         "problem": {
-          "label": "Something does not work",
-          "description": "A screen, a log or a sync."
+          "label": "Not working"
         },
         "billing": {
-          "label": "Billing or plan",
-          "description": "Amounts, changing plan or cancelling."
+          "label": "Billing or plan"
         },
         "account": {
-          "label": "Account and access",
-          "description": "Signing in, the verification code or deleting the account."
+          "label": "Account and access"
         },
         "other": {
-          "label": "Something else",
-          "description": "Suggestions and anything not above."
+          "label": "Something else"
         }
       },
       "subjectRequired": "Pick a subject so we can route it properly.",

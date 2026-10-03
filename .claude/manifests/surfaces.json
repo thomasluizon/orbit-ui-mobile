@@ -1092,6 +1092,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/web/app/(app)/support/_components/support-form.tsx",
+        "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts",
@@ -1109,6 +1110,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/web/app/(app)/support/_components/support-form.tsx",
+        "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts",
@@ -1126,6 +1128,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/web/app/(app)/support/_components/support-form.tsx",
+        "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts",
@@ -1143,6 +1146,7 @@
       "href": "/support",
       "ownedFiles": [
         "apps/web/app/(app)/support/_components/support-form.tsx",
+        "apps/web/app/(app)/support/_components/support-reply-email.tsx",
         "apps/web/app/(app)/support/_components/support-success-state.tsx",
         "apps/web/app/(app)/support/page.tsx",
         "apps/web/app/actions/support.ts",
@@ -7923,7 +7927,8 @@
       "sourceFile": "apps/mobile/app/support.tsx",
       "href": "/support",
       "ownedFiles": [
-        "apps/mobile/app/support.tsx"
+        "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -7936,7 +7941,8 @@
       "sourceFile": "apps/mobile/app/support.tsx",
       "href": "/support",
       "ownedFiles": [
-        "apps/mobile/app/support.tsx"
+        "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -7949,7 +7955,8 @@
       "sourceFile": "apps/mobile/app/support.tsx",
       "href": "/support",
       "ownedFiles": [
-        "apps/mobile/app/support.tsx"
+        "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7962,7 +7969,8 @@
       "sourceFile": "apps/mobile/app/support.tsx",
       "href": "/support",
       "ownedFiles": [
-        "apps/mobile/app/support.tsx"
+        "apps/mobile/app/support.tsx",
+        "apps/mobile/components/support-reply-email.tsx"
       ],
       "state": "default",
       "theme": "dark",
