@@ -1510,7 +1510,9 @@ refuses every new worker launch, including review batches. Keep the admitted que
 ledger. Launch nothing while existing launchers or release watchers are live. Their exits
 wake this session; finish the drain without introducing another wakeup status scan.
 
-When neither remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
+Live background Workflow runs and background subagents also hold the relay drain open until completion; a record is stale only when the owning Stop omits the run, a terminal workflow snapshot proves it settled, or its recorded process start identity is no longer live.
+
+When no drain source remains, invoke `/handoff --relay --sleep`, then `node tools/relay-session.mjs`.
 Never run `/questions` or ask the owner during this transition. Record unresolved owner
 questions in the spec and run state. The tool verifies the pushed spec and prompt, stops this
 session's CI waiters and confirms a nominated successor from its run-state write. That

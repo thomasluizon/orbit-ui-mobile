@@ -37,6 +37,7 @@ const LIB_DIR = join(TOOLS_DIR, "lib")
  * universal contract to check and this registry is the only coverage it can carry.
  */
 const CASE_MODULES = [
+  ["lib/background-runs.mjs", "background-runs"],
   ["add-ticket-to-project.mjs", "add-ticket-to-project"],
   ["android-emulator.mjs", "android-emulator"],
   ["arch-map.mjs", "arch-map"],

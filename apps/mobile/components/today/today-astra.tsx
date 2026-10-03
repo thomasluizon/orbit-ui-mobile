@@ -27,7 +27,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
-  const [actionPressed, setActionPressed] = useState(false)
+  const [pressed, setPressed] = useState(false)
   const offline = useOffline()
   const { profile } = useProfile()
   const { notifications } = useNotifications()
@@ -41,13 +41,13 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
 
   const line = shouldShowTodayAstraSurface({ isTodaySelected, inDrillOrSurface: suppressed })
     ? proactive
-      ? { text: proactive.body, action: t('todayAstra.openConversation'), notificationId: proactive.id }
+      ? { text: proactive.body, destination: t('todayAstra.openConversation'), notificationId: proactive.id }
       : returning
         ? {
             text: returning.kind === 'elapsed'
               ? t('todayAstra.returningElapsed', { days: returning.days })
               : t('todayAstra.returningBounded'),
-            action: t('todayAstra.viewProgress'),
+            destination: t('todayAstra.viewProgress'),
             notificationId: null,
           }
         : null
@@ -55,35 +55,33 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   if (!line) return null
 
   return (
-    <View style={styles.line}>
+    <Pressable
+      accessibilityRole={line.notificationId ? 'button' : 'link'}
+      accessibilityLabel={line.text}
+      accessibilityHint={line.destination}
+      style={[styles.line, { backgroundColor: tokens.bgWell }]}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      onPress={() => {
+        if (line.notificationId) {
+          markRead.mutate(line.notificationId)
+          setConversationOpen(true)
+        } else {
+          router.navigate('/progress')
+        }
+      }}
+    >
+      {pressed ? <View accessible={false} pointerEvents="none" style={[StyleSheet.absoluteFill, styles.feedback, { backgroundColor: tokens.bgHoverOpaque }]} /> : null}
       <AstraGlyph size={20} color={tokens.fg3} />
-      <Text style={[styles.text, { color: tokens.fg2 }]}>
+      <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.text, { color: tokens.fg2 }]}>
         {line.text}
-        <Pressable
-          accessibilityRole="link"
-          hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-          style={styles.actionTarget}
-          onPressIn={() => setActionPressed(true)}
-          onPressOut={() => setActionPressed(false)}
-          onPress={() => {
-            if (line.notificationId) {
-              markRead.mutate(line.notificationId)
-              setConversationOpen(true)
-            } else {
-              router.navigate('/progress')
-            }
-          }}
-        >
-          <Text style={[styles.action, { color: tokens.fg1, opacity: actionPressed ? 0.85 : 1 }]}>{line.action}</Text>
-        </Pressable>
       </Text>
-    </View>
+    </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
-  line: { minHeight: 44, flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 0, paddingBottom: 12, paddingTop: 8 },
-  text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  actionTarget: { paddingStart: 4 },
-  action: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, textDecorationLine: 'underline' },
+  line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+  feedback: { borderRadius: 12 },
+  text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 },
 })

@@ -132,8 +132,10 @@ export default function UpgradePage() {
     setPortalState('opening')
     try {
       if (status?.source === 'play') {
+        const packageName = process.env.NEXT_PUBLIC_PLAY_PACKAGE_NAME
+        if (!packageName) throw new Error('Missing NEXT_PUBLIC_PLAY_PACKAGE_NAME')
         globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, intendedAccountId)
-        globalThis.location.href = playManageSubscriptionUrl()
+        globalThis.location.href = playManageSubscriptionUrl(packageName)
         return
       }
       const data = await openCustomerPortal(intendedAccountId)
