@@ -104,7 +104,7 @@ const mocks = vi.hoisted(() => ({
         bestStreak: 9,
         badHabitSlips: 0,
         weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
-        topHabits: [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
+        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
         needsAttention: [],
       },
       narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
@@ -615,7 +615,7 @@ describe('mobile ProgressContent', () => {
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
     mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
-    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
@@ -805,6 +805,19 @@ describe('mobile ProgressContent', () => {
     ])
   })
 
+  it('gives a long emoji habit the full static row and accessible title', async () => {
+    const name = 'Read a long chapter title before the morning conversation '.repeat(5)
+    mocks.retrospective.data.metrics.topHabits[0]!.name = name
+    mocks.retrospective.data.metrics.topHabits[0]!.emoji = '📚'
+    const tree = await renderProgress()
+    const row = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
+    const title = row.findAll((node) => node.type === 'Text' && node.props.accessibilityLabel === name)[0]!
+    expect(title.props.children).toBe(`📚 ${name}`)
+    expect(title.props.numberOfLines).toBe(2)
+    expect(title.props.selectable).toBe(true)
+    expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+  })
+
   it('discloses the streak legend and keeps the top habit outside the figures', async () => {
     const tree = await renderProgress()
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
@@ -925,8 +938,8 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === 18)).toHaveLength(0)
   })
 
-  it.each([[412, 2], [768, 3]] as const)('at %ipx lays out the figures in %i columns', async (width, columns) => {
-    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+  it.each([[320, 1, 1], [360, 1, 2], [384, 1, 2], [412, 1, 2], [768, 1, 3], [320, 2, 1], [360, 2, 1], [384, 2, 1], [412, 2, 1]] as const)('at %ipx and text scale %i lays out the figures in %i columns', async (width, fontScale, columns) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale })
     const tree = await renderProgress()
     const rows = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-window-row')
     expect(rows).toHaveLength(Math.ceil(3 / columns))

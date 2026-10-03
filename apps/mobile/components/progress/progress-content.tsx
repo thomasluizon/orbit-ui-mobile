@@ -74,7 +74,7 @@ function Section({ title, children, tokens }: Readonly<{ title: string; children
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
   const { width, fontScale } = useWindowDimensions()
-  const columns = fontScale > 1.3 ? 1 : width >= 768 ? 3 : width >= 344 ? 2 : 1
+  const columns = width / fontScale >= 768 ? 3 : width / fontScale >= 360 ? 2 : 1
 
   return (
     <View testID={`progress-window-grid-${columns}`} style={styles.windowGrid}>
@@ -91,11 +91,12 @@ function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
 
 /** One busy region covers the figures and the habit row. */
 function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
+  const { t } = useTranslation()
   return (
     <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={styles.windowSection}>
       <Skeleton variant="bar-chart" grouped />
       <WindowFigureGrid>
-        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+        {(['completionRate', 'activeDays', 'bestWeekday'] as const).map((key) => <View key={key} importantForAccessibility="no-hide-descendants"><StatTile state="loading" loadingLabel={label} label={t(`progressScreen.window.${key}`)} /></View>)}
       </WindowFigureGrid>
       <Skeleton variant="habit-row" grouped />
     </View>
@@ -258,7 +259,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens, h
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       {freeze.streakInfo?.lastFreezeCoveredDate && freeze.streakInfo.freezeBankRemaining != null ? <FreezeCoveredStatus date={freeze.streakInfo.lastFreezeCoveredDate} remaining={freeze.streakInfo.freezeBankRemaining} origin={freeze.streakInfo.lastFreezeCoveredOrigin} locale={i18n.language} tokens={tokens} /> : null}
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
-      {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
+      {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><WindowFigureGrid><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></WindowFigureGrid><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
       {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} hasGoals={hasGoals} /> : null}
     </View>
   )
@@ -378,7 +379,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ 
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <>
-        <PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton>
+        <View style={styles.actionStart}><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton></View>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
@@ -499,7 +500,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
 
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   const { width, fontScale } = useWindowDimensions()
-  const columns = fontScale > 1.3 ? 1 : width >= 768 ? 3 : width >= 344 ? 2 : 1
+  const columns = width / fontScale >= 768 ? 3 : width / fontScale >= 360 ? 2 : 1
   return (
     <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
       <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">
@@ -601,7 +602,6 @@ const styles = StyleSheet.create({
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: 16, paddingVertical: 12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   gapWell: { borderRadius: 12, gap: 12, padding: 16 }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
-  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, half: { width: '48%' },
   topHabit: { minHeight: 68, paddingVertical: 16, gap: 4, minWidth: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   windowGrid: { gap: 12 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 12 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },

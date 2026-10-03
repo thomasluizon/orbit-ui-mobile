@@ -30,11 +30,16 @@ describe('StatTile', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([320, 360, 384, 412])('keeps captions and values on one line at %ipx in both locales', async (width) => {
+    it.each([320, 360, 384, 412].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('keeps captions and values on one line at $width with text scale $fontScale in both locales', async ({ width, fontScale }) => {
       for (const catalog of [en, ptBR]) {
         const { container, unmount } = render(
           <div style={{ width }}>
             <CalendarStats stats={[
+              { key: 'bestStreak', value: 123, label: catalog.calendar.bestStreak },
+              { key: 'totalLogs', value: 999, label: catalog.calendar.totalLogs },
+              { key: 'missed', value: 31, label: catalog.calendar.missedCount },
+            ]} />
+            <CalendarStats state="loading" loadingLabel={catalog.calendar.loading} stats={[
               { key: 'bestStreak', value: 123, label: catalog.calendar.bestStreak },
               { key: 'totalLogs', value: 999, label: catalog.calendar.totalLogs },
               { key: 'missed', value: 31, label: catalog.calendar.missedCount },
@@ -44,7 +49,7 @@ describe('StatTile', () => {
               { key: 'totalLogs', value: 0, label: catalog.calendar.totalLogs },
               { key: 'missed', value: 0, label: catalog.calendar.missedCount },
             ]} />
-            <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-3" style={{ padding: 16 }}>
+            <div className="flex flex-wrap gap-3" style={{ padding: 16 }}>
               <StatTile value="100%" label={catalog.progressScreen.window.completionRate} />
               <StatTile value={30} label={catalog.progressScreen.window.activeDays} />
               {Object.values(catalog.dates.daysAbbreviated).map((weekday) => <StatTile key={weekday} value={weekday} label={catalog.progressScreen.window.bestWeekday} />)}
@@ -56,7 +61,14 @@ describe('StatTile', () => {
         try {
           await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
           await loadAppFonts(page)
-          const geometry = await page.locator('[data-state] > span').evaluateAll((elements) => elements.map((element) => {
+          await page.evaluate((scale) => {
+            const elements = Array.from(document.querySelectorAll<HTMLElement>('div, span'))
+            const sizes = elements.map((element) => ({ element, size: parseFloat(getComputedStyle(element).fontSize), line: parseFloat(getComputedStyle(element).lineHeight) }))
+            for (const { element, size, line } of sizes) { element.style.fontSize = `${size * scale}px`; if (Number.isFinite(line)) element.style.lineHeight = `${line * scale}px` }
+          }, fontScale)
+          const calendarHeights = await page.locator('[data-testid="calendar-stats"]').evaluateAll((rows) => rows.slice(0, 2).map((row) => Array.from(row.children, (figure) => figure.getBoundingClientRect().height)))
+          expect(calendarHeights[0]).toEqual(calendarHeights[1])
+          const geometry = await page.locator('[data-state="default"] > span, [data-state="empty"] > span').evaluateAll((elements) => elements.map((element) => {
             const range = document.createRange()
             range.selectNodeContents(element)
             const bounds = range.getBoundingClientRect()

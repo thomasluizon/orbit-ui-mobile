@@ -80,16 +80,17 @@ function Section({ title, children }: Readonly<{ title: string; children: ReactN
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>) {
-  return <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-3">{children}</div>
+  return <div className="flex flex-wrap gap-3">{children}</div>
 }
 
 /** One busy region covers the figures and the habit row. */
 function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
+  const t = useTranslations()
   return (
     <div role="progressbar" aria-busy="true" aria-label={label} className="flex flex-col gap-3">
       <Skeleton variant="bar-chart" grouped />
       <WindowFigureGrid>
-        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+        {(['completionRate', 'activeDays', 'bestWeekday'] as const).map((key) => <div key={key} aria-hidden="true" className="flex flex-1" style={{ minWidth: 'max-content' }}><StatTile state="loading" loadingLabel={label} label={t(`progressScreen.window.${key}`)} /></div>)}
       </WindowFigureGrid>
       <Skeleton variant="habit-row" grouped />
     </div>
@@ -129,7 +130,7 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
       <div className="flex w-full max-w-[560px] flex-col gap-3" aria-hidden="true">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </div>
-      <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-3" aria-hidden="true">
+      <div className="flex flex-wrap gap-3" aria-hidden="true">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
       </div>
       <div className="flex flex-col gap-3" aria-hidden="true">
@@ -327,7 +328,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
             protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday'),
           }}
         />
-      ) : <><div className="grid grid-cols-2 gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
+      ) : <><div className="flex flex-wrap gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
       {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} hasGoals={hasGoals} /> : null}
     </section>
   )
@@ -449,7 +450,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <>
-        <PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton>
+        <div className="flex items-start"><PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton></div>
         <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />

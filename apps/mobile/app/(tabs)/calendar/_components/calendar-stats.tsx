@@ -26,7 +26,9 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
       style={[styles.row, fontScale > 1.3 ? styles.stacked : undefined]}>
       {stats.map((stat) => (
         <View key={stat.key} testID={`calendar-figure-${state}`} style={styles.figure}>
-          {isLoading ? <View accessibilityRole="progressbar" accessibilityLabel={loadingLabel}><View style={[styles.skeleton, { backgroundColor: tokens.bgElev2 }]} /></View>
+          {isLoading ? <View accessibilityRole="progressbar" accessibilityLabel={loadingLabel} style={styles.loadingValue}>
+            <Text accessibilityElementsHidden style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.skeleton, { position: 'absolute', backgroundColor: tokens.bgElev2 }]} />
+          </View>
             : <Text style={[state === 'empty' ? styles.empty : styles.value, { color: state === 'empty' ? tokens.fg3 : tokens.fg1 }]}>{state === 'empty' ? emptyLabel : stat.value}</Text>}
           <Text style={[styles.label, { color: tokens.fg2 }]}>{stat.label}</Text>
         </View>
@@ -36,6 +38,7 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
 }
 
 const styles = StyleSheet.create({
+  loadingValue: { minWidth: 64, alignItems: 'center', justifyContent: 'center' },
   skeleton: { width: 64, height: 24, borderRadius: 8 },
   row: { flexDirection: 'row', gap: 12, paddingHorizontal: 16 },
   stacked: { flexDirection: 'column' },

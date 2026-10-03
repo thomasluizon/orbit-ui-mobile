@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -77,7 +78,7 @@ const mocks = vi.hoisted(() => ({
         bestStreak: 9,
         badHabitSlips: 0,
         weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
-        topHabits: [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
+        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
         needsAttention: [],
       },
       narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
@@ -121,6 +122,7 @@ const mocks = vi.hoisted(() => ({
   streakSnapshotZones: null as Set<string> | null,
   isDesktop: false,
   usePortugueseCatalog: false,
+  useEnglishCatalog: false,
 }))
 
 vi.mock('next-intl', async (importOriginal) => ({
@@ -128,7 +130,7 @@ vi.mock('next-intl', async (importOriginal) => ({
   useLocale: () => mocks.usePortugueseCatalog ? 'pt-BR' : 'en',
   useTranslations: () => mocks.usePortugueseCatalog
     ? createTranslator({ locale: 'pt-BR', messages: ptBR })
-    : (key: string, values?: Record<string, unknown>) =>
+    : mocks.useEnglishCatalog ? createTranslator({ locale: 'en', messages: en }) : (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router, usePathname: () => '/progress' }))
@@ -611,7 +613,7 @@ describe('ProgressContent', () => {
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
     mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
-    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', (query) => {
@@ -787,7 +789,50 @@ describe('ProgressContent', () => {
     }
   })
 
-  it('discloses the streak legend and keeps the top habit outside the figures', () => {
+  it.each([320, 360, 384, 412])('keeps the owning Progress figures readable at %ipx with large text', async (width) => {
+    for (const catalog of [en, ptBR]) {
+      mocks.usePortugueseCatalog = catalog === ptBR
+      mocks.useEnglishCatalog = catalog === en
+      mocks.goals.data.allGoals = [createMockGoal()]
+      const habitName = 'Read a very long chapter title before the morning conversation '.repeat(5)
+      mocks.retrospective.data.metrics.topHabits[0]!.name = habitName
+      mocks.retrospective.data.metrics.topHabits[0]!.emoji = '📚'
+      const { container, unmount } = render(<ProgressContent />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div style="width:${width}px">${container.innerHTML}</div>`)
+        await loadAppFonts(page)
+        await page.evaluate(() => {
+          const elements = Array.from(document.querySelectorAll<HTMLElement>('div, span, p, button'))
+          const sizes = elements.map((element) => ({ element, size: parseFloat(getComputedStyle(element).fontSize), line: parseFloat(getComputedStyle(element).lineHeight) }))
+          for (const { element, size, line } of sizes) { element.style.fontSize = `${size * 2}px`; if (Number.isFinite(line)) element.style.lineHeight = `${line * 2}px` }
+        })
+        const geometry = await page.locator('[data-state="default"] > span').evaluateAll((elements) => elements.map((element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const bounds = range.getBoundingClientRect()
+          const tile = element.parentElement!.getBoundingClientRect()
+          return { text: element.textContent, lines: range.getClientRects().length, inside: bounds.left >= tile.left && bounds.right <= tile.right }
+        }))
+        const habit = await page.locator('[data-testid="progress-top-habit"]').evaluate((element) => {
+          const title = element.querySelector('[title]')!
+          const style = getComputedStyle(title)
+          const bounds = title.getBoundingClientRect()
+          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: !!element.querySelector('a, button') }
+        })
+        expect(habit.full).toContain(habitName)
+        expect(habit.emoji).toContain('📚')
+        expect(habit.title).toBe(habitName)
+        expect(habit.lines).toBeCloseTo(2, 1)
+        expect(habit.width).toBe(habit.rowWidth)
+        expect(habit.interactive).toBe(false)
+        expect(geometry).toHaveLength(10)
+        for (const figure of geometry) { expect(figure.lines, figure.text!).toBe(1); expect(figure.inside, figure.text!).toBe(true) }
+      } finally { await page.close(); unmount(); mocks.usePortugueseCatalog = false; mocks.useEnglishCatalog = false }
+    }
+  })
+
+  it('discloses the streak legend and keeps the top habit outside the figures', async () => {
     render(<ProgressContent />)
     const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
     expect(windowSection.querySelectorAll('[data-state="default"]')).toHaveLength(3)
@@ -796,8 +841,14 @@ describe('ProgressContent', () => {
     expect(habit).toHaveTextContent('Read')
     expect(habit.querySelector('button, a')).toBeNull()
     expect(screen.queryByText('progressScreen.streak.active')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.legend' }))
+    const entry = screen.getByRole('button', { name: 'progressScreen.streak.legend' })
+    entry.focus()
+    fireEvent.click(entry)
     expect(screen.getByRole('dialog')).toHaveTextContent('progressScreen.streak.active')
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(entry).toHaveFocus()
+    expect(habit).toHaveTextContent('Read')
   })
 
   it('renders pay-gate refusals as the three locked sections', async () => {

@@ -37,7 +37,7 @@ describe('CalendarStats', () => {
     )
 
     expect(screen.getByTestId('calendar-stats')).toHaveStyle({
-      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 5.5em), 1fr))',
+      display: 'flex', flexWrap: 'wrap',
       gap: '12px',
     })
     expect(screen.getByText('Best streak')).toBeInTheDocument()
@@ -63,7 +63,7 @@ describe('CalendarStats', () => {
 
     expect(screen.getByTestId('calendar-stats')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getAllByRole('status', { name: 'Loading', hidden: true })).toHaveLength(3)
-    expect(screen.queryByText('0')).not.toBeInTheDocument()
+    for (const placeholder of screen.getAllByText('0')) expect(placeholder.closest('[aria-hidden="true"]')).not.toBeNull()
   })
 
   it('keeps every pending tile at its loaded height', () => {

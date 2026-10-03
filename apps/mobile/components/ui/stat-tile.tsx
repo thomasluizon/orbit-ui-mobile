@@ -43,7 +43,9 @@ export function StatTile(props: Readonly<StatTileProps>) {
       accessibilityLabel={state === 'loading' ? props.loadingLabel : undefined}
     >
       {state === 'loading' ? (
-        <View style={[styles.valueSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingValue}>
+          <Text style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.valueSkeleton, { position: 'absolute', backgroundColor: tokens.bgElev2 }]} />
+        </View>
       ) : (
         <TileValue
           value={shownStatValue(props)}
@@ -92,6 +94,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
+  loadingValue: { minWidth: 64, alignItems: 'center', justifyContent: 'center' },
   valueSkeleton: {
     width: 64,
     height: 24,

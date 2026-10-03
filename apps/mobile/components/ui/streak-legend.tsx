@@ -11,20 +11,21 @@ export function StreakLegend({ words }: Readonly<Pick<FreezeBankProps, 'words'>>
   const { t } = useTranslation()
   const theme = useAppTheme()
   const tokens = createTokensV2(theme.currentScheme, theme.currentTheme)
+  const [hovered, setHovered] = useState(false)
   const [open, setOpen] = useState(false)
   const { sheetRef } = useSheetHost()
   return (
     <View>
       <Pressable accessibilityRole="button" accessibilityLabel={words.legendLabel} accessibilityState={{ expanded: open }}
-        onPress={() => setOpen(true)} style={({ pressed }) => [styles.entry, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
-        <Info size={24} strokeWidth={1.5} color={tokens.fg2} />
+        onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPress={() => setOpen(true)} style={({ pressed }) => [styles.entry, { backgroundColor: (pressed || hovered) ? tokens.bgHoverOpaque : 'transparent' }]}>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><Info size={24} strokeWidth={1.5} color={tokens.fg2} /></View>
       </Pressable>
       {open ? <Sheet ref={sheetRef} open title={t('progressScreen.streak.legendTitle')} accessibleTitle={words.legendLabel} onClose={() => setOpen(false)}>
         <View style={styles.legend}>
           {(['active', 'frozen', 'missed'] as const).map((state) => (
             <View key={state} style={styles.row}>
               <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                {state === 'frozen' ? <Snowflake size={16} strokeWidth={2} color={tokens.statusFrozen} />
+                {state === 'frozen' ? <Snowflake size={16} strokeWidth={1.5} color={tokens.statusFrozen} />
                   : <View style={[styles.mark, state === 'active' ? { backgroundColor: tokens.fg1 } : { borderWidth: 1, borderColor: tokens.statusEmpty }]} />}
               </View>
               <Text style={[styles.label, { color: tokens.fg2 }]}>{words[state]}</Text>
