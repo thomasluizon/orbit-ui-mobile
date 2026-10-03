@@ -1546,23 +1546,26 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.label === 'streakDisplay.detail.tierTileLabel')).toHaveLength(1)
   })
 
-  it.each([320, 412, 1440])('keeps today inside the full visible account row at %ipx', async (width) => {
+  it.each([320, 360, 384, 412, 1440])('keeps fourteen square days inside the full visible account row at %ipx', async (width) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
     const tree = await renderProgress()
     const strip = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'day-strip-account')[0]!
     const cells = strip.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
     const rowStyle = StyleSheet.flatten(strip.props.style as ViewStyle)
     const visibleWidth = Math.min(width - 32, 560)
-    const row = Yoga.Node.create()
+    const config = Yoga.Config.create()
+    config.setPointScaleFactor(0)
+    const row = Yoga.Node.createWithConfig(config)
     row.setWidth(visibleWidth)
     row.setFlexDirection(rowStyle.flexDirection === 'row' ? Yoga.FLEX_DIRECTION_ROW : Yoga.FLEX_DIRECTION_COLUMN)
     row.setGap(Yoga.GUTTER_ALL, Number(rowStyle.gap ?? 0))
     row.setJustifyContent(rowStyle.justifyContent === 'space-between' ? Yoga.JUSTIFY_SPACE_BETWEEN : Yoga.JUSTIFY_FLEX_START)
     const dayNodes = cells.map((cell, index) => {
       const style = StyleSheet.flatten(cell.props.style as ViewStyle)
-      const day = Yoga.Node.create()
+      const day = Yoga.Node.createWithConfig(config)
       day.setWidth(Number(style.width))
-      day.setHeight(Number(style.height))
+      day.setHeight(typeof style.height === 'number' ? style.height : undefined)
+      day.setAspectRatio(typeof style.aspectRatio === 'number' ? style.aspectRatio : undefined)
       day.setFlexShrink(style.flexShrink)
       day.setMinWidth(typeof style.minWidth === 'number' ? style.minWidth : undefined)
       row.insertChild(day, index)
@@ -1574,12 +1577,19 @@ describe('mobile ProgressContent', () => {
       expect(cells[13]?.props.testID).toBe('day-strip-cell-today')
       const today = dayNodes[13]!
       const right = today.getComputedLeft() + today.getComputedWidth()
-      expect(right, 'today must fit inside the visible row').toBeLessThanOrEqual(visibleWidth)
-      expect(right, 'the fourteen days must occupy the full row').toBe(visibleWidth)
-      for (const day of dayNodes) expect(day.getComputedWidth()).toBeGreaterThanOrEqual(16)
+      expect(right, 'today must fit inside the visible row').toBeLessThanOrEqual(visibleWidth + 0.5)
+      expect(right, 'the fourteen days must occupy the full row').toBeCloseTo(visibleWidth, 1)
+      for (const [index, day] of dayNodes.entries()) {
+        expect(day.getComputedWidth()).toBeGreaterThanOrEqual(16)
+        expect(Math.abs(day.getComputedWidth() - day.getComputedHeight())).toBeLessThanOrEqual(0.5)
+        expect(day.getComputedWidth()).toBeCloseTo(Math.min(width >= 768 ? 24 : 20, (visibleWidth - 13 * 4) / 14), 1)
+        expect(StyleSheet.flatten(cells[index]!.props.style as ViewStyle).borderRadius).toBe(8)
+        if (index) expect(day.getComputedLeft() - dayNodes[index - 1]!.getComputedLeft() - dayNodes[index - 1]!.getComputedWidth()).toBeCloseTo(Math.max(4, (visibleWidth - 14 * (width >= 768 ? 24 : 20)) / 13), 1)
+      }
       for (let ancestor = strip.parent; ancestor; ancestor = ancestor.parent) expect(ancestor.props.horizontal).not.toBe(true)
     } finally {
       row.freeRecursive()
+      config.free()
       dimensions.mockRestore()
     }
   })
