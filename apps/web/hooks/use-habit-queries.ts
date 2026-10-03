@@ -14,15 +14,13 @@ import {
   sortNormalizedHabits,
 } from '@orbit/shared/utils'
 import type {
-  HabitDetail,
-  HabitFullDetail,
-  HabitMetrics,
   HabitsFilter,
   HabitScheduleItem,
   NormalizedHabit,
   PaginatedResponse,
 } from '@orbit/shared/types/habit'
-import type { HabitLog } from '@orbit/shared/types/calendar'
+import { habitDetailSchema, habitFullDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
+import { habitLogSchema } from '@orbit/shared/types/calendar'
 import { fetchJson } from '@/lib/api-fetch'
 
 export interface NormalizedHabitsData {
@@ -101,7 +99,7 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
 export function useHabitDetail(id: string | null) {
   return useQuery({
     queryKey: habitKeys.detail(id ?? ''),
-    queryFn: () => fetchJson<HabitDetail>(API.habits.get(id ?? '')),
+    queryFn: async () => habitDetailSchema.parse(await fetchJson<unknown>(API.habits.get(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -110,7 +108,7 @@ export function useHabitDetail(id: string | null) {
 export function useHabitMetrics(id: string | null) {
   const query = useQuery({
     queryKey: habitKeys.metrics(id ?? ''),
-    queryFn: () => fetchJson<HabitMetrics>(API.habits.metrics(id ?? '')),
+    queryFn: async () => habitMetricsSchema.parse(await fetchJson<unknown>(API.habits.metrics(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -125,7 +123,7 @@ export function useHabitMetrics(id: string | null) {
 export function useHabitLogs(id: string | null) {
   return useQuery({
     queryKey: habitKeys.logs(id ?? ''),
-    queryFn: () => fetchJson<HabitLog[]>(`${API.habits.get(id ?? '')}/logs`),
+    queryFn: async () => habitLogSchema.array().parse(await fetchJson<unknown>(`${API.habits.get(id ?? '')}/logs`)),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })
@@ -134,7 +132,7 @@ export function useHabitLogs(id: string | null) {
 export function useHabitFullDetail(id: string | null) {
   return useQuery({
     queryKey: habitKeys.fullDetail(id ?? ''),
-    queryFn: () => fetchJson<HabitFullDetail>(API.habits.detail(id ?? '')),
+    queryFn: async () => habitFullDetailSchema.parse(await fetchJson<unknown>(API.habits.detail(id ?? ''))),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.habits,
   })

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import {
   useHabits,
@@ -20,6 +21,27 @@ import type {
   PaginatedResponse,
 } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
+
+
+const validMetrics = {
+  weeklyCompletionRate: 85,
+  monthlyCompletionRate: 70,
+  currentStreak: 5,
+  longestStreak: 14,
+  totalCompletions: 100,
+  lastCompletedDate: null,
+}
+const validDetail = { ...createMockHabit({ id: 'h-1' }), children: [] }
+const validLogs = [{ id: 'log-1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T10:00:00Z' }]
+const validFullDetail = { habit: validDetail, metrics: validMetrics, logs: validLogs }
+const invalidMetricsBodies = [
+  { label: 'empty body', body: {} },
+  ...Object.keys(validMetrics).map((field) => ({
+    label: `missing ${field}`,
+    body: Object.fromEntries(Object.entries(validMetrics).filter(([key]) => key !== field)),
+  })),
+  { label: 'wrong completion rate type', body: { ...validMetrics, monthlyCompletionRate: '70' } },
+]
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -520,5 +542,49 @@ describe('useTotalHabitCount', () => {
     })
 
     expect(result.current).toBe(0)
+  })
+})
+
+describe('habit detail response validation', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it.each(invalidMetricsBodies)('rejects metrics with $label', async ({ body }) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => useHabitMetrics('h-1'), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
+  })
+
+  it.each([
+    { label: 'habit detail', hook: useHabitDetail, body: {} },
+    { label: 'logs container', hook: useHabitLogs, body: {} },
+    { label: 'log entry', hook: useHabitLogs, body: [{}] },
+    { label: 'full detail container', hook: useHabitFullDetail, body: {} },
+    { label: 'nested habit', hook: useHabitFullDetail, body: { ...validFullDetail, habit: {} } },
+    { label: 'nested metrics', hook: useHabitFullDetail, body: { ...validFullDetail, metrics: {} } },
+    { label: 'nested logs', hook: useHabitFullDetail, body: { ...validFullDetail, logs: [{}] } },
+  ])('rejects invalid $label', async ({ hook, body }) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => hook('h-1'), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
+  })
+
+  it.each([
+    { label: 'metrics', hook: useHabitMetrics },
+    { label: 'habit detail', hook: useHabitDetail },
+    { label: 'logs', hook: useHabitLogs },
+    { label: 'full detail', hook: useHabitFullDetail },
+  ])('propagates a failed $label request', async ({ hook }) => {
+    const failure = new Error('Request failed')
+    mockFetch.mockRejectedValue(failure)
+    const { result } = renderHook(() => hook('h-1'), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toBe(failure)
   })
 })
