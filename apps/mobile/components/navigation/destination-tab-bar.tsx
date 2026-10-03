@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { resolveShellChrome } from '@orbit/shared/utils'
-import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
+import { resolveShellChrome, DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -33,10 +33,5 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <BottomTabBar activeId={active} onSelect={handleTab} label={t('nav.mainNavigation')}
-    items={[
-      { id: 'hoje', label: t('nav.today'), icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-      { id: 'calendario', label: t('nav.calendar'), icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-      { id: 'progresso', label: t('nav.progress'), icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-      { id: 'perfil', label: t('nav.profile'), icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-    ]} />
+    items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? tokens.primary : tokens.fg3} /> }))} />
 }

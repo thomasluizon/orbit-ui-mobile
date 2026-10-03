@@ -44,3 +44,15 @@ describe('DestinationTabBar', () => {
     direct.unmount()
   })
 })
+
+it.each([
+  ['/', 'HomeFilled'], ['/calendar', 'CalendarDaysFilled'],
+  ['/progress', 'LayoutDashboardFilled'], ['/profile', 'UserFilled'],
+])('renders the filled destination glyph on %s', (pathname, filledIcon) => {
+  const tree = renderNavigation(<DestinationTabBar pathname={pathname} />)
+  const icons = tree.hosts().filter((node) => ['Home', 'HomeFilled', 'CalendarDays', 'CalendarDaysFilled', 'LayoutDashboard', 'LayoutDashboardFilled', 'User', 'UserFilled', 'ChartLine'].includes(String(node.type)))
+  expect(icons).toHaveLength(4)
+  expect(icons.filter((node) => String(node.type).endsWith('Filled')).map((node) => node.type)).toEqual([filledIcon])
+  expect(icons.some((node) => node.type === 'ChartLine')).toBe(false)
+  tree.unmount()
+})

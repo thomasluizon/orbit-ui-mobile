@@ -33,7 +33,8 @@ import {
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { ShellWide } from '@/components/shell/shell-wide'
-import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Toast } from '@/components/ui/toast'
@@ -76,16 +77,8 @@ const DONE_TAB_ROUTES: Record<string, string> = { hoje: '/', calendario: '/calen
 
 function DoneShell({ onSelect, children, modalId }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string }>) {
   const t = useTranslations()
-  const items = useMemo(() => [
-    { id: 'hoje', label: t('nav.today'), icon: 'home' },
-    { id: 'calendario', label: t('nav.calendar'), icon: 'calendar' },
-    { id: 'progresso', label: t('nav.progress'), icon: 'chart-line' },
-    { id: 'perfil', label: t('nav.profile'), icon: 'user' },
-  ] satisfies ShellWideItem[], [t])
-  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={items.map((item) => ({ ...item, icon: ({ active }) => {
-    const Icon = { hoje: Home, calendario: CalendarDays, progresso: ChartLine, perfil: User }[item.id] ?? Home
-    return <Icon size={24} strokeWidth={active ? 2 : 1.5} />
-  } }))} onSelect={onSelect} />
+  const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: id })) satisfies ShellWideItem[], [t])
+  const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
   return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-6 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>

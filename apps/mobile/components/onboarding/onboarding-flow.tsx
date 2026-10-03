@@ -32,7 +32,8 @@ import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
-import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Toast } from '@/components/ui/app-toast'
 import { ActionRow } from '@/components/ui/action-row'
 import { PillButton } from '@/components/ui/pill-button'
@@ -67,12 +68,7 @@ function DoneTabBar({ onSelect }: Readonly<{ onSelect: (id: string) => void }>) 
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} onSelect={onSelect}
-    items={[
-      { id: 'hoje', label: t('nav.today'), icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-      { id: 'calendario', label: t('nav.calendar'), icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-      { id: 'progresso', label: t('nav.progress'), icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-      { id: 'perfil', label: t('nav.profile'), icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? tokens.primary : tokens.fg3} /> },
-    ]} />
+    items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? tokens.primary : tokens.fg3} /> }))} />
 }
 
 function DoneScroll({ children }: Readonly<{ children: ReactNode }>) {

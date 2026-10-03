@@ -16,10 +16,10 @@ vi.mock('@/components/ui/pill-button', () => ({
 import { ShellWide } from '@/components/shell/shell-wide'
 
 const items = [
-  { id: 'hoje', label: 'Hoje', icon: 'home' },
-  { id: 'calendario', label: 'Calendário', icon: 'calendar' },
-  { id: 'progresso', label: 'Progresso', icon: 'chart-line' },
-  { id: 'perfil', label: 'Perfil', icon: 'user' },
+  { id: 'hoje', label: 'Hoje', icon: 'hoje' },
+  { id: 'calendario', label: 'Calendário', icon: 'calendario' },
+  { id: 'progresso', label: 'Progresso', icon: 'progresso' },
+  { id: 'perfil', label: 'Perfil', icon: 'perfil' },
 ]
 
 function BlurFocusedElement() {
@@ -59,7 +59,7 @@ describe('ShellWide', () => {
   it('keeps the wide pinned slot inside the existing content column', () => {
     media.width = 1440
     const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} />)
-    const column = container.querySelector('[data-shell-scroller]')?.parentElement
+    const column = container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')
     expect(column).toHaveStyle({ maxWidth: '740px' })
     expect(column).toContainElement(container.querySelector('[data-shell-pinned-slot]'))
   })
@@ -87,7 +87,7 @@ describe('ShellWide', () => {
     )
 
     expect(container.querySelector('[data-shell-sidebar]')).toHaveClass('w-[232px]')
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveStyle({ maxWidth: '740px' })
+    expect(container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')).toHaveStyle({ maxWidth: '740px' })
     expect(container.querySelector('[data-shell-notice]')).toHaveTextContent('Notice')
     expect(container.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
     expect(screen.getAllByRole('heading')).toHaveLength(1)
@@ -147,7 +147,7 @@ describe('ShellWide', () => {
     const inactive = screen.getByRole('button', { name: 'Hoje' })
     expect(active).toHaveClass('text-[var(--primary-soft)]')
     expect(active).toHaveClass('hover:text-[var(--primary-text)]')
-    expect(active.querySelector('svg')).toHaveAttribute('stroke', 'var(--primary)')
+    expect(active.querySelector('svg')).toHaveAttribute('fill', 'var(--primary)')
     expect(inactive).toHaveClass('text-[var(--fg-3)]')
     expect(inactive.querySelector('svg')).toHaveAttribute('stroke', 'var(--fg-3)')
     delete document.documentElement.dataset.theme
@@ -249,8 +249,8 @@ describe('ShellWide', () => {
     expect(container.querySelector('[data-shell-background]')).not.toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-sidebar]')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Today' })).toBeVisible()
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement).toHaveStyle({ maxWidth: '740px' })
-    expect(container.querySelector('[data-shell-scroller]')?.parentElement?.parentElement).not.toHaveClass('px-8')
+    expect(container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')).toHaveStyle({ maxWidth: '740px' })
+    expect(container.querySelector('[data-shell-scroller]')?.closest('[data-shell-column]')?.parentElement).not.toHaveClass('px-8')
   })
 
   it('moves focus into the Support conversation panel and returns it on close', () => {

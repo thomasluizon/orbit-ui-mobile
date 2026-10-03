@@ -12,7 +12,7 @@ function ShellHydrationProbe() {
 
   return (
     <ShellWide
-      items={[{ id: 'hoje', label: 'Today', icon: 'home' }]}
+      items={[{ id: 'hoje', label: 'Today', icon: 'hoje' }]}
       activeId="hoje"
       navLabel="Main navigation"
       tabBar={<nav aria-label="Bottom navigation">Today</nav>}
