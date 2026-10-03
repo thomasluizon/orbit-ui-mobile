@@ -29,7 +29,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
         {!atCeiling ? (
           <div className="flex flex-col gap-1">
             <div className="flex flex-wrap items-baseline gap-3">
-              <p className="min-w-0 flex-1 text-[14px] text-[var(--fg-2)]">{props.words.nextLabel}</p>
+              <p className="max-w-full grow shrink-0 text-[14px] text-[var(--fg-2)]">{props.words.nextLabel}</p>
               <p className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-3)]">{props.words.nextFreezeProgress}</p>
             </div>
             <ProgressBar value={props.daysTowardNext} max={props.earnRateDays} label={props.words.nextProgressLabel} />

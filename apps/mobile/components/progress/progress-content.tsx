@@ -311,7 +311,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5, zIndex: 2 } : null,
       ]}>
       <View style={styles.goalCopy}>
-        <Text style={[styles.goalTitle, { color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
+        <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
         <View style={styles.goalMeta}>
           {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
           {!abandoned ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
