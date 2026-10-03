@@ -44,12 +44,12 @@ function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRo
   return [styles.textBlock, compact && hasTrailing ? styles.controlRowText : null, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]
 }
 
-function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNode, value: ListRowProps['value']) {
-  return textMode === 'label' && Boolean(trailing) && !value
+function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNode, value: ListRowProps['value'], readOnly: ListRowProps['readOnly']) {
+  return readOnly === true && textMode === 'label' && Boolean(trailing) && !value
 }
 
-function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact'> & { titleColor: string; valueColor: string }>) {
-  const keepsControlInline = hasInlineControl(textMode, trailing, value)
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, readOnly, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly'> & { titleColor: string; valueColor: string }>) {
+  const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue, compact, !!trailing), keepsControlInline ? styles.labelControlText : null]}>
     <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Text>
     {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
