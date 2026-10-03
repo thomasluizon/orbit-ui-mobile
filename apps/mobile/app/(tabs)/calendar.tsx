@@ -70,6 +70,7 @@ import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2, radius } from "@/lib/theme";
+import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -327,12 +328,18 @@ function CalendarProfileState({
   );
   const styles = useMemo(() => createStyles(), []);
   const clearance = useShellScrollerClearance();
+  const scrollRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlatList<CalendarDayEntry>>(null);
+  useRootScrollToTop('calendario', useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []));
 
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
       <CalendarOptions tokens={tokens} />
-      <ScrollView style={styles.profileStateWrap} contentContainerStyle={[styles.profileScrollContent, { paddingBottom: clearance }]}>
+      <ScrollView ref={scrollRef} style={styles.profileStateWrap} contentContainerStyle={[styles.profileScrollContent, { paddingBottom: clearance }]}>
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
@@ -416,6 +423,12 @@ function CalendarScreenContent({
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
   const clearance = useShellScrollerClearance();
+  const scrollRef = useRef<ScrollView>(null);
+  const listRef = useRef<FlatList<CalendarDayEntry>>(null);
+  useRootScrollToTop('calendario', useCallback(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []));
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string; import?: string }>();
   const { sheetRef, closeSheet } = useSheetHost();
@@ -885,7 +898,7 @@ function CalendarScreenContent({
       <CalendarOptions tokens={tokens} onGoogleCalendar={() => profile.hasProAccess ? openImport(null) : router.push('/upgrade')} />
 
       {activeError && (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>
+        <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>
           {calendarHeader}
           <View style={styles.errorWrap}>
             <View
@@ -906,6 +919,7 @@ function CalendarScreenContent({
       )}
       {!activeError && view === "month" && (
         <FlatList
+          ref={listRef}
           style={styles.container}
           data={EMPTY_LIST}
           keyExtractor={(_item, index) => String(index)}
@@ -918,6 +932,7 @@ function CalendarScreenContent({
       )}
       {!activeError && view !== "month" && (
         <ScrollView
+          ref={scrollRef}
           style={styles.container}
           contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}

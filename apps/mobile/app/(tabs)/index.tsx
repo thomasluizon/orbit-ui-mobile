@@ -26,6 +26,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAccountId, useAccountId } from '@/lib/account-scope'
+import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { readShowGeneralOnToday } from '@/lib/show-general-on-today-storage'
 
 function getBoundaryMessageKey(
@@ -79,6 +80,7 @@ function TodayScreenContent() {
   const [todayFocused, setTodayFocused] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
+  useRootScrollToTop('hoje', useCallback(() => habitListRef.current?.scrollToOffset(0, false), []))
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)

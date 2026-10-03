@@ -188,7 +188,7 @@ export interface HabitListHandle {
   checkAndPromptParentLog: (childHabitId: string) => void
   settleBulkHabitResolutions: (resolutions: readonly HabitResolution[], date: string) => void
   refetch: () => void
-  scrollToOffset: (offset: number) => void
+  scrollToOffset: (offset: number, animated?: boolean) => void
 }
 
 const SKELETON_KEYS = [
@@ -442,6 +442,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const bulkBarStyle = { paddingBottom: clearance + (isSelectMode ? 24 : 0) }
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
+    const stateListRef = useRef<FlatList<string>>(null)
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         onScroll?.(e.nativeEvent.contentOffset.y)
@@ -1455,19 +1456,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         refetch: () => {
           void refetch()
         },
-        scrollToOffset: (offset: number) => {
-          const target:
-            | { scrollToOffset?: (params: { offset: number; animated?: boolean }) => void }
-            | null =
-            scrollContainerRef.current ??
-            drillListRef.current
-          try {
-            target?.scrollToOffset?.({
-              offset,
-              animated: true,
-            })
-          } catch {
-          }
+        scrollToOffset: (offset: number, animated = true) => {
+          const target = scrollContainerRef.current ?? drillListRef.current ?? stateListRef.current
+          target?.scrollToOffset({ offset, animated })
         },
       }),
       // react-doctor-disable-next-line exhaustive-deps -- refetch is the extracted habitsQuery.refetch and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -1732,6 +1723,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return (
         <>
           <FlatList
+            ref={stateListRef}
             data={SKELETON_KEYS}
             keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={(item) => item}
@@ -1755,6 +1747,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return (
         <>
           <FlatList
+            ref={stateListRef}
             data={[]}
             keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={() => 'load-error'}

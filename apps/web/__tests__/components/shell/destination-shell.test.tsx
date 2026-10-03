@@ -5,6 +5,7 @@ import { LayoutDashboard, LayoutDashboardFilled } from '@/components/ui/icons'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { ShellScrollerProvider, useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
 import { Composer } from '@/components/shell/composer'
 import en from '@orbit/shared/i18n/en.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -103,10 +104,12 @@ vi.mock('@/components/shell/shell-wide', () => ({
     fab?: ReactNode
     conversation?: ReactNode
     conversationOpen?: boolean
-  }) => (
+  }) => {
+    const registerScroller = useShellScrollerRegistration()
+    return (
     <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
       {header ? <div data-shell-header="">{header}</div> : null}
-      <main data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
+      <main ref={registerScroller} data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
       {mocks.wide && (account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />)}
       {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
@@ -119,7 +122,8 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {!mocks.wide ? fab : null}
       {conversationOpen && <div data-testid="conversation">{conversation}</div>}
     </div>
-  ),
+  )
+  },
 }))
 
 import {
@@ -864,4 +868,15 @@ describe('DestinationShell', () => {
     view.rerender(<DestinationShell onCreate={() => {}}><h1>Upgrade</h1></DestinationShell>)
     expect(screen.getByTestId('wide-account')).toHaveTextContent('Ada')
   })
+})
+
+it.each(['/', '/calendar', '/progress', '/profile'])('scrolls the owning root on reselect at %s', (pathname) => {
+  mocks.pathname = pathname
+  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Root</h1></DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  const scrollTo = vi.fn()
+  scroller.scrollTo = scrollTo
+  fireEvent.click(document.querySelector<HTMLButtonElement>('button[aria-current="page"]')!)
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
+  expect(mocks.push).not.toHaveBeenCalled()
 })

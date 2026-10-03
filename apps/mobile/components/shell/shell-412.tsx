@@ -9,6 +9,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
 import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
+import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
 function ShellBottomChrome({
@@ -149,7 +150,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         <ShellComposerSlotProvider value={registeredComposer.value}>
           <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
             <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
-              {shell}
+              <RootScrollProvider>{shell}</RootScrollProvider>
             </ShellScrollerClearanceContext.Provider>
           </KeyboardAwareView>
         </ShellComposerSlotProvider>

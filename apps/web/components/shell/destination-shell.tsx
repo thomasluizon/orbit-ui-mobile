@@ -33,6 +33,7 @@ import {
   resetRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
 import { ShellWide } from './shell-wide'
+import { useShellScroller } from './shell-scroller-context'
 import { useServerApplePlatform } from './keyboard-platform-provider'
 
 interface DestinationShellProps {
@@ -174,6 +175,7 @@ function DestinationShellContent({
 }: Readonly<DestinationShellProps & { header?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
+  const scroller = useShellScroller()
   const pathname = usePathname()
   const params = useParams<{ missing?: string[] }>()
   const notFoundVisible = Array.isArray(params.missing)
@@ -219,11 +221,12 @@ function DestinationShellContent({
       const route = ROUTES[id]
       if (route === pathname) {
         resetRouteTransitionIntent()
+        scroller?.scrollTo({ top: 0, behavior: 'instant' })
         return
       }
       requestHabitCreateNavigation(() => router.push(route))
     },
-    [pathname, router],
+    [pathname, router, scroller],
   )
 
   const wideItems = useMemo<ShellWideItem[]>(
