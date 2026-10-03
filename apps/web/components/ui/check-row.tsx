@@ -5,6 +5,8 @@ import { Checkbox } from './checkbox'
 
 export function CheckRow({
   label,
+  textMode,
+  onOpenLabel,
   checked,
   onChange,
   description,
@@ -13,6 +15,17 @@ export function CheckRow({
   disabled = false,
   loading = false,
 }: Readonly<CheckRowProps>) {
+  if (textMode === 'personal' && onOpenLabel) return (
+    <div className="flex min-h-[68px] min-w-0 items-center gap-2 px-4 py-2">
+      <button type="button" onClick={onOpenLabel} aria-label={label} className="flex min-h-12 min-w-0 flex-1 flex-col justify-center gap-1 rounded-[12px] border-0 bg-transparent text-start hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        <span className="line-clamp-2 text-base font-medium [overflow-wrap:anywhere] text-[var(--fg-1)]">{label}</span>
+        {value !== undefined ? <span className="font-mono text-sm tabular-nums text-[var(--fg-3)]">{value}</span> : null}
+      </button>
+      <button type="button" role="checkbox" aria-label={label} aria-checked={checked} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className="grid min-h-12 min-w-12 place-items-center rounded-[12px] border-0 bg-transparent hover:bg-[var(--bg-hover)] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        <Checkbox checked={checked} onChange={onChange} loading={loading} as="span" />
+      </button>
+    </div>
+  )
   return (
     <button
       type="button"

@@ -7,6 +7,8 @@ import { createTokensV2 } from '@/lib/theme'
 
 export function CheckRow({
   label,
+  textMode,
+  onOpenLabel,
   checked,
   onChange,
   description,
@@ -18,6 +20,17 @@ export function CheckRow({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
+  if (textMode === 'personal' && onOpenLabel) return (
+    <View style={styles.personalRow}>
+      <Pressable onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.personalCopy, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+        <Text numberOfLines={2} style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>
+        {value !== undefined ? <Text style={[styles.value, { color: tokens.fg3 }]}>{value}</Text> : null}
+      </Pressable>
+      <Pressable onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={({ pressed }) => [styles.personalControl, pressed ? { backgroundColor: tokens.bgHover } : null, disabled || loading ? styles.disabled : null]}>
+        <Checkbox checked={checked} onChange={onChange} loading={loading} as="span" />
+      </Pressable>
+    </View>
+  )
   return (
     <Pressable
       focusOffset={-6}
@@ -60,6 +73,9 @@ export function CheckRow({
 }
 
 const styles = StyleSheet.create({
+  personalRow: { minHeight: 68, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
+  personalCopy: { minWidth: 0, flex: 1, minHeight: 48, justifyContent: 'center', gap: 4, borderRadius: 12 },
+  personalControl: { minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
   row: { width: '100%', minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
