@@ -109,3 +109,14 @@ export const primaryTintAlphas = {
   soft: 0.18,
   ring: 0.28,
 } as const
+
+export function elevatedControlHoverFill(mode: SchemeMode): string {
+  const { bgElev, bgHoverOpaque } = neutralColors[mode]
+  const overlay = bgHoverOpaque.match(/[\d.]+/g)!.map(Number)
+  const alpha = overlay[3]!
+  const channels = [1, 3, 5].map((start, index) => {
+    const below = Number.parseInt(bgElev.slice(start, start + 2), 16)
+    return Math.round(below * (1 - alpha) + overlay[index]! * alpha)
+  })
+  return `rgb(${channels.join(',')})`
+}

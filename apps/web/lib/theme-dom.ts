@@ -1,6 +1,7 @@
 import {
   motionDurations,
   neutralColors,
+  elevatedControlHoverFill,
   selectionAlpha,
   schemes,
   statusConstants,
@@ -41,6 +42,7 @@ export function resolveWebThemeVariables(
     '--bg-elev-2': neutral.bgElev2,
     '--bg-hover': neutral.bgHover,
     '--bg-hover-opaque': neutral.bgHoverOpaque,
+    '--bg-elev-hover': elevatedControlHoverFill(theme),
     '--bg-sheet': neutral.bgElev,
     '--bg-sunk': neutral.bgSunk,
     '--hairline': neutral.hairline,

@@ -1,5 +1,6 @@
+import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -13,6 +14,8 @@ import { createProfileStyles } from './profile/_components/profile-styles'
 import { ProfileSettingsContent } from './profile/_components/profile-settings-content'
 
 export default function ProfileScreen() {
+  const scrollRef = useRef<ScrollView>(null)
+  useRootScrollToTop('perfil', useCallback(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), []))
   const { t } = useTranslation()
   const router = useRouter()
   const { subscription } = useLocalSearchParams<{ subscription?: string }>()
@@ -35,6 +38,7 @@ export default function ProfileScreen() {
     >
       <ScreenReaderHeading title={t('nav.profile')} />
       <ScrollView
+        ref={scrollRef}
         testID="profile-scroller"
         style={styles.container}
         contentContainerStyle={{ paddingBottom: clearance }}

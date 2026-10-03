@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { __emitKeyboardEvent, __setWindowDimensions } from '../../test-mocks/react-native'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
+import { useShellScrollToTopSlot } from '@/components/shell/shell-scroll-to-top-slot'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import ProgressScreen from '@/app/(tabs)/progress'
@@ -41,6 +42,27 @@ function ScrollSurface() {
 describe('Shell412 mobile', () => {
   beforeEach(() => {
     safeArea.bottom = 24
+  })
+
+  it('places the optional pill inside the scroller and removes registered content on unmount', async () => {
+    function RegisteredPill() {
+      useShellScrollToTopSlot(true, React.createElement('Pill'))
+      return null
+    }
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 header={React.createElement('Header')} fab={React.createElement('Fab')} tabBar={React.createElement('Tabs')}><RegisteredPill /></Shell412>) })
+    const slot = findByTestId(tree, 'shell-scroll-to-top')[0]!
+    expect(StyleSheet.flatten(slot.props.style)).toMatchObject({ position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center' })
+    expect(slot.props.pointerEvents).toBe('box-none')
+    expect(findByTestId(tree, 'shell-scroller')[0]!.findAll((node) => node === slot)).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-fab')[0]!.findAll((node) => node === slot)).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(<Shell412 nav={false} />))
+    expect(findByTestId(tree, 'shell-scroll-to-top')).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(<Shell412 nav={false} scrollToTop={React.createElement('Pill')} />))
+    expect(findByTestId(tree, 'shell-scroll-to-top')).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(<Shell412 nav={false} scrollToTop={React.createElement('Pill')} conversation={React.createElement('Conversation')} conversationLabel="Conversation" />))
+    expect(findByTestId(tree, 'shell-scroll-to-top')).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it.each([412, 840])('centres every shell surface in a capped column at %ipx', async (width) => {

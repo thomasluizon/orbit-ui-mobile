@@ -1,4 +1,7 @@
 import React from 'react'
+import { RootScrollProvider } from '@/components/shell/root-scroll-context'
+import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { __setScrollToImpl } from '../../test-mocks/react-native'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import * as ReactNative from 'react-native'
 import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
@@ -172,7 +175,7 @@ vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => (
 vi.mock('expo-router', () => ({
   usePathname: () => '/progress', useRouter: () => mocks.router }))
 vi.mock('react-native-draggable-flatlist', () => ({
-  NestableScrollContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  NestableScrollContainer: React.forwardRef((props: React.ComponentProps<typeof ReactNative.ScrollView>, ref: React.ForwardedRef<ReactNative.ScrollView>) => <ReactNative.ScrollView ref={ref} {...props} />),
   NestableDraggableFlatList: ({ data, renderItem, ...props }: {
     data: ReturnType<typeof createMockGoal>[]
     renderItem: (params: { item: ReturnType<typeof createMockGoal>; getIndex: () => number; drag: () => void; isActive: boolean }) => React.ReactNode
@@ -315,6 +318,23 @@ async function selectGoalFilter(tree: TestTree, view: string) {
 }
 
 describe('mobile ProgressContent', () => {
+  it.each([false, true])('scrolls Progresso on reselect and preserves goal detail at open=%s', async (detailOpen) => {
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal]
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><ProgressScreen /><DestinationTabBar pathname="/progress" /></RootScrollProvider>) })
+    if (detailOpen) await TestRenderer.act(() => { (findGoalCard(tree!.root, goal.title).props.onPress as () => void)() })
+    scrollTo.mockClear()
+    await TestRenderer.act(() => { tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityState?: { selected?: boolean }; onPress: () => void } }) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    const details = tree!.root.findAll((node: TestNode) => node.type === GoalDetailDrawer && node.props.open === true)
+    expect(details).toHaveLength(detailOpen ? 1 : 0)
+    if (detailOpen) expect(details[0]!.props.goalId).toBe(goal.id)
+    await TestRenderer.act(() => tree!.unmount())
+    __setScrollToImpl(() => {})
+  })
   it.each(['Ler os livros que escolhi para aprender uma nova habilidade', 'AprenderUmaNovaHabilidade'.repeat(5)])('clamps a long goal title and keeps its detail one tap away: %s', async (title) => {
     mocks.goals.data.allGoals = [createMockGoal({ title })]
     const tree = await renderProgress()
@@ -1733,4 +1753,6 @@ it('places the Progresso bell in the scrolling root and opens Avisos', async () 
   const bell = row.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
   TestRenderer.act(() => (bell.props.onPress as () => void)())
   expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
+
+
 })

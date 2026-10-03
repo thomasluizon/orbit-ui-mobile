@@ -9,6 +9,8 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
 import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
+import { ShellScrollToTopSlotProvider, useShellScrollToTopHost } from './shell-scroll-to-top-slot'
+import { RootScrollProvider } from './root-scroll-context'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
 function ShellBottomChrome({
@@ -59,7 +61,13 @@ function ShellBottomChrome({
   )
 }
 
+function ShellScrollToTopSlot({ visible, content }: Readonly<{ visible: boolean; content: React.ReactNode }>) {
+  if (!visible || content === undefined) return null
+  return <View testID="shell-scroll-to-top" pointerEvents="box-none" style={styles.scrollToTop}>{content}</View>
+}
+
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
+  const registeredScrollToTop = useShellScrollToTopHost()
   const registeredHeader = useShellHeaderHost()
   const header = registeredHeader.content ?? props.header
   const registeredComposer = useShellComposerHost()
@@ -113,6 +121,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
         <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && styles.flowScroller]}>
           {props.children}
+          <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
         </View>
 
         <ShellBottomChrome
@@ -149,7 +158,11 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         <ShellComposerSlotProvider value={registeredComposer.value}>
           <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
             <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
-              {shell}
+              <RootScrollProvider>
+                <ShellScrollToTopSlotProvider value={registeredScrollToTop.value}>
+                  {shell}
+                </ShellScrollToTopSlotProvider>
+              </RootScrollProvider>
             </ShellScrollerClearanceContext.Provider>
           </KeyboardAwareView>
         </ShellComposerSlotProvider>
@@ -175,6 +188,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
   },
+  scrollToTop: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
   flowScroller: { minHeight: 0 },
   flowHeader: { minHeight: 44 },
   bottomChrome: {

@@ -1,5 +1,7 @@
 import React from 'react'
-import { Animated, StyleSheet } from 'react-native'
+import { Shell412 } from '@/components/shell/shell-412'
+import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -17,6 +19,7 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => ({
+  scrollToOffset: vi.fn(),
   logHabitMutateAsync: vi.fn(),
   routerPush: vi.fn(),
   focusCallback: null as null | (() => void | (() => void)),
@@ -120,6 +123,7 @@ vi.mock('@/components/habit-list', () => ({
     ref: React.ForwardedRef<unknown>,
   ) {
     React.useImperativeHandle(ref, () => ({
+      scrollToOffset: mocks.scrollToOffset,
       markRecentlyCompleted: vi.fn(),
       checkAndPromptParentLog: vi.fn(),
     }))
@@ -142,7 +146,7 @@ vi.mock('@/components/habit-list', () => ({
       React.Fragment,
       null,
       props.listHeader as React.ReactNode,
-      React.createElement('HabitListProps', { showCompleted: props.showCompleted }),
+      React.createElement('HabitListProps', { showCompleted: props.showCompleted, onScroll: props.onScroll }),
       React.createElement('PendingRing', { onPress: pressPendingRing }),
       props.onSeeUpcoming
         ? React.createElement('UpcomingAction', { onPress: props.onSeeUpcoming })
@@ -188,7 +192,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/theme')>()
   return {
     ...actual,
-    createTokensV2: () => ({ bg: '#000000' }),
+    createTokensV2: () => actual.createTokensV2('orange', 'dark'),
   }
 })
 
@@ -216,7 +220,8 @@ vi.mock('@/app/(tabs)/use-today-selection', () => ({
   }),
 }))
 
-vi.mock('@/components/shell/shell-composer-slot', () => ({
+vi.mock('@/components/shell/shell-composer-slot', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/shell/shell-composer-slot')>()),
   useShellComposerSlot: (enabled: boolean) => {
     mocks.composerEnabled.push(enabled)
   },
@@ -524,4 +529,54 @@ describe('Hoje date boundaries', () => {
 
     expect(mocks.date.goToNextDay).toHaveBeenCalledOnce()
   })
+  it('shows the Hoje pill only beyond a viewport while scrolling up, and both entries return to the top', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 header={<></>} tabBar={<DestinationTabBar pathname="/" />}><TodayScreen /></Shell412>) })
+    let blur: void | (() => void)
+    await TestRenderer.act(() => { blur = mocks.focusCallback?.() })
+    let accessibilityTarget: unknown = null
+    const focusEvent = vi.spyOn(AccessibilityInfo, 'sendAccessibilityEvent').mockImplementation((handle, eventType) => {
+      if (eventType === 'focus') accessibilityTarget = handle
+    })
+    const selectedDate = mocks.date.dateStr
+    const column = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-content-column')[0]!
+    await TestRenderer.act(() => (column.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: 500 } } }))
+    const scroll = async (offset: number) => TestRenderer.act(() => (tree.root.findAll((node) => String(node.type) === 'HabitListProps')[0]!.props.onScroll as (offset: number) => void)(offset))
+    const pills = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === en.common.backToTop)
+    await scroll(900)
+    expect(pills()).toHaveLength(0)
+    await scroll(700)
+    expect(pills()).toHaveLength(1)
+    expect(flattenText(pills()[0]!.props.children)).toContain(en.common.top)
+    accessibilityTarget = { __nativeTag: pills()[0]!.props.__nativeTag }
+    expect(accessibilityTarget).toEqual({ __nativeTag: pills()[0]!.props.__nativeTag })
+    await TestRenderer.act(() => (pills()[0]!.props.onPress as () => void)())
+    const heading = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === en.nav.today)[0]!
+    expect(accessibilityTarget).toMatchObject({ __nativeTag: heading.props.__nativeTag })
+    expect(focusEvent).toHaveBeenCalledOnce()
+    expect(mocks.scrollToOffset).toHaveBeenCalledWith(0, false)
+    expect(pills()).toHaveLength(0)
+    await scroll(900)
+    await scroll(600)
+    expect(pills()).toHaveLength(1)
+    await scroll(0)
+    expect(pills()).toHaveLength(0)
+    await scroll(400)
+    await scroll(300)
+    expect(pills()).toHaveLength(0)
+    await scroll(900)
+    await scroll(600)
+    await TestRenderer.act(() => { (tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'tab' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!.props.onPress as () => void)() })
+    expect(mocks.scrollToOffset).toHaveBeenCalledTimes(2)
+    expect(mocks.date.dateStr).toBe(selectedDate)
+    expect(mocks.date.goToToday).not.toHaveBeenCalled()
+    expect(pills()).toHaveLength(0)
+    await scroll(900)
+    await scroll(600)
+    expect(pills()).toHaveLength(1)
+    await TestRenderer.act(() => { if (blur) blur() })
+    expect(pills()).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
 })
