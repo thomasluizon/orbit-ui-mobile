@@ -196,7 +196,7 @@ export function Sheet({
       scrollable={false}
     >
       {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={[bodyStyle, { maxHeight: maxBodyHeight }]}>
+        <View testID="sheet-virtualized-body" style={[bodyStyle, virtualizedBodyStyle(maxBodyHeight, Boolean(footer))]}>
           {children}
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </View>
@@ -234,6 +234,10 @@ function renderSheetFooter(
       {actions ? <View style={styles.actions}><ActionRow>{actions}</ActionRow></View> : null}
     </View>
   )
+}
+
+function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
+  return [{ maxHeight }, hasFooter ? { paddingBottom: 0 } : null]
 }
 
 function createStyles(tokens: Tokens) {

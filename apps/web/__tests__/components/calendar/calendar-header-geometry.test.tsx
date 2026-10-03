@@ -1,5 +1,5 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -8,6 +8,8 @@ import { resolve } from 'node:path'
 import { format } from 'date-fns'
 import { ptBR as dateLocale } from 'date-fns/locale'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import en from '@orbit/shared/i18n/en.json'
+import { buildYearRange } from '@orbit/shared/utils'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarHeader, CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
 import { buildCalendarRangeModel, formatCalendarWeekLabel } from '@orbit/shared/utils'
@@ -15,6 +17,7 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { revealFocusedControl } from '@/lib/focus-scroll'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -43,6 +46,149 @@ describe('Calendar header geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412])('contains the year viewport and reaches both ends at 640x%i', async (height) => {
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08"
+        previousMonthLabel={ptBR.common.previousMonth} nextMonthLabel={ptBR.common.nextMonth}
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+    </NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: `Fevereiro, ${ptBR.calendar.monthPicker}` }))
+    fireEvent.click(screen.getByRole('button', { name: `2026, ${ptBR.common.selectYear}` }))
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const years = buildYearRange(2026)
+    const page = await browser.newPage({ viewport: { width: 640, height } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      await page.evaluate(`document.querySelector('[data-focus-inset]').addEventListener('focusin', (${revealFocusedControl.toString()}))`)
+      const containment = await page.evaluate(() => {
+        const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+        const scroller = body.querySelector<HTMLElement>('[data-focus-inset]')!
+        const actions = document.querySelector<HTMLElement>('[data-slot="sheet-actions"]')!
+        const bodyBox = body.getBoundingClientRect()
+        const scrollBox = scroller.getBoundingClientRect()
+        return { bodyBottom: bodyBox.bottom - Number.parseFloat(getComputedStyle(body).paddingBottom), scrollBottom: scrollBox.bottom,
+          height: scrollBox.height, outerScroll: body.scrollHeight > body.clientHeight, footerTop: actions.getBoundingClientRect().top }
+      })
+      expect(containment.scrollBottom, JSON.stringify(containment)).toBeLessThanOrEqual(containment.bodyBottom + 1)
+      expect(containment.height).toBeGreaterThanOrEqual(48)
+      expect(containment.outerScroll).toBe(false)
+      expect(containment.scrollBottom).toBeLessThanOrEqual(containment.footerTop)
+      for (const year of [years[0]!, years.at(-1)!]) {
+        await page.evaluate((year) => {
+          const target = [...document.querySelectorAll<HTMLButtonElement>('[data-focus-inset] button')].find((button) => button.textContent === String(year))!
+          target.parentElement!.parentElement!.scrollTop = year < 2026 ? 0 : target.parentElement!.parentElement!.scrollHeight
+        }, year)
+        const target = page.getByRole('button', { name: String(year), exact: true })
+        expect(await target.evaluate((button) => {
+          const bounds = button.getBoundingClientRect()
+          return button.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2))
+        })).toBe(true)
+        await target.click()
+        await page.evaluate(() => { (document.activeElement as HTMLElement).blur(); document.querySelector<HTMLElement>('[data-focus-inset]')!.scrollTop = 0 })
+        await page.getByRole('button', { name: String(years[0]!), exact: true }).focus()
+        if (year === years.at(-1)) {
+          for (let index = 1; index < years.length; index++) await page.keyboard.press('Tab')
+        }
+        await page.keyboard.press('Enter')
+        const keyboardGeometry = await target.evaluate((button) => {
+          const viewport = button.parentElement!.parentElement!.getBoundingClientRect()
+          const bounds = button.getBoundingClientRect()
+          return { focused: document.activeElement === button, top: bounds.top, bottom: bounds.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom }
+        })
+        expect(keyboardGeometry.focused).toBe(true)
+        expect(keyboardGeometry.top, JSON.stringify(keyboardGeometry)).toBeGreaterThanOrEqual(keyboardGeometry.viewportTop - 1)
+        expect(keyboardGeometry.bottom, JSON.stringify(keyboardGeometry)).toBeLessThanOrEqual(keyboardGeometry.viewportBottom + 1)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('fits the picker header in $locale at 320 and enlarged text', async ({ locale, messages }) => {
+    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08" previousMonthLabel="Previous" nextMonthLabel="Next"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+    </NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`, ${messages.calendar.monthPicker}$`) }))
+    expect(screen.getByRole('dialog', { name: messages.calendar.monthPicker })).toBeInTheDocument()
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const header = await page.evaluate(() => {
+          const buttons = [...document.querySelectorAll<HTMLButtonElement>('.orbit-sheet-header button')]
+          return buttons.map((button) => {
+            const box = button.getBoundingClientRect()
+            const range = document.createRange()
+            range.selectNodeContents(button)
+            return { label: button.getAttribute('aria-label'), text: button.textContent, width: box.width, height: box.height,
+              left: box.left, right: box.right, textWidth: range.getBoundingClientRect().width, overflow: button.scrollWidth > button.clientWidth }
+          })
+        })
+        expect(header[0]!.label).toBe(`2026, ${messages.common.selectYear}`)
+        expect(header[0]!.text).toBe('2026')
+        expect(header[0]!.width).toBeGreaterThanOrEqual(48)
+        expect(header[0]!.height).toBeGreaterThanOrEqual(48)
+        expect(header[0]!.right).toBeLessThanOrEqual(header[1]!.left)
+        for (const control of header) {
+          expect(control.overflow).toBe(false)
+          expect(control.textWidth).toBeLessThanOrEqual(control.width)
+          expect(control.left).toBeGreaterThanOrEqual(0)
+          expect(control.right).toBeLessThanOrEqual(320)
+        }
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('fits compact onboarding segment labels in $locale at 320', async ({ messages }) => {
+    const labels = messages.onboarding.flow.when
+    const { container } = render(<div style={{ padding: 16 }}><SegmentedControl label={labels.scheduleMode} value="fixed" onChange={vi.fn()}
+      options={[{ value: 'fixed', label: labels.fixedMode }, { value: 'flexible', label: labels.flexibleMode }, { value: 'interval', label: labels.intervalMode }, { value: 'oneTime', label: labels.oneTimeMode }]} /></div>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const geometry = await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].map((button) => {
+          const label = button.querySelector('span')!
+          const range = document.createRange()
+          range.selectNodeContents(label)
+          const bounds = range.getBoundingClientRect()
+          const box = label.getBoundingClientRect()
+          return { text: label.textContent, fits: bounds.width <= box.width + 1, right: bounds.right, lines: range.getClientRects().length, overflow: label.scrollWidth > label.clientWidth,
+            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width }
+        }))
+        for (const label of geometry) {
+          expect(label.fits, JSON.stringify(geometry)).toBe(true)
+          expect(label.overflow).toBe(false)
+          expect(label.ellipsis).toBe(false)
+          expect(label.lines).toBe(1)
+          expect(label.right).toBeLessThanOrEqual(304)
+        }
+        expect(new Set(geometry.map((label) => label.width)).size).toBe(1)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([{ width: 412, height: 56 }, { width: 1280, height: 44 }])('retains shared menu row height at $width', async ({ width, height }) => {
+    render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu open presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]} /></NextIntlClientProvider>)
+    const portal = document.querySelector('.orbit-sheet-portal')!
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+      await loadAppFonts(page)
+      if (width === 1280) await page.evaluate(() => { const rows = document.querySelector('.orbit-menu-items')!; document.body.append(rows); document.querySelector('.orbit-sheet-portal')!.remove() })
+      const row = page.getByRole('menuitem')
+      expect(await row.evaluate((element) => element.getBoundingClientRect().height)).toBe(height)
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      expect(await row.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(height)
+      expect(await row.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true)
+    } finally { await page.close() }
+  })
 
   it.each([320, 360, 412])('keeps the full recurring menu label readable at %ipx and 200% text', async (width) => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">

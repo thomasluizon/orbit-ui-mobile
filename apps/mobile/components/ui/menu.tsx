@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexDirection: 'row',
     gap: 12,
-    minHeight: 48,
+    minHeight: 44,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },

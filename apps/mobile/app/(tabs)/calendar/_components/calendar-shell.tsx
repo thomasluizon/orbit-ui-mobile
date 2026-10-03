@@ -25,16 +25,12 @@ interface CalendarHeaderProps {
   tokens: Tokens
 }
 
-function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear, setChoosingYear, year, setYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'tokens' | 'onSelectMonth'> & { choosingYear: boolean; setChoosingYear: (choosing: boolean) => void; year: number; setYear: (year: number) => void }>) {
-  const { t, i18n } = useTranslation()
+function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'tokens' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
+  const { i18n } = useTranslation()
   const { fontScale } = useWindowDimensions()
   const styles = createStyles(tokens)
   return <View style={styles.picker}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }}
-      style={({ pressed }) => [styles.titleButton, styles.pickerYear, pressed && styles.pressed]} onPress={() => setChoosingYear(!choosingYear)}>
-      <Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
-    </Pressable>
-    {choosingYear ? <YearPicker selectedYear={year} tokens={tokens} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} /> :
+    {choosingYear ? <YearPicker selectedYear={year} tokens={tokens} onSelectYear={onSelectYear} /> :
       <View style={styles.months}>
         {Array.from({ length: 12 }, (_, month) => <View key={month} style={{ width: fontScale > 1.3 ? '50%' : '33.333333%', padding: 4 }}><Pressable accessibilityRole="button"
           accessibilityLabel={formatLocaleDate(new Date(year, month, 1), i18n.language, { month: 'long' })}
@@ -65,9 +61,10 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
       <Pressable accessibilityRole="button" accessibilityLabel={nextMonthLabel} onPress={onNextMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
     </View> : null}
     {viewSelector}
-    {pickerOpen ? <Sheet ref={sheetRef} open title={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+    {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+      headerAccessory={<Pressable accessibilityRole="button" accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></Pressable>}
       actions={<PillButton size="sm" variant="ghost" onClick={() => closeSheet(() => { setPickerOpen(false); onCurrentMonth() })}>{t('calendar.thisMonth')}</PillButton>}>
-      <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} setChoosingYear={setChoosingYear} year={year} setYear={setYear} />
+      <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} />
     </Sheet> : null}
   </View>
 }
@@ -126,8 +123,7 @@ function createStyles(tokens: Tokens) {
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
     weekLabel: { flexShrink: 1, textAlign: 'center' },
     selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
-    picker: { gap: 16 },
-    pickerYear: { alignSelf: 'center' },
+    picker: { gap: 16, flexShrink: 1, minHeight: 0 },
     months: { flexDirection: 'row', flexWrap: 'wrap' },
     month: { minHeight: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },
     legend: { gap: 16 },

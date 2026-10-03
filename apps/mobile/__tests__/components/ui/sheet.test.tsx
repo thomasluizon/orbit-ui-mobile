@@ -412,7 +412,7 @@ describe('Sheet (mobile)', () => {
       const actionStyle = StyleSheet.flatten(actions.props.style)
       const body = tree!.root.findByProps({ testID: virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll' })
       const bodyStyle = StyleSheet.flatten(virtualizedBody ? body.props.style : body.props.contentContainerStyle)
-      expect(bodyStyle.paddingBottom).toBe(24)
+      expect(bodyStyle.paddingBottom).toBe(virtualizedBody ? 0 : 24)
       expect(actionStyle.paddingTop).toBe(16)
       expect(actionStyle.borderTopWidth ?? actionStyle.borderWidth ?? 0).toBe(0)
       expect(footerStyle.borderTopWidth ?? footerStyle.borderWidth ?? 0).toBe(0)

@@ -82,7 +82,7 @@ export function YearPicker({
 }
 
 const styles = StyleSheet.create({
-  scroll: { maxHeight: 240 },
+  scroll: { maxHeight: 240, minHeight: 0 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

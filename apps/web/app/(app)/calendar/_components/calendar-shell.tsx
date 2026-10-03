@@ -1,6 +1,6 @@
 "use client"
 
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
@@ -23,14 +23,10 @@ interface CalendarHeaderProps {
 
 const headerButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]'
 
-function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, setChoosingYear, year, setYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; setChoosingYear: (choosing: boolean) => void; year: number; setYear: (year: number) => void }>) {
-  const t = useTranslations()
+function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
   const locale = useLocale()
-  const yearPickerId = useId()
-  return <div className="flex flex-col gap-4">
-    <button type="button" className={`${headerButton} self-center px-3`} onClick={() => setChoosingYear(!choosingYear)}
-      aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={yearPickerId}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>
-    {choosingYear ? <div id={yearPickerId}><YearPicker selectedYear={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} /></div> :
+  return <div className="flex min-h-0 flex-col gap-4">
+    {choosingYear ? <div className="flex min-h-0 flex-col"><YearPicker selectedYear={year} onSelectYear={onSelectYear} /></div> :
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 6em), 1fr))' }}>
         {Array.from({ length: 12 }, (_, month) => <button key={month} type="button"
           className={`${headerButton} rounded-[12px] px-2`} aria-pressed={month === currentMonth.getMonth() && year === currentMonth.getFullYear()}
@@ -42,6 +38,7 @@ function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, setCho
 
 export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, viewSelector, showMonthNavigation = true }: Readonly<CalendarHeaderProps>) {
   const pickerId = useId()
+  const yearButtonRef = useRef<HTMLButtonElement>(null)
   const t = useTranslations()
   const locale = useLocale()
   const [year, setYear] = useState(currentMonth.getFullYear())
@@ -61,9 +58,10 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
       <button type="button" className={headerButton} aria-label={nextMonthLabel} onClick={onNextMonth}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
     </div> : null}
     {viewSelector}
-    {pickerOpen ? <Sheet ref={sheetRef} open title={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+    {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+      headerAccessory={<button ref={yearButtonRef} type="button" className={`${headerButton} px-3`} aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={pickerId} onClick={() => setChoosingYear(!choosingYear)}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>}
       actions={<PillButton size="sm" variant="ghost" onClick={() => closeSheet(() => { setPickerOpen(false); onCurrentMonth() })}>{t('calendar.thisMonth')}</PillButton>}>
-      <div id={pickerId}><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} setChoosingYear={setChoosingYear} year={year} setYear={setYear} /></div>
+      <div id={pickerId} className="flex min-h-0 flex-col"><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false); yearButtonRef.current?.focus() }} /></div>
     </Sheet> : null}
   </div>
 }
