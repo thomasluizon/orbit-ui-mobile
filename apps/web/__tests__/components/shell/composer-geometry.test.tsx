@@ -9,7 +9,7 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { buildComposerChips } from '@orbit/shared/chat'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
@@ -74,6 +74,25 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
       expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
     } else if (scenario !== 'typing') expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
   } else expect(measured.pill.height, evidence).toBe(56)
+}
+
+const chipScenarios = ['empty', 'pending', 'returning', 'completed', 'habitDetail', 'longTitle', 'unbrokenTitle'] as const
+
+function liveChipSuggestions(scenario: typeof chipScenarios[number], messages: typeof en) {
+  const surface = scenario === 'habitDetail' ? 'habitDetail' : 'today'
+  const title = scenario === 'unbrokenTitle' ? 'a'.repeat(200) : scenario === 'longTitle'
+    ? messages === en ? 'Read a chapter of my favorite book before breakfast' : 'Ler um capítulo do meu livro favorito antes do café da manhã'
+    : messages === en ? 'Read' : 'Ler'
+  const habits = scenario === 'empty' || scenario === 'habitDetail' ? [] : [createMockHabit({
+    title, isOverdue: scenario === 'pending', hasSubHabits: true, isCompleted: scenario === 'completed',
+  })]
+  const chips = buildComposerChips({ surface, status: 'success', habits, totalHabitCount: habits.length,
+    profile: createMockProfile({ lastCompletionDate: scenario === 'returning' ? '2026-09-01' : null }),
+    now: new Date('2026-09-10T12:00:00Z'), detailHabit: { title, checklistItems: [] } })
+  const labels: Record<string, string> = messages.shell.composer.chips[surface]
+  return { surface, suggestions: chips.map(({ id, params }) => ({ id,
+    label: labels[id.split('.')[1]!]!.replace('{title}', params?.title ?? ''),
+  })) }
 }
 
 describe('Composer compact geometry in Chromium', () => {
@@ -141,12 +160,9 @@ describe('Composer compact geometry in Chromium', () => {
 
 
   it.each([en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale =>
-    (['today', 'habitDetail'] as const).map(surface => ({ messages, fontScale, surface })))))(
-    'keeps $surface chips whole with a measured peek at $fontScale text across compact widths', async ({ messages, fontScale, surface }) => {
-      const chips = buildComposerChips({ surface, status: 'success', habits: [], totalHabitCount: 0,
-        profile: createMockProfile(), detailHabit: { title: 'Reading', checklistItems: [] } })
-      const labels = messages.shell.composer.chips[surface]
-      const suggestions = chips.map(({ id }) => ({ id, label: labels[id.split('.')[1] as keyof typeof labels] }))
+    chipScenarios.map(scenario => ({ messages, fontScale, scenario })))))(
+    'keeps $scenario chips whole with a measured peek at $fontScale text across compact widths', async ({ messages, fontScale, scenario }) => {
+      const { surface, suggestions } = liveChipSuggestions(scenario, messages)
       const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
       try {
         await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
@@ -177,7 +193,7 @@ describe('Composer compact geometry in Chromium', () => {
               overflow: element.scrollWidth > element.clientWidth, peek: partial ? viewport.right - partial.left : 0,
               documentWidth: document.documentElement.scrollWidth, controls }
           })
-          const evidence = JSON.stringify({ width, fontScale, surface, measured })
+          const evidence = JSON.stringify({ width, fontScale, surface, scenario, measured })
           expect(measured.documentWidth, evidence).toBe(width)
           if (measured.overflow) {
             expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)

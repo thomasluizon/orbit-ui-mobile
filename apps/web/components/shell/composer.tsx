@@ -112,7 +112,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
             className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-[12px] py-[12px] text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
           >
             {suggestion.icon ? <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center">{suggestion.icon}</span> : null}
-            <span data-suggestion-label className="min-w-0 [overflow-wrap:anywhere]">{suggestion.label}</span>
+            <span data-suggestion-label className="min-w-0">{suggestion.label}</span>
           </button>
         ))}
       </div>

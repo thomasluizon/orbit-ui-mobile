@@ -480,6 +480,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 999,
+    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
   },
   suggestionIcon: {
