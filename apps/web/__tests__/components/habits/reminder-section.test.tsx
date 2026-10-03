@@ -104,7 +104,7 @@ describe('ReminderSection', () => {
     const props = renderSection({ reminderTimes: [] })
     fireEvent.click(screen.getByText('habits.form.reminderAdd'))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '45' },
     })
     fireEvent.click(screen.getByLabelText('common.add'))
@@ -118,7 +118,7 @@ describe('ReminderSection', () => {
     fireEvent.change(screen.getByLabelText('habits.form.reminderCustom'), {
       target: { value: 'days' },
     })
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '2' },
     })
     fireEvent.click(screen.getByLabelText('common.add'))
@@ -129,7 +129,7 @@ describe('ReminderSection', () => {
     const props = renderSection({ reminderTimes: [] })
     fireEvent.click(screen.getByText('habits.form.reminderAdd'))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '0' },
     })
     fireEvent.click(screen.getByLabelText('common.add'))
@@ -140,7 +140,7 @@ describe('ReminderSection', () => {
     const props = renderSection({ reminderTimes: [] })
     fireEvent.click(screen.getByText('habits.form.reminderAdd'))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
-    const input = screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder')
+    const input = screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' })
     fireEvent.change(input, { target: { value: '3' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(props.onReminderTimesChange).toHaveBeenCalledWith([3])
@@ -150,7 +150,7 @@ describe('ReminderSection', () => {
     const props = renderSection({ reminderTimes: [60] })
     fireEvent.click(screen.getByText('habits.form.reminderAdd'))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '1' },
     })
     fireEvent.change(screen.getByLabelText('habits.form.reminderCustom'), {
@@ -167,7 +167,7 @@ describe('ReminderSection', () => {
     fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
       target: { value: 'after' },
     })
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '30' },
     })
     fireEvent.click(screen.getByLabelText('common.add'))
@@ -181,7 +181,7 @@ describe('ReminderSection', () => {
     fireEvent.change(screen.getByLabelText('habits.form.reminderDirection'), {
       target: { value: 'after' },
     })
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), {
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), {
       target: { value: '1440' },
     })
     fireEvent.click(screen.getByLabelText('common.add'))

@@ -38,7 +38,7 @@ export function GoalTargetFields({
           value={targetValue}
           onChangeText={onChangeTarget}
           keyboardType="decimal-pad"
-          placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '0'}
+          placeholder={isStreak ? t('goals.form.streakTargetPlaceholder') : '12'}
           placeholderTextColor={tokens.fg3}
           accessibilityLabel={
             isStreak

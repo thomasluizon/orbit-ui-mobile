@@ -85,7 +85,7 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack,
             aria-label={fieldLabel}
             value={search}
             onValueChange={setSearch}
-            placeholder={t(searchMode ? 'habits.search.title' : 'command.placeholder')}
+            placeholder={t(searchMode ? 'habits.moveParent.searchPlaceholder' : 'command.placeholder')}
             data-focus-perimeter=""
             className="orbit-field-hover h-[54px] w-full rounded-[12px] bg-[var(--bg-field)] px-4 pr-12 text-[16px] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--border-control)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]"
           />

@@ -193,14 +193,17 @@ export function ReminderSection({
               ))}
               {showCustomInput && (
                 <View style={sectionStyles.customRow}>
-                  <BottomSheetAppTextInput
-                    value={customValue}
-                    placeholder={t("habits.form.reminderCustomPlaceholder")}
-                    keyboardType="number-pad"
-                    style={sectionStyles.customInput}
-                    onChangeText={setCustomValue}
-                    onSubmitEditing={addCustomReminder}
-                  />
+                  <View style={{ gap: 8 }}>
+                    <Text style={{ color: tokens.fg2, fontSize: 14, fontWeight: "500" }}>{t("habits.form.reminderCustomLabel")}</Text>
+                    <BottomSheetAppTextInput
+                      value={customValue}
+                      accessibilityLabel={t("habits.form.reminderCustomLabel")}
+                      keyboardType="number-pad"
+                      style={sectionStyles.customInput}
+                      onChangeText={setCustomValue}
+                      onSubmitEditing={addCustomReminder}
+                    />
+                  </View>
                   <View style={sectionStyles.unitRow}>
                     {(["min", "hours", "days"] as const).map((unit) => (
                       <Pressable

@@ -225,6 +225,7 @@ function ChecklistAddRow({
       <BottomSheetAppTextInput
         value={value}
         placeholder={t('habits.form.checklistPlaceholder')}
+        accessibilityLabel={t('habits.form.checklistPlaceholder')}
         placeholderTextColor={tokens.fg3}
         style={styles.addItemInput}
         editable={!disabled}

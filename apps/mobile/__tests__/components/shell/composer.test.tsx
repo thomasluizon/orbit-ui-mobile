@@ -734,8 +734,8 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.placeholder, 'Astra'],
-    ['en', en.shell.composer.placeholder, 'Astra'],
+    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça à Astra'],
+    ['en', en.shell.composer.placeholder, 'Ask Astra'],
   ])('shows the %s composer placeholder', async (_locale, placeholder, expected) => {
     const tree = await renderComposer(props({ words: { ...words, placeholder } }))
     expect(placeholder).toBe(expected)
@@ -744,8 +744,8 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.offline, 'Offline', 'Sem conexão. A Astra volta quando a conexão voltar.'],
-    ['en', en.shell.composer.offline, 'Offline', 'No connection. Astra comes back when the connection does.'],
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
   ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
     const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason }))
     expect(byLabel(tree.root, 'Ask Astra for something')[0]).toBeDefined()
