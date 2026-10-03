@@ -377,7 +377,8 @@ vi.mock('@/components/habits/habit-row', () => ({
 }))
 
 describe('HabitDetailScreen', () => {
-  it('shows the full habit title without a line limit', () => {
+  it.each([320, 412, 1280])('shows the full habit title below the controls without a line limit at %s', (width) => {
+    __setWindowDimensions({ width, height: 892, scale: 1, fontScale: 1 })
     const title = 'Read a long chapter and discuss the details with the reading group '.repeat(3)
     mocks.detail = { ...makeDetail(), title }
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -390,6 +391,15 @@ describe('HabitDetailScreen', () => {
     const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
     const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
     expect(copy.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(1)
+    expect(StyleSheet.flatten(header.props.style)).toEqual({ gap: 12 })
+    expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 4 })
+    const views = header.findAll((node: TestNode) => node.type === 'View')
+    const controls = views.find((node: TestNode) => StyleSheet.flatten(node.props.style as ViewStyle).flexDirection === 'row')!
+    expect(views.indexOf(controls)).toBeLessThan(views.indexOf(copy))
+    expect(controls.findAllByType('HabitLogButton')).toHaveLength(1)
+    expect(controls.findAllByType('PillButton').map((node: TestNode) => node.props.label)).toContain('habits.detail.rename')
+    expect(controls.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(0)
+    expect(copy.findAll((node: TestNode) => node.type === 'Text' && node.props.numberOfLines === 1)).toHaveLength(1)
   })
 
   it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
@@ -1460,6 +1470,27 @@ describe('HabitDetailScreen', () => {
     const description = tree.root.findAllByType('Pressable').filter((node: TestNode) => node.props.testID === 'habit-detail-description')
     expect(tags).toHaveLength(hasTags ? 1 : 0)
     expect(description).toHaveLength(hasDescription ? 1 : 0)
+    const header = tree.root.findAllByType('View').find((node: TestNode) => node.props.testID === 'habit-detail-header-row')!
+    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
+    let parent = header.parent
+    while (typeof parent.type !== 'string') parent = parent.parent
+    const slots = parent.findAll((node: { type: unknown; parent: { type: unknown; parent: unknown } | null }) => {
+      if (typeof node.type !== 'string') return false
+      let owner = node.parent
+      while (owner && typeof owner.type !== 'string') owner = owner.parent as typeof owner
+      return owner === parent
+    })
+    const contentSlots = slots.filter((node: TestNode) => node.props.accessibilityLiveRegion !== 'polite')
+    expect(contentSlots.slice(0, 2 + Number(hasTags) + Number(hasDescription)).map((node: TestNode) => node.props.testID)).toEqual([
+      'habit-detail-header-row',
+      ...(hasTags ? ['habit-detail-tags'] : []),
+      ...(hasDescription ? ['habit-detail-description'] : []),
+      'habit-detail-strip-section',
+    ])
+    expect(header.findAll((node: TestNode) => node.type === 'View').at(-1)).toBe(copy)
+    expect(StyleSheet.flatten(parent.props.style)).toBeUndefined()
+    const strip = contentSlots[1 + Number(hasTags) + Number(hasDescription)]!
+    expect(StyleSheet.flatten(strip.props.style)).toEqual({ gap: 8, paddingTop: 24 })
     for (const metadata of [...tags, ...description]) {
       expect(StyleSheet.flatten(metadata.props.style)).toEqual({ paddingTop: 12 })
     }
