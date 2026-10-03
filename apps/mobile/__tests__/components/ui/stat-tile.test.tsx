@@ -34,9 +34,9 @@ describe('StatTile (mobile)', () => {
     expect(StyleSheet.flatten(value.props.style).fontVariant).toEqual(['tabular-nums'])
   })
 
-  it.each([320, 344, 360, 411, 412, 500, 768, 1352, 1440])('keeps all progress values at 24px and permits wrapping at %ipx', (width) => {
+  it.each([320, 344, 360, 411, 412, 500, 768, 1352, 1440])('keeps short progress values at 22px without clamping at %ipx', (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
-    const values = ['38%', 2, ...Object.values(en.dates.daysValue), ...Object.values(ptBR.dates.daysValue), 'Caminhar', 'A long habit name that needs several lines']
+    const values = ['38%', 2, ...Object.values(en.dates.daysAbbreviated), ...Object.values(ptBR.dates.daysAbbreviated)]
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<>{values.map((value) => <StatTile key={value} value={value} label="Figure" />)}</>)
@@ -51,7 +51,7 @@ describe('StatTile (mobile)', () => {
     )
     expect(renderedValues).toHaveLength(values.length)
     for (const value of renderedValues) {
-      expect(StyleSheet.flatten(value.props.style).fontSize).toBe(24)
+      expect(StyleSheet.flatten(value.props.style).fontSize).toBe(22)
       expect(value.props.numberOfLines).toBeUndefined()
       expect(value.props.ellipsizeMode).toBeUndefined()
       expect(value.props.adjustsFontSizeToFit).toBeUndefined()

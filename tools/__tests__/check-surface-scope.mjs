@@ -68,7 +68,7 @@ export const cases = () => {
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: " group-hover:text-[var(--primary-text)]", after: "" },
     { path: "apps/web/components/shell/shell-wide.tsx", before: " hover:text-[var(--primary-text)]", after: "" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active && pressed ? tokens.primaryText : active ? tokens.primarySoft : tokens.fg3", after: "active ? tokens.primarySoft : tokens.fg3" },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3", after: "active ? tokens.primarySoft : tokens.fg3" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
@@ -86,6 +86,7 @@ export const cases = () => {
     ["direct-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</button>` }, 0],
     ["wrong-state", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] focus:text-[var(--primary-text)]">Item</button>` }, 1],
     ["child-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</span></button>` }, 1],
+    ["conditional-hover-ancestor", { web: `export function Example({ active }) { return <button className={active ? "bg-[var(--bg)] hover:bg-[var(--bg-hover)]" : "bg-[var(--bg)]"}><span className="text-[var(--primary-soft)] hover:text-[var(--primary-text)]">Item</span></button> }` }, 1],
     ["font-size-hover", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-soft)] hover:text-[14px]">Item</button>` }, 1],
     ["self-group", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="group text-[var(--primary-soft)] group-hover:text-[var(--primary-text)]">Item</span></button>` }, 1],
     ["hover-canvas", { web: `<button className="bg-[var(--bg-card)] hover:bg-[var(--bg)] text-[var(--primary-text)] hover:text-[var(--primary-soft)]">Item</button>` }, 0],
@@ -99,12 +100,70 @@ export const cases = () => {
     ["bad-hover-override", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-text)] hover:text-[var(--primary-soft)]">Item</button>` }, 1],
     ["reversed-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primarySoft : tokens.primaryText }}>Item</Text>}</Pressable></View>` }, 1],
     ["direct-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primaryText : tokens.primarySoft }}>Item</Text>}</Pressable></View>` }, 0],
+    ["native-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3 }}>Item</Text></Pressable></View>` }, 0],
+    ["native-unpaired-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? tokens.primarySoft : tokens.fg3 }}>Item</Text></Pressable></View>` }, 1],
+    ["native-wrong-hover-owner", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === other.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hoveredId === item.id ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 1],
+    ["native-reversed-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hovered && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hovered ? tokens.primarySoft : tokens.primaryText }}>Item</Text></Pressable></View>` }, 1],
+    ["native-negated-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hovered && { backgroundColor: tokens.bgHover }]}><Text style={{ color: !hovered ? tokens.primarySoft : tokens.primaryText }}>Item</Text></Pressable></View>` }, 0],
+    ["native-ternary-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={{ backgroundColor: hovered ? tokens.bgHover : 'transparent' }}><Text style={{ color: hovered ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 0],
+    ["native-disjunction-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[!hovered || { backgroundColor: tokens.bgHover }]}><Text style={{ color: hovered ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 0],
+    ["native-icon-well-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable>{({ pressed }) => <><View style={[pressed && { backgroundColor: tokens.bgHover }]}><Icon color={tokens.fg3} /></View><Text style={{ color: tokens.primarySoft }}>Item</Text></>}</Pressable></View>` }, 0],
+    ["native-label-well-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable>{({ pressed }) => <View style={[pressed && { backgroundColor: tokens.bgHover }]}><Text style={{ color: tokens.primarySoft }}>Item</Text></View>}</Pressable></View>` }, 1],
   ]
   for (const [label, source, status] of stateCases) {
-    const repository = stageRepository(label, source)
+    const repository = stageRepository(label, source.mobile ? {
+      mobile: `export function Example({ tokens, hovered, hoveredId, item, other, active }) { return ${source.mobile} }`,
+    } : source)
     check("check-surface-scope.mjs", `pairs foreground and background states: ${label}`, ["--root", repository], {
       status,
       ...(status === 0 ? { stdout: /Surface scope guard passed/ } : { stderr: /--primary-soft on (?:hover|card), dark ratio/ }),
+    })
+  }
+  for (const [label, parameter, condition, status] of [
+    ["shadowed-hover-binding", "{ hovered }", "hovered", 1],
+    ["renamed-hover-binding", "{ hovered: itemHovered }", "itemHovered", 1],
+    ["shared-hover-binding", "item", "hovered", 0],
+  ]) {
+    const repository = stageRepository(label, { mobile: `
+      export function Example({ hovered, items, tokens }) {
+        return <View style={[
+          { backgroundColor: tokens.bg },
+          hovered && { backgroundColor: tokens.bgHover },
+        ]}>
+          {items.map((${parameter}) => (
+            <Text style={{ color: ${condition} ? tokens.primaryText : tokens.primarySoft }}>Item</Text>
+          ))}
+        </View>
+      }
+    ` })
+    const result = check("check-surface-scope.mjs", `correlates lexical bindings: ${label}`, ["--root", repository], {
+      status,
+      ...(status === 0 ? { stdout: /Surface scope guard passed/ } : { stderr: /--primary-soft on hover, dark ratio 3\.385, TEXT floor 4\.50/ }),
+    })
+    if (status === 1) {
+      T(`independent hover bindings report both contrast violations: ${label}`,
+        /--primary-soft on hover, light ratio 3\.996, TEXT floor 4\.50/.test(result.stderr), result.stderr)
+    }
+  }
+  for (const [label, parameter, status] of [
+    ["shadowed-comparison-binding", "item", 1],
+    ["shared-comparison-bindings", "entry", 0],
+  ]) {
+    const repository = stageRepository(label, { mobile: `
+      export function Example({ hoveredId, item, items, tokens }) {
+        return <View style={[
+          { backgroundColor: tokens.bg },
+          hoveredId === item.id && { backgroundColor: tokens.bgHover },
+        ]}>
+          {items.map((${parameter}) => (
+            <Text style={{ color: hoveredId === item.id ? tokens.primaryText : tokens.primarySoft }}>Item</Text>
+          ))}
+        </View>
+      }
+    ` })
+    check("check-surface-scope.mjs", `correlates every comparison binding: ${label}`, ["--root", repository], {
+      status,
+      ...(status === 0 ? { stdout: /Surface scope guard passed/ } : { stderr: /--primary-soft on hover, dark ratio 3\.385, TEXT floor 4\.50/ }),
     })
   }
   const fg4Card = stageRepository("fg4-card", { web: `export function StatusRing(){return <span className="bg-[var(--bg-card)] shadow-[inset_0_0_0_2px_var(--fg-4)]" />}` })

@@ -33,12 +33,13 @@ function renderBank(banked: number) {
 }
 
 describe('FreezeBank (mobile)', () => {
-  it('shows three named marks, both tiles and bank bookkeeping without a disclosure', () => {
+  it('keeps bank bookkeeping inline and discloses the three named marks', () => {
     const tree = renderBank(2)
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
     expect(text).toContain('Banked')
-    expect(text).toEqual(expect.arrayContaining(['Active', 'Frozen', 'Missed', 'Best streak', 'Silver', '4 of 7 streak days', 'No protected days yet']))
+    expect(text).toEqual(expect.arrayContaining(['Best streak', 'Silver', '4 of 7 streak days', 'No protected days yet']))
     expect(text).not.toContain('Today')
+    expect(text).not.toContain('Active')
     expect(tree.root.findAll((node) => node.props.testID === 'freeze-bank-disclosure')).toHaveLength(0)
     const bars = tree.root.findAll((node) => node.props.accessibilityRole === 'progressbar')
     expect(bars[0]?.props.accessibilityValue).toEqual({ min: 0, max: 7, now: 4 })

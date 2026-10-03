@@ -9,10 +9,18 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 describe('StatTile', () => {
+  it('uses the drawn Calendar captions in both locales', () => {
+    expect([en.calendar.bestStreak, en.calendar.totalLogs, en.calendar.missedCount])
+      .toEqual(['Best', 'Logged', 'Not logged'])
+    expect([ptBR.calendar.bestStreak, ptBR.calendar.totalLogs, ptBR.calendar.missedCount])
+      .toEqual(['Recorde', 'Registros', 'Sem registro'])
+  })
+
   describe('weekday geometry in Chromium', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
@@ -29,53 +37,61 @@ describe('StatTile', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each([320, 344, 360, 411, 412, 500, 768, 1352, 1440])('keeps every localized weekday at the same 24px size without overflow at %ipx', async (width) => {
-      const weekdays = [...Object.values(en.dates.daysValue), ...Object.values(ptBR.dates.daysValue)]
-      const { container } = render(
-        <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-4" style={{ width: Math.min(width - 32, 740) }}>
-          <StatTile value="38%" label="Completion rate" />
-          <StatTile value={2} label="Active days" />
-          <StatTile value="Caminhar" label="Top habit" />
-          <StatTile value="A long habit name that needs several lines" label="Top habit" />
-          <StatTile value="AnUnbrokenHabitNameThatNeedsSeveralLines" label="Top habit" />
-          {weekdays.map((weekday) => <StatTile key={weekday} value={weekday} label="Best weekday" />)}
-        </div>,
-      )
-      const page = await browser.newPage({ viewport: { width, height: 900 } })
-      try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await loadAppFonts(page)
-        const geometry = await page.locator('[data-state="default"] > span:first-child').evaluateAll((elements) => elements.map((element) => {
-          const valueBounds = element.getBoundingClientRect()
-          const tile = element.parentElement!
-          const tileBounds = tile.getBoundingClientRect()
-          const style = getComputedStyle(element)
-          const range = document.createRange()
-          range.selectNodeContents(element)
-          const textWidth = range.getBoundingClientRect().width
-          const lines = range.getClientRects().length
-          return {
-            weekday: element.textContent,
-            size: Number.parseFloat(style.fontSize),
-            textWidth,
-            lines,
-            contentWidth: tile.clientWidth - Number.parseFloat(getComputedStyle(tile).paddingLeft) - Number.parseFloat(getComputedStyle(tile).paddingRight),
-            scrollWidth: element.scrollWidth,
-            clientWidth: element.clientWidth,
-            inside: valueBounds.left >= tileBounds.left && valueBounds.right <= tileBounds.right
-              && valueBounds.top >= tileBounds.top && valueBounds.bottom <= tileBounds.bottom,
+    it.each([320, 360, 384, 412].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('keeps captions and values on one line at $width with text scale $fontScale in both locales', async ({ width, fontScale }) => {
+      for (const catalog of [en, ptBR]) {
+        const { container, unmount } = render(
+          <div style={{ width }}>
+            <CalendarStats stats={[
+              { key: 'bestStreak', value: 123, label: catalog.calendar.bestStreak },
+              { key: 'totalLogs', value: 999, label: catalog.calendar.totalLogs },
+              { key: 'missed', value: 31, label: catalog.calendar.missedCount },
+            ]} />
+            <CalendarStats state="loading" loadingLabel={catalog.calendar.loading} stats={[
+              { key: 'bestStreak', value: 123, label: catalog.calendar.bestStreak },
+              { key: 'totalLogs', value: 999, label: catalog.calendar.totalLogs },
+              { key: 'missed', value: 31, label: catalog.calendar.missedCount },
+            ]} />
+            <CalendarStats state="empty" emptyLabel={catalog.calendar.emptyStat} stats={[
+              { key: 'bestStreak', value: 0, label: catalog.calendar.bestStreak },
+              { key: 'totalLogs', value: 0, label: catalog.calendar.totalLogs },
+              { key: 'missed', value: 0, label: catalog.calendar.missedCount },
+            ]} />
+            <div className="flex flex-wrap gap-3" style={{ padding: 16 }}>
+              <StatTile value="100%" label={catalog.progressScreen.window.completionRate} />
+              <StatTile value={30} label={catalog.progressScreen.window.activeDays} />
+              {Object.values(catalog.dates.daysAbbreviated).map((weekday) => <StatTile key={weekday} value={weekday} label={catalog.progressScreen.window.bestWeekday} />)}
+              <StatTile state="empty" emptyLabel={catalog.progressScreen.window.bestWeekdayEmpty} label={catalog.progressScreen.window.bestWeekday} />
+            </div>
+          </div>,
+        )
+        const page = await browser.newPage({ viewport: { width, height: 1400 } })
+        try {
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          await loadAppFonts(page)
+          await page.evaluate((scale) => {
+            const elements = Array.from(document.querySelectorAll<HTMLElement>('div, span'))
+            const sizes = elements.map((element) => ({ element, size: parseFloat(getComputedStyle(element).fontSize), line: parseFloat(getComputedStyle(element).lineHeight) }))
+            for (const { element, size, line } of sizes) { element.style.fontSize = `${size * scale}px`; if (Number.isFinite(line)) element.style.lineHeight = `${line * scale}px` }
+          }, fontScale)
+          const calendarHeights = await page.locator('[data-testid="calendar-stats"]').evaluateAll((rows) => rows.slice(0, 2).map((row) => Array.from(row.children, (figure) => figure.getBoundingClientRect().height)))
+          expect(calendarHeights[0]).toEqual(calendarHeights[1])
+          const geometry = await page.locator('[data-state="default"] > span, [data-state="empty"] > span').evaluateAll((elements) => elements.map((element) => {
+            const range = document.createRange()
+            range.selectNodeContents(element)
+            const bounds = range.getBoundingClientRect()
+            const parent = element.parentElement!
+            const tile = parent.getBoundingClientRect()
+            return { text: element.textContent, lines: range.getClientRects().length,
+              clipped: getComputedStyle(element).overflow === 'hidden',
+              inside: bounds.left >= tile.left - 0.5 && bounds.right <= tile.right + 0.5 }
+          }))
+          expect(geometry.length).toBeGreaterThan(20)
+          for (const measured of geometry) {
+            expect(measured.lines, measured.text!).toBe(1)
+            expect(measured.clipped, measured.text!).toBe(false)
+            expect(measured.inside, measured.text!).toBe(true)
           }
-        }))
-        if (width === 344) expect(geometry.some((measured) => measured.lines > 1)).toBe(true)
-        for (const measured of geometry) {
-          expect(measured.size, measured.weekday!).toBe(24)
-          expect(measured.textWidth, measured.weekday!).toBeLessThanOrEqual(measured.contentWidth + 0.5)
-          expect(measured.scrollWidth, measured.weekday!).toBeLessThanOrEqual(measured.clientWidth)
-          expect(measured.inside, measured.weekday!).toBe(true)
-        }
-
-      } finally {
-        await page.close()
+        } finally { await page.close(); unmount() }
       }
     })
   })
@@ -91,10 +107,10 @@ describe('StatTile', () => {
     expect(screen.getByText('12')).toHaveStyle({ fontVariantNumeric: 'tabular-nums' })
   })
 
-  it('keeps long values readable at the common value size', () => {
-    render(<StatTile value="Wednesday" label="Best weekday" />)
-    const value = screen.getByText('Wednesday')
-    expect(value).toHaveStyle({ fontSize: 24, overflowWrap: 'anywhere' })
+  it('renders short values at the compact value size', () => {
+    render(<StatTile value="Wed" label="Best weekday" />)
+    const value = screen.getByText('Wed')
+    expect(value).toHaveStyle({ fontSize: 22, whiteSpace: 'nowrap' })
     expect(value.parentElement).toHaveStyle({ minHeight: STAT_TILE_MIN_HEIGHT })
   })
 

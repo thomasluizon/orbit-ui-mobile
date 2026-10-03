@@ -6177,6 +6177,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-time-field",
       "platform": "web",
       "kind": "overlay",
@@ -12503,6 +12555,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
       ],
       "state": "default",
       "theme": "dark",

@@ -95,15 +95,15 @@ describe('clipped focus perimeters in Chromium', () => {
           await page.keyboard.press('Tab')
           expect(await chip.evaluate((element) => element === document.activeElement), `chip ${index} ${forcedColors}`).toBe(true)
           expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
-          expect(await readOutlineVisibility(chip)).toMatchObject({ visible: true, clippedBy: [] })
+          expect(await readOutlineVisibility(chip)).toMatchObject({ width: 2, offset: -4, visible: true, clippedBy: [] })
           expect(await chip.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48)
           const clearance = await chip.evaluate((element) => {
             const bounds = element.getBoundingClientRect()
             const scroller = element.parentElement!.getBoundingClientRect()
             return { left: bounds.left - scroller.left, right: scroller.right - bounds.right }
           })
-          expect(clearance.left, `chip ${index} left clearance`).toBeGreaterThanOrEqual(3.5)
-          expect(clearance.right, `chip ${index} right clearance`).toBeGreaterThanOrEqual(3.5)
+          expect(clearance.left, `chip ${index} left clearance`).toBeGreaterThanOrEqual(-0.5)
+          expect(clearance.right, `chip ${index} right clearance`).toBeGreaterThanOrEqual(-0.5)
         }
       }
     } finally { await page.close() }

@@ -4,11 +4,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import postcss from 'postcss'
+import { execFileSync } from 'node:child_process'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { buildComposerChips } from '@orbit/shared/chat'
-import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
@@ -75,17 +76,161 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   } else expect(measured.pill.height, evidence).toBe(56)
 }
 
+const chipScenarios = ['empty', 'pending', 'returning', 'completed', 'habitDetail', 'longTitle', 'unbrokenTitle', 'namedActions'] as const
+
+function liveChipSuggestions(scenario: typeof chipScenarios[number], messages: typeof en) {
+  const surface = scenario === 'habitDetail' ? 'habitDetail' as const : 'today' as const
+  const title = scenario === 'unbrokenTitle' ? 'a'.repeat(200) : scenario === 'longTitle'
+    ? messages === en ? 'Read a chapter of my favorite book before breakfast' : 'Ler um capítulo do meu livro favorito antes do café da manhã'
+    : messages === en ? 'Read' : 'Ler'
+  const habits = scenario === 'empty' || scenario === 'habitDetail' ? [] : [createMockHabit({
+    title, isOverdue: scenario === 'pending', hasSubHabits: true, isCompleted: scenario === 'completed',
+  })]
+  const chipState = { surface, status: 'success' as const, habits, totalHabitCount: habits.length,
+    profile: createMockProfile({ lastCompletionDate: scenario === 'returning' ? '2026-09-01' : null }),
+    now: new Date('2026-09-10T12:00:00Z'), detailHabit: { title, checklistItems: [] } }
+  const namedHabit = createMockHabit({ title: 'a'.repeat(200), hasSubHabits: true, isOverdue: true })
+  const chips = scenario === 'namedActions' ? [
+    buildComposerChips({ ...chipState, habits: [namedHabit], totalHabitCount: 1 }),
+    buildComposerChips({ ...chipState, habits: [namedHabit], totalHabitCount: 1, profile: createMockProfile({ lastCompletionDate: '2026-09-01' }) }),
+    buildComposerChips({ ...chipState, habits: [{ ...namedHabit, isCompleted: true }], totalHabitCount: 1 }),
+    buildComposerChips({ ...chipState, surface: 'progress', habits: [namedHabit], totalHabitCount: 1 }),
+  ].flat().filter((chip, index, all) => chip.params && all.findIndex(candidate => candidate.id === chip.id) === index)
+    : buildComposerChips(chipState)
+  return { surface, suggestions: chips.map(({ id, params }) => {
+    const [group, name] = id.split('.')
+    const labels: Record<string, string> = messages.shell.composer.chips[group as keyof typeof messages.shell.composer.chips]
+    return { id, label: labels[name!]!.replace('{title}', params?.title ?? '') }
+  }) }
+}
+
 describe('Composer compact geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let composerScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
+    const buildOptions = {
+      stdin: { contents: `import React from 'react'; import { createRoot } from 'react-dom/client';
+        import { Composer } from './components/shell/composer';
+        const props = JSON.parse(document.getElementById('configuration').textContent);
+        createRoot(document.getElementById('root')).render(React.createElement(Composer, {
+          ...props, onChangeValue: () => {}, onSend: () => {},
+          suggestions: props.suggestions.map(chip => ({ ...chip, onSelect: () => {},
+            icon: React.createElement('svg', { width: 20, height: 20, 'aria-hidden': true }) }))
+        }));`, resolveDir: process.cwd(), loader: 'tsx' },
+      bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
+    }
+    composerScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { build } from 'esbuild';
+      const options = JSON.parse(process.argv[1]);
+      options.plugins = [{ name: 'composer-overlay-boundaries', setup(builder) {
+        builder.onResolve({ filter: /^@\\/components\\/ui\\/(menu|sheet)$/ }, args => ({ path: args.path, namespace: 'boundary' }));
+        builder.onLoad({ filter: /.*/, namespace: 'boundary' }, () => ({ contents: 'export const Menu = () => null; export const Sheet = () => null;', loader: 'js' }));
+      } }];
+      const result = await build(options);
+      process.stdout.write(result.outputFiles[0].text);
+    `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([en, ptBR])('reserves a 16 to 32 pixel peek for live Today chips at 320 with doubled text', async (messages) => {
+    const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0,
+      profile: createMockProfile() })
+    const labels = messages.shell.composer.chips.today
+    const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
+      label: labels[id.replace('today.', '') as keyof typeof labels], onSelect: vi.fn() })))
+
+    const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}html{font-size:32px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
+      const measured = await strip.evaluate((element) => {
+        const viewport = element.getBoundingClientRect()
+        const controls = [...element.querySelectorAll('button')].map((button) => {
+          const bounds = button.getBoundingClientRect()
+          return { label: button.textContent, left: bounds.left, right: bounds.right, width: bounds.width }
+        })
+        const partial = controls.find((control) => control.left < viewport.right && control.right > viewport.right)
+        return { availableWidth: viewport.width, controls, peek: partial ? viewport.right - partial.left : 0 }
+      })
+      const evidence = JSON.stringify(measured)
+      expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
+      expect(measured.peek, evidence).toBeLessThanOrEqual(32)
+    } finally { await page.close() }
+  })
+
+
+  it.each([en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale =>
+    chipScenarios.map(scenario => ({ messages, fontScale, scenario })))))(
+    'keeps $scenario chips whole with a measured peek at $fontScale text across compact widths', async ({ messages, fontScale, scenario }) => {
+      const { surface, suggestions } = liveChipSuggestions(scenario, messages)
+      const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+      try {
+        await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
+        await page.addScriptTag({ content: composerScript })
+        await loadAppFonts(page)
+        const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
+        await strip.waitFor()
+        for (const width of [320, 360, 384, 412, 640, 768, 900, 1023, 412, 320]) {
+          await page.setViewportSize({ width, height: 740 })
+          await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+          const measured = await strip.evaluate(element => {
+            element.scrollLeft = 0
+            const viewport = element.getBoundingClientRect()
+            const controls = [...element.querySelectorAll('button')].map(button => {
+              const bounds = button.getBoundingClientRect()
+              const text = button.querySelector('[data-suggestion-label]')!
+              const style = getComputedStyle(text)
+              const range = document.createRange()
+              range.selectNodeContents(text)
+              const lines = [...range.getClientRects()]
+              return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
+                label: text.textContent, accessibleName: button.getAttribute('aria-label'), lines: lines.length, textOverflow: style.textOverflow,
+                textFits: lines.every(line => line.left >= bounds.left && line.right <= bounds.right && line.bottom <= bounds.bottom),
+                iconTop: button.querySelector('svg')!.getBoundingClientRect().top, firstLineTop: lines[0]!.top }
+            })
+            const partial = controls.find(control => control.left < viewport.right && control.right > viewport.right)
+            return { viewport: viewport.width, available: element.parentElement!.getBoundingClientRect().width,
+              overflow: element.scrollWidth > element.clientWidth, peek: partial ? viewport.right - partial.left : 0,
+              documentWidth: document.documentElement.scrollWidth, controls }
+          })
+          const evidence = JSON.stringify({ width, fontScale, surface, scenario, measured })
+          expect(measured.documentWidth, evidence).toBe(width)
+          if (measured.overflow) {
+            expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
+            expect(measured.peek, evidence).toBeLessThanOrEqual(32)
+            expect(measured.controls[0]!.right - measured.controls[0]!.left, evidence).toBeLessThan(measured.viewport)
+          } else expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
+          for (const control of measured.controls) {
+            expect(control.textFits, evidence).toBe(true)
+            expect(control.accessibleName, evidence).toBe(control.label)
+            expect(control.textOverflow, evidence).not.toBe('ellipsis')
+            expect(control.height, evidence).toBeGreaterThanOrEqual(48)
+            expect(control.width, evidence).toBeLessThanOrEqual(measured.viewport)
+            if (fontScale === 1) expect(control.lines, evidence).toBe(1)
+            if (control.lines > 1) expect(Math.abs(control.iconTop - control.firstLineTop), evidence).toBeLessThanOrEqual(8)
+          }
+          await strip.locator('button').last().evaluate(element => (element as HTMLElement).blur())
+          await strip.locator('button').last().focus()
+          await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)))
+          const lastVisible = await strip.evaluate(element => {
+            const control = element.querySelector('button:last-child')!.getBoundingClientRect()
+            const viewport = element.getBoundingClientRect()
+            return control.left >= viewport.left - 1 && control.right <= viewport.right + 1
+          })
+          expect(lastVisible, evidence).toBe(true)
+        }
+      } finally { await page.close() }
+    }, 30_000,
+  )
 
   it.each([412, 1280].flatMap((width) => [false, true].map((forcedColors) => ({ width, forcedColors }))))(
     'draws one field and action focus ring at $width with forced colors $forcedColors', async ({ width, forcedColors }) => {
@@ -317,12 +462,11 @@ describe('Composer compact geometry in Chromium', () => {
         await control.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' }))
         const measured = await control.evaluate((element) => {
           const label = element.querySelector('span')!
-          return { top: element.getBoundingClientRect().top, height: element.getBoundingClientRect().height, labelWidth: label.clientWidth, textWidth: label.scrollWidth, whiteSpace: getComputedStyle(label).whiteSpace, overflow: getComputedStyle(label).textOverflow }
+          return { top: element.getBoundingClientRect().top, height: element.getBoundingClientRect().height, labelWidth: label.clientWidth, textWidth: label.scrollWidth, overflow: getComputedStyle(label).textOverflow }
         })
         tops.push(measured.top)
         expect(measured.height).toBeGreaterThanOrEqual(48)
         expect(measured.labelWidth).toBe(measured.textWidth)
-        expect(measured.whiteSpace).toBe('nowrap')
         expect(measured.overflow).not.toBe('ellipsis')
       }
       expect(new Set(tops).size).toBe(1)
