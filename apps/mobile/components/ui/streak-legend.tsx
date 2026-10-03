@@ -38,7 +38,7 @@ export function StreakLegend({ words }: Readonly<Pick<FreezeBankProps, 'words'>>
 }
 
 const styles = StyleSheet.create({
-  entry: { alignSelf: 'flex-start', minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, padding: 12 },
+  entry: { alignSelf: 'flex-start', minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', padding: 12 },
   legend: { gap: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   mark: { width: 12, height: 12, borderRadius: 8 },
