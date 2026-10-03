@@ -229,6 +229,10 @@ for (const width of [412, 1352]) {
 
       test('reschedule sheet keeps one small action row', async ({ page }) => {
         await page.goto('/')
+        const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
+        await expect(consent).toBeVisible()
+        await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
+        await expect(consent).toHaveCount(0)
         const row = page.getByTestId('habit-row').filter({ hasText: habit.title }).first()
         await row.locator('[data-habit-row-control="menu"]').click()
         await page.getByRole('menuitem', { name: messages.habits.actions.reschedule, exact: true }).click()
