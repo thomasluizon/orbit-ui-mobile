@@ -282,18 +282,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     [queryClient],
   );
 
-  useEffect(() => {
-    if (!speechError) return;
-
-    let active = true;
-    void Promise.resolve().then(() => {
-      if (active) setSendError(speechError);
-    });
-    return () => {
-      active = false;
-    };
-  }, [speechError]);
-
   const validateImageAsset = useCallback(
     (asset: ImagePicker.ImagePickerAsset): string | null => {
       const validationError = getChatImageValidationError({
@@ -833,7 +821,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     const common = {
       words,
       value: input,
-      errorMessage: sendError ?? undefined,
+      errorMessage: speechError ?? sendError ?? undefined,
       ...(speechError === t("speech.micDenied") ? {
         errorRecovery: { label: t("common.openSettings"), onSelect: () => { void Linking.openSettings(); } },
       } : {}),

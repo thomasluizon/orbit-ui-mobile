@@ -488,6 +488,48 @@ describe('mobile useChatComposer', () => {
     expect(StyleSheet.flatten(recovery[0].props.style({ pressed: false })).minHeight).toBeGreaterThanOrEqual(48)
     TestRenderer.act(() => recovery[0].props.onPress())
     expect(openSettings).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).toContain('speech.micDenied')
+    mocks.state.speechError = null
+    mocks.state.isRecording = true
+    await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).not.toContain('speech.micDenied')
+    expect(visibleMessageTexts(tree)).not.toContain('common.openSettings')
+    expect(tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === 'shell.composer.voice.stop')).toHaveLength(1)
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).not.toContain('speech.micDenied')
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Voice recovered'
+    await TestRenderer.act(async () => { tree.update(<ComposerConversationHarness />); await Promise.resolve() })
+    expect(visibleMessageTexts(tree)).not.toContain('speech.micDenied')
+    expect(inputHosts(tree)[0].props.value).toBe('Keep my draft Voice recovered')
+  })
+
+  it.each(['transport', 'attachment'] as const)('preserves a %s error through speech denial and recovery', async (producer) => {
+    const composer = await renderComposer()
+    if (producer === 'transport') {
+      mocks.openChatStream.mockRejectedValueOnce(new Error('network unavailable'))
+      await TestRenderer.act(async () => { await composer.current.sendMessage('Plan my morning') })
+    } else {
+      mocks.getDocumentAsync.mockResolvedValue({ canceled: false, assets: [documentPickerAsset({ size: 21 * 1024 * 1024 })] })
+      await TestRenderer.act(async () => { composer.current.composerProps.onAttachFile?.(); await Promise.resolve() })
+    }
+    const originalError = composer.current.composerProps.errorMessage
+    expect(originalError).toBeTruthy()
+    mocks.state.speechError = 'speech.micDenied'
+    await TestRenderer.act(async () => { composer.rerender(); await Promise.resolve() })
+    expect(composer.current.composerProps.errorMessage).toBe('speech.micDenied')
+    mocks.state.speechError = null
+    mocks.state.isRecording = true
+    composer.rerender()
+    expect(composer.current.composerProps.errorMessage).toBe(originalError)
+    expect(composer.current.composerProps.errorRecovery).toBeUndefined()
+    mocks.state.isRecording = false
+    mocks.state.transcript = 'Voice recovered'
+    composer.rerender()
+    expect(composer.current.composerProps.errorMessage).toBe(originalError)
   })
 
   it('offers one retry action in the owning conversation after a transport failure', async () => {
@@ -1410,7 +1452,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBeNull()
   })
 
-  it('surfaces the speech-to-text error through the send error banner', async () => {
+  it('keeps the speech error visible after its former timeout', async () => {
     vi.useFakeTimers()
     mocks.state.speechError = 'mic failed'
     const composer = await renderComposer()
@@ -1419,9 +1461,9 @@ describe('mobile useChatComposer', () => {
       await Promise.resolve()
     })
 
-    expect(composer.current.sendError).toBe('mic failed')
+    expect(composer.current.composerProps.errorMessage).toBe('mic failed')
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(4000) })
-    expect(composer.current.sendError).toBe('mic failed')
+    expect(composer.current.composerProps.errorMessage).toBe('mic failed')
   })
 
   it('formats the recording duration as m:ss', async () => {

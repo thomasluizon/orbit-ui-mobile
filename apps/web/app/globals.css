@@ -323,7 +323,7 @@
 
 .orbit-menu-item {
   display: flex;
-  min-height: 48px;
+  min-height: 44px;
   width: 100%;
   cursor: pointer;
   align-items: center;

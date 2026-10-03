@@ -2,6 +2,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { createRef } from 'react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
@@ -13,6 +14,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contracts/composer'
 import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { Menu } from '@/components/ui/menu'
+import { inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -83,6 +86,104 @@ describe('Composer compact geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1280].flatMap((width) => [false, true].map((forcedColors) => ({ width, forcedColors }))))(
+    'draws one field and action focus ring at $width with forced colors $forcedColors', async ({ width, forcedColors }) => {
+      const view = render(<Composer {...geometryProps('typing', en, false)} />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.emulateMedia({ forcedColors: forcedColors ? 'active' : 'none' })
+        await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+        await page.keyboard.press('Tab')
+        const field = page.getByRole('textbox')
+        expect(await field.evaluate((element) => element === document.activeElement)).toBe(true)
+        expect(await readFieldIndicators(field, '[data-composer-input-row]', { forcedColors })).toHaveLength(1)
+        for (const name of [en.shell.composer.actions, en.shell.composer.send]) {
+          await page.keyboard.press('Tab')
+          const control = page.getByRole('button', { name, exact: true })
+          expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
+          expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+          const outline = await control.evaluate((element) => {
+            const style = getComputedStyle(element)
+            const sample = document.createElement('span')
+            sample.style.color = 'CanvasText'
+            document.body.append(sample)
+            const systemColor = getComputedStyle(sample).color
+            sample.remove()
+            return { width: style.outlineWidth, style: style.outlineStyle, color: style.outlineColor, systemColor }
+          })
+          expect(outline.width).toBe('2px')
+          expect(outline.style).toBe('solid')
+          expect(outline.color).toBe(forcedColors ? outline.systemColor : 'rgb(196, 83, 15)')
+        }
+        fireEvent.click(screen.getByRole('button', { name: en.shell.composer.actions }))
+        const menu = await screen.findByRole('menu')
+        const markup = width < 900 ? menu.closest('[role="dialog"]')!.outerHTML : menu.outerHTML
+        await page.setContent(`<style>${stylesheet}</style>${markup}`)
+        await page.keyboard.press('Tab')
+        for (const name of [en.shell.composer.attach.image, en.shell.composer.attach.file, en.shell.composer.voice.start]) {
+          const control = page.getByRole('menuitem', { name, exact: true })
+          await control.focus()
+          expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+          expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+        }
+      } finally { await page.close(); view.unmount() }
+    },
+  )
+
+  it.each([412, 1280].flatMap((width) => (['dark', 'light'] as const).map((mode) => ({ width, mode }))))(
+    'keeps disabled attachment menu fills at rest on hover at $width in $mode', async ({ width, mode }) => {
+      const view = render(<Composer {...geometryProps('atLimit', en, false)} />)
+      fireEvent.click(screen.getByRole('button', { name: en.shell.composer.actions }))
+      const menu = await screen.findByRole('menu')
+      const markup = width < 900 ? menu.closest('[role="dialog"]')!.outerHTML : menu.outerHTML
+      const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}:root{${theme}}.orbit-menu-item{--test-hover:0}.orbit-menu-item:hover{--test-hover:1}</style>${markup}`)
+        for (const name of [en.shell.composer.attach.file, en.shell.composer.attach.image]) {
+          const control = page.getByRole('menuitem', { name, exact: true })
+          expect(await control.isDisabled()).toBe(true)
+          await page.mouse.move(0, 914)
+          const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
+          expect(restingFill).toBe('rgba(0, 0, 0, 0)')
+          const bounds = (await control.boundingBox())!
+          await page.mouse.move(bounds.x + 4, bounds.y + bounds.height / 2)
+          await page.waitForTimeout(300)
+          expect(await control.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
+          expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(restingFill)
+        }
+      } finally { await page.close(); view.unmount() }
+    },
+  )
+
+  it.each([412, 1280].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
+    'keeps menu rows at their minimum height and grows for large text at $width and $fontScale', async ({ width, fontScale }) => {
+      const presentation = width < 900 ? { presentation: 'sheet' as const }
+        : { presentation: 'anchored' as const, anchorRef: createRef<HTMLButtonElement>() }
+      const view = render(<Menu open {...presentation} title="Actions" items={[
+        { id: 'file', label: en.shell.composer.attach.file, icon: 'file' },
+        { id: 'delete', label: 'Delete', icon: 'trash', destructive: true },
+      ]} />)
+      const menu = await screen.findByRole('menu')
+      const markup = width < 900 ? menu.closest('[role="dialog"]')!.outerHTML : menu.outerHTML
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style>${markup}`)
+        for (const item of await page.getByRole('menuitem').all()) {
+          const measured = await item.evaluate((element) => {
+            const style = getComputedStyle(element)
+            return { height: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight),
+              padding: parseFloat(style.paddingTop) + parseFloat(style.paddingBottom), border: parseFloat(style.borderTopWidth) }
+          })
+          const minimum = width < 900 ? 56 : 44
+          expect(measured.height).toBeCloseTo(Math.max(minimum, measured.lineHeight + measured.padding + measured.border), 1)
+          if (fontScale === 1) expect(measured.height).toBe(minimum)
+          if (width >= 900 && fontScale === 2) expect(measured.height).toBeGreaterThan(minimum)
+        }
+      } finally { await page.close(); view.unmount() }
+    },
+  )
 
   it.each(['reduce', 'no-preference'] as const)('keeps the press target intact with %s motion', async (reducedMotion) => {
     const view = render(<Composer {...geometryProps('idle', en, true)} />)
@@ -174,21 +275,24 @@ describe('Composer compact geometry in Chromium', () => {
     } finally { await page.close() }
   }, 30_000)
 
-  it.each(['idle', 'sending', 'offline', 'atLimit', 'transcribing', 'recording'] as const)(
-    'paints hover only on enabled menu and stop controls while %s', async (state) => {
+  it.each([412, 1280].flatMap((width) => (['dark', 'light'] as const).flatMap((mode) =>
+    (['idle', 'sending', 'offline', 'atLimit', 'transcribing', 'recording'] as const).map((state) => ({ width, mode, state })))))(
+    'paints hover only on enabled menu and stop controls while $state at $width in $mode', async ({ width, mode, state }) => {
       const statuses = { idle: { state: 'idle' }, sending: { state: 'sending' }, recording: { state: 'recording' }, transcribing: { state: 'transcribing' }, offline: { state: 'offline', limitReason: en.shell.composer.offline.reason }, atLimit: { state: 'atLimit', limitReason: en.shell.composer.limit.reason } } as const
       const { container } = render(<Composer {...statuses[state]} value="" suggestions={[]} words={en.shell.composer}
         onChangeValue={vi.fn()} onSend={vi.fn()} onVoice={vi.fn()} voiceWords={en.shell.composer.voice}
         onAttachFile={vi.fn()} onAttachImage={vi.fn()} attachWords={{ ...en.shell.composer.attach, remove: (name) => name }} />)
-      const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<style>${stylesheet}:root{${theme}}[data-composer-controls] button{--test-hover:0}[data-composer-controls] button:hover{--test-hover:1}</style>${container.innerHTML}`)
         const control = page.locator('[data-composer-controls] button')
         expect(await control.count()).toBe(1)
         const restingFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
         const bounds = (await control.boundingBox())!
-        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 4)
         await page.waitForTimeout(300)
+        expect(await control.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
         const hoveredFill = await control.evaluate((element) => getComputedStyle(element).backgroundColor)
         if (await control.isDisabled()) expect(hoveredFill).toBe(restingFill)
         else expect(hoveredFill).not.toBe(restingFill)

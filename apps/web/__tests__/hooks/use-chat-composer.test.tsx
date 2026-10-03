@@ -330,6 +330,45 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('microphone denied')
     expect(useUIStore.getState().astraConversationOpen).toBe(false)
     expect(screen.getByRole('textbox')).toHaveValue('Keep my draft')
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.getByRole('alert')).toHaveTextContent('microphone denied')
+    mocks.state.speechError = null
+    mocks.state.isRecording = true
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'shell.composer.voice.stop' })).toBeEnabled()
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Voice recovered'
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveValue('Keep my draft Voice recovered')
+  })
+
+  it.each(['transport', 'attachment'] as const)('preserves a %s error through speech denial and recovery', async (producer) => {
+    const { result, rerender } = renderHook(() => useChatComposer())
+    if (producer === 'transport') {
+      mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+      await act(async () => { await result.current.sendMessage('Plan my morning') })
+    } else {
+      await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', '', 21 * 1024 * 1024))) })
+    }
+    const originalError = result.current.composerProps.errorMessage
+    expect(originalError).toBeTruthy()
+    mocks.state.speechError = 'microphone denied'
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe('microphone denied')
+    mocks.state.speechError = null
+    mocks.state.isRecording = true
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(originalError)
+    mocks.state.isRecording = false
+    mocks.state.transcript = 'Voice recovered'
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(originalError)
   })
 
   it('offers one retry action in the owning conversation after a transport failure', async () => {
@@ -1335,12 +1374,12 @@ describe('web useChatComposer streaming send', () => {
 
     mocks.state.speechError = 'microphone denied'
     rerender()
-    expect(result.current.sendError).toBe('microphone denied')
+    expect(result.current.composerProps.errorMessage).toBe('microphone denied')
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4000)
     })
-    expect(result.current.sendError).toBe('microphone denied')
+    expect(result.current.composerProps.errorMessage).toBe('microphone denied')
   })
 
   it('omits voice when speech is unavailable at the account limit', () => {

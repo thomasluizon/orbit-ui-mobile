@@ -171,7 +171,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([])
   const activeStepsRef = useRef<{ domain: string; access: string }[]>([])
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
-  const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
     fileInputRef,
@@ -191,13 +190,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     handleTextFileSelect,
     removeTextFile,
   } = useChatTextFileAttachment(setSendError)
-
-  if (speechError !== previousSpeechError) {
-    setPreviousSpeechError(speechError)
-    if (speechError) {
-      setSendError(speechError)
-    }
-  }
 
   /**
    * The app shell keeps this hook mounted through an account change, so the previous account's
@@ -709,7 +701,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     const common = {
       words,
       value: input,
-      errorMessage: sendError ?? undefined,
+      errorMessage: speechError ?? sendError ?? undefined,
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
       onPaste: handlePaste,
@@ -771,6 +763,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     setInput,
     sendMessage,
     sendError,
+    speechError,
     speechSupported,
     t,
     toggleRecording,
