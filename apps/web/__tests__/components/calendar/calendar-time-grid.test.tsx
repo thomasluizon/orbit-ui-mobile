@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { enUS } from 'date-fns/locale'
 
 vi.mock('next-intl', () => ({
@@ -60,6 +60,52 @@ function renderGrid(
 }
 
 describe('CalendarTimeGrid', () => {
+  it('preserves both grid scroll axes after closing a timed disclosure', async () => {
+    const onSelectDay = vi.fn()
+    const col = column(2025, 5, 16)
+    renderGrid([col], new Map([[col.dateStr, [makeEntry({ dueTime: '08:00' })]]]), onSelectDay)
+    const scroller = screen.getByTestId('calendar-time-grid').firstElementChild!
+    scroller.scrollTop = 420
+    scroller.scrollLeft = 84
+    const target = screen.getByTestId('time-grid-event')
+    target.focus()
+    fireEvent.click(target)
+    expect(screen.getByRole('dialog')).toHaveTextContent('Meditate')
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(scroller.scrollTop).toBe(420)
+    expect(scroller.scrollLeft).toBe(84)
+    expect(onSelectDay).not.toHaveBeenCalled()
+    await waitFor(() => expect(target).toHaveFocus())
+  })
+
+  it('uses a shape as well as color for an indulged bad habit', () => {
+    const col = column(2025, 5, 16)
+    renderGrid([col], new Map([[col.dateStr, [makeEntry({ dueTime: '08:00', status: 'completed', isBadHabit: true })]]]))
+    expect(screen.getByTestId('time-grid-event').querySelector('[data-status="bad"]')).not.toBeNull()
+    expect(screen.getByTestId('time-grid-event').querySelector('svg')).not.toBeNull()
+  })
+
+  it('paginates and searches untimed entries with an announced count and a recovery action', () => {
+    const col = column(2025, 5, 16)
+    const entries = Array.from({ length: 25 }, (_, index) => makeEntry({ habitId: String(index), title: `Untimed ${index}` }))
+    renderGrid([col], new Map([[col.dateStr, entries]]))
+    fireEvent.click(screen.getByTestId('time-grid-all-day-summary'))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('Untimed 19')).toBeInTheDocument()
+    expect(within(dialog).queryByText('Untimed 20')).toBeNull()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'common.next' }))
+    expect(within(dialog).getByText('Untimed 24')).toBeInTheDocument()
+    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('\"shown\":5,\"total\":25')
+    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'missing' } })
+    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveAttribute('role', 'status')
+    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('"total":0')
+    expect(dialog).toHaveTextContent('calendar.entrySearchEmpty:{"query":"missing"}')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
+    expect(within(dialog).getByText('Untimed 0')).toBeInTheDocument()
+    expect(within(dialog).getByRole('textbox')).toHaveValue('')
+  })
+
   it('places a timed habit in its hour slot in the correct column', () => {
     const col = column(2025, 5, 16)
     const dayMap = new Map<string, CalendarDayEntry[]>([
@@ -73,6 +119,8 @@ describe('CalendarTimeGrid', () => {
     expect(block).toHaveAccessibleName(/Standup/)
     expect(block).not.toHaveTextContent('Standup')
     expect(block.querySelector('[data-status]')).not.toBeNull()
+    fireEvent.click(block)
+    expect(screen.getByRole('dialog')).toHaveTextContent('Standup')
   })
 
   it('uses the neutral well for a timed habit', () => {
@@ -98,7 +146,7 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.getByTestId('time-grid-all-day-band')).toHaveStyle({
-      gridTemplateColumns: '96px repeat(1, minmax(104px, 1fr))',
+      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(max(104px, 3.25rem), 1fr))',
     })
     for (const block of screen.getAllByTestId('time-grid-event')) {
       expect(block).toHaveStyle({ minWidth: '48px' })
@@ -122,7 +170,7 @@ describe('CalendarTimeGrid', () => {
     const col = column(2025, 5, 18, true)
     renderGrid([col], new Map())
 
-    expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ color: 'var(--fg-3)' })
+    expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ color: 'var(--fg-2)' })
     expect(screen.getByTestId('time-grid-all-day').style.borderLeft).toBe(
       '1px solid var(--hairline-ghost)',
     )

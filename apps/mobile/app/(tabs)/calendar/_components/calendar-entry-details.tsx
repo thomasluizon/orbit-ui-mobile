@@ -31,8 +31,8 @@ export function CalendarEntryDetails({ entries, title, displayTime, onClose }: R
         <Text selectable style={[styles.title, { color: tokens.fg1 }]}>{entry.title}</Text>
         <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.entryMeta', { time: entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime'), status: t(calendarEntryOutcome(entry).labelKey) })}</Text>
       </View>)}
-      {matching.length === 0 ? <Text style={[styles.empty, { color: tokens.fg2 }]}>{t('calendar.entrySearchEmpty')}</Text> : null}
-      {entries.length >= 8 ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.showingCount', { shown: Math.min((page + 1) * 20, matching.length), total: matching.length })}</Text> : null}
+      {matching.length === 0 ? <View style={styles.searchEmpty}><Text style={[styles.empty, { color: tokens.fg2 }]}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</Text><PillButton variant="ghost" onClick={() => { setQuery(''); setPage(0) }}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></View> : null}
+      {entries.length >= 8 ? <Text accessibilityLiveRegion="polite" style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.showingCount', { shown: visible.length, total: matching.length })}</Text> : null}
       {matching.length > 20 ? <ActionRow>
         <PillButton variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>{t('common.previous')}</PillButton>
         <PillButton variant="ghost" disabled={(page + 1) * 20 >= matching.length} onClick={() => setPage(page + 1)}>{t('common.next')}</PillButton>
@@ -43,6 +43,7 @@ export function CalendarEntryDetails({ entries, title, displayTime, onClose }: R
 
 const styles = StyleSheet.create({
   content: { gap: 24 },
+  searchEmpty: { gap: 12, alignItems: 'flex-start' },
   entry: { gap: 4 },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8 },

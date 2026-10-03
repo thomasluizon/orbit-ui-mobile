@@ -1029,7 +1029,7 @@
     },
     "entryDetails": "Details",
     "entrySearch": "Search",
-    "entrySearchEmpty": "No matches",
+    "entrySearchEmpty": "No matches for \"{query}\"",
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
     "completionHistory": "Completion History",

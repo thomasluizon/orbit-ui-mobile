@@ -1029,7 +1029,7 @@
     },
     "entryDetails": "Detalhes",
     "entrySearch": "Buscar",
-    "entrySearchEmpty": "Nenhum resultado",
+    "entrySearchEmpty": "Nenhum resultado para \"{query}\"",
     "entryLabel": "{title}, {time}, {status}",
     "entryMeta": "{time} · {status}",
     "completionHistory": "Histórico de Conclusão",

@@ -17,6 +17,7 @@ import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { calendarEntryOutcome, getAccountDateTime, nowDate } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 
+import { X } from '@/components/ui/icons';
 import { StatusRing } from '@/components/ui/status-ring';
 import { CalendarEntryDetails } from './calendar-entry-details';
 
@@ -95,7 +96,7 @@ function layoutTimed(entries: CalendarDayEntry[]): PlacedEntry[] {
         lane = laneEnds.length;
         laneEnds.push(0);
       }
-      laneEnds[lane] = top + BLOCK_HEIGHT;
+      laneEnds[lane] = top + BLOCK_HEIGHT + 4;
       local.push({
         entry: item.entry,
         hour: Math.floor(item.minutes / 60),
@@ -118,7 +119,7 @@ function layoutTimed(entries: CalendarDayEntry[]): PlacedEntry[] {
       clusterEnd = -Infinity;
     }
     cluster.push(item);
-    clusterEnd = Math.max(clusterEnd, top + BLOCK_HEIGHT);
+    clusterEnd = Math.max(clusterEnd, top + BLOCK_HEIGHT + 4);
   }
   if (cluster.length > 0) flush();
 
@@ -165,7 +166,7 @@ function TimedBlock({
         justifyContent: "center",
         alignItems: "center",
         backgroundColor: pressed
-          ? tokens.bgHover
+          ? tokens.bgHoverOpaque
           : isFuture
             ? "transparent"
             : tokens.bgWell,
@@ -174,7 +175,10 @@ function TimedBlock({
         transform: [{ scale: pressed ? 0.96 : 1 }],
       })}
     >
-      <View importantForAccessibility="no-hide-descendants"><StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} /></View>
+      <View importantForAccessibility="no-hide-descendants">
+        <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
+        {outcome.status === 'bad' ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><X size={16} color={tokens.statusBad} strokeWidth={1.5} /></View> : null}
+      </View>
     </InsetFocusPressable>
   );
 }
@@ -225,7 +229,7 @@ function ColumnHeader({
       <Text
         style={[
           styles.colHeaderWeekday,
-          { color: column.isToday ? tokens.primaryText : tokens.fg3 },
+          { color: column.isToday ? tokens.primaryText : tokens.fg2 },
         ]}
       >
         {format(column.date, "EEE", { locale }).toUpperCase()}
@@ -244,7 +248,7 @@ function ColumnHeader({
               color: column.isToday
                 ? tokens.fgOnPrimary
                 : column.isFuture
-                  ? tokens.fg3
+                  ? tokens.fg2
                   : tokens.fg1,
               fontFamily: "GeistMono_500Medium",
             },
@@ -283,7 +287,7 @@ export function CalendarTimeGrid({
   const { fontScale } = useWindowDimensions();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const headerHeight = Math.max(52, 16 + 4 + 12 * 1.4 * fontScale + 24 * fontScale);
-  const allDayBandHeight = Math.max(64, 32 + 12 * 1.4 * fontScale);
+  const allDayBandHeight = Math.max(48, 16 + 2 + 12 * 1.4 * fontScale) + 16 + 1;
   const gutterWidth = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, "0")}:00`).length)) * 12 * 0.7 * fontScale + 16;
   const [disclosure, setDisclosure] = useState<{ entries: CalendarDayEntry[]; title: string } | null>(null);
   const bodyScrollRef = useRef<ScrollView>(null);
@@ -316,7 +320,7 @@ export function CalendarTimeGrid({
       timed.map(({ laneCount }) => laneCount),
     ),
   );
-  const minColumnWidth = Math.max(maxLaneCount * MIN_LANE_WIDTH, 52 * fontScale);
+  const minColumnWidth = Math.max(60, maxLaneCount * MIN_LANE_WIDTH, 52 * fontScale);
 
   const colWidth =
     viewportWidth > 0 && columns.length > 0
@@ -520,7 +524,7 @@ function createStyles(tokens: Tokens) {
     anyTimeLabel: {
       fontFamily: "Geist_400Regular",
       fontSize: 12,
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
     card: {
       borderRadius: 12,
@@ -548,7 +552,7 @@ function createStyles(tokens: Tokens) {
       fontFamily: "GeistMono_400Regular",
       fontSize: 12,
       lineHeight: 16.8,
-      color: tokens.fg3,
+      color: tokens.fg2,
       fontVariant: ["tabular-nums"],
     },
     columnsScroll: {
@@ -640,7 +644,7 @@ function createStyles(tokens: Tokens) {
     emptyText: {
       fontFamily: "Geist_400Regular",
       fontSize: 14,
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
   });
 }
