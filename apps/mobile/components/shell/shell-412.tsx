@@ -103,10 +103,11 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const insets = useSafeAreaInsets()
   const { width, height } = useWindowDimensions()
   const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
-  const minimumFlowHeight = safeTop + TOUCH_TARGET_MIN + BUTTON_SIZES.md.height
-  const constrainedFlow = !navigationEnabled && height < minimumFlowHeight
   const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
+  const safeBottom = keyboardVisible ? 0 : insets.bottom
+  const minimumFlowHeight = safeTop + TOUCH_TARGET_MIN + BUTTON_SIZES.md.height + safeBottom
+  const constrainedFlow = !navigationEnabled && height < minimumFlowHeight
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true))
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false))
@@ -127,34 +128,34 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       style={[styles.root, { backgroundColor: tokens.bg }]}
     >
       <FlowViewport enabled={!navigationEnabled} constrained={constrainedFlow} minimumHeight={minimumFlowHeight}>
-      <View
-        testID="shell-background"
-        style={[styles.background, { width: columnWidth, paddingTop: safeTop }]}
-        importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
-      >
-        {header !== undefined ? (
-          navigationEnabled ? <View testID="shell-header">{header}</View> : (
-            <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{header}</ScrollView>
-          )
-        ) : null}
+        <View
+          testID="shell-background"
+          style={[styles.background, { width: columnWidth, paddingTop: safeTop }]}
+          importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
+        >
+          {header !== undefined ? (
+            navigationEnabled ? <View testID="shell-header">{header}</View> : (
+              <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{header}</ScrollView>
+            )
+          ) : null}
 
-        <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && !constrainedFlow && styles.flowScroller]}>
-          {props.children}
+          <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && !constrainedFlow && styles.flowScroller]}>
+            {props.children}
+          </View>
+
+          <ShellBottomChrome
+            visible={hasBottomChrome}
+            navigationEnabled={navigationEnabled}
+            pinnedSlot={conversationOpen ? undefined : pinnedSlot}
+            notice={notice}
+            fab={props.fab}
+            tabBar={props.tabBar}
+            backgroundColor={tokens.bg}
+            safeAreaBottom={safeBottom}
+          />
+
+          {props.sheets}
         </View>
-
-        <ShellBottomChrome
-          visible={hasBottomChrome}
-          navigationEnabled={navigationEnabled}
-          pinnedSlot={conversationOpen ? undefined : pinnedSlot}
-          notice={notice}
-          fab={props.fab}
-          tabBar={props.tabBar}
-          backgroundColor={tokens.bg}
-          safeAreaBottom={keyboardVisible ? 0 : insets.bottom}
-        />
-
-        {props.sheets}
-      </View>
       </FlowViewport>
 
       {conversationOpen ? (

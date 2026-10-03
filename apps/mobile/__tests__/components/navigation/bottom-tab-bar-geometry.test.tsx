@@ -123,7 +123,10 @@ describe('Native bottom tab layout', () => {
     } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
   })
 
-  it.each([120, 124, 160, 740])('keeps the full Create target revealable in a %ipx keyboard-constrained flow', (height) => {
+  it.each([
+    ...[120, 124, 160, 740].map((height) => ({ height, keyboardVisible: true })),
+    { height: 144, keyboardVisible: false },
+  ])('keeps the full Create target revealable at $height with keyboard $keyboardVisible', ({ height, keyboardVisible }) => {
     __setWindowDimensions({ width: 360, height, scale: 1, fontScale: 1 })
     const onSubmit = vi.fn()
     const onAttemptDismiss = vi.fn()
@@ -135,7 +138,7 @@ describe('Native bottom tab layout', () => {
         onCancel={vi.fn()} onSubmit={onSubmit} />}>
       <View style={{ height: 1600 }} />
     </HabitCreateFrame>) as typeof tree })
-    void renderer.act(() => __emitKeyboardEvent('keyboardDidShow'))
+    if (keyboardVisible) void renderer.act(() => __emitKeyboardEvent('keyboardDidShow'))
     const nodes = new Map<string, YogaNode>()
     const root = layoutHost(tree.toJSON(), nodes, 1)
     try {
@@ -171,9 +174,9 @@ describe('Native bottom tab layout', () => {
         const bottom = control.bottom - innerScroll
         const offset = Math.min(Math.max(0, top - flowBounds.top), flowMaxScroll)
         expect(top - offset).toBeGreaterThanOrEqual(flowBounds.top)
-        expect(bottom - offset).toBeLessThanOrEqual(flowBounds.bottom)
+        expect(bottom - offset).toBeLessThanOrEqual(flowBounds.bottom - (keyboardVisible ? 0 : 24))
       }
-      if (height >= 122) expect(viewport.bottom).toBeLessThanOrEqual(height)
+      if (height >= (keyboardVisible ? 122 : 146)) expect(viewport.bottom).toBeLessThanOrEqual(height)
       expect(tree.root.findAll((node) => node.props.testID === 'shell-pinned-slot')[0]!.props.keyboardShouldPersistTaps).toBe('handled')
       const create = tree.root.findAll((node) => node.props.testID === 'button-primary-md')[0]!
       expect(create.props.disabled).toBe(false)
