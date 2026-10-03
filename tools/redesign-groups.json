@@ -64,10 +64,12 @@
       "route-search"
     ],
     "Orbit Calendario": [
+      "m-overlay-components-calendar-entry-details",
       "m-overlay-components-calendar-options",
       "m-overlay-components-calendar-shell",
       "m-overlay-onboarding-calendar-import-prompt",
       "m-route-tabs-calendar",
+      "overlay-calendar-calendar-entry-details",
       "overlay-components-calendar-options",
       "overlay-components-calendar-shell",
       "route-calendar"

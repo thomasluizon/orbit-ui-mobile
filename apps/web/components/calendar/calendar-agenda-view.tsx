@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { CalendarEntryDetails } from './calendar-entry-details'
 import { addDays, eachDayOfInterval } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -27,13 +29,14 @@ export function CalendarAgendaView({
   loadingLabel,
 }: Readonly<CalendarAgendaViewProps>) {
   const t = useTranslations()
+  const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null)
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) })
 
   return (
     <div
       data-testid="calendar-agenda-view"
       aria-busy={isLoading}
-      className="flex max-w-[560px] flex-col"
+      className="flex max-w-[560px] flex-col [--orbit-list-row-secondary:var(--fg-2)]"
       style={{ gap: 16, padding: '0 16px 24px' }}
     >
       {isLoading ? dates.map((date, index) => (
@@ -63,7 +66,7 @@ export function CalendarAgendaView({
                 margin: 0,
                 color: 'var(--fg-2)',
                 fontFamily: 'var(--font-sans)',
-                fontSize: 14,
+                fontSize: '0.875rem',
                 fontWeight: 500,
                 lineHeight: 1.55,
               }}
@@ -76,7 +79,7 @@ export function CalendarAgendaView({
                   margin: 0,
                   color: 'var(--fg-3)',
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
+                  fontSize: '0.875rem',
                   lineHeight: 1.55,
                 }}
               >
@@ -89,9 +92,13 @@ export function CalendarAgendaView({
                     compact
                     key={entry.habitId}
                     title={entry.title}
-                    value={entry.dueTime ? displayTime(entry.dueTime) : undefined}
-                    readOnly
-                    wrapTitle
+                    description={entry.dueTime ? displayTime(entry.dueTime) : undefined}
+                    textMode="personal"
+                    chevron={false}
+                    accessibilityLabel={entry.dueTime
+                      ? t('calendar.agenda.timedEntryLabel', { title: entry.title, time: displayTime(entry.dueTime) })
+                      : entry.title}
+                    onClick={() => setSelectedEntry(entry)}
                   />
                 ))}
               </div>
@@ -99,6 +106,7 @@ export function CalendarAgendaView({
           </section>
         )
       })}
+      {selectedEntry ? <CalendarEntryDetails entries={[selectedEntry]} title={t('calendar.entryDetails')} displayTime={displayTime} onClose={() => setSelectedEntry(null)} /> : null}
     </div>
   )
 }

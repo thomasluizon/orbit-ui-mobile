@@ -967,7 +967,8 @@
   "calendar": {
     "agenda": {
       "today": "Hoje",
-      "empty": "Nada agendado"
+      "empty": "Nada agendado",
+      "timedEntryLabel": "{title}, {time}"
     },
     "legend": {
       "loggable": "pode registrar",
@@ -1038,14 +1039,21 @@
       "pickEndHint": "Agora escolha o dia final",
       "rangeMaxDays": "Intervalo limitado a {max} dias.",
       "empty": "Nada agendado",
-      "moreLabel": "mais {count}"
+      "moreLabel": "mais {count}",
+      "untimedCount": "{count} sem horário"
     },
     "status": {
       "completed": "feito",
       "missed": "sem registro",
       "indulged": "cedeu",
-      "resisted": "resistiu"
+      "resisted": "resistiu",
+      "upcoming": "agendado"
     },
+    "entryDetails": "Detalhes",
+    "entrySearch": "Buscar",
+    "entrySearchEmpty": "Nenhum resultado para \"{query}\"",
+    "entryLabel": "{title}, {time}, {status}",
+    "entryMeta": "{time} · {status}",
     "completionHistory": "Histórico de Conclusão",
     "showRecurring": "Mostrar hábitos que se repetem",
     "googleCalendar": "Google Calendar",

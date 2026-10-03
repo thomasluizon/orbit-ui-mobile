@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
+  calendarEntryOutcome,
   filterRecurringDayMap,
   filterRecurringEntries,
   resolveCalendarEventsDisplayState,
@@ -82,4 +83,18 @@ describe('calendar events display state', () => {
       })).toBe(expected)
     },
   )
+})
+
+
+describe('calendar entry outcomes', () => {
+  it.each([
+    ['upcoming', false, 'empty', 'upcoming'],
+    ['upcoming', true, 'empty', 'upcoming'],
+    ['completed', false, 'done', 'completed'],
+    ['missed', false, 'empty', 'missed'],
+    ['completed', true, 'bad', 'indulged'],
+    ['missed', true, 'done', 'resisted'],
+  ] as const)('describes %s with bad-habit=%s consistently', (status, isBadHabit, mark, label) => {
+    expect(calendarEntryOutcome(entry({ status, isBadHabit }))).toEqual({ status: mark, labelKey: `calendar.status.${label}` })
+  })
 })

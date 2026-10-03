@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 212,
-  "cellCount": 904,
+  "surfaceCount": 214,
+  "cellCount": 912,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -4253,6 +4253,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-command-command-palette",
       "platform": "web",
       "kind": "overlay",
@@ -9479,6 +9531,58 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
       ],
       "state": "default",
       "theme": "dark",
