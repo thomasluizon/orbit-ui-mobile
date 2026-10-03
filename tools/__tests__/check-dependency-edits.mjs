@@ -1,12 +1,13 @@
-import { mkdirSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { cpSync, mkdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from "node:fs"
+import { join, sep } from "node:path"
 
-import { check, root } from "./_harness.mjs"
+import { check, root, T } from "./_harness.mjs"
 
 const TOOL = "check-dependency-edits.mjs"
 /** One extraction time for the whole staged tree, exactly as npm writes one. */
 const EXTRACTED_AT = new Date("2026-09-16T10:13:05Z")
 const at = (secondsLater) => new Date(EXTRACTED_AT.getTime() + secondsLater * 1000)
+const repairPath = (path) => path.split(sep).join("/")
 
 const writeAt = (path, body, when) => {
   mkdirSync(join(path, ".."), { recursive: true })
@@ -68,7 +69,7 @@ export const cases = () => {
     TOOL,
     "the failure carries the repair that actually works",
     ["--root", edited.repository],
-    { status: 1, stderr: /rm -rf node_modules\/react-native && npm install[\s\S]*plain npm install leaves a complete package alone/ },
+    { status: 1, stderr: /rm -rf '[^\n]+node_modules\/react-native' && npm install[\s\S]*plain npm install leaves a complete package alone/ },
   )
 
   const blinded = stageTree("blinded")
@@ -101,7 +102,7 @@ export const cases = () => {
     TOOL,
     "a scoped package is scanned under its full name",
     ["--root", scoped.repository],
-    { status: 1, stderr: /rm -rf node_modules\/@react-native\/gradle-plugin/ },
+    { status: 1, stderr: /rm -rf '[^\n]+node_modules\/@react-native\/gradle-plugin'/ },
   )
 
   const nested = stageTree("nested")
@@ -113,6 +114,79 @@ export const cases = () => {
     ["--root", nested.repository],
     { status: 1, stderr: /metro\/node_modules\/semver\/index\.js/ },
   )
+  const nestedResult = check(
+    TOOL,
+    "repair guidance names the nested installed package",
+    ["--root", nested.repository],
+    { status: 1, stderr: /rm -rf '[^\n]+node_modules\/metro\/node_modules\/semver'/ },
+  )
+  T("nested repair uses the full affected path", nestedResult.stderr.includes(repairPath(join(host, "node_modules", "semver"))))
+
+  const duplicate = stageTree("duplicate")
+  const rootPackage = stagePackage(duplicate.nodeModules, "react-native", { "index.js": 10800 })
+  const workspacePackage = stagePackage(
+    join(duplicate.repository, "apps", "mobile", "node_modules"),
+    "react-native",
+    { "index.js": 10800 },
+  )
+  const duplicateResult = check(
+    TOOL,
+    "the same package name in two installed trees needs two repairs",
+    ["--root", duplicate.repository],
+    { status: 1, stderr: /2 file\(s\) in 2 package\(s\)/ },
+  )
+  T("root repair names its installed tree", duplicateResult.stderr.includes(`rm -rf '${repairPath(rootPackage)}'`))
+  T("workspace repair names its installed tree", duplicateResult.stderr.includes(`rm -rf '${repairPath(workspacePackage)}'`))
+
+  for (const timestampMode of ["preserved", "mixed"]) {
+    const standalone = stageTree(`standalone-${timestampMode}`)
+    const installedPackage = stagePackage(standalone.nodeModules, "client-only", { "index.js": 0 })
+    const generatedRoot = join(standalone.repository, "apps", "web", ".next", "standalone")
+    for (const tree of ["node_modules", "apps/web/node_modules"]) {
+      const copiedPackage = join(generatedRoot, ...tree.split("/"), "client-only")
+      cpSync(installedPackage, copiedPackage, { recursive: true, preserveTimestamps: true })
+      const copiedFile = join(copiedPackage, timestampMode === "preserved" ? "index.js" : "package.json")
+      const copiedAt = at(timestampMode === "preserved" ? -944 : 944)
+      utimesSync(copiedFile, copiedAt, copiedAt)
+      for (const file of ["package.json", "index.js"]) {
+        T(
+          `${timestampMode} standalone ${tree}/${file} is byte-identical to the installed file`,
+          readFileSync(join(copiedPackage, file)).equals(readFileSync(join(installedPackage, file))),
+        )
+      }
+    }
+    check(
+      TOOL,
+      `byte-identical standalone copies with ${timestampMode} mtimes are excluded from installed scans`,
+      ["--root", standalone.repository],
+      { status: 0, stdout: /Scanned 1 packages and 2 files[\s\S]*No dependency was edited in place/ },
+    )
+    check(
+      TOOL,
+      `a scan rooted in ${timestampMode} standalone output finds no installed tree`,
+      ["--root", generatedRoot],
+      { status: 0, stdout: /Scanned 0 packages and 0 files[\s\S]*No installed dependency tree/ },
+    )
+    writeAt(join(installedPackage, "index.js"), "edited installed bytes\n", at(10800))
+    const installedResult = check(
+      TOOL,
+      `a late installed write still fails beside ${timestampMode} standalone copies`,
+      ["--root", standalone.repository],
+      { status: 1, stderr: /1 file\(s\) in 1 package\(s\)[\s\S]*node_modules\/client-only\/index\.js {2}\(\+10800s/ },
+    )
+    T("generated copies never appear in installed findings or repairs", !installedResult.stderr.includes(".next/standalone"))
+  }
+
+  for (const directory of ["standalone", ".next/cache", ".next/standalone-other"]) {
+    const ordinary = stageTree(`ordinary-${directory.replaceAll("/", "-")}`)
+    stagePackage(join(ordinary.repository, ...directory.split("/"), "node_modules"), "client-only", { "index.js": 944 })
+    check(
+      TOOL,
+      `an installed tree under ${directory} is still checked`,
+      ["--root", ordinary.repository],
+      { status: 1, stderr: /client-only\/index\.js {2}\(\+944s/ },
+    )
+  }
 
   const workspace = stageTree("workspace")
   stagePackage(workspace.nodeModules, "react-native", { "index.js": 0 })
