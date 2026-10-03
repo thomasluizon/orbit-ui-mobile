@@ -219,13 +219,21 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { name: ptBr.common.close }), 'pill', '--bg-hover')
 
       await page.goto('/calendar')
-      for (const label of [ptBr.calendar.goToCurrentMonth, ptBr.common.selectYear, ptBr.common.previousMonth, ptBr.common.nextMonth]) {
+      for (const label of [ptBr.common.previousMonth, ptBr.common.nextMonth]) {
         await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill', '--bg-hover')
       }
+      const monthTitle = page.getByRole('button', { name: new RegExp(`, ${ptBr.calendar.monthPicker}$`) })
+      await expectFullTouchTarget(monthTitle, 'pill', '--bg-hover')
       await expectHoverOnHitArea(page.getByRole('radiogroup').getByRole('radio', { checked: false }).first(), 8)
-      await page.getByRole('button', { name: ptBr.common.selectYear }).click()
-      await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { pressed: false }).first(), 'pill')
-      await page.getByRole('dialog').getByRole('button', { pressed: true }).click()
+      await monthTitle.click()
+      const monthPicker = page.getByRole('dialog', { name: ptBr.calendar.monthPicker, exact: true })
+      await expectFullTouchTarget(monthPicker.getByRole('button', { name: ptBr.calendar.thisMonth, exact: true }), 'pill', '--bg-hover')
+      const yearTitle = monthPicker.getByRole('button', { name: new RegExp(`, ${ptBr.common.selectYear}$`) })
+      await expectFullTouchTarget(yearTitle, 'pill', '--bg-hover')
+      await yearTitle.click()
+      await expectHoverOnHitArea(monthPicker.getByRole('button', { pressed: false }).first(), 'pill')
+      await monthPicker.getByRole('button', { pressed: true }).click()
+      await monthPicker.getByRole('button', { name: ptBr.calendar.thisMonth, exact: true }).click()
       await expectHoverOnHitArea(page.locator('[role="radio"]:not([data-selected])').first(), 8)
       await expectHoverOnHitArea(page.locator('button[data-testid^="calendar-day-select-"]').first(), 'pill')
     })
@@ -279,9 +287,10 @@ for (const width of [412, 1280] as const) {
       })
       await page.goto('/calendar')
       await page.getByRole('radio', { name: ptBr.calendar.view.week, exact: true }).click()
-      for (const label of [ptBr.common.previousWeek, ptBr.common.nextWeek, ptBr.calendar.goToCurrentWeek]) {
+      for (const label of [ptBr.common.previousWeek, ptBr.common.nextWeek]) {
         await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill')
       }
+      await expectFullTouchTarget(page.getByRole('button', { name: new RegExp(`, ${ptBr.calendar.goToCurrentWeek}$`) }), 'pill')
       await expectFullTouchTarget(page.getByTestId('time-grid-all-day-more').first(), 8)
     })
 

@@ -1,4 +1,3 @@
-import { StyleSheet, View } from "react-native";
 import Animated, {
   FadeInLeft,
   FadeInRight,
@@ -8,7 +7,6 @@ import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarWeekNav } from "./calendar-shell";
-import { ShowRecurringToggle } from "./show-recurring-toggle";
 import { CalendarTimeGrid, type TimeGridColumn } from "./calendar-time-grid";
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -32,15 +30,11 @@ interface CalendarWeekViewProps {
   allDayLabel: string;
   nowLabel: string;
   timeZone: string | null;
-  showRecurring: boolean;
-  onShowRecurringChange: (value: boolean) => void;
-  showRecurringLabel: string;
   t: TFunction;
   tokens: Tokens;
 }
 
-/** Week view: a 7-day time grid with week-granularity navigation and the
- *  show-recurring toggle. */
+/** Week view: a seven-day time grid with week-granularity navigation. */
 export function CalendarWeekView({
   columns,
   dayMap,
@@ -59,9 +53,6 @@ export function CalendarWeekView({
   allDayLabel,
   nowLabel,
   timeZone,
-  showRecurring,
-  onShowRecurringChange,
-  showRecurringLabel,
   t,
   tokens,
 }: Readonly<CalendarWeekViewProps>) {
@@ -86,14 +77,6 @@ export function CalendarWeekView({
         onCurrentWeek={onCurrentWeek}
         tokens={tokens}
       />
-      <View style={styles.toggleRowEnd}>
-        <ShowRecurringToggle
-          checked={showRecurring}
-          onChange={onShowRecurringChange}
-          label={showRecurringLabel}
-          tokens={tokens}
-        />
-      </View>
       <Animated.View
         key={columns[0]?.dateStr ?? "week"}
         entering={weekEntering}
@@ -115,12 +98,3 @@ export function CalendarWeekView({
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  toggleRowEnd: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-});

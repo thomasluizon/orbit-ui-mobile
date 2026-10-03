@@ -1,124 +1,69 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { useId, useRef, useState, type ReactNode } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
+import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { YearPicker } from '@/components/ui/year-picker'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import type { ReactNode } from 'react'
+import { PillButton } from '@/components/ui/pill-button'
+import { formatCalendarMonthHeading, formatLocaleDate } from '@orbit/shared/utils'
 
 interface CalendarHeaderProps {
-  monthLabel: string
-  year: number
+  currentMonth: Date
+  todayKey: string
   previousMonthLabel: string
   nextMonthLabel: string
-  currentMonthLabel: string
-  selectYearLabel: string
   onPreviousMonth: () => void
   onNextMonth: () => void
   onCurrentMonth: () => void
-  onSelectYear: (year: number) => void
+  onSelectMonth: (month: number, year: number) => void
   viewSelector?: ReactNode
   showMonthNavigation?: boolean
 }
 
-/** Agenda header mirroring the Today date-nav: single month chevrons flanking a
- *  tappable month label (tap returns to the current month) and a tappable year
- *  that opens a year picker for direct jumps. */
-export function CalendarHeader({
-  monthLabel,
-  year,
-  previousMonthLabel,
-  nextMonthLabel,
-  currentMonthLabel,
-  selectYearLabel,
-  onPreviousMonth,
-  onNextMonth,
-  onCurrentMonth,
-  onSelectYear,
-  viewSelector,
-  showMonthNavigation = true,
-}: Readonly<CalendarHeaderProps>) {
-  const [isYearOpen, setIsYearOpen] = useState(false)
-  const { sheetRef, closeSheet } = useSheetHost()
+const headerButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]'
 
-  function handleSelectYear(nextYear: number) {
-    closeSheet(() => {
-      setIsYearOpen(false)
-      onSelectYear(nextYear)
-    })
-  }
-
-  return (
-    <div data-testid="calendar-header-group" className="shrink-0 flex flex-wrap items-center gap-4" style={{ padding: '12px 16px 16px' }}>
-      {showMonthNavigation ? <div className="flex min-w-0 items-center gap-2">
-        <div className="flex items-center" style={{ gap: 0 }}>
-          <button
-            type="button"
-            aria-label={currentMonthLabel}
-            onClick={onCurrentMonth}
-            className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
-            style={{
-              minHeight: 44,
-              padding: '0 8px',
-              fontFamily: 'var(--font-display)',
-              fontSize: 'var(--fs-2xl)',
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'var(--fg-1)',
-            }}
-          >
-            {monthLabel}
-          </button>
-          <button
-            type="button"
-            aria-label={selectYearLabel}
-            aria-expanded={isYearOpen}
-            aria-haspopup="dialog"
-            onClick={() => setIsYearOpen(true)}
-            className="text-[length:var(--fs-xs)] lg:text-[length:var(--fs-sm)] touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
-            style={{
-              minHeight: 44,
-              padding: '0 8px',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 400,
-              fontVariantNumeric: 'tabular-nums',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {year}
-          </button>
-        </div>
-        <button
-          type="button"
-          aria-label={previousMonthLabel}
-          onClick={onPreviousMonth}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronLeft size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label={nextMonthLabel}
-          onClick={onNextMonth}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronRight size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
-      </div> : <div className="flex min-w-0 items-center gap-2" aria-hidden="true" style={{ visibility: 'hidden' }}>
-        <div className="flex items-center">
-          <span style={{ padding: '0 8px', fontFamily: 'var(--font-display)', fontSize: 'var(--fs-2xl)', fontWeight: 500 }}>{monthLabel}</span>
-          <span className="text-[length:var(--fs-xs)] lg:text-[length:var(--fs-sm)]" style={{ padding: '0 8px', fontFamily: 'var(--font-mono)', fontWeight: 500 }}>{year}</span>
-        </div>
-        <span style={{ width: 44, height: 44 }} />
-        <span style={{ width: 44, height: 44 }} />
+function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, onSelectYear }: Readonly<Pick<CalendarHeaderProps, 'currentMonth' | 'onSelectMonth'> & { choosingYear: boolean; year: number; onSelectYear: (year: number) => void }>) {
+  const locale = useLocale()
+  return <div className="flex min-h-0 flex-col gap-4">
+    {choosingYear ? <div className="flex min-h-0 flex-col"><YearPicker selectedYear={year} onSelectYear={onSelectYear} /></div> :
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 6em), 1fr))' }}>
+        {Array.from({ length: 12 }, (_, month) => <button key={month} type="button"
+          className={`${headerButton} rounded-[12px] px-2`} aria-pressed={month === currentMonth.getMonth() && year === currentMonth.getFullYear()}
+          style={{ boxShadow: month === currentMonth.getMonth() && year === currentMonth.getFullYear() ? 'inset 0 0 0 2px var(--fg-1)' : undefined }}
+          onClick={() => onSelectMonth(month, year)}>{formatLocaleDate(new Date(year, month, 1), locale, { month: 'short' })}</button>)}
       </div>}
-      {viewSelector}
+  </div>
+}
 
-      {isYearOpen ? <Sheet ref={sheetRef} open title={selectYearLabel} onClose={() => setIsYearOpen(false)}>
-        <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />
-      </Sheet> : null}
-    </div>
-  )
+export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, viewSelector, showMonthNavigation = true }: Readonly<CalendarHeaderProps>) {
+  const pickerId = useId()
+  const yearButtonRef = useRef<HTMLButtonElement>(null)
+  const t = useTranslations()
+  const locale = useLocale()
+  const [year, setYear] = useState(currentMonth.getFullYear())
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [choosingYear, setChoosingYear] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
+  const heading = formatCalendarMonthHeading(currentMonth, todayKey, locale)
+  const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
+  return <div data-testid="calendar-header-group" className="flex flex-col gap-4 px-4 py-3">
+    {showMonthNavigation ? <div data-testid="calendar-month-navigation" className="flex flex-wrap items-center justify-center gap-2">
+      <button type="button" className={headerButton} aria-label={previousMonthLabel} onClick={onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
+      <button type="button" className={`${headerButton} gap-1 px-3 whitespace-nowrap`} style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--fg-1)' }}
+        aria-label={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId} onClick={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
+        <span>{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-3)' }}>{heading.year}</span></> : null}</span>
+        <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
+      </button>
+      <button type="button" className={headerButton} aria-label={nextMonthLabel} onClick={onNextMonth}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
+    </div> : null}
+    {viewSelector}
+    {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
+      headerAccessory={<button ref={yearButtonRef} type="button" className={`${headerButton} px-3`} aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={pickerId} onClick={() => setChoosingYear(!choosingYear)}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>}
+      actions={<PillButton size="sm" variant="ghost" onClick={() => closeSheet(() => { setPickerOpen(false); onCurrentMonth() })}>{t('calendar.thisMonth')}</PillButton>}>
+      <div id={pickerId} className="flex min-h-0 flex-col"><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false); yearButtonRef.current?.focus() }} /></div>
+    </Sheet> : null}
+  </div>
 }
 
 interface CalendarWeekNavProps {
@@ -131,56 +76,12 @@ interface CalendarWeekNavProps {
   onCurrentWeek: () => void
 }
 
-/** Week-granularity nav for the week time-grid: a centered, tappable week-range
- *  label (tap returns to the current week) flanked by prev/next week chevrons. */
-export function CalendarWeekNav({
-  weekLabel,
-  previousWeekLabel,
-  nextWeekLabel,
-  currentWeekLabel,
-  onPreviousWeek,
-  onNextWeek,
-  onCurrentWeek,
-}: Readonly<CalendarWeekNavProps>) {
-  return (
-    <div className="shrink-0" style={{ padding: '12px 16px 16px' }}>
-      <div className="flex items-center justify-between w-full" style={{ padding: '0 4px' }}>
-        <button
-          type="button"
-          aria-label={previousWeekLabel}
-          onClick={onPreviousWeek}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronLeft size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          aria-label={currentWeekLabel}
-          onClick={onCurrentWeek}
-          className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
-          style={{
-            minHeight: 44,
-            padding: '0 16px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
-            color: 'var(--fg-1)',
-          }}
-        >
-          {weekLabel}
-        </button>
-        <button
-          type="button"
-          aria-label={nextWeekLabel}
-          onClick={onNextWeek}
-          className="icon-btn touch-target shrink-0"
-        >
-          <ChevronRight size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-  )
+export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, currentWeekLabel, onPreviousWeek, onNextWeek, onCurrentWeek }: Readonly<CalendarWeekNavProps>) {
+  return <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-3">
+    <button type="button" className={headerButton} aria-label={previousWeekLabel} onClick={onPreviousWeek}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
+    <button type="button" className={`${headerButton} max-w-full px-3 py-2 text-center`} aria-label={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</button>
+    <button type="button" className={headerButton} aria-label={nextWeekLabel} onClick={onNextWeek}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
+  </div>
 }
 
 interface CalendarLegendProps {
@@ -190,8 +91,6 @@ interface CalendarLegendProps {
   noneLabel: string
 }
 
-/** v8 calendar legend — inline row of colored dots + labels, no section header.
- *  Items mirror the grid's day-dot vocabulary exactly. */
 export function CalendarLegend({
   loggableLabel,
   fullLabel,
@@ -200,8 +99,8 @@ export function CalendarLegend({
 }: Readonly<CalendarLegendProps>) {
   return (
     <div
-      className="flex flex-wrap items-center justify-center"
-      style={{ padding: '12px 16px', gap: 16 }}
+      className="flex flex-col"
+      style={{ gap: 16 }}
     >
       <LegendItem outcome="full" label={fullLabel} />
       <LegendItem outcome="partial" label={partialLabel} />
@@ -224,19 +123,19 @@ function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
   const style = outcome === 'full'
     ? { background: 'var(--fg-1)' }
     : outcome === 'loggable'
-      ? { background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }
+      ? { background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 2px var(--fg-3)' }
       : { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
   return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 12, height: 12, ...style }} />
 }
 
 function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
   return (
-    <span className="inline-flex items-center" style={{ gap: 4 }}>
+    <span className="inline-flex items-center" style={{ gap: 12 }}>
       <LegendSwatch outcome={outcome} />
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 12,
+          fontSize: '1rem',
           color: 'var(--fg-3)',
         }}
       >

@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   type View as NativeView,
 } from 'react-native'
+import { Check } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import {
@@ -21,7 +22,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 
 const DEFAULT_WIDE_FROM = 900
-const PANEL_WIDTH = 280
+const PANEL_WIDTH = 320
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
 let activeMenuClose: (() => void) | null = null
 
@@ -126,12 +127,13 @@ export function Menu({
     )
   }
 
+  const panelWidth = Math.min(PANEL_WIDTH, width - 16)
   const estimatedHeight = Math.min(orderedItems.length * 44 + 16, height - 16)
   const position = getPopoverPosition({
     anchorRect: anchorRect ?? getFallbackPopoverAnchorRect(width),
     viewportWidth: width,
     viewportHeight: height,
-    popoverWidth: PANEL_WIDTH,
+    popoverWidth: panelWidth,
     popoverHeight: estimatedHeight,
   })
 
@@ -149,15 +151,15 @@ export function Menu({
           accessibilityRole="menu"
           style={[
             styles.panel,
-            { backgroundColor: tokens.bgSheet, left: position.left, top: position.top },
+            { width: panelWidth, backgroundColor: tokens.bgSheet, left: position.left, top: position.top },
           ]}
         >
           <MenuItems
             items={orderedItems}
             sheetPresentation={false}
             onActivate={(id) => {
-              onSelect?.(id)
               onClose?.()
+              onSelect?.(id)
             }}
           />
         </View>
@@ -201,18 +203,20 @@ interface MenuItemsProps {
 function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { fontScale } = useWindowDimensions()
 
   return items?.map((item) => {
     const disabled = item.disabled === true && !item.badge
     return (
       <Pressable
         key={item.id}
-        accessibilityRole="menuitem"
-        accessibilityState={{ disabled }}
+        accessibilityRole={item.checked === undefined ? "menuitem" : "checkbox"}
+        accessibilityState={{ disabled, checked: item.checked }}
         disabled={disabled}
         onPress={() => onActivate(item.id)}
         style={({ pressed }) => [
           styles.item,
+          fontScale > 1.3 ? { alignItems: 'flex-start' } : null,
           sheetPresentation ? styles.sheetItem : null,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,
           pressed ? { backgroundColor: tokens.bgHover } : null,
@@ -221,11 +225,12 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
       >
         {item.icon ? <Icon color={item.destructive ? tokens.statusBad : tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
         <Text
-          numberOfLines={1}
+          numberOfLines={fontScale > 1.3 ? undefined : 1}
           style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}
         >
           {item.label}
         </Text>
+        {item.checked ? <View style={{ height: 20 * fontScale, justifyContent: 'center' }}><Check size={20} color={tokens.fg1} strokeWidth={2} /></View> : null}
         {item.badge ? (
           <View style={[styles.badge, { backgroundColor: tokens.bgElev }]}>
             <Text style={[styles.badgeText, { color: tokens.fg2 }]}>{item.badge}</Text>
@@ -270,7 +275,8 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     fontFamily: 'Geist_500Medium',
-    fontSize: 15,
+    fontSize: 14,
+    lineHeight: 20,
   },
   badge: {
     borderRadius: 8,

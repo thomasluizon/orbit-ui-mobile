@@ -1,3 +1,4 @@
+import { CalendarOptions } from './calendar/_components/calendar-options';
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import {
   View,
@@ -5,10 +6,8 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
+  useWindowDimensions,
 } from "react-native";
-import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import {
   FadeInLeft,
@@ -21,19 +20,17 @@ import {
   addMonths,
   addDays,
   subMonths,
-  setYear,
   addWeeks,
   subWeeks,
-  startOfMonth,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
-  isSameMonth,
   format,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import {
   capitalizeFirstLetter,
+  formatCalendarWeekLabel,
   buildHabitCreateHref,
   formatCalendarDayTitle,
   buildCalendarRangeModel,
@@ -88,7 +85,6 @@ import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarHeader,
-  CalendarLegend,
 } from "./calendar/_components/calendar-shell";
 import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
@@ -97,7 +93,6 @@ import { plural } from '@/lib/plural';
 import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
-import { ShowRecurringToggle } from "./calendar/_components/show-recurring-toggle";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 import { useCurrentDate } from "./use-today-date";
 import { useUIStore } from "@/stores/ui-store";
@@ -319,7 +314,8 @@ function CalendarProfileState({
   view,
   setView,
 }: Readonly<{ failed: boolean; onRetry: () => void; currentMonth: Date; setSelectedDay: Dispatch<SetStateAction<string>>; view: CalendarView; setView: Dispatch<SetStateAction<CalendarView>> }>) {
-  const { t, i18n } = useTranslation();
+  const { width } = useWindowDimensions();
+  const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -331,6 +327,7 @@ function CalendarProfileState({
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
+      <CalendarOptions tokens={tokens} />
       <ScrollView style={styles.profileStateWrap} contentContainerStyle={[styles.profileScrollContent, { paddingBottom: clearance }]}>
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
@@ -340,19 +337,17 @@ function CalendarProfileState({
         ) : (
           <View style={styles.profileLoading}>
             <CalendarHeader
-              monthLabel={capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: i18n.language === 'pt-BR' ? ptBR : enUS }))}
-              year={currentMonth.getFullYear()}
+              currentMonth={currentMonth}
+              todayKey={formatAPIDate(new Date())}
               previousMonthLabel={t('common.previousMonth')}
               nextMonthLabel={t('common.nextMonth')}
-              currentMonthLabel={t('calendar.goToCurrentMonth')}
-              selectYearLabel={t('common.selectYear')}
               onPreviousMonth={() => setSelectedDay(formatAPIDate(subMonths(currentMonth, 1)))}
               onNextMonth={() => setSelectedDay(formatAPIDate(addMonths(currentMonth, 1)))}
               onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
-              onSelectYear={(year) => setSelectedDay(formatAPIDate(startOfMonth(setYear(currentMonth, year))))}
+              onSelectMonth={(month, year) => setSelectedDay(formatAPIDate(new Date(year, month, 1)))}
               tokens={tokens}
               showMonthNavigation={view === 'month'}
-              viewSelector={<SegmentedControl<CalendarView> options={[
+              viewSelector={<SegmentedControl<CalendarView> fullWidth options={[
                 { value: 'month', label: t('calendar.view.month') },
                 { value: 'week', label: t('calendar.view.week') },
                 { value: 'range', label: t('calendar.view.range') },
@@ -362,10 +357,10 @@ function CalendarProfileState({
             <View style={styles.profileGrid}>
               <Skeleton
                 variant="grid"
-                rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+                rows={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns}
                 cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
                 cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-                gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+                gap={width < 340 ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap}
                 label={t('calendar.loading')}
               />
             </View>
@@ -436,26 +431,6 @@ function CalendarScreenContent({
   const styles = useMemo(() => createStyles(), []);
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
-  const calendarScrollRef = useRef<FlatList<CalendarDayEntry>>(null);
-  const calendarScrollTo = useCallback((y: number) => {
-    calendarScrollRef.current?.scrollToOffset({ offset: y, animated: true });
-  }, []);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const scrollCalendarToTop = useCallback(() => {
-    calendarScrollTo(0);
-  }, [calendarScrollTo]);
-  const handleCalendarScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      setShowScrollTop(event.nativeEvent.contentOffset.y > 600);
-    },
-    [],
-  );
-
-  const [scrollTopResetView, setScrollTopResetView] = useState(view);
-  if (view !== scrollTopResetView) {
-    setScrollTopResetView(view);
-    setShowScrollTop(false);
-  }
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
@@ -485,7 +460,7 @@ function CalendarScreenContent({
     setInitialImportEventId(null);
     if (importRequested) router.replace('/calendar');
   }, [importRequested, router, setInitialImportEventId, setIsImportOpen]);
-  const [showRecurring, setShowRecurring] = useState(true);
+  const showRecurring = useUIStore((state) => state.calendarShowRecurring);
   const {
     data: calendarEventsResult,
     isPending: calendarEventsPending,
@@ -609,22 +584,9 @@ function CalendarScreenContent({
     [rangeDayMap, showRecurring],
   );
 
-  const monthLabel = useMemo(
-    () =>
-      capitalizeFirstLetter(
-        format(currentMonth, "MMMM", { locale: dateFnsLocale }),
-      ),
-    [currentMonth, dateFnsLocale],
-  );
-  const currentYear = currentMonth.getFullYear();
 
-  const weekLabel = useMemo(() => {
-    const startLabel = format(weekStart, "MMM d", { locale: dateFnsLocale });
-    const endLabel = isSameMonth(weekStart, weekEnd)
-      ? format(weekEnd, "d", { locale: dateFnsLocale })
-      : format(weekEnd, "MMM d", { locale: dateFnsLocale });
-    return `${startLabel} - ${endLabel}`;
-  }, [weekStart, weekEnd, dateFnsLocale]);
+
+  const weekLabel = formatCalendarWeekLabel(weekStart, weekEnd, i18n.language);
 
   const prevMonth = useCallback(() => {
     setMonthSlide("left");
@@ -638,11 +600,10 @@ function CalendarScreenContent({
     setSelectedDay(formatAPIDate(month));
   }, [currentMonth, setSelectedDay]);
 
-  const selectYear = useCallback((year: number) => {
+  const selectMonth = useCallback((month: number, year: number) => {
     setMonthSlide(null);
-    const month = startOfMonth(setYear(currentMonth, year));
-    setSelectedDay(formatAPIDate(month));
-  }, [currentMonth, setSelectedDay]);
+    setSelectedDay(formatAPIDate(new Date(year, month, 1)));
+  }, [setSelectedDay]);
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null);
@@ -707,7 +668,6 @@ function CalendarScreenContent({
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
     [currentMonth, displayMonthDayMap, weekStartsOn, todayKey],
   );
-  const showMonthRecurringToggle = !isLoading && [...dayMap.values()].some((entries) => entries.length > 0);
   const monthDisplayState = resolveCalendarMonthDisplayState({
     currentMonth,
     today: todayKey,
@@ -856,8 +816,25 @@ function CalendarScreenContent({
     router.push(buildHabitCreateHref({ from: '/calendar' }));
   }, [router]);
 
+  const calendarHeader = (
+      <CalendarHeader
+        currentMonth={currentMonth}
+        todayKey={todayKey}
+        previousMonthLabel={t('common.previousMonth')}
+        nextMonthLabel={t('common.nextMonth')}
+        onPreviousMonth={prevMonth}
+        onNextMonth={nextMonth}
+        onCurrentMonth={goToCurrentMonth}
+        onSelectMonth={selectMonth}
+        tokens={tokens}
+        showMonthNavigation={view === 'month'}
+        viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
+      />
+  );
+
   const listHeader = (
     <>
+      {calendarHeader}
       <CalendarGrid
         gridDays={gridDays}
         weekdayHeaders={weekdayHeaders}
@@ -875,26 +852,6 @@ function CalendarScreenContent({
         todayKey={todayKey}
       />
 
-      {monthDisplayState === 'ready' ? (
-        <CalendarLegend
-          loggableLabel={t("calendar.legend.loggable")}
-          fullLabel={t("calendar.legend.full")}
-          partialLabel={t("calendar.legend.partial")}
-          noneLabel={t("calendar.legend.none")}
-          tokens={tokens}
-        />
-      ) : null}
-
-      {showMonthRecurringToggle ? (
-        <View style={styles.monthRecurringToggle}>
-          <ShowRecurringToggle
-            checked={showRecurring}
-            onChange={setShowRecurring}
-            label={t("calendar.showRecurring")}
-            tokens={tokens}
-          />
-        </View>
-      ) : null}
       <CalendarMonthFeedback
         state={monthDisplayState}
         emptyText={t('calendar.emptyMonth')}
@@ -946,24 +903,11 @@ function CalendarScreenContent({
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <CalendarHeader
-        monthLabel={monthLabel}
-        year={currentYear}
-        previousMonthLabel={t('common.previousMonth')}
-        nextMonthLabel={t('common.nextMonth')}
-        currentMonthLabel={t('calendar.goToCurrentMonth')}
-        selectYearLabel={t('common.selectYear')}
-        onPreviousMonth={prevMonth}
-        onNextMonth={nextMonth}
-        onCurrentMonth={goToCurrentMonth}
-        onSelectYear={selectYear}
-        tokens={tokens}
-        showMonthNavigation={view === 'month'}
-        viewSelector={<SegmentedControl<CalendarView> options={viewOptions} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
-      />
+      <CalendarOptions tokens={tokens} onGoogleCalendar={() => profile.hasProAccess ? openImport(null) : router.push('/upgrade')} />
 
       {activeError && (
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>
+          {calendarHeader}
           <View style={styles.errorWrap}>
             <View
               style={[
@@ -983,7 +927,6 @@ function CalendarScreenContent({
       )}
       {!activeError && view === "month" && (
         <FlatList
-          ref={calendarScrollRef}
           style={styles.container}
           data={EMPTY_LIST}
           keyExtractor={(_item, index) => String(index)}
@@ -992,15 +935,6 @@ function CalendarScreenContent({
           ListFooterComponent={listFooter}
           contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
-          onScroll={handleCalendarScroll}
-          scrollEventThrottle={16}
-        />
-      )}
-      {!activeError && view === "month" && (
-        <ScrollToTopButton
-          visible={showScrollTop}
-          onPress={scrollCalendarToTop}
-          bottom={24}
         />
       )}
       {!activeError && view !== "month" && (
@@ -1009,6 +943,7 @@ function CalendarScreenContent({
           contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
         >
+          {calendarHeader}
           {view === "week" ? (
             <CalendarWeekView
               columns={gridColumns}
@@ -1028,9 +963,6 @@ function CalendarScreenContent({
               allDayLabel={t("calendar.timeGrid.noSetTime")}
               nowLabel={t("calendar.timeGrid.now")}
               timeZone={profile.timeZone}
-              showRecurring={showRecurring}
-              onShowRecurringChange={setShowRecurring}
-              showRecurringLabel={t("calendar.showRecurring")}
               t={t}
               tokens={tokens}
             />
@@ -1047,9 +979,6 @@ function CalendarScreenContent({
               isLoading={rangeLoading}
               loadingLabel={t("common.loading")}
               stats={rangeStatTiles}
-              showRecurring={showRecurring}
-              onShowRecurringChange={setShowRecurring}
-              showRecurringLabel={t("calendar.showRecurring")}
               language={i18n.language}
               t={t}
               tokens={tokens}
@@ -1057,7 +986,7 @@ function CalendarScreenContent({
           ) : (
             <CalendarAgendaView
               startDate={agendaStart}
-              dayMap={rangeDayMap}
+              dayMap={displayRangeDayMap}
               displayTime={displayTime}
               language={i18n.language}
               todayKey={todayKey}
@@ -1158,10 +1087,6 @@ function createStyles() {
       paddingTop: 24,
     },
 
-    monthRecurringToggle: {
-      paddingHorizontal: 16,
-      paddingVertical: 4,
-    },
 
     errorWrap: {
       paddingHorizontal: 16,

@@ -27,7 +27,7 @@ export const useUIStore = create<UIStoreState>()(
       ),
     {
       name: 'orbit-ui-store',
-      version: 5,
+      version: 6,
       storage: createJSONStorage<PersistedUIState>(getPersistStorage),
       migrate: migratePersistedUIState,
       partialize: getPersistedUIState,

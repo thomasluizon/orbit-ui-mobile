@@ -1,6 +1,4 @@
-
-import { ActionRow } from '@/components/ui/action-row'
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import type { TFunction } from 'i18next'
@@ -8,11 +6,9 @@ import type { CalendarRangeModel } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
-import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
-import { ShowRecurringToggle } from './show-recurring-toggle'
 
 interface CalendarRangeViewProps {
   model: CalendarRangeModel
@@ -26,9 +22,6 @@ interface CalendarRangeViewProps {
   isLoading: boolean
   loadingLabel: string
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
-  showRecurring: boolean
-  onShowRecurringChange: (value: boolean) => void
-  showRecurringLabel: string
   language: string
   t: TFunction
   tokens: AppTokensV2
@@ -47,13 +40,12 @@ export function CalendarRangeView({
   isLoading,
   loadingLabel,
   stats,
-  showRecurring,
-  onShowRecurringChange,
-  showRecurringLabel,
   language,
   t,
   tokens,
 }: Readonly<CalendarRangeViewProps>) {
+  const { width } = useWindowDimensions()
+  const gridGap = width < 340 ? 0 : 4
   const locale = language === 'pt-BR' ? ptBR : enUS
   const words = {
     none: t('calendar.dayCell.none'),
@@ -72,41 +64,22 @@ export function CalendarRangeView({
       accessibilityState={{ busy: isLoading }}
       style={styles.container}
     >
-      <View style={styles.header}><ActionRow>
-        <Text numberOfLines={1} style={[styles.rangeLabel, { color: tokens.fg2 }]}>
+      <View style={styles.header}>
+        <Text style={[styles.rangeLabel, { color: tokens.fg2 }]}>
           {rangeLabel}
         </Text>
-        <PillButton
-          variant="ghost"
-          size="sm"
-          iconOnly
-          label={previousRangeLabel}
-          onClick={onPreviousRange}
-        >
-          <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
-        </PillButton>
-        <PillButton
-          variant="ghost"
-          size="sm"
-          iconOnly
-          label={nextRangeLabel}
-          onClick={onNextRange}
-          disabled={nextRangeDisabled}
-        >
-          <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
-        </PillButton>
-      </ActionRow></View>
-      <View style={styles.toggleRow}>
-        <ShowRecurringToggle
-          checked={showRecurring}
-          onChange={onShowRecurringChange}
-          label={showRecurringLabel}
-          tokens={tokens}
-        />
+        <Pressable accessibilityRole="button" accessibilityLabel={previousRangeLabel} onPress={onPreviousRange}
+          style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }]}>
+          <ChevronLeft size={20} strokeWidth={2} color={tokens.fg2} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={nextRangeLabel} onPress={onNextRange} disabled={nextRangeDisabled} accessibilityState={{ disabled: nextRangeDisabled }}
+          style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }, nextRangeDisabled && { opacity: 0.4 }]}>
+          <ChevronRight size={20} strokeWidth={2} color={tokens.fg2} />
+        </Pressable>
       </View>
       {isLoading ? (
         <>
-          <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
+          <View style={styles.grid}><MonthGrid weekdayLabels={[...weekdayLabels]} gap={gridGap} label={rangeLabel}>
             {Array.from({ length: gridCellCount }, (_, index) => (
               <View key={index} style={styles.daySlot}>
                 {index === 0 ? (
@@ -116,12 +89,12 @@ export function CalendarRangeView({
                 )}
               </View>
             ))}
-          </MonthGrid>
+          </MonthGrid></View>
           <CalendarStats stats={stats} state="loading" loadingLabel={loadingLabel} />
         </>
       ) : (
         <>
-          <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
+          <View style={styles.grid}><MonthGrid weekdayLabels={[...weekdayLabels]} gap={gridGap} label={rangeLabel}>
             {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
               <View key={`leading-${index}`} accessibilityElementsHidden style={styles.daySlot} />
             ))}
@@ -136,7 +109,7 @@ export function CalendarRangeView({
                 words={words}
               />
             ))}
-          </MonthGrid>
+          </MonthGrid></View>
 
           <CalendarStats stats={stats} />
         </>
@@ -146,15 +119,16 @@ export function CalendarRangeView({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 16, paddingHorizontal: 4, paddingTop: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  container: { gap: 16, paddingTop: 12 },
+  header: { paddingHorizontal: 16, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
+  grid: { width: '100%', maxWidth: 340, alignSelf: 'center', paddingHorizontal: 4 },
+  iconButton: { minHeight: 48, minWidth: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   rangeLabel: {
-    flex: 1,
+    width: '100%',
     minWidth: 0,
     fontFamily: 'GeistMono_400Regular',
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
-  toggleRow: { alignItems: 'flex-end', paddingHorizontal: 12 },
   daySlot: { width: 44, height: 44 },
 })
