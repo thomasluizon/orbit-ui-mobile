@@ -282,14 +282,14 @@ function AskAstraRow({ habit }: Readonly<{ habit: NormalizedHabit }>) {
 function MetricsSection({ visible, loading, metrics, isBadHabit }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean }>) {
   const t = useTranslations('habits.detail')
   if (!visible) return null
-  if (loading) return <div className="grid grid-cols-3 gap-2"><Skeleton variant="stat-tile" label={t('loading')} /><Skeleton variant="stat-tile" label={t('loading')} /><Skeleton variant="stat-tile" label={t('loading')} /></div>
+  if (loading) return <div role="status" aria-label={t('loading')} className="flex flex-wrap gap-2">{[isBadHabit ? 'daysFree' : 'currentStreak', 'longestStreak', 'monthlyRate'].map((key) => <div key={key} aria-hidden="true" className="flex flex-1" style={{ minWidth: 'max-content' }}><StatTile state="loading" label={t(key)} loadingLabel={t('loading')} /></div>)}</div>
   if (!metrics || metrics.totalCompletions === 0) return <p role="status" className="py-4 text-center text-sm text-[var(--fg-3)]">{t('noDataYet')}</p>
   const values = [
     { label: t(isBadHabit ? 'daysFree' : 'currentStreak'), value: String(metrics.currentStreak) },
     { label: t('longestStreak'), value: String(metrics.longestStreak) },
     { label: t('monthlyRate'), value: `${Math.round(metrics.monthlyCompletionRate)}%` },
   ]
-  return <div className="grid grid-cols-3 gap-2">{values.map((item) => <StatTile key={item.label} label={item.label} value={item.value} />)}</div>
+  return <div className="flex flex-wrap gap-2">{values.map((item) => <StatTile key={item.label} label={item.label} value={item.value} />)}</div>
 }
 
 function useHabitRescue({ habitId, isBadHabit, slipping, overdue, hasProAccess, locale }: Readonly<{ habitId: string; isBadHabit: boolean; slipping: boolean; overdue: boolean; hasProAccess: boolean; locale: string }>) {

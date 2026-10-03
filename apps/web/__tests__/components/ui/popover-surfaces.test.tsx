@@ -6,6 +6,8 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { Menu } from '@/components/ui/menu'
 
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 

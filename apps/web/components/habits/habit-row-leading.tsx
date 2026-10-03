@@ -9,7 +9,6 @@ interface HabitRowLeadingProps {
   wellRadius: number
 }
 
-/** Emoji well. Disclosure and selection are structural sibling columns owned by the list. */
 export function HabitRowLeading({
   title,
   emoji,
@@ -18,26 +17,28 @@ export function HabitRowLeading({
   wellRadius,
 }: Readonly<HabitRowLeadingProps>) {
   return (
-    <span
-      aria-hidden="true"
-      className="shrink-0 inline-flex items-center justify-center"
-      style={{
-        width: wellSize,
-        height: wellSize,
-        borderRadius: wellRadius,
-        background: 'var(--bg-well)',
-        fontSize: emoji ? emojiSize : emojiSize - 4,
-        lineHeight: 1,
-        ...(emoji
-          ? {}
-          : {
-              fontFamily: 'var(--font-sans)',
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-            }),
-      }}
-    >
-      {emoji || habitInitial(title)}
+    <span className="flex w-[48px] shrink-0 items-center" aria-hidden="true">
+      <span
+        aria-hidden="true"
+        className="shrink-0 inline-flex items-center justify-center"
+        style={{
+          width: wellSize,
+          height: wellSize,
+          borderRadius: wellRadius,
+          background: 'var(--bg-well)',
+          fontSize: emoji ? emojiSize : emojiSize - 4,
+          lineHeight: 1,
+          ...(emoji
+            ? {}
+            : {
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+              }),
+        }}
+      >
+        {emoji || habitInitial(title)}
+      </span>
     </span>
   )
 }

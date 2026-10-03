@@ -18,6 +18,7 @@ import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-hab
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
@@ -228,6 +229,14 @@ export function CreateHabitModal({
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => finishClose(pendingNavigation.current ?? onClose),
+  })
+  useHabitCreateNavigationGuard({
+    active: open && presentation === 'screen',
+    leaving: leaveAction !== null,
+    onNavigate: (action) => {
+      pendingNavigation.current = action
+      dismissGuard.requestDismiss()
+    },
   })
   useOverlayBack(open && presentation === 'screen', dismissGuard.requestDismiss)
   const navigateToUpgrade = useCallback(() => {

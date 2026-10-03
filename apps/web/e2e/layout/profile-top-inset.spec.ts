@@ -32,20 +32,39 @@ for (const locale of ['en', 'pt-BR'] as const) {
           (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
           (route) => route.fulfill({ json: goals }),
         )
+        await page.goto('/')
+        const todayBell = page.locator('[data-today-header-actions]').getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) })
+        if (width < 1024) await expect(todayBell).toBeVisible()
+        const todayBellBounds = width < 1024 ? await todayBell.boundingBox() : null
         await page.goto('/profile')
         const firstCard = page.getByTestId('profile-settings-group-you').locator('.orbit-row-list')
         await expect(firstCard).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
+        await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width)
         const profileInset = await measureTopInset(firstCard)
         expect(profileInset.column).toBeGreaterThanOrEqual(16)
-        expect(profileInset).toEqual({ column: width < 1024 ? 16 : 32, scroller: width < 1024 ? 16 : 0 })
+        expect(profileInset).toEqual({ column: width < 1024 ? 76 : 32, scroller: width < 1024 ? 76 : 0 })
 
         await page.goto('/progress')
         const streak = page.getByRole('region', { name: words.progressScreen.sections.streak, exact: true })
         await expect(streak).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
-        expect(await measureTopInset(streak)).toEqual({ column: width < 1024 ? 16 : 48, scroller: 16 })
+        await assertBellRow(page.locator('[data-root-notification-header]'), todayBellBounds?.x, width)
+        expect(await measureTopInset(streak)).toEqual({ column: width < 1024 ? 96 : 48, scroller: width < 1024 ? 96 : 16 })
       })
     })
   }
+}
+
+async function assertBellRow(row: Locator, todayBellX: number | undefined, width: number) {
+  if (width >= 1024) {
+    await expect(row).toHaveCount(0)
+    return
+  }
+  await expect(row).toBeVisible()
+  const bounds = await row.boundingBox()
+  expect(bounds!.height).toBe(48)
+  const bell = await row.getByRole('button').boundingBox()
+  expect(bell!.x).toBe(todayBellX)
+  expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)
 }

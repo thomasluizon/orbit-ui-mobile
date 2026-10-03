@@ -458,6 +458,7 @@ describe('web useChatComposer streaming send', () => {
     useUIStore.getState().setCalendarHasError(false)
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   })
 
   afterEach(() => {
@@ -1622,7 +1623,7 @@ describe('web useChatComposer streaming send', () => {
     }
 
     const view = render(<TodayComposer />)
-    const chip = screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read"}' })
+    const chip = screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit' })
     act(() => chip.focus())
     expect(chip).toHaveFocus()
 
@@ -1637,10 +1638,10 @@ describe('web useChatComposer streaming send', () => {
       totalCount: 2,
     }
     view.rerender(<TodayComposer />)
-    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read outside"}' })).toBe(chip)
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit' })).toBe(chip)
     expect(chip).toHaveFocus()
-    expect(screen.queryByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read"}' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.moveOverdue:{"title":"Walk"}' })).toBeInTheDocument()
+    expect(chip).not.toHaveTextContent('Read outside')
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.moveOverdue' })).toBeInTheDocument()
   })
 
   it('gates Calendar chips on the Calendar error rather than the Today query', () => {
@@ -1673,6 +1674,22 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe(suggestion.label)
+  })
+
+  it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const title = 'Read a chapter with "quotes" and accents á '.repeat(5)
+    const habit = createMockHabit({ title, isOverdue: true, hasSubHabits: true, isCompleted: action === 'reviewHabit' })
+    mocks.state.habitData = { topLevelHabits: [habit], totalCount: 1 }
+    mocks.state.profile = createMockProfile({ lastCompletionDate: action === 'keepOnlyHabit' ? '2026-09-08' : null })
+    const surface = action === 'createGoal' ? 'progress' : 'today'
+    const { result } = renderHook(() => useChatComposer({ pathname: surface === 'progress' ? '/progress' : '/' }))
+    const suggestion = result.current.composerProps.suggestions.find(chip => chip.id === `${surface}.${action}`)!
+    expect(suggestion.label).toBe(`shell.composer.chips.${surface}.${action}`)
+    act(() => suggestion.onSelect())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody = mocks.fetch.mock.calls[0]![1].body as FormData
+    expect(requestBody.get('message')).toBe(`shell.composer.prompts.${surface}.${action}:${JSON.stringify({ title })}`)
   })
 
   it('keeps a Progress goal request available beside an existing draft', async () => {

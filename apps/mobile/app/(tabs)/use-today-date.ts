@@ -33,6 +33,7 @@ export interface TodayDate {
   selectedDateStr: string
   selectedDate: Date
   dateStr: string
+  shortDayName: string
   dayName: string
   numericDate: string
   nextDisabled: boolean
@@ -109,6 +110,7 @@ export function useTodayDate(): TodayDate {
     selectedDateStr,
     selectedDate,
     dateStr: formatAPIDate(selectedDate),
+    shortDayName: formatLocaleDate(selectedDate, i18n.language, { weekday: 'short' }),
     dayName,
     numericDate: formatLocaleDayMonth(selectedDate, i18n.language),
     nextDisabled: !canNavigateToNextDay(selectedDateStr, today),

@@ -24,7 +24,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/progress', useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/app/(app)/progress/_components/use-goal-drag', () => ({
   useGoalDrag: () => ({ sensors: [], onDragEnd: vi.fn() }),
 }))
@@ -81,7 +82,7 @@ vi.mock('@/hooks/use-retrospective', () => ({
     refetch: vi.fn(),
   }),
 }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => false }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => false, useIsWideDesktop: () => false }))
 
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 

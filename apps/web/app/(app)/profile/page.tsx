@@ -1,5 +1,7 @@
 'use client'
 
+import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
+
 import { useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getProfileSectionDestination } from '@orbit/shared/utils/profile-routes'
@@ -19,6 +21,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col pt-4 lg:pt-0" style={{ gap: 12 }}>
+      <RootNotificationHeader />
       <h1 className="sr-only" tabIndex={-1}>{t('nav.profile')}</h1>
       {error ? (
         <p className="px-4 text-center font-sans text-[14px] text-[var(--status-bad-text)]">

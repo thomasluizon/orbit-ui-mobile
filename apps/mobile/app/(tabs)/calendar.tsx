@@ -87,6 +87,7 @@ import { CalendarDayEvents } from './calendar/_components/calendar-day-events';
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content';
 import { plural } from '@/lib/plural';
 import { CalendarStats } from "./calendar/_components/calendar-stats";
+import { CalendarEntryDetails } from './calendar/_components/calendar-entry-details';
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
@@ -206,6 +207,8 @@ function CalendarAgendaView({
   styles,
   tokens,
 }: Readonly<CalendarAgendaViewProps>) {
+  const { t } = useTranslation();
+  const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null);
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) });
 
   return (
@@ -256,9 +259,13 @@ function CalendarAgendaView({
                     compact
                     key={entry.habitId}
                     title={entry.title}
-                    value={entry.dueTime ? displayTime(entry.dueTime) : undefined}
-                    readOnly
-                    wrapTitle
+                    description={entry.dueTime ? displayTime(entry.dueTime) : undefined}
+                    textMode="personal"
+                    chevron={false}
+                    accessibilityLabel={entry.dueTime
+                      ? t('calendar.agenda.timedEntryLabel', { title: entry.title, time: displayTime(entry.dueTime) })
+                      : entry.title}
+                    onClick={() => setSelectedEntry(entry)}
                   />
                 ))}
               </View>
@@ -266,6 +273,7 @@ function CalendarAgendaView({
           </View>
         );
       })}
+      {selectedEntry ? <CalendarEntryDetails entries={[selectedEntry]} title={t('calendar.entryDetails')} displayTime={displayTime} onClose={() => setSelectedEntry(null)} /> : null}
     </View>
   );
 }

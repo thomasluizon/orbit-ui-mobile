@@ -63,7 +63,9 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
 
   const content = (
     <>
-      <AstraGlyph size={20} color="var(--fg-3)" />
+      <span aria-hidden="true" className="relative flex w-[48px] shrink-0 items-center justify-center">
+        <AstraGlyph size={20} color="var(--fg-3)" />
+      </span>
       <span className="today-astra-sentence">{line.text}</span>
     </>
   )

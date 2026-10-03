@@ -104,7 +104,7 @@ const mocks = vi.hoisted(() => ({
         bestStreak: 9,
         badHabitSlips: 0,
         weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
-        topHabits: [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
+        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
         needsAttention: [],
       },
       narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
@@ -162,7 +162,10 @@ vi.mock('react-i18next', async () => {
     }),
   }
 })
-vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+
+vi.mock('expo-router', () => ({
+  usePathname: () => '/progress', useRouter: () => mocks.router }))
 vi.mock('react-native-draggable-flatlist', () => ({
   NestableScrollContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   NestableDraggableFlatList: ({ data, renderItem, ...props }: {
@@ -291,6 +294,14 @@ function findProgressHeadingFocusTarget(root: TestNode) {
   const target = (heading?.props.focusRef as { current?: unknown } | undefined)?.current
   if (!target) throw new Error('Progress heading focus target missing')
   return target
+}
+
+async function selectGoalFilter(tree: TestTree, view: string) {
+  const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.goals.filter:'))[0]!
+  await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
+  const option = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox'
+    && node.findAll((child) => child.type === 'Text' && child.props.children === `progressScreen.goals.${view}`).length > 0)[0]!
+  await TestRenderer.act(async () => { (option.props.onPress as () => void)(); await Promise.resolve() })
 }
 
 describe('mobile ProgressContent', () => {
@@ -455,15 +466,11 @@ describe('mobile ProgressContent', () => {
       ['completed', 'Completed goal'],
       ['abandoned', 'Abandoned goal'],
     ] as const) {
-      const segment = tree.root.findAll((node) => typeof node.type === 'string'
-        && String(node.props.testID).startsWith(`segment-${view}-`))[0]!
-      await TestRenderer.act(() => (segment.props.onPress as () => void)())
+      await selectGoalFilter(tree, view)
       expect(cards()).toHaveLength(1)
       expect(cards()[0]!.props.accessibilityLabel).toContain(`\"title\":\"${visible}\"`)
     }
-    const all = tree.root.findAll((node) => typeof node.type === 'string'
-      && String(node.props.testID).startsWith('segment-all-'))[0]!
-    await TestRenderer.act(() => (all.props.onPress as () => void)())
+    await selectGoalFilter(tree, 'all')
     expect(cards()).toHaveLength(3)
   })
 
@@ -501,8 +508,7 @@ describe('mobile ProgressContent', () => {
     const card = findGoalCard(tree.root, 'Read 12 Books')
     expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-outline')).toHaveLength(1)
     expect(card.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
-    const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-completed-unselected-enabled')[0]!
-    await TestRenderer.act(() => (tab.props.onPress as () => void)())
+    await selectGoalFilter(tree, 'completed')
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.filterEmpty').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty')).toHaveLength(0)
     await TestRenderer.act(() => (findPill(tree.root, 'progressScreen.goals.clearFilter').props.onPress as () => void)())
@@ -522,8 +528,7 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(() => vi.advanceTimersByTime(1))
     expect(mocks.drag).toHaveBeenCalledTimes(1)
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
-    const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-active-unselected-enabled')[0]!
-    await TestRenderer.act(() => (tab.props.onPress as () => void)())
+    await selectGoalFilter(tree, 'active')
     expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
     expect(findGoalCard(tree.root, 'Read 12 Books').props.accessibilityActions).toBeUndefined()
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
@@ -610,7 +615,7 @@ describe('mobile ProgressContent', () => {
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
     mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
-    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
@@ -796,9 +801,35 @@ describe('mobile ProgressContent', () => {
     expect(figures).toEqual([
       { label: 'progressScreen.window.completionRate', value: '75%' },
       { label: 'progressScreen.window.activeDays', value: 12 },
-      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysValue.thursday' },
-      { label: 'progressScreen.window.topHabit', value: 'Read' },
+      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysAbbreviated.thursday' },
     ])
+  })
+
+  it('gives a long emoji habit the full static row and accessible title', async () => {
+    const name = 'Read a long chapter title before the morning conversation '.repeat(5)
+    mocks.retrospective.data.metrics.topHabits[0]!.name = name
+    mocks.retrospective.data.metrics.topHabits[0]!.emoji = '📚'
+    const tree = await renderProgress()
+    const row = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
+    const title = row.findAll((node) => node.type === 'Text' && node.props.accessibilityLabel === name)[0]!
+    expect(title.props.children).toBe(`📚 ${name}`)
+    expect(title.props.numberOfLines).toBe(2)
+    expect(title.props.selectable).toBe(true)
+    expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+  })
+
+  it('discloses the streak legend and keeps the top habit outside the figures', async () => {
+    const tree = await renderProgress()
+    const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
+    expect(figures).toHaveLength(3)
+    expect(figures[2]!.props.value).toBe('dates.daysAbbreviated.thursday')
+    const habit = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
+    expect(habit.findAll((node) => node.type === 'Text' && node.props.children === 'Read')).toHaveLength(1)
+    expect(habit.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.streak.active')).toHaveLength(0)
+    const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.legend')[0]!
+    await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.streak.active')).toHaveLength(1)
   })
 
   it('renders pay-gate refusals as the three locked sections', async () => {
@@ -903,17 +934,17 @@ describe('mobile ProgressContent', () => {
 
     const tree = await renderProgress()
     const emptyFigures = tree.root.findAll((node) => node.type === 'StatTile' && node.props.state === 'empty')
-    expect(emptyFigures).toHaveLength(2)
+    expect(emptyFigures).toHaveLength(1)
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === 18)).toHaveLength(0)
   })
 
-  it.each([[412, 2], [768, 4]] as const)('at %ipx lays out the figures in %i columns', async (width, columns) => {
-    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+  it.each([[320, 1, 1], [360, 1, 2], [384, 1, 2], [412, 1, 2], [768, 1, 3], [320, 2, 1], [360, 2, 1], [384, 2, 1], [412, 2, 1]] as const)('at %ipx and text scale %i lays out the figures in %i columns', async (width, fontScale, columns) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale })
     const tree = await renderProgress()
     const rows = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-window-row')
-    expect(rows).toHaveLength(4 / columns)
+    expect(rows).toHaveLength(Math.ceil(3 / columns))
     for (const row of rows) {
-      expect(row.findAll((node) => node.type === 'StatTile')).toHaveLength(columns)
+      expect(row.findAll((node) => node.type === 'StatTile')).toHaveLength(Math.min(columns, 3 - rows.indexOf(row) * columns))
     }
     dimensions.mockRestore()
   })
@@ -1379,8 +1410,7 @@ describe('mobile ProgressContent', () => {
     mocks.reorder.isError = true
     await TestRenderer.act(async () => { tree.update(<ProgressScreen />); await Promise.resolve() })
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert')).toHaveLength(1)
-    const active = tree.root.findAll((node) => String(node.props.testID).startsWith('segment-active-'))[0]!
-    await TestRenderer.act(() => (active.props.onPress as () => void)())
+    await selectGoalFilter(tree, 'active')
     expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.accessibilityActions !== undefined)).toHaveLength(0)
   })
@@ -1544,8 +1574,7 @@ describe('mobile ProgressContent', () => {
     mocks.goals.data.allGoals = [openingGoal, survivingGoal]
     accessibilityMocks.sendAccessibilityEvent.mockReset()
     const tree = await renderProgress()
-    const activeFilter = tree.root.findAll((node) => node.props.testID === 'segment-active-unselected-enabled')[0]!
-    TestRenderer.act(() => (activeFilter.props.onPress as () => void)())
+    await selectGoalFilter(tree, 'active')
     TestRenderer.act(() => (findGoalCard(tree.root, openingGoal.title).props.onPress as () => void)())
 
     const updatedGoal = updateGoal(openingGoal)
@@ -1616,4 +1645,13 @@ describe('mobile ProgressContent', () => {
     expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(0)
   })
 
+})
+
+it('places the Progresso bell in the scrolling root and opens Avisos', async () => {
+  const tree = await renderProgress()
+  const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'root-notification-header')[0]!
+  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, justifyContent: 'flex-end' })
+  const bell = row.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
+  TestRenderer.act(() => (bell.props.onPress as () => void)())
+  expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
 })

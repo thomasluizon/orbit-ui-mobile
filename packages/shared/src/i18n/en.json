@@ -56,6 +56,7 @@
     "action": "Go to Today"
   },
   "notifications": {
+    "options": "Alert options",
     "title": "Alerts",
     "bell": "Alerts",
     "bellWithCount": "Alerts, {count} unread",
@@ -66,10 +67,11 @@
     "deleteError": "Couldn't delete that alert. Try again.",
     "deleteAllError": "Couldn't clear the alerts. Try again.",
     "markAllRead": "Mark all read",
+    "markAllReadMenu": "Mark all read",
     "markAsRead": "Mark as read",
     "markRead": "Mark {title} as read",
     "deleteAll": "Clear all",
-    "deleteAllAction": "Delete notifications",
+    "deleteAllAction": "Delete",
     "deleteAllConfirmTitle": "Delete all alerts?",
     "deleteAllConfirmDescription": "{count, plural, one {The alert leaves the list.} other {All # alerts leave the list.}} There is no way to undo this.",
     "delete": "Delete",
@@ -90,6 +92,7 @@
     "openIn": "Open in {target}"
   },
   "common": {
+    "options": "Options",
     "backToToday": "Back to today",
     "backToParentHabit": "Back to parent habit",
     "backToDestination": "Back to {destination}",
@@ -238,30 +241,30 @@
       },
       "chips": {
         "today": {
-          "moveOverdue": "Move \"{title}\" to tonight",
-          "logHabit": "Log \"{title}\"",
+          "moveOverdue": "Move a habit to tonight",
+          "logHabit": "Log your next habit",
           "logYesterday": "Log yesterday",
           "pushTomorrow": "Push everything to tomorrow",
-          "trimHabit": "Simplify \"{title}\"",
+          "trimHabit": "Simplify habit steps",
           "createMorningHabit": "Create a morning habit",
           "logLastDays": "Log the last days",
           "resumeHabits": "Pick the habits back up",
           "cutToTwo": "Cut to two a day",
           "changeTimes": "Change the times",
           "pauseWhatDoesNotFit": "Pause what does not fit",
-          "keepOnlyHabit": "Keep only \"{title}\"",
+          "keepOnlyHabit": "Keep only one habit",
           "buildMorningRoutine": "Build a morning routine",
           "startOneHabit": "Start with one habit",
           "suggestThreeHabits": "Suggest three habits",
           "createEveningHabit": "Create an evening habit",
-          "reviewHabit": "Review \"{title}\""
+          "reviewHabit": "Review habit steps"
         },
         "calendar": {
           "slippedThisWeek": "What slipped this week",
           "syncCalendar": "Sync my calendar"
         },
         "progress": {
-          "createGoal": "Create a goal for {title}",
+          "createGoal": "Add a goal to a habit",
           "brokenStreak": "Why the streak broke",
           "trimGoals": "Trim my goals",
           "stuckThisWeek": "What is getting stuck this week"
@@ -276,6 +279,18 @@
           "askAstra": "Ask Astra",
           "pauseThisWeek": "Pause this week",
           "rename": "Rename"
+        }
+      },
+      "prompts": {
+        "today": {
+          "moveOverdue": "Move \"{title}\" to tonight",
+          "logHabit": "Log \"{title}\"",
+          "trimHabit": "Simplify \"{title}\"",
+          "keepOnlyHabit": "Keep only \"{title}\"",
+          "reviewHabit": "Review \"{title}\""
+        },
+        "progress": {
+          "createGoal": "Create a goal for {title}"
         }
       },
       "inputLabel": "Ask Astra",
@@ -357,6 +372,15 @@
     "tomorrow": "Tomorrow",
     "nextDay": "Next day",
     "previousDay": "Previous day",
+    "daysAbbreviated": {
+      "monday": "Mon",
+      "tuesday": "Tue",
+      "wednesday": "Wed",
+      "thursday": "Thu",
+      "friday": "Fri",
+      "saturday": "Sat",
+      "sunday": "Sun"
+    },
     "daysShort": {
       "monday": "Mon",
       "tuesday": "Tue",
@@ -502,7 +526,9 @@
     "searchPlaceholder": "Search habits...",
     "closeSearch": "Close search",
     "showCompleted": "Show completed",
+    "showCompletedMenu": "Show done",
     "hideCompleted": "Hide completed",
+    "hideCompletedMenu": "Hide done",
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
     "refresh": "Refresh",
@@ -941,7 +967,8 @@
   "calendar": {
     "agenda": {
       "today": "Today",
-      "empty": "Nothing scheduled"
+      "empty": "Nothing scheduled",
+      "timedEntryLabel": "{title}, {time}"
     },
     "legend": {
       "loggable": "can log",
@@ -960,9 +987,9 @@
       "selected": "selected",
       "readOnly": "read only"
     },
-    "bestStreak": "Best streak",
-    "totalLogs": "Logs",
-    "missedCount": "Missed",
+    "bestStreak": "Best",
+    "totalLogs": "Logged",
+    "missedCount": "Not logged",
     "emptyMonth": "No habit was scheduled in this month.",
     "futureMonth": "This month has not arrived yet.",
     "emptyStat": "no data",
@@ -1015,14 +1042,21 @@
       "pickEndHint": "Now pick the end day",
       "rangeMaxDays": "Range limited to {max} days.",
       "empty": "Nothing scheduled",
-      "moreLabel": "{count} more"
+      "moreLabel": "{count} more",
+      "untimedCount": "{count} without a set time"
     },
     "status": {
       "completed": "done",
       "missed": "not logged",
       "indulged": "indulged",
-      "resisted": "resisted"
+      "resisted": "resisted",
+      "upcoming": "scheduled"
     },
+    "entryDetails": "Details",
+    "entrySearch": "Search",
+    "entrySearchEmpty": "No matches for \"{query}\"",
+    "entryLabel": "{title}, {time}, {status}",
+    "entryMeta": "{time} · {status}",
     "completionHistory": "Completion History",
     "showRecurring": "Show habits that repeat",
     "googleCalendar": "Google Calendar",
@@ -2891,6 +2925,7 @@
       "missed": "day missed",
       "today": "Today",
       "legend": "Streak day legend",
+      "legendTitle": "Legend",
       "banked": "Banked",
       "used": "Used this month",
       "next": "Next freeze",
@@ -2920,6 +2955,7 @@
     },
     "goals": {
       "views": "Goal views",
+      "filter": "Filter",
       "targetReached": "Target reached",
       "reorderError": "Could not save the new order. Try dragging again.",
       "all": "All",
@@ -2950,12 +2986,12 @@
       "empty": "Nothing to measure yet",
       "emptyAction": "Start a habit",
       "chartLabel": "Last 30 days",
-      "completionRate": "Completion rate",
-      "activeDays": "Days logged",
-      "bestWeekday": "Best day of the week",
-      "bestWeekdayEmpty": "No best day yet",
-      "topHabit": "Most consistent habit",
-      "topHabitEmpty": "No consistent habit yet",
+      "completionRate": "Completion",
+      "activeDays": "Active days",
+      "bestWeekday": "Best day",
+      "bestWeekdayEmpty": "No data",
+      "topHabit": "Top habit",
+      "topHabitEmpty": "No data",
       "lockedTitle": "Thirty day figures",
       "lockedBody": "Orbit Pro shows your rolling thirty day figures.",
       "lockedAction": "See Orbit Pro"

@@ -3,6 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { DestinationShell } from '@/components/shell/destination-shell'
+import { getCurrentRouteTransitionIntent, resetRouteTransitionIntent } from '@/lib/motion/route-intent'
+import { within } from '@testing-library/react'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -34,6 +37,9 @@ const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
 const mockFormStatus = vi.hoisted(() => ({ dirty: false }))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 const mockLocale = vi.hoisted(() => ({ value: 'en' }))
+const mockShell = vi.hoisted(() => ({ wide: false }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mockShell.wide, useIsDesktop: () => mockShell.wide }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 const mockHabitFormFieldsState = vi.hoisted(() => ({
   onSuggestSetup: undefined as undefined | (() => HabitFormProposal | null | Promise<HabitFormProposal | null>),
   onSuggestionContextChange: undefined as undefined | (() => void),
@@ -63,6 +69,8 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/habits/new',
+  useParams: () => ({}),
   useRouter: () => ({
     push: mockPush,
     replace: vi.fn(),
@@ -87,7 +95,7 @@ vi.mock('@/hooks/use-habits', () => ({
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => mockProfileState.hasProAccess,
   useProfile: () => ({
-    profile: { hasProAccess: mockProfileState.hasProAccess },
+    profile: { name: '', email: 'person@example.test', hasProAccess: mockProfileState.hasProAccess },
   }),
 }))
 
@@ -279,6 +287,8 @@ describe('CreateHabitModal', () => {
     Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
     vi.clearAllMocks()
     mockFormStatus.dirty = false
+    mockShell.wide = false
+    resetRouteTransitionIntent()
     mockHabitFormFieldsState.onSuggestSetup = undefined
     mockProfileState.hasProAccess = true
     mockLocale.value = 'en'
@@ -346,6 +356,49 @@ describe('CreateHabitModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => expect(close).toHaveBeenCalledWith(false))
     expect(rejectedDestination).not.toHaveBeenCalled()
+  })
+
+  it.each(['cancel', 'confirm'] as const)('guards the wide sidebar bell and handles %s through the creation exit', async (choice) => {
+    history.pushState(null, '', '/search')
+    history.pushState(null, '', '/habits/new?from=/search')
+    mockFormStatus.dirty = true
+    mockShell.wide = true
+    mockPush.mockImplementationOnce((href: string) => history.pushState(null, '', href))
+    const close = vi.fn()
+    const mounted = renderWithProviders(<DestinationShell onCreate={vi.fn()}>
+      <CreateHabitModal open presentation="screen" onOpenChange={close} />
+    </DestinationShell>)
+    fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+    const sidebar = mounted.container.querySelector<HTMLElement>('[data-shell-sidebar]')!
+    const bell = within(sidebar).getByRole('button', { name: 'notifications.bell' })
+    resetRouteTransitionIntent()
+    fireEvent.click(bell)
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+    expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument()
+    if (choice === 'cancel') {
+      fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+      expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+      expect(location.pathname).toBe('/habits/new')
+      expect(mockPush).not.toHaveBeenCalled()
+      expect(getCurrentRouteTransitionIntent()).toBe('neutral')
+      fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
+      fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+      await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+      expect(mockPush).not.toHaveBeenCalled()
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+      await waitFor(() => expect(location.pathname).toBe('/notifications'))
+      expect(mockPush).toHaveBeenCalledExactlyOnceWith('/notifications')
+      expect(close).not.toHaveBeenCalled()
+      mounted.unmount()
+      await traverseHistory('back')
+      expect(location.pathname).toBe('/search')
+      await traverseHistory('forward')
+      expect(location.pathname).toBe('/notifications')
+    }
+    mounted.unmount()
+    mockPush.mockReset()
   })
 
   it('removes the creation sentinel after native fragment navigation and approved Back', async () => {

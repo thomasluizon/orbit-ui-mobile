@@ -7,6 +7,7 @@ import { BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/th
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
+import { ShellHeaderSlotProvider, useShellHeaderHost } from './shell-header-slot'
 import { KeyboardAwareView } from '@/components/ui/keyboard-aware-scroll-view'
 import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell-scroller-clearance'
 
@@ -59,6 +60,8 @@ function ShellBottomChrome({
 }
 
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
+  const registeredHeader = useShellHeaderHost()
+  const header = registeredHeader.content ?? props.header
   const registeredComposer = useShellComposerHost()
   const registeredNotice = useShellNoticeHost()
   const navigationEnabled = props.nav !== false
@@ -102,9 +105,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         style={[styles.background, { width: columnWidth, paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
         importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
       >
-        {props.header !== undefined ? (
-          navigationEnabled ? <View testID="shell-header">{props.header}</View> : (
-            <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{props.header}</ScrollView>
+        {header !== undefined ? (
+          navigationEnabled ? <View testID="shell-header">{header}</View> : (
+            <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{header}</ScrollView>
           )
         ) : null}
 
@@ -141,15 +144,17 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   )
 
   return (
-    <ShellNoticeSlotProvider value={registeredNotice.value}>
-      <ShellComposerSlotProvider value={registeredComposer.value}>
-        <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
-          <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
-            {shell}
-          </ShellScrollerClearanceContext.Provider>
-        </KeyboardAwareView>
-      </ShellComposerSlotProvider>
-    </ShellNoticeSlotProvider>
+    <ShellHeaderSlotProvider value={registeredHeader.value}>
+      <ShellNoticeSlotProvider value={registeredNotice.value}>
+        <ShellComposerSlotProvider value={registeredComposer.value}>
+          <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
+            <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
+              {shell}
+            </ShellScrollerClearanceContext.Provider>
+          </KeyboardAwareView>
+        </ShellComposerSlotProvider>
+      </ShellNoticeSlotProvider>
+    </ShellHeaderSlotProvider>
   )
 }
 

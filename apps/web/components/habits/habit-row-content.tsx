@@ -54,7 +54,7 @@ export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
       className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
       style={{
         ...TITLE_TEXT_STYLE_BASE,
-        fontSize: size,
+        fontSize: `${size / 16}rem`,
         color,
       }}
     >
@@ -65,15 +65,17 @@ export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
 
 interface MetaStripProps {
   tokens: HabitRowMetaToken[]
+  expanded?: boolean
 }
 
-export function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
+export function MetaStrip({ tokens, expanded = false }: Readonly<MetaStripProps>) {
   return (
     <span
-      className="habit-row-meta min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
+      data-habit-row-meta=""
+      className={`habit-row-meta block min-w-0 ${expanded ? 'whitespace-normal' : 'overflow-hidden whitespace-nowrap text-ellipsis'}`}
       style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: 13,
+        fontSize: '0.8125rem',
         fontVariantNumeric: 'tabular-nums',
       }}
     >

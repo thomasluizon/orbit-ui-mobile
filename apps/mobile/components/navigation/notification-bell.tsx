@@ -3,6 +3,7 @@ import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Bell } from '@/components/ui/icons'
 import { useNotificationInbox } from '@/hooks/use-notification-inbox'
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { plural } from '@/lib/plural'
@@ -13,7 +14,10 @@ export function NotificationBell() {
   const pathname = usePathname()
   const { visibleUnreadCount: count } = useNotificationInbox()
   return <NotificationBellDisplay count={count}
-    onPress={pathname === '/notifications' ? undefined : () => router.push('/notifications')} />
+    onPress={pathname === '/notifications' ? undefined : () => requestHabitCreateNavigation(
+      () => router.push('/notifications'),
+      () => router.replace('/notifications'),
+    )} />
 }
 
 export function NotificationBellDisplay({ count, onPress }: { count: number; onPress?: () => void }) {

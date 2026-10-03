@@ -1712,6 +1712,23 @@ describe('mobile useChatComposer', () => {
     appendFormPart.mockRestore()
   })
 
+  it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    const title = 'Read a chapter with "quotes" and accents á '.repeat(5)
+    const habit = createMockHabit({ title, isOverdue: true, hasSubHabits: true, isCompleted: action === 'reviewHabit' })
+    mocks.state.habitData = { topLevelHabits: [habit], totalCount: 1 }
+    mocks.state.profile = createMockProfile({ lastCompletionDate: action === 'keepOnlyHabit' ? '2026-09-08' : null })
+    const surface = action === 'createGoal' ? 'progress' : 'today'
+    const composer = await renderComposer({ pathname: surface === 'progress' ? '/progress' : '/' })
+    const suggestion = composer.current.composerProps.suggestions.find(chip => chip.id === `${surface}.${action}`)!
+    expect(suggestion.label).toBe(`shell.composer.chips.${surface}.${action}`)
+    TestRenderer.act(() => suggestion.onSelect())
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    expect(appendFormPart).toHaveBeenCalledWith('message', `shell.composer.prompts.${surface}.${action}:${JSON.stringify({ title })}`)
+    appendFormPart.mockRestore()
+  })
+
   it('keeps a Progress goal request available beside an existing draft', async () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     useChatStore.setState({ draft: 'Unsent note', contextualSuggestion: {

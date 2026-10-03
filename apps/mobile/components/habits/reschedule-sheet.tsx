@@ -1,5 +1,4 @@
 
-import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useMemo } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -119,7 +118,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (hasProAccess && isLoading) return null
     if (!hasProAccess) {
       return (
-        <ActionRow>
+        <>
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
@@ -136,23 +135,23 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           >
             {t('habits.reschedule.upgrade')}
           </PillButton>
-        </ActionRow>
+        </>
       )
     }
     if (error) {
       return (
-        <ActionRow>
+        <>
           <PillButton variant="ghost" size="sm" onClick={() => closeSheet()}>
             {t('habits.reschedule.dismiss')}
           </PillButton>
           <PillButton variant={filledVariant} size="sm" onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
-        </ActionRow>
+        </>
       )
     }
     return (
-      <ActionRow>
+      <>
         <PillButton variant="ghost" size="sm" disabled={updateHabit.isPending} onClick={() => closeSheet()}>
           {t('habits.reschedule.dismiss')}
         </PillButton>
@@ -166,7 +165,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         >
           {t('habits.reschedule.accept')}
         </PillButton>
-      </ActionRow>
+      </>
     )
   }
 

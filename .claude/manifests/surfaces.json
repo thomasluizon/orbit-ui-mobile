@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 214,
-  "cellCount": 912,
+  "surfaceCount": 218,
+  "cellCount": 928,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -4341,6 +4341,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-calendar-calendar-entry-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/calendar/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/calendar/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-command-command-palette",
       "platform": "web",
       "kind": "overlay",
@@ -6207,6 +6259,58 @@
       "href": null,
       "ownedFiles": [
         "apps/web/components/ui/sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -9609,6 +9713,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-entry-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-entry-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-components-calendar-options",
       "platform": "mobile",
       "kind": "overlay",
@@ -12575,6 +12731,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
       ],
       "state": "default",
       "theme": "dark",

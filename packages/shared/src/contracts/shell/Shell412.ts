@@ -25,7 +25,8 @@ interface Shell412Base {
   /** Pinned above the scroller. Hoje and Calendário pass a minimum-height 48 row with a trailing
    * Avisos bell; Hoje also has its conditional day jump, search and options, Calendário its options.
    * Progresso and Perfil put their bell-only minimum-height 48 row in children so it scrolls, with
-   * no screen title. A detail header keeps its title and back control visible. */
+   * no screen title. A detail header keeps its title and back control visible. A screen with no
+   * header passes nothing and the scroller takes the full height. */
   header?: React.ReactNode
   /** TRANSIENT PINNED CHROME, directly ABOVE the pinned bottom slot and never in its place. A toast
    *  or a celebration rides here so it cannot evict Astra's front door (D69). */

@@ -56,3 +56,16 @@ export function resolveCalendarEventsDisplayState({
   if (resultStatus === 'not-connected') return 'not-connected'
   return 'ready'
 }
+
+export function calendarEntryOutcome(entry: CalendarDayEntry): {
+  status: 'empty' | 'done' | 'bad'
+  labelKey: 'calendar.status.completed' | 'calendar.status.missed' | 'calendar.status.indulged' | 'calendar.status.resisted' | 'calendar.status.upcoming'
+} {
+  if (entry.status === 'upcoming') return { status: 'empty', labelKey: 'calendar.status.upcoming' }
+  if (entry.isBadHabit) return entry.status === 'completed'
+    ? { status: 'bad', labelKey: 'calendar.status.indulged' }
+    : { status: 'done', labelKey: 'calendar.status.resisted' }
+  return entry.status === 'completed'
+    ? { status: 'done', labelKey: 'calendar.status.completed' }
+    : { status: 'empty', labelKey: 'calendar.status.missed' }
+}

@@ -73,6 +73,7 @@ function MenuSheet({
   onSelect,
   onClose,
   title,
+  shortTitle,
   finalFocus,
 }: Readonly<{
   id?: string
@@ -80,12 +81,13 @@ function MenuSheet({
   onSelect?: (id: string) => void
   onClose?: () => void
   title?: string
+  shortTitle?: string
   finalFocus: () => boolean
 }>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
   return (
-    <Sheet ref={sheetRef} open title={title} onClose={onClose} finalFocus={finalFocus}>
+    <Sheet ref={sheetRef} open title={shortTitle ?? title} accessibleTitle={title} onClose={onClose} finalFocus={finalFocus}>
       <div id={id} role="menu" aria-label={title} onKeyDown={moveMenuFocus}>
         <MenuItems
           items={items}
@@ -206,6 +208,7 @@ export function Menu({
   onSelect,
   onClose,
   title,
+  shortTitle,
   presentation = 'auto',
   anchorRef,
   align = 'end',
@@ -275,7 +278,7 @@ export function Menu({
   if (!open || dismissed || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
-    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} finalFocus={restoreSheetFocus} />
+    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} shortTitle={shortTitle} finalFocus={restoreSheetFocus} />
   }
 
   if (!portalTarget) return null
