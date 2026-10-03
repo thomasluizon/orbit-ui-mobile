@@ -173,7 +173,7 @@ describe('Today date control feedback (mobile)', () => {
     expect(StyleSheet.flatten(day.props.style)).toMatchObject({ fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22 })
   })
 
-  it.each([1, 2].flatMap((fontScale) => [320, 400].map((width) => ({ fontScale, width }))))('groups the date at $width dp and $fontScale text scale', ({ fontScale, width }) => {
+  it.each([1, 2].flatMap((fontScale) => [320, 384].map((width) => ({ fontScale, width }))))('groups the date at $width dp and $fontScale text scale', ({ fontScale, width }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const renderer = renderControl({ dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.' })
     const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Quarta-feira, 8 abr.')
@@ -209,7 +209,7 @@ describe('Today date control feedback (mobile)', () => {
         expect(layout.getComputedLayout().height - bounds.top - bounds.height).toBeGreaterThanOrEqual(4)
         expect(bounds.left + bounds.width).toBeLessThanOrEqual(rowWidth)
       }
-      expect(layout.getChild(2).getComputedLayout().left).toBe(48 + Math.max(dayWidth, numericWidth) + 8)
+      expect(layout.getChild(2).getComputedLayout().left).toBe(48 + Math.max(dayWidth, numericWidth) + 24)
       const header = button(renderer, 'Search')!.parent
       expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 48, gap: 4 })
       const jumpWidth = measuredTextWidth('Hoje', 'Geist', BUTTON_SIZES.sm.fontSize,

@@ -8,6 +8,10 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { createMockHabit, createMockNotification } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate } from '@orbit/shared/utils'
+import { TodayAstra } from '@/components/today/today-astra'
+import { HabitRow } from '@/components/habits/habit-row'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -17,6 +21,10 @@ import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 25 }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+vi.mock('@/hooks/use-notifications', () => ({
+  useNotifications: () => ({ notifications: [createMockNotification({ url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: new Date().toISOString() })] }),
+  useMarkNotificationRead: () => ({ mutate: vi.fn() }),
+}))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
 vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 
@@ -50,6 +58,101 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([320, 384].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode })))))(
+    'shares two leading edges at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
+      document.documentElement.style.fontSize = `${16 * textScale}px`
+      const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+        <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
+        <TodayDateControl {...props} isTodaySelected />
+        <div style={{ paddingInline: 16 }}>
+          {(['Leaf', 'Parent', 'Child'] as const).map((title) => <div className="habit-panel" key={title}>
+            <HabitRow habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })} structuralColumn selectMode={selectMode}
+              depth={title === 'Child' ? 1 : 0} hasChildren={title === 'Parent'}
+              childProgress={title === 'Parent' ? { done: 0, total: 2 } : undefined}
+              meta={title === 'Parent' ? ['0 de 2'] : []}
+              actions={{ onEdit: noop, onToggleExpand: noop, onToggleSelection: noop }} />
+          </div>)}
+        </div>
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(async (scale) => {
+          document.documentElement.style.fontSize = `${16 * scale}px`
+          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, .today-astra-sentence')
+          for (const label of labels) {
+            const size = Number.parseFloat(getComputedStyle(label).fontSize)
+            label.style.fontSize = `${size * scale}px`
+          }
+          await document.fonts.ready
+        }, textScale)
+        const geometry = await page.evaluate(() => {
+          const date = document.querySelector('[data-today-date-row] [title]')!
+          const sentence = document.querySelector('.today-astra-sentence')!
+          const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
+          const parent = rows[1]!
+          const progress = parent.querySelector('.habit-row-meta')!
+          const progressText = document.createRange()
+          progressText.selectNodeContents(progress)
+          const title = (parent.querySelector('[data-habit-row-heading] > div > span') ?? parent.querySelector('[data-habit-row-body] > div > span'))!
+          const titleText = document.createRange()
+          titleText.selectNodeContents(title)
+          const firstTitleLine = titleText.getClientRects()[0]!
+          const body = parent.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+          const rowBounds = parent.getBoundingClientRect()
+          const bodyBounds = body.getBoundingClientRect()
+          const progressBounds = progress.getBoundingClientRect()
+          const progressTarget = document.elementFromPoint(progressBounds.left + progressBounds.width / 2, progressBounds.top + progressBounds.height / 2)?.closest('button')
+          return {
+            primaryTarget: { progress: progressTarget === body, width: bodyBounds.width, height: bodyBounds.height,
+              rowWidth: rowBounds.width, rowHeight: rowBounds.height, radius: getComputedStyle(body).borderRadius },
+            progress: { width: progressText.getBoundingClientRect().width, available: progress.getBoundingClientRect().width,
+              top: progress.getBoundingClientRect().top, titleBottom: title.getBoundingClientRect().bottom },
+            parentControls: Array.from(parent.querySelectorAll('[data-habit-row-control]')).map((control) => {
+              const bounds = control.getBoundingClientRect()
+              return { top: bounds.top, bottom: bounds.bottom, firstLineCenter: (firstTitleLine.top + firstTitleLine.bottom) / 2 }
+            }),
+            contentEdges: [date, sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div'))!)].map((element) => element.getBoundingClientRect().left),
+            insetEdges: rows.map((row) => row.getBoundingClientRect().left),
+            leafBody: rows[0]!.querySelector('[data-habit-row-body]')!.getBoundingClientRect().left,
+            leafDisclosure: rows[0]!.querySelector('[data-habit-row-control="disclosure"]') !== null,
+            overflow: document.documentElement.scrollWidth,
+            rowHeights: rows.map((row) => row.getBoundingClientRect().height),
+            controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button')).map((button) => {
+              const bounds = button.getBoundingClientRect()
+              return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
+            })),
+          }
+        })
+        expect(geometry.primaryTarget.progress).toBe(true)
+        if (textScale === 2) {
+          expect(geometry.primaryTarget.width).toBe(geometry.primaryTarget.rowWidth)
+          expect(geometry.primaryTarget.height).toBe(geometry.primaryTarget.rowHeight)
+          expect(geometry.primaryTarget.radius).toBe('20px')
+        }
+        expect(geometry.progress.width).toBeLessThanOrEqual(geometry.progress.available)
+        expect(geometry.progress.top).toBeGreaterThanOrEqual(geometry.progress.titleBottom)
+        if (textScale === 2) for (const control of geometry.parentControls) {
+          expect(control.top).toBeLessThanOrEqual(control.firstLineCenter)
+          expect(control.bottom).toBeGreaterThan(control.firstLineCenter)
+        }
+        expect(geometry.leafDisclosure).toBe(false)
+        expect(geometry.leafBody).toBe(16)
+        expect(geometry.insetEdges).toEqual([16, 16, 16])
+        expect(geometry.contentEdges).toEqual([76, 76, 76, 76, 76])
+        expect(geometry.overflow).toBeLessThanOrEqual(width)
+        expect(geometry.rowHeights.every((height) => height >= 52)).toBe(true)
+        if (textScale === 2) expect(geometry.rowHeights.every((height) => height > 68)).toBe(true)
+        for (const control of geometry.controls) {
+          expect(control.left).toBeGreaterThanOrEqual(16)
+          expect(control.right).toBeLessThanOrEqual(width - 16)
+          expect(control.width).toBeGreaterThanOrEqual(48)
+          expect(control.height).toBeGreaterThanOrEqual(48)
+        }
+      } finally { document.documentElement.style.removeProperty('font-size'); await page.close() }
+    },
+  )
 
   it.each([412, 1352].flatMap((width) => ['dark', 'light'].map((mode) => ({ width, mode }))))(
     'keeps the first Hoje scroller control ring complete at $width in $mode', async ({ width, mode }) => {
@@ -157,7 +260,7 @@ describe('Hoje header geometry', () => {
       expect(geometry.documentWidth).toBe(width)
       expect(geometry.dayLines).toBe(1)
       expect(geometry.dayFontSize).toBe(22 * scale)
-      expect(geometry.arrows[1]!.left - geometry.dateBlock.right).toBeCloseTo(4)
+      expect(geometry.arrows[1]!.left - geometry.dateBlock.right).toBeCloseTo(12)
       for (const controls of [geometry.arrows, geometry.actions]) {
         for (const [index, control] of controls.entries()) {
           expect(control.left).toBeGreaterThanOrEqual(0)

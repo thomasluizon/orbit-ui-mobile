@@ -203,7 +203,20 @@ describe('HabitRow canonical content (mobile)', () => {
     expect(texts).not.toContain('habits.oneTimeTask')
   })
 
-  it('omits the structural column by default and indents only a child body', () => {
+  it.each([false, true])('does not reserve a disclosure gutter on a leaf, selecting=%s', (isSelectMode) => {
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode={isSelectMode} />)
+    })
+    const row = renderer!.root.findByProps({ testID: 'habit-row' })
+    const body = row.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500)
+    expect(body).toBeDefined()
+    expect(row.children[0].children[0].props.delayLongPress).toBe(500)
+    expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
+    TestRenderer.act(() => renderer.unmount())
+  })
+
+  it('keeps a child body on the shared leading edge', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Child' })} depth={1} />)
@@ -211,7 +224,7 @@ describe('HabitRow canonical content (mobile)', () => {
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
     expect(row.children[0].children[0].props.delayLongPress).toBe(500)
     expect(StyleSheet.flatten(row.props.style).paddingLeft).toBeUndefined()
-    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(24)
+    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(0)
   })
 
   it('keeps separate selection and structural columns with a neutral checkbox', () => {
@@ -224,7 +237,7 @@ describe('HabitRow canonical content (mobile)', () => {
         actions={{ onToggleExpand, onToggleSelection }} />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [selection, disclosureColumn, body] = row.children[0].children
+    const [body, selection, disclosureColumn] = row.children[0].children
     expect(selection.props.accessibilityState).toMatchObject({ checked: true })
     const disclosure = disclosureColumn.findByProps({ accessibilityLabel: 'common.collapse' })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
@@ -239,15 +252,16 @@ describe('HabitRow canonical content (mobile)', () => {
       node.props.accessibilityLabel?.startsWith('habits.statusDot.empty') && node.props.accessibilityRole === 'button')).toHaveLength(0)
   })
 
-  it('keeps the leaf spacer and status glyph while selecting', () => {
+  it('keeps selection and the status glyph without a leaf gutter', () => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
-    const [selection, spacer, body] = row.children[0].children
+    const [body, selection, trailing] = row.children[0].children
     expect(selection.props.accessibilityState).toMatchObject({ checked: false })
-    expect(spacer.findAll((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(trailing).toBeDefined()
+    expect(row.findAllByProps({ accessibilityLabel: 'common.expand' })).toHaveLength(0)
     expect(body.props.delayLongPress).toBe(500)
     expect(renderer!.root.findAllByProps({ testID: 'status-ring' }).length).toBeGreaterThan(0)
   })

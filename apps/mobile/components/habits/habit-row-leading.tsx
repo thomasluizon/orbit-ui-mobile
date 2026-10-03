@@ -13,7 +13,6 @@ interface HabitRowLeadingProps {
   tokens: ReturnType<typeof createTokensV2>
 }
 
-/** Emoji well. Disclosure and selection are structural sibling columns owned by the list. */
 export function HabitRowLeading({
   habitTitle,
   emoji,
@@ -23,33 +22,35 @@ export function HabitRowLeading({
   tokens,
 }: Readonly<HabitRowLeadingProps>) {
   return (
-    <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={[
-          styles.emojiWell,
-          {
-            width: wellSize,
-            height: wellSize,
-            borderRadius: wellRadius,
-            backgroundColor: tokens.bgWell,
-          },
-        ]}
-      >
-        {emoji ? (
-          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>{emoji}</Text>
-        ) : (
-          <Text
-            style={{
-              fontSize: emojiSize - 4,
-              lineHeight: emojiSize + 2,
-              color: tokens.fg3,
-              fontFamily: 'Geist_500Medium',
-            }}
-          >
-            {habitInitial(habitTitle)}
-          </Text>
-        )}
+    <View style={{ width: 48, flexShrink: 0 }}>
+      <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[
+            styles.emojiWell,
+            {
+              width: wellSize,
+              height: wellSize,
+              borderRadius: wellRadius,
+              backgroundColor: tokens.bgWell,
+            },
+          ]}
+        >
+          {emoji ? (
+            <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>{emoji}</Text>
+          ) : (
+            <Text
+              style={{
+                fontSize: emojiSize - 4,
+                lineHeight: emojiSize + 2,
+                color: tokens.fg3,
+                fontFamily: 'Geist_500Medium',
+              }}
+            >
+              {habitInitial(habitTitle)}
+            </Text>
+          )}
+      </View>
     </View>
   )
 }

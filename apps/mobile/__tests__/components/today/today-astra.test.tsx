@@ -98,7 +98,7 @@ describe('mobile Today Astra', () => {
     expect(action.props.accessibilityLabel).toBe(sentence)
     expect(action.props.accessibilityHint).toBe(destination)
     expect(action.props.accessibilityRole).toBe(variant === 'proactive' ? 'button' : 'link')
-    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minHeight: 48, paddingHorizontal: 16, borderRadius: 12 })
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ minHeight: 48, paddingLeft: 0, paddingRight: 16, borderRadius: 12 })
     expect(action.props.hitSlop).toBeUndefined()
     const prose = action.findAll((node) => node.type === Text)[0]!
     expect(prose.props.children).toBe(sentence)

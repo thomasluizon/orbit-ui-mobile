@@ -1,6 +1,6 @@
-import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
-import { memo, useCallback, useMemo, useState } from 'react'
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import { InsetFocusPressable as Pressable, type InsetFocusPressableProps } from '@/components/ui/inset-focus-pressable'
+import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
+import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canLogHabitOnDate,
@@ -17,7 +17,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { Menu, useAnchoredMenu } from '@/components/ui/menu'
 import { ChevronDown } from '@/components/ui/icons'
 import { Checkbox } from '@/components/ui/checkbox'
-import { HabitRowContent } from './habit-row-content'
+import { HabitRowContent, HabitRowMetaStrip } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import {
@@ -130,7 +130,7 @@ function HabitRowStructuralColumn({
   collapseLabel: string
   expandLabel: string
 }>) {
-  if (!hasChildren) return <View style={styles.structuralColumn} />
+  if (!hasChildren) return null
   return (
     <Pressable
       onPress={actions.onToggleExpand}
@@ -147,6 +147,23 @@ function HabitRowStructuralColumn({
       <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
         <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
       </View>
+    </Pressable>
+  )
+}
+
+function renderHabitRowPrimaryButton({ supportingMeta, bodyLayout, bgHover, children, ...props }: Readonly<InsetFocusPressableProps & {
+  supportingMeta: boolean
+  bodyLayout: ViewStyle
+  bgHover: string
+}>) {
+  return (
+    <Pressable {...props} style={({ pressed }) => [
+      styles.bodyButton,
+      bodyLayout,
+      supportingMeta ? StyleSheet.absoluteFill : null,
+      pressed ? [styles.bodyButtonPressed, { backgroundColor: bgHover }] : null,
+    ]}>
+      {supportingMeta ? null : children}
     </Pressable>
   )
 }
@@ -209,9 +226,6 @@ function buildRowStyle({
   }
 }
 
-/**
- * Habit row: structural column · emoji well · title/meta · trailing status.
- */
 // react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitRow = memo(function HabitRow({
   habit,
@@ -236,6 +250,9 @@ export const HabitRow = memo(function HabitRow({
 }: Readonly<HabitRowProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
+  const { fontScale } = useWindowDimensions()
+  const largeText = fontScale > 1.3
+  const supportingMeta = showSupportingMeta(largeText, childrenTotal)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -305,6 +322,7 @@ export const HabitRow = memo(function HabitRow({
     if (!completionReadOnly) toggleStatusAction?.()
   }
 
+  const bodyLayout = habitRowBodyLayout(isChild, largeText)
   const titleSize = isChild ? 14 : 17
   const emojiSize = isChild ? 16 : 22
   const wellSize = isChild ? 32 : 46
@@ -330,17 +348,44 @@ export const HabitRow = memo(function HabitRow({
   })
   const rowAccessibilityLabel = completionStatusUnavailable ? habit.title : knownRowAccessibilityLabel
 
-  return (
-    <View>
-      <View
-        testID="habit-row"
-        style={[
-          styles.row,
-          rowStyle,
-          bodyPressFeedback.feedbackStyle,
-          style,
-        ]}
-      >
+  const primaryContent = (
+    <>
+      <HabitRowLeading
+        habitTitle={habit.title}
+        emoji={emoji}
+        emojiSize={emojiSize}
+        wellSize={wellSize}
+        wellRadius={wellRadius}
+        tokens={tokens}
+      />
+
+      <HabitRowContent
+        habit={habit}
+        titleSize={titleSize}
+        titleColor={titleColor}
+        metaColor={bodyPressFeedback.metaColor}
+        metaParts={metaParts}
+        metaOnSupportingLine={supportingMeta}
+        tokens={tokens}
+      />
+    </>
+  )
+  const primaryButton = renderHabitRowPrimaryButton({
+    onPress: handlePress,
+    onPressIn: bodyPressFeedback.onPressIn,
+    onPressOut: bodyPressFeedback.onPressOut,
+    onLongPress: isSelectMode ? undefined : actions.onLongPressCard,
+    delayLongPress: 500,
+    accessibilityRole: 'button',
+    accessibilityLabel: rowAccessibilityLabel,
+    accessibilityHint: futureHint?.label,
+    supportingMeta,
+    bodyLayout,
+    bgHover: tokens.bgHover,
+    children: primaryContent,
+  })
+  const rowContents = (
+    <>
         {structuralColumn && isSelectMode ? (
           <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
             accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
@@ -360,42 +405,8 @@ export const HabitRow = memo(function HabitRow({
           />
         ) : null}
 
-        <Pressable
-          onPress={handlePress}
-          onPressIn={bodyPressFeedback.onPressIn}
-          onPressOut={bodyPressFeedback.onPressOut}
-          onLongPress={isSelectMode ? undefined : actions.onLongPressCard}
-          delayLongPress={500}
-          accessibilityRole="button"
-          accessibilityLabel={rowAccessibilityLabel}
-          accessibilityHint={futureHint?.label}
-          style={({ pressed }) => [
-            styles.bodyButton,
-            { paddingVertical: isChild ? 4 : 8, paddingLeft: isChild ? 24 : 0 },
-            pressed ? [styles.bodyButtonPressed, { backgroundColor: tokens.bgHover }] : null,
-          ]}
-        >
-          <HabitRowLeading
-            habitTitle={habit.title}
-            emoji={emoji}
-            emojiSize={emojiSize}
-            wellSize={wellSize}
-            wellRadius={wellRadius}
-            tokens={tokens}
-          />
-
-          <HabitRowContent
-            habit={habit}
-            titleSize={titleSize}
-            titleColor={titleColor}
-            metaColor={bodyPressFeedback.metaColor}
-            metaParts={metaParts}
-            tokens={tokens}
-          />
-        </Pressable>
-
         <HabitRowTrailing
-          habit={habit}
+            habit={habit}
           depth={depth}
           isSelectMode={isSelectMode}
           hasChildren={hasChildren}
@@ -415,7 +426,16 @@ export const HabitRow = memo(function HabitRow({
           completionReason={completionReason}
           completionStatusUnavailable={completionStatusUnavailable}
         />
-      </View>
+    </>
+  )
+
+  return (
+    <View>
+      <HabitRowLayout largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
+        rowStyle={[rowStyle, bodyPressFeedback.feedbackStyle, style]} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
+        metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
+        {rowContents}
+      </HabitRowLayout>
 
       {hasMenuActions ? (
         <Menu
@@ -430,3 +450,50 @@ export const HabitRow = memo(function HabitRow({
     </View>
   )
 })
+
+function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
+  largeText: boolean
+  isChild: boolean
+  supportingMeta: boolean
+  rowStyle: StyleProp<ViewStyle>
+  primaryButton: ReactNode
+  primaryContent: ReactNode
+  metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
+  metaColor: string
+  tokens: ReturnType<typeof createTokensV2>
+  children: ReactNode
+}>) {
+  return (
+    <View testID="habit-row" style={[largeText ? null : styles.row, rowStyle]}>
+      {supportingMeta ? primaryButton : null}
+      {largeText ? (
+        <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? 4 : 8 }]}>
+          {supportingMeta ? (
+            <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+              style={[styles.bodyButton, habitRowBodyLayout(isChild, largeText)]}>
+              {primaryContent}
+            </View>
+          ) : primaryButton}
+          {children}
+        </View>
+      ) : <>{primaryButton}{children}</>}
+      {supportingMeta ? (
+        <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+          style={{ flexDirection: 'row', gap: 12, paddingBottom: 8 }}>
+          <View style={{ width: 48 }} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} expanded />
+          </View>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
+  return { paddingVertical: largeText ? 0 : (isChild ? 4 : 8), paddingLeft: 0, alignItems: largeText ? 'flex-start' : 'center' }
+}
+
+function showSupportingMeta(largeText: boolean, childrenTotal: number): boolean {
+  return largeText && childrenTotal > 0
+}

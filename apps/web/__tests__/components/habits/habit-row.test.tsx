@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { getTodayBoundary } from '@orbit/shared/utils'
+import { getTodayBoundary, computeHabitFutureHint } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -212,7 +212,7 @@ describe('HabitRow neutral metadata contrast', () => {
         const measured = await page.evaluate(({ interactive }) => {
           const panel = document.querySelector('.habit-panel')!
           const body = panel.querySelector('[data-habit-row-body]')!
-          const metadata = Array.from(body.querySelectorAll('span')).find((span) => span.style.fontSize === '13px')!
+          const metadata = body.querySelector('[data-habit-row-meta]')!
           const reference = document.createElement('span')
           panel.append(reference)
           const colorOf = (token: string) => {
@@ -265,12 +265,12 @@ describe('HabitRow neutral metadata contrast', () => {
 })
 
 describe('HabitRow canonical content', () => {
-  it('omits the structural column by default and indents only a child body', () => {
+  it('keeps a child body on the shared leading edge', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={1} />)
     const row = screen.getByTestId('habit-row')
     expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
     expect(row.style.paddingInlineStart).toBe('')
-    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '24px' })
+    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '0px' })
   })
 
   it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {
@@ -279,24 +279,24 @@ describe('HabitRow canonical content', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Parent' })} structuralColumn selectMode selected
       hasChildren expanded childProgress={{ done: 1, total: 2 }} actions={{ onToggleExpand, onToggleSelection }} />)
     const row = screen.getByTestId('habit-row')
-    expect(row.children[0]).toHaveAttribute('data-habit-row-control', 'selection')
-    expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'disclosure')
-    expect(row.children[2]).toHaveAttribute('data-habit-row-body')
-    expect(row.children[0]!.querySelector('span[aria-hidden="true"]')).toHaveStyle({ background: 'var(--status-done)' })
-    expect(row.children[0]!.querySelector('[style*="--primary"]')).toBeNull()
-    fireEvent.click(row.children[1]!)
+    expect(row.children[0]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'selection')
+    expect(row.children[2]).toHaveAttribute('data-habit-row-control', 'disclosure')
+    expect(row.children[1]!.querySelector('span[aria-hidden="true"]')).toHaveStyle({ background: 'var(--status-done)' })
+    expect(row.children[1]!.querySelector('[style*="--primary"]')).toBeNull()
+    fireEvent.click(row.children[2]!)
     expect(onToggleExpand).toHaveBeenCalledOnce()
     expect(onToggleSelection).not.toHaveBeenCalled()
     expect(within(row).queryByRole('button', { name: /habits\.statusDot/ })).toBeNull()
     expect(within(row).getByRole('img', { name: 'habits.statusDot.empty, 1/2' })).toBeInTheDocument()
   })
 
-  it('keeps the leaf spacer and a named status glyph while selecting', () => {
+  it('keeps selection and a named status glyph without a leaf gutter', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn selectMode completionReadOnly />)
     const row = screen.getByTestId('habit-row')
-    expect(row.children[0]).toHaveAttribute('data-habit-row-control', 'selection')
-    expect(row.children[1]).toHaveAttribute('aria-hidden', 'true')
-    expect(row.children[2]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[0]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'selection')
+    expect(row.querySelector('[data-habit-row-control="disclosure"]')).toBeNull()
     expect(within(row).getByRole('img', { name: 'habits.statusDot.empty' })).toBeInTheDocument()
     expect(within(row).queryByTestId('habit-status-toggle')).toBeNull()
   })
@@ -575,5 +575,61 @@ describe('HabitRow check circle accessible name', () => {
       name: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
     }).click()
     expect(onLog).toHaveBeenCalledOnce()
+  })
+})
+
+describe('HabitRow large text placement', () => {
+  afterEach(() => document.documentElement.style.removeProperty('font-size'))
+
+  it.each([1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ textScale, selectMode }))))(
+    'activates progress once at $textScale text scale, selecting=$selectMode', ({ textScale, selectMode }) => {
+      document.documentElement.style.fontSize = `${16 * textScale}px`
+      const onDetail = vi.fn()
+      const onToggleSelection = vi.fn()
+      render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren
+        childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} selectMode={selectMode}
+        actions={{ onDetail, onToggleSelection }} />)
+      fireEvent.click(screen.getByText('0 of 2'))
+      expect(selectMode ? onToggleSelection : onDetail).toHaveBeenCalledExactlyOnceWith()
+      expect(selectMode ? onDetail : onToggleSelection).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ textScale, selectMode }))))('names progress and state words at $textScale text scale, selecting=$selectMode', ({ textScale, selectMode }) => {
+    document.documentElement.style.fontSize = `${16 * textScale}px`
+    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren
+      childProgress={{ done: 0, total: 2 }} selectMode={selectMode}
+      meta={['0 of 2', { kind: 'overdue', label: 'Overdue' }, { kind: 'bad', label: 'Bad' }]} />)
+    expect(document.querySelector('[data-habit-row-body]')).toHaveAccessibleName(/Parent\s*0 of 2·Overdue·Bad/)
+  })
+
+  it('keeps producer-derived future hints hidden when parent progress moves', () => {
+    document.documentElement.style.fontSize = '32px'
+    const habit = createMockHabit({ title: 'Parent', dueDate: '2030-01-02' })
+    const hint = computeHabitFutureHint(habit, '2030-01-01', (key) => key, 'en')!
+    render(<HabitRow habit={habit} hasChildren childProgress={{ done: 0, total: 2 }}
+      meta={['0 of 2', { kind: 'future', label: hint }]} />)
+    expect(screen.getByText('0 of 2').textContent).toBe('0 of 2')
+    expect(screen.getByText(hint).closest('[data-habit-row-body]')).not.toBeNull()
+    expect(screen.getByText('0 of 2').textContent).not.toContain(hint)
+  })
+
+  it.each([false, true])('moves progress only above 130 percent text and restores it after resizing, selecting=%s', async (selectMode) => {
+    document.documentElement.style.fontSize = '20.8px'
+    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} selectMode={selectMode} />)
+    const progress = screen.getByText('0 of 2')
+    expect(progress.closest('[data-habit-row-body]')).not.toBeNull()
+    expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
+    document.documentElement.style.fontSize = '21px'
+    await waitFor(() => {
+      expect(document.querySelector('[data-habit-row-heading]')).not.toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-heading]')).toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull()
+    })
+    document.documentElement.style.fontSize = '16px'
+    await waitFor(() => {
+      expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull()
+    })
   })
 })
