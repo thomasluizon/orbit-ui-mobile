@@ -39,13 +39,14 @@ import { BarChart } from '@/components/ui/bar-chart'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { MotionPressable } from '@/components/ui/motion-pressable'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { Lock, Snowflake } from '@/components/ui/icons'
+import { ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -397,6 +398,27 @@ function GoalSeparator() {
   return <View style={styles.goalSeparator} />
 }
 
+function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji: string | null; habitId?: string | null }; tokens: AppTokensV2 }>) {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const [hovered, setHovered] = useState(false)
+  const habitId = habit?.habitId
+  const content = <>
+    <View style={styles.topHabitLabelRow}>
+      <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
+      {habitId ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
+    </View>
+    {habit ? <Text selectable={!habitId} accessibilityLabel={habit.name} numberOfLines={2} ellipsizeMode="tail" style={[styles.topHabitName, { color: tokens.fg1 }]}>{`${habit.emoji ? `${habit.emoji} ` : ''}${habit.name}`}</Text>
+      : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}
+  </>
+  return habitId
+    ? <InsetFocusPressable testID="progress-top-habit" accessibilityRole="link" accessibilityLabel={`${t('progressScreen.window.topHabit')}, ${habit.name}`}
+        onPress={() => router.push({ pathname: '/habits/[id]', params: { id: habitId } })}
+        onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+        style={({ pressed }) => [styles.topHabit, { backgroundColor: pressed || hovered ? tokens.bgHover : 'transparent' }]}>{content}</InsetFocusPressable>
+    : <View testID="progress-top-habit" style={styles.topHabit}>{content}</View>
+}
+
 function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; hasGoals: boolean }>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -428,11 +450,7 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
           ? <StatTile value={t(`dates.daysAbbreviated.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
       </WindowFigureGrid>
-      <View testID="progress-top-habit" style={styles.topHabit}>
-        <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
-        {topHabit ? <Text selectable accessibilityLabel={topHabit.name} numberOfLines={2} style={[styles.topHabitName, { color: tokens.fg1 }]}>{`${topHabit.emoji ? `${topHabit.emoji} ` : ''}${topHabit.name}`}</Text>
-          : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}
-      </View>
+      <TopHabitRow habit={topHabit} tokens={tokens} />
     </WindowFrame>
   )
 }
@@ -602,7 +620,9 @@ const styles = StyleSheet.create({
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: 16, paddingVertical: 12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   gapWell: { borderRadius: 12, gap: 12, padding: 16 }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
-  topHabit: { minHeight: 68, paddingVertical: 16, gap: 4, minWidth: 0 },
+  topHabit: { minHeight: 68, paddingHorizontal: 16, paddingVertical: 16, borderRadius: 12, gap: 4, minWidth: 0 },
+  topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   windowGrid: { gap: 12 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 12 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },

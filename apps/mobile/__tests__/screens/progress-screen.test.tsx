@@ -5,6 +5,7 @@ import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -104,7 +105,7 @@ const mocks = vi.hoisted(() => ({
         bestStreak: 9,
         badHabitSlips: 0,
         weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
-        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
+        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined as string | null | undefined }],
         needsAttention: [],
       },
       narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
@@ -615,7 +616,7 @@ describe('mobile ProgressContent', () => {
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
     mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
-    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
@@ -816,6 +817,34 @@ describe('mobile ProgressContent', () => {
     expect(title.props.numberOfLines).toBe(2)
     expect(title.props.selectable).toBe(true)
     expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+  })
+
+  it('opens the top habit using the response id when ranked habits share a title', async () => {
+    const habitId = 'a08892c2-9a7c-4dc9-b70f-388be528420e'
+    const topHabit = mocks.retrospective.data.metrics.topHabits[0]!
+    const response = retrospectiveResponseSchema.parse({ ...mocks.retrospective.data,
+      metrics: { ...mocks.retrospective.data.metrics, topHabits: [
+        { ...topHabit, habitId },
+        { ...topHabit, habitId: 'c61da295-ea54-409c-84ec-5e0dca97a73f' },
+      ] },
+    })
+    Object.assign(topHabit, response.metrics.topHabits[0])
+    const tree = await renderProgress()
+    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'progress-top-habit')[0]
+    expect(row).toBeDefined()
+    expect(row!.props.accessibilityRole).toBe('link')
+    expect(row!.props.accessibilityLabel).toContain('Read')
+    await TestRenderer.act(() => { (row!.props.onPress as () => void)() })
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith({ pathname: '/habits/[id]', params: { id: habitId } })
+  })
+
+  it.each([undefined, null])('keeps a top habit without an id static (%s)', async (habitId) => {
+    mocks.retrospective.data.metrics.topHabits[0]!.habitId = habitId
+    const tree = await renderProgress()
+    const row = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
+    expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+    expect(row.props.onPress).toBeUndefined()
+    expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
   it('discloses the streak legend and keeps the top habit outside the figures', async () => {

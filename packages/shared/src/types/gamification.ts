@@ -88,6 +88,7 @@ export const retrospectiveHabitStatSchema = z.object({
   completedCount: z.number(),
   scheduledCount: z.number(),
   isOneTime: z.boolean().optional(),
+  habitId: z.uuid().nullish(),
 })
 
 export const completionSeriesSchema = z.object({

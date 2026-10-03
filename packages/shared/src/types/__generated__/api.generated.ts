@@ -776,7 +776,8 @@ export const PostApiChatResponse = zod.object({
   "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTopHabitsItemCompletionRateRegExpTwo)]),
   "completedCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTopHabitsItemCompletedCountRegExpTwo)]),
   "scheduledCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoTopHabitsItemScheduledCountRegExpTwo)]),
-  "isOneTime": zod.boolean().default(postApiChatResponsePeriodInsightTwoTopHabitsItemIsOneTimeDefault)
+  "isOneTime": zod.boolean().default(postApiChatResponsePeriodInsightTwoTopHabitsItemIsOneTimeDefault),
+  "habitId": zod.uuid().nullish()
 })),
   "needsAttention": zod.array(zod.object({
   "name": zod.string(),
@@ -784,7 +785,8 @@ export const PostApiChatResponse = zod.object({
   "completionRate": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoNeedsAttentionItemCompletionRateRegExpTwo)]),
   "completedCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoNeedsAttentionItemCompletedCountRegExpTwo)]),
   "scheduledCount": zod.union([zod.int(),zod.stringFormat('int32', postApiChatResponsePeriodInsightTwoNeedsAttentionItemScheduledCountRegExpTwo)]),
-  "isOneTime": zod.boolean().default(postApiChatResponsePeriodInsightTwoNeedsAttentionItemIsOneTimeDefault)
+  "isOneTime": zod.boolean().default(postApiChatResponsePeriodInsightTwoNeedsAttentionItemIsOneTimeDefault),
+  "habitId": zod.uuid().nullish()
 })),
   "narrative": zod.object({
   "highlights": zod.string(),
