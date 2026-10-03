@@ -100,6 +100,87 @@ jobs:
       - name: Run tests with coverage thresholds
         run: npx turbo run test -- --coverage
 
+      - name: Verify coverage reports
+        run: |
+          test -s apps/web/coverage/lcov.info
+          test -s apps/mobile/coverage/lcov.info
+          test -s packages/shared/coverage/lcov.info
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-coverage
+          path: |
+            apps/web/coverage/lcov.info
+            apps/mobile/coverage/lcov.info
+            packages/shared/coverage/lcov.info
+          if-no-files-found: error
+
+  sonarcloud:
+    name: SonarCloud Analysis
+    needs: unit-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Download coverage reports
+        uses: actions/download-artifact@v8
+        with:
+          name: unit-test-coverage
+
+      - name: Merge Coverage Reports
+        run: |
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+
+          const reports = [
+            { file: 'apps/web/coverage/lcov.info', prefix: 'apps/web' },
+            { file: 'apps/mobile/coverage/lcov.info', prefix: 'apps/mobile' },
+            { file: 'packages/shared/coverage/lcov.info', prefix: 'packages/shared' },
+          ]
+
+          const outputPath = path.join('coverage', 'lcov.info')
+          fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+
+          const merged = []
+
+          for (const report of reports) {
+            if (!fs.existsSync(report.file)) continue
+
+            const content = fs.readFileSync(report.file, 'utf8')
+            const lines = content.split(/\r?\n/)
+
+            for (const line of lines) {
+              if (!line.startsWith('SF:')) {
+                merged.push(line)
+                continue
+              }
+
+              const sourceFile = line.slice(3).replace(/\\/g, '/')
+              const normalized = sourceFile.startsWith(report.prefix)
+                ? sourceFile
+                : `${report.prefix}/${sourceFile}`
+
+              merged.push(`SF:${normalized}`)
+            }
+          }
+
+          fs.writeFileSync(outputPath, merged.join('\n'))
+          NODE
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   type-check:
     name: Type Check
     runs-on: ubuntu-latest
