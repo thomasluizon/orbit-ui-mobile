@@ -13,7 +13,7 @@ export function commandHabitValue({ habit, parentTitle }: CommandHabitEntry): st
 function habitLeading(habit: NormalizedHabit): ReactNode {
   if (habit.emoji) {
     return (
-      <span className="text-[22px] leading-none" aria-hidden>
+      <span className="text-[18px] leading-none" aria-hidden>
         {habit.emoji}
       </span>
     )

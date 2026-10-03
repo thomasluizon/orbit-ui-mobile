@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 const root = resolve(import.meta.dirname, '../../../..')
 const scale = new Set([12, 14, 16, 17, 20, 22, 28, 34, 44, 60])
 const exceptions = [
+  { path: 'apps/web/components/command/command-habit-items.tsx', size: 18, drawing: 'design/canvas/Orbit Busca.dc.html', element: 'command palette habit emoji' },
   { path: 'apps/mobile/components/share/share-card.tsx', size: 88, drawing: 'design/canvas/Orbit Wrapped.dc.html', element: 'primaryValue' },
   { path: 'apps/web/components/share/share-card.tsx', size: 88, drawing: 'design/canvas/Orbit Wrapped.dc.html', element: 'primary figure' },
   { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml', size: 15, drawing: 'design/canvas/Orbit Widget Android.dc.html', element: 'habit title' },

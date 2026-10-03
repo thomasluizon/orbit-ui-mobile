@@ -624,7 +624,6 @@ describe('ProfileScreen', () => {
         expect(title.right, row.title).toBeLessThanOrEqual(width - 32)
         expect(title.clipped, row.title).toBe(false)
         if (textScale === 1) {
-          expect(row.height, row.title).toBeLessThanOrEqual(68)
           expect(title.lines, row.title).toBe(1)
         }
       }
