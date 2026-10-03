@@ -108,13 +108,14 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     : 32
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
-  const { width, height } = useWindowDimensions()
+  const { width } = useWindowDimensions()
   const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
   const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null)
   const safeBottom = keyboardVisible ? 0 : insets.bottom
   const minimumFlowHeight = safeTop + TOUCH_TARGET_MIN + BUTTON_SIZES.md.height + safeBottom
-  const constrainedFlow = !navigationEnabled && height < minimumFlowHeight
+  const constrainedFlow = !navigationEnabled && viewportHeight !== null && viewportHeight < minimumFlowHeight
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true))
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false))
@@ -132,6 +133,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const shell = (
     <View
       testID="shell-412"
+      onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
       style={[styles.root, { backgroundColor: tokens.bg }]}
     >
       <FlowViewport enabled={!navigationEnabled} constrained={constrainedFlow} minimumHeight={minimumFlowHeight}>

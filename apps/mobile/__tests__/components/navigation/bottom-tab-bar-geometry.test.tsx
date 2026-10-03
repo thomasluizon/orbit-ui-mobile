@@ -1,12 +1,13 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Composer } from '@/components/shell/composer'
 import { AppBar } from '@/components/ui/app-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
 import { HabitCreateActions } from '@/components/habits/habit-create-actions'
+import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
-import { StyleSheet, View, type ViewStyle, type TextStyle, type StyleProp } from 'react-native'
+import { Platform, ScrollView, StyleSheet, TextInput, View, type ViewStyle, type TextStyle, type StyleProp } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
@@ -96,6 +97,27 @@ function bounds(node: YogaNode) {
 
 const destinations = ['today', 'calendar', 'progress', 'profile'] as const
 
+function DraftInput() {
+  const [draft, setDraft] = useState('')
+  return <TextInput testID="create-draft" value={draft} onChangeText={setDraft} />
+}
+
+function layoutCreateFrame(tree: ReturnType<typeof renderer.create> & { toJSON: () => Host }, nodes: Map<string, YogaNode>, height: number) {
+  const initialRoot = layoutHost(tree.toJSON(), nodes, 1)
+  initialRoot.calculateLayout(360, height, Yoga.DIRECTION_LTR)
+  const shell = nodes.get('shell-412')!
+  const layout = { x: shell.getComputedLeft(), y: shell.getComputedTop(), width: shell.getComputedWidth(), height: shell.getComputedHeight() }
+  const onLayout = tree.root.findAll((node) => node.props.testID === 'shell-412')[0]!.props.onLayout as
+    ((event: { nativeEvent: { layout: typeof layout } }) => void) | undefined
+  void renderer.act(() => onLayout?.({ nativeEvent: { layout } }))
+  initialRoot.freeRecursive()
+  nodes.clear()
+  const root = layoutHost(tree.toJSON(), nodes, 1)
+  root.calculateLayout(360, height, Yoga.DIRECTION_LTR)
+  expect(nodes.get('shell-412')!.getComputedHeight()).toBe(layout.height)
+  return root
+}
+
 afterEach(() => { __resetTestHostConfig() })
 
 describe('Native bottom tab layout', () => {
@@ -124,10 +146,12 @@ describe('Native bottom tab layout', () => {
   })
 
   it.each([
-    ...[120, 124, 160, 740].map((height) => ({ height, keyboardVisible: true })),
-    { height: 144, keyboardVisible: false },
-  ])('keeps the full Create target revealable at $height with keyboard $keyboardVisible', ({ height, keyboardVisible }) => {
-    __setWindowDimensions({ width: 360, height, scale: 1, fontScale: 1 })
+    ...[120, 124, 160, 740].map((height) => ({ height, windowHeight: height, keyboardVisible: true })),
+    ...[120, 300].map((height) => ({ height, windowHeight: 740, keyboardVisible: true })),
+    { height: 144, windowHeight: 740, keyboardVisible: false },
+  ])('keeps full Create and Back targets revealable at $height with window $windowHeight and keyboard $keyboardVisible', ({ height, windowHeight, keyboardVisible }) => {
+    expect(Platform.OS).toBe('android')
+    __setWindowDimensions({ width: 360, height: windowHeight, scale: 1, fontScale: 1 })
     const onSubmit = vi.fn()
     const onAttemptDismiss = vi.fn()
     let tree!: ReturnType<typeof renderer.create> & { toJSON: () => Host; unmount: () => void }
@@ -136,12 +160,20 @@ describe('Native bottom tab layout', () => {
       title={en.habits.createHabit} onAttemptDismiss={onAttemptDismiss}
       actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false}
         onCancel={vi.fn()} onSubmit={onSubmit} />}>
-      <View style={{ height: 1600 }} />
+      <DraftInput /><View style={{ height: 1600 }} />
     </HabitCreateFrame>) as typeof tree })
+    const draftInput = tree.root.findAll((node) => node.type === DraftInput)[0]!
+    const input = tree.root.findAll((node) => node.props.testID === 'create-draft')[0]!
+    void renderer.act(() => (input.props.onChangeText as (value: string) => void)('Walk after lunch'))
+    const initialNodes = new Map<string, YogaNode>()
+    layoutCreateFrame(tree, initialNodes, 740).freeRecursive()
     if (keyboardVisible) void renderer.act(() => __emitKeyboardEvent('keyboardDidShow'))
     const nodes = new Map<string, YogaNode>()
-    const root = layoutHost(tree.toJSON(), nodes, 1)
+    const root = layoutCreateFrame(tree, nodes, height)
     try {
+      expect(tree.root.findAll((node) => node.props.testID === 'create-draft')[0]!.props.value).toBe('Walk after lunch')
+      const body = tree.root.findAll((node) => node.type === KeyboardAwareScrollView)[0]!
+      expect(body.findAll((node) => node.type === ScrollView)[0]!.props.scrollEnabled).not.toBe(false)
       root.calculateLayout(360, height, Yoga.DIRECTION_LTR)
       const pinned = nodes.get('shell-pinned-slot')!
       const button = nodes.get('button-primary-md')!
@@ -169,6 +201,8 @@ describe('Native bottom tab layout', () => {
       const flowBounds = bounds(flowViewport)
       expect(flowBounds.bottom).toBeLessThanOrEqual(height)
       const flowMaxScroll = Math.max(0, flowViewport.getChild(0).getComputedHeight() - flowViewport.getComputedHeight())
+      expect(tree.root.findAll((node) => node.props.testID === 'shell-flow-viewport')[0]!.props.scrollEnabled).toBe(flowMaxScroll > 0)
+      expect(tree.root.findAll((node) => node.props.testID === 'shell-flow-viewport')[0]!.props.nestedScrollEnabled).toBe(flowMaxScroll > 0)
       for (const [control, innerScroll] of [[backBounds, headerScroll], [target, scrollOffset]] as const) {
         const top = control.top - innerScroll
         const bottom = control.bottom - innerScroll
@@ -185,6 +219,12 @@ describe('Native bottom tab layout', () => {
       const back = tree.root.findAll((node) => node.props.testID === 'nav-header-back')[0]!.findAll((node) => node.props.accessibilityRole === 'button' && node.props.onPress !== undefined)[0]!
       void renderer.act(() => (back.props.onPress as () => void)())
       expect(onAttemptDismiss).toHaveBeenCalledOnce()
+      const restoredNodes = new Map<string, YogaNode>()
+      void renderer.act(() => __emitKeyboardEvent('keyboardDidHide'))
+      layoutCreateFrame(tree, restoredNodes, 740).freeRecursive()
+      expect(tree.root.findAll((node) => node.props.testID === 'shell-flow-viewport')[0]!.props.scrollEnabled).toBe(false)
+      expect(tree.root.findAll((node) => node.type === DraftInput)[0]).toBe(draftInput)
+      expect(tree.root.findAll((node) => node.props.testID === 'create-draft')[0]!.props.value).toBe('Walk after lunch')
     } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
   })
 
