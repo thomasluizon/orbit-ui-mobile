@@ -275,7 +275,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     } finally {
       setIsConnecting(false)
     }
-  }, [isConnecting, isOnline, isReviewMode, router, setErrorMessage, setIsConnecting])
+  }, [isConnecting, isOnline, isReviewMode, router, setActionError, setErrorMessage, setIsConnecting])
 
   const handleImportSelected = useCallback(async () => {
     if (!isOnline) {
