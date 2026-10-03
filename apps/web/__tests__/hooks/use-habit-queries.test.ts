@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import {
   useHabits,
@@ -21,7 +21,6 @@ import type {
   PaginatedResponse,
 } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
-
 
 const validMetrics = {
   weeklyCompletionRate: 85,
@@ -548,6 +547,29 @@ describe('useTotalHabitCount', () => {
 describe('habit detail response validation', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+
+  it.each([
+    { label: 'empty habit page', body: {} },
+    { label: 'missing page totals', body: { items: [] } },
+    { label: 'invalid scheduled habit', body: { items: [{}], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 } },
+  ])('rejects $label used by habit detail', async ({ body }) => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(body) })
+    const { result } = renderHook(() => useHabits({}), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
+  })
+
+  it('rejects an invalid later habit page', async () => {
+    const firstPage = { items: [createMockHabitScheduleItem()], page: 1, pageSize: 1, totalCount: 2, totalPages: 2 }
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(firstPage) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
+    const { result } = renderHook(() => useHabits({}), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error).toMatchObject({ name: 'ZodError' })
   })
 
   it.each(invalidMetricsBodies)('rejects metrics with $label', async ({ body }) => {

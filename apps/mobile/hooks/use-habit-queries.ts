@@ -17,7 +17,13 @@ import type {
   NormalizedHabit,
   PaginatedResponse,
 } from '@orbit/shared/types/habit'
-import { habitDetailSchema, habitFullDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
+import {
+  createPaginatedSchema,
+  habitDetailSchema,
+  habitFullDetailSchema,
+  habitMetricsSchema,
+  habitScheduleItemSchema,
+} from '@orbit/shared/types/habit'
 import { habitLogSchema } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
@@ -30,6 +36,8 @@ export interface NormalizedHabitsData {
   totalPages: number
   currentPage: number
 }
+
+const habitPageSchema = createPaginatedSchema(habitScheduleItemSchema)
 
 const selectNormalizedHabits = (items: HabitScheduleItem[]): NormalizedHabitsData =>
   normalizeHabitQueryData(items)
@@ -51,7 +59,7 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
     queryFn: async (): Promise<HabitScheduleItem[]> => {
       const requestFilters = withDefaultPageSize(filters)
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
-      const firstPage = await apiClient<PaginatedResponse<HabitScheduleItem>>(firstQuery)
+      const firstPage = habitPageSchema.parse(await apiClient<unknown>(firstQuery))
 
       if (!shouldFetchAllHabitPages(requestFilters, completeDay, firstPage.totalPages)) {
         queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)
@@ -64,7 +72,7 @@ export function useHabits(filters: HabitsFilter, options: { completeDay?: boolea
 
           const pageFilters = { ...requestFilters, page }
           const pageUrl = buildUrlWithQuery(API.habits.list, buildHabitQueryString(pageFilters))
-          return apiClient<PaginatedResponse<HabitScheduleItem>>(pageUrl)
+          return habitPageSchema.parse(await apiClient<unknown>(pageUrl))
         },
       )
       queryClient.setQueryData(habitKeys.listTotalCount(filters), firstPage.totalCount)

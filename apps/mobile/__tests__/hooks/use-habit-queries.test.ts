@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { habitKeys } from '@orbit/shared/query'
 
 import {
@@ -13,7 +13,6 @@ import {
   useTotalHabitCount,
   useHabitCountLoaded,
 } from '@/hooks/use-habit-queries'
-
 
 const validMetrics = {
   weeklyCompletionRate: 85,
@@ -122,7 +121,7 @@ describe('useHabits (mobile query hook)', () => {
 
   it('records the total for a complete Today query with one full page', async () => {
     const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01', includeOverdue: true }
-    mocks.apiClient.mockResolvedValue({ items: Array.from({ length: 50 }, (_, index) => ({ id: `habit-${index}` })),
+    mocks.apiClient.mockResolvedValue({ items: Array.from({ length: 50 }, (_, index) => createMockHabitScheduleItem({ id: `habit-${index}` })),
       page: 1, pageSize: 50, totalCount: 50, totalPages: 1 })
 
     renderHookCapture(() => useHabits(filters, { completeDay: true }))
@@ -133,9 +132,9 @@ describe('useHabits (mobile query hook)', () => {
 
   it('loads a detail parent on page two without changing ordinary day queries', async () => {
     const filters = { dateFrom: '2025-01-01', dateTo: '2025-01-01' }
-    mocks.apiClient.mockResolvedValueOnce({ items: [{ id: 'other' }], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 })
-      .mockResolvedValueOnce({ items: [{ id: 'parent', children: [{ id: 'child' }] }], page: 2, pageSize: 50, totalCount: 2, totalPages: 2 })
-      .mockResolvedValueOnce({ items: [{ id: 'other' }], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 })
+    mocks.apiClient.mockResolvedValueOnce({ items: [createMockHabitScheduleItem({ id: 'other' })], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [createMockHabitScheduleItem({ id: 'parent', children: [createMockHabitScheduleChild({ id: 'child' })] })], page: 2, pageSize: 50, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [createMockHabitScheduleItem({ id: 'other' })], page: 1, pageSize: 50, totalCount: 2, totalPages: 2 })
     renderHookCapture(() => useHabits(filters, { completeDay: true }))
     const detailQuery = lastQuery()
     expect((await detailQuery.queryFn() as { id: string }[]).map((item) => item.id)).toEqual(['other', 'parent'])
@@ -254,8 +253,8 @@ describe('useTotalHabitCount (mobile)', () => {
 describe('useHabits pagination + accessors', () => {
   it('fetches and concatenates every page for an unbounded multi-page list', async () => {
     mocks.apiClient
-      .mockResolvedValueOnce({ items: [{ id: 'a' }], page: 1, pageSize: 200, totalCount: 2, totalPages: 2 })
-      .mockResolvedValueOnce({ items: [{ id: 'b' }], page: 2, pageSize: 200, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [createMockHabitScheduleItem({ id: 'a' })], page: 1, pageSize: 200, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [createMockHabitScheduleItem({ id: 'b' })], page: 2, pageSize: 200, totalCount: 2, totalPages: 2 })
 
     renderHookCapture(() => useHabits({}))
     const items = (await lastQuery().queryFn()) as { id: string }[]
@@ -305,6 +304,24 @@ it('loads only the requested search page and preserves its totals', async () => 
 describe('habit detail response validation', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+
+  it.each([
+    { label: 'empty habit page', body: {} },
+    { label: 'missing page totals', body: { items: [] } },
+    { label: 'invalid scheduled habit', body: { items: [{}], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 } },
+  ])('rejects $label used by habit detail', async ({ body }) => {
+    mocks.apiClient.mockResolvedValue(body)
+    renderHookCapture(() => useHabits({}))
+    await expect(lastQuery().queryFn()).rejects.toMatchObject({ name: 'ZodError' })
+  })
+
+  it('rejects an invalid later habit page', async () => {
+    const firstPage = { items: [createMockHabitScheduleItem()], page: 1, pageSize: 1, totalCount: 2, totalPages: 2 }
+    mocks.apiClient.mockResolvedValueOnce(firstPage).mockResolvedValueOnce({})
+    renderHookCapture(() => useHabits({}))
+    await expect(lastQuery().queryFn()).rejects.toMatchObject({ name: 'ZodError' })
   })
 
   it.each(invalidMetricsBodies)('rejects metrics with $label', async ({ body }) => {
