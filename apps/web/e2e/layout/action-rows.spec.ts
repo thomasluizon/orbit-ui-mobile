@@ -145,22 +145,40 @@ for (const width of [412, 1352]) {
         })
       }
 
-      test('calendar event day has one small import entry and no per-event pill', async ({ page }) => {
+      test('calendar event rows open preselected imports with small sheet actions and no per-event pill', async ({ page }) => {
         await page.goto('/calendar')
-        const importAction = page.getByRole('button', { name: messages.calendar.dayDetail.importEvents, exact: true })
-        await expect(importAction).toBeVisible()
-        await expect(importAction).toHaveAttribute('data-size', 'sm')
-        const eventRow = page.getByRole('img', { name: /Team meeting/ })
-        await expect(eventRow).toBeVisible()
-        await expect(eventRow.getByRole('button')).toHaveCount(0)
-        await expect(page.getByRole('button', { name: /Team meeting/ })).toHaveCount(0)
+        const card = page.locator('section[data-field-surface="card"]').filter({ has: page.getByText(event.title, { exact: true }) })
+        await expect(card).toBeVisible()
+        await expect(card.locator('.orbit-pill-action')).toHaveCount(0)
+        for (const calendarEvent of events) {
+          const eventRow = card.getByRole('button').filter({ has: page.getByText(calendarEvent.title, { exact: true }) })
+          await expect(eventRow).toBeVisible()
+          await expect(eventRow).toHaveRole('button')
+          await expect(eventRow).not.toHaveClass(/orbit-pill-action/)
+          await expect(eventRow).not.toHaveAttribute('data-size')
+          await expect(eventRow.locator('.orbit-pill-action')).toHaveCount(0)
+          await expect(eventRow.getByRole('button')).toHaveCount(0)
+        }
         await assertActionGeometry(page)
-        await importAction.click()
-        const sheet = page.getByRole('dialog')
-        await expect(sheet).toBeVisible()
-        await expect(sheet.locator('.orbit-pill-action')).not.toHaveCount(0)
-        await expect(sheet.locator('[aria-busy="true"], .skeleton-pulse')).toHaveCount(0)
-        await assertActionGeometry(page, sheet)
+        for (const calendarEvent of events) {
+          await card.getByRole('button').filter({ has: page.getByText(calendarEvent.title, { exact: true }) }).click()
+          const sheet = page.getByRole('dialog', { name: messages.calendar.calendars.title, exact: true })
+          await expect(sheet).toBeVisible()
+          for (const importEvent of events) {
+            const selection = sheet.getByRole('button').filter({ has: page.getByText(importEvent.title, { exact: true }) })
+            await expect(selection).toHaveAttribute('aria-pressed', String(importEvent.id === calendarEvent.id))
+          }
+          const actions = sheet.locator('[data-slot="sheet-actions"] [data-slot="action-row"]')
+          await expect(sheet.locator('[data-slot="action-row"]')).toHaveCount(1)
+          await expect(actions).toHaveCSS('justify-content', 'flex-end')
+          await expect(actions.locator('.orbit-pill-action')).toHaveCount(1)
+          await expect(actions.getByRole('button')).toBeEnabled()
+          await expect(sheet.locator('.orbit-pill-action:not([data-size="sm"])')).toHaveCount(0)
+          await expect(sheet.locator('[aria-busy="true"], .skeleton-pulse')).toHaveCount(0)
+          await assertActionGeometry(page, sheet)
+          await sheet.getByRole('button', { name: messages.common.close, exact: true }).click()
+          await expect(sheet).toHaveCount(0)
+        }
       })
 
       test('search pagination uses one action row', async ({ page, context }) => {
