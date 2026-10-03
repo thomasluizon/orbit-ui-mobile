@@ -122,7 +122,8 @@ describe('WrappedScreen', () => {
       const exit = row.findAll((node) => node.type === 'Pressable'
         && node.props.accessibilityLabel === 'common.backToProfile')[0]!
       expect(StyleSheet.flatten(exit.props.style)).toMatchObject({ width: 48, height: 48 })
-      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ height: 56 })
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 56 })
+      expect(StyleSheet.flatten(row.props.style)).not.toHaveProperty('height')
       const scroll = firstByType(cover, 'ScrollView')!
       expect(StyleSheet.flatten(scroll.props.contentContainerStyle)).toMatchObject({ paddingVertical: 32, paddingHorizontal: 24 })
       expect((StyleSheet.flatten(scroll.props.contentContainerStyle) as Record<string, unknown>).paddingTop).toBeUndefined()
