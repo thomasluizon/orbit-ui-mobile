@@ -25,9 +25,9 @@ export async function markRequiredLabels(labels: Locator) {
   })
 }
 
-export async function expectLabelsFit(page: Page) {
+export async function expectLabelsFit(page: Page, surface: Page | Locator = page) {
   await page.evaluate(() => document.fonts.ready)
-  const measurements = await page.locator(authoredLabelSelector).evaluateAll((elements, selector) => {
+  const measurements = await surface.locator(authoredLabelSelector).evaluateAll((elements, selector) => {
     const nodes = new Set<Text>()
     for (const element of elements) {
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
@@ -72,10 +72,9 @@ export async function expectLabelsFit(page: Page) {
   expect.soft(measurements.filter((label) => label.clipped), 'app-authored labels must remain whole, without ellipsis or clipping').toEqual([])
 }
 
-export async function expectLegendFits(legend: Locator) {
+export async function expectLegendFits(legend: Locator, labels: readonly string[]) {
   await expect(legend).toBeVisible()
-  await markRequiredLabels(legend.locator(':scope > span'))
-  const rows = await legend.locator(':scope > span').evaluateAll((elements) =>
-    elements.map((element) => Math.round(element.getBoundingClientRect().top)))
-  expect.soft(new Set(rows).size, 'legend items stay in one row or move behind disclosure').toBe(1)
+  expect(labels.length, 'required legend inventory must not be empty').toBeGreaterThan(0)
+  for (const label of labels) await markRequiredLabels(legend.getByText(label, { exact: true }))
+  await expectLabelsFit(legend.page(), legend)
 }

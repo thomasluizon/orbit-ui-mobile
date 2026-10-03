@@ -1,4 +1,4 @@
-import { expect, type BrowserContext, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockCalendarSyncEvent, createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -72,9 +72,9 @@ async function installLabelFixtures(context: BrowserContext, locale: 'en' | 'pt-
   }
 }
 
-async function checkSurfaceLabels(page: Page) {
+async function checkSurfaceLabels(page: Page, surface: Page | Locator = page) {
   await markUserText(page, Object.values(userFields))
-  await expectLabelsFit(page)
+  await expectLabelsFit(page, surface)
 }
 
 for (const width of [320, 360, 384, 412]) {
@@ -92,15 +92,32 @@ for (const width of [320, 360, 384, 412]) {
           words.progressScreen.streak.longest, words.streakDisplay.detail.tierTileLabel,
           words.progressScreen.streak.banked, words.progressScreen.streak.used, words.progressScreen.streak.next,
         ]) await markRequiredLabels(page.getByText(caption, { exact: true }))
-        const selector = page.getByRole('radiogroup', { name: words.progressScreen.goals.views })
-        await expect(selector.getByRole('radio')).toHaveCount(4)
         await checkSurfaceLabels(page)
+        await page.getByRole('button', {
+          name: `${words.progressScreen.goals.filter}: ${words.progressScreen.goals.all}`, exact: true,
+        }).click()
+        const sheet = page.getByRole('dialog', { name: words.progressScreen.goals.views, exact: true })
+        await expect(sheet).toBeVisible()
+        await markRequiredLabels(sheet.getByRole('heading', { name: words.progressScreen.goals.views, exact: true }))
+        const selector = sheet.getByRole('menu', { name: words.progressScreen.goals.views, exact: true })
+        await expect(selector.getByRole('menuitemcheckbox')).toHaveCount(4)
+        for (const label of [
+          words.progressScreen.goals.all, words.progressScreen.goals.active,
+          words.progressScreen.goals.completed, words.progressScreen.goals.abandoned,
+        ]) await markRequiredLabels(selector.getByRole('menuitemcheckbox', { name: label, exact: true }))
+        await checkSurfaceLabels(page, sheet)
       })
 
       test('Progress legend remains whole', async ({ page }) => {
         await page.goto('/progress')
-        await expectLegendFits(page.getByRole('group', { name: words.progressScreen.streak.legend }))
         await checkSurfaceLabels(page)
+        await page.getByRole('button', { name: words.progressScreen.streak.legend, exact: true }).click()
+        const sheet = page.getByRole('dialog', { name: words.progressScreen.streak.legend, exact: true })
+        await markRequiredLabels(sheet.getByRole('heading', { name: words.progressScreen.streak.legend, exact: true }))
+        await expectLegendFits(sheet, [
+          words.progressScreen.streak.active, words.progressScreen.streak.frozen, words.progressScreen.streak.missed,
+        ])
+        await checkSurfaceLabels(page, sheet)
       })
 
       test('Today tabs, buttons and menu titles remain whole', async ({ page }) => {
@@ -115,15 +132,17 @@ for (const width of [320, 360, 384, 412]) {
       test('Calendar selector and legend remain whole', async ({ page }) => {
         await page.goto('/calendar')
         await expect(page.getByRole('radio', { name: words.calendar.view.month, exact: true })).toBeVisible()
-        for (const caption of Object.values(words.calendar.legend)) {
-          await markRequiredLabels(page.getByText(caption, { exact: true }))
-        }
-        const legend = page.locator('[data-legend-outcome="full"]').locator('..').locator('..')
-        await expect(legend.locator(':scope > span')).toHaveCount(4)
-        const rows = await legend.locator(':scope > span').evaluateAll((elements) =>
-          elements.map((element) => Math.round(element.getBoundingClientRect().top)))
-        expect.soft(new Set(rows).size, 'Calendar legend stays in one row or moves behind disclosure').toBe(1)
         await checkSurfaceLabels(page)
+        await page.getByRole('button', { name: words.calendar.options, exact: true }).click()
+        await page.getByRole('menu', { name: words.calendar.options, exact: true })
+          .getByRole('menuitem', { name: words.calendar.legendTitle, exact: true }).click()
+        const sheet = page.getByRole('dialog', { name: words.calendar.legendTitle, exact: true })
+        await markRequiredLabels(sheet.getByRole('heading', { name: words.calendar.legendTitle, exact: true }))
+        await expect(sheet.locator('[data-legend-outcome]')).toHaveCount(4)
+        await expectLegendFits(sheet, [
+          words.calendar.legend.full, words.calendar.legend.partial, words.calendar.legend.none, words.calendar.legend.loggable,
+        ])
+        await checkSurfaceLabels(page, sheet)
       })
 
       test('Profile row titles remain whole with long personal text', async ({ page }) => {

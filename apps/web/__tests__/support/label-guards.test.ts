@@ -1,6 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
-import { expectLabelsFit } from '@/e2e/layout/label-fit-contract'
+import { expectLabelsFit, expectLegendFits } from '@/e2e/layout/label-fit-contract'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('label and interaction fill guards in Chromium', () => {
@@ -13,6 +18,45 @@ describe('label and interaction fill guards in Chromium', () => {
   })
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    it.each([
+      { name: 'whole labels', labelStyle: '', error: null },
+      { name: 'wrapped label', labelStyle: 'max-width: 40px;', error: 'app-authored labels must stay on one line' },
+      { name: 'ellipsized label', labelStyle: 'max-width: 40px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;', error: 'app-authored labels must remain whole' },
+    ])(`checks $name in the ${locale} calendar legend sheet rows`, async ({ labelStyle, error }) => {
+      const page = await browser.newPage()
+      const legend = renderToStaticMarkup(createElement(CalendarLegend, {
+        loggableLabel: words.calendar.legend.loggable, fullLabel: words.calendar.legend.full,
+        partialLabel: words.calendar.legend.partial, noneLabel: words.calendar.legend.none,
+      }))
+      try {
+        await page.setContent(`<style>
+          .flex { display: flex; } .flex-col { flex-direction: column; }
+          .inline-flex { display: inline-flex; } .items-center { align-items: center; }
+          .shrink-0 { flex-shrink: 0; }
+        </style><button>Outside<br>label</button><div role="dialog" style="width: 272px">${legend}</div>`)
+        await page.getByText(words.calendar.legend.full, { exact: true }).evaluate((element, style) => {
+          element.setAttribute('style', `${element.getAttribute('style')}; ${style}`)
+        }, labelStyle)
+        const assertion = expectLegendFits(page.getByRole('dialog').locator(':scope > div'), Object.values(words.calendar.legend))
+        if (error) await expect(assertion).rejects.toThrow(error)
+        else await assertion
+      } finally {
+        await page.close()
+      }
+    })
+  }
+
+  it('rejects an empty required legend inventory', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent('<div role="dialog">Legend</div>')
+      await expect(expectLegendFits(page.getByRole('dialog'), [])).rejects.toThrow('required legend inventory must not be empty')
+    } finally {
+      await page.close()
+    }
+  })
 
   it('measures a transitioned hover fill on a control with a transparent resting surface', async () => {
     const page = await browser.newPage()
