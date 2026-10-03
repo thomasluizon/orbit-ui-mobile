@@ -162,7 +162,7 @@ describe('authored app typography', () => {
   it.each(exceptions)('keeps $path exception tied to its named element drawing', ({ path, size, element, drawing, drawingElement }) => {
     expect(authoredSizes(readFileSync(resolve(root, path), 'utf8'), path).filter((declaration) => declaration.element === element)).toEqual([{ size, element }])
     const source = readFileSync(resolve(root, drawing), 'utf8')
-    const scripts = [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)].map((match) => match[1]).join('\n')
+    const scripts = [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\b[^>]*>/gi)].map((match) => match[1]).join('\n')
     expect(drawingSizes(scripts).filter((declaration) => declaration.element === drawingElement)).toEqual([{ size, element: drawingElement }])
   })
 })
