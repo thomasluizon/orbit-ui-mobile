@@ -54,7 +54,7 @@ import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Menu } from '@/components/ui/menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
@@ -80,17 +80,18 @@ function Section({ title, children }: Readonly<{ title: string; children: ReactN
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>) {
-  return <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-4">{children}</div>
+  return <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-3">{children}</div>
 }
 
-/** Four tile-shaped placeholders, ONE busy region: the four stand for one wait, not four. */
+/** One busy region covers the figures and the habit row. */
 function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   return (
     <div role="progressbar" aria-busy="true" aria-label={label} className="flex flex-col gap-3">
       <Skeleton variant="bar-chart" grouped />
       <WindowFigureGrid>
-        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
       </WindowFigureGrid>
+      <Skeleton variant="habit-row" grouped />
     </div>
   )
 }
@@ -128,7 +129,7 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
       <div className="flex w-full max-w-[560px] flex-col gap-3" aria-hidden="true">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </div>
-      <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-4" aria-hidden="true">
+      <div className="grid grid-cols-1 gap-3 min-[344px]:grid-cols-2 md:grid-cols-3" aria-hidden="true">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
       </div>
       <div className="flex flex-col gap-3" aria-hidden="true">
@@ -414,6 +415,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   const t = useTranslations()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
+  const [filterOpen, setFilterOpen] = useState(false)
   // WHY: Repeated text must move between mounted regions so assistive technology sees a DOM change. https://github.com/thomasluizon/orbit-tickets/issues/480
   const [reorderAnnouncements, setReorderAnnouncements] = useState<readonly [string, string]>(['', ''])
   const announceReorderResult = (message: string) => {
@@ -446,7 +448,12 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   ] as const
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
-      {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
+      {goals.length > 0 ? <>
+        <PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton>
+        <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
+          items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
+          onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
+      </> : null}
       {goals.length === 0 ? <GoalsEmptyState /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
@@ -495,9 +502,14 @@ function WindowSection({ hasGoals }: Readonly<{ hasGoals: boolean }>) {
       <WindowFigureGrid>
         <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
-        {bestWeekday ? <StatTile value={t(`dates.daysValue.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
-        {topHabit ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}
+        {bestWeekday ? <StatTile value={t(`dates.daysAbbreviated.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
       </WindowFigureGrid>
+      <div data-testid="progress-top-habit" className="flex min-h-[68px] min-w-0 flex-col gap-1 py-4">
+        <span className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.window.topHabit')}</span>
+        {topHabit ? <span title={topHabit.name} className="line-clamp-2 text-[17px] leading-[1.4] text-[var(--fg-1)]" style={{ overflowWrap: 'anywhere' }}>
+          {topHabit.emoji ? <span aria-hidden="true">{topHabit.emoji} </span> : null}{topHabit.name}
+        </span> : <span className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.window.topHabitEmpty')}</span>}
+      </div>
     </WindowFrame>
   )
 }

@@ -196,6 +196,13 @@ function getStreakStatus(): HTMLElement {
   return within(screen.getByRole('region', { name: 'progressScreen.sections.streak' })).getByRole('status')
 }
 
+async function selectGoalFilter(view: string) {
+  fireEvent.click(screen.getByRole('button', { name: /^progressScreen.goals.filter:/ }))
+  fireEvent.click(screen.getByRole('menuitemcheckbox', { name: `progressScreen.goals.${view}` }))
+  if (vi.isFakeTimers()) await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+  await waitFor(() => expect(screen.getByRole('button', { name: `progressScreen.goals.filter: progressScreen.goals.${view}` })).toBeInTheDocument())
+}
+
 describe('ProgressContent', () => {
   let textStyles: string
   let stylesheet: string
@@ -373,7 +380,7 @@ describe('ProgressContent', () => {
     expect(sweep).toHaveClass('transition-[stroke-dashoffset]')
   })
 
-  it('filters the same goal list through all four views', () => {
+  it('filters the same goal list through all four views', async () => {
     mocks.goals.data.allGoals = [
       createMockGoal({ id: 'active', title: 'Active goal', status: 'Active', position: 0 }),
       createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', position: 1 }),
@@ -387,11 +394,11 @@ describe('ProgressContent', () => {
       ['completed', 'Completed goal'],
       ['abandoned', 'Abandoned goal'],
     ] as const) {
-      fireEvent.click(screen.getByRole('radio', { name: `progressScreen.goals.${view}` }))
+      await selectGoalFilter(view)
       expect(getGoalCard(visible)).toBeInTheDocument()
       expect(getGoalCards()).toHaveLength(1)
     }
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
+    await selectGoalFilter('all')
     expect(getGoalCards()).toHaveLength(3)
   })
 
@@ -421,14 +428,14 @@ describe('ProgressContent', () => {
     expect(mocks.updateStatus.mutate).not.toHaveBeenCalled()
   })
 
-  it('shows an abandoned outline badge without progress and clears a distinct empty filter', () => {
+  it('shows an abandoned outline badge without progress and clears a distinct empty filter', async () => {
     mocks.goals.data.allGoals = [createMockGoal({ status: 'Abandoned', progressPercentage: 100, trackingStatus: 'behind' })]
     render(<ProgressPage />)
     const card = getGoalCard('Read 12 Books')
     expect(card.querySelector('[data-variant="outline"]')).toHaveTextContent('goals.status.abandoned')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(within(card).queryByText((content) => content.startsWith('progressScreen.goals.progress'))).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.completed' }))
+    await selectGoalFilter('completed')
     expect(screen.getByText('progressScreen.goals.filterEmpty')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.clearFilter' }))
@@ -487,7 +494,8 @@ describe('ProgressContent', () => {
     fireEvent.keyDown(document, { code: 'Escape' })
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
     await act(() => vi.advanceTimersByTime(50))
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    vi.useRealTimers()
+    await selectGoalFilter('active')
     expect(card).not.toHaveAttribute('aria-roledescription')
     fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
     fireEvent.mouseMove(document, { clientX: 0, clientY: 100 })
@@ -529,10 +537,11 @@ describe('ProgressContent', () => {
     expect(screen.getAllByTestId('goal-reorder-status')).toEqual(statuses)
 
     mocks.reorder.isError = true
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    vi.useRealTimers()
+    await selectGoalFilter('active')
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.goals.reorderError')
     expect(screen.getByRole('button', { name: /Goal one/ })).not.toHaveAttribute('aria-keyshortcuts')
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
+    await selectGoalFilter('all')
   })
 
   it('replays the same boundary without timing between actions', () => {
@@ -771,12 +780,24 @@ describe('ProgressContent', () => {
     expect(figures).toEqual([
       '75%progressScreen.window.completionRate',
       '12progressScreen.window.activeDays',
-      'dates.daysValue.thursdayprogressScreen.window.bestWeekday',
-      'ReadprogressScreen.window.topHabit',
+      'dates.daysAbbreviated.thursdayprogressScreen.window.bestWeekday',
     ])
-    for (const value of ['75%', '12', 'dates.daysValue.thursday', 'Read']) {
-      expect(within(windowSection).getByText(value)).toHaveStyle({ fontSize: 24, overflowWrap: 'anywhere' })
+    for (const value of ['75%', '12', 'dates.daysAbbreviated.thursday']) {
+      expect(within(windowSection).getByText(value)).toHaveStyle({ fontSize: 22, whiteSpace: 'nowrap' })
     }
+  })
+
+  it('discloses the streak legend and keeps the top habit outside the figures', () => {
+    render(<ProgressContent />)
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    expect(windowSection.querySelectorAll('[data-state="default"]')).toHaveLength(3)
+    expect(within(windowSection).getByText('dates.daysAbbreviated.thursday')).toBeInTheDocument()
+    const habit = within(windowSection).getByTestId('progress-top-habit')
+    expect(habit).toHaveTextContent('Read')
+    expect(habit.querySelector('button, a')).toBeNull()
+    expect(screen.queryByText('progressScreen.streak.active')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.streak.legend' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('progressScreen.streak.active')
   })
 
   it('renders pay-gate refusals as the three locked sections', async () => {
@@ -863,7 +884,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
-    expect(windowSection.querySelectorAll('[data-state="empty"]')).toHaveLength(2)
+    expect(windowSection.querySelectorAll('[data-state="empty"]')).toHaveLength(1)
     expect(within(windowSection).queryByText('18')).not.toBeInTheDocument()
   })
 
@@ -1350,16 +1371,16 @@ describe('ProgressContent', () => {
     expect(strip.lastElementChild).toHaveAttribute('data-state', 'today')
   })
 
-  it('stage 5 opens inline detail and restores the filtered list on back', () => {
+  it('stage 5 opens inline detail and restores the filtered list on back', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
     render(<ProgressPage />)
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    await selectGoalFilter('active')
     fireEvent.click(getGoalCard('Read 12 Books'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'goal-detail' })).toHaveTextContent('goal-1')
     fireEvent.click(screen.getByRole('button', { name: 'Back to goals' }))
-    expect(screen.getByRole('radio', { name: 'progressScreen.goals.active' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.filter: progressScreen.goals.active' })).toBeInTheDocument()
     expect(getGoalCard('Read 12 Books')).toBeInTheDocument()
   })
 

@@ -51,7 +51,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Menu } from '@/components/ui/menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
@@ -73,12 +73,12 @@ function Section({ title, children, tokens }: Readonly<{ title: string; children
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
-  const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
+  const { width, fontScale } = useWindowDimensions()
+  const columns = fontScale > 1.3 ? 1 : width >= 768 ? 3 : width >= 344 ? 2 : 1
 
   return (
     <View testID={`progress-window-grid-${columns}`} style={styles.windowGrid}>
-      {Array.from({ length: 4 / columns }, (_, rowIndex) => (
+      {Array.from({ length: Math.ceil(children.length / columns) }, (_, rowIndex) => (
         <View key={rowIndex} testID="progress-window-row" style={styles.windowRow}>
           {children.slice(rowIndex * columns, (rowIndex + 1) * columns).map((child, columnIndex) => (
             <View key={columnIndex} style={styles.windowTile}>{child}</View>
@@ -89,14 +89,15 @@ function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
   )
 }
 
-/** Four tile-shaped placeholders, ONE busy region: the four stand for one wait, not four. */
+/** One busy region covers the figures and the habit row. */
 function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
   return (
     <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={styles.windowSection}>
       <Skeleton variant="bar-chart" grouped />
       <WindowFigureGrid>
-        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
       </WindowFigureGrid>
+      <Skeleton variant="habit-row" grouped />
     </View>
   )
 }
@@ -340,6 +341,7 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ 
   const { t } = useTranslation()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
+  const [filterOpen, setFilterOpen] = useState(false)
   const announceReorderResult = (message: string) => {
     AccessibilityInfo.announceForAccessibility(message)
   }
@@ -375,7 +377,12 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ 
   }
   return (
     <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
-      {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={setFilter} label={t('progressScreen.goals.views')} /> : null}
+      {goals.length > 0 ? <>
+        <PillButton variant="ghost" size="sm" minimumHeight={48} accessibleName={`${t('progressScreen.goals.filter')}: ${t(`progressScreen.goals.${filter}`)}`} onClick={() => setFilterOpen(true)}>{t(`progressScreen.goals.${filter}`)}</PillButton>
+        <Menu open={filterOpen} title={t('progressScreen.goals.views')} shortTitle={t('progressScreen.goals.filter')} presentation="sheet"
+          items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
+          onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
+      </> : null}
       {goals.length === 0 ? <GoalsEmptyState /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
@@ -417,12 +424,14 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
         <StatTile value={`${Math.round(metrics.completionRate)}%`} label={t('progressScreen.window.completionRate')} />
         <StatTile value={metrics.activeDays} label={t('progressScreen.window.activeDays')} />
         {bestWeekday
-          ? <StatTile value={t(`dates.daysValue.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
+          ? <StatTile value={t(`dates.daysAbbreviated.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
           : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
-        {topHabit
-          ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} />
-          : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}
       </WindowFigureGrid>
+      <View testID="progress-top-habit" style={styles.topHabit}>
+        <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
+        {topHabit ? <Text selectable accessibilityLabel={topHabit.name} numberOfLines={2} style={[styles.topHabitName, { color: tokens.fg1 }]}>{`${topHabit.emoji ? `${topHabit.emoji} ` : ''}${topHabit.name}`}</Text>
+          : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}
+      </View>
     </WindowFrame>
   )
 }
@@ -489,15 +498,15 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
 }
 
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
-  const { width } = useWindowDimensions()
-  const columns = width >= 768 ? 4 : width >= 344 ? 2 : 1
+  const { width, fontScale } = useWindowDimensions()
+  const columns = fontScale > 1.3 ? 1 : width >= 768 ? 3 : width >= 344 ? 2 : 1
   return (
     <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
       <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </View>
       <View style={styles.loadingRows} importantForAccessibility="no-hide-descendants">
-        {Array.from({ length: 4 / columns }, (_, row) => (
+        {Array.from({ length: Math.ceil(4 / columns) }, (_, row) => (
           <View key={row} style={styles.loadingTileRow}>
             {Array.from({ length: columns }, (_, column) => (
               <View key={column} style={styles.loadingTile}><Skeleton variant="stat-tile" label={label} /></View>
@@ -593,6 +602,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   gapWell: { borderRadius: 12, gap: 12, padding: 16 }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, half: { width: '48%' },
+  topHabit: { minHeight: 68, paddingVertical: 16, gap: 4, minWidth: 0 },
+  topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   windowGrid: { gap: 12 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 12 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },

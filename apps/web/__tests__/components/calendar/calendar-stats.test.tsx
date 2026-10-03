@@ -37,7 +37,7 @@ describe('CalendarStats', () => {
     )
 
     expect(screen.getByTestId('calendar-stats')).toHaveStyle({
-      gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 5.5em), 1fr))',
       gap: '12px',
     })
     expect(screen.getByText('Best streak')).toBeInTheDocument()

@@ -65,11 +65,11 @@ describe('CalendarStats (mobile)', () => {
     })
 
     const loadedHeights = loadedTree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.testID === 'stat-tile-default',
+      (node) => typeof node.type === 'string' && node.props.testID === 'calendar-figure-default',
     )
       .map(measureTileHeight)
     const pendingHeights = pendingTree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.testID === 'stat-tile-loading',
+      (node) => typeof node.type === 'string' && node.props.testID === 'calendar-figure-loading',
     )
       .map(measureTileHeight)
 

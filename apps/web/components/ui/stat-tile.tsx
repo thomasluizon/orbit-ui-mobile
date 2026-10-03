@@ -19,11 +19,11 @@ function TileValue({ shownValue, isEmpty }: Readonly<{
       style={{
         color: isEmpty ? 'var(--fg-3)' : 'var(--fg-1)',
         fontFamily: isEmpty ? 'var(--font-mono)' : 'var(--font-display)',
-        fontSize: isEmpty ? 12 : 24,
+        fontSize: isEmpty ? 12 : 22,
         fontWeight: isEmpty ? 500 : 600,
         fontVariantNumeric: 'tabular-nums',
         lineHeight: isEmpty ? '24px' : 1.4,
-        overflowWrap: 'anywhere',
+        whiteSpace: 'nowrap',
       }}
     >
       {shownValue}
@@ -39,7 +39,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
 
   return (
     <div
-      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] p-6 text-center"
+      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] p-4 min-[1024px]:p-6 text-center"
       style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)', minHeight: STAT_TILE_MIN_HEIGHT }}
       data-state={state}
       role={isLoading ? 'status' : undefined}
@@ -52,7 +52,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
         <TileValue shownValue={shownValue} isEmpty={isEmpty} />
       )}
       <span
-        className="line-clamp-2 min-h-10"
+        className="min-w-0"
         style={{
           color: isEmpty ? 'var(--fg-3)' : 'var(--fg-2)',
           fontFamily: 'var(--font-sans)',

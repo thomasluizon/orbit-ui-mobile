@@ -2,20 +2,10 @@ import { StyleSheet, Text, View } from 'react-native'
 import type { FreezeBankProps } from '@orbit/shared/contracts/display'
 import { Snowflake } from '@/components/ui/icons'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { StreakLegend } from '@/components/ui/streak-legend'
 import { StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-function LegendMark({ state, tokens }: Readonly<{
-  state: 'active' | 'frozen' | 'missed'
-  tokens: ReturnType<typeof createTokensV2>
-}>) {
-  if (state === 'frozen') return <Snowflake size={16} strokeWidth={2} color={tokens.statusFrozen} />
-  const style = state === 'active'
-    ? { backgroundColor: tokens.fg1 }
-    : { borderWidth: 1, borderColor: tokens.statusEmpty }
-  return <View style={[styles.legendMark, style]} />
-}
 
 export function FreezeBank(props: Readonly<FreezeBankProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -24,14 +14,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
 
   return (
     <View testID="freeze-bank" style={styles.root}>
-      <View accessibilityLabel={props.words.legendLabel} style={styles.legend}>
-        {(['active', 'frozen', 'missed'] as const).map((state) => (
-          <View key={state} style={styles.legendItem}>
-            <LegendMark state={state} tokens={tokens} />
-            <Text style={[styles.meta, { color: tokens.fg3 }]}>{props.words[state]}</Text>
-          </View>
-        ))}
-      </View>
+      <StreakLegend words={props.words} />
       <View style={styles.figureRow}>
         <View style={styles.figureBlock}><StatTile value={props.longestValue} label={props.longestLabel} /></View>
         <View style={styles.figureBlock}><StatTile value={props.tierValue} label={props.tierLabel} /></View>
@@ -73,9 +56,6 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
 
 const styles = StyleSheet.create({
   root: { gap: 12 },
-  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  legendItem: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  legendMark: { borderRadius: 8, height: 12, width: 12 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 },
   figureRow: { flexDirection: 'row', gap: 12 },
