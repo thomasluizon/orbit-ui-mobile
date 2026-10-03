@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
-    lineHeight: 18,
+    lineHeight: 19.6,
   },
 })

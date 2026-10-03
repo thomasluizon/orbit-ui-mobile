@@ -182,7 +182,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     scanText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 12,
+      fontSize: 14,
       color: tokens.fg1,
     },
     shortLink: {

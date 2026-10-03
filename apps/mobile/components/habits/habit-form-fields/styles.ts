@@ -499,7 +499,7 @@ export function createStyles(tokens: AppTokens) {
       fontFamily: "Geist_400Regular",
       fontSize: 14,
       color: tokens.fg3,
-      lineHeight: 19,
+      lineHeight: 19.6,
     },
     frequencyCardExample: {
       fontFamily: "Geist_400Regular",

@@ -87,7 +87,7 @@ export function SettingsGroupRow({
               fontFamily: 'var(--font-sans)',
               fontSize: 17,
               fontWeight: 400,
-              lineHeight: 1.25,
+              lineHeight: 1.35,
               color: 'var(--fg-1)',
               overflowWrap: 'anywhere',
             }}

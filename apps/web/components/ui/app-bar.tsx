@@ -13,7 +13,7 @@ export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true
   const titleTranslate = titleIsBrandName ? 'no' : undefined
   return (
     <header data-back={onBack ? true : undefined} className="grid min-h-14 shrink-0 grid-cols-[auto_1fr_auto] items-center gap-1 px-4">
-      <div className="flex min-w-[var(--touch-min)] justify-start">
+      <div className={onBack ? 'flex min-w-[var(--touch-min)] justify-start' : undefined}>
         {onBack && (
           <button type="button" aria-label={backLabel} onClick={onBack} className={APP_BAR_CONTROL_CLASS}>
             <ChevronLeft size={24} strokeWidth={2} aria-hidden="true" />
@@ -21,7 +21,7 @@ export function AppBar({ title, onBack, backLabel, action, titleIsHeading = true
         )}
       </div>
       {titleIsHeading ? <h1 ref={titleRef} tabIndex={-1} translate={titleTranslate} className={titleClassName}>{title}</h1> : <span translate={titleTranslate} className={titleClassName}>{title}</span>}
-      <div className="flex min-w-[var(--touch-min)] items-center justify-end gap-3">{action}</div>
+      <div className="flex items-center justify-end gap-3">{action}</div>
     </header>
   )
 }
