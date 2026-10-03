@@ -5,6 +5,7 @@ import {
   SUPPORT_SUBJECT_OPTIONS,
   type SupportSubjectId,
 } from '@orbit/shared/utils'
+import { SupportReplyEmail } from './support-reply-email'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RadioGroup } from '@/components/ui/radio-row'
@@ -103,7 +104,6 @@ export function SupportForm({
               <RadioRow
                 key={option.id}
                 label={t(option.labelKey)}
-                description={t(option.descriptionKey)}
                 selected={subject === option.id}
                 disabled
                 reason={t('profile.support.subjectSendingReason')}
@@ -112,7 +112,6 @@ export function SupportForm({
               <RadioRow
                 key={option.id}
                 label={t(option.labelKey)}
-                description={t(option.descriptionKey)}
                 selected={subject === option.id}
                 onSelect={() => onSubjectChange(option.id)}
               />
@@ -142,17 +141,7 @@ export function SupportForm({
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
       />
-      <Input
-        label={t('profile.support.email')}
-        name="replyEmail"
-        value={email}
-        onChange={() => {}}
-        disabled
-        hint={t('profile.support.emailLockedReason')}
-        kind="email"
-        inputMode="email"
-        autoComplete="off"
-      />
+      <SupportReplyEmail email={email} />
       {appVersion ? (
         <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
           {t('profile.support.versionIncluded', { version: appVersion })}
