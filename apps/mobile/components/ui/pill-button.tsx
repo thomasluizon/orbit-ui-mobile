@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, type ReactNode } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
@@ -6,12 +6,19 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  View,
   type ViewStyle,
 } from 'react-native'
-import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonVariant } from '@orbit/shared/theme'
+import { BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN, type ButtonVariant } from '@orbit/shared/theme'
 import { createTokensV2, mixHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
+
+const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
+
+function SmallPillTarget({ small, matchedWidth, children }: Readonly<{ small: boolean; matchedWidth: boolean; children: ReactNode }>) {
+  return small ? <View style={{ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, padding: SMALL_PILL_HIT_PADDING, flexShrink: 0, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined }}>{children}</View> : children
+}
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
@@ -75,7 +82,9 @@ export function Button({
   const quietsOnPress = variant === 'secondary'
 
   return (
+    <SmallPillTarget small={size === 'sm'} matchedWidth={matchedWidth}>
     <Pressable
+      hitSlop={size === 'sm' ? SMALL_PILL_HIT_PADDING : undefined}
       onPress={loading ? undefined : onClick}
       disabled={disabled || loading}
       accessibilityRole={accessibilityRole}
@@ -87,7 +96,7 @@ export function Button({
         styles.base,
         iconOnly
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
-          : { height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight ?? 44, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+          : { height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed && !disabled && !loading),
         disabled && !loading ? styles.disabled : null,
         pressed && !disabled && !loading && quietsOnPress ? styles.pressedQuiet : null,
@@ -109,6 +118,7 @@ export function Button({
         </Text>
       )}
     </Pressable>
+    </SmallPillTarget>
   )
 }
 
@@ -119,8 +129,8 @@ export function PillLink({ onPress, children }: Readonly<{ onPress: () => void; 
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: SMALL_PILL_VISIBLE_MIN,
+    minWidth: SMALL_PILL_VISIBLE_MIN,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

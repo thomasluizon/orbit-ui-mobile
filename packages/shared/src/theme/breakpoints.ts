@@ -1,3 +1,9 @@
 export const WIDE_DESKTOP_BREAKPOINT = 1024
 
 export const SHELL_CONTENT_MAX_WIDTH = 740
+
+export const TOUCH_TARGET_MIN = 48
+
+export const MONTH_GRID_TARGET_MIN = 44
+
+export const SMALL_PILL_VISIBLE_MIN = 44

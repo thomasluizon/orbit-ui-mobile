@@ -102,7 +102,7 @@ describe('PillButton', () => {
       { label: 'Continue', iconOnly: false },
       { label: 'i', iconOnly: false },
       { label: 'Open menu', iconOnly: true },
-    ])('paints the full target without a pseudo-element extension: $label', async ({ label, iconOnly }) => {
+    ])('keeps the visible pill and expands its reserved hit area to 48px: $label', async ({ label, iconOnly }) => {
       const { container } = render(iconOnly
         ? <PillButton size="sm" iconOnly label={label}><span /></PillButton>
         : <PillButton size="sm">{label}</PillButton>)
@@ -129,8 +129,8 @@ describe('PillButton', () => {
         })
         expect(measured.width).toBeGreaterThanOrEqual(44)
         expect(measured.height).toBe(44)
-        expect(measured.extensions.every(({ content }) => content === 'none')).toBe(true)
-        expect(measured.hits).toEqual([true, true, true, true, false, false])
+        expect(measured.extensions.some(({ content }) => content !== 'none')).toBe(true)
+        expect(measured.hits).toEqual([true, true, true, true, true, true])
       } finally {
         await page.close()
       }
