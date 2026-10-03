@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Composer } from '@/components/shell/composer'
 import { AppBar } from '@/components/ui/app-bar'
 import { Shell412 } from '@/components/shell/shell-412'
+import { FlowShell } from '@/components/shell/flow-shell'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
 import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
@@ -13,7 +14,15 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { __emitKeyboardEvent, __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
-vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 24, left: 0 }) }))
+vi.mock('react-native-safe-area-context', async () => ({
+  useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 24, left: 0 }),
+  SafeAreaView: (await import('react-native')).View,
+}))
+
+vi.mock('@/lib/use-app-theme', async () => {
+  const { createSurfaces } = await import('@/lib/theme')
+  return { useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: createSurfaces('orange', 'dark') }) }
+})
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 interface Host {
@@ -90,6 +99,30 @@ const destinations = ['today', 'calendar', 'progress', 'profile'] as const
 afterEach(() => { __resetTestHostConfig() })
 
 describe('Native bottom tab layout', () => {
+  it.each([412, 1280].flatMap((width) => [100, 1600].map((contentHeight) => ({ width, contentHeight }))))(
+    'owns onboarding clearance at $width with $contentHeight px of content', ({ width, contentHeight }) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof renderer.create> & { toJSON: () => Host; unmount: () => void }
+    void renderer.act(() => { tree = renderer.create(<FlowShell nav={false}
+      action={<View testID="onboarding-action" style={{ height: 50 }} />}>
+      <View testID="onboarding-content" style={{ height: contentHeight }} />
+    </FlowShell>) as typeof tree })
+    const nodes = new Map<string, YogaNode>()
+    const root = layoutHost(tree.toJSON(), nodes, 1)
+    try {
+      root.calculateLayout(width, 900, Yoga.DIRECTION_LTR)
+      const scroller = root.getChild(0)
+      const contentContainer = scroller.getChild(0)
+      const content = nodes.get('onboarding-content')!
+      const action = nodes.get('onboarding-action')!
+      const maxScroll = Math.max(0, contentContainer.getComputedHeight() - scroller.getComputedHeight())
+      expect(contentContainer.getComputedPadding(Yoga.EDGE_BOTTOM)).toBe(96)
+      expect(bounds(action).top - (bounds(content).bottom - maxScroll)).toBeGreaterThanOrEqual(96)
+      expect(bounds(action).bottom).toBeLessThanOrEqual(900)
+      expect(contentContainer.getComputedWidth()).toBeLessThanOrEqual(740)
+    } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
+  })
+
   it.each([120, 160, 740])('keeps the full Create target revealable in a %ipx keyboard-constrained flow', (height) => {
     __setWindowDimensions({ width: 360, height, scale: 1, fontScale: 1 })
     const onSubmit = vi.fn()

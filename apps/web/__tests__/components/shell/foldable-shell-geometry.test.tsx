@@ -78,18 +78,47 @@ describe('Foldable shell geometry', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       const geometry = await page.evaluate(() => {
-        const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
+        const scrollerElement = document.querySelector('[data-shell-scroller]')!
+        const scroller = scrollerElement.getBoundingClientRect()
         const flow = document.querySelector<HTMLElement>('[data-flow-mode]')!
         const content = flow.firstElementChild!.getBoundingClientRect()
         const box = flow.getBoundingClientRect()
         const style = getComputedStyle(flow)
         return { height: box.height, scrollerHeight: scroller.height,
+          padding: parseFloat(getComputedStyle(scrollerElement).paddingBottom),
           leading: content.top - box.top - parseFloat(style.paddingTop),
           trailing: box.bottom - content.bottom - parseFloat(style.paddingBottom) }
       })
+      expect(geometry.padding).toBe(width < 1024 ? 96 : 32)
       expect(geometry.height).toBeCloseTo(geometry.scrollerHeight - (width < 1024 ? 96 : 32), 0)
       expect(geometry.leading).toBeGreaterThan(0)
       expect(geometry.leading).toBeCloseTo(geometry.trailing, 0)
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1280].flatMap((width) => [100, 1600].map((contentHeight) => ({ width, contentHeight }))))(
+    'owns onboarding clearance at $width with $contentHeight px of content', async ({ width, contentHeight }) => {
+    const { container } = render(<FlowShell mode="onboarding"
+      action={<button type="button" className="h-[50px]">Continue</button>}>
+      <div data-onboarding-content="" style={{ height: contentHeight }}>Onboarding content</div>
+    </FlowShell>)
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        scroller.scrollTop = scroller.scrollHeight
+        const content = document.querySelector('[data-onboarding-content]')!.getBoundingClientRect()
+        const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
+        return { padding: parseFloat(getComputedStyle(scroller).paddingBottom),
+          clearance: bottom.top - content.bottom, bottom: bottom.bottom,
+          documentWidth: document.documentElement.scrollWidth }
+      })
+      const clearance = width < 1024 ? 96 : 32
+      expect(geometry.padding).toBe(clearance)
+      expect(geometry.clearance).toBeGreaterThanOrEqual(clearance)
+      expect(geometry.bottom).toBeLessThanOrEqual(900)
+      expect(geometry.documentWidth).toBe(width)
     } finally { await page.close() }
   })
 

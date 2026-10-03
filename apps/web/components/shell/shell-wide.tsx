@@ -217,6 +217,20 @@ function ShellWideBackground({
   const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
     ? 'pb-24 lg:pb-8'
     : 'pb-8'
+  const scroller = (
+    <main
+      ref={registerScroller}
+      data-shell-scroller=""
+      className={`relative overflow-y-auto overflow-x-hidden ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${hasBottomChrome ? scrollerClearance : ''}`}
+    >
+      <span
+        aria-hidden="true"
+        data-shell-scroll-origin=""
+        className="pointer-events-none absolute left-0 top-0 h-px w-px"
+      />
+      {props.children}
+    </main>
+  )
   return (
     <div
       data-shell-background=""
@@ -229,18 +243,7 @@ function ShellWideBackground({
       <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
         <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           {props.header !== undefined ? <div data-shell-header="" className={hasFlowAction ? 'min-h-11 overflow-y-auto overscroll-contain' : 'shrink-0'}>{props.header}</div> : null}
-          <main
-            ref={registerScroller}
-            data-shell-scroller=""
-            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${!hasFlowAction && hasBottomChrome ? scrollerClearance : ''}`}
-          >
-            <span
-              aria-hidden="true"
-              data-shell-scroll-origin=""
-              className="pointer-events-none absolute left-0 top-0 h-px w-px"
-            />
-            {hasFlowAction ? <div className={`h-full ${scrollerClearance}`}>{props.children}</div> : props.children}
-          </main>
+          {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
         </div>
       </div>
