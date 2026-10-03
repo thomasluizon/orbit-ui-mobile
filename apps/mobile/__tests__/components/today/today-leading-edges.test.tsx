@@ -39,6 +39,8 @@ interface Host {
     numberOfLines?: number
     accessibilityLabel?: string
     accessibilityRole?: string
+    pointerEvents?: string
+    onPress?: () => void
   }
   children: (Host | string)[] | null
 }
@@ -81,6 +83,12 @@ function applyInsets(node: YogaNode, style: ViewStyle) {
   }
 }
 
+function applyPositions(node: YogaNode, style: ViewStyle) {
+  for (const [key, edge] of [['left', Yoga.EDGE_LEFT], ['right', Yoga.EDGE_RIGHT], ['top', Yoga.EDGE_TOP], ['bottom', Yoga.EDGE_BOTTOM]] as const) {
+    if (typeof style[key] === 'number') node.setPosition(edge, style[key])
+  }
+}
+
 function layoutHost(element: Host, fontScale: number, nodes: Map<Host, YogaNode>): YogaNode {
   const node = Yoga.Node.create()
   nodes.set(element, node)
@@ -89,6 +97,7 @@ function layoutHost(element: Host, fontScale: number, nodes: Map<Host, YogaNode>
   if (typeof style.marginTop === 'number') node.setMargin(Yoga.EDGE_TOP, style.marginTop)
   if (style.width === '100%') node.setWidthPercent(100)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+  applyPositions(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
@@ -128,12 +137,46 @@ function topPosition(node: YogaNode): number {
   return top
 }
 
+function assertPrimaryFill(nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
+  const primaryLayer = [...nodes].find(([element]) => element.type === 'Pressable' &&
+    element.props.accessibilityLabel?.startsWith('Parent habit'))!
+  const [, primaryNode] = primaryLayer
+  const [rowHost, rowNode] = row
+  const rowStyle = StyleSheet.flatten(rowHost.props.style as StyleProp<ViewStyle>)
+  expect(primaryNode.getComputedWidth()).toBe(rowNode.getComputedWidth() - (rowStyle.borderLeftWidth ?? 0) - (rowStyle.borderRightWidth ?? 0))
+  expect(primaryNode.getComputedHeight()).toBe(rowNode.getComputedHeight() - (rowStyle.borderTopWidth ?? 0) - (rowStyle.borderBottomWidth ?? 0))
+  const pressedStyle = primaryLayer[0].props.style
+  expect(typeof pressedStyle).toBe('function')
+  if (typeof pressedStyle !== 'function') throw new Error('Primary target has no press feedback')
+  expect(StyleSheet.flatten(pressedStyle({ pressed: true }))).toMatchObject({
+    borderRadius: 20, overflow: 'hidden', backgroundColor: expect.any(String),
+  })
+}
+
+function pressAt(element: Host, nodes: Map<Host, YogaNode>, x: number, y: number): boolean {
+  const node = nodes.get(element)!
+  const inside = x >= leadingPosition(node) && x < leadingPosition(node) + node.getComputedWidth()
+    && y >= topPosition(node) && y < topPosition(node) + node.getComputedHeight()
+  if (!inside || element.props.pointerEvents === 'none') return false
+  if (element.props.pointerEvents !== 'box-only') {
+    const children = (element.children ?? []).filter((child): child is Host => typeof child !== 'string')
+    for (const child of [...children].reverse()) if (pressAt(child, nodes, x, y)) return true
+  }
+  if (element.props.onPress && element.props.pointerEvents !== 'box-none') {
+    element.props.onPress()
+    return true
+  }
+  return false
+}
+
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
 describe('Hoje leading edges on Android', () => {
   it.each([320, 384].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].map((selectMode) => ({ width, fontScale, selectMode })))))(
     'shares two edges at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+      const onDetail = vi.fn()
+      const onToggleSelection = vi.fn()
       let renderer: ReturnType<typeof create> & { toJSON: () => Host; unmount: () => void }
       void act(() => {
         renderer = create(<View style={{ paddingHorizontal: 16 }}>
@@ -141,7 +184,7 @@ describe('Hoje leading edges on Android', () => {
           <TodayDateControl {...dateProps} />
           {(['Leaf', 'Parent', 'Child'] as const).map((title) => <HabitRow key={title} habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })}
             structuralColumn isSelectMode={selectMode} depth={title === 'Child' ? 1 : 0} hasChildren={title === 'Parent'}
-            childrenTotal={title === 'Parent' ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection: noop, onEdit: noop }} />)}
+            childrenTotal={title === 'Parent' ? 2 : 0} actions={{ onToggleExpand: noop, onToggleSelection, onDetail, onEdit: noop }} />)}
         </View>) as typeof renderer
       })
       const hosts = renderer!.toJSON()
@@ -167,7 +210,14 @@ describe('Hoje leading edges on Android', () => {
         expect(progressNode.getComputedWidth()).toBeGreaterThanOrEqual(measuredProgress.width)
         const parentTitle = textEdges.find(([element]) => textContent(element).startsWith('Parent habit'))![1]
         expect(topPosition(progressNode)).toBeGreaterThanOrEqual(topPosition(parentTitle) + parentTitle.getComputedHeight())
+        void act(() => {
+          pressAt(hosts, nodes, leadingPosition(progressNode) + progressNode.getComputedWidth() / 2,
+            topPosition(progressNode) + progressNode.getComputedHeight() / 2)
+        })
+        expect(selectMode ? onToggleSelection : onDetail).toHaveBeenCalledExactlyOnceWith()
+        expect(selectMode ? onDetail : onToggleSelection).not.toHaveBeenCalled()
         if (fontScale === 2) {
+          assertPrimaryFill(nodes, rows[1]!)
           const parentHosts = new Set<Host>()
           const collectParentHosts = (host: Host) => {
             parentHosts.add(host)

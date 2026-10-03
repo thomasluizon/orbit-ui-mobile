@@ -1,4 +1,4 @@
-import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
+import { InsetFocusPressable as Pressable, type InsetFocusPressableProps } from '@/components/ui/inset-focus-pressable'
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react'
 import { StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -147,6 +147,23 @@ function HabitRowStructuralColumn({
       <View style={{ transform: [{ rotate: expanded ? '0deg' : '-90deg' }] }}>
         <ChevronDown size={20} color={tokens.fg3} strokeWidth={1.8} />
       </View>
+    </Pressable>
+  )
+}
+
+function renderHabitRowPrimaryButton({ supportingMeta, bodyLayout, bgHover, children, ...props }: Readonly<InsetFocusPressableProps & {
+  supportingMeta: boolean
+  bodyLayout: ViewStyle
+  bgHover: string
+}>) {
+  return (
+    <Pressable {...props} style={({ pressed }) => [
+      styles.bodyButton,
+      bodyLayout,
+      supportingMeta ? StyleSheet.absoluteFill : null,
+      pressed ? [styles.bodyButtonPressed, { backgroundColor: bgHover }] : null,
+    ]}>
+      {supportingMeta ? null : children}
     </Pressable>
   )
 }
@@ -331,43 +348,44 @@ export const HabitRow = memo(function HabitRow({
   })
   const rowAccessibilityLabel = completionStatusUnavailable ? habit.title : knownRowAccessibilityLabel
 
+  const primaryContent = (
+    <>
+      <HabitRowLeading
+        habitTitle={habit.title}
+        emoji={emoji}
+        emojiSize={emojiSize}
+        wellSize={wellSize}
+        wellRadius={wellRadius}
+        tokens={tokens}
+      />
+
+      <HabitRowContent
+        habit={habit}
+        titleSize={titleSize}
+        titleColor={titleColor}
+        metaColor={bodyPressFeedback.metaColor}
+        metaParts={metaParts}
+        metaOnSupportingLine={supportingMeta}
+        tokens={tokens}
+      />
+    </>
+  )
+  const primaryButton = renderHabitRowPrimaryButton({
+    onPress: handlePress,
+    onPressIn: bodyPressFeedback.onPressIn,
+    onPressOut: bodyPressFeedback.onPressOut,
+    onLongPress: isSelectMode ? undefined : actions.onLongPressCard,
+    delayLongPress: 500,
+    accessibilityRole: 'button',
+    accessibilityLabel: rowAccessibilityLabel,
+    accessibilityHint: futureHint?.label,
+    supportingMeta,
+    bodyLayout,
+    bgHover: tokens.bgHover,
+    children: primaryContent,
+  })
   const rowContents = (
     <>
-        <Pressable
-          onPress={handlePress}
-          onPressIn={bodyPressFeedback.onPressIn}
-          onPressOut={bodyPressFeedback.onPressOut}
-          onLongPress={isSelectMode ? undefined : actions.onLongPressCard}
-          delayLongPress={500}
-          accessibilityRole="button"
-          accessibilityLabel={rowAccessibilityLabel}
-          accessibilityHint={futureHint?.label}
-          style={({ pressed }) => [
-            styles.bodyButton,
-            bodyLayout,
-            pressed ? [styles.bodyButtonPressed, { backgroundColor: tokens.bgHover }] : null,
-          ]}
-        >
-          <HabitRowLeading
-            habitTitle={habit.title}
-            emoji={emoji}
-            emojiSize={emojiSize}
-            wellSize={wellSize}
-            wellRadius={wellRadius}
-            tokens={tokens}
-          />
-
-          <HabitRowContent
-            habit={habit}
-            titleSize={titleSize}
-            titleColor={titleColor}
-            metaColor={bodyPressFeedback.metaColor}
-            metaParts={metaParts}
-            metaOnSupportingLine={supportingMeta}
-            tokens={tokens}
-          />
-        </Pressable>
-
         {structuralColumn && isSelectMode ? (
           <Pressable onPress={actions.onToggleSelection} accessibilityRole="checkbox"
             accessibilityLabel={habit.title} accessibilityState={{ checked: isSelected }}
@@ -414,7 +432,7 @@ export const HabitRow = memo(function HabitRow({
   return (
     <View>
       <HabitRowLayout largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
-        rowStyle={[rowStyle, bodyPressFeedback.feedbackStyle, style]} metaParts={metaParts}
+        rowStyle={[rowStyle, bodyPressFeedback.feedbackStyle, style]} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
         metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
         {rowContents}
       </HabitRowLayout>
@@ -433,11 +451,13 @@ export const HabitRow = memo(function HabitRow({
   )
 })
 
-function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, metaParts, metaColor, tokens, children }: Readonly<{
+function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
   largeText: boolean
   isChild: boolean
   supportingMeta: boolean
   rowStyle: StyleProp<ViewStyle>
+  primaryButton: ReactNode
+  primaryContent: ReactNode
   metaParts: Parameters<typeof HabitRowContent>[0]['metaParts']
   metaColor: string
   tokens: ReturnType<typeof createTokensV2>
@@ -445,13 +465,21 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, metaPart
 }>) {
   return (
     <View testID="habit-row" style={[largeText ? null : styles.row, rowStyle]}>
+      {supportingMeta ? primaryButton : null}
       {largeText ? (
-        <View style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? 4 : 8 }]}>
+        <View pointerEvents="box-none" style={[styles.row, { minHeight: isChild ? 52 : 68, alignItems: 'flex-start', paddingTop: isChild ? 4 : 8 }]}>
+          {supportingMeta ? (
+            <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+              style={[styles.bodyButton, habitRowBodyLayout(isChild, largeText)]}>
+              {primaryContent}
+            </View>
+          ) : primaryButton}
           {children}
         </View>
-      ) : children}
+      ) : <>{primaryButton}{children}</>}
       {supportingMeta ? (
-        <View style={{ flexDirection: 'row', gap: 12, paddingBottom: 8 }}>
+        <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
+          style={{ flexDirection: 'row', gap: 12, paddingBottom: 8 }}>
           <View style={{ width: 48 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} expanded />

@@ -581,6 +581,28 @@ describe('HabitRow check circle accessible name', () => {
 describe('HabitRow large text placement', () => {
   afterEach(() => document.documentElement.style.removeProperty('font-size'))
 
+  it.each([1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ textScale, selectMode }))))(
+    'activates progress once at $textScale text scale, selecting=$selectMode', ({ textScale, selectMode }) => {
+      document.documentElement.style.fontSize = `${16 * textScale}px`
+      const onDetail = vi.fn()
+      const onToggleSelection = vi.fn()
+      render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren
+        childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} selectMode={selectMode}
+        actions={{ onDetail, onToggleSelection }} />)
+      fireEvent.click(screen.getByText('0 of 2'))
+      expect(selectMode ? onToggleSelection : onDetail).toHaveBeenCalledExactlyOnceWith()
+      expect(selectMode ? onDetail : onToggleSelection).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ textScale, selectMode }))))('names progress and state words at $textScale text scale, selecting=$selectMode', ({ textScale, selectMode }) => {
+    document.documentElement.style.fontSize = `${16 * textScale}px`
+    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren
+      childProgress={{ done: 0, total: 2 }} selectMode={selectMode}
+      meta={['0 of 2', { kind: 'overdue', label: 'Overdue' }, { kind: 'bad', label: 'Bad' }]} />)
+    expect(document.querySelector('[data-habit-row-body]')).toHaveAccessibleName(/Parent\s*0 of 2·Overdue·Bad/)
+  })
+
   it('keeps producer-derived future hints hidden when parent progress moves', () => {
     document.documentElement.style.fontSize = '32px'
     const habit = createMockHabit({ title: 'Parent', dueDate: '2030-01-02' })
@@ -592,14 +614,22 @@ describe('HabitRow large text placement', () => {
     expect(screen.getByText('0 of 2').textContent).not.toContain(hint)
   })
 
-  it('moves progress only above 130 percent text and restores it after resizing', async () => {
+  it.each([false, true])('moves progress only above 130 percent text and restores it after resizing, selecting=%s', async (selectMode) => {
     document.documentElement.style.fontSize = '20.8px'
-    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} />)
+    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} selectMode={selectMode} />)
     const progress = screen.getByText('0 of 2')
     expect(progress.closest('[data-habit-row-body]')).not.toBeNull()
+    expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
     document.documentElement.style.fontSize = '21px'
-    await waitFor(() => expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).toBeNull())
+    await waitFor(() => {
+      expect(document.querySelector('[data-habit-row-heading]')).not.toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-heading]')).toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull()
+    })
     document.documentElement.style.fontSize = '16px'
-    await waitFor(() => expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull())
+    await waitFor(() => {
+      expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull()
+    })
   })
 })

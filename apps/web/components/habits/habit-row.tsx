@@ -188,31 +188,26 @@ export function HabitRow({
     return isChild ? 'var(--fg-2)' : 'var(--fg-1)'
   }
 
-  const rowContents = (
+  const primaryContent = (
     <>
-      <button
-        type="button"
-        onClick={handleRowClick}
-        data-habit-row-body=""
-        className="flex min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
-        style={{ gap: 12, paddingBlock: rowPadding, paddingInlineStart: 0, alignItems: largeText ? 'flex-start' : undefined }}
-      >
-        <HabitRowLeading
-          title={habit.title}
-          emoji={habit.emoji}
-          emojiSize={emojiSize}
-          wellSize={wellSize}
-          wellRadius={wellRadius}
-        />
+      <HabitRowLeading
+        title={habit.title}
+        emoji={habit.emoji}
+        emojiSize={emojiSize}
+        wellSize={wellSize}
+        wellRadius={wellRadius}
+      />
 
-        <HabitRowContent
-          habit={habit}
-          titleSize={titleSize}
-          titleColor={getTitleColor()}
-          meta={supportingMeta ? meta.filter((token) => typeof token !== 'string' && token.kind === 'future') : meta}
-        />
-      </button>
-
+      <HabitRowContent
+        habit={habit}
+        titleSize={titleSize}
+        titleColor={getTitleColor()}
+        meta={supportingMeta ? meta.filter((token) => typeof token !== 'string' && token.kind === 'future') : meta}
+      />
+    </>
+  )
+  const controls = (
+    <>
       {structuralColumn && selectMode ? (
         <button type="button" data-habit-row-control="selection" aria-label={habit.title}
           aria-pressed={selected} onClick={() => onToggleSelection?.()}
@@ -252,16 +247,57 @@ export function HabitRow({
       />
     </>
   )
+  const rowContents = (
+    <>
+      <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta}>
+        {primaryContent}
+      </HabitRowPrimaryButton>
+      {supportingMeta ? <div className="relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
+    </>
+  )
 
   return (
     <HabitRowLayout habitTitle={habit.title} depth={depth} state={state} selected={selected}
-      largeText={largeText} isChild={isChild} supportingMeta={supportingMeta} meta={meta}>
+      largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}>
       {rowContents}
     </HabitRowLayout>
   )
 }
 
-function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild, supportingMeta, meta, children }: Readonly<{
+function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, children }: Readonly<{
+  onClick: () => void
+  supportingMeta: boolean
+  largeText: boolean
+  isChild: boolean
+  rowPadding: number
+  meta: HabitRowMetaToken[]
+  children: ReactNode
+}>) {
+  return (
+      <button
+        type="button"
+        onClick={onClick}
+        data-habit-row-body=""
+        className={`${supportingMeta ? 'grid col-start-1 col-span-full row-start-1 row-span-2 grid-cols-subgrid grid-rows-subgrid' : 'flex'} min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
+        style={{ gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 0, alignItems: largeText ? 'flex-start' : undefined }}
+      >
+        {supportingMeta ? (
+          <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? 4 : 8 }}>
+            {children}
+          </div>
+        ) : children}
+        {supportingMeta ? (
+          <div className="col-span-full row-start-2 flex min-w-0" style={{ gap: 12, paddingBlockEnd: 8 }}>
+            <span className="w-[48px] shrink-0" aria-hidden="true" />
+            <div className="min-w-0 flex-1"><MetaStrip tokens={meta.filter((token) => typeof token === 'string' || token.kind !== 'future')} expanded /></div>
+          </div>
+        ) : null}
+      </button>
+  )
+}
+
+function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild, supportingMeta, children }: Readonly<{
   habitTitle: string
   depth: 0 | 1
   state: HabitStatus
@@ -269,25 +305,18 @@ function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild
   largeText: boolean
   isChild: boolean
   supportingMeta: boolean
-  meta: HabitRowMetaToken[]
   children: ReactNode
 }>) {
   const minHeight = isChild ? 52 : 68
   return (
     <div data-testid="habit-row" data-habit-title={habitTitle} data-depth={depth} data-status={state} tabIndex={-1}
-      className={`relative flex ${largeText ? 'flex-col' : 'items-center gap-[4px]'} ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
+      className={`relative ${supportingMeta ? 'grid' : 'flex'} ${supportingMeta ? 'grid-cols-[minmax(0,1fr)_auto] gap-x-[4px]' : largeText ? 'flex-col' : 'items-center gap-[4px]'} ${selected ? 'bg-[var(--selection-bg)]' : ''}`}
       style={{ minHeight }}>
-      {largeText ? (
+      {largeText && !supportingMeta ? (
         <div className="flex w-full items-start gap-[4px]" style={{ minHeight, paddingBlockStart: isChild ? 4 : 8 }}>
           {children}
         </div>
       ) : children}
-      {supportingMeta ? (
-        <div className="flex w-full min-w-0 gap-[12px]" style={{ paddingBlockEnd: 8 }}>
-          <span className="w-[48px] shrink-0" aria-hidden="true" />
-          <div className="min-w-0 flex-1"><MetaStrip tokens={meta.filter((token) => typeof token === 'string' || token.kind !== 'future')} expanded /></div>
-        </div>
-      ) : null}
     </div>
   )
 }

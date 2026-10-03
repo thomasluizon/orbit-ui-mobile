@@ -95,18 +95,25 @@ describe('Hoje header geometry', () => {
           const progress = parent.querySelector('.habit-row-meta')!
           const progressText = document.createRange()
           progressText.selectNodeContents(progress)
-          const title = parent.querySelector('[data-habit-row-body] > div > span')!
+          const title = (parent.querySelector('[data-habit-row-heading] > div > span') ?? parent.querySelector('[data-habit-row-body] > div > span'))!
           const titleText = document.createRange()
           titleText.selectNodeContents(title)
           const firstTitleLine = titleText.getClientRects()[0]!
+          const body = parent.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+          const rowBounds = parent.getBoundingClientRect()
+          const bodyBounds = body.getBoundingClientRect()
+          const progressBounds = progress.getBoundingClientRect()
+          const progressTarget = document.elementFromPoint(progressBounds.left + progressBounds.width / 2, progressBounds.top + progressBounds.height / 2)?.closest('button')
           return {
+            primaryTarget: { progress: progressTarget === body, width: bodyBounds.width, height: bodyBounds.height,
+              rowWidth: rowBounds.width, rowHeight: rowBounds.height, radius: getComputedStyle(body).borderRadius },
             progress: { width: progressText.getBoundingClientRect().width, available: progress.getBoundingClientRect().width,
               top: progress.getBoundingClientRect().top, titleBottom: title.getBoundingClientRect().bottom },
             parentControls: Array.from(parent.querySelectorAll('[data-habit-row-control]')).map((control) => {
               const bounds = control.getBoundingClientRect()
               return { top: bounds.top, bottom: bounds.bottom, firstLineCenter: (firstTitleLine.top + firstTitleLine.bottom) / 2 }
             }),
-            contentEdges: [date, sentence, ...rows.map((row) => row.querySelector('[data-habit-row-body] > div')!)].map((element) => element.getBoundingClientRect().left),
+            contentEdges: [date, sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div'))!)].map((element) => element.getBoundingClientRect().left),
             insetEdges: rows.map((row) => row.getBoundingClientRect().left),
             leafBody: rows[0]!.querySelector('[data-habit-row-body]')!.getBoundingClientRect().left,
             leafDisclosure: rows[0]!.querySelector('[data-habit-row-control="disclosure"]') !== null,
@@ -118,6 +125,12 @@ describe('Hoje header geometry', () => {
             })),
           }
         })
+        expect(geometry.primaryTarget.progress).toBe(true)
+        if (textScale === 2) {
+          expect(geometry.primaryTarget.width).toBe(geometry.primaryTarget.rowWidth)
+          expect(geometry.primaryTarget.height).toBe(geometry.primaryTarget.rowHeight)
+          expect(geometry.primaryTarget.radius).toBe('20px')
+        }
         expect(geometry.progress.width).toBeLessThanOrEqual(geometry.progress.available)
         expect(geometry.progress.top).toBeGreaterThanOrEqual(geometry.progress.titleBottom)
         if (textScale === 2) for (const control of geometry.parentControls) {
