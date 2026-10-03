@@ -194,6 +194,33 @@ function ComposerControls({ props }: Readonly<{ props: WebComposerProps }>) {
 }
 
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (props.state !== 'offline' && props.state !== 'atLimit') return
+    const input = inputRef.current
+    if (!input) return
+    let observingFonts = false
+    function updatePlaceholder() {
+      const style = getComputedStyle(input!)
+      const availableWidth = input!.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+      if (availableWidth <= 0) return
+      if (!observingFonts) {
+        document.fonts.addEventListener('loadingdone', updatePlaceholder)
+        observingFonts = true
+      }
+      const context = document.createElement('canvas').getContext('2d')!
+      context.font = style.font
+      context.letterSpacing = style.letterSpacing
+      input!.placeholder = context.measureText(props.words.placeholder).width <= availableWidth ? props.words.placeholder : ''
+    }
+    const observer = new ResizeObserver(updatePlaceholder)
+    observer.observe(input)
+    updatePlaceholder()
+    return () => {
+      observer.disconnect()
+      if (observingFonts) document.fonts.removeEventListener('loadingdone', updatePlaceholder)
+    }
+  }, [props.state, props.words.placeholder])
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   const isRecording = props.state === 'recording'
@@ -215,6 +242,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
       ) : null}
 
         {isRecording || isTranscribing ? <VoiceStatus state={props.state} words={props.voiceWords} /> : <textarea
+          ref={inputRef}
           id={props.inputId}
           rows={1}
           data-composer-input

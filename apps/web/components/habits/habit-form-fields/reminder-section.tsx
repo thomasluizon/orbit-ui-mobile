@@ -167,7 +167,7 @@ export function ReminderSection({
                   </button>
                 ))}
                 {showCustomInput && (
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+                  <div className="flex flex-wrap items-end gap-2 px-3 py-2">
                     <label className="flex flex-col gap-2 text-[14px] font-medium text-[var(--fg-2)]">
                       {t('habits.form.reminderCustomLabel')}
                       <input

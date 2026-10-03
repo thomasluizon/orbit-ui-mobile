@@ -48,7 +48,7 @@ export function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string
 
 export function CommandSearchField({ search, setSearch, activePageLabel, onBack, searchMode = false }: Readonly<{ search: string; setSearch: (value: string) => void; activePageLabel: string | null; onBack: () => void; searchMode?: boolean }>) {
   const t = useTranslations()
-  const fieldLabel = t(searchMode ? 'habits.search.title' : 'command.title')
+  const fieldLabel = t(searchMode ? 'habits.moveParent.searchPlaceholder' : 'command.placeholder')
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (activePageLabel !== null) inputRef.current?.focus()

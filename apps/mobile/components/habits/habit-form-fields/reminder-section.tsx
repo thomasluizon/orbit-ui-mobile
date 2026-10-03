@@ -194,7 +194,7 @@ export function ReminderSection({
               {showCustomInput && (
                 <View style={sectionStyles.customRow}>
                   <View style={{ gap: 8 }}>
-                    <Text style={{ color: tokens.fg2, fontSize: 14, fontWeight: "500" }}>{t("habits.form.reminderCustomLabel")}</Text>
+                    <Text style={{ color: tokens.fg2, fontFamily: "Geist_500Medium", fontSize: 14, fontWeight: "500" }}>{t("habits.form.reminderCustomLabel")}</Text>
                     <BottomSheetAppTextInput
                       value={customValue}
                       accessibilityLabel={t("habits.form.reminderCustomLabel")}
