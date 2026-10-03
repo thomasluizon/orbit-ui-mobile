@@ -135,10 +135,19 @@ for (const width of [320, 360, 384, 412]) {
 
       test('hover and press fills follow Principle 3', async ({ page }) => {
         await page.goto(`/?date=${reviewDay}`)
+        const listOptions = page.getByRole('button', { name: words.habits.listOptions, exact: true })
+        await listOptions.click()
+        await expect(page.getByRole('menu', { name: words.habits.listOptions })).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(page.getByRole('menu')).toHaveCount(0)
+        const tabBar = page.locator('[data-shell="wide"] [data-shell-tab-bar]')
+        await expect(tabBar).toHaveCount(1)
+        await expect(tabBar).toBeVisible()
+        await expect(page.locator('[data-shell-sidebar]')).toBeHidden()
         for (const label of [words.dates.previousDay, words.dates.nextDay, words.habits.listOptions]) {
           await expectInteractionFill(page.getByRole('button', { name: label, exact: true }))
         }
-        await expectInteractionFill(page.locator('[data-shell-tab-bar] nav > button').last())
+        await expectInteractionFill(tabBar.locator('nav > button').last())
         await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
         await expectInteractionFill(page.getByRole('menu', { name: words.habits.listOptions })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }))

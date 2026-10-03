@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { expectFillShape } from '@/e2e/layout/label-interaction-fill'
+import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { expectLabelsFit } from '@/e2e/layout/label-fit-contract'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
@@ -13,6 +13,38 @@ describe('label and interaction fill guards in Chromium', () => {
   })
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it('closes a popup opened on pointer down before measuring the next control', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.bringToFront()
+      await page.setContent(`<!doctype html><style>
+        button { width: 80px; height: 48px; border: 0; border-radius: 8px; background: rgb(220, 220, 220); }
+        button:hover { background: rgb(180, 180, 180); }
+        button:active { background: rgb(140, 140, 140); }
+        [role="menu"] { position: fixed; top: 100px; left: 0; }
+      </style><button id="trigger">Options</button><button id="next">Next</button>
+      <div role="menu" hidden>Refresh</div>
+      <script>
+        document.querySelector('#trigger').addEventListener('pointerdown', () => {
+          document.querySelector('[role="menu"]').hidden = false;
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key !== 'Escape') return;
+          const popup = document.querySelector('[role="menu"]');
+          if (popup) setTimeout(() => {
+            popup.remove();
+            document.querySelector('#next').replaceWith(document.querySelector('#next').cloneNode(true));
+          }, 50);
+        });
+      </script>`)
+      await expectInteractionFill(page.locator('#trigger'))
+      expect(await page.getByRole('menu').count()).toBe(0)
+      await expectInteractionFill(page.locator('#next'))
+    } finally {
+      await page.close()
+    }
+  })
 
   it.each([
     { name: 'centered partial fill', inset: '12px', passes: false },

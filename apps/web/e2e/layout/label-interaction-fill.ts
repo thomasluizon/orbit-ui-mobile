@@ -58,8 +58,11 @@ export async function expectFillShape(control: Locator, state: string) {
 
 export async function expectInteractionFill(control: Locator) {
   await expect(control).toBeVisible()
-  await control.scrollIntoViewIfNeeded()
-  await control.page().mouse.move(0, 0)
+  await control.hover({ trial: true })
+  const page = control.page()
+  const overlays = page.locator('[role="menu"]:visible, [role="dialog"]:visible')
+  const initialOverlayCount = await overlays.count()
+  await page.mouse.move(0, 0)
   const resting = await readFill(control)
   await control.hover()
   await expect.poll(async () => {
@@ -67,12 +70,17 @@ export async function expectInteractionFill(control: Locator) {
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
   }, { message: 'hover paints the control fill' }).toBe(true)
   await expectFillShape(control, 'hover')
-  await control.page().mouse.down()
   try {
+    await page.mouse.down()
     await expect.poll(() => control.evaluate((element) => element.matches(':active'))).toBe(true)
     await expectFillShape(control, 'press')
   } finally {
-    await control.page().mouse.move(0, 0)
-    await control.page().mouse.up()
+    await page.mouse.move(0, 0)
+    await page.mouse.up()
+    if (await overlays.count() > initialOverlayCount) {
+      await page.keyboard.press('Escape')
+      await expect(overlays).toHaveCount(initialOverlayCount)
+    }
+    await control.hover({ trial: true })
   }
 }
