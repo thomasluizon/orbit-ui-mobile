@@ -66,7 +66,7 @@ describe('Hoje header geometry', () => {
         <TodayDateControl {...props} isTodaySelected />
         <div style={{ paddingInline: 16 }}>
           {(['Leaf', 'Parent', 'Child'] as const).map((title) => <div className="habit-panel" key={title}>
-            <HabitRow habit={createMockHabit({ title })} structuralColumn selectMode={selectMode}
+            <HabitRow habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })} structuralColumn selectMode={selectMode}
               depth={title === 'Child' ? 1 : 0} hasChildren={title === 'Parent'}
               childProgress={title === 'Parent' ? { done: 0, total: 2 } : undefined}
               actions={{ onEdit: noop, onToggleExpand: noop, onToggleSelection: noop }} />
@@ -76,7 +76,15 @@ describe('Hoje header geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        await page.evaluate(async (scale) => { document.documentElement.style.fontSize = `${16 * scale}px`; await document.fonts.ready }, textScale)
+        await page.evaluate(async (scale) => {
+          document.documentElement.style.fontSize = `${16 * scale}px`
+          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] span, .today-astra-sentence')
+          for (const label of labels) {
+            const size = Number.parseFloat(getComputedStyle(label).fontSize)
+            label.style.fontSize = `${size * scale}px`
+          }
+          await document.fonts.ready
+        }, textScale)
         const geometry = await page.evaluate(() => {
           const date = document.querySelector('[data-today-date-row] [title]')!
           const sentence = document.querySelector('.today-astra-sentence')!
@@ -87,6 +95,7 @@ describe('Hoje header geometry', () => {
             leafBody: rows[0]!.querySelector('[data-habit-row-body]')!.getBoundingClientRect().left,
             leafDisclosure: rows[0]!.querySelector('[data-habit-row-control="disclosure"]') !== null,
             overflow: document.documentElement.scrollWidth,
+            rowHeights: rows.map((row) => row.getBoundingClientRect().height),
             controls: rows.flatMap((row) => Array.from(row.querySelectorAll('button')).map((button) => {
               const bounds = button.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
@@ -98,6 +107,8 @@ describe('Hoje header geometry', () => {
         expect(geometry.insetEdges).toEqual([16, 16, 16])
         expect(geometry.contentEdges).toEqual([76, 76, 76, 76, 76])
         expect(geometry.overflow).toBeLessThanOrEqual(width)
+        expect(geometry.rowHeights.every((height) => height >= 52)).toBe(true)
+        if (textScale === 2) expect(geometry.rowHeights.every((height) => height > 68)).toBe(true)
         for (const control of geometry.controls) {
           expect(control.left).toBeGreaterThanOrEqual(16)
           expect(control.right).toBeLessThanOrEqual(width - 16)

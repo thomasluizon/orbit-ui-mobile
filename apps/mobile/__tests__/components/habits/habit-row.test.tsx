@@ -206,7 +206,7 @@ describe('HabitRow canonical content (mobile)', () => {
   it.each([false, true])('does not reserve a disclosure gutter on a leaf, selecting=%s', (isSelectMode) => {
     let renderer: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode />)
+      renderer = TestRenderer.create(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn isSelectMode={isSelectMode} />)
     })
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
     const body = row.findAllByType('Pressable').find((node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500)
