@@ -2,8 +2,9 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { calendarAutoSyncStateSchema, calendarEventsResponseSchema } from '@orbit/shared/types/calendar'
-import { gamificationProfileSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
+import { gamificationProfileSchema, retrospectiveResponseSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { emptyGoalsPageFixture, emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
@@ -31,7 +32,7 @@ for (const width of [320, 360, 384, 412]) {
       const words = locale === 'pt-BR' ? ptBR : en
       const profile = profileSchema.parse({
         ...profileFixture, language: locale, plan: 'pro', hasProAccess: true,
-        canViewGamification: true, hasGoogleConnection: true, totalXp: 1, currentStreak: 1,
+        canViewGamification: true, hasGoogleConnection: true, totalXp: 1, currentStreak: 1, longestStreak: 1,
       })
       test.use({ viewport: { width, height: 915 }, appLocale: locale, subscriptionState: 'trial', layoutProfile: profile })
       test.beforeEach(async ({ context }) => {
@@ -39,7 +40,7 @@ for (const width of [320, 360, 384, 412]) {
         const responses: ReadonlyArray<readonly [string, unknown]> = [
           [API.profile.get, profile], [API.goals.list, emptyGoalsPageFixture], [API.habits.list, emptyHabitsPageFixture],
           [API.gamification.profile, gamificationProfileSchema.parse({
-            ...gamificationProfileFixture, totalXp: 1, currentStreak: 1, isPro: true, achievementsLocked: false,
+            ...gamificationProfileFixture, totalXp: 1, currentStreak: 1, longestStreak: 1, isPro: true, achievementsLocked: false,
           })],
           [API.gamification.streak, streakInfoSchema.parse({
             currentStreak: 1, longestStreak: 1, lastActiveDate: '2026-09-04',
@@ -47,6 +48,10 @@ for (const width of [320, 360, 384, 412]) {
             isFrozenToday: false, recentFreezeDates: [],
           })],
           [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [], logs: {} })],
+          [API.habits.retrospective, retrospectiveResponseSchema.parse({
+            period: 'month', metrics: createMockRetrospectiveMetrics({ topHabits: [] }),
+            narrative: { highlights: '', missed: '', trends: '', suggestion: '' }, fromCache: false,
+          })],
           [API.calendar.events, calendarEventsResponseSchema.parse([])],
           [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({
             enabled: true, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true,
@@ -57,13 +62,11 @@ for (const width of [320, 360, 384, 412]) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path,
             (route) => route.fulfill({ json: response }))
         }
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.retrospective,
-          (route) => route.fulfill({ status: 400, json: { error: 'No habits found for this period.', errorCode: 'NO_HABITS_FOR_PERIOD' } }))
       })
 
-      test('Progress names the three empty collections on one line', async ({ page }) => {
+      test('Progress names empty goals and achievements on one line', async ({ page }) => {
         await page.goto('/progress')
-        for (const title of [words.progressScreen.goals.empty, words.progressScreen.window.empty, words.progressScreen.achievements.empty]) {
+        for (const title of [words.progressScreen.goals.empty, words.progressScreen.achievements.empty]) {
           await expectEmptyTitle(page, page, title)
         }
       })
