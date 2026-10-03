@@ -1579,6 +1579,18 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.state.habitFilters.at(-1)?.dateFrom).toBe('2026-09-11')
   })
 
+  it.each(['/', '/habits/reading'])('places dock suggestions according to the owning route %s', (pathname) => {
+    mocks.pathname = pathname
+    mocks.state.profile = createMockProfile({ hasImportedCalendar: true, hasSeenImportPrompt: true })
+    mocks.state.detail = makeHabitDetail()
+    answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+    render(<AppLayout><div>Content</div></AppLayout>)
+    expect(screen.getByRole('textbox')).toBeVisible()
+    const group = screen.queryByRole('group', { name: 'shell.composer.suggestionsLabel' })
+    if (pathname === '/') expect(group).not.toBeInTheDocument()
+    else expect(group).toBeVisible()
+  })
+
   it('queries the selected day with the visible Today general filter', () => {
     renderHook(() => useChatComposer({ pathname: '/', today: '2026-09-12', selectedDate: '2026-09-11', includeGeneral: true }))
     expect(mocks.state.habitFilters.at(-1)).toMatchObject({
