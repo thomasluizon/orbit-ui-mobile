@@ -72,22 +72,18 @@ export const SUPPORT_SUBJECT_OPTIONS = [
   {
     id: 'problem',
     labelKey: 'profile.support.subjects.problem.label',
-    descriptionKey: 'profile.support.subjects.problem.description',
   },
   {
     id: 'billing',
     labelKey: 'profile.support.subjects.billing.label',
-    descriptionKey: 'profile.support.subjects.billing.description',
   },
   {
     id: 'account',
     labelKey: 'profile.support.subjects.account.label',
-    descriptionKey: 'profile.support.subjects.account.description',
   },
   {
     id: 'other',
     labelKey: 'profile.support.subjects.other.label',
-    descriptionKey: 'profile.support.subjects.other.description',
   },
 ] as const
 
