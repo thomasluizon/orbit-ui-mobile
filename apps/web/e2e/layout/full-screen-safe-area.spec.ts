@@ -83,7 +83,9 @@ for (const top of [0, 24, 48]) {
     test('the command palette starts at the larger of its base offset and the inset', async ({ page }) => {
       await page.goto('/')
       await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
-      await page.getByRole('menu', { name: messages.habits.listOptions }).getByRole('menuitem', { name: messages.habits.refresh }).click()
+      const listOptionsMenu = page.getByRole('menu', { name: messages.habits.listOptions })
+      await listOptionsMenu.getByRole('menuitem', { name: messages.habits.refresh }).click()
+      await expect(listOptionsMenu).toHaveCount(0)
       await page.keyboard.press('Control+k')
       const palette = page.getByRole('dialog', { name: messages.command.title })
       await expectSafeTop(palette)
