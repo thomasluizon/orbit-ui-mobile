@@ -33,16 +33,16 @@ export function AstraAllowancePanel({
       className="flex flex-col bg-[var(--bg-card)]"
       style={{
         gap: 12,
-        padding: 24,
+        padding: 16,
         borderRadius: 20,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <div className="flex min-w-0 items-baseline" style={{ gap: 12 }}>
-        <p className="m-0 min-w-0 flex-1 font-sans text-[17px] leading-[1.4] text-[var(--fg-1)]">
+      <div className="flex min-w-0 flex-col" style={{ gap: 4 }}>
+        <p className="m-0 min-w-0 font-sans text-[17px] leading-[1.4] text-[var(--fg-1)]">
           {t('profile.allowance.title')}
         </p>
-        <p className="m-0 shrink-0 font-mono text-[12px] text-[var(--fg-3)] tabular-nums">
+        <p className="m-0 font-mono text-[12px] leading-[1.4] text-[var(--fg-3)] tabular-nums">
           {t('profile.allowance.usage', {
             used: profile.aiMessagesUsed,
             limit: profile.aiMessagesLimit,
