@@ -123,7 +123,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'calendar-sync',
     section: 'features',
-    route: '/calendar',
+    route: '/calendar?import=1',
     iconKey: 'calendar',
     titleKey: 'profile.calendarSync.title',
     hintKey: null,

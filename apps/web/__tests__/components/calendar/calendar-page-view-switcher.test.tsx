@@ -1,8 +1,10 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import type { CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
+vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <button aria-label="Avisos" /> }))
 vi.mock('@/components/shell/destination-shell', () => ({ useShellHeaderSlot: () => false }))
 const toastError = vi.hoisted(() => vi.fn())
@@ -93,6 +95,8 @@ const calendarDayDetailProps: {
   calendarEventsState?: string
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onOpenEvents?: () => void
+  onOpenHabitTitle?: (title: string) => void
   onViewPro?: () => void
   loggable?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
@@ -207,24 +211,7 @@ vi.mock('@/components/ui/section-label', () => ({
   SectionLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 
-vi.mock('@/components/ui/sheet', () => ({
-  useSheetHost: () => ({
-    sheetRef: { current: null },
-    closeSheet: (exitAction?: () => void) => exitAction?.(),
-  }),
-  Sheet: ({ children, open, onClose, actions }: {
-    children: React.ReactNode
-    open: boolean
-    onClose?: () => void
-    actions?: React.ReactNode
-  }) => open ? (
-    <div>
-      <button type="button" aria-label="close-day-detail" onClick={onClose} />
-      {children}
-      <footer data-slot="sheet-actions">{actions}</footer>
-    </div>
-  ) : null,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 vi.mock('./_components/calendar-shell', () => ({
   CalendarHeader: ({ onNextMonth, viewSelector, showMonthNavigation }: { onNextMonth: () => void; viewSelector: React.ReactNode; showMonthNavigation: boolean }) => (
@@ -284,6 +271,8 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
     const displayedAutoSyncState = props.autoSyncState
     return (
       <div data-testid="day-detail">
+        <button onClick={props.onOpenEvents}>open-events</button>
+        <button onClick={() => props.onOpenHabitTitle?.('Long habit title')}>open-habit-title</button>
         {displayedAutoSyncState?.hasGoogleConnection ? (
           <button
             type="button"
@@ -758,8 +747,29 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     fireEvent.click(screen.getByTestId('week-day'))
-    expect(screen.getByRole('button', { name: 'close-day-detail' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'close-overlay' })).toBeInTheDocument()
     expect(calendarDayDetailProps.dateStr).toBe('2026-09-12')
+  })
+
+  it.each(['events', 'habit'])('closes the week day sheet before opening %s disclosure', (disclosure) => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByTestId('week-day'))
+    sheetTestControls.defer(true)
+    try {
+      fireEvent.click(screen.getByRole('button', { name: disclosure === 'events' ? 'open-events' : 'open-habit-title' }))
+      expect(sheetTestControls.isDismissPending).toBe(true)
+      expect(screen.queryByRole('dialog')).toBeNull()
+      act(() => sheetTestControls.completeDismissal())
+      expect(screen.getByRole('dialog')).toHaveAccessibleName(disclosure === 'events' ? 'calendar.dayDetail.eventsTitle' : 'habits.form.title')
+      expect(screen.queryByTestId('day-detail')).toBeNull()
+      expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
+      fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
+      act(() => sheetTestControls.completeDismissal())
+      fireEvent.click(screen.getByTestId('week-day'))
+      expect(calendarDayDetailProps.dateStr).toBe('2026-09-12')
+    } finally { sheetTestControls.defer(false) }
   })
 
   it('returns from a later week to the month containing the selected day', () => {
@@ -906,7 +916,7 @@ describe('CalendarPage view switcher', () => {
     expect(calendarDayDetailProps.calendarEventsState).toBe('not-connected')
     expect(calendarDayDetailProps.calendarEvents).toEqual([])
     act(() => { calendarDayDetailProps.onReconnectCalendarEvents?.() })
-    expect(screen.getByRole('button', { name: 'close-day-detail' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'close-overlay' })).toBeInTheDocument()
     expect(routerPush).not.toHaveBeenCalledWith('/calendar-sync')
   })
 
@@ -957,55 +967,18 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByTestId('month-view'))
     expect(screen.getByTestId('day-detail')).toBeDefined()
     expect(calendarGridProps.selectedDateStr).toBe(calendarGridSelectionDate)
-    expect(screen.queryByRole('button', { name: 'close-day-detail' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'close-overlay' })).toBeNull()
   })
 
-  it('keeps the changed auto-sync value after closing and reopening day detail', async () => {
-    profileQueryState.profile = {
-      weekStartDay: 1,
-      timeZone: 'UTC',
-      hasProAccess: true,
-      hasGoogleConnection: true,
-      googleCalendarAutoSyncEnabled: true,
-      googleCalendarAutoSyncStatus: 'Idle',
-      googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
-    }
-    const page = render(<CalendarPage />)
-
-    expect(autoSyncQueryOptions).toEqual({
-      enabled: true,
-      initialData: {
-        enabled: true,
-        status: 'Idle',
-        lastSyncedAt: '2026-09-12T09:12:00Z',
-        hasGoogleConnection: true,
-      },
-    })
-
-    fireEvent.click(screen.getByTestId('month-view'))
-    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
-    await waitFor(() => expect(setAutoSync).toHaveBeenCalledWith({ enabled: false }))
-    expect(toastSuccess).toHaveBeenCalledWith('calendar.autoSync.disableSuccess')
-    page.rerender(<CalendarPage />)
-    expect(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
-      .toHaveAttribute('aria-checked', 'false')
-  })
-
-  it('drops the previous account day-detail toggle error after replacement', async () => {
-    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
-    let failFirst!: (error: Error) => void
-    setAutoSync.mockImplementationOnce(() => new Promise((_resolve, reject) => { failFirst = reject }))
+  it('seeds sync state without placing sync controls in day detail', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true,
+      hasGoogleConnection: true, googleCalendarAutoSyncEnabled: true,
+      googleCalendarAutoSyncStatus: 'Idle', googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z' }
     render(<CalendarPage />)
-    fireEvent.click(screen.getByTestId('month-view'))
-    let first!: Promise<void>
-    act(() => { first = calendarDayDetailProps.onCalendarAutoSyncChange!(false) })
-    await waitFor(() => expect(setAutoSync).toHaveBeenCalledTimes(1))
-    act(() => advanceAccountGeneration())
-    await act(async () => { await calendarDayDetailProps.onCalendarAutoSyncChange!(true) })
-    expect(setAutoSync).toHaveBeenCalledTimes(2)
-    expect(toastSuccess).toHaveBeenCalledExactlyOnceWith('calendar.autoSync.enableSuccess')
-    await act(async () => { failFirst(new Error('old failure')); await first })
-    expect(toastError).not.toHaveBeenCalled()
+    expect(autoSyncQueryOptions?.initialData).toEqual(autoSyncState)
+    expect(calendarDayDetailProps.autoSyncState).toBeUndefined()
+    expect(calendarDayDetailProps.onCalendarAutoSyncChange).toBeUndefined()
+    expect(screen.queryByRole('switch', { name: 'calendar.dayDetail.autoSync' })).toBeNull()
   })
 
   it('keeps the calendar usable and offers habit creation for an empty current month', () => {

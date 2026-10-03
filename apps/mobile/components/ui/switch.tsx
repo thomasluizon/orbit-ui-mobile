@@ -37,7 +37,7 @@ export function Switch({ label, checked, disabled = false, onChange }: Readonly<
 }
 
 const styles = StyleSheet.create({
-  control: { minHeight: 44, justifyContent: 'center' },
+  control: { minHeight: 48, justifyContent: 'center' },
   track: { width: 48, height: 28, borderRadius: 14, justifyContent: 'center' },
   thumb: { width: 22, height: 22, borderRadius: 11 },
 })

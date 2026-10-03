@@ -1,178 +1,75 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
-  determineHabitDayStatus,
   formatCalendarDayTitle,
   filterRecurringEntries,
-  isCalendarSyncConnectionActive,
-  parseAPIDate,
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
-import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { CheckRow } from '@/components/ui/check-row'
-import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ErrorState } from '@/components/ui/error-state'
+import { Badge } from '@/components/ui/badge'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
-import { ActionRow } from '@/components/ui/action-row'
-import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
-import { EventRow } from '@/components/dates/event-row'
-import { Input } from '@/components/ui/input'
-import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
-import { useOffline } from '@/hooks/use-offline'
-import { OfflineRefusal } from '@/components/ui/offline-refusal'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   today: string
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
-  autoSyncState: CalendarAutoSyncState | undefined
+  showEventSource?: boolean
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
   onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
+  onOpenEvents?: () => void
+  onOpenHabitTitle?: (title: string) => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
-  onCalendarAutoSyncChange: (value: boolean) => Promise<void>
-  onCalendarSyncNow: () => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
-  proActionVariant?: 'primary' | 'secondary'
   showTitle?: boolean
 }
 
-function CalendarReadyEvents({ calendarEvents, onOpenImport }: Readonly<{
+function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry, onReconnect, onOpenImport, onOpenEvents, onViewPro }: Readonly<{
   calendarEvents: CalendarSyncEvent[]
-  onOpenImport: (eventId: string | null) => void
-}>) {
-  const t = useTranslations()
-  const { displayTime } = useTimeFormat()
-  const [eventQuery, setEventQuery] = useState('')
-  const [eventPage, setEventPage] = useState(0)
-  const matchingEvents = useMemo(() => calendarEvents.filter((event) =>
-    event.title.toLocaleLowerCase().includes(eventQuery.trim().toLocaleLowerCase()),
-  ), [calendarEvents, eventQuery])
-  const currentPage = Math.min(eventPage, Math.max(0, Math.ceil(matchingEvents.length / 20) - 1))
-  const visibleEvents = matchingEvents.slice(currentPage * 20, (currentPage + 1) * 20)
-
-  return <div className="flex flex-col" style={{ gap: 12 }}>
-    {calendarEvents.length > 20 ? (
-      <Input label={t('calendar.dayDetail.searchEvents')} value={eventQuery} onChange={(value) => { setEventQuery(value); setEventPage(0) }} autoComplete="off" name="calendar-event-search"/>
-    ) : null}
-    {visibleEvents.map((event) => event.startTime ? (
-      <EventRow key={event.id} time={displayTime(event.startTime)} title={event.title} source={event.calendarName || t('calendar.title')} />
-    ) : (
-      <EventRow key={event.id} allDayLabel={t('calendar.timeGrid.allDay')} title={event.title} source={event.calendarName || t('calendar.title')} />
-    ))}
-    {matchingEvents.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noMatchingEvents', { query: eventQuery.trim() })}</p> : null}
-    {calendarEvents.length >= 8 ? <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{t('calendar.showingCount', { shown: Math.min((currentPage + 1) * 20, matchingEvents.length), total: matchingEvents.length })}</p> : null}
-    <ActionRow>
-      {matchingEvents.length > 20 ? <>
-        <PillButton variant="ghost" disabled={currentPage === 0} onClick={() => setEventPage(currentPage - 1)}>{t('common.previous')}</PillButton>
-        <PillButton variant="ghost" disabled={(currentPage + 1) * 20 >= matchingEvents.length} onClick={() => setEventPage(currentPage + 1)}>{t('common.next')}</PillButton>
-      </> : null}
-      {matchingEvents.length === 0 ? <PillButton variant="ghost" onClick={() => setEventQuery('')}>{t('calendar.dayDetail.clearEventSearch')}</PillButton> : null}
-      <PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.dayDetail.importEvents')}</PillButton>
-    </ActionRow>
-  </div>
-}
-
-function CalendarEventsSection({
-  calendarEvents,
-  state,
-  onRetry,
-  onReconnect,
-  onOpenImport,
-  onViewPro,
-  proActionVariant,
-}: Readonly<{
-  calendarEvents: CalendarSyncEvent[]
+  showEventSource: boolean
   state: CalendarEventsDisplayState
   onRetry: () => void
   onReconnect: () => void
   onOpenImport: (eventId: string | null) => void
   onViewPro: () => void
-  proActionVariant: 'primary' | 'secondary'
+  onOpenEvents?: () => void
 }>) {
   const t = useTranslations()
-  const { isOnline } = useOffline()
-
-  if (state === 'pro-boundary') {
-    return (
-      <div data-testid="calendar-pro-boundary" style={{ paddingInline: 24 }}>
-        <CapacityNotice
-          message={t('calendar.proBoundary.title')}
-          body={t('calendar.proBoundary.body')}
-          action={
-            /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this granted canvas label. */
-            <PillButton variant={proActionVariant} size="sm" onClick={onViewPro}>
-              {t('calendar.proBoundary.action')}
-            </PillButton>
-          }
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col" style={{ gap: 8, paddingInline: 24 }}>
-      <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, lineHeight: 1.4 }}>
-        {t('calendar.dayDetail.eventsTitle')}
-      </p>
-      {state === 'loading' ? (
-        <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} />
-      ) : null}
-      {state === 'failed' ? (
-        <ErrorState
-          message={t('calendar.fetchError')}
-          action={
-            <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
-          }
-        />
-      ) : null}
-      <div aria-live="polite" aria-atomic="true">
-        {state === 'not-connected' && !isOnline ? (
-          <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />
-        ) : null}
-      </div>
-      {state === 'not-connected' && isOnline ? (
-        <div className="flex flex-col items-center text-center" style={{ gap: 12, paddingBlock: 24 }}>
-          <p className="text-sm font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>
-            {t('calendar.dayDetail.disconnectedTitle')}
-          </p>
-          <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0, lineHeight: 1.5 }}>
-            {t('calendar.dayDetail.disconnectedBody')}
-          </p>
-          <PillButton variant="ghost" onClick={onReconnect}>
-            {t('calendar.autoSync.reconnectCta')}
-          </PillButton>
-        </div>
-      ) : null}
-      {state === 'ready' && calendarEvents.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-6">
-          <p className="text-center text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p>
-          <ActionRow><PillButton variant="ghost" onClick={() => onOpenImport(null)}>{t('calendar.dayDetail.importEvents')}</PillButton></ActionRow>
-        </div>
-      ) : null}
-      {state === 'ready' && calendarEvents.length > 0 ? (
-        <CalendarReadyEvents calendarEvents={calendarEvents} onOpenImport={onOpenImport} />
-      ) : null}
-    </div>
-  )
+  if (state === 'pro-boundary') return <div data-testid="calendar-pro-boundary">
+    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
+  </div>
+  if (state === 'not-connected') return <div>
+    <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
+  </div>
+  return <div className="flex flex-col gap-2">
+    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, paddingInline: 16, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
+    {state === 'loading' ? <div style={{ paddingInline: 16 }}><Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /></div> : null}
+    {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
+    {state === 'ready' && calendarEvents.length === 0 ? <p className="px-4 text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
+    {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
+  </div>
 }
 
 type EntryOutcome = {
-  label: string
   ringLabel: string
   status: NonNullable<StatusRingProps['status']>
 }
@@ -186,7 +83,6 @@ function getEntryOutcome(
   if (entry.isBadHabit) {
     const label = t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted')
     return {
-      label,
       ringLabel: entry.status === 'upcoming' ? t('calendar.status.missed') : label,
       status: completed ? 'bad' : entry.status === 'upcoming' ? 'empty' : 'done',
     }
@@ -194,46 +90,32 @@ function getEntryOutcome(
 
   const label = t(completed ? 'calendar.status.completed' : 'calendar.status.missed')
   return {
-    label,
     ringLabel: label,
     status: completed ? 'done' : 'empty',
   }
 }
 
 function CalendarDayCheckRow({
-  dateStr,
   entry,
   displayTime,
   isPending,
   pendingChecked,
   onEntryChange,
-  t,
+  onOpenTitle,
 }: Readonly<{
-  dateStr: string
   entry: CalendarDayEntry
   displayTime: (time: string) => string
   isPending: boolean
   pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
-  t: ReturnType<typeof useTranslations>
+  onOpenTitle: (title: string) => void
 }>) {
   const sourceChecked = entry.status === 'completed'
   const displayedChecked = pendingChecked === undefined || pendingChecked === sourceChecked
     ? null
     : pendingChecked
   const checked = displayedChecked ?? sourceChecked
-  const displayedEntry: CalendarDayEntry = displayedChecked === null
-    ? entry
-    : {
-        ...entry,
-        status: displayedChecked
-          ? 'completed'
-          : determineHabitDayStatus(parseAPIDate(dateStr), false),
-      }
-  const outcome = getEntryOutcome(displayedEntry, t)
-  const value = entry.dueTime
-    ? `${displayTime(entry.dueTime)} · ${outcome.label}`
-    : outcome.label
+  const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
 
   async function changeChecked(nextChecked: boolean) {
     const entryChange = onEntryChange(entry, nextChecked)
@@ -244,6 +126,8 @@ function CalendarDayCheckRow({
   return (
     <CheckRow
       label={entry.title}
+      textMode="personal"
+      onOpenLabel={() => onOpenTitle(entry.title)}
       checked={checked}
       value={value}
       loading={isPending}
@@ -259,6 +143,7 @@ function CalendarDayRows({
   displayTime,
   pendingEntryStates,
   onEntryChange,
+  onOpenTitle,
   t,
 }: Readonly<{
   dateStr: string
@@ -267,40 +152,38 @@ function CalendarDayRows({
   displayTime: (time: string) => string
   pendingEntryStates: ReadonlyMap<string, boolean>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
+  onOpenTitle: (title: string) => void
   t: ReturnType<typeof useTranslations>
 }>) {
   return entries.map((entry) => {
     const entryKey = getCalendarEntryMutationKey(dateStr, entry.habitId)
     const outcome = getEntryOutcome(entry, t)
-    const value = entry.dueTime
-      ? `${displayTime(entry.dueTime)} · ${outcome.label}`
-      : outcome.label
+    const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
 
     if (loggable) {
       return (
         <CalendarDayCheckRow
           key={`${dateStr}:${entry.habitId}`}
-          dateStr={dateStr}
           entry={entry}
           displayTime={displayTime}
           isPending={pendingEntryStates.has(entryKey)}
           pendingChecked={pendingEntryStates.get(entryKey)}
           onEntryChange={onEntryChange}
-          t={t}
+          onOpenTitle={onOpenTitle}
         />
       )
     }
 
     return (
-      <ListRow
-        compact
-        key={`${dateStr}:${entry.habitId}`}
-        title={entry.title}
-        value={value}
-        trailing={<StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />}
-        chevron={false}
-        readOnly
-      />
+      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        <span className="flex min-w-0 items-start gap-2 px-4 py-2">
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="line-clamp-2 text-base [overflow-wrap:anywhere] text-[var(--fg-1)]">{entry.title}</span>
+            {value ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
+          </span>
+          <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
+        </span>
+      </button>
     )
   })
 }
@@ -310,21 +193,22 @@ export function CalendarDayDetail({
   today,
   entries,
   calendarEvents,
-  autoSyncState,
+  showEventSource = false,
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
   onOpenCalendarImport,
   onViewPro,
+  onOpenEvents,
+  onOpenHabitTitle,
   loggable,
   showRecurring,
   pendingEntryStates,
-  onCalendarAutoSyncChange,
-  onCalendarSyncNow,
   onEntryChange,
-  proActionVariant = 'primary',
   showTitle = true,
 }: Readonly<CalendarDayDetailProps>) {
+  const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
+  const { sheetRef } = useSheetHost()
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
   const locale = useLocale()
@@ -362,7 +246,7 @@ export function CalendarDayDetail({
         compact
         icon="external-link"
         title={t('calendar.goToDay')}
-        wrapTitle
+        textMode="label"
         chevron={false}
         readOnly
       />
@@ -371,8 +255,8 @@ export function CalendarDayDetail({
   )
 
   const body = (
-    <div className="flex flex-col" style={{ gap: 16 }}>
-      <div className="flex flex-col" style={{ gap: 8, paddingInline: 24 }}>
+    <div className="flex flex-col" style={{ gap: 24 }}>
+      <div className="flex flex-col" style={{ gap: 8, paddingInline: 16 }}>
         {showTitle ? <h2 className="text-xl font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>{formattedDate}</h2> : null}
         <p className="text-xs text-[var(--fg-3)]" style={{ margin: 0 }}>
           {summary}
@@ -387,7 +271,7 @@ export function CalendarDayDetail({
         ) : null}
       </div>
       {filteredEntries.length > 0 ? (
-        <div style={{ paddingInline: 8 }}>
+        <div className="flex flex-col gap-2">
           <CalendarDayRows
             dateStr={dateStr}
             entries={filteredEntries}
@@ -395,6 +279,7 @@ export function CalendarDayDetail({
             displayTime={displayTime}
             pendingEntryStates={pendingEntryStates}
             onEntryChange={onEntryChange}
+            onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
             t={t}
           />
         </div>
@@ -403,24 +288,15 @@ export function CalendarDayDetail({
       <CalendarEventsSection
         key={dateStr}
         calendarEvents={calendarEvents}
+        showEventSource={showEventSource}
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
         onOpenImport={onOpenCalendarImport}
+        onOpenEvents={onOpenEvents}
         onViewPro={onViewPro}
-        proActionVariant={proActionVariant}
       />
-      {calendarEventsState !== 'pro-boundary' && calendarEventsState !== 'not-connected' &&
-        isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle') ? (
-        <div style={{ paddingInline: 24 }}>
-          <CalendarSyncBoundary
-            autoSyncState={autoSyncState}
-            displayTime={displayTime}
-            onAutoSyncChange={onCalendarAutoSyncChange}
-            onSyncNow={onCalendarSyncNow}
-          />
-        </div>
-      ) : null}
+
     </div>
   )
 
@@ -434,6 +310,9 @@ export function CalendarDayDetail({
       style={{ paddingBlock: 24 }}
     >
       {body}
+      {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
+        <p className="text-base text-[var(--fg-1)] [overflow-wrap:anywhere]">{expandedTitle}</p>
+      </Sheet> : null}
     </section>
   )
 }

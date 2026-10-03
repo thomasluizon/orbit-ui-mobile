@@ -17,7 +17,7 @@ import type {
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
-import { runCalendarSyncNowWithFeedback } from '@orbit/shared/utils'
+import { isCalendarSyncConnectionActive, runCalendarSyncNowWithFeedback } from '@orbit/shared/utils'
 
 
 const mockFetch = vi.fn()
@@ -455,8 +455,9 @@ describe('remaining calendar mutations', () => {
     function Harness() {
       const mutation = useRunCalendarSyncNow()
       return React.createElement(CalendarSyncBoundary, {
+        isConnected: isCalendarSyncConnectionActive(connectedState.hasGoogleConnection, connectedState.status),
+        locale: 'en',
         autoSyncState: connectedState,
-        displayTime: (value: string) => value,
         onAutoSyncChange: async () => {},
         onSyncNow: () => runCalendarSyncNowWithFeedback(
           () => mutation.mutateAsync(),

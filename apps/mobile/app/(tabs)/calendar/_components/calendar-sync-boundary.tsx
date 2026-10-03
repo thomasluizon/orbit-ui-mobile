@@ -1,134 +1,69 @@
-import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
-import {
-  getCalendarSyncClockValue,
-  isCalendarSyncConnectionActive,
-} from '@orbit/shared/utils'
-import { RefreshCw } from '@/components/ui/icons'
+import { formatCalendarSyncTimestamp, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { useOffline } from '@/hooks/use-offline'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import type { AppTokensV2 } from '@/lib/theme'
 
 interface CalendarSyncBoundaryProps {
+  isConnected: boolean
   autoSyncState: CalendarAutoSyncState | undefined
-  displayTime: (time: string) => string
   onAutoSyncChange: (enabled: boolean) => Promise<void>
   onSyncNow: () => Promise<void>
   t: TFunction
+  locale: string
+  timeZone?: string | null
+  uses24HourClock?: boolean
   tokens: AppTokensV2
 }
 
-export function CalendarSyncBoundary({
-  autoSyncState,
-  displayTime,
-  onAutoSyncChange,
-  onSyncNow,
-  t,
-  tokens,
-}: Readonly<CalendarSyncBoundaryProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [isSaving, setIsSaving] = useAccountScopedState(false)
-  const [isSyncing, setIsSyncing] = useAccountScopedState(false)
+export function CalendarSyncBoundary({ isConnected, autoSyncState, onAutoSyncChange, onSyncNow, tokens, t, locale, timeZone, uses24HourClock }: Readonly<CalendarSyncBoundaryProps>) {
   const { isOnline } = useOffline()
+  const [pendingAction, setPendingAction] = useAccountScopedState<'toggle' | 'sync' | null>(null)
+  const [error, setError] = useAccountScopedState<string | null>(null)
+  const lastSynced = formatCalendarSyncTimestamp(autoSyncState?.lastSyncedAt ?? null, locale, timeZone, uses24HourClock)
 
-  const connected = isCalendarSyncConnectionActive(
-    autoSyncState?.hasGoogleConnection ?? false,
-    autoSyncState?.status ?? 'Idle',
-  )
-  const connectionLabel = connected
-    ? t('calendar.dayDetail.googleConnected')
-    : t('calendar.autoSync.reconnectTitle')
-  const clockValue = getCalendarSyncClockValue(autoSyncState?.lastSyncedAt ?? null)
-  const lastSynced = clockValue
-    ? t('calendar.dayDetail.lastSynced', { time: displayTime(clockValue) })
-    : t('calendar.autoSync.lastSyncedNever')
-
-  const handleAutoSyncChange = async (enabled: boolean) => {
-    if (isSaving || !isOnline) return
-    setIsSaving(true)
-    try {
-      await onAutoSyncChange(enabled)
+  async function runAction(kind: 'toggle' | 'sync', action: () => Promise<void>) {
+    if (pendingAction || !isOnline) return
+    const generation = getAccountGeneration()
+    setPendingAction(kind)
+    setError(null)
+    try { await action() }
+    catch (failure: unknown) {
+      if (generation === getAccountGeneration()) setError(getFriendlyErrorMessage(failure, t, 'calendar.autoSync.syncFailed', 'generic'))
     } finally {
-      setIsSaving(false)
+      if (generation === getAccountGeneration()) setPendingAction(null)
     }
   }
 
-  const handleSyncNow = async () => {
-    if (isSyncing || !isOnline) return
-    setIsSyncing(true)
-    try {
-      await onSyncNow()
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  return (
-    <View style={styles.well} testID="calendar-sync-line">
-      <View style={styles.connectionLine}>
-        <RefreshCw size={16} strokeWidth={1.8} color={tokens.fg3} />
-        <Text style={styles.connection}>
-          {connectionLabel}
-        </Text>
-        <Text style={styles.lastSynced}>{lastSynced}</Text>
-      </View>
-      {connected ? (
-        <>
-          <View style={styles.switchLine}>
-            <Text style={styles.switchLabel}>{t('calendar.dayDetail.autoSync')}</Text>
-            <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline} onChange={(enabled) => void handleAutoSyncChange(enabled)} label={t('calendar.dayDetail.autoSync')} />
-          </View>
-          <View style={styles.syncAction}><PillButton variant="ghost" size="sm" disabled={!isOnline} loading={isSyncing} onClick={() => void handleSyncNow()}>{t('calendar.autoSync.syncNow')}</PillButton></View>
-        </>
-      ) : null}
+  return <View style={styles.container} testID="calendar-sync-line">
+    <Text style={[styles.label, { color: tokens.fg2 }]}>{t(isConnected ? 'calendar.dayDetail.googleConnected' : 'calendar.autoSync.reconnectTitle')}</Text>
+    <View style={styles.timestamp}>
+      <Text style={[styles.meta, { color: tokens.fg3 }]}>{t('calendar.dayDetail.lastSyncedLabel')}</Text>
+      <Text style={[styles.date, { color: tokens.fg3 }]}>{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</Text>
     </View>
-  )
+    {isConnected ? <>
+      <View style={styles.switchLine}>
+        <Text style={[styles.switchLabel, { color: tokens.fg2 }]}>{t('calendar.dayDetail.autoSync')}</Text>
+        <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline || pendingAction !== null} onChange={(enabled) => void runAction('toggle', () => onAutoSyncChange(enabled))} label={t('calendar.dayDetail.autoSync')} />
+      </View>
+      <View style={styles.action}><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></View>
+    </> : null}
+    <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.label, { color: tokens.statusBadText }]}>{error ?? (autoSyncState?.status === 'TransientError' ? t('calendar.autoSync.syncFailed') : '')}</Text>
+  </View>
 }
 
-function createStyles(tokens: AppTokensV2) {
-  return StyleSheet.create({
-    well: {
-      gap: 8,
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: tokens.bgWell,
-    },
-    connectionLine: {
-      minWidth: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    connection: {
-      minWidth: 0,
-      flex: 1,
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      color: tokens.fg2,
-    },
-    lastSynced: {
-      flexShrink: 0,
-      fontFamily: 'GeistMono_400Regular',
-      fontSize: 12,
-      color: tokens.fg3,
-      fontVariant: ['tabular-nums'],
-    },
-    switchLine: {
-      minHeight: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
-    },
-    syncAction: { alignItems: 'flex-end' },
-    switchLabel: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      color: tokens.fg2,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  container: { minWidth: 0, gap: 8 },
+  label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
+  timestamp: { gap: 4 },
+  meta: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8 },
+  date: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, fontVariant: ['tabular-nums'] },
+  switchLine: { minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+  switchLabel: { flex: 1, alignSelf: 'center', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
+  action: { alignItems: 'flex-end' },
+})

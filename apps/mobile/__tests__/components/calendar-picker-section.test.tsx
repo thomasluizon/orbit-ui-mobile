@@ -139,7 +139,8 @@ describe('mobile CalendarPickerSection', () => {
 
   it('shows textless recovery when saving a calendar is blocked', () => {
     mocks.calendars = [buildCalendar()]
-    const found = checkboxes(render(true))
+    const tree = render(true)
+    const found = checkboxes(tree)
 
     TestRenderer.act(() => {
       ;(found[0]!.props.onPress as () => void)()
@@ -147,7 +148,8 @@ describe('mobile CalendarPickerSection', () => {
       options.onError(new ApiClientError(403, 'Forbidden'))
     })
 
-    expect(mocks.showError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry')
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlockedRetry')).toHaveLength(1)
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('renders the empty state when no calendars are returned', () => {

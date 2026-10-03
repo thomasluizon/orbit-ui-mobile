@@ -729,7 +729,7 @@ describe('ProfilePage', () => {
     }
     render(<ProfilePage />)
     const proMore = within(screen.getByTestId('profile-settings-group-more'))
-    expect(proMore.getByRole('link', { name: /profile\.calendarSync\.title/i })).toHaveAttribute('href', '/calendar')
+    expect(proMore.getByRole('link', { name: /profile\.calendarSync\.title/i })).toHaveAttribute('href', '/calendar?import=1')
     expect(proMore.queryByText('common.proBadge')).not.toBeInTheDocument()
   })
 

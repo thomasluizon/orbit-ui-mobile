@@ -12,7 +12,7 @@ export function Switch({ label, checked, disabled = false, onChange }: Readonly<
       aria-label={label}
       onClick={() => onChange(!checked)}
       data-checked={checked ? '' : undefined}
-      className="inline-flex min-h-11 shrink-0 items-center border-0 bg-transparent p-0"
+      className="inline-flex min-h-12 shrink-0 items-center border-0 bg-transparent p-0"
     >
       <span
         className="inline-flex h-7 w-12 items-center rounded-[14px]"

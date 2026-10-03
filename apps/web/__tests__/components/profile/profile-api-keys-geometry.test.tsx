@@ -14,9 +14,18 @@ import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profil
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
+import { ProfileNotificationsContent } from '@/app/(app)/profile/_components/profile-notifications-content'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 
-const settings = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR' }))
+const settings = vi.hoisted(() => ({ locale: 'en' as 'en' | 'pt-BR', consent: false }))
+
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { ...profileFixture, marketingEmailConsent: settings.consent }, patchProfile: vi.fn() }) }))
+vi.mock('@/hooks/use-account-scoped-mutation', () => ({ useAccountScopedMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
+vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/hooks/use-push-notification-preferences')>(),
+  usePushNotificationPreferences: () => ({ supported: true, permission: 'default', status: 'not-registered', loading: false, togglePush: vi.fn() }),
+}))
+vi.mock('@/hooks/use-push-subscriptions', () => ({ usePushSubscriptions: () => ({ count: 1, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false, refresh: vi.fn() }) }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('next-intl', async (importOriginal) => {
@@ -136,9 +145,34 @@ describe('Profile API key row geometry', () => {
         const switchBox = control.getBoundingClientRect()
         return { titleFits: title.scrollWidth <= title.clientWidth, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
       })
-      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 44, switches: 1 })
+      expect(measured).toMatchObject({ titleFits: true, separated: true, switchWidth: 48, switchHeight: 48, switches: 1 })
       expect(measured.text).not.toContain('5 of 5')
       expect(measured.text).not.toContain('5 de 5')
+    } finally { await page.close() }
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1352].flatMap((width) => [true, false].map((consent) => ({ locale, width, consent })))))('aligns answered email consent $consent with the device switch in $locale at $width px', async ({ locale, width, consent }) => {
+    settings.locale = locale as 'en' | 'pt-BR'
+    settings.consent = consent
+    const { container } = render(<div style={{ padding: 16 }}><ProfileNotificationsContent /></div>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.evaluate(() => [...document.querySelectorAll('.orbit-list-row-shell')].map((element) => {
+        const row = element.getBoundingClientRect()
+        const control = element.querySelector('[role="switch"]')!
+        const bounds = control.getBoundingClientRect()
+        const title = element.querySelector('[data-slot="list-row-title"]')!
+        return { height: row.height, top: row.top, bottom: row.bottom, right: bounds.right, inset: row.right - bounds.right, controlHeight: bounds.height, titleClipped: title.scrollWidth > title.clientWidth, checked: control.getAttribute('aria-checked') }
+      }))
+      expect(measured).toHaveLength(2)
+      expect(measured[0]!.checked).toBe(String(consent))
+      for (const row of measured) {
+        expect(row, JSON.stringify(measured)).toMatchObject({ height: 52, inset: 24, controlHeight: 48, titleClipped: false })
+      }
+      expect(measured[0]!.right).toBe(measured[1]!.right)
+      expect(measured[0]!.bottom).toBeLessThan(measured[1]!.top)
     } finally { await page.close() }
   })
 

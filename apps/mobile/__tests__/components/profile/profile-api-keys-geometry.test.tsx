@@ -9,6 +9,8 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { createTokensV2 } from '@/lib/theme'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
+import { Switch } from '@/components/ui/switch'
 import { ListRow } from '@/components/ui/list-row'
 import { i18n } from '@/lib/i18n'
 
@@ -17,7 +19,10 @@ const TestRenderer = require('react-test-renderer')
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: vi.fn() } }))
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }))
+const preferences = vi.hoisted(() => ({ consent: false }))
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}), useMutation: () => ({ isPending: false, mutate: vi.fn() }) }))
+vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ marketingEmailConsent: preferences.consent }), patchProfile: vi.fn(), invalidate: vi.fn() }) }))
 vi.mock('@/app/advanced-api-keys', () => ({
   useApiKeyManagement: () => ({
     apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() },
@@ -40,7 +45,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number }
+  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityRole?: string }
   children: (HostRow | string)[] | null
 }
 
@@ -78,14 +83,16 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
   if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
   if (typeof style.paddingEnd === 'number') node.setPadding(Yoga.EDGE_END, style.paddingEnd)
+  if (typeof style.marginVertical === 'number') node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical)
   if (typeof style.marginHorizontal === 'number') node.setMargin(Yoga.EDGE_HORIZONTAL, style.marginHorizontal)
 }
 
-function layoutHost(host: HostRow, texts: Map<string, { node: YogaNode; width: number }>): YogaNode {
+function layoutHost(host: HostRow, texts: Map<string, { node: YogaNode; width: number }>, controls: YogaNode[] = []): YogaNode {
   const node = Yoga.Node.create()
   const declared = host.props.style
   const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
   applyStyle(node, style)
+  if (host.props.accessibilityRole === 'switch') controls.push(node)
   const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
   if (host.type === 'Text' && label) {
     const width = textWidth(label, style)
@@ -95,7 +102,7 @@ function layoutHost(host: HostRow, texts: Map<string, { node: YogaNode; width: n
       return { width: measured, height: style.lineHeight ?? Number(style.fontSize) * 1.4 }
     })
   } else {
-    (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string').forEach((child, index) => node.insertChild(layoutHost(child, texts), index))
+    (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string').forEach((child, index) => node.insertChild(layoutHost(child, texts, controls), index))
   }
   return node
 }
@@ -191,4 +198,35 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1440].map((width) => ({ locale
     expect(switches).toHaveLength(1)
     expect(switches[0].props.accessibilityState).toMatchObject({ checked: false })
   } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
+})
+
+
+it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1352].flatMap((width) => [true, false].map((consent) => ({ locale, width, consent })))))('aligns Android answered email consent $consent with the device switch in $locale at $width px', async ({ locale, width, consent }) => {
+  await i18n.changeLanguage(locale)
+  preferences.consent = consent
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<><MarketingConsentSection contained showSectionLabel={false} /><PushDevicesRow tokens={createTokensV2()} count={1} max={5} currentDeviceRegistered={false} supported loading={false} error={false} permissionStatus="undetermined" registrationStatus="idle" onToggle={() => {}} onOpenSettings={() => {}} onRetry={() => {}} /></>) })
+  const rows = tree.root.findAllByType(ListRow)
+  expect(rows).toHaveLength(2)
+  const bounds = rows.map((row: { props: React.ComponentProps<typeof ListRow> }) => {
+    let rendered!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { rendered = TestRenderer.create(<ListRow {...row.props} />) })
+    const controls: YogaNode[] = []
+    const layout = layoutHost(rendered.toJSON(), new Map(), controls)
+    try {
+      layout.calculateLayout(width - 32, 'auto', Yoga.DIRECTION_LTR)
+      const control = rendered.root.findByType(Switch)
+      const controlHost = control.find((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
+      const declared = controlHost.props.style
+      const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)
+      expect(style.minHeight).toBe(48)
+      expect(controls).toHaveLength(1)
+      expect(controls[0]!.getComputedHeight()).toBe(48)
+      expect(controls[0]!.getComputedWidth()).toBe(48)
+      expect(position(controls[0]!).right).toBe(width - 32 - 24)
+      return layout.getComputedHeight()
+    } finally { layout.freeRecursive(); TestRenderer.act(() => rendered.unmount()) }
+  })
+  expect(bounds).toEqual([52, 52])
+  TestRenderer.act(() => tree.unmount())
 })

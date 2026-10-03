@@ -4,7 +4,7 @@ import TestRenderer from 'react-test-renderer'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { calendarKeys } from '@orbit/shared/query'
-import { createApiClientError, runCalendarSyncNowWithFeedback } from '@orbit/shared/utils'
+import { createApiClientError, isCalendarSyncConnectionActive, runCalendarSyncNowWithFeedback } from '@orbit/shared/utils'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarAutoSyncState, useRunCalendarSyncNow } from '@/hooks/use-calendar-auto-sync'
@@ -88,12 +88,11 @@ describe('mobile calendar events reconciliation', () => {
       const { data: autoSyncState } = useCalendarAutoSyncState()
       return (
         <CalendarSyncBoundary
+          isConnected={isCalendarSyncConnectionActive(autoSyncState?.hasGoogleConnection ?? false, autoSyncState?.status ?? 'Idle')}
           autoSyncState={autoSyncState}
-          displayTime={(time) => time}
           onAutoSyncChange={async () => {}}
           onSyncNow={async () => {}}
-          t={((key: string) => key) as never}
-          tokens={createTokensV2('purple', 'dark')}
+          t={((key: string) => key) as never} locale="en" tokens={createTokensV2('purple', 'dark')}
         />
       )
     }
@@ -173,16 +172,15 @@ describe('mobile Calendar Sync now control', () => {
     function Harness() {
       const mutation = useRunCalendarSyncNow()
       return <CalendarSyncBoundary
+        isConnected={isCalendarSyncConnectionActive(autoSyncState.hasGoogleConnection, autoSyncState.status)}
         autoSyncState={autoSyncState}
-        displayTime={(time) => time}
         onAutoSyncChange={() => Promise.resolve()}
         onSyncNow={() => runCalendarSyncNowWithFeedback(
           () => mutation.mutateAsync(),
           (error) => { reportedErrors.push((error as Error).message) },
           getAccountGeneration,
         )}
-        t={((key: string) => key) as never}
-        tokens={createTokensV2('purple', 'dark')}
+        t={((key: string) => key) as never} locale="en" tokens={createTokensV2('purple', 'dark')}
       />
     }
 
