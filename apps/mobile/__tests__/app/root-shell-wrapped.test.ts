@@ -80,7 +80,8 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-timezone-auto-sync', () => ({ useTimezoneAutoSync: vi.fn() }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useHabitCountLoaded: () => ({ count: createState.count, isLoaded: createState.countLoaded }) }))
 vi.mock('@/hooks/use-habits', () => ({ useTotalHabitCount: () => createState.count }))
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/theme')>()),
   createTokensV2: () => ({ bg: '#111111', fg1: '#ffffff', hairline: '#222222', primary: '#c4530f' }),
 }))
 vi.mock('@/lib/use-app-theme', () => ({
@@ -283,14 +284,21 @@ describe('Wrapped root shell', () => {
     expect(createFab?.props.accessibilityLabel).toBe('nav.createHabit')
   })
 
-  it.each([412, 1352])('shows input and chips only on Hoje and preserves an open conversation at %ipx', async (width) => {
+  it.each([412, 1352])('keeps Hoje chip-free, preserves habit chips and an open conversation at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     routeState.pathname = '/'
     routeState.segments = ['(tabs)']
     const tree = await renderRoot()
     expect(findByTestId(tree, 'composer-idle')).toHaveLength(1)
     expect(findByTestId(tree, 'composer-field')).toHaveLength(1)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'First suggestion')).toHaveLength(0)
+    routeState.pathname = '/habits/habit-1'
+    routeState.segments = ['habits', '[id]']
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'First suggestion')).toHaveLength(1)
+    routeState.pathname = '/'
+    routeState.segments = ['(tabs)']
+    await TestRenderer.act(() => tree.update(React.createElement(RootLayout)))
     const open = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'todayAstra.openConversation')[0]
     await TestRenderer.act(() => { (open?.props.onPress as () => void)(); tree.update(React.createElement(RootLayout)) })
     expect(findByTestId(tree, 'shell-conversation')).toHaveLength(1)

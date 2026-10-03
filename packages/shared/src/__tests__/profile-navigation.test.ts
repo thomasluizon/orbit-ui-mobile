@@ -17,6 +17,7 @@ describe('profile-navigation', () => {
       { id: 'more', labelKey: 'profile.groups.more' },
       { id: 'ending', labelKey: null },
     ])
+    expect(PROFILE_SUBMENUS.map((submenu) => 'iconKey' in submenu ? submenu.iconKey : undefined)).toEqual(['account', 'preferences', 'astra', 'notifications'])
     expect(PROFILE_SUBMENUS.map(({ route }) => route)).toEqual([
       '/profile/account', '/profile/preferences', '/profile/astra', '/profile/notifications',
     ])
@@ -41,8 +42,8 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.find((item) => item.id === 'android-widget')?.action).toBe('openWidget')
     expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
       ['profile.settingsRows.wrapped', null],
-      ['profile.widgetTitle', 'profile.widgetHint'],
-      ['profile.calendarSync.title', 'profile.calendarSync.hint'],
+      ['profile.widgetTitle', null],
+      ['profile.calendarSync.title', null],
       ['profile.support.rowTitle', null],
       ['profile.aboutRow', null],
     ])
@@ -115,32 +116,32 @@ describe('profile-navigation', () => {
       return message.replace(/\{(\w+)\}/g, (_, name: string) => values?.[name] ?? '')
     }
     const expected = locale === 'en'
-      ? { free: 'Free', pro: 'Pro', lifetime: 'Lifetime Pro', trial: 'Pro Trial', trialUntil: 'Pro Trial until Oct 9, 2099' }
-      : { free: 'Grátis', pro: 'Pro', lifetime: 'Pro Vitalício', trial: 'Teste Pro', trialUntil: 'Teste Pro até 9 de out. de 2099' }
+      ? { free: 'Free', pro: 'Active', lifetime: 'Lifetime', trial: 'Trial' }
+      : { free: 'Grátis', pro: 'Ativo', lifetime: 'Vitalício', trial: 'Teste' }
 
     it('opens the pitch for a free account', () => {
       const profile = createMockProfile({ plan: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false })
-      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.free, href: '/upgrade' })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.free, href: '/upgrade' })
     })
 
-    it('names the trial end date and opens the pitch for a trial account', () => {
+    it('keeps the trial end date off Perfil and opens the pitch for a trial account', () => {
       const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, isLifetimePro: false, trialEndsAt: '2099-10-09T12:00:00Z' })
-      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.trialUntil, href: '/upgrade' })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.trial, href: '/upgrade' })
     })
 
     it('keeps the plain trial label when the trial has no end date', () => {
       const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: true, isLifetimePro: false, trialEndsAt: null })
-      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.trial, href: '/upgrade' })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.trial, href: '/upgrade' })
     })
 
     it('opens the subscription for a paid Pro account', () => {
       const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false, isLifetimePro: false })
-      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.pro, href: '/upgrade' })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.pro, href: '/upgrade' })
     })
 
     it('shows lifetime Pro read-only', () => {
       const profile = createMockProfile({ plan: 'pro', hasProAccess: true, isTrialActive: false, isLifetimePro: true })
-      expect(getProfileProEntry(profile, locale, translate)).toEqual({ value: expected.lifetime, href: undefined })
+      expect(getProfileProEntry(profile, translate)).toEqual({ value: expected.lifetime, href: undefined })
     })
   })
 })

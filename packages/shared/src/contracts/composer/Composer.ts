@@ -9,6 +9,7 @@ export type ComposerWords = {
   inputLabel?: string
   offlineReason?: string
   send: string
+  actions: string
   suggestionsLabel: string
   retry?: string
 }
@@ -76,6 +77,8 @@ type ComposerBase = {
   suggestions: ComposerSuggestions
   onOpenConversation?: () => void
   conversationLabel?: string
+  errorMessage?: string
+  errorRecovery?: { label: string; onSelect: () => void }
 }
 
 type ComposerState =

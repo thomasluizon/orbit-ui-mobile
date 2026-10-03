@@ -13,6 +13,7 @@ type ReadOnlyVariant = Extract<ListRowProps, { readOnly: true }>
 type ActionVariant = Extract<ListRowProps, { readOnly?: false }>
 type ExpectedBase = {
   icon?: React.ReactNode
+  textMode?: 'label' | 'personal'
   title: string
   wrapTitle?: boolean
   accessibilityLabel?: string

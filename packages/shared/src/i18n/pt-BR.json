@@ -213,19 +213,21 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
-      "placeholder": "Peça algo à Astra",
+      "placeholder": "Astra",
       "send": "Enviar",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
       "voice": {
-        "start": "Falar",
+        "start": "Voz",
         "stop": "Parar",
         "recording": "Ouvindo",
-        "transcribing": "Escrevendo o que você disse"
+        "transcribing": "Transcrevendo"
       },
       "attach": {
-        "trayLabel": "Arquivos anexados",
-        "remove": "Remover {name}"
+        "trayLabel": "Anexos",
+        "remove": "Remover {name}",
+        "file": "Documento",
+        "image": "Foto"
       },
       "limit": {
         "reason": "A cota de {allowance} mensagens para a Astra de hoje foi usada. Listas, registro de hábitos e entrada por voz continuam funcionando sem usar a Astra."
@@ -234,7 +236,7 @@
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
       },
       "offline": {
-        "placeholder": "Sem conexão",
+        "placeholder": "Offline",
         "reason": "Sem conexão. A Astra volta quando a conexão voltar."
       },
       "chips": {
@@ -278,7 +280,9 @@
           "pauseThisWeek": "Pausar esta semana",
           "rename": "Renomear"
         }
-      }
+      },
+      "inputLabel": "Peça à Astra",
+      "actions": "Adicionar"
     }
   },
   "todayAstra": {
@@ -1910,6 +1914,7 @@
       "proHint": "Gerencie sua assinatura",
       "free": "Plano grátis",
       "freeHint": "Faça upgrade para ter tudo",
+      "active": "Ativo",
       "trial": "Teste Pro",
       "trialUntil": "{plan} até {date}",
       "trialDaysLeft": "falta {days} dia | faltam {days} dias",

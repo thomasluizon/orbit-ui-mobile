@@ -76,13 +76,13 @@ function buildChat(): ChatController {
   } as unknown as ChatController
 }
 
-it('shows only empty-state suggestions until the thread has a message', () => {
+it('keeps live composer suggestions available in a new and populated thread', () => {
   const chat = buildChat()
   chat.messages = []
   chat.showSuggestions = true
   const view = render(<AstraConversation chat={chat} />)
   expect(screen.getByTestId('empty-suggestions')).toBeInTheDocument()
-  expect(screen.queryByRole('group', { name: 'composer-chips' })).not.toBeInTheDocument()
+  expect(screen.getByRole('group', { name: 'composer-chips' })).toBeInTheDocument()
   chat.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
   chat.showSuggestions = false
   view.rerender(<AstraConversation chat={chat} />)

@@ -266,7 +266,6 @@ function createStyles(tokens: Tokens) {
     },
     pressed: {
       backgroundColor: tokens.bgHover,
-      transform: [{ scale: 0.96 }],
     },
     body: {
       paddingHorizontal: 24,

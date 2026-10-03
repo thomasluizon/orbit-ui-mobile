@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -11,6 +11,7 @@ import type { StepUpTimingRecord } from '@orbit/shared/utils'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { ListRow } from '@/components/ui/list-row'
 
 import ProfileScreen from '@/app/(tabs)/profile'
@@ -378,10 +379,6 @@ vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/components/profile/profile-nav-icon', () => ({
-  ProfileNavIcon: () => null,
-}))
-
 vi.mock('@/components/gamification/streak-badge', () => ({
   StreakBadge: () => React.createElement('StreakBadge'),
 }))
@@ -476,7 +473,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
 
 vi.mock('react-native-svg', () => ({
   __esModule: true,
-  default: () => null,
+  default: (props: Record<string, unknown>) => React.createElement('Svg', props),
   Path: () => null,
   Defs: () => null,
   Stop: () => null,
@@ -563,9 +560,9 @@ describe('ProfileScreen', () => {
 
   const proPlans = [
     { state: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false, en: 'Free', pt: 'Grátis' },
-    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Pro Trial until Oct 9, 2099', pt: 'Teste Pro até 9 de out. de 2099' },
-    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Pro', pt: 'Pro' },
-    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime Pro', pt: 'Pro Vitalício' },
+    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Trial', pt: 'Teste' },
+    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Active', pt: 'Ativo' },
+    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime', pt: 'Vitalício' },
   ] as const
 
   function translateProMessages(locale: 'en' | 'pt-BR') {
@@ -584,6 +581,73 @@ describe('ProfileScreen', () => {
     }
   }
 
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 412].flatMap((width) => [1, 2].flatMap((textScale) => ['free', 'trial', 'paid', 'lifetime'].map((plan) => ({ locale, width, textScale, plan }))))))('keeps $plan Android Perfil rows readable in $locale at $width dp and $textScale text scale', async ({ locale, width, textScale, plan }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({
+      name: 'Marina', email: 'marina.silva.long.address@example.com', hasProAccess: plan !== 'free',
+      isTrialActive: plan === 'trial', isLifetimePro: plan === 'lifetime',
+      trialEndsAt: plan === 'trial' ? '2099-10-09T12:00:00Z' : null,
+    })
+    const tree = await renderProfileScreen()
+    try {
+      const rows = tree.root.findAllByType(ListRow)
+      expect(rows).toHaveLength(11)
+      const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow>; children: unknown[] }) => {
+        let rowTree!: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+        try {
+          const iconSlot = rowTree.root.find((node: { type: unknown; props: { style?: StyleProp<ViewStyle> } }) => node.type === 'View' && node.props.style && StyleSheet.flatten(node.props.style).width === 28)
+          expect(iconSlot.props.importantForAccessibility).toBe('no-hide-descendants')
+          return { title: row.props.title, ...measureProfileRow(rowTree.toJSON(), width - 32, textScale) }
+        }
+        finally { TestRenderer.act(() => rowTree.unmount()) }
+      })
+      for (const row of measured) {
+        const title = row.texts.find(({ label }) => label === row.title)!
+        expect(row.height, row.title).toBeGreaterThanOrEqual(48)
+        expect(title.left, row.title).toBe(measured[0]!.texts[0]!.left)
+        expect(title.right, row.title).toBeLessThanOrEqual(width - 32)
+        expect(title.clipped, row.title).toBe(false)
+        if (textScale === 1) {
+          expect(row.height, row.title).toBeLessThanOrEqual(68)
+          expect(title.lines, row.title).toBe(1)
+        }
+      }
+      if (textScale === 2 && locale === 'pt-BR') {
+        const calendar = measured.find(({ title }) => title === ptBR.profile.calendarSync.title)!
+        expect(calendar.texts[0]!.lines).toBeGreaterThan(1)
+        expect(calendar.height).toBeGreaterThan(52)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([1, 2])('reveals the full account email within the Android row at %s text scale', async (textScale) => {
+    const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
+    mockProfileState.current.profile = createMockProfile({ name: `Marina ${'Silva'.repeat(16)}`, email })
+    mockRealListRow.current = true
+    const root = await renderProfileScreen()
+    const account = root.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.description === email)!
+    TestRenderer.act(() => account.props.onClick())
+    expect(mockRouterPush).toHaveBeenCalledWith('/profile/account')
+    TestRenderer.act(() => root.unmount())
+    const destination = await renderProfileSubscreen('account')
+    try {
+      const row = destination.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.description === email)!
+      let rowTree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+      try {
+        const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
+        const description = geometry.texts.find(({ label }) => label === email)!
+        expect(geometry.texts[0]!.lines).toBeGreaterThanOrEqual(3)
+        expect(geometry.texts[0]!.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
+        expect(description.clipped).toBe(false)
+        expect(description.lines).toBeGreaterThan(2)
+        expect(description.right).toBeLessThanOrEqual(288)
+      } finally { TestRenderer.act(() => rowTree.unmount()) }
+    } finally { TestRenderer.act(() => destination.unmount()) }
+  })
+
   describe.each(['en', 'pt-BR'] as const)('Orbit Pro in %s', (locale) => {
     it.each(proPlans)('shows the $state plan directly after the account and opens its destination', async (plan) => {
       translateProMessages(locale)
@@ -597,6 +661,25 @@ describe('ProfileScreen', () => {
       })
       const tree = await renderProfileScreen()
       const group = tree.root.findByProps({ testID: 'profile-settings-group-you' })
+      const rows = group.findAllByType(ListRow)
+      expect(rows).toHaveLength(5)
+      const leadingIcons = ['User', 'Crown', 'Settings', 'Svg', 'Bell']
+      for (const [index, row] of rows.entries()) {
+        const contents = row.findAll((node: { type: unknown }) =>
+          typeof node.type === 'string' && [...leadingIcons, 'Text', 'ChevronRight'].includes(node.type))
+        const icons = contents.filter((node: { type: unknown }) => node.type !== 'Text')
+        const navigates = !(index === 1 && plan.isLifetimePro)
+        expect(icons, row.props.title).toHaveLength(navigates ? 2 : 1)
+        expect(contents[0].type).toBe(leadingIcons[index])
+        expect(contents[1].type).toBe('Text')
+        expect(icons[0].props.size ?? icons[0].props.width).toBe(24)
+        if (navigates) {
+          expect(contents.at(-1).type).toBe('ChevronRight')
+        }
+        const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
+          node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
+        expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+      }
       const expectedValue = locale === 'en' ? plan.en : plan.pt
       const text = nodeText(group)
       expect(text.indexOf(mockProfileState.current.profile.name)).toBeLessThan(text.indexOf('Orbit Pro'))
@@ -755,12 +838,8 @@ describe('ProfileScreen', () => {
     }
 
     expect(findRowByLabel(tree, 'profile.settingsRows.wrapped').props.hint).toBeUndefined()
-    expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBe(
-      'profile.widgetHint',
-    )
-    expect(findRowByLabel(tree, 'profile.calendarSync.title').props.hint).toBe(
-      'profile.calendarSync.hint',
-    )
+    expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.calendarSync.title').props.hint).toBeUndefined()
     expect(findRowByLabel(tree, 'profile.support.rowTitle').props.hint).toBeUndefined()
     expect(findRowByLabel(tree, 'profile.aboutRow').props.hint).toBeUndefined()
 

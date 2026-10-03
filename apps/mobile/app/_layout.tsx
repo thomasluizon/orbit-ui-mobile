@@ -1,3 +1,4 @@
+import { resolveComposerDockSuggestions } from '@orbit/shared/chat'
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -269,6 +270,7 @@ function RootLayoutNav() {
             composer={!isNotFound && shellChrome.composer ? (
               <Composer
                 {...chat.composerProps}
+                suggestions={resolveComposerDockSuggestions(pathname, chat.composerProps.suggestions)}
                 onOpenConversation={() => setAstraConversationOpen(true)}
                 conversationLabel={t('todayAstra.openConversation')}
                 onSend={chat.composerProps.onSend}
