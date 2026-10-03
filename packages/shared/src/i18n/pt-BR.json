@@ -2896,7 +2896,7 @@
       "currentLabel": "{count, plural, =0 {dias seguidos} one {dia seguido} other {dias seguidos}}",
       "stripWindow": "Atividade nos últimos {count, plural, =0 {# dias} one {# dia} other {# dias}}",
       "frozenToday": "Hoje está congelado. A sequência não quebra hoje.",
-      "longest": "Recorde",
+      "longest": "Maior sequência",
       "active": "dia ativo",
       "frozen": "dia congelado",
       "missed": "dia sem registro",

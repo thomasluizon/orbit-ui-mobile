@@ -14,6 +14,13 @@ import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 describe('StatTile', () => {
+  it('uses the drawn Calendar captions in both locales', () => {
+    expect([en.calendar.bestStreak, en.calendar.totalLogs, en.calendar.missedCount])
+      .toEqual(['Best', 'Logged', 'Not logged'])
+    expect([ptBR.calendar.bestStreak, ptBR.calendar.totalLogs, ptBR.calendar.missedCount])
+      .toEqual(['Recorde', 'Registros', 'Sem registro'])
+  })
+
   describe('weekday geometry in Chromium', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser

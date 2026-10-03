@@ -217,6 +217,50 @@ describe('ProgressContent', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([320, 360, 384, 412].flatMap((width) => [false, true].map((locked) => ({ width, locked }))))(
+    'keeps drawn streak captions on one line at $width with locked=$locked', async ({ width, locked }) => {
+      mocks.account.profile.canViewGamification = !locked
+      for (const [catalog, expected] of [[en, 'Longest streak'], [ptBR, 'Maior sequência']] as const) {
+        mocks.useEnglishCatalog = catalog === en
+        mocks.usePortugueseCatalog = catalog === ptBR
+        const { container, unmount } = render(<ProgressContent />)
+        const page = await browser.newPage({ viewport: { width, height: 1600 } })
+        try {
+          const streak = screen.getByRole('region', { name: catalog.progressScreen.sections.streak })
+          expect(within(streak).getByText(expected)).toBeInTheDocument()
+          expect(streak.querySelector('[data-component="freeze-bank"]') !== null).toBe(!locked)
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          await loadAppFonts(page)
+          const figures = page.getByRole('region', { name: catalog.progressScreen.sections.streak })
+            .locator('[data-state="default"] > span')
+          const geometry = await figures.evaluateAll((elements) => elements.map((element) => {
+            const range = document.createRange()
+            range.selectNodeContents(element)
+            const text = range.getBoundingClientRect()
+            const tile = element.parentElement!.getBoundingClientRect()
+            const style = getComputedStyle(element)
+            return { text: element.textContent, lines: range.getClientRects().length,
+              width: text.width, available: tile.width - 32,
+              clipped: style.overflow === 'hidden' || style.textOverflow === 'ellipsis',
+              inside: text.left >= tile.left + 16 - 0.5 && text.right <= tile.right - 16 + 0.5 }
+          }))
+          expect(geometry).toHaveLength(4)
+          for (const figure of geometry) {
+            expect(figure.lines, figure.text!).toBe(1)
+            expect(figure.clipped, figure.text!).toBe(false)
+            expect(figure.inside, figure.text!).toBe(true)
+            expect(figure.width, figure.text!).toBeLessThanOrEqual(figure.available + 0.5)
+          }
+        } finally {
+          await page.close()
+          unmount()
+          mocks.useEnglishCatalog = false
+          mocks.usePortugueseCatalog = false
+        }
+      }
+    },
+  )
+
   it.each([1352, 1100, 840, 412].flatMap((width) => [false, true].map((panelOpen) => ({ width, panelOpen }))))(
     'keeps the content gutter at $width with conversation open=$panelOpen', async ({ width, panelOpen }) => {
       const matchMedia = window.matchMedia.bind(window)

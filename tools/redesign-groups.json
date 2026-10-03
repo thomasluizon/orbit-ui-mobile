@@ -195,11 +195,13 @@
       "m-overlay-goals-edit-goal-modal",
       "m-overlay-goals-goal-detail-drawer",
       "m-overlay-progress-progress-content",
+      "m-overlay-ui-streak-legend",
       "m-route-tabs-progress",
       "overlay-components-progress-content",
       "overlay-edit-goal-modal-edit-goal-deadline-field",
       "overlay-goals-edit-goal-modal",
       "overlay-goals-goal-detail-drawer",
+      "overlay-ui-streak-legend",
       "route-progress"
     ],
     "Orbit Sobre": [
