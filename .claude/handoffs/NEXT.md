@@ -10,36 +10,36 @@ Read `.claude/specs/orbit-prod-release.md` before anything else, then, through t
 
 The owner found the redesign crowded and desktop-like on his phone. His answers are binding rules in the spec's standing rule on native mobile feel and in each mobile review ticket's "Owner answers and research reconciliation" section. The spec's Batch R section "The owner's mobile review on his phone" lists the tickets and their state, and `## Current state` holds every open pull request's exact state. This outranks everything below except merging pull requests that are already approved.
 
-1. Drive every open pull request to merge (rows in In flight), `ui#1520` first (the tools harness stays red on `redesign/main` until it lands). Read CI on the exact head. Before merging any head whose files overlap the base's newer commits, run the full combined merge check; a clean git merge can still fail the type check. Before each merge, run `git merge-tree --write-tree --name-only` of every other open head against the post-merge tree, and merge first the pull request the others build on. Merge on the bar, close each ticket with `complete-ticket.mjs`.
-2. Send the three review batches the In flight rows name (`ui#1521` push, `ui#1522` batch 1, `ui#1524` batch 1). Every review batch runs the full local layout project before its push, and every changed string is approved with `/second-opinion` before merge.
-3. As `ui#1524` merges: launch `#1141`, `#1155` and `#1152` (each shares `progress-content.tsx` or `StatTile` with `#1144`, so launch them one after another or base-merge as they land). As `ui#1521` and `ui#1522` merge: launch `#1146`. Once the first wave is merged: `#1134` and `#1149`; `#1151` (the whole-app sweep) once the first wave is merged and released to staging web.
-4. Every fix lands on Android and web. A layout spec a pull request adds or edits is proven red locally on the unfixed base before merge.
+1. Merge `ui#1522` then `ui#1523` (both APPROVED and green at the last read; the combined check is in the spec's Current state). Read CI and the review on each exact head first. Before each merge, run `git merge-tree --write-tree --name-only` of every other open head against the post-merge tree. Close each ticket with `complete-ticket.mjs`.
+2. Then base-merge `ui#1521` once, exactly as the spec's Current state row says (manifest regenerated, `list-row.tsx` resolved on both platforms), run the forced type check, the three Vitest suites and the full local layout project, push, and merge on a fresh approval.
+3. Drive `ui#1525` (`#1152`) and `ui#1526` (`#1155`) to merge on the bar; a pull request that adds surfaces after another merged needs the manifest regenerated (spec Constraints). As `ui#1526` merges, launch `#1141`. As `ui#1521` and `ui#1522` merge, launch `#1146`. Once the first wave is merged: `#1134` and `#1149`; `#1151` (the whole-app sweep) once the first wave is merged and released to staging web. Base-merge `ui#1518` (`#1150`) when the screen tickets turn its Layout Guard green.
+4. Every fix lands on Android and web. A layout spec a pull request adds or edits is proven red locally on the unfixed base before merge. Every changed string is approved with `/second-opinion` (framed as a claimed copy defect) and the verdict posted before merge. Every review batch runs the full local layout project before its push.
 5. Then a full sweep of every screen and every component, every line of UI code on both platforms, against the corrected rules, fixing everything it finds, then rendered sweeps (phone, foldable, desktop) until a full pass finds nothing.
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| `ui#1520` (`#1153`) at `5b34cb05` | review batch 1 answered, thread resolved, body merged, pushed. Start its CI and Pullfrog waiter, merge on the bar |
-| `ui#1521` (`#1143`) at `3c6a69a2` on GitHub | APPROVED there but three required checks red. Review batch 1 committed locally as `69254751` in `ticket-1143-day-card`, NOT pushed (log `#1143-61765-1791013102139.log` under `orbit-workers` in the system temporary directory). Read the report, run the full local layout project on `69254751`, approve the shortened "View all ({count})" and "Ver todos ({count})" with `/second-opinion` and post the verdict, merge the report into the body, push once, then wait and merge on the bar. The branch used three launches: any further worker needs `--relaunch-reason` |
-| `ui#1522` (`#1148`) at `1a3dad41` | needs review batch 1: Pullfrog thread `calendar-agenda-view.tsx:98` (keep the scheduled time in agenda row announcements), two surfaces missing from the committed manifest, `press-shape.spec.ts:273` week navigation and all-day overflow fills at 412 and 1280 (exact text in the spec's Current state) |
-| `ui#1523` (`#1147`) at `eefc186a` | waiting on CI and Pullfrog; merge on the bar |
-| `ui#1524` (`#1144`) at `aadcbefe` | APPROVED, CI pending. Needs review batch 1: restore the drawn English figure labels "Best" and "Not logged" (the branch says "Record" and "No logs"), then `/second-opinion` on every changed string in both locales, then merge |
-| `ui#1518` (`#1150`) at `7f1749a2` | approved, threads resolved, Layout Guard red by design; merges once the screen tickets turn it green (base-merge it then) |
-| Merged this chain | `ui#1517` (`#1140`, `b69909c5`), `ui#1519` (`#1138`, `6e6fbbe2`), `orbit-api#694` (`#1154`, `d29aca28` on `redesign/main`), `orbit-api#695` (`#1156`, `b8abb762` on `main`); tickets closed. Earlier in the chain: `ui#1512`, `ui#1516`, `ui#1513`, `ui#1511`, `ui#1514`, `ui#1515` |
-| New tickets this chain | `#1154` (done), `#1155` (Progresso top habit opens its habit, after `#1144`), `#1156` (done) |
-| Staging release | API `d29aca28` (Healthy); web `6e6fbbe2` (ok); landing `aa65bd72`; Orbit Staging 1.3.59 (118); `android-release.yml` internal on `redesign/main` as 1.3.60 (119) after the open pull requests merge |
+| `ui#1522` (`#1148`) at `7214cb96` | APPROVED, green at the last read; merge first |
+| `ui#1523` (`#1147`) at `d728e8fc` | APPROVED, green at the last read; merge next |
+| `ui#1521` (`#1143`) at `c7487dd1` | APPROVED and green but CONFLICTING; one base merge after `ui#1522` (spec Current state); four launches used, so any further worker needs `--relaunch-reason` |
+| `ui#1525` (`#1152`) at `19688bda` | APPROVED, CI running at the last read; merge on the bar |
+| `ui#1526` (`#1155`) at `686aba95` | new, CI and Pullfrog running; merge on the bar, then launch `#1141` |
+| `ui#1518` (`#1150`) at `7f1749a2` | approved, threads resolved, Layout Guard red by design; base-merge it once the screen tickets turn it green |
+| Merged this chain | `ui#1520` (`#1153`, `26b2c8e4`), `ui#1524` (`#1144`, `5620c719`); earlier: `ui#1517`, `ui#1519`, `orbit-api#694`, `orbit-api#695`, `ui#1512`, `ui#1516`, `ui#1513`, `ui#1511`, `ui#1514`, `ui#1515`; tickets closed |
+| Tickets filed and closed this chain | `#1157` cancelled as a duplicate of the fixed `#1153` |
+| Staging release | API `d29aca28`; web `6e6fbbe2` (release again after the next merges); landing `aa65bd72`; Orbit Staging 1.3.59 (118); `android-release.yml` internal on `redesign/main` as 1.3.60 (119) after the open pull requests merge |
 | Production | API `822f3038` (`main` holds the test-only `b8abb762` too), web `b84bdc9e`, landing `ebbebb2a`, Android 1.3.57 (116) open |
 | Open pull requests in `orbit-api` and `orbit-landing-page` | none |
 | Stashes | none in the three repositories |
 | Uncommitted work | none; every worktree is clean |
-| Unpushed commits | `69254751` on `fix/ticket-1143-day-card` (above) |
+| Unpushed commits | none |
 | Branches with no pull request | none open; merged and stale branches are listed in the spec's Worktrees line |
-| Detached HEADs | none left: old scratch merge-check worktrees and `questions-manual-steps` are removed; this session's `red-base` scratch worktree goes with its scratchpad (`git worktree prune`) |
+| Detached HEADs | two scratch worktrees under old session scratchpads (`red-base`, at `redesign/main` commits, nothing unique); `git worktree prune` once their scratchpad directories are gone, or `git worktree remove --force` them |
 | Running workers | none |
-| Waiters | live waiters for `ui#1520` and `ui#1523` with `ui#1524` end with the relay; start fresh ones, at most three |
-| Ignored files | decision log and helpers stay in the predecessor's scratchpad (`gated-launch.sh`, `prep-launch.sh`, `prep-launch-api.sh`, `launch-existing.sh`, `cont-launch.sh`, `cont-launch-api.sh`, `worktree-ci.sh`, `body-merge.sh`, `log-append.sh` (stamps `TIME` from `date`), `mark-merged.mjs`, `add-pr.mjs`, `post-merge-tree.sh`, `overlap-pr.sh`, `mc-run.sh`, `merge-check.sh`, `layout-run.sh`, `teardown-batch.sh`, `reconcile.mjs`, `scrub-report.mjs` and the rest); copy them with the session id replaced |
-| Watch windows | `#565` closes seven days after the GitHub production deployment of `f0322e3a` (read its `created_at` from `gh api "repos/thomasluizon/orbit-ui-mobile/deployments?environment=production"`), and `#566` seven days after `android-release.yml` run 36290447080 (1.3.37 (96) to open) finished, if Sentry ORBIT-WEB-C and ORBIT-MOBILE-5 still show only their single earlier event; both windows end within the next day, so close each that qualifies |
+| Waiters | live waiters for `ui#1522` with `ui#1523`, for `ui#1525`, and for `ui#1526` end with the relay; start fresh ones, at most three |
+| Ignored files | decision log and helpers stay in the predecessor's scratchpad (`gated-launch.sh`, `prep-launch.sh`, `cont-launch.sh` (passes several compose flags), `launch-existing.sh`, `worktree-ci.sh`, `body-merge.sh`, `body-chain.sh` (folds a further report into a local body), `log-append.sh` (stamps `TIME` from `date`), `mark-merged.mjs`, `add-pr.mjs` (never run without arguments), `conflict-matrix.sh`, `mc-run.sh`, `merge-check.sh`, `layout-run.sh`, `spec-rerun.sh`, `red-run.sh` (swaps messages inside the lock), `red-base-build.sh`, `scrub-report.mjs`, `copy-helpers.mjs` and the rest); copy them with the session id replaced |
+| Watch windows | `#565` closes seven days after the GitHub production deployment of `f0322e3a` (read its `created_at` from `gh api "repos/thomasluizon/orbit-ui-mobile/deployments?environment=production"`), and `#566` seven days after `android-release.yml` run 36290447080 finished (read its `updatedAt` with `gh run view 36290447080 --json updatedAt`), if Sentry ORBIT-WEB-C and ORBIT-MOBILE-5 still show only their single earlier event; close each that qualifies |
 | Throwaway AVD | `Orbit_Repro_Throwaway` still exists; delete it once no repro needs it |
 | Chrome | not used this chain |
 | Session chain | open (automatic relay) |
@@ -81,15 +81,15 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's mobile review (`#1133` to `#1155`: the rest merged and closed on both platforms, `DESIGN.md` corrected), a staging release and the 1.3.60 internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 141 open tickets, 141 placed, 0 unplaced; each ticket has one placement line (other mentions are dependency notes).
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's mobile review (`#1133` to `#1155`: the rest merged and closed on both platforms, `DESIGN.md` corrected), a staging release and the 1.3.60 internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 139 open tickets, 139 placed, 0 unplaced, 0 placed twice; each ticket has one placement line (other mentions are dependency notes).
 
 ## Previous prompt, disposition
 
 - Opening reading list, Entry point, Sleep section, the authorization paragraph, Then 1 to 4, Goal and owner instructions 1 to 12: carried.
-- Priority 1 (launch `#1153` first): done (`ui#1520` opened, review batch 1 pushed at `5b34cb05`; carried as In flight).
-- Priority 2 (drive open pull requests): `ui#1517` done (merged `b69909c5`, `#1140` closed, the combined tree differed from the head only in two Markdown files); `ui#1519` done (full combined merge check, layout 578 passed, merged `6e6fbbe2`, `#1138` closed); `ui#1518` carried unchanged.
-- Priority 3: `#1143` relaunched and delivered `ui#1521` (carried); `#1148` launched and delivered `ui#1522` (carried); `#1141` narrowed scope commented, launch carried after `#1144`; `#1144` delivered `ui#1524` after a decision split its top habit navigation into `#1154` (done) and `#1155` (carried); `#1146` carried after `ui#1521` and `ui#1522`; `#1147` delivered `ui#1523` (carried); `#1152`, `#1134`, `#1149`, `#1151` carried in the same order.
+- Priority 1 (drive every open pull request, `ui#1520` first): `ui#1520` done (merged `26b2c8e4`, `#1153` closed); `ui#1524` done (merged `5620c719`, `#1144` closed); `ui#1522`, `ui#1523`, `ui#1521`, `ui#1518` carried as In flight with their new heads.
+- Priority 2 (three review batches): done. `ui#1521` batches 1 and 2 pushed (`c7487dd1`, copy approved and posted); `ui#1522` batch 1 pushed (`f4cbb0d6`, then base-merged as `7214cb96`); `ui#1524` batch 1 pushed and merged; `ui#1523` batch 1 also needed and pushed (`d728e8fc`). Each ran the full local layout project before its push.
+- Priority 3: `#1155` launched and delivered `ui#1526`; `#1152` launched and delivered `ui#1525`; `#1141` carried (after `ui#1526`); `#1146`, `#1134`, `#1149`, `#1151` carried in the same order.
 - Priority 4 and 5: carried.
-- In flight rows: detached worktrees done (removed); watch windows checked, carried with exact times; staging release done (web `6e6fbbe2`, API `d29aca28`); throwaway AVD carried.
+- In flight rows: `69254751` pushed (done); watch windows carried with exact times; staging release carried; throwaway AVD carried.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
