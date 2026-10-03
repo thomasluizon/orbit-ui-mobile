@@ -16,6 +16,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
+  elevated = false,
   variant = 'primary',
   size: requestedSize = 'sm',
   onClick,
@@ -45,14 +46,14 @@ export function Button({
     caution: tokens.fgOnOverdue,
   }
 
-  const ghostPressedFill = quiet ? tokens.bgHoverOpaque : tokens.bgHover
+  const ghostPressedFill = elevated ? mixHex(tokens.bgElev, tokens.fg1, 0.13) : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: tokens.fg1 }
     }
     if (variant === 'ghost') {
       return {
-        backgroundColor: pressed ? ghostPressedFill : 'transparent',
+        backgroundColor: pressed ? ghostPressedFill : elevated ? tokens.bgElev : 'transparent',
         borderWidth: 1.5,
         borderColor: tokens.hairlineStrong,
       }

@@ -1,4 +1,8 @@
 import React from "react";
+import { RootScrollProvider } from '@/components/shell/root-scroll-context'
+import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { __setScrollToImpl } from '../../test-mocks/react-native'
+
 import en from "@orbit/shared/i18n/en.json";
 import ptBR from "@orbit/shared/i18n/pt-BR.json";
 import { addDays, differenceInCalendarDays } from "date-fns";
@@ -24,6 +28,15 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <View testID="notification-bell" /> }));
+
+const rootScrollMocks = vi.hoisted(() => ({ scrollToOffset: vi.fn() }))
+vi.mock('react-native', async (importOriginal) => {
+  const native = await importOriginal<typeof import('react-native')>()
+  return { ...native, FlatList: React.forwardRef((props: React.ComponentProps<typeof native.FlatList>, ref) => {
+    React.useImperativeHandle(ref, () => ({ scrollToOffset: rootScrollMocks.scrollToOffset }))
+    return <native.FlatList {...props} />
+  }) }
+})
 
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
@@ -1525,4 +1538,21 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(refreshCalls).toHaveLength(1);
   });
+  it.each(['month', 'week', 'agenda', 'range'] as const)('scrolls the Calendar root in %s without changing the view', (view) => {
+    const scrollTo = vi.fn()
+    rootScrollMocks.scrollToOffset.mockClear()
+    __setScrollToImpl(scrollTo)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
+    if (view !== 'month') pressView(tree, view)
+    scrollTo.mockClear()
+    const activeViewBefore = tree.root.findAll((node: TestNode) => node.type === 'View' && node.props.testID === `calendar-view-${view}`)
+    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
+    if (view === 'month') expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
+    else expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    expect(tree.root.findAll((node: TestNode) => node.type === 'View' && node.props.testID === `calendar-view-${view}`)).toHaveLength(activeViewBefore.length)
+    TestRenderer.act(() => tree.unmount())
+    __setScrollToImpl(() => {})
+  })
+
 });

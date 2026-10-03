@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { getTodayBoundary } from '@orbit/shared/utils'
+import { useShellScrollToTopSlot } from '@/components/shell/shell-scroll-to-top-slot'
+import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
+import { getTodayBoundary, updateScrollToTopState } from '@orbit/shared/utils'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
@@ -80,7 +82,16 @@ function TodayScreenContent() {
   const [todayFocused, setTodayFocused] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
-  useRootScrollToTop('hoje', useCallback(() => habitListRef.current?.scrollToOffset(0, false), []))
+  const [viewportHeight, setViewportHeight] = useState(0)
+  const scrollState = useRef({ offset: 0, visible: false })
+  const [scrollToTopVisible, setScrollToTopVisible] = useState(false)
+  const scrollToTop = useCallback(() => {
+    habitListRef.current?.scrollToOffset(0, false)
+    scrollState.current = { offset: 0, visible: false }
+    setScrollToTopVisible(false)
+  }, [])
+  useRootScrollToTop('hoje', scrollToTop)
+  useShellScrollToTopSlot(todayFocused && scrollToTopVisible, <ScrollToTopButton onPress={scrollToTop} />)
   const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
@@ -231,7 +242,7 @@ function TodayScreenContent() {
   )
 
   return (
-    <View testID="today-content-column" style={[styles.screen, { backgroundColor: tokens.bg }]}>
+    <View testID="today-content-column" onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)} style={[styles.screen, { backgroundColor: tokens.bg }]}>
       <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
         <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
           <HabitList
@@ -257,6 +268,11 @@ function TodayScreenContent() {
             onAllLoadedIdsChange={setAllLoadedIds}
             onAllCollapsedChange={setHabitListAllCollapsed}
             onSurfaceOpenChange={setListSurfaceOpen}
+            onScroll={(offset) => {
+              const next = updateScrollToTopState(scrollState.current, offset, viewportHeight)
+              if (next.visible !== scrollState.current.visible) setScrollToTopVisible(next.visible)
+              scrollState.current = next
+            }}
           />
         </Animated.View>
       </Animated.View>

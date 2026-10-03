@@ -33,6 +33,7 @@ import {
   resetRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
 import { ShellWide } from './shell-wide'
+import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
 import { useShellScroller } from './shell-scroller-context'
 import { useServerApplePlatform } from './keyboard-platform-provider'
 
@@ -162,6 +163,10 @@ export function DestinationShell({
   )
 }
 
+function todayScrollToTop(pathname: string, notFoundVisible: boolean) {
+  return pathname === '/' && !notFoundVisible ? <ScrollToTopButton /> : undefined
+}
+
 function DestinationShellContent({
   children,
   header,
@@ -276,6 +281,7 @@ function DestinationShellContent({
         paletteHint={paletteHint}
         notice={notice}
         header={header}
+        scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
         composer={!notFoundVisible && chrome.composer ? composer : undefined}
         tabBar={
           !chrome.flow ? <BottomTabBar

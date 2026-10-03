@@ -1724,6 +1724,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             ref={stateListRef}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
             data={SKELETON_KEYS}
             keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={(item) => item}
@@ -1748,6 +1750,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           <FlatList
             ref={stateListRef}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
             data={[]}
             keyboardShouldPersistTaps={KEYBOARD_SHOULD_PERSIST_TAPS}
             keyExtractor={() => 'load-error'}
