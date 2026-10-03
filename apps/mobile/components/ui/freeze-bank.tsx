@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   denominator: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   copy: { gap: 4 },
   progressHeader: { alignItems: 'baseline', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  progressLabel: { flexGrow: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  progressLabel: { flexGrow: 1, flexShrink: 0, maxWidth: '100%', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   protectedTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
   protectedRow: { alignItems: 'center', flexDirection: 'row', gap: 8, minHeight: 28 },
   protectedDate: { flex: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'], lineHeight: 16 },
