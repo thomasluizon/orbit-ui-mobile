@@ -335,6 +335,20 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(() => tree!.unmount())
     __setScrollToImpl(() => {})
   })
+  it.each(['Ler os livros que escolhi para aprender uma nova habilidade', 'AprenderUmaNovaHabilidade'.repeat(5)])('clamps a long goal title and keeps its detail one tap away: %s', async (title) => {
+    mocks.goals.data.allGoals = [createMockGoal({ title })]
+    const tree = await renderProgress()
+    const card = findGoalCard(tree.root, title)
+    const headline = card.findAll((node) => node.type === 'Text' && node.props.children === title)[0]!
+    expect(headline.props.numberOfLines).toBe(2)
+    expect(headline.props.ellipsizeMode).toBe('tail')
+    expect(card.props.accessibilityLabel).toContain(title)
+    const metadata = card.findAll((node) => node.type === 'Text' && String(node.props.children).startsWith('progressScreen.goals.progress'))[0]!
+    const texts = card.findAll((node) => node.type === 'Text')
+    expect(texts.indexOf(headline)).toBeLessThan(texts.indexOf(metadata))
+    await TestRenderer.act(() => (card.props.onPress as () => void)())
+    expect(tree.root.findAll((node) => node.type === GoalDetailDrawer)[0]!.props.goalId).toBe('goal-1')
+  })
   it.each([1352, 1100, 840, 412])('aligns the screen and content gutter to Hoje at %ipx', async (width) => {
     const tree = await renderProgress()
     const root = tree.root.findAll((node) => node.type === 'View')[0]!

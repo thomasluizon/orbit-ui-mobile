@@ -252,6 +252,24 @@ describe('ProgressContent', () => {
             expect(figure.inside, figure.text!).toBe(true)
             expect(figure.width, figure.text!).toBeLessThanOrEqual(figure.available + 0.5)
           }
+          if (!locked) {
+            const caption = page.getByText(catalog.progressScreen.streak.next, { exact: true })
+            for (const scale of [1, 1.3, 2]) {
+              await page.evaluate((scale) => { document.documentElement.style.zoom = String(scale) }, scale)
+              const bounds = await caption.evaluate((element) => {
+                const range = document.createRange()
+                range.selectNodeContents(element)
+                const style = getComputedStyle(element)
+                return { lines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size,
+                  clipped: element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth,
+                  overflow: style.overflow, textOverflow: style.textOverflow }
+              })
+              if (scale <= 1.3) expect(bounds.lines, JSON.stringify({ width, scale, bounds })).toBe(1)
+              expect(bounds.clipped).toBe(false)
+              expect(bounds.overflow).not.toBe('hidden')
+              expect(bounds.textOverflow).not.toBe('ellipsis')
+            }
+          }
         } finally {
           await page.close()
           unmount()
@@ -261,6 +279,48 @@ describe('ProgressContent', () => {
       }
     },
   )
+
+  it.each([320, 360, 384, 412])('clamps long goal titles to two lines at %ipx and opens their detail', async (width) => {
+    for (const catalog of [en, ptBR]) {
+      mocks.useEnglishCatalog = catalog === en
+      mocks.usePortugueseCatalog = catalog === ptBR
+      const titles = ['Ler os livros que escolhi para aprender uma nova habilidade', 'AprenderUmaNovaHabilidade'.repeat(5)]
+      mocks.goals.data.allGoals = titles.map((title, index) => createMockGoal({ id: `long-${index}`, title, position: index }))
+      const { container, unmount } = render(<ProgressContent />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.locator('[data-goal-id]').evaluateAll((cards) => cards.map((card) => {
+          const title = card.querySelector('span')!.firstElementChild! as HTMLElement
+          const metadata = title.nextElementSibling! as HTMLElement
+          const style = getComputedStyle(title)
+          return { height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(style.lineHeight),
+            clamp: style.webkitLineClamp, overflow: style.overflow,
+            clipped: title.scrollHeight > title.clientHeight,
+            overflowWidth: card.scrollWidth > card.clientWidth,
+            metadataBelow: metadata.getBoundingClientRect().top >= title.getBoundingClientRect().bottom }
+        }))
+        expect(geometry).toHaveLength(2)
+        for (const title of geometry) {
+          expect(title.height).toBeCloseTo(title.lineHeight * 2, 0)
+          expect(title.clamp).toBe('2')
+          expect(title.overflow).toBe('hidden')
+          expect(title.overflowWidth).toBe(false)
+          expect(title.metadataBelow).toBe(true)
+        }
+        const card = screen.getByRole('button', { name: new RegExp(titles[0]!) })
+        expect(card.getAttribute('aria-label')).toContain(titles[0])
+        fireEvent.click(card)
+        expect(screen.getByLabelText('goal-detail')).toHaveTextContent('long-0')
+      } finally {
+        await page.close()
+        unmount()
+        mocks.useEnglishCatalog = false
+        mocks.usePortugueseCatalog = false
+      }
+    }
+  })
 
   it.each([1352, 1100, 840, 412].flatMap((width) => [false, true].map((panelOpen) => ({ width, panelOpen }))))(
     'keeps the content gutter at $width with conversation open=$panelOpen', async ({ width, panelOpen }) => {
