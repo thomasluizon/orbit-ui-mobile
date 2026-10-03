@@ -1888,7 +1888,10 @@ describe('HabitDetailScreen', () => {
         const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
           const button = element.querySelector('button')!
           const style = getComputedStyle(button)
-          button.style.fontSize = `${parseFloat(style.fontSize) * 2}px`
+          const fontSize = parseFloat(style.fontSize) * 2
+          const lineHeight = parseFloat(style.lineHeight) * 2
+          button.style.fontSize = `${fontSize}px`
+          button.style.lineHeight = `${lineHeight}px`
           const range = document.createRange()
           range.selectNodeContents(button)
           const text = range.getBoundingClientRect()
@@ -1897,12 +1900,13 @@ describe('HabitDetailScreen', () => {
           const columnStyle = getComputedStyle(column)
           return { whiteSpace: style.whiteSpace, textOverflow: style.textOverflow,
             lines: range.getClientRects().length, inside: text.right <= bounds.right + 1 && text.bottom <= bounds.bottom + 1,
-            width: bounds.width, available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight) }
+            width: bounds.width, available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
         })
         expect(geometry.whiteSpace).toBe('normal')
         expect(geometry.textOverflow).not.toBe('ellipsis')
         expect(geometry.lines).toBeGreaterThan(2)
         expect(geometry.inside).toBe(true)
+        expect(geometry.leading).toBeGreaterThanOrEqual(1.4)
         expect(geometry.width).toBe(geometry.available)
       } finally { await page.close() }
     })
