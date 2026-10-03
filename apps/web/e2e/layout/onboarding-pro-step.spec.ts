@@ -59,7 +59,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           expect(geometry.tiers.map((tier) => tier.interval)).toEqual(['yearly', 'monthly'])
           for (const tier of geometry.tiers) {
             expect(tier.height).toBeCloseTo(tier.contentHeight, 0)
-            expect(tier.belowButton).toBeCloseTo(tier.padding, 0)
+            expect(tier.belowTarget).toBeCloseTo(tier.padding, 0)
           }
         }
       })

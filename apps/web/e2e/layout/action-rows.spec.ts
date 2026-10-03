@@ -72,8 +72,8 @@ async function assertActionGeometry(page: Page, surface?: Locator) {
       for (let second = first + 1; second < pills.length; second += 1) {
         const a = pills[first]!
         const b = pills[second]!
-        const aBox = a.getBoundingClientRect()
-        const bBox = b.getBoundingClientRect()
+        const aBox = (a.closest('.orbit-small-pill-target') ?? a).getBoundingClientRect()
+        const bBox = (b.closest('.orbit-small-pill-target') ?? b).getBoundingClientRect()
         const overlapX = Math.min(aBox.right, bBox.right) - Math.max(aBox.left, bBox.left)
         const overlapY = Math.min(aBox.bottom, bBox.bottom) - Math.max(aBox.top, bBox.top)
         const stacked = overlapX > 0 && overlapY <= 0

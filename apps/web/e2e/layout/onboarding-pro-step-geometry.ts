@@ -20,7 +20,9 @@ export function measureOnboardingProStep(root: HTMLElement) {
   const horizontalOffset = Math.abs(column.x + column.width / 2 - main.x - main.width / 2)
   const tiers = Array.from(root.querySelectorAll<HTMLElement>('[data-tier][data-tier-content]')).filter(visible).map((card) => {
     const bounds = card.getBoundingClientRect()
-    const button = card.querySelector('button')!.getBoundingClientRect()
+    const action = card.querySelector('button')!
+    const button = action.getBoundingClientRect()
+    const target = (action.closest('.orbit-small-pill-target') ?? action).getBoundingClientRect()
     const clone = card.cloneNode(true) as HTMLElement
     clone.style.width = `${bounds.width}px`
     clone.style.height = 'auto'
@@ -30,7 +32,7 @@ export function measureOnboardingProStep(root: HTMLElement) {
     const contentHeight = clone.getBoundingClientRect().height
     clone.remove()
     return { interval: card.dataset.tierContent, height: bounds.height, contentHeight,
-      belowButton: bounds.bottom - button.bottom, padding: parseFloat(getComputedStyle(card).paddingBottom) }
+      belowButton: bounds.bottom - button.bottom, belowTarget: bounds.bottom - target.bottom, padding: parseFloat(getComputedStyle(card).paddingBottom) }
   })
   return { overflow, wrappedActions, horizontalOffset, tiers }
 }

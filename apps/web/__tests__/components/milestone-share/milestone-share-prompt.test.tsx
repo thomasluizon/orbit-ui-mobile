@@ -182,8 +182,9 @@ describe('MilestoneSharePrompt', () => {
           const right = bounds.right - Number.parseFloat(style.paddingRight)
           const buttons = [...footer.querySelectorAll('button')].map((button) => {
             const bounds = button.getBoundingClientRect()
+            const target = button.parentElement!.getBoundingClientRect()
             const label = button.querySelector('span')!.getBoundingClientRect()
-            return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height, labelLeft: label.left, labelRight: label.right }
+            return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height, targetRight: target.right, targetHeight: target.height, labelLeft: label.left, labelRight: label.right }
           })
           return { left, right, buttons }
         })
@@ -192,11 +193,13 @@ describe('MilestoneSharePrompt', () => {
           expect(button.left).toBeGreaterThanOrEqual(measured.left)
           expect(button.right).toBeLessThanOrEqual(measured.right)
           expect(button.width).toBeLessThan(measured.right - measured.left)
-          expect(button.height).toBeGreaterThanOrEqual(44)
+          expect(button.height).toBe(44)
+          expect(button.targetHeight).toBeGreaterThanOrEqual(48)
           expect(button.labelLeft).toBeGreaterThan(button.left)
           expect(button.labelRight).toBeLessThan(button.right)
         }
-        expect(measured.buttons.at(-1)!.right).toBeCloseTo(measured.right, 1)
+        expect(measured.buttons.at(-1)!.targetRight).toBeCloseTo(measured.right, 1)
+        expect(measured.buttons.at(-1)!.right).toBeCloseTo(measured.right - 2, 1)
       } finally {
         await page.close()
         vi.useFakeTimers()
@@ -221,7 +224,7 @@ describe('MilestoneSharePrompt', () => {
     const later = screen.getByRole('button', { name: 'milestoneShare.later' })
     expect(later).toHaveAttribute('data-variant', 'ghost')
     expect(later).toHaveAttribute('data-size', 'sm')
-    expect(screen.getByRole('button', { name: 'milestoneShare.download' }).parentElement!.style.gap).toBe('12px')
+    expect(screen.getByRole('button', { name: 'milestoneShare.download' }).closest('[data-slot="action-row"]')!.getAttribute('style')).toContain('gap: 12px')
   })
 
   it('stays hidden while a celebration is in flight', async () => {

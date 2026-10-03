@@ -44,6 +44,7 @@ async function readHitBoxOnceStill(control: Locator) {
 async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
   return control.evaluate((element, fillPseudo) => {
     const bounds = element.getBoundingClientRect()
+    const reservation = element.closest('.orbit-small-pill-target')?.getBoundingClientRect()
     const hit = { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom }
     const pixels = (value: string) => Number.parseFloat(value) || 0
     for (const pseudo of ['::before', '::after']) {
@@ -75,6 +76,8 @@ async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
     const opaqueHoverFill = getComputedStyle(probe).backgroundColor
     probe.remove()
     return {
+      smallPill: element.closest('.orbit-small-pill-target') !== null,
+      reservation: reservation ? { left: reservation.left, top: reservation.top, right: reservation.right, bottom: reservation.bottom } : null,
       hoverFill,
       opaqueHoverFill,
       hit,
@@ -101,7 +104,9 @@ async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 
   const geometry = await readTargetGeometry(control, fillPseudo)
   if (fillToken) expect(geometry.background, `the interaction uses ${fillToken}`).toBe(fillToken === '--bg-hover-opaque' ? geometry.opaqueHoverFill : geometry.hoverFill)
   for (const edge of ['left', 'top', 'right', 'bottom'] as const) {
-    expect(geometry.painted[edge], `the fill reaches the ${edge} hit edge including pseudo-elements`).toBeCloseTo(geometry.hit[edge], 1)
+    const paintInset = geometry.smallPill ? (edge === 'left' || edge === 'top' ? 2 : -2) : 0
+    expect(geometry.painted[edge], `the fill reaches the ${edge} paint edge`).toBeCloseTo(geometry.hit[edge] + paintInset, 1)
+    if (geometry.smallPill) expect(geometry.reservation![edge]).toBeCloseTo(geometry.hit[edge], 1)
   }
   expect(geometry.radius).toBeCloseTo(radius === 'pill' ? Math.min(geometry.width, geometry.height) / 2 : radius, 1)
 }
@@ -109,8 +114,8 @@ async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 
 async function expectFullTouchTarget(control: Locator, radius: 'pill' | 8 | 12, fillToken?: '--bg-hover' | '--bg-hover-opaque', fillPseudo?: '::after') {
   await expectHoverOnHitArea(control, radius, fillToken, fillPseudo)
   const geometry = await readTargetGeometry(control, fillPseudo)
-  expect(geometry.width).toBeGreaterThanOrEqual(44)
-  expect(geometry.height).toBeGreaterThanOrEqual(44)
+  expect(geometry.hit.right - geometry.hit.left).toBeGreaterThanOrEqual(48)
+  expect(geometry.hit.bottom - geometry.hit.top).toBeGreaterThanOrEqual(48)
 }
 
 for (const width of [412, 1280] as const) {
@@ -177,7 +182,7 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(activeChip, 'pill', '--bg-hover')
       for (const chip of [restingChip, activeChip]) {
         const chipBox = await chip.boundingBox()
-        expect(chipBox!.height, 'a chip paints its whole 44px hit area').toBeGreaterThanOrEqual(44)
+        expect(chipBox!.height, 'a chip paints its whole 48px hit area').toBeGreaterThanOrEqual(48)
         const chipPseudo = await chip.evaluate((element) => getComputedStyle(element, '::after').content)
         expect(chipPseudo, 'a chip carries no hit area the fill cannot reach').toBe('none')
       }

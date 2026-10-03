@@ -63,13 +63,13 @@ describe('Pro tier geometry in Chromium', () => {
       expect(geometry.tiers.map((tier) => tier.interval)).toEqual(['yearly', 'monthly'])
       for (const tier of geometry.tiers) {
         expect(tier.height).toBeCloseTo(tier.contentHeight, 0)
-        expect(tier.belowButton).toBeCloseTo(tier.padding, 0)
+        expect(tier.belowTarget).toBeCloseTo(tier.padding, 0)
       }
       await step.locator('[data-tier-content="monthly"]').evaluate((card) => { card.style.minHeight = `${card.getBoundingClientRect().height + 80}px` })
       const stretched = await step.evaluate(measureOnboardingProStep)
       const monthly = stretched.tiers.find((tier) => tier.interval === 'monthly')!
       expect(monthly.height - monthly.contentHeight).toBeCloseTo(80, 0)
-      expect(monthly.belowButton - monthly.padding).toBeCloseTo(80, 0)
+      expect(monthly.belowTarget - monthly.padding).toBeCloseTo(80, 0)
     } finally { await page.close() }
   })
 
@@ -84,7 +84,9 @@ describe('Pro tier geometry in Chromium', () => {
         .filter((card) => card.querySelector('button') && !card.closest('[inert]'))
         .map((card) => {
           const bounds = card.getBoundingClientRect()
-          const button = card.querySelector('button')!.getBoundingClientRect()
+          const action = card.querySelector('button')!
+          const button = action.getBoundingClientRect()
+          const target = action.parentElement!.getBoundingClientRect()
           const style = getComputedStyle(card)
           const clone = card.cloneNode(true) as HTMLElement
           clone.style.width = `${bounds.width}px`
@@ -95,7 +97,7 @@ describe('Pro tier geometry in Chromium', () => {
           const contentHeight = clone.getBoundingClientRect().height
           clone.remove()
           return { tier: card.querySelector('h3')!.textContent, height: bounds.height, contentHeight,
-            belowButton: bounds.bottom - button.bottom, padding: parseFloat(style.paddingBottom),
+            belowButton: bounds.bottom - button.bottom, belowTarget: bounds.bottom - target.bottom, padding: parseFloat(style.paddingBottom),
             buttonWidth: button.width, contentWidth: bounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) }
         }))
       process.stdout.write(`${JSON.stringify({ width, locale, coupon, geometry })}\n`)
@@ -103,7 +105,8 @@ describe('Pro tier geometry in Chromium', () => {
       for (const card of geometry) {
         expect(card.buttonWidth).toBeLessThan(card.contentWidth)
         expect(card.height).toBeCloseTo(card.contentHeight, 0)
-        expect(card.belowButton).toBeCloseTo(card.padding, 0)
+        expect(card.belowTarget).toBeCloseTo(card.padding, 0)
+        expect(card.belowButton - card.belowTarget).toBeCloseTo(2, 0)
       }
     } finally { await page.close() }
   })

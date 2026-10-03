@@ -53,7 +53,7 @@ for (const width of [412, 600] as const) {
         const close = document.createElement('button')
         close.type = 'button'
         close.setAttribute('aria-label', closeLabel)
-        close.style.cssText = 'width:44px;height:44px'
+        close.style.cssText = 'width:48px;height:48px'
         close.addEventListener('click', () => { close.dataset.clicked = 'true' })
         panel.append(close)
         slot.append(panel)

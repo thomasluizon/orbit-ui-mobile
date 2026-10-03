@@ -64,6 +64,7 @@ describe('Referral drawer sheet insets in Chromium', () => {
           error: bounds(body.querySelector('[role="alert"]')!),
           progress: bounds(body.querySelector('[role="progressbar"]')!),
           share: bounds(share),
+          target: bounds(share.parentElement!),
           overflow: body.scrollWidth > body.clientWidth,
         }
       })
@@ -73,7 +74,8 @@ describe('Referral drawer sheet insets in Chromium', () => {
         expect(surface.left).toBeCloseTo(measured.edge.left, 1)
         expect(surface.right).toBeCloseTo(measured.edge.right, 1)
       }
-      expect(measured.share.right).toBeCloseTo(measured.edge.right, 1)
+      expect(measured.target.right).toBeCloseTo(measured.edge.right, 1)
+      expect(measured.share.right).toBeCloseTo(measured.edge.right - 2, 1)
     } finally { await page.close() }
   })
 

@@ -33,7 +33,7 @@ function titleLineLimit(textMode: ListRowProps['textMode'], wrapTitle: ListRowPr
 }
 
 function chevronStyle(textMode: ListRowProps['textMode']) {
-  return textMode ? styles.chevron : styles.control
+  return textMode ? styles.chevron : [styles.chevron, { width: TOUCH_TARGET_MIN }]
 }
 
 function wrappedTitleStyle(textMode: ListRowProps['textMode'], wrapTitle: ListRowProps['wrapTitle']) {
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   compactBody: { minHeight: 52, paddingVertical: 4 },
   formBody: { paddingHorizontal: 12 },
   bareBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 0, paddingStart: 0, paddingEnd: 0 },
-  bodyContent: { minHeight: TOUCH_TARGET_MIN, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   controlRowBody: { paddingVertical: 0 },
   controlRowText: { paddingVertical: 4 },
   bodyWithAction: { paddingEnd: 0 },

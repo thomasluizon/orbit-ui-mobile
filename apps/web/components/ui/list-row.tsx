@@ -58,7 +58,7 @@ function RowValue({ value, textMode, wrapValue }: Readonly<Pick<WebListRowProps,
 function getContentStyle(textMode: WebListRowProps['textMode']) {
   return textMode === 'label'
     ? { minHeight: 24, gap: 12, alignItems: 'flex-start' }
-    : { minHeight: TOUCH_TARGET_MIN, gap: 12 }
+    : { minHeight: 24, gap: 12 }
 }
 
 function RowBody(props: Readonly<WebListRowProps>) {
@@ -82,7 +82,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
 export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, expanded, controls, action, chevron = true, compact = !props.description, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}><ChevronRight aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: 24 }}><ChevronRight aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm, !!props.trailing)
 
