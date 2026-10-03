@@ -245,12 +245,12 @@ function ShellWideBackground({
         <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           {props.header !== undefined ? <div data-shell-header="" className={hasFlowAction ? 'min-h-11 overflow-y-auto overscroll-contain' : 'shrink-0'}>{props.header}</div> : null}
           <div className="relative flex min-h-0 flex-1 flex-col">
-          {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
-          {props.scrollToTop !== undefined && !conversationOpen ? (
-            <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-3 z-sticky flex justify-center">
-              <div className="pointer-events-auto">{props.scrollToTop}</div>
-            </div>
-          ) : null}
+            {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
+            {props.scrollToTop !== undefined && !conversationOpen ? (
+              <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
+                <div className="pointer-events-auto">{props.scrollToTop}</div>
+              </div>
+            ) : null}
           </div>
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
         </div>

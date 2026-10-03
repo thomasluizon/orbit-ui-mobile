@@ -20,6 +20,20 @@ import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+const rootListScroll = vi.hoisted(() => ({ scrollToOffset: vi.fn() }))
+vi.mock('react-native', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-native')>()
+  const React = await import('react')
+  return {
+    ...actual,
+    FlatList: React.forwardRef((props: React.ComponentProps<typeof actual.FlatList>, ref) => {
+      React.useImperativeHandle(ref, () => ({ scrollToOffset: rootListScroll.scrollToOffset }))
+      return React.createElement(actual.FlatList, props)
+    }),
+  }
+})
+const listQueryState = { isLoading: false, isError: false }
+
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
@@ -302,8 +316,9 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
     useHabits: (...args: Parameters<typeof actual.useHabits>) => {
       const [useRealHook] = useState(() => skipFlow.active)
       return useRealHook ? actual.useHabits(...args) : ({
-        data: mockHabitsData,
-        isLoading: false,
+        data: listQueryState.isError ? undefined : mockHabitsData,
+        isLoading: listQueryState.isLoading,
+        isError: listQueryState.isError,
         isFetching: false,
         dataUpdatedAt: mockHabitsDataUpdatedAt,
         refetch: habitListRefetch,
@@ -574,6 +589,8 @@ function queueHabitToggle({ habitId, date }: { habitId: string; date?: string })
 
 describe('HabitList', () => {
   beforeEach(() => {
+    listQueryState.isLoading = false
+    listQueryState.isError = false
     replaySelection.selectedHabitIds = new Set()
     replaySelection.isSelectMode = true
     replayDelivery.listener = null
@@ -619,6 +636,36 @@ describe('HabitList', () => {
     accountHabitCount.count = 1
     accountHabitCount.isLoaded = true
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it.each(['normal', 'drill', 'loading', 'error'] as const)('scrolls the actual %s list handle and forwards upward offsets', (surface) => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    if (surface === 'drill') {
+      mockDrillState.currentParentId = parent.id
+      mockDrillState.currentParent = parent
+      mockDrillState.drillStack = [parent.id]
+    }
+    listQueryState.isLoading = surface === 'loading'
+    listQueryState.isError = surface === 'error'
+    const ref = React.createRef<HabitListHandle>()
+    const onScroll = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitList ref={ref} view="today" filters={{}} showCompleted onScroll={onScroll} onCreatePress={vi.fn()} />, {
+        createNodeMock: (element: { type: unknown }) => element.type === 'DraggableFlatList' ? { scrollToOffset: rootListScroll.scrollToOffset } : null,
+      })
+      mountedTrees.add(tree)
+    })
+    TestRenderer.act(() => ref.current!.scrollToOffset(0, false))
+    expect(rootListScroll.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
+    const list = tree!.root.findByType(surface === 'normal' ? 'DraggableFlatList' : 'FlatList')
+    TestRenderer.act(() => {
+      if (surface === 'normal') list.props.onScrollOffsetChange(700)
+      else list.props.onScroll({ nativeEvent: { contentOffset: { y: 700 } } })
+    })
+    expect(onScroll).toHaveBeenCalledWith(700)
+    expect(mockDrillState.drillReset).not.toHaveBeenCalled()
+    expect(mockDrillState.currentParentId).toBe(surface === 'drill' ? parent.id : null)
   })
 
   it('keeps a mounted mock HabitList isolated when skip flow becomes active', () => {

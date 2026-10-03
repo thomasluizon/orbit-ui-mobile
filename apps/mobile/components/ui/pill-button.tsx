@@ -46,7 +46,7 @@ export function Button({
     caution: tokens.fgOnOverdue,
   }
 
-  const ghostPressedFill = elevated ? mixHex(tokens.bgElev, tokens.fg1, 0.13) : quiet ? tokens.bgHoverOpaque : tokens.bgHover
+  const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
       return { backgroundColor: tokens.fg1 }

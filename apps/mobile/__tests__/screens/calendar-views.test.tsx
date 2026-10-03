@@ -1538,6 +1538,21 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(refreshCalls).toHaveLength(1);
   });
+  it.each(['profile-loading', 'profile-error', 'data-error'] as const)('scrolls the Calendar %s surface on reselect', (surface) => {
+    if (surface !== 'data-error') state.profile = undefined
+    if (surface === 'profile-error') state.profileError = new Error('Unavailable')
+    if (surface === 'data-error') state.monthError = 'Unavailable'
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
+    scrollTo.mockClear()
+    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    TestRenderer.act(() => tree.unmount())
+    __setScrollToImpl(() => {})
+  })
+
   it.each(['month', 'week', 'agenda', 'range'] as const)('scrolls the Calendar root in %s without changing the view', (view) => {
     const scrollTo = vi.fn()
     rootScrollMocks.scrollToOffset.mockClear()
@@ -1546,11 +1561,12 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
     if (view !== 'month') pressView(tree, view)
     scrollTo.mockClear()
-    const activeViewBefore = tree.root.findAll((node: TestNode) => node.type === 'View' && node.props.testID === `calendar-view-${view}`)
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
     if (view === 'month') expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     else expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
-    expect(tree.root.findAll((node: TestNode) => node.type === 'View' && node.props.testID === `calendar-view-${view}`)).toHaveLength(activeViewBefore.length)
+    const header = view === 'month' ? renderMonthHeader(tree) : null
+    expect((header ?? tree).root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === `segment-${view}-selected-enabled`)).toHaveLength(1)
+    if (header) TestRenderer.act(() => header.update(<></>))
     TestRenderer.act(() => tree.unmount())
     __setScrollToImpl(() => {})
   })

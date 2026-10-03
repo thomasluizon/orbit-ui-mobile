@@ -532,7 +532,9 @@ describe('Hoje date boundaries', () => {
   it('shows the Hoje pill only beyond a viewport while scrolling up, and both entries return to the top', async () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 header={<></>} tabBar={<DestinationTabBar pathname="/" />}><TodayScreen /></Shell412>) })
-    await TestRenderer.act(() => { mocks.focusCallback?.() })
+    let blur: void | (() => void)
+    await TestRenderer.act(() => { blur = mocks.focusCallback?.() })
+    const selectedDate = mocks.date.dateStr
     const column = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'today-content-column')[0]!
     await TestRenderer.act(() => (column.props.onLayout as (event: unknown) => void)({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: 500 } } }))
     const scroll = async (offset: number) => TestRenderer.act(() => (tree.root.findAll((node) => String(node.type) === 'HabitListProps')[0]!.props.onScroll as (offset: number) => void)(offset))
@@ -557,6 +559,13 @@ describe('Hoje date boundaries', () => {
     await scroll(600)
     await TestRenderer.act(() => { (tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'tab' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!.props.onPress as () => void)() })
     expect(mocks.scrollToOffset).toHaveBeenCalledTimes(2)
+    expect(mocks.date.dateStr).toBe(selectedDate)
+    expect(mocks.date.goToToday).not.toHaveBeenCalled()
+    expect(pills()).toHaveLength(0)
+    await scroll(900)
+    await scroll(600)
+    expect(pills()).toHaveLength(1)
+    await TestRenderer.act(() => { if (blur) blur() })
     expect(pills()).toHaveLength(0)
     await TestRenderer.act(() => tree.update(<></>))
   })

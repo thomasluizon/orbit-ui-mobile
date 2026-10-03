@@ -872,20 +872,22 @@ describe('DestinationShell', () => {
   })
 })
 
-it.each(['/', '/calendar', '/progress', '/profile'])('scrolls the owning root on reselect at %s', (pathname) => {
+it.each(['/', '/calendar', '/progress', '/profile'].flatMap((pathname) => [false, true].map((wide) => ({ pathname, wide }))))('scrolls the owning root on reselect at $pathname, wide=$wide', ({ pathname, wide }) => {
   mocks.pathname = pathname
-  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Root</h1></DestinationShell></ShellScrollerProvider>)
+  mocks.wide = wide
+  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Root</h1><input aria-label="Draft" defaultValue="Written draft" /></DestinationShell></ShellScrollerProvider>)
   const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
   const scrollTo = vi.fn()
   scroller.scrollTo = scrollTo
   fireEvent.click(document.querySelector<HTMLButtonElement>('button[aria-current="page"]')!)
   expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
   expect(mocks.push).not.toHaveBeenCalled()
+  expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Written draft')
 })
 
 it('offers the Hoje pill after a viewport while scrolling up and hides it at the top', async () => {
   mocks.pathname = '/'
-  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell></ShellScrollerProvider>)
+  const view = render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell></ShellScrollerProvider>)
   const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
   Object.defineProperty(scroller, 'clientHeight', { value: 500 })
   const scrollTo = vi.fn()
@@ -907,5 +909,25 @@ it('offers the Hoje pill after a viewport while scrolling up and hides it at the
   await scroll(600)
   expect(screen.getByRole('button', { name: 'common.backToTop' })).toBeInTheDocument()
   await scroll(0)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(900)
+  await scroll(600)
+  expect(screen.getByRole('button', { name: 'common.backToTop' })).toBeInTheDocument()
+  mocks.pathname = '/calendar'
+  view.rerender(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell></ShellScrollerProvider>)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(550)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+})
+
+ it.each(['/calendar', '/progress', '/profile', '/search', '/habits/example'])('never offers the Hoje pill at %s', async (pathname) => {
+  mocks.pathname = pathname
+  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Other screen</h1></DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  Object.defineProperty(scroller, 'clientHeight', { value: 500 })
+  for (const offset of [900, 700]) {
+    scroller.scrollTop = offset; fireEvent.scroll(scroller)
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+  }
   expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
 })

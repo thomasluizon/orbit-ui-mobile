@@ -308,13 +308,20 @@ async function selectGoalFilter(tree: TestTree, view: string) {
 }
 
 describe('mobile ProgressContent', () => {
-  it('scrolls Progresso on tab reselect without changing its goal selection', async () => {
+  it.each([false, true])('scrolls Progresso on reselect and preserves goal detail at open=%s', async (detailOpen) => {
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal]
     const scrollTo = vi.fn()
     __setScrollToImpl(scrollTo)
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><ProgressScreen /><DestinationTabBar pathname="/progress" /></RootScrollProvider>) })
+    if (detailOpen) await TestRenderer.act(() => { (findGoalCard(tree!.root, goal.title).props.onPress as () => void)() })
+    scrollTo.mockClear()
     await TestRenderer.act(() => { tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityState?: { selected?: boolean }; onPress: () => void } }) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
     expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    const details = tree!.root.findAll((node: TestNode) => node.type === GoalDetailDrawer && node.props.open === true)
+    expect(details).toHaveLength(detailOpen ? 1 : 0)
+    if (detailOpen) expect(details[0]!.props.goalId).toBe(goal.id)
     await TestRenderer.act(() => tree!.unmount())
     __setScrollToImpl(() => {})
   })

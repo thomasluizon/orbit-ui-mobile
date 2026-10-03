@@ -158,7 +158,11 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         <ShellComposerSlotProvider value={registeredComposer.value}>
           <KeyboardAwareView style={styles.keyboardOwner} avoidKeyboard={navigationEnabled}>
             <ShellScrollerClearanceContext.Provider value={hasBottomChrome ? scrollerClearance : 0}>
-              <RootScrollProvider><ShellScrollToTopSlotProvider value={registeredScrollToTop.value}>{shell}</ShellScrollToTopSlotProvider></RootScrollProvider>
+              <RootScrollProvider>
+                <ShellScrollToTopSlotProvider value={registeredScrollToTop.value}>
+                  {shell}
+                </ShellScrollToTopSlotProvider>
+              </RootScrollProvider>
             </ShellScrollerClearanceContext.Provider>
           </KeyboardAwareView>
         </ShellComposerSlotProvider>
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
   },
-  scrollToTop: { position: 'absolute', top: 12, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
+  scrollToTop: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
   flowScroller: { minHeight: 0 },
   flowHeader: { minHeight: 44 },
   bottomChrome: {

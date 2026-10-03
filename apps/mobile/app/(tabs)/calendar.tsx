@@ -329,9 +329,7 @@ function CalendarProfileState({
   const styles = useMemo(() => createStyles(), []);
   const clearance = useShellScrollerClearance();
   const scrollRef = useRef<ScrollView>(null);
-  const listRef = useRef<FlatList<CalendarDayEntry>>(null);
   useRootScrollToTop('calendario', useCallback(() => {
-    listRef.current?.scrollToOffset({ offset: 0, animated: false });
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, []));
 

@@ -1,6 +1,7 @@
 import {
   motionEasings,
   neutralColors,
+  elevatedControlHoverFill,
   schemes,
   selectionAlpha,
   statusConstants,
@@ -114,6 +115,7 @@ export interface AppTokensV2 {
   bgElev2: string
   bgHover: string
   bgHoverOpaque: string
+  bgElevHover: string
   /** Solid sheet/dialog panel — elev alpha pre-blended over the canvas. */
   bgSheet: string
   bgSunk: string
@@ -202,6 +204,7 @@ export function createTokensV2(
     bgElev2: neutral.bgElev2,
     bgHover: neutral.bgHover,
     bgHoverOpaque: neutral.bgHoverOpaque,
+    bgElevHover: elevatedControlHoverFill(themeMode),
     bgSheet: neutral.bgElev,
     bgSunk: neutral.bgSunk,
     hairline: neutral.hairline,

@@ -38,7 +38,7 @@ function actionClasses(variant: ButtonVariant, size: ButtonSize, element: 'butto
     ? buttonInteractionClasses[variant]
     : linkInteractionClasses[variant]
   const interactionClasses = elevated && variant === 'ghost'
-    ? 'overflow-hidden enabled:hover:bg-[color-mix(in_srgb,var(--bg-elev)_87%,var(--fg-1))] enabled:active:bg-[color-mix(in_srgb,var(--bg-elev)_87%,var(--fg-1))] motion-safe:enabled:active:scale-[0.96]'
+    ? 'overflow-hidden enabled:hover:bg-[var(--bg-elev-hover)] enabled:active:bg-[var(--bg-elev-hover)] motion-safe:enabled:active:scale-[0.96]'
     : quiet && variant === 'ghost'
     ? 'overflow-hidden enabled:hover:bg-[var(--bg-hover-opaque)] enabled:active:bg-[var(--bg-hover-opaque)] motion-safe:enabled:active:scale-[0.96]'
     : variantInteractions
