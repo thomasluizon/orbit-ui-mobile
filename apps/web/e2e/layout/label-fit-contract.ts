@@ -1,11 +1,13 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
-export const authoredLabelSelector = [
+const logicalLabelSelector = [
   'button:not([data-habit-row-body]):not(.orbit-list-row-body)',
   '[role="menuitem"]', '[role="tab"]', '[role="radio"]',
   '[data-slot="list-row-title"]', 'h1', 'h2', 'h3', 'label',
-  '[data-state] > span', '[data-layout-label]',
+  '[data-layout-label]',
 ].join(', ')
+
+export const authoredLabelSelector = `${logicalLabelSelector}, [data-state] > span`
 
 export async function markUserText(page: Page, values: readonly string[]) {
   for (const value of values) {
@@ -25,22 +27,22 @@ export async function markRequiredLabels(labels: Locator) {
 
 export async function expectLabelsFit(page: Page) {
   await page.evaluate(() => document.fonts.ready)
-  const measurements = await page.locator(authoredLabelSelector).evaluateAll((elements) => {
+  const measurements = await page.locator(authoredLabelSelector).evaluateAll((elements, selector) => {
     const nodes = new Set<Text>()
     for (const element of elements) {
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
       while (walker.nextNode()) nodes.add(walker.currentNode as Text)
     }
-    return [...nodes].flatMap((node) => {
+    const labels = new Map<Element, { text: string[]; lines: Set<number>; clipped: boolean }>()
+    for (const node of nodes) {
       const owner = node.parentElement!
-      if (!node.textContent.trim() || owner.closest('[data-layout-text-origin="user"], svg, [aria-hidden="true"]')) return []
+      if (!node.textContent.trim() || owner.closest('[data-layout-text-origin="user"], svg, [aria-hidden="true"]')) continue
       const style = getComputedStyle(owner)
       const bounds = owner.getBoundingClientRect()
-      if (style.visibility === 'hidden' || !bounds.width || !bounds.height || bounds.width <= 1) return []
+      if (style.visibility === 'hidden' || !bounds.width || !bounds.height || bounds.width <= 1) continue
       const range = document.createRange()
       range.selectNodeContents(node)
       const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
-      const lines = new Set(fragments.map((rect) => Math.round(rect.top)))
       let clipped = false
       let scrollsInline = false
       let scrollsBlock = false
@@ -56,9 +58,15 @@ export async function expectLabelsFit(page: Page) {
         scrollsBlock ||= ['auto', 'scroll'].includes(ancestorStyle.overflowY)
       }
       const outsideOwner = fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1)
-      return [{ text: node.textContent.trim(), lines: lines.size, clipped: clipped || outsideOwner }]
-    })
-  })
+      const labelElement = owner.closest(selector) ?? owner.closest('[data-state] > span')!
+      const label = labels.get(labelElement) ?? { text: [], lines: new Set<number>(), clipped: false }
+      label.text.push(node.textContent.trim())
+      for (const fragment of fragments) label.lines.add(Math.round(fragment.top))
+      label.clipped ||= clipped || outsideOwner
+      labels.set(labelElement, label)
+    }
+    return [...labels.values()].map((label) => ({ text: label.text.join(' '), lines: label.lines.size, clipped: label.clipped }))
+  }, logicalLabelSelector)
   expect(measurements.length, 'the rendered surface has app-authored labels').toBeGreaterThan(0)
   expect.soft(measurements.filter((label) => label.lines > 1), 'app-authored labels must stay on one line').toEqual([])
   expect.soft(measurements.filter((label) => label.clipped), 'app-authored labels must remain whole, without ellipsis or clipping').toEqual([])

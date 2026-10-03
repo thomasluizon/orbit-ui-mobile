@@ -34,16 +34,16 @@ async function readFill(control: Locator) {
         .map((value) => radius(value, bounds.width, bounds.height)),
       controlRadii: [controlStyle.borderTopLeftRadius, controlStyle.borderTopRightRadius, controlStyle.borderBottomRightRadius, controlStyle.borderBottomLeftRadius]
         .map((value) => radius(value, bounds.width, bounds.height)),
-      inside: bounds.left >= controlBounds.left - 1 && bounds.right <= controlBounds.right + 1
-        && bounds.top >= controlBounds.top - 1 && bounds.bottom <= controlBounds.bottom + 1,
+      matchesHitArea: Math.abs(bounds.left - controlBounds.left) <= 1 && Math.abs(bounds.right - controlBounds.right) <= 1
+        && Math.abs(bounds.top - controlBounds.top) <= 1 && Math.abs(bounds.bottom - controlBounds.bottom) <= 1,
       pseudoHitExtensions, paddings,
     }
   })
 }
 
-async function expectFillShape(control: Locator, state: string) {
+export async function expectFillShape(control: Locator, state: string) {
   const fill = await readFill(control)
-  expect.soft(fill.inside, `${state}: fill stays inside its control`).toBe(true)
+  expect.soft(fill.matchesHitArea, `${state}: fill covers the control's entire hit area`).toBe(true)
   expect.soft(fill.background, `${state}: the fill paints a visible surface`).not.toMatch(/^(transparent|rgba\([^)]*,\s*0\))$/)
   for (const [index, radius] of fill.radii.entries()) {
     expect.soft(radius, `${state}: fill uses the control's corner radius`).toBeCloseTo(fill.controlRadii[index]!, 1)
