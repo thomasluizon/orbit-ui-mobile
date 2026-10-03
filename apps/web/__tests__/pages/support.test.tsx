@@ -71,13 +71,38 @@ function messageField() {
   return screen.getByRole('textbox', { name: 'profile.support.message' })
 }
 function emailField() {
-  return screen.getByRole('textbox', { name: 'profile.support.email' })
+  return screen.getByRole('button', { name: 'profile.support.email' })
 }
 function sendButton() {
   return screen.getByRole('button', { name: 'profile.support.send' })
 }
 
 describe('SupportPage', () => {
+  it('shows subject labels without redundant descriptions', () => {
+    render(<SupportPage />)
+    for (const subject of ['problem', 'billing', 'account', 'other']) {
+      expect(screen.queryByText(`profile.support.subjects.${subject}.description`)).not.toBeInTheDocument()
+    }
+  })
+
+  it('discloses the complete reply email without changing the support draft', () => {
+    const email = `${'a'.repeat(48)}@example.com`
+    mockProfile = { name: 'Orbit User', email }
+    render(<SupportPage />)
+    fireEvent.click(screen.getAllByRole('radio')[0]!)
+    fireEvent.change(messageField(), { target: { value: 'Saved message' } })
+    const reply = screen.getByRole('button', { name: 'profile.support.email' })
+    expect(reply).toHaveAttribute('aria-expanded', 'false')
+    expect(reply).toHaveTextContent(email)
+    fireEvent.click(reply)
+    expect(reply).toHaveAttribute('aria-expanded', 'true')
+    expect(reply).toHaveTextContent(email)
+    fireEvent.click(reply)
+    expect(reply).toHaveAttribute('aria-expanded', 'false')
+    expect(messageField()).toHaveValue('Saved message')
+    expect(screen.getAllByRole('radio')[0]).toHaveAttribute('aria-checked', 'true')
+  })
+
   beforeEach(async () => {
     vi.stubGlobal('fetch', vi.fn())
     await resetAuthStore()
@@ -150,12 +175,12 @@ describe('SupportPage', () => {
     expect(screen.queryByRole('textbox', { name: 'profile.support.name' })).not.toBeInTheDocument()
   })
 
-  it('orders subject, message, and locked reply email', () => {
+  it('orders subject, message, and read-only reply email', () => {
     render(<SupportPage />)
     const controls = [screen.getByRole('radiogroup'), messageField(), emailField()]
     expect(controls[0]!.compareDocumentPosition(controls[1]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     expect(controls[1]!.compareDocumentPosition(controls[2]!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-    expect(emailField()).toBeDisabled()
+    expect(emailField()).toBeEnabled()
   })
 
   it('shows both field errors when the empty controls lose focus', () => {
@@ -222,10 +247,6 @@ describe('SupportPage', () => {
     render(<SupportPage />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(4)
-    expect(screen.getByText('profile.support.subjects.problem.description')).toBeInTheDocument()
-    expect(screen.getByText('profile.support.subjects.billing.description')).toBeInTheDocument()
-    expect(screen.getByText('profile.support.subjects.account.description')).toBeInTheDocument()
-    expect(screen.getByText('profile.support.subjects.other.description')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText(problemLabel))
     fireEvent.change(messageField(), { target: { value: 'The log disappeared' } })
@@ -239,26 +260,25 @@ describe('SupportPage', () => {
     }, null))
   })
 
-  it('uses the system inputs, including a six-row message and the disabled account email', () => {
+  it('uses a six-row message and a read-only account email display', () => {
     render(<SupportPage />)
 
     expect(messageField()).toHaveAttribute('rows', '6')
     expect(messageField().closest('[data-multiline]')).toHaveAttribute('data-multiline', '')
-    expect(emailField()).toHaveValue('orbit@example.com')
-    expect(emailField()).toBeDisabled()
+    expect(emailField()).toHaveTextContent('orbit@example.com')
+    expect(emailField()).toBeEnabled()
     const lockedReason = screen.getByText('profile.support.emailLockedReason')
     expect(lockedReason).toBeInTheDocument()
-    expect(emailField()).toHaveAttribute('aria-describedby', lockedReason.id)
+    expect(emailField()).toHaveAccessibleDescription(`orbit@example.com ${lockedReason.textContent}`)
     expect(sendButton().parentElement).toHaveClass(
       'md:[&_button]:bg-[var(--fg-1)]',
     )
   })
 
-  it('keeps the reply field locked while the profile loads', () => {
+  it('keeps the reply display unavailable while the profile loads', () => {
     mockProfile = null
     render(<SupportPage />)
     expect(emailField()).toBeDisabled()
-    expect(emailField()).toHaveValue('')
     expect(screen.getByText('profile.support.emailLockedReason')).toBeInTheDocument()
     const reason = screen.getByText('profile.support.sendNeedsProfile')
     expect(sendButton()).toBeEnabled()
@@ -357,8 +377,8 @@ describe('SupportPage', () => {
 
     mockProfile = { name: 'Profile User', email: 'profile@example.com' }
     view.rerender(<SupportPage />)
-    expect(emailField()).toHaveValue('profile@example.com')
-    expect(emailField()).toBeDisabled()
+    expect(emailField()).toHaveTextContent('profile@example.com')
+    expect(emailField()).toBeEnabled()
     fireEvent.click(sendButton())
 
     await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith({
@@ -425,7 +445,7 @@ describe('SupportPage', () => {
     render(<SupportPage />)
 
     expect(screen.getByRole('radio', {
-      name: 'profile.support.subjects.billing.labelprofile.support.subjects.billing.description',
+      name: 'profile.support.subjects.billing.label',
     })).toHaveAttribute('aria-checked', 'true')
     expect(messageField()).toHaveValue('Saved message')
   })
@@ -435,7 +455,7 @@ describe('SupportPage', () => {
     render(<SupportPage />)
 
     expect(screen.getByRole('radio', {
-      name: 'profile.support.subjects.other.labelprofile.support.subjects.other.description',
+      name: 'profile.support.subjects.other.label',
     })).toHaveAttribute('aria-checked', 'true')
     expect(messageField()).toHaveValue('Saved message')
   })
