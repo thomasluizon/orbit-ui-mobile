@@ -9,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { useAppToast } from '@/hooks/use-app-toast'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 
 interface CalendarPickerSectionProps {
   enabled: boolean
@@ -22,7 +23,7 @@ interface CalendarPickerSectionProps {
  */
 export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectionProps>) {
   const t = useTranslations()
-  const { showError } = useAppToast()
+  const [saveError, setSaveError] = useAccountScopedState<string | null>(null)
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
   const [visibleCount, setVisibleCount] = useState(20)
@@ -30,16 +31,20 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
   if (!enabled) return null
 
   async function handleToggle(id: string, isSynced: boolean) {
+    const generation = getAccountGeneration()
+    setSaveError(null)
     try {
       await setSelectedCalendars.mutateAsync({ id, isSynced })
     } catch (err: unknown) {
-      showError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
+      if (generation === getAccountGeneration()) setSaveError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
     }
   }
 
   return (
     <>
       <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
+
+      <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)]">{saveError ?? ''}</p>
 
       {isLoading && <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} />}
 

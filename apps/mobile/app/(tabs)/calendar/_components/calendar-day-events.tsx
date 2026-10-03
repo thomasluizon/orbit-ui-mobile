@@ -9,22 +9,30 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImport, t, displayTime }: Readonly<{
+import { plural } from '@/lib/plural'
+
+export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImport, onOpenEvents, sheetOnly = false, open: controlledOpen, onClose, t, displayTime }: Readonly<{
   t: TFunction
   displayTime: (time: string) => string
   calendarEvents: CalendarSyncEvent[]
   showEventSource: boolean
   onOpenImport: (eventId: string | null) => void
+  onOpenEvents?: () => void
+  sheetOnly?: boolean
+  open?: boolean
+  onClose?: () => void
 }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
-  const [open, setOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = controlledOpen ?? localOpen
+  const finishClose = () => { setLocalOpen(false); onClose?.() }
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(20)
   const matchingEvents = calendarEvents.filter((event) => event.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const openEvent = (eventId: string) => {
-    if (open) closeSheet(() => { setOpen(false); onOpenImport(eventId) })
+    if (open) closeSheet(() => { finishClose(); onOpenImport(eventId) })
     else onOpenImport(eventId)
   }
   const eventRows = (events: CalendarSyncEvent[]) => events.map((event) => <EventRow
@@ -34,11 +42,12 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
     onClick={() => openEvent(event.id)}
   />)
   return <>
-    <View style={styles.list}>{eventRows(calendarEvents.slice(0, 3))}</View>
+    <View style={styles.list}>{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</View>
     {/* eslint-disable-next-line local/max-button-words -- #1143 requires this event disclosure label. */}
-    {calendarEvents.length > 3 ? <ListRow inset={false} textMode="label" title={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={() => setOpen(true)} /> : null}
-    {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={() => setOpen(false)}>
+    {!sheetOnly && calendarEvents.length > 3 ? <View style={{ paddingHorizontal: 8 }}><ListRow inset={false} textMode="label" title={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /></View> : null}
+    {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={finishClose}>
       <View style={styles.list}>
+        {calendarEvents.length >= 8 ? <Text style={[styles.count, { color: tokens.fg3 }]}>{plural(t('calendar.eventsFound', { count: calendarEvents.length }), calendarEvents.length)}</Text> : null}
         {calendarEvents.length > 20 ? <Input label={t('calendar.dayDetail.searchEvents')} value={query} onChange={(value) => { setQuery(value); setVisibleCount(20) }} autoComplete="off" /> : null}
         {eventRows(matchingEvents.slice(0, visibleCount))}
         {matchingEvents.length === 0 ? <>
@@ -53,5 +62,6 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
 
 const styles = StyleSheet.create({
   list: { gap: 8 },
+  count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, fontVariant: ['tabular-nums'] },
   empty: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
 })

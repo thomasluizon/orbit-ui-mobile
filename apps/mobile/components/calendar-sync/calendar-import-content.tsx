@@ -38,7 +38,7 @@ import {
   useCalendarSyncSuggestions,
   useDismissCalendarSuggestion,
 } from '@/hooks/use-calendar-auto-sync'
-import { useCalendarEvents } from '@/hooks/use-calendar-events'
+import { useCalendarEvents, type CalendarEventsResult } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -53,7 +53,6 @@ import {
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
-import { useAppToast } from '@/hooks/use-app-toast'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -110,7 +109,6 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   )
   const bulkCreateHabits = useBulkCreateHabits()
   const queryClient = useQueryClient()
-  const { showError } = useAppToast()
 
   const hasProAccess = profile?.hasProAccess ?? false
   const weekStartDay = profile?.weekStartDay ?? 1
@@ -131,6 +129,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const [wizardStage, setWizardStage] = useAccountScopedState<WizardStage>('browse')
   const [events, setEvents] = useAccountScopedState<CalendarEvent[]>([])
   const [selectedIds, setSelectedIds] = useAccountScopedState<Set<string>>(() => initialEventId ? new Set([initialEventId]) : new Set())
+  const [actionError, setActionError] = useAccountScopedState<string | null>(null)
   const [errorMessage, setErrorMessage] = useAccountScopedState('')
   const [importResult, setImportResult] = useAccountScopedState<ImportResult | null>(null)
   const [isConnecting, setIsConnecting] = useAccountScopedState(false)
@@ -145,6 +144,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const incomingEvents = useMemo<CalendarEvent[]>(() => {
     return resolveCalendarImportEvents(isReviewMode, suggestions, eventsQuery.data)
   }, [isReviewMode, suggestions, eventsQuery.data])
+
 
   const eventsKey = calendarImportEventsKey(isReviewMode, weekStartDay, incomingEvents)
   if (eventsKey !== previousEventsKey) {
@@ -252,6 +252,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     }
     if (isConnecting) return
 
+    setActionError(null)
     setIsConnecting(true)
     setErrorMessage('')
 
@@ -282,6 +283,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     }
     if (selectedIds.size === 0) return
 
+    setActionError(null)
     setWizardStage('importing')
     setErrorMessage('')
 
@@ -317,7 +319,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       }
 
       if (failedItems.length > 0) {
-        showError(
+        setActionError(
           plural(
             t('calendar.importPartialFailure', { count: failedItems.length }),
             failedItems.length,
@@ -354,7 +356,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
     setErrorMessage,
     setImportResult,
     setWizardStage,
-    showError,
+    setActionError,
     suggestions,
     t,
     weekStartDay,
@@ -390,14 +392,15 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
   const handleDismissSuggestion = useCallback(
     async (suggestionId: string) => {
       const requestAccount = getAccountGeneration()
+      setActionError(null)
       try {
         await dismissSuggestion.mutateAsync({ id: suggestionId })
       } catch (err: unknown) {
         if (getAccountGeneration() !== requestAccount) return
-        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
+        setActionError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'textless'))
       }
     },
-    [dismissSuggestion, showError, t],
+    [dismissSuggestion, setActionError, t],
   )
 
   const findSuggestionIdForEvent = useCallback(
@@ -415,11 +418,13 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           onSyncNow={async () => { await runCalendarSyncNow.mutateAsync() }}
           tokens={tokens} t={t} locale={i18n.language} timeZone={profile?.timeZone} uses24HourClock={profile?.uses24HourClock}
         /> : null}
-        <CalendarPickerSection
+      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.statusBadText }}>{actionError ?? ''}</Text>
+      <OpenedCalendarEventTitle eventId={initialEventId} eventsResult={eventsQuery.data} reviewMode={isReviewMode} enabled={hasProAccess} tokens={tokens} />
+      <CalendarPickerSection
         styles={styles}
         tokens={tokens}
         t={t}
-        enabled={googleConnected && isOnline}
+        enabled={hasProAccess && googleConnected && isOnline}
       />
         {(isProfileLoading || step === 'loading') && (
           <View
@@ -629,4 +634,11 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
 
     </View>
   )
+}
+
+function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled, tokens }: Readonly<{ eventId: string | null; eventsResult: CalendarEventsResult | undefined; reviewMode: boolean; enabled: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
+  if (!enabled || reviewMode || eventsResult?.status !== 'connected') return null
+  const event = eventsResult.events.find((candidate) => candidate.id === eventId)
+  if (!event) return null
+  return <Text style={{ paddingVertical: 24, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{event.title}</Text>
 }

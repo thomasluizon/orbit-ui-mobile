@@ -133,6 +133,16 @@ describe('CalendarSyncPage pagination', () => {
     expect(bulkMutateMock.mock.calls[0]![0].habits[0].title).toBe('Event 1')
   })
 
+  it('discloses an imported event title without selecting other events', () => {
+    const title = 'Already imported event ' + 'long title '.repeat(30)
+    pageState.initialEventId = 'ev-0'
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: [{ ...buildEvents(2)[0]!, title, isImported: true }, buildEvents(2)[1]!] }, isLoading: false, isError: false })
+    renderPage()
+    expect(screen.getByText(title.trim())).toBeInTheDocument()
+    expect(screen.getByText('calendar.importButton({"count":0})')).toBeDisabled()
+    expect(bulkMutateMock).not.toHaveBeenCalled()
+  })
+
   it('owns dated sync controls and keeps sync failures in the sheet', async () => {
     useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(1) }, isLoading: false, isError: false })
     syncNowMock.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden'))
@@ -143,11 +153,11 @@ describe('CalendarSyncPage pagination', () => {
     await waitFor(() => expect(setAutoSyncMock).toHaveBeenCalledWith({ enabled: true }))
     await waitFor(() => expect(screen.getByText('calendar.autoSync.syncNow')).not.toBeDisabled())
     fireEvent.click(screen.getByText('calendar.autoSync.syncNow'))
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('errors.api.edgeBlocked'))
+    await waitFor(() => expect(screen.getAllByRole('alert')[0]!).toHaveTextContent('errors.api.edgeBlocked'))
     expect(toastError).not.toHaveBeenCalled()
     fireEvent.click(screen.getByText('calendar.autoSync.syncNow'))
     await waitFor(() => expect(syncNowMock).toHaveBeenCalledTimes(2))
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('alert').every((node) => node.textContent === '')).toBe(true)
   })
 
   it('replaces visible event details when accounts share an event id', async () => {
@@ -328,7 +338,8 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' }))
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(screen.getAllByRole('alert').some((node) => node.textContent === 'errors.api.edgeBlockedRetry')).toBe(true))
+    expect(toastError).not.toHaveBeenCalled()
     expect(dismissMutateMock).toHaveBeenCalledWith({ id: 'suggestion-1' })
   })
 })

@@ -9,20 +9,28 @@ import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
-export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImport }: Readonly<{
+import { plural } from '@/lib/plural'
+
+export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImport, onOpenEvents, sheetOnly = false, open: controlledOpen, onClose }: Readonly<{
   calendarEvents: CalendarSyncEvent[]
   showEventSource: boolean
   onOpenImport: (eventId: string | null) => void
+  onOpenEvents?: () => void
+  sheetOnly?: boolean
+  open?: boolean
+  onClose?: () => void
 }>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
   const { sheetRef, closeSheet } = useSheetHost()
-  const [open, setOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = controlledOpen ?? localOpen
+  const finishClose = () => { setLocalOpen(false); onClose?.() }
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(20)
   const matchingEvents = calendarEvents.filter((event) => event.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const openEvent = (eventId: string) => {
-    if (open) closeSheet(() => { setOpen(false); onOpenImport(eventId) })
+    if (open) closeSheet(() => { finishClose(); onOpenImport(eventId) })
     else onOpenImport(eventId)
   }
   const eventRows = (events: CalendarSyncEvent[]) => events.map((event) => <EventRow
@@ -32,11 +40,12 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
     onClick={() => openEvent(event.id)}
   />)
   return <>
-    <div className="flex flex-col gap-2">{eventRows(calendarEvents.slice(0, 3))}</div>
+    <div className="flex flex-col gap-2">{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</div>
     {/* eslint-disable-next-line local/max-button-words -- #1143 requires this event disclosure label. */}
-    {calendarEvents.length > 3 ? <ListRow inset={false} textMode="label" title={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={() => setOpen(true)} /> : null}
-    {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={() => setOpen(false)}>
+    {!sheetOnly && calendarEvents.length > 3 ? <div style={{ paddingInline: 8 }}><ListRow inset={false} textMode="label" title={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /></div> : null}
+    {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={finishClose}>
       <div className="flex flex-col gap-2">
+        {calendarEvents.length >= 8 ? <p className="m-0 font-mono text-xs tabular-nums text-[var(--fg-3)]">{plural(t('calendar.eventsFound', { count: calendarEvents.length }), calendarEvents.length)}</p> : null}
         {calendarEvents.length > 20 ? <Input label={t('calendar.dayDetail.searchEvents')} value={query} onChange={(value) => { setQuery(value); setVisibleCount(20) }} autoComplete="off" name="calendar-event-search" /> : null}
         {eventRows(matchingEvents.slice(0, visibleCount))}
         {matchingEvents.length === 0 ? <>

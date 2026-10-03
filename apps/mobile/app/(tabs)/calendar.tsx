@@ -83,6 +83,7 @@ import {
 } from "./calendar/_components/calendar-shell";
 import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
+import { CalendarDayEvents } from './calendar/_components/calendar-day-events';
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content';
 import { plural } from '@/lib/plural';
 import { CalendarStats } from "./calendar/_components/calendar-stats";
@@ -430,6 +431,10 @@ function CalendarScreenContent({
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [rangeOffset, setRangeOffset] = useState(0);
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
+  const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
+  const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
+  const disclosedWeekDay = view === 'week' ? selectedDay : null
+  const openDayDisclosure = (open: () => void) => closeSheet(() => { setIsDayDetailOpen(false); open() })
   const [isImportOpen, setIsImportOpen] = useAccountScopedState(false);
   const [importActionState, setImportActionState] = useAccountScopedState<CalendarImportActionState | null>(null);
   const importActionRef = useRef<CalendarImportActionHandle>(null);
@@ -986,6 +991,8 @@ function CalendarScreenContent({
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
             onReconnectCalendarEvents={() => openImport(null)}
             onOpenCalendarImport={openImport}
+            onOpenEvents={() => openDayDisclosure(() => setIsEventsOpen(true))}
+            onOpenHabitTitle={(title) => openDayDisclosure(() => setExpandedHabitTitle(title))}
             onViewPro={openOrbitPro}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
@@ -998,6 +1005,8 @@ function CalendarScreenContent({
           />
         </View>
       </Sheet>) : null}
+      {disclosedWeekDay ? <CalendarDayEvents key={disclosedWeekDay} sheetOnly open={isEventsOpen} onClose={() => setIsEventsOpen(false)} calendarEvents={selectedCalendarEvents} showEventSource={showEventSource} onOpenImport={openImport} t={t} displayTime={displayTime} /> : null}
+      <ExpandedHabitTitleSheet title={expandedHabitTitle} onClose={() => setExpandedHabitTitle(null)} tokens={tokens} />
       {showImportSheet ? (<Sheet
         ref={importSheetRef}
         onClose={closeImport}
@@ -1102,4 +1111,12 @@ function createStyles() {
       gap: 12,
     },
   });
+}
+
+function ExpandedHabitTitleSheet({ title, onClose, tokens }: Readonly<{ title: string | null; onClose: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation()
+  if (!title) return null
+  return <Sheet open title={t('habits.form.title')} onClose={onClose}>
+    <Text style={{ fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 }}>{title}</Text>
+  </Sheet>
 }

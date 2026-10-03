@@ -38,6 +38,7 @@ function buildCalendar(overrides: Partial<UserCalendar> = {}): UserCalendar {
 describe('CalendarPickerSection', () => {
   beforeEach(() => {
     mutateAsync.mockClear()
+    toastError.mockReset()
     useCalendarsMock.mockReset()
   })
 
@@ -101,7 +102,8 @@ describe('CalendarPickerSection', () => {
 
     fireEvent.click(screen.getByRole('checkbox'))
 
-    await waitFor(() => expect(toastError).toHaveBeenCalledWith('errors.api.edgeBlockedRetry'))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('errors.api.edgeBlockedRetry'))
+    expect(toastError).not.toHaveBeenCalled()
   })
 
   it('shows the loading state', () => {

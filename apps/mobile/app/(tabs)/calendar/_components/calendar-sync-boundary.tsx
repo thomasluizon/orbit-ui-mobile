@@ -53,7 +53,7 @@ export function CalendarSyncBoundary({ autoSyncState, onAutoSyncChange, onSyncNo
       </View>
       <View style={styles.action}><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></View>
     </> : null}
-    {error || autoSyncState?.status === 'TransientError' ? <Text accessibilityRole="alert" style={[styles.label, { color: tokens.statusBadText }]}>{error ?? t('calendar.autoSync.syncFailed')}</Text> : null}
+    <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.label, { color: tokens.statusBadText }]}>{error ?? (autoSyncState?.status === 'TransientError' ? t('calendar.autoSync.syncFailed') : '')}</Text>
   </View>
 }
 

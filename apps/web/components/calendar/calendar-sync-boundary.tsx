@@ -52,6 +52,6 @@ export function CalendarSyncBoundary({ autoSyncState, onAutoSyncChange, onSyncNo
       </div>
       <div className="self-end"><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></div>
     </> : null}
-    {error || autoSyncState?.status === 'TransientError' ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error ?? t('calendar.autoSync.syncFailed')}</p> : null}
+    <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)]">{error ?? (autoSyncState?.status === 'TransientError' ? t('calendar.autoSync.syncFailed') : '')}</p>
   </div>
 }

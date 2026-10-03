@@ -19,7 +19,6 @@ const TestRenderer = require('react-test-renderer')
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-
 const network = { isOnline: true }
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => network }))
 
@@ -218,6 +217,10 @@ function nodes(tree: Tree, type: string): TestNode[] {
   return tree.root.findAll((node) => node.type === type)
 }
 
+function readOnlyHabitRows(tree: Tree) {
+  return nodes(tree, 'Pressable').filter((row) => row.findAll((node) => node.type === 'StatusRingMock').length > 0)
+}
+
 describe('CalendarDayDetail (mobile)', () => {
   it('keeps the summary and its own no-habits line when the day is empty', () => {
     const tree = renderDetail()
@@ -299,7 +302,7 @@ describe('CalendarDayDetail (mobile)', () => {
   it('keeps habits and one Pro badge row for a free account', () => {
     const onViewPro = vi.fn()
     const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
-    expect(nodes(tree, 'ListRowMock').some((row) => row.props.title === 'Meditate')).toBe(true)
+    expect(nodes(tree, 'Text').some((node) => node.props.children === 'Meditate')).toBe(true)
     const row = nodes(tree, 'ListRowMock').find((row) => row.props.title === 'calendar.calendars.title')
     expect(row?.props.trailing).toBeDefined()
     TestRenderer.act(() => (row?.props.onClick as () => void)())
@@ -329,13 +332,13 @@ describe('CalendarDayDetail (mobile)', () => {
         makeEntry({ habitId: '3', title: 'Swim', status: 'upcoming' }),
       ],
     })
-    const rows = nodes(tree, 'ListRowMock')
-    expect(rows.slice(0, 3).every((row) => row.props.compact === true)).toBe(true)
+    const rows = readOnlyHabitRows(tree)
+    expect(rows).toHaveLength(3)
     expect(rows.slice(0, 3).map((row) => ({
-      title: row.props.title,
-      value: row.props.description,
-      readOnly: row.props.readOnly,
-      ringStatus: (row.props.trailing as React.ReactElement<{ status: string }>).props.status,
+      title: row.findAll((node) => node.type === 'Text')[0]?.props.children,
+      value: row.findAll((node) => node.type === 'Text')[1]?.props.children,
+      readOnly: row.findAll((node) => node.props.accessibilityRole === 'checkbox').length === 0,
+      ringStatus: row.findAll((node) => node.type === 'StatusRingMock')[0]?.props.status,
     }))).toEqual([
       { title: 'Read', value: '08:00', readOnly: true, ringStatus: 'done' },
       { title: 'Walk', value: '08:00', readOnly: true, ringStatus: 'empty' },
@@ -351,11 +354,11 @@ describe('CalendarDayDetail (mobile)', () => {
         makeEntry({ habitId: '3', title: 'Beer', isBadHabit: true, status: 'upcoming' }),
       ],
     })
-    const rows = nodes(tree, 'ListRowMock')
+    const rows = readOnlyHabitRows(tree)
     expect(rows.slice(0, 3).map((row) => ({
-      value: row.props.description,
-      ringStatus: (row.props.trailing as React.ReactElement<{ status: string }>).props.status,
-      ringLabel: (row.props.trailing as React.ReactElement<{ label: string }>).props.label,
+      value: row.findAll((node) => node.type === 'Text')[1]?.props.children,
+      ringStatus: row.findAll((node) => node.type === 'StatusRingMock')[0]?.props.status,
+      ringLabel: row.findAll((node) => node.type === 'StatusRingMock')[0]?.props.label,
     }))).toEqual([
       { value: '08:00', ringStatus: 'bad', ringLabel: 'indulged' },
       { value: '08:00', ringStatus: 'done', ringLabel: 'resisted' },
@@ -652,14 +655,6 @@ describe('CalendarDayDetail (mobile)', () => {
     })
   })
 
-
-
-
-
-
-
-
-
   it('searches a busy day only after opening its events sheet', () => {
     const calendarEvents: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({ id: `event-${index}`, title: `Event ${index}`, description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }))
     const tree = renderDetail({ calendarEvents })
@@ -674,7 +669,6 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(nodes(tree, 'Text').some((row) => String(row.props.children).startsWith('calendar.dayDetail.noMatchingEvents'))).toBe(true)
   })
 })
-
 
 describe('CalendarDayDetail mixed-type family carry', () => {
   const loggedDate = '2026-09-28'
@@ -712,15 +706,14 @@ describe('CalendarDayDetail mixed-type family carry', () => {
     const dayMap = buildCalendarDayMap(badParentWithGoodChildLog(),
       { from: '2026-09-01', to: '2026-09-30' }, new Date('2026-09-29T12:00:00'))
     const tree = renderDetail({ selectedDate: loggedDate, entries: dayMap.get(loggedDate) ?? [] })
-    const rows = nodes(tree, 'ListRowMock').filter((row) => row.props.readOnly === true)
-    expect(rows.map((row) => row.props.title)).toEqual(['Good child'])
-    const ring = rows[0]?.props.trailing as React.ReactElement<{ status: string; label: string }>
+    const rows = readOnlyHabitRows(tree)
+    expect(rows.map((row) => row.findAll((node) => node.type === 'Text')[0]?.props.children)).toEqual(['Good child'])
+    const ring = rows[0]!.findAll((node) => node.type === 'StatusRingMock')[0]!
     expect(ring.props.status).toBe('done')
     expect(ring.props.label).toBe(en.calendar.status.completed)
     expect(ring.props.label).not.toBe(en.calendar.status.indulged)
   })
 })
-
 
 describe('day card disclosure regression', () => {
   it.each([8, 21])('limits %i events to three tappable preview rows without sync controls', (count) => {

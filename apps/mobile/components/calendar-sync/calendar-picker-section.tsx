@@ -9,7 +9,8 @@ import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
-import { useAppToast } from '@/hooks/use-app-toast'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
+import { getAccountGeneration } from '@/lib/session-epoch'
 import type { CalendarSyncStyles } from '@/components/calendar-sync/calendar-import-styles'
 
 interface CalendarPickerSectionProps {
@@ -32,17 +33,19 @@ export function CalendarPickerSection({
 }: Readonly<CalendarPickerSectionProps>) {
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
-  const { showError } = useAppToast()
+  const [saveError, setSaveError] = useAccountScopedState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(20)
 
   if (!enabled) return null
 
   function handleToggle(id: string, isSynced: boolean) {
+    const generation = getAccountGeneration()
+    setSaveError(null)
     setSelectedCalendars.mutate(
       { id, isSynced },
       {
         onError: (err: unknown) => {
-          showError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
+          if (generation === getAccountGeneration()) setSaveError(getFriendlyErrorMessage(err, t, 'calendar.calendars.saveFailed', 'textless'))
         },
       },
     )
@@ -51,6 +54,8 @@ export function CalendarPickerSection({
   return (
     <>
       <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
+
+      <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.pickerStateText, { color: tokens.statusBadText }]}>{saveError ?? ''}</Text>
 
       {isLoading ? <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} /> : null}
 

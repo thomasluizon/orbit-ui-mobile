@@ -33,6 +33,8 @@ interface CalendarDayDetailProps {
   onReconnectCalendarEvents: () => void
   onOpenCalendarImport: (eventId: string | null) => void
   onViewPro: () => void
+  onOpenEvents?: () => void
+  onOpenHabitTitle?: (title: string) => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -40,7 +42,7 @@ interface CalendarDayDetailProps {
   showTitle?: boolean
 }
 
-function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry, onReconnect, onOpenImport, onViewPro }: Readonly<{
+function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry, onReconnect, onOpenImport, onOpenEvents, onViewPro }: Readonly<{
   calendarEvents: CalendarSyncEvent[]
   showEventSource: boolean
   state: CalendarEventsDisplayState
@@ -48,6 +50,7 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   onReconnect: () => void
   onOpenImport: (eventId: string | null) => void
   onViewPro: () => void
+  onOpenEvents?: () => void
 }>) {
   const t = useTranslations()
   if (state === 'pro-boundary') return <div data-testid="calendar-pro-boundary" style={{ paddingInline: 16 }}>
@@ -56,17 +59,16 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   if (state === 'not-connected') return <div style={{ paddingInline: 16 }}>
     <ListRow inset={false} textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </div>
-  return <div className="flex flex-col gap-2" style={{ paddingInline: 16 }}>
-    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
+  return <div className="flex flex-col gap-2" style={{ paddingInline: 8 }}>
+    <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, paddingInline: 8, lineHeight: 1.4 }}>{t('calendar.dayDetail.eventsTitle')}</p>
     {state === 'loading' ? <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} /> : null}
     {state === 'failed' ? <ErrorState message={t('calendar.fetchError')} action={<ListRow inset={false} textMode="label" title={t('common.retry')} onClick={onRetry} />} /> : null}
     {state === 'ready' && calendarEvents.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('calendar.dayDetail.noEventsToImport')}</p> : null}
-    {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} /> : null}
+    {state === 'ready' && calendarEvents.length > 0 ? <CalendarDayEvents calendarEvents={calendarEvents} showEventSource={showEventSource} onOpenImport={onOpenImport} onOpenEvents={onOpenEvents} /> : null}
   </div>
 }
 
 type EntryOutcome = {
-  label: string
   ringLabel: string
   status: NonNullable<StatusRingProps['status']>
 }
@@ -80,7 +82,6 @@ function getEntryOutcome(
   if (entry.isBadHabit) {
     const label = t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted')
     return {
-      label,
       ringLabel: entry.status === 'upcoming' ? t('calendar.status.missed') : label,
       status: completed ? 'bad' : entry.status === 'upcoming' ? 'empty' : 'done',
     }
@@ -88,7 +89,6 @@ function getEntryOutcome(
 
   const label = t(completed ? 'calendar.status.completed' : 'calendar.status.missed')
   return {
-    label,
     ringLabel: label,
     status: completed ? 'done' : 'empty',
   }
@@ -102,14 +102,12 @@ function CalendarDayCheckRow({
   onEntryChange,
   onOpenTitle,
 }: Readonly<{
-  dateStr: string
   entry: CalendarDayEntry
   displayTime: (time: string) => string
   isPending: boolean
   pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onOpenTitle: (title: string) => void
-  t: ReturnType<typeof useTranslations>
 }>) {
   const sourceChecked = entry.status === 'completed'
   const displayedChecked = pendingChecked === undefined || pendingChecked === sourceChecked
@@ -165,21 +163,25 @@ function CalendarDayRows({
       return (
         <CalendarDayCheckRow
           key={`${dateStr}:${entry.habitId}`}
-          dateStr={dateStr}
           entry={entry}
           displayTime={displayTime}
           isPending={pendingEntryStates.has(entryKey)}
           pendingChecked={pendingEntryStates.get(entryKey)}
           onEntryChange={onEntryChange}
           onOpenTitle={onOpenTitle}
-          t={t}
         />
       )
     }
 
     return (
-      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={entry.title} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full rounded-[12px] border-0 bg-transparent text-start hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-        <ListRow compact title={entry.title} description={value} textMode="personal" trailing={<StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />} chevron={false} readOnly />
+      <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+        <span className="flex min-w-0 items-start gap-2 px-4 py-2">
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="line-clamp-2 text-base [overflow-wrap:anywhere] text-[var(--fg-1)]">{entry.title}</span>
+            {value ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
+          </span>
+          <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
+        </span>
       </button>
     )
   })
@@ -196,6 +198,8 @@ export function CalendarDayDetail({
   onReconnectCalendarEvents,
   onOpenCalendarImport,
   onViewPro,
+  onOpenEvents,
+  onOpenHabitTitle,
   loggable,
   showRecurring,
   pendingEntryStates,
@@ -274,7 +278,7 @@ export function CalendarDayDetail({
             displayTime={displayTime}
             pendingEntryStates={pendingEntryStates}
             onEntryChange={onEntryChange}
-            onOpenTitle={setExpandedTitle}
+            onOpenTitle={onOpenHabitTitle ?? setExpandedTitle}
             t={t}
           />
         </div>
@@ -288,6 +292,7 @@ export function CalendarDayDetail({
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
         onOpenImport={onOpenCalendarImport}
+        onOpenEvents={onOpenEvents}
         onViewPro={onViewPro}
       />
 

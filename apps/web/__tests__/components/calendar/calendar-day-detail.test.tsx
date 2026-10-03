@@ -227,16 +227,6 @@ describe('CalendarDayDetail', () => {
     expect(within(sheet).getByText('Event 0')).toBeInTheDocument()
   })
 
-
-
-
-
-
-
-
-
-
-
   it('renders a failed events request instead of the empty result', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'failed' })
 
@@ -271,8 +261,6 @@ describe('CalendarDayDetail', () => {
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
   })
 
-
-
   it('renders the empty events state after an empty response resolves', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
 
@@ -291,7 +279,7 @@ describe('CalendarDayDetail', () => {
       ],
     })
 
-    expect(screen.getByText('Read').closest('.orbit-list-row-shell')?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)' })
+    expect(screen.getByRole('button', { name: 'Read, done' })).toHaveClass('min-h-[68px]')
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.getByText('08:00')).toBeInTheDocument()
     expect(screen.getByText('09:00')).toBeInTheDocument()
@@ -613,12 +601,11 @@ describe('CalendarDayDetail', () => {
     expect(card).toContainElement(screen.getByText('1 of 1 logged'))
     expect(card).toContainElement(screen.getByRole('link', { name: 'Open this day on Today' }))
     expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '16px' })
-    expect(screen.getByRole('button', { name: 'Meditate' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Meditate, done' })).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()
   })
 
 })
-
 
 describe('CalendarDayDetail mixed-type family carry', () => {
   const loggedDate = '2026-09-28'
@@ -662,7 +649,6 @@ describe('CalendarDayDetail mixed-type family carry', () => {
     expect(screen.queryByText('Bad parent')).not.toBeInTheDocument()
   })
 })
-
 
 describe('day card disclosure regression', () => {
   it.each([8, 21])('limits %i events to three tappable preview rows without sync controls', (count) => {
