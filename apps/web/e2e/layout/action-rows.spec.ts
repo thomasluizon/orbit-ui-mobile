@@ -2,17 +2,16 @@ import { expect, type BrowserContext, type Locator, type Page } from '@playwrigh
 import { API } from '@orbit/shared/api'
 import { createMockCalendarSyncEvent, createMockGamificationProfile, createMockGoal, createMockNotification, createMockRescheduleSuggestion, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { calendarAutoSyncStateSchema, calendarEventsResponseSchema, userCalendarsSchema } from '@orbit/shared/types/calendar'
+import { calendarAutoSyncStateSchema, calendarEventsResponseSchema } from '@orbit/shared/types/calendar'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema, rescheduleSuggestionResponseSchema } from '@orbit/shared/types/habit'
 import { gamificationProfileSchema, retrospectiveResponseSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
 import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
-import { profileSchema } from '@orbit/shared/types/profile'
+import { profileSchema, type Profile } from '@orbit/shared/types/profile'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const today = '2026-09-04'
@@ -26,9 +25,7 @@ const events = calendarEventsResponseSchema.parse([event, createMockCalendarSync
 const notifications = notificationsResponseSchema.parse({ items: [createMockNotification({ isRead: false }), createMockNotification({ id: 'notif-2', title: 'Weekly summary', isRead: true })], unreadCount: 1 })
 const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
 
-async function installActionFixtures(context: BrowserContext, locale: 'en' | 'pt-BR') {
-  const profile = profileSchema.parse({ ...profileFixture, plan: 'pro', hasProAccess: true, language: locale, googleCalendarAutoSyncEnabled: true, canViewGamification: true, marketingEmailConsent: null })
-  await setLayoutProfileSession(context, profile)
+async function installActionFixtures(context: BrowserContext, profile: Profile) {
   const responses: ReadonlyArray<readonly [string, unknown]> = [
     [API.profile.get, profile],
     [API.habits.list, habits],
@@ -42,7 +39,6 @@ async function installActionFixtures(context: BrowserContext, locale: 'en' | 'pt
     [API.habits.retrospective, retrospectiveResponseSchema.parse({ period: 'month', metrics: createMockRetrospectiveMetrics(), narrative: { highlights: 'A steady month.', missed: 'Keep reading.', trends: 'Consistent weeks.', suggestion: 'Continue.' }, fromCache: false })],
     [API.calendar.events, events],
     [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ hasGoogleConnection: true, enabled: true, status: 'Idle', lastSyncedAt: null })],
-    [API.calendar.calendars, userCalendarsSchema.parse([{ id: 'calendar-1', name: 'Work', accessRole: 'owner', primary: true, backgroundColor: null, isSynced: true }])],
     [API.calendar.autoSyncSuggestions, []],
     [API.notifications.list, notifications],
     [API.habits.rescheduleSuggestion(habitId), rescheduleSuggestionResponseSchema.parse({ suggestion: createMockRescheduleSuggestion({ dueDate: '2026-09-05' }), fromCache: false })],
@@ -99,8 +95,9 @@ for (const width of [412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
     const messages = locale === 'en' ? en : ptBR
     test.describe(`Action rows at ${width}px in ${locale}`, () => {
-      test.use({ viewport: { width, height: 915 }, appLocale: locale, subscriptionState: 'stripe' })
-      test.beforeEach(async ({ context }) => { await installActionFixtures(context, locale) })
+      const profile = profileSchema.parse({ ...profileFixture, plan: 'pro', hasProAccess: true, language: locale, googleCalendarAutoSyncEnabled: true, canViewGamification: true, marketingEmailConsent: null })
+      test.use({ viewport: { width, height: 915 }, appLocale: locale, subscriptionState: 'stripe', layoutProfile: profile })
+      test.beforeEach(async ({ context }) => { await installActionFixtures(context, profile) })
 
       const readySelectors: Readonly<Record<string, string>> = {
         '/': '[data-testid="habit-row"]',

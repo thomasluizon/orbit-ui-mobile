@@ -6,13 +6,12 @@ import { calendarEventsResponseSchema, userCalendarsSchema } from '@orbit/shared
 import { retrospectiveResponseSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
 import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
-import { profileSchema } from '@orbit/shared/types/profile'
+import { profileSchema, type Profile } from '@orbit/shared/types/profile'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
 import { expectLabelsFit, expectLegendFits, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
@@ -58,12 +57,7 @@ const streak = streakInfoSchema.parse({
   isFrozenToday: false, recentFreezeDates: [], streakFreezesAccumulated: 1,
 })
 
-async function installLabelFixtures(context: BrowserContext, locale: 'en' | 'pt-BR') {
-  const profile = profileSchema.parse({
-    ...profileFixture, name: userFields.name, email: userFields.email,
-    language: locale, hasProAccess: true, canViewGamification: true,
-  })
-  await setLayoutProfileSession(context, profile, calendars)
+async function installLabelFixtures(context: BrowserContext, profile: Profile) {
   const responses: ReadonlyArray<readonly [string, unknown]> = [
     [API.profile.get, profile], [API.habits.list, habits], [API.goals.list, goals],
     [API.habits.retrospective, retrospective], [API.gamification.streak, streak],
@@ -114,8 +108,15 @@ async function checkTodayLabels(page: Page) {
 for (const width of [320, 360, 384, 412]) {
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     test.describe(`${locale} label contract at ${width}px`, () => {
-      test.use({ appLocale: locale, subscriptionState: 'trial', viewport: { width, height: 915 } })
-      test.beforeEach(async ({ context }) => installLabelFixtures(context, locale))
+      const profile = profileSchema.parse({
+        ...profileFixture, name: userFields.name, email: userFields.email,
+        language: locale, hasProAccess: true, canViewGamification: true,
+      })
+      test.use({
+        appLocale: locale, subscriptionState: 'trial', viewport: { width, height: 915 },
+        layoutProfile: profile, layoutCalendars: [calendars, { scope: 'test' }],
+      })
+      test.beforeEach(async ({ context }) => installLabelFixtures(context, profile))
 
       test('Progress captions and selector remain whole', async ({ page }) => {
         await page.goto('/progress')
