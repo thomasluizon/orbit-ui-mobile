@@ -5,6 +5,7 @@
 > - Assert behavior and data-attributes, never class names or implementation details.
 > - For a defect missed by existing coverage, observe the unchanged test first, then the strengthened test failing before the fix; carry both observations into the PR body.
 > - Chromium geometry unit cases require installed Chrome; other web component tests use jsdom.
+> - The compact label guard covers app-authored labels and interaction fills at 320, 360, 384 and 412px in both locales. Native Android label geometry remains an open risk; its only instrumented host belongs to the widget module.
 > - Ten suites: web / mobile / shared unit, the local Android widget host instrumented gate, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The harness suites do not run in CI.
 > - There is no visual regression gate and no screenshot anywhere: #422 deleted it. The hermetic harness remains and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it.
@@ -51,6 +52,18 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Harness tools execution | `tools/` | `node tools/test-tools.mjs` (run `npm ci` first) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 
 **The prod-E2E suite and the post-deploy smoke suite are one and the same.** The `smoke` project's `*.spec.ts` require `SMOKE_BASE_URL` and execute against the live production deployment, never localhost. It is the only sanctioned E2E against prod. Orbit has no screenshot requirement, and nothing in this repository takes one any more (#422).
+
+### Compact label and interaction fill guard
+
+`apps/web/e2e/layout/label-fit.spec.ts` runs in the hermetic layout project through `.github/workflows/layout.yml`. It covers Hoje, Calendário, Progresso and Perfil at 320, 360, 384 and 412px, in en and pt-BR, at the default text scale. It checks captions, tabs, selectors, buttons, row titles, headings and menu titles using rendered text fragments and clipping bounds. A label fails when its text occupies more than one line or extends outside its visible bounds, including an ellipsis or line clamp. Required captions, selectors and legends must render before measurement, so a loading surface cannot pass as an empty inventory. Legend groups must fit one row or move behind disclosure; a screen ticket that moves a legend must update the guard to open its owning disclosure and measure the labels there.
+
+`label-fit-contract.ts` defines the app-authored label inventory. `label-fit.spec.ts` defines user text by its producing field: habit title, goal title, Google event title and calendar name, profile name and email. The guard marks their rendered elements with `data-layout-text-origin="user"` before measuring labels. Only those elements are excluded, never the surrounding row or its app-authored actions. Product labels have no wrap or ellipsis allowance. User text instead gets the available row width first, then at most two visible lines, then an ellipsis with the complete value one tap away. The one-line label guard does not prove those user-text disclosure behaviors; they need coverage in their owning screen tests. Body prose and row descriptions are outside the label inventory.
+
+The interaction cases hover and hold a press on date controls, tab navigation, menu items, calendar selectors and profile rows. They measure the painted fill, its radius and its visible text or icon content against Principle 3: the control's own shape, with at least 8px inline and 4px block breathing room. A pseudo-element that extends the hit area without painting the fill fails too. Press release happens away from the control to avoid activating its action. These are web geometry checks, not Android rendering evidence.
+
+**Open Android risk:** React Native Vitest does not measure rendered text. The only instrumented Android host is `apps/mobile/modules/orbit-widget/android/src/androidTest`; it tests widget headers, not app screens. There is no native screen label or interaction-fill geometry gate, and a passing web guard does not close that gap. This label guard also does not prove the separate 200% text requirement.
+
+Workers compile these specs and run the repository's Vitest suites, including their permitted isolated Chromium cases. They do not run Playwright or start app servers for this work order. The PR layout workflow is the only runner for the new guard and the source of its observed red or green geometry evidence. Expected failures on an unfixed tree must not be described as observed failures before that workflow runs.
 
 ### How the authed-Today Lighthouse budget gate works
 
