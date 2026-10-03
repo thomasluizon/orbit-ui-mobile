@@ -64,6 +64,8 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler'
+import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -545,8 +547,14 @@ function ProgressPageHeading({ focusRef, title }: Readonly<{ focusRef: RefObject
 }
 
 export function ProgressContent() {
+  const scrollRef = useRef<GestureScrollView>(null)
+  const detailScrollRef = useRef<ScrollView>(null)
   const clearance = useShellScrollerClearance()
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  useRootScrollToTop('progresso', useCallback(() => {
+    const target = detailGoalId ? detailScrollRef.current : scrollRef.current
+    target?.scrollTo({ y: 0, animated: false })
+  }, [detailGoalId]))
   const openingGoalIdRef = useRef<string | null>(null)
   const goalCardRefs = useRef(new Map<string, View>())
   const pageHeadingRef = useRef<Text>(null)
@@ -590,14 +598,16 @@ export function ProgressContent() {
   }, [detailGoalId])
   return (
     <>
-      {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
-    <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
-      <RootNotificationHeader inset={0} />
-      <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
-      {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
-      {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
-      {empty ? <View style={styles.empty}><GoalsEmptyState /></View> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      {detailGoalId ? <ScrollView ref={detailScrollRef} style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={[styles.sections, { paddingBottom: clearance }]}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
+    <NestableScrollContainer ref={scrollRef} style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={[styles.content, { paddingBottom: clearance }]} showsVerticalScrollIndicator={false}>
+      <RootNotificationHeader />
+      <View testID="progress-sections" style={styles.sections}>
+        <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
+        {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
+        {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
+        {empty ? <View style={styles.empty}><GoalsEmptyState /></View> : null}
+        {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      </View>
     </NestableScrollContainer>
     </>
   )
@@ -605,7 +615,7 @@ export function ProgressContent() {
 
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
-  root: { flex: 1 }, content: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
+  root: { flex: 1 }, content: { gap: 32 }, sections: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
   loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
   loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },
   error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },

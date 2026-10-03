@@ -1,4 +1,7 @@
 import React from 'react'
+import { RootScrollProvider } from '@/components/shell/root-scroll-context'
+import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { __setScrollToImpl } from '../../test-mocks/react-native'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -546,10 +549,21 @@ function findButtonByText(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfileScreen', () => {
-  it('owns the drawn 16px top inset on the destination scroller', async () => {
+  it('scrolls the Perfil root on tab reselect without changing settings', async () => {
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><ProfileScreen /><DestinationTabBar pathname="/profile" /></RootScrollProvider>) })
+    await TestRenderer.act(() => { tree!.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; accessibilityState?: { selected?: boolean }; onPress: () => void } }) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    await TestRenderer.act(() => tree!.unmount())
+    __setScrollToImpl(() => {})
+  })
+  it('owns the drawn 16px content inset below the destination bell', async () => {
     const tree = await renderProfileScreen()
     const scroller = tree.root.findByProps({ testID: 'profile-scroller' })
-    expect(StyleSheet.flatten(scroller.props.contentContainerStyle)).toMatchObject({
+    const content = scroller.findByProps({ testID: 'profile-content' })
+    expect(StyleSheet.flatten(content.props.style)).toMatchObject({
       paddingTop: 16,
       paddingHorizontal: 16,
     })
@@ -1855,9 +1869,11 @@ describe('ProfileScreen', () => {
 it('places the Perfil bell inside the page scroller and opens Avisos', async () => {
   const tree = await renderProfileScreen()
   const scroller = tree.root.findByProps({ testID: 'profile-scroller' })
-  const row = scroller.findByProps({ testID: 'root-notification-header' })
+  const row = scroller.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'root-notification-header')[0]!
   expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, justifyContent: 'flex-end' })
   const bell = row.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]
   TestRenderer.act(() => bell.props.onPress())
   expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
+
+
 })

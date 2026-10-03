@@ -1,5 +1,6 @@
+import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -13,6 +14,8 @@ import { createProfileStyles } from './profile/_components/profile-styles'
 import { ProfileSettingsContent } from './profile/_components/profile-settings-content'
 
 export default function ProfileScreen() {
+  const scrollRef = useRef<ScrollView>(null)
+  useRootScrollToTop('perfil', useCallback(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), []))
   const { t } = useTranslation()
   const router = useRouter()
   const { subscription } = useLocalSearchParams<{ subscription?: string }>()
@@ -35,26 +38,29 @@ export default function ProfileScreen() {
     >
       <ScreenReaderHeading title={t('nav.profile')} />
       <ScrollView
+        ref={scrollRef}
         testID="profile-scroller"
         style={styles.container}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: clearance }]}
+        contentContainerStyle={{ paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
       >
-        <RootNotificationHeader inset={0} />
-        {error ? (
-          <View style={styles.errorBlock}>
-            <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
-              {__DEV__ && error instanceof Error
-                ? error.message
-                : t('errors.loadProfile')}
-            </Text>
-          </View>
-        ) : null}
-        <ProfileSettingsContent
-          profile={profile}
-          isLoading={isLoading}
-          patchProfile={patchProfile}
-        />
+        <RootNotificationHeader />
+        <View testID="profile-content" style={styles.scrollContent}>
+          {error ? (
+            <View style={styles.errorBlock}>
+              <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
+                {__DEV__ && error instanceof Error
+                  ? error.message
+                  : t('errors.loadProfile')}
+              </Text>
+            </View>
+          ) : null}
+          <ProfileSettingsContent
+            profile={profile}
+            isLoading={isLoading}
+            patchProfile={patchProfile}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   )

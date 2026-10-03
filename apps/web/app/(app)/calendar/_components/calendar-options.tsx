@@ -6,6 +6,7 @@ import { MoreVertical } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import { CalendarLegend } from './calendar-shell'
@@ -20,10 +21,10 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
   const checked = useUIStore((state) => state.calendarShowRecurring)
   const setChecked = useUIStore((state) => state.setCalendarShowRecurring)
   return <>
-    <div data-testid="calendar-shell-header" className="flex min-h-12 items-center justify-end gap-2 px-4">
+    <DestinationHeaderRow data-testid="calendar-shell-header">
       <button ref={anchorRef} type="button" className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]" aria-label={t('calendar.options')} aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuId} onClick={() => setMenuOpen(true)}><MoreVertical size={24} strokeWidth={2} aria-hidden="true" /></button>
       <NotificationBell />
-    </div>
+    </DestinationHeaderRow>
     <Menu id={menuId} open={menuOpen} anchorRef={anchorRef} title={t('calendar.options')} onClose={() => setMenuOpen(false)}
       items={[{ id: 'recurring', label: t('calendar.showRecurring'), checked }, { id: 'google', label: t('calendar.googleCalendar'), disabled: !onGoogleCalendar }, { id: 'legend', label: t('calendar.legendTitle') }]}
       onSelect={(id) => { if (id === 'recurring') setChecked(!checked); else if (id === 'google') onGoogleCalendar?.(); else setLegendOpen(true) }} />

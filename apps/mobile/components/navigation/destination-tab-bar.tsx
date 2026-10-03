@@ -7,9 +7,13 @@ import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { BottomTabBar } from './bottom-tab-bar'
+import { useRootScrollReselect } from '@/components/shell/root-scroll-context'
+
+const ROOT_PATHS: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
 
 export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pathname: string; notFound?: boolean }>) {
   const router = useRouter()
+  const scrollToTop = useRootScrollReselect()
   const setActiveView = useUIStore((s) => s.setActiveView)
   const lastDestination = useUIStore((s) => s.lastDestination)
 
@@ -19,6 +23,10 @@ export function DestinationTabBar({ pathname, notFound = false }: Readonly<{ pat
   )
 
   const handleTab = (id: string) => {
+    if (!notFound && id === active && pathname === ROOT_PATHS[id]) {
+      scrollToTop?.(id)
+      return
+    }
     if (id === 'hoje') {
       setActiveView('today')
       router.navigate('/(tabs)')

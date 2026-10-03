@@ -26,8 +26,8 @@ describe('DestinationTabBar', () => {
     const tabs = tree.hosts().filter((node) => node.props.accessibilityRole === 'tab')
     expect(tabs.map((node) => node.props.accessibilityLabel)).toEqual(['nav.today', 'nav.calendar', 'nav.progress', 'nav.profile'])
     expect(tabs.filter((node) => node.props.accessibilityState?.selected)).toEqual([tabs[1]])
-    for (const tab of tabs) press(tab)
-    expect(mocks.navigate.mock.calls).toEqual([['/(tabs)'], ['/calendar'], ['/progress'], ['/profile']])
+    for (const tab of tabs.filter((tab) => !tab.props.accessibilityState?.selected)) press(tab)
+    expect(mocks.navigate.mock.calls).toEqual([['/(tabs)'], ['/progress'], ['/profile']])
     tree.unmount()
   })
 
@@ -54,5 +54,14 @@ it.each([
   expect(icons).toHaveLength(4)
   expect(icons.filter((node) => String(node.type).endsWith('Filled')).map((node) => node.type)).toEqual([filledIcon])
   expect(icons.some((node) => node.type === 'ChartLine')).toBe(false)
+  tree.unmount()
+})
+
+it.each(['/', '/calendar', '/progress', '/profile'])('reselects the active root without navigation at %s', (pathname) => {
+  mocks.navigate.mockClear()
+  const tree = renderNavigation(<DestinationTabBar pathname={pathname} />)
+  const active = tree.hosts().find((node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)!
+  press(active)
+  expect(mocks.navigate).not.toHaveBeenCalled()
   tree.unmount()
 })
