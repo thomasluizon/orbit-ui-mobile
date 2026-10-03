@@ -308,6 +308,32 @@ function matchedSurface(text, match, state) {
   return SURFACE_TOKENS.get(match.token)
 }
 
+function createConditionKey(checker) {
+  const symbols = new Map()
+  const keys = new WeakMap()
+  return (expression) => {
+    if (keys.has(expression)) return keys.get(expression)
+    const bindings = []
+    let unresolved = false
+    const visit = (node) => {
+      if (ts.isIdentifier(node)
+        && !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node)) {
+        const symbol = checker.getSymbolAtLocation(node)
+        if (symbol) {
+          if (!symbols.has(symbol)) symbols.set(symbol, symbols.size)
+          bindings.push(symbols.get(symbol))
+        } else unresolved = true
+      }
+      if (node.kind === ts.SyntaxKind.ThisKeyword) unresolved = true
+      ts.forEachChild(node, visit)
+    }
+    visit(expression)
+    const key = unresolved ? expression : JSON.stringify([expression.getText(), bindings])
+    keys.set(expression, key)
+    return key
+  }
+}
+
 function booleanAssignments(expression, expected, state, assignments) {
   expression = unwrapExpression(expression)
   if (ts.isPrefixUnaryExpression(expression) && expression.operator === ts.SyntaxKind.ExclamationToken) {
@@ -327,8 +353,8 @@ function booleanAssignments(expression, expected, state, assignments) {
       ]
     }
   }
-  const key = expression.getText()
-  const known = key === "pressed" && state.interaction !== "hover" ? state.interaction === "pressed"
+  const key = state.conditionKey(expression)
+  const known = ts.isIdentifier(expression) && expression.text === "pressed" && state.interaction !== "hover" ? state.interaction === "pressed"
     : expression.kind === ts.SyntaxKind.TrueKeyword ? true
     : expression.kind === ts.SyntaxKind.FalseKeyword ? false
     : assignments.get(key)
@@ -387,7 +413,7 @@ function outermostGroup(node) {
   return group
 }
 
-function webForegroundStates(node, matchIndex, sourceFile) {
+function webForegroundStates(node, matchIndex, sourceFile, conditionKey) {
   const literal = ancestor(node, ts.isStringLiteralLike)
   if (!literal) return ["rest", "hover"]
   const before = sourceFile.text.slice(literal.getStart() + 1, matchIndex)
@@ -396,18 +422,18 @@ function webForegroundStates(node, matchIndex, sourceFile) {
   if (utility.startsWith("hover:") || (utility.startsWith("group-hover:") && group)) return ["hover"]
   const role = utility.match(/^(text|bg|border|fill|stroke)-/)?.[1]
   if (role && new RegExp(`(?:^|\\s)hover:${role}-\\[var\\(--`).test(literal.text)
-    && !ancestorHoverSurface(node, sourceFile)) return ["rest"]
+    && !ancestorHoverSurface(node, sourceFile, conditionKey)) return ["rest"]
   if (role && group && new RegExp(`(?:^|\\s)group-hover:${role}-\\[var\\(--`).test(literal.text)
-    && !ancestorHoverSurface(group, sourceFile)) return ["rest"]
+    && !ancestorHoverSurface(group, sourceFile, conditionKey)) return ["rest"]
   return ["rest", "hover"]
 }
 
-function ancestorHoverSurface(node, sourceFile) {
+function ancestorHoverSurface(node, sourceFile, conditionKey) {
   for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
     if (!ts.isJsxElement(current)) continue
     const opening = current.openingElement
-    const resting = openingSurfaces(opening, sourceFile, { interaction: "rest" })
-    if (openingSurfaces(opening, sourceFile, { interaction: "hover" }).some((surface) => !resting.includes(surface))) return true
+    const resting = openingSurfaces(opening, sourceFile, { interaction: "rest", conditionKey })
+    if (openingSurfaces(opening, sourceFile, { interaction: "hover", conditionKey }).some((surface) => !resting.includes(surface))) return true
   }
   return false
 }
@@ -696,11 +722,9 @@ function inferredRoles(node, sourceFile, source, matchIndex, graphicTags) {
   return [...roles]
 }
 
-function componentContentSurfaces(files, state) {
+function componentContentSurfaces(syntaxes, state) {
   const result = new Map()
-  for (const file of files) {
-    const source = readFileSync(file, "utf8")
-    const syntax = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  for (const syntax of syntaxes) {
     const visit = (node) => {
       if (ts.isIdentifier(node) && node.text === "children" && ts.isJsxExpression(node.parent)
         && node.parent.expression === node) {
@@ -718,11 +742,9 @@ function componentContentSurfaces(files, state) {
   return result
 }
 
-function componentSurfaces(files, contentSurfaces, state) {
+function componentSurfaces(syntaxes, contentSurfaces, state) {
   const calls = []
-  for (const file of files) {
-    const source = readFileSync(file, "utf8")
-    const syntax = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  for (const syntax of syntaxes) {
     const visit = (node) => {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const tag = jsxTag(node)
@@ -755,16 +777,19 @@ function componentSurfaces(files, contentSurfaces, state) {
 
 function inspectSources(repositoryRoot, declarations) {
   const files = ["apps/web", "apps/mobile"].flatMap((path) => collectSourceFiles(resolve(repositoryRoot, path)))
+  const program = ts.createProgram(files, { noLib: true, noResolve: true, target: ts.ScriptTarget.Latest, jsx: ts.JsxEmit.Preserve })
+  const conditionKey = createConditionKey(program.getTypeChecker())
+  const syntaxes = files.map((file) => program.getSourceFile(file))
   const stateSurfaces = new Map(["rest", "hover", "pressed"].map((state) => {
-    const interactionState = { interaction: state }
-    const contentSurfaces = componentContentSurfaces(files, interactionState)
-    return [state, { contentSurfaces, callSurfaces: componentSurfaces(files, contentSurfaces, interactionState) }]
+    const interactionState = { interaction: state, conditionKey }
+    const contentSurfaces = componentContentSurfaces(syntaxes, interactionState)
+    return [state, { contentSurfaces, callSurfaces: componentSurfaces(syntaxes, contentSurfaces, interactionState) }]
   }))
   const usages = []
   const undeclared = []
   for (const file of files) {
-    const source = readFileSync(file, "utf8")
-    const syntax = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+    const syntax = program.getSourceFile(file)
+    const source = syntax.text
     const exported = exportedFunctions(syntax)
     const graphicTags = importedGraphicTags(syntax)
     for (const match of tokenMatches(source)) {
@@ -779,11 +804,11 @@ function inspectSources(repositoryRoot, declarations) {
         continue
       }
       if (roles.length === 0) continue
-      const states = path.startsWith("apps/mobile/") ? ["rest", "pressed"] : webForegroundStates(node, match.index, syntax)
+      const states = path.startsWith("apps/mobile/") ? ["rest", "pressed"] : webForegroundStates(node, match.index, syntax, conditionKey)
       for (const interaction of states) {
-        const assignments = branchAssignments(node, { interaction })
+        const assignments = branchAssignments(node, { interaction, conditionKey })
         if (assignments.length === 0) continue
-        const state = { interaction, assignments }
+        const state = { interaction, assignments, conditionKey }
         const { contentSurfaces, callSurfaces } = stateSurfaces.get(interaction)
         const ownSurfaces = contextSurfaces(node, syntax, contentSurfaces, state)
         const owner = owningFunctionName(node)
