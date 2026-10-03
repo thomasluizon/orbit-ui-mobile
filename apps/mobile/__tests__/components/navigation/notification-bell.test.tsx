@@ -216,7 +216,7 @@ describe('mobile alerts', () => {
   })
 
   it.each([
-    ['/', null, 'Home'], ['/calendar-sync', null, 'Calendar'], ['/streak', null, 'ChartLine'],
+    ['/', null, 'Home'], ['/calendar-sync', null, 'CalendarDays'], ['/streak', null, 'LayoutDashboard'],
     ['/profile', null, 'User'], ['/', 'a12b34cd-1234-4567-89ab-123456789abc', 'CircleDot'],
   ] as const)('shows the destination glyph at 16px for %s with habit %s', (url, habitId, glyph) => {
     state.notifications = [createMockNotification({ title: 'Reminder', url, habitId, isRead: false })]
@@ -519,7 +519,7 @@ describe('mobile alerts', () => {
     const tree = render()
     const rows = hosts(tree, 'Pressable', `${title}. unread. Progress`)
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.findAll((node) => node.type === 'ChartLine')).toHaveLength(1)
+    expect(rows[0]!.findAll((node) => node.type === 'LayoutDashboard')).toHaveLength(1)
     expect(rows[0]!.findAll((node) => node.type === 'Text' && node.props.children === en.nav.progress)).toHaveLength(1)
     press(tree, `${title}. unread. Progress`)
     press(tree, 'Open in Progress')

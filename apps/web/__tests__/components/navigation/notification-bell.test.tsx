@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Calendar, ChartLine, CircleDot, Home, Trash2, User } from '@/components/ui/icons'
+import { CalendarDays, LayoutDashboard, CircleDot, Home, Trash2, User } from '@/components/ui/icons'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
@@ -196,14 +196,14 @@ describe('alerts', () => {
   })
 
   it.each([
-    ['/', null, Home], ['/calendar-sync', null, Calendar], ['/streak', null, ChartLine],
+    ['/', null, Home], ['/calendar-sync', null, CalendarDays], ['/streak', null, LayoutDashboard],
     ['/profile', null, User], ['/', 'a12b34cd-1234-4567-89ab-123456789abc', CircleDot],
   ] as const)('shows the destination glyph at 16px for %s with habit %s', (url, habitId, Glyph) => {
     state.notifications = [createMockNotification({ title: 'Reminder', url, habitId, isRead: false })]
     showInbox()
     const glyph = screen.getByRole('button', { name: /^Reminder\. unread\./ }).querySelector('svg')!
     const expected = document.createElement('div')
-    expected.innerHTML = renderToStaticMarkup(<Glyph size={16} />)
+    expected.innerHTML = renderToStaticMarkup(<Glyph size={16} strokeWidth={1.5} />)
     expect(glyph.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
     expect(glyph).toHaveAttribute('width', '16')
     expect(glyph).toHaveAttribute('height', '16')
@@ -456,7 +456,7 @@ describe('alerts', () => {
     const row = screen.getByRole('button', { name: `${title}. unread. Progress` })
     expect(within(row).getByText('Progress')).toBeInTheDocument()
     const expected = document.createElement('div')
-    expected.innerHTML = renderToStaticMarkup(<ChartLine size={16} />)
+    expected.innerHTML = renderToStaticMarkup(<LayoutDashboard size={16} strokeWidth={1.5} />)
     expect(row.querySelector('svg')!.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
     fireEvent.click(row)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Open in Progress' }))
