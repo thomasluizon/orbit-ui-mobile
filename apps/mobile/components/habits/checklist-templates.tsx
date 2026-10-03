@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useMemo, useState } from 'react'
 import {
@@ -204,7 +205,7 @@ function createStyles(tokens: AppTokens) {
     },
     input: {
       flex: 1,
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -215,7 +216,7 @@ function createStyles(tokens: AppTokens) {
       fontSize: 14,
     },
     saveButton: {
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       borderRadius: 999,
       backgroundColor: tokens.primary,
       paddingHorizontal: 12,
@@ -239,7 +240,7 @@ function createStyles(tokens: AppTokens) {
     emptyState: { alignItems: 'center', gap: 12, paddingVertical: 32 },
     emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
     emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
-    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 16 },
     emptyActionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     emptyReason: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 12, textAlign: 'center' },
   })

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { type ReactNode } from 'react'
@@ -164,8 +165,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   linkAction: {
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: TOUCH_TARGET_MIN,
+    minWidth: TOUCH_TARGET_MIN,
     borderRadius: 999,
     overflow: 'hidden',
     alignItems: 'center',

@@ -1,3 +1,5 @@
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -83,9 +85,9 @@ export function CalendarRangeView({
             {Array.from({ length: gridCellCount }, (_, index) => (
               <View key={index} style={styles.daySlot}>
                 {index === 0 ? (
-                  <Skeleton variant="grid" rows={1} cols={1} cell={44} gap={0} label={loadingLabel} />
+                  <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
                 ) : (
-                  <Skeleton variant="grid" rows={1} cols={1} cell={44} gap={0} grouped />
+                  <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
                 )}
               </View>
             ))}
@@ -130,5 +132,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
-  daySlot: { width: 44, height: 44 },
+  daySlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN },
 })

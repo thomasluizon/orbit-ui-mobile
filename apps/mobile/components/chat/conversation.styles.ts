@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from "react-native";
 import { createTokensV2 } from "@/lib/theme";
 
@@ -13,8 +14,8 @@ export function createStyles(tokens: Tokens) {
       flex: 1,
     },
     headerClose: {
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: 999,
       overflow: "hidden",
       alignItems: "center",

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -626,7 +627,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     subHabitInput: {
       flex: 1,
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       backgroundColor: 'transparent',
       color: tokens.fg1,
       fontFamily: 'Geist_400Regular',

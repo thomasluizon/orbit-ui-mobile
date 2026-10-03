@@ -1,3 +1,4 @@
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import type { RefObject } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import Animated, { type EntryOrExitLayoutType } from 'react-native-reanimated'
@@ -328,14 +329,14 @@ const styles = StyleSheet.create({
   daySlot: {
     position: 'relative',
     width: '100%',
-    minWidth: 44,
-    height: 44,
+    minWidth: MONTH_GRID_TARGET_MIN,
+    height: MONTH_GRID_TARGET_MIN,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectionRing: { position: 'absolute', inset: 0, borderRadius: 999, borderWidth: 2 },
   futureNumeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
-  futureControl: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  futureControl: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   dayButton: { position: 'absolute', inset: 0, borderRadius: 999, backgroundColor: 'transparent' },
 })

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { CheckboxProps } from '@orbit/shared/contracts/forms'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import { Check } from '@/components/ui/icons'
@@ -55,6 +56,6 @@ export function Checkbox({
 }
 
 const styles = StyleSheet.create({
-  control: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  control: { minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' },
   box: { width: 24, height: 24, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 })

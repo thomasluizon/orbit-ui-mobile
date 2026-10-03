@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
   quantity: { borderRadius: 12, borderWidth: 1, fontFamily: 'Geist_400Regular', fontSize: 16, minHeight: 48, paddingHorizontal: 12, width: 72 },
   days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderRadius: 999, overflow: 'hidden', borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
-  dayChip: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
+  chip: { borderRadius: 999, overflow: 'hidden', borderWidth: 1, minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 12 },
+  dayChip: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1, height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
   chipText: { fontFamily: 'Geist_500Medium', fontSize: 13 },
 })

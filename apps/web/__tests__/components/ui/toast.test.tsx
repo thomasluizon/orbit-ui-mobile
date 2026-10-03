@@ -196,8 +196,8 @@ describe('Toast', () => {
     )
     const action = screen.getByRole('button', { name: 'i' })
 
-    expect(Number.parseFloat(action.style.minHeight)).toBeGreaterThanOrEqual(44)
-    expect(Number.parseFloat(action.style.minWidth)).toBeGreaterThanOrEqual(44)
+    expect(Number.parseFloat(action.style.minHeight)).toBeGreaterThanOrEqual(48)
+    expect(Number.parseFloat(action.style.minWidth)).toBeGreaterThanOrEqual(48)
     expect(action.style.margin).toBe('-4px')
     expect(action).toHaveClass('p-3')
   })

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native'
 import Svg, { Line } from 'react-native-svg'
 import { useRouter } from 'expo-router'
@@ -12,7 +13,7 @@ interface StreakBadgeProps {
 }
 
 /**
- * Kit streak entry point: 44px circled button (1.5px hairline-strong ring, translucent well)
+ * Kit streak entry point: touch-floor circled button (1.5px hairline-strong ring, translucent well)
  * with the 🔥 flame emoji and a tabular count. Tapping opens the streak section in Progresso;
  * the press stops propagation so the Today header's go-to-today Pressable does not fire.
  */
@@ -81,8 +82,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    minWidth: 44,
-    minHeight: 44,
+    minWidth: TOUCH_TARGET_MIN,
+    minHeight: TOUCH_TARGET_MIN,
     paddingHorizontal: 8,
     borderRadius: 999,
     overflow: 'hidden',

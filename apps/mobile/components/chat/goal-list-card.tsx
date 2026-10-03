@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import { Pressable, Text, View } from 'react-native'
@@ -28,7 +29,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     const tracking = getGoalMetricsStatusPresentation(item.trackingStatus)
     return {
       id: item.id,
-      label: tracking ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: 44, justifyContent: 'center', flex: 1 }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable><Badge variant="outline">{t(tracking.labelKey)}</Badge></View> : <Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: 44, justifyContent: 'center' }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable>,
+      label: tracking ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', flex: 1 }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable><Badge variant="outline">{t(tracking.labelKey)}</Badge></View> : <Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
       wrapMeta: projected != null,
       control: value === 100

@@ -127,7 +127,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="habit-control-motion shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+            className="habit-control-motion shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
             onClick={() => setShowSave(false)}
             aria-label={t('common.close')}
           >

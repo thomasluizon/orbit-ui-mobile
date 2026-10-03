@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo } from 'react'
 import { Animated, StyleSheet, Text, View, Pressable } from 'react-native'
 import { Trans, useTranslation } from 'react-i18next'
@@ -59,7 +60,7 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 44, padding: 12, gap: 12, borderRadius: radius.md, overflow: 'hidden', flexDirection: 'row', alignItems: 'center' },
+  row: { minHeight: TOUCH_TARGET_MIN, padding: 12, gap: 12, borderRadius: radius.md, overflow: 'hidden', flexDirection: 'row', alignItems: 'center' },
   well: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 20 }, content: { flex: 1, minWidth: 0, gap: 0 },
   initial: { fontFamily: 'Geist_500Medium', fontSize: 16 },

@@ -123,7 +123,7 @@ describe('Native bottom tab layout', () => {
     } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
   })
 
-  it.each([120, 160, 740])('keeps the full Create target revealable in a %ipx keyboard-constrained flow', (height) => {
+  it.each([124, 160, 740])('keeps the full Create target revealable in a %ipx keyboard-constrained flow', (height) => {
     __setWindowDimensions({ width: 360, height, scale: 1, fontScale: 1 })
     const onSubmit = vi.fn()
     const onAttemptDismiss = vi.fn()
@@ -146,7 +146,7 @@ describe('Native bottom tab layout', () => {
       const backTarget = nodes.get('nav-header-back')!.getChild(0).getChild(0)
       const backBounds = bounds(backTarget)
       const headerBounds = bounds(header)
-      expect(backTarget.getComputedHeight()).toBe(44)
+      expect(backTarget.getComputedHeight()).toBe(48)
       expect(header.getComputedHeight()).toBeGreaterThanOrEqual(backTarget.getComputedHeight())
       const headerMaxScroll = header.getChild(0).getComputedHeight() - header.getComputedHeight()
       const headerScroll = Math.min(Math.max(0, backBounds.top - headerBounds.top), Math.max(0, headerMaxScroll))

@@ -245,7 +245,7 @@ describe("ReminderSection", () => {
     );
     expect(confirm!.props.hitSlop).toBeUndefined();
     const pressedAdd = StyleSheet.flatten((confirm!.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: true }));
-    expect(pressedAdd).toMatchObject({ width: 44, height: 44, borderRadius: radius.full, overflow: "hidden", backgroundColor: tokens.primaryPressed });
+    expect(pressedAdd).toMatchObject({ width: 48, height: 48, borderRadius: radius.full, overflow: "hidden", backgroundColor: tokens.primaryPressed });
     (confirm!.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: false,
     });

@@ -429,7 +429,7 @@ describe('mobile alerts', () => {
     expect(remove.parent?.parent).toBe(body.parent?.parent)
     const style = remove.props.style
     expect(StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style))
-      .toMatchObject({ width: 44, minHeight: 44, flexShrink: 0 })
+      .toMatchObject({ width: 48, minHeight: 48, flexShrink: 0 })
     press(tree, deleteLabel)
     expect(text(tree, messages.notifications.markAsRead)).toHaveLength(0)
     expect(hosts(tree, 'Pressable', siblingLabel)).toHaveLength(1)

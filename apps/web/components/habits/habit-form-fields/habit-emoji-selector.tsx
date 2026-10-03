@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback } from 'react'
 import { X, Plus, Trash2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -16,7 +17,7 @@ export function HabitEmojiSelector({
   selectedEmoji,
   onSelect,
   isDisabled = false,
-  wellSize = 46,
+  wellSize = TOUCH_TARGET_MIN,
 }: Readonly<HabitEmojiSelectorProps>) {
   const t = useTranslations()
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -56,8 +57,8 @@ export function HabitEmojiSelector({
           type="button"
           className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
           style={{
-            width: wellSize,
-            height: wellSize,
+            width: Math.max(wellSize, TOUCH_TARGET_MIN),
+            height: Math.max(wellSize, TOUCH_TARGET_MIN),
             borderRadius: 'var(--r-well)',
             fontSize: wellSize === 76 ? 34 : 22,
           }}
@@ -76,7 +77,7 @@ export function HabitEmojiSelector({
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (
         <div className="flex items-center gap-2">
           <span className="grid size-11 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
-          <button type="button" disabled={isDisabled} className="habit-control-motion group/remove grid size-11 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
+          <button type="button" disabled={isDisabled} className="habit-control-motion group/remove grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
             <Trash2 size={20} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[240ms] ease-[var(--ease-standard)] group-hover/remove:text-[var(--status-bad)]" />
           </button>
         </div>
@@ -95,7 +96,7 @@ export function HabitEmojiSelector({
             {query ? (
               <button
                 type="button"
-                className="habit-control-motion grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
+                className="habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96]"
                 aria-label={t('habits.form.emojiClearSearch')}
                 onClick={() => setQuery('')}
               >
@@ -131,7 +132,7 @@ export function HabitEmojiSelector({
                 >
                   {t(category.labelKey)}
                 </h4>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] gap-1" role="listbox" aria-label={t(category.labelKey)}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(var(--touch-min),1fr))] gap-1" role="listbox" aria-label={t(category.labelKey)}>
                   {category.emojis.map((emoji) => {
                     const isSelected = selectedEmoji === emoji
                     return (
@@ -146,7 +147,7 @@ export function HabitEmojiSelector({
                             ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_2px_var(--primary)]'
                             : 'bg-[var(--bg-field)]'
                         }`}
-                        style={{ width: 44, height: 44 }}
+                        style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
                         disabled={isDisabled}
                         onClick={() => handleSelectEmoji(emoji)}
                       >

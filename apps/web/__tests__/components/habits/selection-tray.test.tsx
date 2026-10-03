@@ -134,8 +134,8 @@ describe('SelectionTray painted targets in Chromium', () => {
       await page.setContent(`<style>${stylesheet}:root{${declarations}} *{transition:none !important}</style>${container.innerHTML}`)
       const retry = page.getByRole('button', { name: 'Retry', exact: true })
       const bounds = await retry.boundingBox()
-      expect(bounds!.width).toBeGreaterThanOrEqual(44)
-      expect(bounds!.height).toBeGreaterThanOrEqual(44)
+      expect(bounds!.width).toBeGreaterThanOrEqual(48)
+      expect(bounds!.height).toBeGreaterThanOrEqual(48)
       await retry.hover()
       const fill = await retry.evaluate((element) => {
         const probe = document.createElement('span')
@@ -202,8 +202,8 @@ describe('SelectionTray painted targets in Chromium', () => {
       expect(await buttons.count()).toBe(5)
       for (const button of await buttons.all()) {
         const bounds = await button.boundingBox()
-        expect(bounds!.width).toBeGreaterThanOrEqual(44)
-        expect(bounds!.height).toBeGreaterThanOrEqual(44)
+        expect(bounds!.width).toBeGreaterThanOrEqual(48)
+        expect(bounds!.height).toBeGreaterThanOrEqual(48)
         await button.hover()
         const fill = await button.evaluate((element) => {
           const probe = document.createElement('span')

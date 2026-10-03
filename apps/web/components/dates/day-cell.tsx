@@ -1,5 +1,7 @@
 'use client'
 
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+
 import type { CSSProperties } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
@@ -90,7 +92,7 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
 
 export function DayCell(props: Readonly<DayCellProps>) {
   const outcome = resolveDayCellOutcome(props)
-  const size = props.size ?? 44
+  const size = props.size ?? MONTH_GRID_TARGET_MIN
   const interactive = Boolean(props.loggable) && !props.outsideMonth
   const commonProps = {
     'aria-current': props.today ? ('date' as const) : undefined,
@@ -99,8 +101,8 @@ export function DayCell(props: Readonly<DayCellProps>) {
     'data-outside-month': props.outsideMonth ? '' : undefined,
     'data-state': outcome,
     style: {
-      width: size,
-      height: size,
+      width: props.size ?? '100%',
+      minHeight: size,
       boxShadow: props.today ? 'inset 0 0 0 2px var(--primary)' : 'none',
       opacity: props.outsideMonth ? 0 : 1,
     },

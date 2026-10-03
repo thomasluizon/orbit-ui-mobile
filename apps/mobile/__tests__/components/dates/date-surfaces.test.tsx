@@ -108,7 +108,7 @@ describe('DayCell', () => {
     )
     const unscheduledDisc = unscheduled.root.findAll(
       (node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 44,
-    )[1]
+    )[0]
     expect(StyleSheet.flatten(unscheduledDisc?.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
 
     const outside = render(<DayCell day={30} label="April 30" words={cellWords} outsideMonth />)

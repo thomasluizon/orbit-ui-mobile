@@ -126,7 +126,7 @@ export function ReminderSection({
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`grid place-items-center min-h-[44px] min-w-[44px] -my-2 -mr-2 -ml-1 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
+                  className={`grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] -my-2 -mr-2 -ml-1 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   onClick={() => removeReminder(time)}
                 >
@@ -160,7 +160,7 @@ export function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
+                    className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -197,7 +197,7 @@ export function ReminderSection({
                     <button
                       type="button"
                       aria-label={t('common.add')}
-                      className="habit-control-motion touch-target shrink-0 grid size-11 place-items-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96]"
+                      className="habit-control-motion touch-target shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96]"
                       onClick={addCustomReminder}
                     >
                       <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
@@ -207,7 +207,7 @@ export function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="flex min-h-11 w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
+                  className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}

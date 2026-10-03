@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import type { MouseEventHandler, ReactNode } from 'react'
 import Link from 'next/link'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
@@ -56,7 +58,7 @@ function RowValue({ value, textMode, wrapValue }: Readonly<Pick<WebListRowProps,
 function getContentStyle(textMode: WebListRowProps['textMode']) {
   return textMode === 'label'
     ? { minHeight: 24, gap: 12, alignItems: 'flex-start' }
-    : { minHeight: 44, gap: 12 }
+    : { minHeight: TOUCH_TARGET_MIN, gap: 12 }
 }
 
 function RowBody(props: Readonly<WebListRowProps>) {
@@ -80,7 +82,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
 export function ListRow(props: Readonly<WebListRowProps>) {
   const { accessibilityLabel, expanded, controls, action, chevron = true, compact = !props.description, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: 44, height: 44 }}><ChevronRight aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}><ChevronRight aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm, !!props.trailing)
 
@@ -94,8 +96,8 @@ export function ListRow(props: Readonly<WebListRowProps>) {
         <button type="button" aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(compact, inset, compactForm, !!props.description)}>
-          <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(compact, inset, compactForm, !!props.description)}>
+          <span className="flex shrink-0 items-center justify-center" style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}>
             <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>
         </button>

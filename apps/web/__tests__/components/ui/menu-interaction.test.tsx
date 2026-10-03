@@ -61,7 +61,7 @@ describe('Menu interaction colours in Chromium', () => {
           fill: style.backgroundColor, transform: style.transform, dangerIcon, dangerLabel, hoverFill }
       })
       for (const item of await page.getByRole('menuitem').all()) {
-        expect((await item.boundingBox())!.height).toBe(presentation === 'sheet' ? 56 : 44)
+        expect((await item.boundingBox())!.height).toBe(presentation === 'sheet' ? 56 : 48)
       }
       const resting = await measure()
       expect(resting.icon).toBe(resting.dangerIcon)

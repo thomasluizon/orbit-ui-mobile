@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
@@ -199,8 +200,8 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   selectAllBtn: {
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: TOUCH_TARGET_MIN,
+    minWidth: TOUCH_TARGET_MIN,
     borderRadius: 999,
     overflow: 'hidden',
     justifyContent: 'center',
@@ -223,8 +224,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionBtn: {
-    width: 44,
-    height: 44,
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     borderRadius: 999,
     overflow: 'hidden',
     alignItems: 'center',

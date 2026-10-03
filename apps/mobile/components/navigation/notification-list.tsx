@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -57,5 +58,5 @@ const styles = StyleSheet.create({
   skeletonTarget: { width: '32%', height: 16, borderRadius: 999 },
   empty: { padding: 32, gap: 16, borderRadius: 20, alignItems: 'center' },
   copy: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
-  retry: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999, overflow: 'hidden' },
+  retry: { minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999, overflow: 'hidden' },
 })

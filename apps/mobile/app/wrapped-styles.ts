@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import type { createTokensV2 } from '@/lib/theme'
 
@@ -20,7 +21,7 @@ export const styles = StyleSheet.create({
   slideScrollContent: { flexGrow: 1 },
   page: { flex: 1, position: 'relative' },
   pager: { paddingHorizontal: 16, paddingTop: 16 },
-  closeBtn: { width: 44, height: 44, flexShrink: 0, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, flexShrink: 0, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   closeBtnPressed: { transform: [{ scale: 0.96 }] },
   slide: {
     flex: 1,

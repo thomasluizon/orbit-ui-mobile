@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { CheckCheck, SquareX } from '@/components/ui/icons'
 
 interface SelectAllToggleProps {
@@ -23,7 +25,7 @@ export function SelectAllToggle({
     <button
       type="button"
       className="icon-btn touch-target shrink-0 disabled:opacity-50"
-      style={{ minWidth: 44, minHeight: 44 }}
+      style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
       onClick={onToggle}
       disabled={disabled}
       aria-pressed={allSelected}

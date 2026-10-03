@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
@@ -99,7 +100,7 @@ export const styles = StyleSheet.create({
   freeLink: {
     alignSelf: 'flex-start',
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
   },
   freeLinkText: {
     fontFamily: 'Geist_400Regular',
@@ -190,7 +191,7 @@ export const styles = StyleSheet.create({
   restoreAction: {
     alignSelf: 'center',
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
   },
   disabledAction: {
     opacity: 0.4,

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useEffect, useRef, useState } from 'react'
@@ -19,7 +20,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 function recordFilterStyle(tokens: ReturnType<typeof createTokensV2>, focused: boolean) {
   return {
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     borderWidth: focused ? 2 : 1,
     borderColor: focused ? tokens.primary : tokens.borderControl,
     borderRadius: 8,
@@ -96,14 +97,14 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
-      control: unread ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markRead', { title: item.title })} onPress={() => void markNotification(item.id)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></Pressable> : undefined,
+      control: unread ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markRead', { title: item.title })} onPress={() => void markNotification(item.id)} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}><Check size={20} strokeWidth={1.8} color={tokens.fg2} /></Pressable> : undefined,
     }
   })
   const destination = recordList.surfaceId === 'profile' ? '/profile' : recordList.surfaceId === 'notifications' ? '/notifications' : null
   return <View style={{ width: '100%', marginTop: 8 }}>
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.recordList.title.${recordList.kind}`)}
       count={t('chat.recordList.count', { shown: items.length, total: recordList.totalCount })} items={rows}
-      body={<View style={{ gap: 8 }} accessibilityLiveRegion="polite">{recordList.totalCount > 20 ? <View><Pressable accessibilityRole="button" onPress={() => filterRef.current?.focus()} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: tokens.fg2, fontSize: 14 }}>{t('chat.recordList.filter')}</Text></Pressable><TextInput ref={filterRef} accessibilityLabel={t('chat.recordList.filter')} value={query} onChangeText={setQuery} onFocus={() => setFilterFocused(true)} onBlur={() => setFilterFocused(false)} style={recordFilterStyle(tokens, filterFocused)} /></View> : null}{items.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.empty')}</Text> : null}{items.length > 0 && visibleItems.length === 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}><Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.noMatches', { query: query.trim() })}</Text><Button variant="ghost" size="sm" onClick={() => setQuery('')}>{t('chat.recordList.clearFilter')}</Button></View> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.templateLimit')}</Text> : null}<Text accessibilityRole="summary" style={{ color: tokens.statusBadText, fontSize: 14 }}>{failure ?? ''}</Text></View>}
+      body={<View style={{ gap: 8 }} accessibilityLiveRegion="polite">{recordList.totalCount > 20 ? <View><Pressable accessibilityRole="button" onPress={() => filterRef.current?.focus()} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' }}><Text style={{ color: tokens.fg2, fontSize: 14 }}>{t('chat.recordList.filter')}</Text></Pressable><TextInput ref={filterRef} accessibilityLabel={t('chat.recordList.filter')} value={query} onChangeText={setQuery} onFocus={() => setFilterFocused(true)} onBlur={() => setFilterFocused(false)} style={recordFilterStyle(tokens, filterFocused)} /></View> : null}{items.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.empty')}</Text> : null}{items.length > 0 && visibleItems.length === 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}><Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.noMatches', { query: query.trim() })}</Text><Button variant="ghost" size="sm" onClick={() => setQuery('')}>{t('chat.recordList.clearFilter')}</Button></View> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.templateLimit')}</Text> : null}<Text accessibilityRole="summary" style={{ color: tokens.statusBadText, fontSize: 14 }}>{failure ?? ''}</Text></View>}
       actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><ActionRow>{nextCursor ? <Button variant="ghost" size="sm" loading={loadingMore} onClick={() => void showMore()}>{t('chat.recordList.more')}</Button> : null}{destination ? <Button variant="ghost" size="sm" onClick={() => router.push(destination)}>{t(`chat.recordList.open.${recordList.kind}`)}</Button> : null}</ActionRow></View>} />
   </View>
 }

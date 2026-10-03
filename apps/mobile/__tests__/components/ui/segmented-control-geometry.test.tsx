@@ -76,6 +76,6 @@ it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }].fl
     }
     expect(layout.getComputedWidth()).toBeLessThanOrEqual(288)
     expect(new Set(radios.map((node) => node.getComputedWidth())).size).toBe(1)
-    for (const radio of radios) expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(44)
+    for (const radio of radios) expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
   } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
 })

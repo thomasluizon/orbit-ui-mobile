@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
 import {
@@ -470,15 +471,15 @@ function createStyles(tokens: AppTokens) {
   },
   actionButton: {
     overflow: 'hidden',
-    width: 44,
-    height: 44,
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   clearAction: {
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: TOUCH_TARGET_MIN,
+    minWidth: TOUCH_TARGET_MIN,
     borderRadius: 8,
     overflow: 'hidden',
     alignItems: 'center',
@@ -515,7 +516,7 @@ function createStyles(tokens: AppTokens) {
     paddingVertical: 4,
   },
   moveButtons: {
-    width: 44,
+    width: TOUCH_TARGET_MIN,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
@@ -523,8 +524,8 @@ function createStyles(tokens: AppTokens) {
   moveButton: {
     overflow: 'hidden',
     borderRadius: 999,
-    width: 44,
-    height: 44,
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -547,8 +548,8 @@ function createStyles(tokens: AppTokens) {
   },
   itemAction: {
     overflow: 'hidden',
-    width: 44,
-    height: 44,
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -589,7 +590,7 @@ function createStyles(tokens: AppTokens) {
   },
   addItemRow: {
     flexDirection: 'row',
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     gap: 12,
   },
   addItemInput: {

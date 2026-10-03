@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import type { createTokensV2 } from '@/lib/theme'
 
@@ -20,7 +21,7 @@ export const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginHorizontal: 16,
     marginTop: 4,
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     borderRadius: 999,
     overflow: 'hidden',
     borderWidth: 1,

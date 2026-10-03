@@ -168,7 +168,7 @@ describe('WrappedPage cover geometry in Chromium', () => {
             expect(chip.background).toBe(chip.expectedBackground)
             expect(chip.color).toBe(chip.expectedColor)
             expect(chip.ring).toBe(chip.expectedRing)
-            expect(chip.height).toBeGreaterThanOrEqual(44)
+            expect(chip.height).toBeGreaterThanOrEqual(48)
             expect(chip.right).toBeLessThanOrEqual(320)
           }
         }
@@ -190,8 +190,8 @@ describe('WrappedPage cover geometry in Chromium', () => {
 
       expect(measured.intersectsFirstElement).toBe(false)
       expect(measured.backControlBottom).toBeLessThanOrEqual(measured.coverTop)
-      expect(measured.backControlWidth).toBe(44)
-      expect(measured.backControlHeight).toBe(44)
+      expect(measured.backControlWidth).toBe(48)
+      expect(measured.backControlHeight).toBe(48)
       expect(rendered.container.querySelectorAll('h1')).toHaveLength(1)
     },
   )

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -60,7 +61,7 @@ function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     chip: {
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       maxWidth: "100%",
       justifyContent: "center",
       paddingHorizontal: 16,

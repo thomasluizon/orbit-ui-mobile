@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -8,7 +9,7 @@ export function createStyles(tokens: AppTokens) {
     warningText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, color: tokens.fg2 },
     retryButton: {
       alignSelf: 'flex-start',
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       justifyContent: 'center',
       paddingHorizontal: 0,
     },

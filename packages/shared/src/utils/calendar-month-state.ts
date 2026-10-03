@@ -1,9 +1,10 @@
+import { MONTH_GRID_TARGET_MIN } from '../theme/breakpoints'
 import { capitalizeFirstLetter, formatLocaleDate } from './locale-format'
 
 export const CALENDAR_MONTH_GRID_GEOMETRY = {
   columns: 7,
   maximumRows: 6,
-  cell: 44,
+  cell: MONTH_GRID_TARGET_MIN,
   gap: 4,
 } as const
 

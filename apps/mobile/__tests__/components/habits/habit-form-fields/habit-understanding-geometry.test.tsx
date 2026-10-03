@@ -13,7 +13,7 @@ vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ H
 
 
 describe('native habit understanding geometry', () => {
-  it.each([412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => [false, true].map((proposed) => ({ width, proposed, locale })))))('keeps seven days on one row in $locale at $width, proposed: $proposed', ({ width, proposed, locale }) => {
+  it.each([320, 360, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) => [false, true].map((proposed) => ({ width, proposed, locale })))))('keeps seven day targets contained without overlap in $locale at $width, proposed: $proposed', ({ width, proposed, locale }) => {
     const messages = locale === 'en' ? en : ptBR
     const labels = buildHabitUnderstandingLabels((key) => key.split('.').reduce<unknown>((value, part) => (value as Record<string, unknown>)[part], messages) as string)
     const dayOptions = Object.entries(messages.dates.daysShort).map(([day, label]) => ({ value: day.charAt(0).toUpperCase() + day.slice(1), label, accessibleLabel: day }))
@@ -51,8 +51,18 @@ describe('native habit understanding geometry', () => {
     })
     try {
       wrapper.calculateLayout(undefined, undefined, Yoga.DIRECTION_LTR)
-      expect(new Set(targets.map((target) => target.getComputedTop())).size).toBe(1)
-      expect(targets.every((target) => target.getComputedWidth() === 44)).toBe(true)
+      for (const target of targets) {
+        expect(target.getComputedLeft()).toBeGreaterThanOrEqual(0)
+        expect(target.getComputedLeft() + target.getComputedWidth()).toBeLessThanOrEqual(row.getComputedWidth())
+        expect(target.getComputedHeight()).toBeGreaterThanOrEqual(48)
+      }
+      for (let index = 1; index < targets.length; index++) {
+        const previous = targets[index - 1]!
+        const target = targets[index]!
+        expect(target.getComputedTop() >= previous.getComputedTop() + previous.getComputedHeight()
+          || target.getComputedLeft() >= previous.getComputedLeft() + previous.getComputedWidth()).toBe(true)
+      }
+      expect(targets.every((target) => target.getComputedWidth() === 48)).toBe(true)
     } finally {
       wrapper.freeRecursive()
       void renderer.act(() => tree.update(<></>))

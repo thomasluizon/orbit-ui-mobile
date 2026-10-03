@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useId, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { ListRow } from '@/components/ui/list-row'
@@ -97,7 +99,7 @@ export function GoalProgressHistorySection({
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
-              minHeight: 44,
+              minHeight: TOUCH_TARGET_MIN,
               padding: 0,
             }}
             aria-expanded={showAllHistory}

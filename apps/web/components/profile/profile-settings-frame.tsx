@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import type { ReactNode } from 'react'
 import {
   PROFILE_SETTINGS_GROUPS,
@@ -29,7 +31,7 @@ export function ProfileValueRow({ label, value, control }: Readonly<ProfileValue
     <div
       data-testid="profile-value-row"
       className="flex flex-wrap items-center"
-      style={{ minHeight: 44, padding: '12px 16px', gap: 12 }}
+      style={{ minHeight: TOUCH_TARGET_MIN, padding: '12px 16px', gap: 12 }}
     >
       <span className="min-w-0 font-sans text-[17px] text-[var(--fg-1)]" style={{ flex: '1 1 120px' }}>
         {label}

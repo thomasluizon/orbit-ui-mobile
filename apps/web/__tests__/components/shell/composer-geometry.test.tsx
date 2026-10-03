@@ -321,7 +321,7 @@ describe('Composer compact geometry in Chromium', () => {
             return { height: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight),
               padding: parseFloat(style.paddingTop) + parseFloat(style.paddingBottom), border: parseFloat(style.borderTopWidth) }
           })
-          const minimum = width < 900 ? 56 : 44
+          const minimum = width < 900 ? 56 : 48
           expect(measured.height).toBeCloseTo(Math.max(minimum, measured.lineHeight + measured.padding + measured.border), 1)
           if (fontScale === 1) expect(measured.height).toBe(minimum)
           if (width >= 900 && fontScale === 2) expect(measured.height).toBeGreaterThan(minimum)

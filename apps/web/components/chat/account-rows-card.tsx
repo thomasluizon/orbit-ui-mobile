@@ -17,7 +17,7 @@ function ReferralCodeRow({ code, copied, onCopy }: Readonly<{ code: string; copi
   const shownIcon = 'scale-100 opacity-100'
   return <div className="flex flex-wrap items-center gap-3 px-4">
     <span translate="no" className="min-w-0 flex-1 break-all font-mono text-sm text-[var(--fg-1)]">{code}</span>
-    <button type="button" onClick={onCopy} className="flex min-h-11 items-center gap-2 rounded-full px-2 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)]">
+    <button type="button" onClick={onCopy} className="flex min-h-[var(--touch-min)] items-center gap-2 rounded-full px-2 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)]">
       <span className="relative inline-flex size-5">
         <Copy aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:scale-100 motion-reduce:transition-[opacity] ${copied ? hiddenIcon : shownIcon}`} />
         <Check aria-hidden="true" size={20} className={`absolute inset-0 transition-[transform,opacity] duration-200 motion-reduce:scale-100 motion-reduce:transition-[opacity] ${copied ? shownIcon : hiddenIcon}`} />

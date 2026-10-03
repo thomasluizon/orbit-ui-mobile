@@ -143,7 +143,7 @@ describe('About destination geometry in Chromium', () => {
       expect(rows).toHaveLength(4)
       for (const row of rows) {
         expect(row.height).toBe(52)
-        expect(row.width).toBeGreaterThanOrEqual(44)
+        expect(row.width).toBeGreaterThanOrEqual(48)
         expect(row.reachable).toBe(true)
         expect(row.clipped).toBe(false)
       }
@@ -184,8 +184,8 @@ describe('About destination geometry in Chromium', () => {
       expect(measured.bodyHeight).toBe(measured.height)
       expect(measured.overlap).toBe(false)
       if (measured.actionHeight !== undefined) {
-        expect(measured.actionHeight).toBe(44)
-        expect(measured.actionWidth).toBe(44)
+        expect(measured.actionHeight).toBe(48)
+        expect(measured.actionWidth).toBe(48)
       }
     } finally { await page.close() }
   })

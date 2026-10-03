@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import {
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   valueRow: {
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: 'row',

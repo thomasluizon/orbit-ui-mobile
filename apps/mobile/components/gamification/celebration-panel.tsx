@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo } from 'react'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- WHY: the pinned Reanimated ABI cannot move until https://github.com/thomasluizon/orbit-ui-mobile/issues/243.
@@ -172,5 +173,5 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   line: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24.65 },
-  close: { alignItems: 'center', height: 44, justifyContent: 'center', width: 44 },
+  close: { alignItems: 'center', height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
 })

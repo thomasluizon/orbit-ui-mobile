@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 2,
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     minWidth: 0,
     flexShrink: 1,
     paddingHorizontal: 12,

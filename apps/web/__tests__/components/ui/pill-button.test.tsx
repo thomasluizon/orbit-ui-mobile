@@ -89,8 +89,8 @@ describe('PillButton', () => {
             extensions: ['::before', '::after'].map((pseudo) => getComputedStyle(button, pseudo).content),
           }
         })
-        expect(geometry.width).toBe(44)
-        expect(geometry.height).toBe(44)
+        expect(geometry.width).toBe(48)
+        expect(geometry.height).toBe(48)
         expect(geometry.fill).not.toBe('rgba(0, 0, 0, 0)')
         expect(geometry.extensions).toEqual(['none', 'none'])
       } finally {

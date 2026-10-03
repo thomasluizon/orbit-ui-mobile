@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { PillButton } from '@/components/ui/pill-button'
@@ -12,8 +14,8 @@ const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
   fontSize: 13,
   fontWeight: 500,
-  minHeight: 44,
-  minWidth: 44,
+  minHeight: TOUCH_TARGET_MIN,
+  minWidth: TOUCH_TARGET_MIN,
   padding: '12px 16px',
   margin: '-4px 0',
   textDecoration: 'underline',

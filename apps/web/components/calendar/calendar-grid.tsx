@@ -1,5 +1,7 @@
 'use client'
 
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
@@ -167,8 +169,8 @@ function CalendarGridDay({
         display: 'grid',
         placeItems: 'center',
         width: '100%',
-        minWidth: 44,
-        height: 44,
+        minWidth: MONTH_GRID_TARGET_MIN,
+        height: MONTH_GRID_TARGET_MIN,
         borderRadius: 999,
         background: calendarDayBackground(selected, inRange, raised),
         boxShadow: selected ? 'inset 0 0 0 2px var(--primary)' : 'none',
@@ -225,8 +227,8 @@ export function CalendarGrid({
       <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '16px 4px 8px' }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <div role="progressbar" aria-label={t('calendar.loading')} aria-busy="true" data-rows={Math.ceil(gridDays.length / 7)} data-cols={7}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(44px, 1fr))', gap: 'var(--calendar-grid-gap)' }}>
-            {gridDays.map((cell) => <Skeleton key={cell.dateStr} variant="grid" rows={1} cols={1} cell={44} gap={0} grouped />)}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(var(--month-grid-touch-min), 1fr))', gap: 'var(--calendar-grid-gap)' }}>
+            {gridDays.map((cell) => <Skeleton key={cell.dateStr} variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />)}
           </div>
         </div>
       </div>

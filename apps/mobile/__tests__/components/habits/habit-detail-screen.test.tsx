@@ -819,7 +819,7 @@ describe('HabitDetailScreen', () => {
       typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
     expect(renameControls).toHaveLength(1)
     expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
-    expect(renameControls[0]!.props.style).toMatchObject({ minWidth: 44, paddingVertical: 8, marginVertical: -8 })
+    expect(renameControls[0]!.props.style).toMatchObject({ minWidth: 48, paddingVertical: 8, marginVertical: -8 })
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
@@ -1492,14 +1492,13 @@ describe('HabitDetailScreen', () => {
     const strip = contentSlots[1 + Number(hasTags) + Number(hasDescription)]!
     expect(StyleSheet.flatten(strip.props.style)).toEqual({ gap: 8, paddingTop: 24 })
     for (const metadata of [...tags, ...description]) {
-      expect(StyleSheet.flatten(metadata.props.style)).toEqual({ paddingTop: 12 })
+      expect(StyleSheet.flatten(metadata.props.style)).toMatchObject({ paddingTop: 12 })
     }
     if (hasDescription) {
       const target = tree.root.findByProps({ accessibilityLabel: 'A note about this routine' })
       expect(target.props.accessibilityHint).toBe('habits.detail.viewDescription')
-      const line = StyleSheet.flatten(target.findByType('Text').props.style) as { lineHeight: number }
-      const spacing = StyleSheet.flatten(target.props.style) as { paddingTop: number }
-      expect(line.lineHeight + spacing.paddingTop + target.props.hitSlop.bottom).toBe(44)
+      expect(StyleSheet.flatten(target.props.style).minHeight).toBe(48)
+      expect(target.props.hitSlop).toBeUndefined()
       expect(target.props.accessibilityState.expanded).toBe(false)
       expect(target.findByType('Text').props.numberOfLines).toBe(1)
       TestRenderer.act(() => target.props.onPress())

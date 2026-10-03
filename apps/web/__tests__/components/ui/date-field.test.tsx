@@ -80,7 +80,7 @@ describe('DateField', () => {
     expect(headers).toHaveLength(7)
   })
 
-  /** Tailwind size-11 is 44px; the visible circle stays size-8, which is 32px. */
+  /** Month controls fill their columns around the unchanged 32px visible circle. */
   it('gives every day control a 44 by 44 target around its 32px circle', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
@@ -89,7 +89,8 @@ describe('DateField', () => {
     expect(dayButtons.length).toBeGreaterThan(0)
 
     for (const button of dayButtons) {
-      expect(button.className).toContain('size-11')
+      expect(button.style.width).toBe('100%')
+      expect(button.className).toContain('min-h-[var(--month-grid-touch-min)]')
       expect(button.className).not.toContain('size-8')
       expect(button.firstElementChild?.className).toContain('size-8')
     }

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState, type Ref } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
@@ -179,7 +180,7 @@ function createStyles(tokens: AppTokens) {
       lineHeight: 24,
     },
     days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-    day: { overflow: 'hidden', alignItems: 'center', borderRadius: radius.full, height: 44, justifyContent: 'center', width: 44 },
+    day: { overflow: 'hidden', alignItems: 'center', borderRadius: radius.full, height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
     dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
     daySelected: { backgroundColor: tokens.primaryDim, borderColor: tokens.primary, borderWidth: 1.5 },
     dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
@@ -192,9 +193,9 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
       borderRadius: radius.full,
       borderWidth: 1,
-      height: 44,
+      height: TOUCH_TARGET_MIN,
       justifyContent: 'center',
-      width: 44,
+      width: TOUCH_TARGET_MIN,
     },
     quantity: {
       color: tokens.fg1,

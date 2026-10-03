@@ -11,15 +11,15 @@ import {
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
-import { resolveMotionPreset } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, resolveMotionPreset } from '@orbit/shared/theme'
 import { plural } from '@/lib/plural'
 
 const SELECT_ALL_BUTTON_STYLE = {
   fontFamily: 'var(--font-sans)',
   fontSize: 12,
   fontWeight: 500,
-  minWidth: 44,
-  minHeight: 44,
+  minWidth: TOUCH_TARGET_MIN,
+  minHeight: TOUCH_TARGET_MIN,
   padding: '12px 8px',
   margin: '-8px -4px',
   textDecoration: 'underline',
@@ -67,8 +67,8 @@ function BulkBtn({ icon: Icon, label, iconColor, onClick, disabled = false, reas
           : 'cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]'
       }`}
       style={{
-        width: 44,
-        height: 44,
+        width: TOUCH_TARGET_MIN,
+        height: TOUCH_TARGET_MIN,
         borderRadius: 999,
         color: iconColor,
       }}

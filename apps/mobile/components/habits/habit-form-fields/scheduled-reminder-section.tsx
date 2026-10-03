@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PillButton } from "@/components/ui/pill-button";
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
@@ -145,7 +146,7 @@ export function ScheduledReminderSection({
           <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
             {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
           </Text>
-          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
+          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
             <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
               {t("common.openSettings")}
             </Text>

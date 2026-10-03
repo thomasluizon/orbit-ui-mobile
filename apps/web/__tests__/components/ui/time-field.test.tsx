@@ -43,7 +43,7 @@ describe('TimeField', () => {
 
     for (const option of [selected, unselected]) {
       expect(option.className).toContain('rounded-[12px]')
-      expect(option.className).toContain('min-h-[44px]')
+      expect(option.className).toContain('min-h-[var(--touch-min)]')
       expect(option.className).not.toContain('rounded-[10px]')
     }
     expect(unselected.className).toContain('hover:bg-[var(--bg-hover)]')

@@ -32,7 +32,7 @@ function ThinkingTrace({ steps, running }: Readonly<{
   </div>)
   if (running) return <div className="flex flex-col gap-1 px-4 py-2" aria-live="off">{lines}</div>
   return <div className="px-4 py-2">
-    <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(!expanded)} className="flex min-h-11 items-center gap-2 text-sm text-[var(--fg-3)] hover:text-[var(--fg-2)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]">
+    <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(!expanded)} className="flex min-h-[var(--touch-min)] items-center gap-2 text-sm text-[var(--fg-3)] hover:text-[var(--fg-2)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]">
       {t('chat.trace.steps', { count: steps.length })}
       <ChevronDown aria-hidden="true" size={16} strokeWidth={1.5} className={expanded ? 'rotate-180' : undefined} />
     </button>

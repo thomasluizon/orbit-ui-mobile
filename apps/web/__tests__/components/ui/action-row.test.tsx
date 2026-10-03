@@ -63,7 +63,7 @@ describe('ActionRow (web)', () => {
           const left = bounds.left + Number.parseFloat(styles.paddingLeft)
           const right = bounds.right - Number.parseFloat(styles.paddingRight)
           const buttons = [...footer.querySelectorAll('button')].map((button) => {
-            const action = button.getBoundingClientRect()
+            const action = (button.closest('.orbit-small-pill-target') ?? button).getBoundingClientRect()
             return { left: action.left, right: action.right, height: action.height, width: action.width, top: action.top }
           })
           return { left, right, buttons }
@@ -71,7 +71,7 @@ describe('ActionRow (web)', () => {
         for (const button of measured.buttons) {
           expect(button.left).toBeGreaterThanOrEqual(measured.left)
           expect(button.right).toBeLessThanOrEqual(measured.right)
-          expect(button.height).toBeGreaterThanOrEqual(44)
+          expect(button.height).toBeGreaterThanOrEqual(48)
           expect(button.width).toBeLessThan(measured.right - measured.left)
         }
         expect(measured.buttons.at(-1)!.right).toBeCloseTo(measured.right, 1)

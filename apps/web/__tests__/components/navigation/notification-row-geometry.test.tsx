@@ -75,8 +75,8 @@ describe('notification row targets in Chromium', () => {
       })
       expect(geometry.rows).toHaveLength(2)
       for (const row of geometry.rows) {
-        expect(row.width).toBe(44)
-        expect(row.height).toBe(44)
+        expect(row.width).toBe(48)
+        expect(row.height).toBe(48)
         expect(row.gap).toBe(4)
         expect(row.right).toBeLessThanOrEqual(width)
         expect(row.sibling).toBe(true)

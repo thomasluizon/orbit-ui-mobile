@@ -111,8 +111,8 @@ function exercisePressCallbacks(tree: Tree) {
       const pressed = StyleSheet.flatten(style({ pressed: true }));
       if (pressed?.backgroundColor === createTokensV2("purple", "dark").bgHover && node.props.onPress) {
         expect(node.props.hitSlop).toBeUndefined();
-        expect(Math.max(pressed.height ?? 0, pressed.minHeight ?? 0)).toBeGreaterThanOrEqual(44);
-        expect(Math.max(pressed.width ?? 0, pressed.minWidth ?? 0)).toBeGreaterThanOrEqual(44);
+        expect(Math.max(pressed.height ?? 0, pressed.minHeight ?? 0)).toBeGreaterThanOrEqual(48);
+        expect(Math.max(pressed.width ?? 0, pressed.minWidth ?? 0)).toBeGreaterThanOrEqual(48);
       }
       style({ pressed: false });
     }

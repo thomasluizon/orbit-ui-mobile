@@ -110,7 +110,7 @@ describe('StreakBadge pressed paint', () => {
     const rest = StyleSheet.flatten(button.props.style({ pressed: false }))
     const pressed = StyleSheet.flatten(button.props.style({ pressed: true }))
     expect(button.props.hitSlop).toBeUndefined()
-    expect(rest).toMatchObject({ minWidth: 44, minHeight: 44 })
+    expect(rest).toMatchObject({ minWidth: 48, minHeight: 48 })
     expect(rest.borderWidth ?? 0).toBe(0)
     expect(pressed.backgroundColor).toBe(rest.backgroundColor)
     expect(typeof button.props.children).toBe('function')

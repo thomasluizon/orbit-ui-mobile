@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
@@ -151,7 +153,7 @@ export function HabitChecklist({
               type="button"
               aria-label={t('habits.form.resetChecklist')}
               className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--fg-2)] active:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)]"
-              style={{ minWidth: 44, minHeight: 44 }}
+              style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
               onClick={onReset}
             >
               <RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />
@@ -162,7 +164,7 @@ export function HabitChecklist({
               type="button"
               aria-label={t('habits.form.clearChecklist')}
               className="touch-target shrink-0 inline-flex items-center justify-center rounded-full hover:bg-[var(--bg-hover)] active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
-              style={{ minWidth: 44, minHeight: 44 }}
+              style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
               onClick={onClear}
             >
               <X size={16} strokeWidth={1.8} aria-hidden="true" className="text-[var(--status-bad)]" />
@@ -231,7 +233,7 @@ export function HabitChecklist({
         <div className="flex justify-end">
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
+            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center rounded-sm px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
@@ -310,7 +312,7 @@ function SortableChecklistItem({
         {...listeners}
         aria-hidden="true"
         className="checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
-        style={{ minWidth: 44, minHeight: 44 }}
+        style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
       >
         <GripHorizontal size={16} strokeWidth={1.8} />
       </div>
@@ -338,7 +340,7 @@ function SortableChecklistItem({
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
         className="touch-target shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
-        style={{ minWidth: 44, minHeight: 44 }}
+        style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         disabled={duplicateDisabled}
         onClick={() => onDuplicate(index)}
       >
@@ -349,7 +351,7 @@ function SortableChecklistItem({
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
         className="touch-target group/remove shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:scale-[0.96] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
-        style={{ minWidth: 44, minHeight: 44 }}
+        style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
         onClick={() => onRemove(index)}
       >
         <X size={16} strokeWidth={1.8} aria-hidden="true" className="transition-colors duration-[var(--dur-fast)] group-hover/remove:text-[var(--status-bad)]" />
@@ -422,7 +424,7 @@ function ChecklistAddRow({
 }>) {
   const t = useTranslations()
   return (
-    <div className="flex" style={{ minHeight: 44 }}>
+    <div className="flex" style={{ minHeight: TOUCH_TARGET_MIN }}>
       <label htmlFor={inputId} className="sr-only">
         {t('habits.form.checklistPlaceholder')}
       </label>

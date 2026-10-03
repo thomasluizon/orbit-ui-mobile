@@ -5,7 +5,7 @@ import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
-import { BUTTON_SIZES } from "@orbit/shared/theme";
+import { TOUCH_TARGET_MIN, BUTTON_SIZES } from "@orbit/shared/theme";
 import { useTranslation } from "react-i18next";
 import type { MessageBubbleProps } from "@orbit/shared/chat";
 import {
@@ -398,7 +398,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       paddingHorizontal: 16,
       borderRadius: 999,
       overflow: "hidden",

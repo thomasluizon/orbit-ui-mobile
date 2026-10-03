@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { Plus, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { DateField } from '@/components/ui/date-field'
@@ -34,7 +36,7 @@ export function EditGoalDeadlineField({
             <button
               type="button"
               className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-              style={{ width: 44, height: 44, color: 'var(--fg-3)' }}
+              style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, color: 'var(--fg-3)' }}
               aria-label={t('goals.form.removeDeadline')}
               onClick={() => onChangeDeadline('')}
             >
@@ -61,7 +63,7 @@ export function EditGoalDeadlineField({
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 500,
-            minHeight: 44,
+            minHeight: TOUCH_TARGET_MIN,
             padding: 0,
             gap: 8,
           }}

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
@@ -74,7 +75,7 @@ export const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,

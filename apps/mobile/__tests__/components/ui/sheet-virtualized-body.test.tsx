@@ -47,8 +47,8 @@ const TestRenderer = require('react-test-renderer')
 
 const HEADER_HEIGHT = 56
 const COLLECTION_SIZE = 25
-/** Every row is at least a 44px touch target, so this is a lower bound on the list's scrolled content. */
-const ROW_HEIGHT_FLOOR = 44
+/** Every row is at least a 48px touch target, so this is a lower bound on the list's scrolled content. */
+const ROW_HEIGHT_FLOOR = 48
 /** The test renderer measures no text, so each line takes a fixed height. Any positive height gives the same containment result. */
 const TEXT_LINE_HEIGHT = 20
 /**
@@ -231,7 +231,7 @@ describe('Sheet virtualized body (mobile)', () => {
       const layout = buildLayoutTree(host, new Map())
       try { layout.calculateLayout(640, undefined); return layout.getComputedHeight() } finally { layout.freeRecursive() }
     })
-    expect(measured).toEqual([72, 108])
+    expect(measured).toEqual([72, 112])
     TestRenderer.act(() => {
       sheet.props.header.props.onLayout({ nativeEvent: { layout: { height: measured[0] } } })
       sheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: measured[1] } } })
