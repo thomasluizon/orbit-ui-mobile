@@ -55,7 +55,7 @@ export default function GlobalError({
     >
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <main className="min-h-dvh"><FailureScreen error={error} retry={reset} /></main>
+          <main className="min-h-dvh pt-[var(--safe-top)] pb-[var(--safe-bottom)]"><FailureScreen error={error} retry={reset} /></main>
         </NextIntlClientProvider>
       </body>
     </html>
