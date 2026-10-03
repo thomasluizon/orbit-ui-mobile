@@ -59,6 +59,29 @@ function ShellBottomChrome({
   )
 }
 
+function FlowViewport({ enabled, constrained, minimumHeight, children }: Readonly<{
+  enabled: boolean
+  constrained: boolean
+  minimumHeight: number
+  children: ReactNode
+}>) {
+  if (!enabled) return children
+  return (
+    <ScrollView
+      testID="shell-flow-viewport"
+      scrollEnabled={constrained}
+      nestedScrollEnabled={constrained}
+      keyboardShouldPersistTaps="handled"
+      style={styles.flowViewport}
+      contentContainerStyle={constrained
+        ? { flexGrow: 1, minHeight: minimumHeight + TOUCH_TARGET_MIN }
+        : styles.flowViewportContent}
+    >
+      {children}
+    </ScrollView>
+  )
+}
+
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
   const registeredHeader = useShellHeaderHost()
   const header = registeredHeader.content ?? props.header
@@ -78,7 +101,10 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
     : 32
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
-  const { width } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
+  const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
+  const minimumFlowHeight = safeTop + TOUCH_TARGET_MIN + BUTTON_SIZES.md.height
+  const constrainedFlow = !navigationEnabled && height < minimumFlowHeight
   const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   useEffect(() => {
@@ -100,9 +126,10 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
       testID="shell-412"
       style={[styles.root, { backgroundColor: tokens.bg }]}
     >
+      <FlowViewport enabled={!navigationEnabled} constrained={constrainedFlow} minimumHeight={minimumFlowHeight}>
       <View
         testID="shell-background"
-        style={[styles.background, { width: columnWidth, paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
+        style={[styles.background, { width: columnWidth, paddingTop: safeTop }]}
         importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
       >
         {header !== undefined ? (
@@ -111,7 +138,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
           )
         ) : null}
 
-        <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && styles.flowScroller]}>
+        <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && !constrainedFlow && styles.flowScroller]}>
           {props.children}
         </View>
 
@@ -128,6 +155,7 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
         {props.sheets}
       </View>
+      </FlowViewport>
 
       {conversationOpen ? (
         <View
@@ -159,6 +187,8 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 }
 
 const styles = StyleSheet.create({
+  flowViewport: { flex: 1 },
+  flowViewportContent: { flex: 1 },
   keyboardOwner: {
     flex: 1,
   },
@@ -173,7 +203,7 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
-    minHeight: 48,
+    minHeight: TOUCH_TARGET_MIN,
   },
   flowScroller: { minHeight: 0 },
   flowHeader: { minHeight: TOUCH_TARGET_MIN },

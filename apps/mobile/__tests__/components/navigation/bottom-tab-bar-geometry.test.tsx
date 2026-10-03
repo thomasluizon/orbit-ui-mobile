@@ -123,7 +123,7 @@ describe('Native bottom tab layout', () => {
     } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
   })
 
-  it.each([124, 160, 740])('keeps the full Create target revealable in a %ipx keyboard-constrained flow', (height) => {
+  it.each([120, 124, 160, 740])('keeps the full Create target revealable in a %ipx keyboard-constrained flow', (height) => {
     __setWindowDimensions({ width: 360, height, scale: 1, fontScale: 1 })
     const onSubmit = vi.fn()
     const onAttemptDismiss = vi.fn()
@@ -158,11 +158,22 @@ describe('Native bottom tab layout', () => {
       expect(nodes.get('shell-background')!.getComputedPadding(Yoga.EDGE_TOP)).toBe(24)
       expect(button.getComputedHeight()).toBeGreaterThanOrEqual(48)
       expect(pinned.getComputedHeight()).toBeGreaterThanOrEqual(button.getComputedHeight())
-      expect(viewport.bottom).toBeLessThanOrEqual(height)
       const maxScroll = pinned.getChild(0).getComputedHeight() - pinned.getComputedHeight()
       const scrollOffset = Math.min(Math.max(0, target.top - viewport.top), Math.max(0, maxScroll))
       expect(target.top - scrollOffset).toBeGreaterThanOrEqual(viewport.top)
       expect(target.bottom - scrollOffset).toBeLessThanOrEqual(viewport.bottom)
+      const flowViewport = nodes.get('shell-flow-viewport')!
+      const flowBounds = bounds(flowViewport)
+      expect(flowBounds.bottom).toBeLessThanOrEqual(height)
+      const flowMaxScroll = Math.max(0, flowViewport.getChild(0).getComputedHeight() - flowViewport.getComputedHeight())
+      for (const [control, innerScroll] of [[backBounds, headerScroll], [target, scrollOffset]] as const) {
+        const top = control.top - innerScroll
+        const bottom = control.bottom - innerScroll
+        const offset = Math.min(Math.max(0, top - flowBounds.top), flowMaxScroll)
+        expect(top - offset).toBeGreaterThanOrEqual(flowBounds.top)
+        expect(bottom - offset).toBeLessThanOrEqual(flowBounds.bottom)
+      }
+      if (height >= 122) expect(viewport.bottom).toBeLessThanOrEqual(height)
       expect(tree.root.findAll((node) => node.props.testID === 'shell-pinned-slot')[0]!.props.keyboardShouldPersistTaps).toBe('handled')
       const create = tree.root.findAll((node) => node.props.testID === 'button-primary-md')[0]!
       expect(create.props.disabled).toBe(false)

@@ -97,7 +97,6 @@ export function SubHabitEditor({
           subHabits.length >= MAX_SUB_HABITS && { opacity: 0.45 },
           pressed && { transform: [{ scale: 0.96 }] },
         ]}
-        hitSlop={{ top: 4, bottom: 4 }}
         disabled={subHabits.length >= MAX_SUB_HABITS}
         onPress={onAddSubHabit}
         accessibilityRole="button"

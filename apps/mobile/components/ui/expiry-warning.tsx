@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -159,7 +160,6 @@ export function ExpiryWarning() {
         <Pressable
           onPress={() => void handleAction()}
           disabled={refreshState === 'refreshing'}
-          hitSlop={6}
           style={styles.actionPress}
           accessibilityRole="button"
           accessibilityState={{
@@ -218,6 +218,8 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.statusOverdueText,
     },
     actionPress: {
+      minWidth: TOUCH_TARGET_MIN,
+      minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,

@@ -75,6 +75,7 @@ export function createStyles(tokens: CreateGoalTokens) {
       marginTop: 8,
     },
     addDeadlineButton: {
+      minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,

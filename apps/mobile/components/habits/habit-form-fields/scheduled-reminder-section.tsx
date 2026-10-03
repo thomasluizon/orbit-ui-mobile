@@ -34,7 +34,6 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
         selected && styles.whenButtonActive,
         pressed && { transform: [{ scale: 0.96 }] },
       ]}
-      hitSlop={{ top: 3, bottom: 3 }}
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected }}
@@ -162,10 +161,7 @@ export function ScheduledReminderSection({
                     {scheduledReminderLabel(sr)}
                   </Text>
                   <Pressable
-                    style={({ pressed }) =>
-                      pressed ? { transform: [{ scale: 0.96 }] } : null
-                    }
-                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
                     accessibilityRole="button"
                     accessibilityLabel={t("habits.form.removeScheduledReminder")}
                     onPress={() => removeScheduledReminder(idx)}

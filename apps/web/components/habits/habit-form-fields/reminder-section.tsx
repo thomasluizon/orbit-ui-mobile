@@ -126,7 +126,7 @@ export function ReminderSection({
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] -my-2 -mr-2 -ml-1 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
+                  className={`grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] -mr-2 -ml-1 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   onClick={() => removeReminder(time)}
                 >

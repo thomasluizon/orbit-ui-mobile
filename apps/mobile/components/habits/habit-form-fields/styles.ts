@@ -180,6 +180,9 @@ export function createSectionStyles(tokens: AppTokens) {
       gap: 8,
     },
     whenButton: {
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
+      justifyContent: "center",
       flex: 1,
       paddingHorizontal: 12,
       paddingVertical: 8,
@@ -206,6 +209,9 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     timeControls: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "flex-end" },
     timeAddButton: {
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
+      justifyContent: "center",
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.full,
@@ -217,8 +223,8 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fgOnPrimary,
     },
     timeCancelButton: {
-      width: 40,
-      height: 40,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       alignItems: "center",
       justifyContent: "center",
     },

@@ -34,7 +34,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
     proposed: card.results[habit.id] == null,
     irreversible: card.results[habit.id] == null,
     control: card.results[habit.id] == null ? (
-      <button type="button" aria-label={t('chat.breakdown.frequency', { name: habit.title })} className="min-h-10 rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)]" onClick={() => card.cycleCadence(habit.id)}>
+      <button type="button" aria-label={t('chat.breakdown.frequency', { name: habit.title })} className="min-h-[var(--touch-min)] rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)]" onClick={() => card.cycleCadence(habit.id)}>
         {t(getBreakdownCadenceKey(habit.frequencyUnit))}
       </button>
     ) : undefined,

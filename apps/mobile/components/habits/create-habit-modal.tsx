@@ -638,12 +638,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 0,
     },
     subHabitRemoveButton: {
-      width: 36,
-      height: 36,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       alignItems: 'center',
       justifyContent: 'center',
     },
     addSubHabitButton: {
+      minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       alignSelf: 'flex-start',

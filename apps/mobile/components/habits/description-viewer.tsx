@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
+import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { Sheet } from '@/components/ui/sheet';
@@ -51,7 +52,6 @@ export function DescriptionViewer({
             onPress={copyDescription}
             accessibilityRole="button"
             accessibilityLabel={t("habits.detail.copyDescription")}
-            hitSlop={6}
             style={({ pressed }) => [
               styles.copyButton,
               {
@@ -88,8 +88,8 @@ const styles = StyleSheet.create({
       paddingBottom: 8,
   },
   copyButton: {
-    width: 40,
-    height: 40,
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     borderRadius: 999,
     overflow: 'hidden',
     borderWidth: 1,

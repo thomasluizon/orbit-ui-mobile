@@ -232,8 +232,8 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fgOnPrimary,
     },
     closeButton: {
-      width: 40,
-      height: 40,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       alignItems: 'center',
       justifyContent: 'center',
     },
