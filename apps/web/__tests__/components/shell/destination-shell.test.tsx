@@ -5,6 +5,8 @@ import { LayoutDashboard, LayoutDashboardFilled } from '@/components/ui/icons'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ShellScrollerProvider, useShellScrollerRegistration } from '@/components/shell/shell-scroller-context'
 import { Composer } from '@/components/shell/composer'
 import en from '@orbit/shared/i18n/en.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -84,7 +86,7 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, account, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, scrollToTop, account, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
@@ -95,6 +97,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     createRefusal?: ReactNode
     notice?: ReactNode
     composer?: ReactNode
+    scrollToTop?: ReactNode
     account?: string
     paletteHint?: string
     onPalette?: () => void
@@ -103,10 +106,13 @@ vi.mock('@/components/shell/shell-wide', () => ({
     fab?: ReactNode
     conversation?: ReactNode
     conversationOpen?: boolean
-  }) => (
+  }) => {
+    const registerScroller = useShellScrollerRegistration()
+    return (
     <div data-testid={mocks.wide ? 'wide-shell' : 'compact-shell'}>
       {header ? <div data-shell-header="">{header}</div> : null}
-      <main data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
+      {scrollToTop}
+      <main ref={registerScroller} data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
       {mocks.wide && (account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />)}
       {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
@@ -119,7 +125,8 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {!mocks.wide ? fab : null}
       {conversationOpen && <div data-testid="conversation">{conversation}</div>}
     </div>
-  ),
+  )
+  },
 }))
 
 import {
@@ -864,4 +871,81 @@ describe('DestinationShell', () => {
     view.rerender(<DestinationShell onCreate={() => {}}><h1>Upgrade</h1></DestinationShell>)
     expect(screen.getByTestId('wide-account')).toHaveTextContent('Ada')
   })
+})
+
+it.each(['/', '/calendar', '/progress', '/profile'].flatMap((pathname) => [false, true].map((wide) => ({ pathname, wide }))))('scrolls the owning root on reselect at $pathname, wide=$wide', ({ pathname, wide }) => {
+  mocks.pathname = pathname
+  mocks.wide = wide
+  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Root</h1><input aria-label="Draft" defaultValue="Written draft" /></DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  const scrollTo = vi.fn()
+  scroller.scrollTo = scrollTo
+  fireEvent.click(document.querySelector<HTMLButtonElement>('button[aria-current="page"]')!)
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
+  expect(mocks.push).not.toHaveBeenCalled()
+  expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Written draft')
+})
+
+function HeaderSlotProbe({ children }: { children: ReactNode }) {
+  useShellHeaderSlot(() => children, 'today-focus')
+  return null
+}
+
+it.each(['heading', 'main', 'pinned heading'])('offers the Hoje pill and restores keyboard focus to %s', async (target) => {
+  const user = userEvent.setup()
+  mocks.pathname = '/'
+  const view = render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}>
+    {target === 'pinned heading' ? <HeaderSlotProbe><h1>Today</h1></HeaderSlotProbe> : null}
+    {target === 'heading' ? <h1>Today</h1> : null}
+    <input aria-label="Top draft" defaultValue="Written draft" />
+  </DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  Object.defineProperty(scroller, 'clientHeight', { value: 500 })
+  const scrollTo = vi.fn()
+  scroller.scrollTo = scrollTo
+  const scroll = async (offset: number) => {
+    scroller.scrollTop = offset; fireEvent.scroll(scroller)
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+  }
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(900)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(700)
+  const pill = screen.getByRole('button', { name: 'common.backToTop' })
+  expect(pill).toHaveTextContent('common.top')
+  pill.focus()
+  expect(document.activeElement).toBe(pill)
+  await user.keyboard('{Enter}')
+  const focusTarget = target === 'main' ? scroller : screen.getByRole('heading', { name: 'Today' })
+  expect(document.activeElement).toBe(focusTarget)
+  await user.tab()
+  expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Top draft' }))
+  expect(screen.getByRole('textbox', { name: 'Top draft' })).toHaveValue('Written draft')
+  expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'instant' })
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(900)
+  await scroll(600)
+  expect(screen.getByRole('button', { name: 'common.backToTop' })).toBeInTheDocument()
+  await scroll(0)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(900)
+  await scroll(600)
+  expect(screen.getByRole('button', { name: 'common.backToTop' })).toBeInTheDocument()
+  mocks.pathname = '/calendar'
+  view.rerender(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Calendar</h1></DestinationShell></ShellScrollerProvider>)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+  await scroll(550)
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
+})
+
+ it.each(['/calendar', '/progress', '/profile', '/search', '/habits/example'])('never offers the Hoje pill at %s', async (pathname) => {
+  mocks.pathname = pathname
+  render(<ShellScrollerProvider><DestinationShell onCreate={() => {}}><h1>Other screen</h1></DestinationShell></ShellScrollerProvider>)
+  const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+  Object.defineProperty(scroller, 'clientHeight', { value: 500 })
+  for (const offset of [900, 700]) {
+    scroller.scrollTop = offset; fireEvent.scroll(scroller)
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+  }
+  expect(screen.queryByRole('button', { name: 'common.backToTop' })).toBeNull()
 })
