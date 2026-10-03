@@ -77,11 +77,11 @@ describe('ChatEmptyState copy (mobile)', () => {
     vi.useRealTimers()
   })
 
-  it('reads the drawn pt-BR title, prompt and suggestions, with Astra in the feminine', async () => {
+  it('reads the compact pt-BR title, prompt and suggestions, with Astra in the feminine', async () => {
     const tree = await renderEmptyState('pt-BR', [walkWithSubHabits, houseRoutine])
 
     expect(renderedText(tree)).toEqual(expect.arrayContaining([
-      'Fale com a Astra sobre a sua rotina',
+      'Fale com a Astra',
       'Algumas coisas que dá para pedir',
     ]))
     expect(suggestionLabels(tree)).toEqual([
@@ -92,11 +92,11 @@ describe('ChatEmptyState copy (mobile)', () => {
     ])
   })
 
-  it('reads the drawn English title, prompt and suggestions', async () => {
+  it('reads the compact English title, prompt and suggestions', async () => {
     const tree = await renderEmptyState('en', [walkWithSubHabits, houseRoutine])
 
     expect(renderedText(tree)).toEqual(expect.arrayContaining([
-      'Talk to Astra about your routine',
+      'Talk to Astra',
       'Some things you can ask',
     ]))
     expect(suggestionLabels(tree)).toEqual([
