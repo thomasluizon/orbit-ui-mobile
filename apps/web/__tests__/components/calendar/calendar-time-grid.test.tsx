@@ -69,8 +69,10 @@ describe('CalendarTimeGrid', () => {
 
     const block = screen.getByTestId('time-grid-event')
     expect(block).toHaveAttribute('data-hour', '8')
-    expect(block).toHaveStyle({ top: '384px', minWidth: '44px', height: '44px' })
-    expect(block).toHaveTextContent('Standup')
+    expect(block).toHaveStyle({ top: '384px', minWidth: '48px', minHeight: '48px' })
+    expect(block).toHaveAccessibleName(/Standup/)
+    expect(block).not.toHaveTextContent('Standup')
+    expect(block.querySelector('[data-status]')).not.toBeNull()
   })
 
   it('uses the neutral well for a timed habit', () => {
@@ -84,7 +86,7 @@ describe('CalendarTimeGrid', () => {
     expect(block).toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--hairline)' })
   })
 
-  it('keeps every concurrent timed-event lane at least 44px wide', () => {
+  it('keeps every concurrent timed-event lane at least 48px wide', () => {
     const col = column(2025, 5, 16)
     const dayMap = new Map<string, CalendarDayEntry[]>([[
       col.dateStr,
@@ -96,10 +98,10 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.getByTestId('time-grid-all-day-band')).toHaveStyle({
-      gridTemplateColumns: '56px repeat(1, minmax(96px, 1fr))',
+      gridTemplateColumns: '96px repeat(1, minmax(104px, 1fr))',
     })
     for (const block of screen.getAllByTestId('time-grid-event')) {
-      expect(block).toHaveStyle({ minWidth: '44px' })
+      expect(block).toHaveStyle({ minWidth: '48px' })
     }
   })
 
@@ -111,9 +113,8 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.queryByTestId('time-grid-event')).toBeNull()
-    const allDayEvent = screen.getByTestId('time-grid-all-day-event')
-    expect(allDayEvent).toHaveTextContent('Read')
-    expect(allDayEvent.closest('[data-testid="time-grid-all-day-band"]')).not.toBeNull()
+    expect(screen.getByTestId('time-grid-all-day-summary')).toHaveTextContent('1')
+    expect(screen.getByTestId('time-grid-all-day-summary').closest('[data-testid="time-grid-all-day-band"]')).not.toBeNull()
     expect(screen.getByTestId('time-grid-any-time-label')).toHaveTextContent('No set time')
   })
 
@@ -173,7 +174,7 @@ describe('CalendarTimeGrid', () => {
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
   })
 
-  it('opens the tapped day from a timed event block', () => {
+  it('discloses the full timed name without changing the selected day', () => {
     const onSelectDay = vi.fn()
     const col = column(2025, 5, 16)
     const dayMap = new Map<string, CalendarDayEntry[]>([
@@ -182,10 +183,11 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap, onSelectDay)
 
     fireEvent.click(screen.getByRole('button', { name: /Standup/ }))
-    expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Standup')
+    expect(onSelectDay).not.toHaveBeenCalled()
   })
 
-  it('caps the all-day stack and collapses the overflow into a +N that opens the day', () => {
+  it('collapses every untimed item into one count row and discloses the full list', () => {
     const onSelectDay = vi.fn()
     const col = column(2025, 5, 16)
     const entries = Array.from({ length: 8 }, (_, i) =>
@@ -194,12 +196,15 @@ describe('CalendarTimeGrid', () => {
     const dayMap = new Map<string, CalendarDayEntry[]>([[col.dateStr, entries]])
     renderGrid([col], dayMap, onSelectDay)
 
-    expect(screen.getAllByTestId('time-grid-all-day-event')).toHaveLength(4)
-    const more = screen.getByTestId('time-grid-all-day-more')
-    expect(more).toHaveTextContent('+4')
+    expect(screen.queryByTestId('time-grid-all-day-event')).toBeNull()
+    const summary = screen.getByTestId('time-grid-all-day-summary')
+    expect(summary).toHaveTextContent('8')
+    expect(summary).toHaveStyle({ minHeight: '48px', minWidth: '48px' })
+    fireEvent.click(summary)
+    const dialog = screen.getByRole('dialog')
+    for (const entry of entries) expect(dialog).toHaveTextContent(entry.title)
+    expect(onSelectDay).not.toHaveBeenCalled()
 
-    fireEvent.click(more)
-    expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
   })
 
   it('uses an opaque semantic surface for the pinned any-time pane', () => {
@@ -213,16 +218,16 @@ describe('CalendarTimeGrid', () => {
     expect(band.style.backgroundImage).toBe('')
   })
 
-  it('labels the +N overflow chip with a localized count for screen readers', () => {
+  it('labels the untimed row with the full localized count', () => {
     const col = column(2025, 5, 16)
     const entries = Array.from({ length: 8 }, (_, i) =>
       makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
     )
     renderGrid([col], new Map([[col.dateStr, entries]]))
 
-    expect(screen.getByTestId('time-grid-all-day-more')).toHaveAttribute(
+    expect(screen.getByTestId('time-grid-all-day-summary')).toHaveAttribute(
       'aria-label',
-      'calendar.timeGrid.moreLabel:{"count":4}',
+      'calendar.timeGrid.untimedCount:{"count":8}',
     )
   })
 

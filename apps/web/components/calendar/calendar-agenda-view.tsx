@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { CalendarEntryDetails } from './calendar-entry-details'
 import { addDays, eachDayOfInterval } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -27,6 +29,7 @@ export function CalendarAgendaView({
   loadingLabel,
 }: Readonly<CalendarAgendaViewProps>) {
   const t = useTranslations()
+  const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null)
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) })
 
   return (
@@ -89,9 +92,11 @@ export function CalendarAgendaView({
                     compact
                     key={entry.habitId}
                     title={entry.title}
-                    value={entry.dueTime ? displayTime(entry.dueTime) : undefined}
-                    readOnly
-                    wrapTitle
+                    description={entry.dueTime ? displayTime(entry.dueTime) : undefined}
+                    textMode="personal"
+                    chevron={false}
+                    accessibilityLabel={entry.title}
+                    onClick={() => setSelectedEntry(entry)}
                   />
                 ))}
               </div>
@@ -99,6 +104,7 @@ export function CalendarAgendaView({
           </section>
         )
       })}
+      {selectedEntry ? <CalendarEntryDetails entries={[selectedEntry]} title={t('calendar.entryDetails')} displayTime={displayTime} onClose={() => setSelectedEntry(null)} /> : null}
     </div>
   )
 }

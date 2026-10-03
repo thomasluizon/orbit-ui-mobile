@@ -1,6 +1,6 @@
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -52,14 +52,13 @@ describe('CalendarAgendaView', () => {
     expect(screen.getAllByText('calendar.agenda.empty')).toHaveLength(6)
   })
 
-  it('renders agenda habits as read-only rows without a press handler', () => {
+  it('discloses a full name from a row with metadata beneath the title', () => {
     renderAgenda()
-
-    expect(screen.getByText('Morning walk')).toBeDefined()
-    expect(screen.getByText('Morning walk')).toHaveClass('break-words')
-    expect(screen.getByText('Morning walk')).not.toHaveClass('truncate')
-    expect(screen.getByText('Morning walk').closest('.orbit-list-row-shell')?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)' })
-    expect(screen.queryByRole('button')).toBeNull()
+    const row = screen.getByRole('button', { name: /Morning walk/ })
+    expect(row).toHaveTextContent('08:00')
+    expect(row.querySelector('[data-slot="list-row-value"]')).toBeNull()
+    fireEvent.click(row)
+    expect(screen.getByRole('dialog')).toHaveTextContent('Morning walk')
   })
 
   it('renders a shaped placeholder instead of definitive empty days while loading', () => {
@@ -87,7 +86,7 @@ describe('CalendarAgendaView sub-habit carry', () => {
       todayKey={day} isLoading={false} loadingLabel="common.loading" />)
     expect(screen.getByText('Stretch')).toBeInTheDocument()
     expect(screen.getByText('18:00')).toBeInTheDocument()
-    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByRole('button', { name: /Stretch/ })).toBeInTheDocument()
     expect(screen.queryByRole('slider')).toBeNull()
   })
 })
