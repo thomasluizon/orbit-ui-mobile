@@ -145,13 +145,17 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
         ) : null}
         {props.account ? (
           <Link
+            data-shell-account=""
             href="/profile"
-            className="flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+            className="flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[0.875rem] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
           >
             <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
               {Array.from(props.account)[0]?.toLocaleUpperCase()}
             </span>
-            <span className="min-w-0 truncate">{props.account}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-1">
+              <span data-shell-account-name="" className="line-clamp-2 [overflow-wrap:anywhere]">{props.account}</span>{' '}
+              {props.accountEmail ? <span data-shell-account-email="" className="line-clamp-2 text-[0.75rem] font-normal text-[var(--fg-3)] [overflow-wrap:anywhere]">{props.accountEmail}</span> : null}
+            </span>
           </Link>
         ) : (
           <div data-shell-account="" data-loading="true" aria-hidden="true" className="min-h-[var(--touch-min)]" />

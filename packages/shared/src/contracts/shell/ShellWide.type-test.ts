@@ -45,6 +45,7 @@ type ExpectedNav = {
   onSelect?: (id: string) => void
   navLabel: string
   account?: string
+  accountEmail?: string
   notifications?: React.ReactNode
   composer?: React.ReactNode
   action?: never
@@ -57,6 +58,7 @@ type ExpectedFlow = {
   onCreate?: never
   createLabel?: never
   account?: never
+  accountEmail?: never
   notifications?: never
   onPalette?: never
   paletteLabel?: never
@@ -151,6 +153,7 @@ export type ShellWideTypeContract = [
   Assert<IsExactWidth<ShellWideProps['onSelect'], ((id: string) => void) | undefined>>,
   Assert<IsExactWidth<ShellWideProps['navLabel'], string | undefined>>,
   Assert<IsExactWidth<ShellWideProps['account'], string | undefined>>,
+  Assert<IsExactWidth<ShellWideProps['accountEmail'], string | undefined>>,
   Assert<IsExactWidth<ShellWideProps['composer'], React.ReactNode>>,
   Assert<IsExactWidth<ShellWideProps['action'], React.ReactNode>>,
   Assert<IsExact<Sidebar, ShellWideProps>>,

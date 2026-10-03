@@ -86,7 +86,7 @@ vi.mock('@/components/ui/fab', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, scrollToTop, account, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
+  ShellWide: ({ children, header, items, activeId, onSelect, onCreate, createLabel, createRefusal, notice, composer, scrollToTop, account, accountEmail, paletteHint, onPalette, paletteLabel, tabBar, fab, conversation, conversationOpen }: {
     children: ReactNode
     header?: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
@@ -99,6 +99,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     composer?: ReactNode
     scrollToTop?: ReactNode
     account?: string
+    accountEmail?: string
     paletteHint?: string
     onPalette?: () => void
     paletteLabel?: string
@@ -113,7 +114,10 @@ vi.mock('@/components/shell/shell-wide', () => ({
       {header ? <div data-shell-header="">{header}</div> : null}
       {scrollToTop}
       <main ref={registerScroller} data-shell-scroller="">{children}</main>{notice ? <div data-shell-notice="">{notice}</div> : null}
-      {mocks.wide && (account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />)}
+      {mocks.wide && <>
+        {account ? <span data-testid="wide-account">{account}</span> : <span data-shell-account="" data-loading="true" />}
+        {accountEmail ? <span data-testid="wide-account-email">{accountEmail}</span> : null}
+      </>}
       {mocks.wide && onPalette ? <button type="button" onClick={onPalette}>{paletteLabel}</button> : null}
       {mocks.wide && paletteHint ? <kbd>{paletteHint}</kbd> : null}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
@@ -520,6 +524,7 @@ describe('DestinationShell', () => {
     const page = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
 
     expect(screen.getByTestId('wide-account')).toHaveTextContent('Ada Lovelace')
+    expect(screen.getByTestId('wide-account-email')).toHaveTextContent('person@example.com')
     expect(screen.getByTestId('wide-account')).not.toHaveTextContent('@')
 
     mocks.profileName = ''
