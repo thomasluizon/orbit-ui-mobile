@@ -3,7 +3,7 @@ import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
@@ -30,6 +30,7 @@ function ShellBottomChrome({
   safeAreaBottom: number
 }>) {
   if (!visible) return null
+  const actionMinimum = !navigationEnabled && pinnedSlot !== undefined ? BUTTON_SIZES.md.height : 0
 
   return (
     <View
@@ -39,11 +40,11 @@ function ShellBottomChrome({
         { backgroundColor, paddingBottom: safeAreaBottom },
       ]}
     >
-      <View style={styles.bottomColumn}>
+      <View style={[styles.bottomColumn, { minHeight: actionMinimum }]}>
         {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
         {pinnedSlot !== undefined ? (
-          <View testID="shell-composer-band" style={styles.composerBand}>
-            <ScrollView testID="shell-pinned-slot" style={styles.pinnedSlot} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
+          <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum }]}>
+            <ScrollView testID="shell-pinned-slot" style={[styles.pinnedSlot, { minHeight: actionMinimum }]} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
           </View>
         ) : null}
         {fab !== undefined ? (
@@ -102,10 +103,12 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
         importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
       >
         {props.header !== undefined ? (
-          <View testID="shell-header">{props.header}</View>
+          navigationEnabled ? <View testID="shell-header">{props.header}</View> : (
+            <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{props.header}</ScrollView>
+          )
         ) : null}
 
-        <View testID="shell-scroller" style={styles.scroller}>
+        <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && styles.flowScroller]}>
           {props.children}
         </View>
 
@@ -167,6 +170,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
   },
+  flowScroller: { minHeight: 0 },
+  flowHeader: { minHeight: 44 },
   bottomChrome: {
     flexShrink: 1,
     minHeight: 0,

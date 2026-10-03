@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefCallback,
 } from 'react'
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
 import { Search } from '@/components/ui/icons'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
@@ -168,16 +168,18 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? props.composer : props.action
   if (!visible) return null
+  const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height : undefined
 
   return (
     <div
       data-shell-bottom=""
       className="z-sticky relative flex min-h-0 flex-col bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
+      style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + var(--safe-bottom))` }}
     >
-      <div className="relative mx-auto flex min-h-0 w-full flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+      <div className="relative mx-auto flex min-h-0 w-full flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH, minHeight: actionMinimum }}>
         {props.notice !== undefined ? <div data-shell-notice="" className="px-4">{props.notice}</div> : null}
         {pinnedSlot !== undefined ? (
-          <div data-shell-pinned-slot="" hidden={conversationOpen} className="min-h-0 overflow-y-auto overscroll-contain lg:pb-4">
+          <div data-shell-pinned-slot="" hidden={conversationOpen} className="min-h-0 overflow-y-auto overscroll-contain lg:pb-4" style={{ minHeight: actionMinimum }}>
             {pinnedSlot}
           </div>
         ) : null}
@@ -209,6 +211,7 @@ function ShellWideBackground({
 }>) {
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const hasFlowAction = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
   const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
@@ -225,18 +228,18 @@ function ShellWideBackground({
 
       <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
         <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
-          {props.header !== undefined ? <div data-shell-header="" className="shrink-0">{props.header}</div> : null}
+          {props.header !== undefined ? <div data-shell-header="" className={hasFlowAction ? 'min-h-11 overflow-y-auto overscroll-contain' : 'shrink-0'}>{props.header}</div> : null}
           <main
             ref={registerScroller}
             data-shell-scroller=""
-            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${hasBottomChrome ? scrollerClearance : ''}`}
+            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${!hasFlowAction && hasBottomChrome ? scrollerClearance : ''}`}
           >
             <span
               aria-hidden="true"
               data-shell-scroll-origin=""
               className="pointer-events-none absolute left-0 top-0 h-px w-px"
             />
-            {props.children}
+            {hasFlowAction ? <div className={`h-full ${scrollerClearance}`}>{props.children}</div> : props.children}
           </main>
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
         </div>

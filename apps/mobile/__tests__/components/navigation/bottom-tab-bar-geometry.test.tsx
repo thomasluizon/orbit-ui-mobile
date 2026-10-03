@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Composer } from '@/components/shell/composer'
 import { AppBar } from '@/components/ui/app-bar'
 import { Shell412 } from '@/components/shell/shell-412'
+import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { StyleSheet, View, type ViewStyle, type TextStyle, type StyleProp } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
@@ -9,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
-import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
+import { __emitKeyboardEvent, __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
 vi.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 24, left: 0 }) }))
 
@@ -88,6 +90,57 @@ const destinations = ['today', 'calendar', 'progress', 'profile'] as const
 afterEach(() => { __resetTestHostConfig() })
 
 describe('Native bottom tab layout', () => {
+  it.each([120, 160, 740])('keeps the full Create target revealable in a %ipx keyboard-constrained flow', (height) => {
+    __setWindowDimensions({ width: 360, height, scale: 1, fontScale: 1 })
+    const onSubmit = vi.fn()
+    const onAttemptDismiss = vi.fn()
+    let tree!: ReturnType<typeof renderer.create> & { toJSON: () => Host; unmount: () => void }
+    void renderer.act(() => { tree = renderer.create(<HabitCreateFrame
+      open presentation="screen" fromConversation={false} leaving={false}
+      title={en.habits.createHabit} onAttemptDismiss={onAttemptDismiss}
+      actions={<HabitCreateActions presentation="screen" pending={false} empty={false} subHabit={false}
+        onCancel={vi.fn()} onSubmit={onSubmit} />}>
+      <View style={{ height: 1600 }} />
+    </HabitCreateFrame>) as typeof tree })
+    void renderer.act(() => __emitKeyboardEvent('keyboardDidShow'))
+    const nodes = new Map<string, YogaNode>()
+    const root = layoutHost(tree.toJSON(), nodes, 1)
+    try {
+      root.calculateLayout(360, height, Yoga.DIRECTION_LTR)
+      const pinned = nodes.get('shell-pinned-slot')!
+      const button = nodes.get('button-primary-md')!
+      const header = nodes.get('shell-header')!
+      const backTarget = nodes.get('nav-header-back')!.getChild(0).getChild(0)
+      const backBounds = bounds(backTarget)
+      const headerBounds = bounds(header)
+      expect(backTarget.getComputedHeight()).toBe(44)
+      expect(header.getComputedHeight()).toBeGreaterThanOrEqual(backTarget.getComputedHeight())
+      const headerMaxScroll = header.getChild(0).getComputedHeight() - header.getComputedHeight()
+      const headerScroll = Math.min(Math.max(0, backBounds.top - headerBounds.top), Math.max(0, headerMaxScroll))
+      expect(backBounds.top - headerScroll).toBeGreaterThanOrEqual(headerBounds.top)
+      expect(backBounds.bottom - headerScroll).toBeLessThanOrEqual(headerBounds.bottom)
+      const viewport = bounds(pinned)
+      const target = bounds(button)
+      expect(bounds(nodes.get('shell-background')!).top).toBe(0)
+      expect(nodes.get('shell-background')!.getComputedPadding(Yoga.EDGE_TOP)).toBe(24)
+      expect(button.getComputedHeight()).toBeGreaterThanOrEqual(48)
+      expect(pinned.getComputedHeight()).toBeGreaterThanOrEqual(button.getComputedHeight())
+      expect(viewport.bottom).toBeLessThanOrEqual(height)
+      const maxScroll = pinned.getChild(0).getComputedHeight() - pinned.getComputedHeight()
+      const scrollOffset = Math.min(Math.max(0, target.top - viewport.top), Math.max(0, maxScroll))
+      expect(target.top - scrollOffset).toBeGreaterThanOrEqual(viewport.top)
+      expect(target.bottom - scrollOffset).toBeLessThanOrEqual(viewport.bottom)
+      expect(tree.root.findAll((node) => node.props.testID === 'shell-pinned-slot')[0]!.props.keyboardShouldPersistTaps).toBe('handled')
+      const create = tree.root.findAll((node) => node.props.testID === 'button-primary-md')[0]!
+      expect(create.props.disabled).toBe(false)
+      void renderer.act(() => (create.props.onPress as () => void)())
+      expect(onSubmit).toHaveBeenCalledOnce()
+      const back = tree.root.findAll((node) => node.props.testID === 'nav-header-back')[0]!.findAll((node) => node.props.accessibilityRole === 'button' && node.props.onPress !== undefined)[0]!
+      void renderer.act(() => (back.props.onPress as () => void)())
+      expect(onAttemptDismiss).toHaveBeenCalledOnce()
+    } finally { root.freeRecursive(); void renderer.act(() => tree.unmount()) }
+  })
+
   it.each([360, 320])('budgets header, safe areas, composer and full tab targets inside a %ipx tall window', (height) => {
     __setWindowDimensions({ width: 740, height, scale: 1, fontScale: 1 })
     let tree!: ReturnType<typeof renderer.create> & { toJSON: () => Host; unmount: () => void }
