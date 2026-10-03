@@ -61,6 +61,7 @@ describe('Hoje header geometry', () => {
 
   it.each([320, 384].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode })))))(
     'shares two leading edges at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
+      document.documentElement.style.fontSize = `${16 * textScale}px`
       const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
         <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
         <TodayDateControl {...props} isTodaySelected />
@@ -69,6 +70,7 @@ describe('Hoje header geometry', () => {
             <HabitRow habit={createMockHabit({ title: `${title} habit with a long name that needs more than one line` })} structuralColumn selectMode={selectMode}
               depth={title === 'Child' ? 1 : 0} hasChildren={title === 'Parent'}
               childProgress={title === 'Parent' ? { done: 0, total: 2 } : undefined}
+              meta={title === 'Parent' ? ['0 de 2'] : []}
               actions={{ onEdit: noop, onToggleExpand: noop, onToggleSelection: noop }} />
           </div>)}
         </div>
@@ -78,7 +80,7 @@ describe('Hoje header geometry', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await page.evaluate(async (scale) => {
           document.documentElement.style.fontSize = `${16 * scale}px`
-          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] span, .today-astra-sentence')
+          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, .today-astra-sentence')
           for (const label of labels) {
             const size = Number.parseFloat(getComputedStyle(label).fontSize)
             label.style.fontSize = `${size * scale}px`
@@ -89,7 +91,21 @@ describe('Hoje header geometry', () => {
           const date = document.querySelector('[data-today-date-row] [title]')!
           const sentence = document.querySelector('.today-astra-sentence')!
           const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
+          const parent = rows[1]!
+          const progress = parent.querySelector('.habit-row-meta')!
+          const progressText = document.createRange()
+          progressText.selectNodeContents(progress)
+          const title = parent.querySelector('[data-habit-row-body] > div > span')!
+          const titleText = document.createRange()
+          titleText.selectNodeContents(title)
+          const firstTitleLine = titleText.getClientRects()[0]!
           return {
+            progress: { width: progressText.getBoundingClientRect().width, available: progress.getBoundingClientRect().width,
+              top: progress.getBoundingClientRect().top, titleBottom: title.getBoundingClientRect().bottom },
+            parentControls: Array.from(parent.querySelectorAll('[data-habit-row-control]')).map((control) => {
+              const bounds = control.getBoundingClientRect()
+              return { top: bounds.top, bottom: bounds.bottom, firstLineCenter: (firstTitleLine.top + firstTitleLine.bottom) / 2 }
+            }),
             contentEdges: [date, sentence, ...rows.map((row) => row.querySelector('[data-habit-row-body] > div')!)].map((element) => element.getBoundingClientRect().left),
             insetEdges: rows.map((row) => row.getBoundingClientRect().left),
             leafBody: rows[0]!.querySelector('[data-habit-row-body]')!.getBoundingClientRect().left,
@@ -102,6 +118,12 @@ describe('Hoje header geometry', () => {
             })),
           }
         })
+        expect(geometry.progress.width).toBeLessThanOrEqual(geometry.progress.available)
+        expect(geometry.progress.top).toBeGreaterThanOrEqual(geometry.progress.titleBottom)
+        if (textScale === 2) for (const control of geometry.parentControls) {
+          expect(control.top).toBeLessThanOrEqual(control.firstLineCenter)
+          expect(control.bottom).toBeGreaterThan(control.firstLineCenter)
+        }
         expect(geometry.leafDisclosure).toBe(false)
         expect(geometry.leafBody).toBe(16)
         expect(geometry.insetEdges).toEqual([16, 16, 16])
@@ -115,7 +137,7 @@ describe('Hoje header geometry', () => {
           expect(control.width).toBeGreaterThanOrEqual(48)
           expect(control.height).toBeGreaterThanOrEqual(48)
         }
-      } finally { await page.close() }
+      } finally { document.documentElement.style.removeProperty('font-size'); await page.close() }
     },
   )
 

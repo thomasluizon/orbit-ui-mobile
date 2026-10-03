@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { getTodayBoundary } from '@orbit/shared/utils'
+import { getTodayBoundary, computeHabitFutureHint } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -212,7 +212,7 @@ describe('HabitRow neutral metadata contrast', () => {
         const measured = await page.evaluate(({ interactive }) => {
           const panel = document.querySelector('.habit-panel')!
           const body = panel.querySelector('[data-habit-row-body]')!
-          const metadata = Array.from(body.querySelectorAll('span')).find((span) => span.style.fontSize === '13px')!
+          const metadata = body.querySelector('[data-habit-row-meta]')!
           const reference = document.createElement('span')
           panel.append(reference)
           const colorOf = (token: string) => {
@@ -575,5 +575,31 @@ describe('HabitRow check circle accessible name', () => {
       name: 'habits.statusDot.empty, habits.logHabit: Morning routine, 1/2',
     }).click()
     expect(onLog).toHaveBeenCalledOnce()
+  })
+})
+
+describe('HabitRow large text placement', () => {
+  afterEach(() => document.documentElement.style.removeProperty('font-size'))
+
+  it('keeps producer-derived future hints hidden when parent progress moves', () => {
+    document.documentElement.style.fontSize = '32px'
+    const habit = createMockHabit({ title: 'Parent', dueDate: '2030-01-02' })
+    const hint = computeHabitFutureHint(habit, '2030-01-01', (key) => key, 'en')!
+    render(<HabitRow habit={habit} hasChildren childProgress={{ done: 0, total: 2 }}
+      meta={['0 of 2', { kind: 'future', label: hint }]} />)
+    expect(screen.getByText('0 of 2').textContent).toBe('0 of 2')
+    expect(screen.getByText(hint).closest('[data-habit-row-body]')).not.toBeNull()
+    expect(screen.getByText('0 of 2').textContent).not.toContain(hint)
+  })
+
+  it('moves progress only above 130 percent text and restores it after resizing', async () => {
+    document.documentElement.style.fontSize = '20.8px'
+    render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} />)
+    const progress = screen.getByText('0 of 2')
+    expect(progress.closest('[data-habit-row-body]')).not.toBeNull()
+    document.documentElement.style.fontSize = '21px'
+    await waitFor(() => expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).toBeNull())
+    document.documentElement.style.fontSize = '16px'
+    await waitFor(() => expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull())
   })
 })

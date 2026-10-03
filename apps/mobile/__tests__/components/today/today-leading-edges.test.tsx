@@ -12,6 +12,16 @@ import { __setWindowDimensions } from '../../../test-mocks/react-native'
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 const { act, create } = TestRenderer
 
+vi.mock('react-i18next', async () => {
+  const { createInstance } = await import('i18next')
+  const { default: ICUCommonJs } = await import('i18next-icu/cjs')
+  const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
+  const { default: messages } = await import('@orbit/shared/i18n/en.json')
+  const i18n = createInstance()
+  await i18n.use(ICU).init({ lng: 'en', resources: { en: { translation: messages } } })
+  return { useTranslation: () => ({ t: i18n.t.bind(i18n), i18n }) }
+})
+
 vi.mock('expo-router', () => ({ usePathname: () => '/', useRouter: () => ({ navigate: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
@@ -27,6 +37,8 @@ interface Host {
     style?: StyleProp<ViewStyle & TextStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle & TextStyle>)
     testID?: string
     numberOfLines?: number
+    accessibilityLabel?: string
+    accessibilityRole?: string
   }
   children: (Host | string)[] | null
 }
@@ -47,11 +59,12 @@ function textContent(element: Host): string {
 
 function measureText(element: Host, style: TextStyle, fontScale: number) {
   const fontSize = Number(style.fontSize ?? 14) * fontScale
-  const fontFile = style.fontFamily?.toString().startsWith('SpaceGrotesk')
+  const fontFamily = style.fontFamily?.toString().startsWith('SpaceGrotesk') ? 'Space Grotesk' : style.fontFamily?.toString().startsWith('GeistMono') ? 'Geist Mono' : 'Geist'
+  const fontFile = fontFamily === 'Geist Mono' ? '@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf' : style.fontFamily?.toString().startsWith('SpaceGrotesk')
     ? '@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf'
     : '@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'
   const text = textContent(element).replaceAll('&', '&amp;').replaceAll('<', '&lt;')
-  const bounds = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="200"><text y="100" font-family="${style.fontFamily?.toString().startsWith('SpaceGrotesk') ? 'Space Grotesk' : 'Geist'}" font-size="${fontSize}">${text}</text></svg>`,
+  const bounds = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="200"><text y="100" font-family="${fontFamily}" font-size="${fontSize}">${text}</text></svg>`,
     { font: { fontFiles: [require.resolve(fontFile)], loadSystemFonts: false } }).getBBox()
   if (!bounds) throw new Error(`No glyph bounds for ${text}`)
   return { width: Math.ceil(bounds.width + 8), lineHeight: Number(style.lineHeight ?? Number(style.fontSize ?? 14) * 1.55) * fontScale }
@@ -73,10 +86,14 @@ function layoutHost(element: Host, fontScale: number, nodes: Map<Host, YogaNode>
   nodes.set(element, node)
   const resolved = typeof element.props.style === 'function' ? element.props.style({ pressed: false }) : element.props.style
   const style = StyleSheet.flatten(resolved ?? {})
+  if (typeof style.marginTop === 'number') node.setMargin(Yoga.EDGE_TOP, style.marginTop)
+  if (style.width === '100%') node.setWidthPercent(100)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
+  if (style.alignSelf === 'flex-start') node.setAlignSelf(Yoga.ALIGN_FLEX_START)
   if (style.alignSelf === 'stretch') node.setAlignSelf(Yoga.ALIGN_STRETCH)
   for (const [key, apply] of [
     ['width', (value: number) => node.setWidth(value)], ['height', (value: number) => node.setHeight(value)],
@@ -89,7 +106,7 @@ function layoutHost(element: Host, fontScale: number, nodes: Map<Host, YogaNode>
     const measured = measureText(element, style, fontScale)
     node.setMeasureFunc((available) => {
       const width = Math.min(measured.width, available)
-      const lines = Math.min(element.props.numberOfLines ?? 1, Math.ceil(measured.width / Math.max(width, 1)))
+      const lines = Math.min(element.props.numberOfLines ?? Number.POSITIVE_INFINITY, Math.ceil(measured.width / Math.max(width, 1)))
       return { width, height: measured.lineHeight * lines }
     })
   } else {
@@ -103,6 +120,12 @@ function leadingPosition(node: YogaNode): number {
   let left = 0
   for (let current: YogaNode | null = node; current; current = current.getParent()) left += current.getComputedLeft()
   return left
+}
+
+function topPosition(node: YogaNode): number {
+  let top = 0
+  for (let current: YogaNode | null = node; current; current = current.getParent()) top += current.getComputedTop()
+  return top
 }
 
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
@@ -136,6 +159,29 @@ describe('Hoje leading edges on Android', () => {
         for (const [, node] of rows) {
           expect(leadingPosition(node)).toBe(16)
           if (fontScale === 2) expect(node.getComputedHeight()).toBeGreaterThan(68)
+        }
+        const progress = [...nodes].find(([element]) => element.type === 'Text' && textContent(element) === '0 of 2')!
+        expect(progress, JSON.stringify([...nodes].filter(([element]) => element.type === 'Text').map(([element]) => textContent(element)))).toBeDefined()
+        const [progressHost, progressNode] = progress
+        const measuredProgress = measureText(progressHost, StyleSheet.flatten(progressHost.props.style as StyleProp<TextStyle>), fontScale)
+        expect(progressNode.getComputedWidth()).toBeGreaterThanOrEqual(measuredProgress.width)
+        const parentTitle = textEdges.find(([element]) => textContent(element).startsWith('Parent habit'))![1]
+        expect(topPosition(progressNode)).toBeGreaterThanOrEqual(topPosition(parentTitle) + parentTitle.getComputedHeight())
+        if (fontScale === 2) {
+          const parentHosts = new Set<Host>()
+          const collectParentHosts = (host: Host) => {
+            parentHosts.add(host)
+            for (const child of host.children ?? []) if (typeof child !== 'string') collectParentHosts(child)
+          }
+          collectParentHosts(rows[1]![0])
+          const parentControls = [...nodes].filter(([element]) => parentHosts.has(element) &&
+            ((element.type === 'Pressable' && !element.props.accessibilityLabel?.startsWith('Parent habit')) || element.props.accessibilityRole === 'image'))
+          expect(parentControls).toHaveLength(selectMode ? 2 : 3)
+          for (const [, control] of parentControls) {
+            const firstLineCenter = topPosition(parentTitle) + 20
+            expect(topPosition(control)).toBeLessThanOrEqual(firstLineCenter)
+            expect(topPosition(control) + control.getComputedHeight()).toBeGreaterThan(firstLineCenter)
+          }
         }
         for (const [element, node] of nodes) {
           if (element.type !== 'Pressable') continue

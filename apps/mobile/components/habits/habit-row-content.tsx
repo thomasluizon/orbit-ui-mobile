@@ -18,6 +18,7 @@ interface HabitRowContentProps {
   metaColor: string
   metaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
+  metaOnSupportingLine?: boolean
 }
 
 export function HabitRowContent({
@@ -27,10 +28,8 @@ export function HabitRowContent({
   metaColor,
   metaParts,
   tokens,
+  metaOnSupportingLine = false,
 }: Readonly<HabitRowContentProps>) {
-  const { t } = useTranslation()
-  const visibleMeta = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future')
-  const metaKeys = visibleMeta.map((_, index) => `meta-part-${index}`)
   return (
     <View style={styles.titleBlock}>
       <Text
@@ -46,48 +45,61 @@ export function HabitRowContent({
         {habit.title}
       </Text>
 
-      {visibleMeta.length > 0 ? (
-        <Text
-          numberOfLines={1}
-          style={[styles.meta, { color: metaColor }]}
-        >
-          {visibleMeta.map((part, i) => {
-            let partContent: ReactNode
-            if (typeof part === 'string') partContent = part
-            else if (part.kind === 'future') partContent = part.label
-            else if (part.kind === 'overdue')
-              partContent = (
-                <Text
-                  style={{
-                    fontFamily: 'Geist_500Medium',
-                    color: tokens.statusOverdueText,
-                  }}
-                >
-                  {t('habits.overdue')}
-                </Text>
-              )
-            else
-              partContent = (
-                <Text
-                  style={{
-                    fontFamily: 'Geist_500Medium',
-                    color: tokens.statusBadText,
-                  }}
-                >
-                  {t('habits.statusDot.bad')}
-                </Text>
-              )
-            return (
-              <Fragment key={metaKeys[i]}>
-                {i > 0 ? (
-                  <Text style={{ color: metaColor }}> · </Text>
-                ) : null}
-                {partContent}
-              </Fragment>
-            )
-          })}
-        </Text>
-      ) : null}
+      {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} />}
     </View>
+  )
+}
+
+export function HabitRowMetaStrip({ metaParts, metaColor, tokens, expanded = false }: Readonly<{
+  metaParts: HabitRowMetaPart[]
+  metaColor: string
+  tokens: ReturnType<typeof createTokensV2>
+  expanded?: boolean
+}>) {
+  const { t } = useTranslation()
+  const visibleMeta = metaParts.filter((part) => typeof part === 'string' || part.kind !== 'future')
+  const metaKeys = visibleMeta.map((_, index) => `meta-part-${index}`)
+  if (visibleMeta.length === 0) return null
+  return (
+    <Text
+      numberOfLines={expanded ? undefined : 1}
+      style={[styles.meta, { color: metaColor }]}
+    >
+      {visibleMeta.map((part, i) => {
+        let partContent: ReactNode
+        if (typeof part === 'string') partContent = part
+        else if (part.kind === 'future') partContent = part.label
+        else if (part.kind === 'overdue')
+          partContent = (
+            <Text
+              style={{
+                fontFamily: 'Geist_500Medium',
+                color: tokens.statusOverdueText,
+              }}
+            >
+              {t('habits.overdue')}
+            </Text>
+          )
+        else
+          partContent = (
+            <Text
+              style={{
+                fontFamily: 'Geist_500Medium',
+                color: tokens.statusBadText,
+              }}
+            >
+              {t('habits.statusDot.bad')}
+            </Text>
+          )
+        return (
+          <Fragment key={metaKeys[i]}>
+            {i > 0 ? (
+              <Text style={{ color: metaColor }}> · </Text>
+            ) : null}
+            {partContent}
+          </Fragment>
+        )
+      })}
+    </Text>
   )
 }
