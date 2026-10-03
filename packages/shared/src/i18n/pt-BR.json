@@ -1803,7 +1803,7 @@
       "deleteAccount": "Apagar a conta",
       "reminders": "Lembretes dos hábitos",
       "remindersNote": "Os lembretes de cada hábito ficam no próprio hábito.",
-      "alertsOnThisDevice": "Notificações neste aparelho",
+      "alertsOnThisDevice": "Neste aparelho",
       "devicesUnavailable": "Não foi possível carregar os aparelhos.",
       "pushDeviceLimit": "Desligue as notificações em outro aparelho para usar este."
     },

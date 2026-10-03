@@ -40,12 +40,12 @@ function wrappedTitleStyle(textMode: ListRowProps['textMode'], wrapTitle: ListRo
   return textMode === 'label' || wrapTitle ? styles.wrappedTitle : null
 }
 
-function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRowProps['wrapValue'], compact: boolean, hasTrailing: boolean) {
-  return [styles.textBlock, compact && hasTrailing ? styles.controlRowText : null, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]
+function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRowProps['wrapValue'], wrapTitle: ListRowProps['wrapTitle'], compact: boolean, hasTrailing: boolean) {
+  return [styles.textBlock, compact && hasTrailing ? styles.controlRowText : null, wrapTitle && hasTrailing ? styles.wrappedControlText : null, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]
 }
 
 function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact'> & { titleColor: string; valueColor: string }>) {
-  const text = <View style={getTextBlockStyle(textMode, wrapValue, compact, !!trailing)}>
+  const text = <View style={getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing)}>
     <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Text>
     {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
   </View>
@@ -71,7 +71,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, compactForm, !!trailing)
   const body: ReactNode = (
-    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' ? styles.labelContent : null, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
+    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' || (props.wrapTitle && trailing) ? styles.labelContent : null, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View importantForAccessibility="no-hide-descendants" style={styles.iconSlot}>
           {renderLeadingIcon(icon, rowColors.iconColor)}
@@ -114,6 +114,7 @@ const styles = StyleSheet.create({
   bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   controlRowBody: { paddingVertical: 0 },
   controlRowText: { paddingVertical: 4 },
+  wrappedControlText: { minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' },
   bodyWithAction: { paddingEnd: 0 },
   action: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, minHeight: 24, flexShrink: 0, alignItems: 'center' },
