@@ -13,9 +13,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect width="336" height="192" fill="#131315"/>
 <rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" stroke="#2B2B2D" stroke-width="1"/>
 <text x="12" y="18" fill="#8F8F93" font-size="13" font-weight="500" letter-spacing="0.52">TODAY</text>
-<text x="12" y="35" fill="#8F8F93" font-size="11">3 of 7 completed</text>
+<text x="12" y="35" fill="#8F8F93" font-size="12">3 of 7 completed</text>
 <text x="250" y="28" text-anchor="end" fill="#E16D33" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#8F8F93" font-size="11">days</text>
+<text x="253" y="28" fill="#8F8F93" font-size="12">days</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#8F8F93" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect y="47" width="336" height="1" fill="#2B2B2D"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#1D1D1F"/>
@@ -34,8 +34,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="164" fill="#F4F4F6" font-size="15">House routine</text>
 <text x="42" y="180" fill="#8F8F93" font-size="12" letter-spacing="0.22">09:00</text>
 <rect x="210" y="153" width="34" height="18" rx="8" fill="#1D1D1F"/>
-<text x="227" y="166" text-anchor="middle" fill="#C9C9CC" font-size="11">2/3</text>
-<text x="324" y="172" text-anchor="end" fill="#8F8F93" font-size="11">+2 inside</text>
+<text x="227" y="166" text-anchor="middle" fill="#C9C9CC" font-size="12">2/3</text>
+<text x="324" y="172" text-anchor="end" fill="#8F8F93" font-size="12">+2 inside</text>
 </g>
 </svg>"
 `;
@@ -53,9 +53,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect width="336" height="192" fill="#131315"/>
 <rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" stroke="#2B2B2D" stroke-width="1"/>
 <text x="12" y="18" fill="#8F8F93" font-size="13" font-weight="500" letter-spacing="0.52">HOJE</text>
-<text x="12" y="35" fill="#8F8F93" font-size="11">3 de 7 concluídos</text>
+<text x="12" y="35" fill="#8F8F93" font-size="12">3 de 7 concluídos</text>
 <text x="250" y="28" text-anchor="end" fill="#E16D33" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#8F8F93" font-size="11">dias</text>
+<text x="253" y="28" fill="#8F8F93" font-size="12">dias</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#8F8F93" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect y="47" width="336" height="1" fill="#2B2B2D"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#1D1D1F"/>
@@ -74,8 +74,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="164" fill="#F4F4F6" font-size="15">Rotina da casa</text>
 <text x="42" y="180" fill="#8F8F93" font-size="12" letter-spacing="0.22">09:00</text>
 <rect x="210" y="153" width="34" height="18" rx="8" fill="#1D1D1F"/>
-<text x="227" y="166" text-anchor="middle" fill="#C9C9CC" font-size="11">2/3</text>
-<text x="324" y="172" text-anchor="end" fill="#8F8F93" font-size="11">+2 dentro</text>
+<text x="227" y="166" text-anchor="middle" fill="#C9C9CC" font-size="12">2/3</text>
+<text x="324" y="172" text-anchor="end" fill="#8F8F93" font-size="12">+2 dentro</text>
 </g>
 </svg>"
 `;
@@ -93,9 +93,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect width="336" height="192" fill="#FFFFFF"/>
 <rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" stroke="#E6E6E8" stroke-width="1"/>
 <text x="12" y="18" fill="#68686D" font-size="13" font-weight="500" letter-spacing="0.52">HOJE</text>
-<text x="12" y="35" fill="#68686D" font-size="11">3 de 7 concluídos</text>
+<text x="12" y="35" fill="#68686D" font-size="12">3 de 7 concluídos</text>
 <text x="250" y="28" text-anchor="end" fill="#B64900" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#68686D" font-size="11">dias</text>
+<text x="253" y="28" fill="#68686D" font-size="12">dias</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#68686D" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect y="47" width="336" height="1" fill="#E6E6E8"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#F1F1F2"/>
@@ -114,8 +114,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="164" fill="#1A1A1D" font-size="15">Rotina da casa</text>
 <text x="42" y="180" fill="#68686D" font-size="12" letter-spacing="0.22">09:00</text>
 <rect x="210" y="153" width="34" height="18" rx="8" fill="#F1F1F2"/>
-<text x="227" y="166" text-anchor="middle" fill="#424247" font-size="11">2/3</text>
-<text x="324" y="172" text-anchor="end" fill="#68686D" font-size="11">+2 dentro</text>
+<text x="227" y="166" text-anchor="middle" fill="#424247" font-size="12">2/3</text>
+<text x="324" y="172" text-anchor="end" fill="#68686D" font-size="12">+2 dentro</text>
 </g>
 </svg>"
 `;
@@ -133,9 +133,9 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect width="336" height="192" fill="#FFFFFF"/>
 <rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" stroke="#E6E6E8" stroke-width="1"/>
 <text x="12" y="18" fill="#68686D" font-size="13" font-weight="500" letter-spacing="0.52">TODAY</text>
-<text x="12" y="35" fill="#68686D" font-size="11">3 of 7 completed</text>
+<text x="12" y="35" fill="#68686D" font-size="12">3 of 7 completed</text>
 <text x="250" y="28" text-anchor="end" fill="#B64900" font-size="15" font-weight="500">12</text>
-<text x="253" y="28" fill="#68686D" font-size="11">days</text>
+<text x="253" y="28" fill="#68686D" font-size="12">days</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#68686D" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect y="47" width="336" height="1" fill="#E6E6E8"/>
 <rect x="0.5" y="48.5" width="335" height="47" rx="16" fill="#F1F1F2"/>
@@ -154,8 +154,8 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="164" fill="#1A1A1D" font-size="15">House routine</text>
 <text x="42" y="180" fill="#68686D" font-size="12" letter-spacing="0.22">09:00</text>
 <rect x="210" y="153" width="34" height="18" rx="8" fill="#F1F1F2"/>
-<text x="227" y="166" text-anchor="middle" fill="#424247" font-size="11">2/3</text>
-<text x="324" y="172" text-anchor="end" fill="#68686D" font-size="11">+2 inside</text>
+<text x="227" y="166" text-anchor="middle" fill="#424247" font-size="12">2/3</text>
+<text x="324" y="172" text-anchor="end" fill="#68686D" font-size="12">+2 inside</text>
 </g>
 </svg>"
 `;

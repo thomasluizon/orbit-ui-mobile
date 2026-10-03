@@ -8,13 +8,18 @@ const scale = new Set([12, 14, 16, 17, 20, 22, 28, 34, 44, 60])
 const exceptions = [
   { path: 'apps/mobile/components/share/share-card.tsx', size: 88, drawing: 'design/canvas/Orbit Wrapped.dc.html', element: 'primaryValue' },
   { path: 'apps/web/components/share/share-card.tsx', size: 88, drawing: 'design/canvas/Orbit Wrapped.dc.html', element: 'primary figure' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml', size: 15, drawing: 'design/canvas/Orbit Widget Android.dc.html', element: 'habit title' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 13, drawing: 'design/canvas/Orbit Widget Android.dc.html', element: 'day title' },
+  { path: 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_layout.xml', size: 15, drawing: 'design/canvas/Orbit Widget Android.dc.html', element: 'streak figure and empty or signed-out message' },
+  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 13, drawing: 'design/canvas/Orbit Widget Android.dc.html', element: 'picker day title' },
+  { path: 'apps/mobile/scripts/generate-widget-preview.ts', size: 15, drawing: 'design/canvas/Orbit Widget Android.dc.html', element: 'picker habit title and streak figure' },
 ]
 
 function authoredFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    if (['node_modules', '__tests__', 'test-mocks', 'test-support', 'e2e', '.next', 'android', '.expo'].includes(entry.name)) return []
+    if (['node_modules', '__tests__', 'test-mocks', 'test-support', 'e2e', '.next', '.expo', 'build', '.gradle'].includes(entry.name)) return []
     const path = resolve(directory, entry.name)
-    return entry.isDirectory() ? authoredFiles(path) : /\.(?:tsx?|jsx?|css)$/.test(entry.name) && !/\.(?:test|type-test)\./.test(entry.name) ? [path] : []
+    return entry.isDirectory() ? authoredFiles(path) : /\.(?:tsx?|jsx?|css|xml|svg)$/.test(entry.name) && !/\.(?:test|type-test)\./.test(entry.name) ? [path] : []
   })
 }
 
@@ -30,7 +35,8 @@ function literalSizes(expression: ts.Expression): number[] {
 
 function authoredSizes(source: string, path: string): number[] {
   const values = [...source.matchAll(/(?:text-\[|font-size:\s*)([\d.]+)(px|rem)/g)].map((match) => Number(match[1]) * (match[2] === 'rem' ? 16 : 1))
-  if (path.endsWith('.css')) return values
+  values.push(...[...source.matchAll(/(?:font-size|android:textSize)=["']([\d.]+)(?:sp|px)?["']/g)].map((match) => Number(match[1])))
+  if (/\.(?:css|xml|svg)$/.test(path)) return values
   const syntax = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   function visit(node: ts.Node) {
     if (ts.isPropertyAssignment(node) && node.name.getText(syntax).replaceAll(/['"]/g, '') === 'fontSize') values.push(...literalSizes(node.initializer))
@@ -52,9 +58,10 @@ describe('authored app typography', () => {
   it('recognizes fractional pixels, rems, conditional branches and arbitrary text classes', () => {
     expect(authoredSizes(`const style = { fontSize: 10.5 }; const other = { fontSize: mono ? 13 : 14 }; const rem = { fontSize: '0.8125rem' }; const label = 'text-[15px]'`, 'sample.tsx')).toEqual([15, 10.5, 13, 14, 13])
     expect(authoredSizes('a { font-size: 0.8125rem } b { font-size: 18px }', 'sample.css')).toEqual([13, 18])
+    expect(authoredSizes('<TextView android:textSize="11sp" /><text font-size="13" />', 'sample.xml')).toEqual([11, 13])
   })
 
-  it.each(exceptions)('keeps $path exception tied to its exported figure drawing', ({ path, size, drawing }) => {
+  it.each(exceptions)('keeps $path exception tied to its named element drawing', ({ path, size, drawing }) => {
     expect(authoredSizes(readFileSync(resolve(root, path), 'utf8'), path)).toContain(size)
     expect(readFileSync(resolve(root, drawing), 'utf8')).toContain(`fontSize: ${size}`)
   })
