@@ -3,6 +3,28 @@ import type { HabitDetail, NormalizedHabit } from '../types/habit'
 import type { Profile } from '../types/profile'
 import { getReturningInterval } from '../utils/returning-interval'
 
+export const COMPOSER_CHIP_GAP = 8
+export const COMPOSER_CHIP_PEEK = 24
+
+export function resolveComposerStripLayout(availableWidth: number, measuredWidths: readonly number[]): { visibleWidth: number; firstChipMinWidth: number } {
+  const spacing = COMPOSER_CHIP_GAP + COMPOSER_CHIP_PEEK
+  const chipWidths = measuredWidths.map(width => Math.min(width, Math.max(0, availableWidth - spacing)))
+  const totalWidth = chipWidths.reduce((sum, width) => sum + width, 0)
+    + Math.max(0, chipWidths.length - 1) * COMPOSER_CHIP_GAP
+  if (chipWidths.some(width => width === 0) || totalWidth <= availableWidth) {
+    return { visibleWidth: availableWidth, firstChipMinWidth: 0 }
+  }
+  const firstChipMinWidth = Math.max(0, Math.max(...chipWidths) - spacing)
+  let nextStart = Math.max(chipWidths[0]!, firstChipMinWidth) + COMPOSER_CHIP_GAP
+  let visibleWidth = nextStart + COMPOSER_CHIP_PEEK
+  for (const width of chipWidths.slice(1, -1)) {
+    nextStart += width + COMPOSER_CHIP_GAP
+    if (nextStart + COMPOSER_CHIP_PEEK > availableWidth) break
+    visibleWidth = nextStart + COMPOSER_CHIP_PEEK
+  }
+  return { visibleWidth, firstChipMinWidth }
+}
+
 export type ComposerChipSurface = 'today' | 'calendar' | 'progress' | 'profile' | 'habitDetail'
 export type ComposerChipStatus = 'loading' | 'error' | 'success'
 export type ComposerChip = {
@@ -33,7 +55,7 @@ export type ComposerChipState = {
 const chip = (id: string, params?: { title: string }): ComposerChip => ({
   id,
   key: `shell.composer.chips.${id}`,
-  ...(params ? { params } : {}),
+  ...(params ? { params, promptKey: `shell.composer.prompts.${id}` } : {}),
 })
 
 export function resolveComposerChipStatus(surface: ComposerChipSurface, state: {

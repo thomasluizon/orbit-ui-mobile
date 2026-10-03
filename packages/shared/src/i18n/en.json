@@ -241,30 +241,30 @@
       },
       "chips": {
         "today": {
-          "moveOverdue": "Move \"{title}\" to tonight",
-          "logHabit": "Log \"{title}\"",
+          "moveOverdue": "Move a habit to tonight",
+          "logHabit": "Log your next habit",
           "logYesterday": "Log yesterday",
           "pushTomorrow": "Push everything to tomorrow",
-          "trimHabit": "Simplify \"{title}\"",
+          "trimHabit": "Simplify habit steps",
           "createMorningHabit": "Create a morning habit",
           "logLastDays": "Log the last days",
           "resumeHabits": "Pick the habits back up",
           "cutToTwo": "Cut to two a day",
           "changeTimes": "Change the times",
           "pauseWhatDoesNotFit": "Pause what does not fit",
-          "keepOnlyHabit": "Keep only \"{title}\"",
+          "keepOnlyHabit": "Keep only one habit",
           "buildMorningRoutine": "Build a morning routine",
           "startOneHabit": "Start with one habit",
           "suggestThreeHabits": "Suggest three habits",
           "createEveningHabit": "Create an evening habit",
-          "reviewHabit": "Review \"{title}\""
+          "reviewHabit": "Review habit steps"
         },
         "calendar": {
           "slippedThisWeek": "What slipped this week",
           "syncCalendar": "Sync my calendar"
         },
         "progress": {
-          "createGoal": "Create a goal for {title}",
+          "createGoal": "Add a goal to a habit",
           "brokenStreak": "Why the streak broke",
           "trimGoals": "Trim my goals",
           "stuckThisWeek": "What is getting stuck this week"
@@ -279,6 +279,18 @@
           "askAstra": "Ask Astra",
           "pauseThisWeek": "Pause this week",
           "rename": "Rename"
+        }
+      },
+      "prompts": {
+        "today": {
+          "moveOverdue": "Move \"{title}\" to tonight",
+          "logHabit": "Log \"{title}\"",
+          "trimHabit": "Simplify \"{title}\"",
+          "keepOnlyHabit": "Keep only \"{title}\"",
+          "reviewHabit": "Review \"{title}\""
+        },
+        "progress": {
+          "createGoal": "Create a goal for {title}"
         }
       },
       "inputLabel": "Ask Astra",
