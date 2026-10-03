@@ -329,8 +329,8 @@ describe('mobile ProgressContent', () => {
     viewport.insertChild(screen, 0)
     try {
       viewport.calculateLayout(width, 900, Yoga.DIRECTION_LTR)
-      const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
-      const content = StyleSheet.flatten(scroll.props.contentContainerStyle as ViewStyle)
+      const sections = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-sections')[0]!
+      const content = StyleSheet.flatten(sections.props.style as ViewStyle)
       expect(screen.getComputedLeft() + Number(content.paddingHorizontal)).toBe((width - Math.min(width, 740)) / 2 + 16)
       expect(screen.getComputedWidth()).toBe(Math.min(width, 740))
     } finally {

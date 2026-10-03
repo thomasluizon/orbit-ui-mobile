@@ -5,6 +5,7 @@ import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui
 import { Menu } from '@/components/ui/menu'
 import { PillButton } from '@/components/ui/pill-button'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 
@@ -47,7 +48,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const menuId = useId()
   const menuAnchorRef = useRef<HTMLButtonElement>(null)
   const wide = useIsWideDesktop()
-  return <div data-today-header-actions="" className="flex min-h-[48px] items-center gap-[4px] px-[16px]">
+  return <DestinationHeaderRow data-today-header-actions="" gap={4}>
     {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <div className="flex-1" />
@@ -71,7 +72,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
         else if (id === 'refresh') props.onRefresh()
         else if (id === 'completed') props.onToggleCompleted()
       }} />
-  </div>
+  </DestinationHeaderRow>
 }
 
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {

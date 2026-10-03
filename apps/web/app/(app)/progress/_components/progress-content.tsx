@@ -616,15 +616,17 @@ export function ProgressContent() {
     void gamification.refetch()
   }
   return (
-    <div className="mx-auto flex w-full max-w-[740px] flex-col gap-8 px-4 pt-4">
-      {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
-      <div hidden={detailGoalId !== null} className="flex w-full flex-col gap-8">
-      <RootNotificationHeader inset={0} />
-      <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
-      {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
-      {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
-      {empty ? <div className="pt-12"><GoalsEmptyState /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+    <div className="mx-auto flex w-full max-w-[740px] flex-col">
+      {detailGoalId ? <div className="px-4 pt-4"><GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /></div> : null}
+      <div hidden={detailGoalId !== null} className="flex w-full flex-col">
+        <RootNotificationHeader />
+        <div className="flex w-full flex-col gap-8 px-4 pt-12 lg:pt-4">
+          <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
+          {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
+          {error ? <div className="w-full"><ErrorState message={t('progressScreen.error')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
+          {empty ? <div className="pt-12"><GoalsEmptyState /></div> : null}
+          {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+        </div>
       </div>
     </div>
   )

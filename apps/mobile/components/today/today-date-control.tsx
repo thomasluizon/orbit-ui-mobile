@@ -3,6 +3,7 @@ import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui
 import { Menu, MenuAnchorHost, useAnchoredMenu } from '@/components/ui/menu'
 import { PillButton } from '@/components/ui/pill-button'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { useShellHeaderSlot } from '@/components/shell/shell-header-slot'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -42,7 +43,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const menu = useAnchoredMenu()
-  return <View testID="today-header-actions" style={styles.header}>
+  return <DestinationHeaderRow testID="today-header-actions" gap={4}>
     {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <View style={styles.spacer} />
@@ -71,7 +72,7 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
         else if (id === 'refresh') props.onRefresh()
         else if (id === 'completed') props.onToggleCompleted()
       }} />
-  </View>
+  </DestinationHeaderRow>
 }
 
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
@@ -102,7 +103,6 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 48, paddingHorizontal: 16 },
   spacer: { flex: 1 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: 4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
