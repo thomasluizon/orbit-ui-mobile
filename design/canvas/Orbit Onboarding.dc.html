@@ -21,7 +21,13 @@ body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
 @keyframes ob-ring-in{from{stroke-dashoffset:97.39}to{stroke-dashoffset:0}}
+.native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
+.native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-send:hover:not(:disabled){background:var(--primary-hover)}
+.native-send:active:not(:disabled){background:var(--primary-pressed)}
+.native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -303,7 +309,7 @@ const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 /* The reminder fires at the due time minus the default ReminderTimes of [15] (Habit.cs:77, :159). */
 const minus15 = (hm) => { const p = hm.split(':'); const v = ((+p[0]) * 60 + (+p[1]) - 15 + 1440) % 1440; return ('0' + Math.floor(v / 60)).slice(-2) + ':' + ('0' + (v % 60)).slice(-2); };
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 const PT_DAY = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const EN_DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const EMOJI_HINT = [[/corr|run/i, '\uD83C\uDFC3'], [/ler|leitur|read|livro|book/i, '\uD83D\uDCD6'],
@@ -631,7 +637,7 @@ class Component extends DCLogic {
     /* nav is the shells' own behaviour: absent for the three decisions, the plain shape at the last
        step. With nav off the rejected sidebar props are OMITTED, never passed as null. */
     const sh412 = navOn
-      ? { tabBar: H(D.TabBar, { items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
+      ? { tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
           activeId: 'hoje', onSelect: () => {} }), notice: notice }
       : { nav: false, action: action, notice: notice };
     const shWide = navOn

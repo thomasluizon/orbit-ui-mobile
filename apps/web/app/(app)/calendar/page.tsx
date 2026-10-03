@@ -5,14 +5,11 @@ import {
   addMonths,
   addDays,
   subMonths,
-  setYear,
   addWeeks,
   subWeeks,
-  startOfMonth,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
-  isSameMonth,
   format,
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -23,7 +20,7 @@ import {
   formatAPIDate,
   formatWeekdayLabels,
   parseAPIDate,
-  capitalizeFirstLetter,
+  formatCalendarWeekLabel,
   formatCalendarDayTitle,
   filterCalendarSyncEventsByDate,
   isCalendarDayLoggable,
@@ -69,7 +66,6 @@ import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
-import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -81,9 +77,9 @@ import { useUIStore } from '@/stores/ui-store'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
 import { useToday } from '../today-provider'
+import { CalendarOptions } from './_components/calendar-options'
 import {
   CalendarHeader,
-  CalendarLegend,
 } from './_components/calendar-shell'
 
 type MonthSlide = 'left' | 'right' | null
@@ -151,30 +147,6 @@ function CalendarMonthFeedback({
   )
 }
 
-function CalendarMonthLegend({
-  state,
-  loggableLabel,
-  fullLabel,
-  partialLabel,
-  noneLabel,
-}: Readonly<{
-  state: CalendarMonthDisplayState
-  loggableLabel: string
-  fullLabel: string
-  partialLabel: string
-  noneLabel: string
-}>) {
-  if (state !== 'ready') return null
-  return (
-    <CalendarLegend
-      loggableLabel={loggableLabel}
-      fullLabel={fullLabel}
-      partialLabel={partialLabel}
-      noneLabel={noneLabel}
-    />
-  )
-}
-
 function CalendarDayCardSlot({ loading, label, children }: Readonly<{ loading: boolean; label: string; children: ReactNode }>) {
   return <div style={{ paddingInline: 16, paddingBlockStart: 24 }}>{loading ? (
     <div data-testid="calendar-day-skeleton" className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ paddingBlock: 24 }}>
@@ -239,28 +211,25 @@ function CalendarProfileState({
   onRetry: () => void
 }>) {
   const t = useTranslations()
-  const locale = useLocale()
-  const dateFnsLocale = calendarDateFnsLocale(locale)
   return (
       <div className="flex min-w-0 flex-col">
         <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
+        <CalendarOptions />
         {error ? (
           <CalendarLoadError onRetry={onRetry} />
         ) : (
           <>
             <CalendarHeader
-              monthLabel={capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale }))}
-              year={currentMonth.getFullYear()}
+              currentMonth={currentMonth}
+              todayKey={formatAPIDate(new Date())}
               previousMonthLabel={t('common.previousMonth')}
               nextMonthLabel={t('common.nextMonth')}
-              currentMonthLabel={t('calendar.goToCurrentMonth')}
-              selectYearLabel={t('common.selectYear')}
               onPreviousMonth={() => setSelectedDay(formatAPIDate(subMonths(currentMonth, 1)))}
               onNextMonth={() => setSelectedDay(formatAPIDate(addMonths(currentMonth, 1)))}
               onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
-              onSelectYear={(year) => setSelectedDay(formatAPIDate(startOfMonth(setYear(currentMonth, year))))}
+              onSelectMonth={(month, year) => setSelectedDay(formatAPIDate(new Date(year, month, 1)))}
               showMonthNavigation={view === 'month'}
-              viewSelector={<SegmentedControl<CalendarView> options={[
+              viewSelector={<SegmentedControl<CalendarView> fullWidth options={[
                 { value: 'month', label: t('calendar.view.month') },
                 { value: 'week', label: t('calendar.view.week') },
                 { value: 'range', label: t('calendar.view.range') },
@@ -303,23 +272,6 @@ interface CalendarPageContentProps {
   setView: Dispatch<SetStateAction<CalendarView>>
 }
 
-function MonthRecurringFilter({
-  visible,
-  checked,
-  onChange,
-}: Readonly<{
-  visible: boolean
-  checked: boolean
-  onChange: (checked: boolean) => void
-}>) {
-  if (!visible) return null
-
-  return (
-    <div style={{ padding: '4px 16px' }}>
-      <ShowRecurringToggle checked={checked} onChange={onChange} />
-    </div>
-  )
-}
 
 // react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function CalendarPageContent({
@@ -382,7 +334,7 @@ function CalendarPageContent({
     setInitialImportEventId(null)
     if (importRequested) router.replace('/calendar')
   }, [importRequested, router, setIsImportOpen])
-  const [showRecurring, setShowRecurring] = useState(true)
+  const showRecurring = useUIStore((state) => state.calendarShowRecurring)
   const {
     data: calendarEventsResult,
     isPending: calendarEventsPending,
@@ -496,11 +448,7 @@ function CalendarPageContent({
     })
   }, [weekStart, weekEnd, todayKey])
 
-  const monthLabel = useMemo(
-    () => capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale })),
-    [currentMonth, dateFnsLocale],
-  )
-  const currentYear = currentMonth.getFullYear()
+
 
   const displayMonthDayMap = useMemo(
     () => filterRecurringDayMap(dayMap, showRecurring),
@@ -511,13 +459,7 @@ function CalendarPageContent({
     [rangeDayMap, showRecurring],
   )
 
-  const weekLabel = useMemo(() => {
-    const startLabel = format(weekStart, 'MMM d', { locale: dateFnsLocale })
-    const endLabel = isSameMonth(weekStart, weekEnd)
-      ? format(weekEnd, 'd', { locale: dateFnsLocale })
-      : format(weekEnd, 'MMM d', { locale: dateFnsLocale })
-    return `${startLabel} - ${endLabel}`
-  }, [weekStart, weekEnd, dateFnsLocale])
+  const weekLabel = formatCalendarWeekLabel(weekStart, weekEnd, locale)
 
   const {
     dayMap: activeDayMap,
@@ -549,11 +491,10 @@ function CalendarPageContent({
     setSelectedDay(formatAPIDate(month))
   }, [currentMonth, setSelectedDay])
 
-  const selectYear = useCallback((year: number) => {
-    setMonthSlide(null)
-    const month = startOfMonth(setYear(currentMonth, year))
-    setSelectedDay(formatAPIDate(month))
-  }, [currentMonth, setSelectedDay])
+  const selectMonth = useCallback((month: number, year: number) => {
+    setMonthSlide(null);
+    setSelectedDay(formatAPIDate(new Date(year, month, 1)));
+  }, [setSelectedDay]);
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null)
@@ -644,7 +585,6 @@ function CalendarPageContent({
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
     [currentMonth, displayMonthDayMap, weekStartsOn, todayKey],
   )
-  const showMonthRecurringToggle = !isLoading && [...dayMap.values()].some((entries) => entries.length > 0)
   const monthDisplayState = resolveCalendarMonthDisplayState({
     currentMonth,
     today: todayKey,
@@ -727,7 +667,7 @@ function CalendarPageContent({
   }, [isOnline, setShowCreateRefusal, setShowCreateModal])
 
   const viewSelector = (
-    <SegmentedControl<CalendarView>
+    <SegmentedControl<CalendarView> fullWidth
       options={viewOptions}
       value={view}
       onChange={setView}
@@ -736,16 +676,14 @@ function CalendarPageContent({
   )
   const calendarHeader = (
     <CalendarHeader
-      monthLabel={monthLabel}
-      year={currentYear}
+      currentMonth={currentMonth}
+      todayKey={todayKey}
       previousMonthLabel={t('common.previousMonth')}
       nextMonthLabel={t('common.nextMonth')}
-      currentMonthLabel={t('calendar.goToCurrentMonth')}
-      selectYearLabel={t('common.selectYear')}
       onPreviousMonth={prevMonth}
       onNextMonth={nextMonth}
       onCurrentMonth={goToCurrentMonth}
-      onSelectYear={selectYear}
+      onSelectMonth={selectMonth}
       viewSelector={viewSelector}
       showMonthNavigation={view === 'month'}
     />
@@ -755,6 +693,7 @@ function CalendarPageContent({
     <div className="relative">
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
       <div className="relative z-[1]">
+        <CalendarOptions onGoogleCalendar={() => profile.hasProAccess ? openImport(null) : router.push('/upgrade')} />
         {calendarHeader}
 
         {activeError ? (
@@ -782,20 +721,6 @@ function CalendarPageContent({
                       todayKey={todayKey}
                     />
                   </div>
-
-                  <CalendarMonthLegend
-                    state={monthDisplayState}
-                    loggableLabel={t('calendar.legend.loggable')}
-                    fullLabel={t('calendar.legend.full')}
-                    partialLabel={t('calendar.legend.partial')}
-                    noneLabel={t('calendar.legend.none')}
-                  />
-
-                  <MonthRecurringFilter
-                    visible={showMonthRecurringToggle}
-                    checked={showRecurring}
-                    onChange={setShowRecurring}
-                  />
 
                   <CalendarMonthFeedback
                     state={monthDisplayState}
@@ -856,8 +781,6 @@ function CalendarPageContent({
                 allDayLabel={t('calendar.timeGrid.noSetTime')}
                 nowLabel={t('calendar.timeGrid.now')}
                 timeZone={profile.timeZone}
-                showRecurring={showRecurring}
-                onShowRecurringChange={setShowRecurring}
               />
             )}
 
@@ -874,15 +797,13 @@ function CalendarPageContent({
                 isLoading={rangeLoading}
                 loadingLabel={t('common.loading')}
                 stats={rangeStatTiles}
-                showRecurring={showRecurring}
-                onShowRecurringChange={setShowRecurring}
               />
             )}
 
             {view === 'agenda' && (
               <CalendarAgendaView
                 startDate={agendaStart}
-                dayMap={rangeDayMap}
+                dayMap={displayRangeDayMap}
                 displayTime={displayTime}
                 displayWeekdayDate={displayWeekdayDate}
                 todayKey={todayKey}

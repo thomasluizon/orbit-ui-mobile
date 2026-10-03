@@ -10,6 +10,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useToday } from './today-provider'
 
 export interface TodayDateNavBundle {
+  shortDayName: string
   dayName: string
   numericDate: string
   isTodaySelected: boolean
@@ -101,6 +102,7 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
 
   const dateNav = useMemo<TodayDateNavBundle>(
     () => ({
+      shortDayName: formatLocaleDate(selectedDate, locale, { weekday: 'short' }),
       dayName,
       numericDate,
       isTodaySelected,
@@ -123,6 +125,7 @@ export function useTodayNavigation(initialToday: string): TodayNavigation {
       t,
       selectedDate,
       today,
+      locale,
     ],
   )
 

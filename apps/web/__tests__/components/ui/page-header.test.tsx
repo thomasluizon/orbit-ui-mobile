@@ -10,6 +10,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
 import { LegalDocumentLayout } from '@/components/legal-document-layout'
 import { Markdown } from '@/components/ui/markdown'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
 
 describe('PageHeader', () => {
   describe('drawn title size', () => {
@@ -43,21 +45,20 @@ describe('PageHeader', () => {
 
     it.each([412, 1352])('renders the calendar and legal hierarchy at %ipx', async (width) => {
       const noop = () => {}
-      const { container } = render(<>
-        <CalendarHeader monthLabel="April" year={2026} previousMonthLabel="Previous" nextMonthLabel="Next"
-          currentMonthLabel="Current month" selectYearLabel="Select year" onPreviousMonth={noop}
-          onNextMonth={noop} onCurrentMonth={noop} onSelectYear={noop} />
+      const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous" nextMonthLabel="Next"
+          onPreviousMonth={noop}
+          onNextMonth={noop} onCurrentMonth={noop} onSelectMonth={noop} />
         <LegalDocumentLayout title="Privacy" lastUpdated="Updated" backLabel="Back" onBack={noop}
           sections={[{ id: 'privacy', title: 'Your privacy', paragraphs: ['Your privacy matters.'] }]}
           closingNote={{ id: 'contact', title: 'Contact', paragraphs: ['Contact us.'] }} />
-      </>)
+      </NextIntlClientProvider>)
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
         const fontSize = (element: Element) => getComputedStyle(element).fontSize
-        expect(await page.getByText('April', { exact: true }).evaluate(fontSize)).toBe('28px')
-        expect(await page.getByRole('button', { name: 'Select year' }).evaluate(fontSize)).toBe(width >= 1024 ? '14px' : '12px')
+        expect(await page.getByText('April', { exact: true }).evaluate(fontSize)).toBe('22px')
         expect(await page.locator('[data-legal-document-content] header p').first().evaluate(fontSize)).toBe(width < 640 ? '22px' : '28px')
         expect(await page.getByRole('heading', { level: 2, name: 'Your privacy' }).evaluate(fontSize)).toBe('17px')
         expect(await page.getByText('Your privacy matters.', { exact: true }).evaluate(fontSize)).toBe('16px')

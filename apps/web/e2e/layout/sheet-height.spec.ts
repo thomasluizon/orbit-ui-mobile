@@ -90,8 +90,9 @@ test('a short confirmation fits its content and keeps its actions above the safe
   })
   await context.route(new RegExp(`${API.notifications.list}$`), (route) => route.fulfill({ json: notifications }))
   await page.goto('/notifications')
-  await page.getByRole('button', { name: messages.notifications.deleteAll }).click()
-  const panel = page.getByRole('dialog', { name: messages.notifications.deleteAllConfirmTitle })
+  await page.getByRole('button', { name: messages.notifications.options }).click()
+  await page.getByRole('menu', { name: messages.notifications.options }).getByRole('menuitem', { name: messages.notifications.deleteAll }).click()
+  const panel = page.getByRole('dialog', { name: messages.notifications.deleteAllAction })
   await expect(panel).toBeVisible()
 
   const measured = await measureSheet(panel)

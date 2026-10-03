@@ -16,10 +16,12 @@ import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
-import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, resolveShellDestination, resolveShellChrome } from '@orbit/shared/utils'
+import { Plus } from '@/components/ui/icons'
+import { DestinationIcon, getDestinationIcon } from '@/components/navigation/destination-icon'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
+import { NotificationBell } from '@/components/navigation/notification-bell'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -208,12 +210,7 @@ function DestinationShellContent({
   useKeyboardShortcuts(navigationEnabled)
 
   const labels = useMemo<Record<BottomTab, string>>(
-    () => ({
-      hoje: t('nav.today'),
-      calendario: t('nav.calendar'),
-      progresso: t('nav.progress'),
-      perfil: t('nav.profile'),
-    }),
+    () => Object.fromEntries(SHELL_DESTINATION_IDS.map((id) => [id, t(DESTINATION_ICONS[id].labelKey)])) as Record<BottomTab, string>,
     [t],
   )
 
@@ -230,32 +227,12 @@ function DestinationShellContent({
   )
 
   const wideItems = useMemo<ShellWideItem[]>(
-    () => [
-      { id: 'hoje', label: labels.hoje, icon: 'home' },
-      { id: 'calendario', label: labels.calendario, icon: 'calendar' },
-      { id: 'progresso', label: labels.progresso, icon: 'chart-line' },
-      { id: 'perfil', label: labels.perfil, icon: 'user' },
-    ],
+    () => SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: id })),
     [labels],
   )
 
   const commandItems = useMemo<CommandNavigationItem[]>(
-    () => [
-      { id: 'hoje', label: labels.hoje, icon: Home, onSelect: () => navigate('hoje') },
-      {
-        id: 'calendario',
-        label: labels.calendario,
-        icon: CalendarDays,
-        onSelect: () => navigate('calendario'),
-      },
-      {
-        id: 'progresso',
-        label: labels.progresso,
-        icon: ChartLine,
-        onSelect: () => navigate('progresso'),
-      },
-      { id: 'perfil', label: labels.perfil, icon: User, onSelect: () => navigate('perfil') },
-    ],
+    () => SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: getDestinationIcon(id), onSelect: () => navigate(id) })),
     [labels, navigate],
   )
 
@@ -290,6 +267,7 @@ function DestinationShellContent({
         {...wideCreate}
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
+        notifications={wide ? <NotificationBell /> : undefined}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
@@ -299,12 +277,7 @@ function DestinationShellContent({
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}
-            items={[
-              { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
-              { id: 'calendario', label: labels.calendario, icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
-              { id: 'progresso', label: labels.progresso, icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
-              { id: 'perfil', label: labels.perfil, icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-3)'} aria-hidden="true" /> },
-            ]}
+            items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: labels[id], icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))}
             label={t('nav.mainNavigation')}
             onSelect={(id) => navigate(id as BottomTab)}
           /> : undefined

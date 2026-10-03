@@ -263,6 +263,11 @@ describe('UpgradeScreen', () => {
       const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
         : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
       if (eyebrow) expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === eyebrow)).toHaveLength(1)
+      if (daysLeft !== null) {
+        const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(mocks.profile.trialEndsAt!))
+        const hint = messages.upgrade.billing.plan.trialHint.replace('{date}', date)
+        expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === hint)).toHaveLength(1)
+      }
       await TestRenderer.act(() => tree.unmount())
     })
 

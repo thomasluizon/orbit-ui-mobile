@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import Animated, { type EntryOrExitLayoutType } from 'react-native-reanimated'
 import { format, type Locale } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -7,7 +7,6 @@ import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts
 import {
   buildDayCellAccessibleName,
   CALENDAR_MONTH_GRID_GEOMETRY,
-  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
@@ -232,6 +231,8 @@ export function CalendarGrid({
   todayKey,
   interaction = 'write-window',
 }: Readonly<CalendarGridProps>) {
+  const { width } = useWindowDimensions()
+  const gridGap = width < 340 ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap
   const locale = language === 'pt-BR' ? ptBR : enUS
   const words: DayCellWords = {
     none: t('calendar.dayCell.none'),
@@ -249,10 +250,10 @@ export function CalendarGrid({
         <View style={styles.loadingGrid}>
           <Skeleton
             variant="grid"
-            rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+            rows={Math.ceil(gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns)}
             cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
             cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-            gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+            gap={gridGap}
             label={t('calendar.loading')}
           />
         </View>
@@ -273,8 +274,7 @@ export function CalendarGrid({
       >
         <MonthGrid
           weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
-          gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
-          minimumDayGridHeight={CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT}
+          gap={gridGap}
         >
           {gridDays.map((cell) => {
             const future = cell.dateStr > todayKey
@@ -314,18 +314,21 @@ export function CalendarGrid({
 const styles = StyleSheet.create({
   calendarGrid: { paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8 },
   gridCard: {
-    width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
+    width: '100%',
+    maxWidth: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
       + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
     alignSelf: 'center',
   },
   loadingGrid: {
-    width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
+    width: '100%',
+    maxWidth: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
       + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
     alignSelf: 'center',
   },
   daySlot: {
     position: 'relative',
-    width: 44,
+    width: '100%',
+    minWidth: 44,
     height: 44,
     borderRadius: 999,
     alignItems: 'center',

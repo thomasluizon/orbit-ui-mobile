@@ -5,20 +5,14 @@ import {
   useEffect,
   useRef,
   useSyncExternalStore,
-  type ComponentType,
   type ReactNode,
   type RefCallback,
 } from 'react'
-import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
-import {
-  CalendarDays,
-  ChartLine,
-  Home,
-  Search,
-  User,
-  type IconProps,
-} from '@/components/ui/icons'
+import { Search } from '@/components/ui/icons'
+import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { Lockup } from '@/components/ui/lockup'
 import { Button } from '@/components/ui/pill-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
@@ -38,13 +32,6 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
 }
 
 type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; createRefusal?: ReactNode }
-
-const ICONS: Record<string, ComponentType<IconProps>> = {
-  home: Home,
-  calendar: CalendarDays,
-  'chart-line': ChartLine,
-  user: User,
-}
 
 function subscribeToSidePanel(callback: () => void) {
   const query = window.matchMedia(SIDE_PANEL_QUERY)
@@ -69,15 +56,15 @@ function SidebarItem({
   active: boolean
   onSelect?: (id: string) => void
 }>) {
-  const Icon = item.icon ? ICONS[item.icon] : undefined
+  const destination = SHELL_DESTINATION_IDS.find((id) => id === item.icon)
   const content = (
     <>
-      {Icon ? (
-        <Icon
+      {destination ? (
+        <DestinationIcon
+          destination={destination}
+          active={active}
           size={20}
-          strokeWidth={active ? 2 : 1.5}
           color={active ? 'var(--primary)' : 'var(--fg-3)'}
-          aria-hidden="true"
         />
       ) : null}
       <span className="min-w-0 truncate">{item.label}</span>
@@ -115,8 +102,9 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
       className="z-sticky hidden h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex"
     >
       <div className="flex flex-col gap-6">
-        <div className="flex h-11 items-center">
+        <div className="flex min-h-12 items-center justify-between">
           <Lockup />
+          {props.notifications}
         </div>
 
         {props.onPalette ? (
@@ -181,21 +169,23 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? props.composer : props.action
   if (!visible) return null
+  const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height : undefined
 
   return (
     <div
       data-shell-bottom=""
-      className="z-sticky relative shrink-0 bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
+      className="z-sticky relative flex min-h-0 flex-col bg-[var(--bg)] pb-[var(--safe-bottom)] lg:pb-0"
+      style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + var(--safe-bottom))` }}
     >
-      <div className="relative mx-auto w-full" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+      <div className="relative mx-auto flex min-h-0 w-full flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH, minHeight: actionMinimum }}>
         {props.notice !== undefined ? <div data-shell-notice="" className="px-4">{props.notice}</div> : null}
         {pinnedSlot !== undefined ? (
-          <div data-shell-pinned-slot="" hidden={conversationOpen} className="lg:pb-4">
+          <div data-shell-pinned-slot="" hidden={conversationOpen} className="min-h-0 overflow-y-auto overscroll-contain lg:pb-4" style={{ minHeight: actionMinimum }}>
             {pinnedSlot}
           </div>
         ) : null}
         {navigationEnabled && props.tabBar !== undefined ? (
-          <div data-shell-tab-bar="" className="lg:hidden">{props.tabBar}</div>
+          <div data-shell-tab-bar="" className="shrink-0 lg:hidden">{props.tabBar}</div>
         ) : null}
         {props.fab !== undefined ? (
           <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
@@ -222,11 +212,26 @@ function ShellWideBackground({
 }>) {
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? props.composer : props.action
+  const hasFlowAction = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
   const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
     ? 'pb-24 lg:pb-8'
     : 'pb-8'
+  const scroller = (
+    <main
+      ref={registerScroller}
+      data-shell-scroller=""
+      className={`relative overflow-y-auto overflow-x-hidden ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${hasBottomChrome ? scrollerClearance : ''}`}
+    >
+      <span
+        aria-hidden="true"
+        data-shell-scroll-origin=""
+        className="pointer-events-none absolute left-0 top-0 h-px w-px"
+      />
+      {props.children}
+    </main>
+  )
   return (
     <div
       data-shell-background=""
@@ -238,19 +243,8 @@ function ShellWideBackground({
 
       <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
         <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
-          {props.header !== undefined ? <div data-shell-header="">{props.header}</div> : null}
-          <main
-            ref={registerScroller}
-            data-shell-scroller=""
-            className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${hasBottomChrome ? scrollerClearance : ''}`}
-          >
-            <span
-              aria-hidden="true"
-              data-shell-scroll-origin=""
-              className="pointer-events-none absolute left-0 top-0 h-px w-px"
-            />
-            {props.children}
-          </main>
+          {props.header !== undefined ? <div data-shell-header="" className={hasFlowAction ? 'min-h-11 overflow-y-auto overscroll-contain' : 'shrink-0'}>{props.header}</div> : null}
+          {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
         </div>
       </div>

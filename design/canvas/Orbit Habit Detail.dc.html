@@ -20,7 +20,17 @@
 body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
+
+.native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
+.native-composer button:focus-visible,.native-bell-row a:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-stat-label{white-space:normal}
+.native-control:hover:not(:disabled):not(.native-send):not(.native-tab){background:var(--bg-hover)}
+.native-control:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.native-send:hover:not(:disabled){background:var(--primary-hover)}
+.native-send:active:not(:disabled){background:var(--primary-pressed)}
+.native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
 </style>
+<script src="./native-mobile.js"></script>
 </helmet>
 <div data-mode="{{ mode }}" lang="{{ lang }}" style="min-height:100vh;background:var(--bg);color:var(--fg-1);font-family:var(--font-sans);padding:32px;display:flex;flex-direction:column;gap:32px;align-items:flex-start">
 
@@ -51,7 +61,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>holding, slipping, sub habits, checklist, no data, metrics loading, delete, loading, error, at the daily limit. A plan axis sits beside the state, free or Pro, defaulting to free, and it moves exactly three gates: the reschedule, add a sub habit, and the slip alert inside the disclosure. Renaming, the emoji picker, the disclosure, a sub habit as the subject and the delete question are reached by using the screen rather than the axis.</p>
       <p><span style="color:var(--fg-3)">header&nbsp;&nbsp;</span>a 76px emoji well, the name with rename in place, a summary line, and every tag as a plain word pill. The well IS the emoji control (habit-form-fields.tsx:242 renders HabitEmojiSelector): tapping it opens a picker with a search that clears, the eleven category chips from habit-emoji-options.ts, and a grid; with no emoji the well shows a plus, because here it is an empty control and not a label. The tags lose the shipping colour dot deliberately: colour as data is dead (DESIGN.md:737) and a habit is told apart by its emoji, its name and its ring. The header ring is a real 44px button on HabitRow's pairing, its accessible name the action and its direction, the ring inside it decorative. Logging from here resets the checklist ONLY under Habit.cs:186-190: a frequency, not flexible, the due date advances; a flexible habit's list does not reset.</p>
       <p><span style="color:var(--fg-3)">strip&nbsp;&nbsp;</span>DayStrip in its habit scope, 30 days, the same period as the third number, so the picture and the number describe one window. A freeze marks a user and a date (StreakFreeze.Create), never a habit, so frozen is absent from the habit union and no snowflake can appear here; the freeze lives on Progresso where the day is the subject.</p>
-      <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled days free on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, a loading row of three tiles, and ONE centred no data line when metrics is null, never three zeros. The grid renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
+      <p><span style="color:var(--fg-3)">numbers&nbsp;&nbsp;</span>the shipping three (HabitDetailStatsGrid): the current streak, labelled free of relapse on a habit to avoid, the longest streak, and the 30 day rate, which IS monthlyCompletionRate (HabitMetricsCalculator.cs:29). Three states: the numbers, the same card with a loading value in each of its three rows, and ONE centred no data line when metrics is null, never three zeros. The card renders only when the habit has a frequency or is a general one, so a one time task draws none.</p>
       <p><span style="color:var(--fg-3)">slipping&nbsp;&nbsp;</span>drawn from the numbers, not a status: the streak at zero, the rate down, nothing logged for three days. The line names the circumstance and never the person, and it carries no red. The reschedule appears only here, because the app offers it only on an overdue habit (habit-list.tsx:906), and it needs Pro (reschedule-sheet.tsx:119): on Pro it is a proposal carrying its reason, with accept and not now; on free the same place carries the upgrade route in the shipping sheet's words, never an empty space.</p>
       <p><span style="color:var(--fg-3)">checklist&nbsp;&nbsp;</span>ONE list with two jobs, never drawn twice at once. In the open part it is interactive: a progress bar with the mono count, uncheck everything appearing only once something is checked, clear asking first, and the last item checked on an unlogged habit asking whether to log the habit now. While the disclosure is open the same list is creation's editable one, where an item is retyped in place, duplicated, removed or dragged, with saved templates in a listed sheet. The reset rule line renders only where Habit.cs makes it true.</p>
       <p><span style="color:var(--fg-3)">inside&nbsp;&nbsp;</span>each child is a HabitRow at depth 1 whose ring logs through onLog, a real sibling button; its body makes it the subject of this screen with the parent one step back, and its overflow holds log, open and delete. A child with its own children drills rather than nesting a third level inline. Add a sub habit follows the plan (startAddSubHabit, habit-list.tsx:702): on free the row carries the Pro badge and leaves for the upgrade; on Pro it would open creation, which lives in Hoje's create surface.</p>
@@ -74,7 +84,7 @@ const H = React.createElement;
 const F = React.Fragment;
 const BASE = new Date(2026, 7, 17);
 const IDS = ['hoje', 'calendario', 'progresso', 'perfil'];
-const ICONS = ['home', 'calendar', 'chart-line', 'user'];
+const ICONS = ['home', 'calendar', 'layout-dashboard', 'user'];
 const mock = (v) => H('span', { 'data-mock': 'true' }, v);
 const cap = (v) => v.charAt(0).toUpperCase() + v.slice(1);
 
@@ -109,7 +119,7 @@ const EMO = [
 ];
 
 /* The subjects. kids are ids; stat is [current streak, longest streak, 30 day rate] or null for no
-   data; slip marks the slipping walk; oneTime draws no stats grid (no frequency, not general). */
+   data; slip marks the slipping walk; oneTime draws no stats card (no frequency, not general). */
 const HB = {
   walk: { e: '\uD83D\uDEB6', pt: 'Caminhada', en: 'Walk', time: '18:00', days: [1, 2, 3, 4, 5], status: 'done',
     stat: [12, 21, '86%'], goals: [0],
@@ -150,7 +160,7 @@ const T = {
     holding: 'Últimos 30 dias',
     stripWords: { done: 'feito', missed: 'sem registro', notScheduled: 'não programado' },
     slipLine: ['Nenhum registro nos últimos ', '3', ' dias. A sequência voltou para ', '0', ' e a taxa dos últimos ', '30', ' dias caiu.'],
-    dStreak: 'Sequência atual', dFree: 'Dias livres', dBest: 'Maior sequência',
+    dStreak: 'Sequência atual', dFree: 'Sem recaída', dBest: 'Maior sequência',
     noDataYet: 'Ainda sem dados',
     proposedBy: 'Proposto pelo Astra',
     rsFree: 'Com o Pro, o Astra transforma um hábito atrasado em um plano realista.',
@@ -511,7 +521,7 @@ class Component extends DCLogic {
                     this.setState((p) => ({ sched: p.sched.concat([{ time: f.time, when: f.when }]), schedForm: null }));
                   } }, x.addWord))),
               s.schedForm.err ? H('p', { role: 'alert', style: { fontSize: 'var(--fs-sm)', color: 'var(--status-bad)' } }, s.schedForm.err) : null)
-          : H('div', { style: { marginInline: -16 } }, H(D.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
+          : H('div', { style: { marginInline: -16 } }, H(window.OrbitNativeMobile.ListRow, { icon: 'plus', title: x.schedAdd, chevron: false,
               onClick: () => this.setState({ schedForm: { time: '', when: 'same_day', err: null } }) })));
   }
 
@@ -581,7 +591,7 @@ class Component extends DCLogic {
             if (v) { this.ckAppend([v]); this.setState({ ckInput: '' }); }
           }),
       H('div', { style: { marginInline: -16 } },
-        H(D.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
+        H(window.OrbitNativeMobile.ListRow, { icon: 'template', title: x.fTpl, chevron: true, onClick: () => this.setState({ tplOpen: true }) })));
     const badRow = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
       H(D.Switch, { label: x.fBad, checked: s.badOn, onChange: (n) => this.setState({ badOn: n }) }),
       H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fBadHint));
@@ -595,8 +605,8 @@ class Component extends DCLogic {
             H(D.Switch, { label: x.fSlip, checked: s.slipOn, onChange: (n) => this.setState({ slipOn: n }) }),
             H('p', { style: { fontSize: 'var(--fs-sm)', color: 'var(--fg-3)', lineHeight: 1.5 } }, x.fSlipDesc)))
       : H('div', { style: { marginInline: -16 } },
-          H(D.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
-            trailing: H(D.Badge, null, 'Pro'), onClick: this.goPro }));
+          H(window.OrbitNativeMobile.ListRow, { icon: 'bell', title: x.fSlip, description: x.fSlipDesc,
+            trailing: H(window.OrbitNativeMobile.Badge, null, 'Pro'), onClick: this.goPro }));
     const tags = H('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
       label(x.fTags),
       s.tags.length ? H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
@@ -609,7 +619,7 @@ class Component extends DCLogic {
             if (v) this.setState((p) => ({ tags: p.tags.indexOf(v) >= 0 ? p.tags : p.tags.concat([v]).slice(0, 5), tagInput: '' }));
           }));
     const goal = H('div', { style: { marginInline: -16 } },
-      H(D.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
+      H(window.OrbitNativeMobile.ListRow, { icon: 'target', title: x.fGoal, value: s.goalSel >= 0 ? x.goals[s.goalSel] : x.goalNone,
         chevron: true, onClick: () => this.setState({ goalOpen: true }) }));
     return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingInline: 16 } },
       H(D.TimeField, { key: 'time-' + id, label: x.fTime, value: time, hint: x.fTimeHint,
@@ -727,13 +737,13 @@ class Component extends DCLogic {
               onClick: () => this.setState({ tplList: [{ n: s.tplName.trim(), items: srcItems.slice() }].concat(list),
                 tplSaving: false, tplName: '' }) }, x.tplGo))
         : H('div', { style: { marginInline: -24 } },
-            H(D.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
+            H(window.OrbitNativeMobile.ListRow, { icon: 'device-floppy', title: x.tplSave, chevron: false,
               onClick: () => this.setState({ tplSaving: true }) }));
     return H(D.Sheet, { open: true, title: x.tplTitle, onClose: close },
       H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8 } },
         saveRow,
         H('div', { style: { marginInline: -24 } },
-          list.map((tp, i) => H(D.ListRow, { key: i, icon: 'template', title: tp.n,
+          list.map((tp, i) => H(window.OrbitNativeMobile.ListRow, { key: i, icon: 'template', title: tp.n,
             description: H('span', null, mock(String(tp.items.length)), ' ' + x.itemsWord),
             chevron: false,
             action: { icon: 'trash', label: x.tplDel(tp.n), danger: true,
@@ -851,7 +861,7 @@ class Component extends DCLogic {
             H('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
               H('span', { style: { display: 'grid', placeItems: 'center', color: 'var(--fg-1)' }, 'aria-hidden': 'true' },
                 H(D.AstraGlyph, { size: 20 })),
-              H(D.Badge, null, 'Pro')),
+              H(window.OrbitNativeMobile.Badge, null, 'Pro')),
             H('p', { style: { fontSize: 'var(--fs-sm)', lineHeight: 1.55, color: 'var(--fg-2)' } }, x.rsFree),
             H('div', { style: { display: 'flex', gap: 8 } },
               H(D.Button, { size: 'sm', variant: filled, onClick: this.goPro }, x.rsPro),
@@ -885,19 +895,22 @@ class Component extends DCLogic {
           textWrap: 'pretty' } }, x.checklistRule) : null));
     }
     if (!h.oneTime) {
-      if (s.mLoading) {
-        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(D.StatTile, { label: x.dStreak, state: 'loading' }),
-          H(D.StatTile, { label: x.dBest, state: 'loading' }),
-          H(D.StatTile, { label: x.holding, state: 'loading' })));
-      } else if (!h.stat) {
+      const stat = h.stat;
+      if (!s.mLoading && !stat) {
         rest.push(H('p', { key: 'stat', role: 'status', style: { textAlign: 'center', fontSize: 'var(--fs-sm)',
           color: 'var(--fg-3)', paddingBlock: 16 } }, x.noDataYet));
       } else {
-        rest.push(H('div', { key: 'stat', style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 } },
-          H(D.StatTile, { label: h.bad ? x.dFree : x.dStreak, value: mock(String(h.stat[0])) }),
-          H(D.StatTile, { label: x.dBest, value: mock(String(h.stat[1])) }),
-          H(D.StatTile, { label: x.holding, value: mock(h.stat[2]) })));
+        const labels = [h.bad ? x.dFree : x.dStreak, x.dBest, x.holding];
+        rest.push(H('div', { key: 'stat', className: 'native-stat-card', 'aria-busy': s.mLoading || undefined,
+          style: { padding: 24, background: 'var(--bg-card)', borderRadius: 'var(--r-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' } },
+          labels.map((caption, index) => H('div', { key: caption, className: 'native-stat-row',
+            style: { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, minHeight: 48, paddingBlock: 8 } },
+            H('span', { className: 'native-stat-label', style: { minWidth: 0, fontSize: 'var(--fs-sm)',
+              lineHeight: 20 / 14, color: 'var(--fg-2)' } }, caption),
+            H('span', { style: { marginInlineStart: 'auto', minWidth: 0, textAlign: 'end', fontFamily: 'var(--font-display)',
+              fontSize: s.mLoading ? 'var(--fs-sm)' : 'var(--fs-xl)', fontWeight: 600, lineHeight: 1.3, fontVariantNumeric: 'tabular-nums' } },
+              s.mLoading ? x.loading : mock(String(stat[index])))))));
       }
     }
     if (h.rem) {
@@ -919,7 +932,7 @@ class Component extends DCLogic {
       rest.push(H('div', { key: 'goals', style: { display: 'flex', flexDirection: 'column', gap: 4 } },
         label(x.dGoals),
         H('div', { style: { marginInline: -16 } },
-          h.goals.map((g, i) => H(D.ListRow, { key: i, icon: 'target', title: x.goals[g], chevron: true, onClick: this.goGoal })))));
+          h.goals.map((g, i) => H(window.OrbitNativeMobile.ListRow, { key: i, icon: 'target', title: x.goals[g], chevron: true, onClick: this.goGoal })))));
     }
     if (isParent) {
       rest.push(H('div', { key: 'subs', style: { display: 'flex', flexDirection: 'column', gap: 8 } },
@@ -940,8 +953,8 @@ class Component extends DCLogic {
               menuLabel: x.moreOpts });
           })),
         H('div', { style: { marginInline: -16 } },
-          H(D.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
-            trailing: s.plan === 'Pro' ? undefined : H(D.Badge, null, 'Pro'),
+          H(window.OrbitNativeMobile.ListRow, { icon: 'plus', title: x.fAddSub, chevron: false,
+            trailing: s.plan === 'Pro' ? undefined : H(window.OrbitNativeMobile.Badge, null, 'Pro'),
             onClick: () => { if (this.state.plan === 'Pro') window.location.href = encodeURI('Orbit Hoje.dc.html'); else this.goPro(); } }))));
     }
     rest.push(this.activityNode(t, id, h));
@@ -961,13 +974,13 @@ class Component extends DCLogic {
         return { days: cur.indexOf(d) >= 0 ? cur.filter((k) => k !== d) : cur.concat([d]).sort((a, b) => a - b) };
       }))));
     rest.push(H('div', { key: 'disc', style: { display: 'flex', flexDirection: 'column', gap: 12 } },
-      H(D.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
+      H(window.OrbitNativeMobile.ListRow, { icon: s.disc ? 'chevron-down' : 'chevron-right', title: x.moreDetails, chevron: false,
         onClick: () => this.setState({ disc: !s.disc }) }),
       s.disc ? this.discNode(t, id, h) : null));
     rest.push(H('div', { key: 'start', style: { marginInline: -16 } },
       H(D.DateRow, { label: x.startLabel, value: BASE.toLocaleDateString(t.intl, { day: 'numeric', month: 'long' }), note: x.startWhy })));
     rest.push(H('div', { key: 'del', style: { marginInline: -16 } },
-      H(D.ListRow, { icon: 'trash', title: x.del, danger: true, chevron: false,
+      H(window.OrbitNativeMobile.ListRow, { icon: 'trash', title: x.del, danger: true, chevron: false,
         onClick: () => this.setState({ confirm: true }) })));
     return H(F, null, out, H('div', { style: { display: 'flex', flexDirection: 'column', gap: 24, paddingTop: 24 } }, rest));
   }
@@ -996,15 +1009,15 @@ class Component extends DCLogic {
     const kst = this.statusOf(id);
     return Object.assign(base, {
       body: this.body(t, filled),
-      headerNode: H(D.NavHeader, { title: t.kicker, backLabel: t.back, onBack: this.popSub }),
+      headerNode: H(window.OrbitNativeMobile.NavHeader, { title: t.kicker, backLabel: t.back, onBack: this.popSub }),
       navItems: t.tabs.map((lb, i) => ({ id: IDS[i], label: lb, icon: ICONS[i] })),
       account: t.account,
-      composer: H(D.Composer, {
+      composer: H(window.OrbitNativeMobile.Composer, {
         state: st === 'at limit' ? 'atLimit' : 'resting',
         chips: (st === 'loading' || st === 'error') ? [] : t.chips,
         limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
         words: t.composerWords,
-        onChipPress: this.goConv, onOpen: this.goConv,
+        onChipPress: this.goConv, onOpen: this.goConv, onAttach: this.goConv, onVoice: this.goConv,
       }),
       sheet: s.emoOpen ? this.emojiSheet(t)
         : s.tplOpen ? this.tplNode(t)

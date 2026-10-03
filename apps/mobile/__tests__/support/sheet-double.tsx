@@ -7,6 +7,7 @@ import {
   type Ref,
 } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
+import { ActionRow } from '@/components/ui/action-row'
 
 interface SheetHandle {
   requestClose: (exitAction?: () => void, onRejected?: () => void) => void
@@ -88,7 +89,7 @@ export function Sheet({ title, accessibleTitle, actions, onClose, children, ref 
       onPress: () => requestClose(),
     }),
     createElement('SheetBody', { testID: 'sheet-body-slot' }, children),
-    createElement('SheetActions', { testID: 'sheet-actions-slot' }, actions),
+    createElement('SheetActions', { testID: 'sheet-actions-slot' }, actions ? createElement(ActionRow, null, actions) : null),
   )
 }
 

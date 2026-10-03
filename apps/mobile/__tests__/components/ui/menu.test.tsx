@@ -5,6 +5,8 @@ import { createTokensV2 } from '@/lib/theme'
 import { StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -16,11 +18,11 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.unmock('@/components/ui/sheet')
 
 vi.mock('@lodev09/react-native-true-sheet', () => ({
-  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode }> {
+  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; footer?: React.ReactNode }> {
     present = vi.fn(() => Promise.resolve())
     dismiss = vi.fn(() => Promise.resolve())
     render() {
-      return this.props.children ?? null
+      return <>{this.props.children}{this.props.footer}</>
     }
   },
 }))
@@ -39,6 +41,18 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it('renders one trailing action row through the real confirmation sheet', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ConfirmSheet open destructive title="Delete" message="Clear alerts"
+        confirmLabel="Delete" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    })
+    try {
+      const rows = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'action-row')
+      expect(rows).toHaveLength(1)
+      expect(StyleSheet.flatten(rows[0]!.props.style)).toMatchObject({ justifyContent: 'flex-end', gap: 12 })
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
   it.each((['dark', 'light'] as const).flatMap((mode) =>
     (['sheet', 'anchored'] as const).map((presentation) => ({ mode, presentation }))))(
     'keeps danger colours and changes only fill when pressed in $mode $presentation',
@@ -71,6 +85,48 @@ describe('Menu (mobile)', () => {
     },
   )
 
+  it('names the native menu sheet after the trigger while showing a short heading', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Menu open title="List options" shortTitle="Options" items={items} />)
+      await Promise.resolve()
+    })
+    const header = tree.root.findAll((node: ReactTestInstance) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!.props.header as React.ReactElement<{
+      accessibilityLabel?: string
+      children: React.ReactElement<{ accessibilityLabel?: string; children?: React.ReactNode }>[]
+    }>
+    expect(header.props.accessibilityLabel).toBe('List options')
+    expect(header.props.children[0]!.props.accessibilityLabel).toBe('List options')
+    expect(header.props.children[0]!.props.children).toBe('Options')
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it.each([true, false])('announces a checked menu row as %s', async (checked) => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Menu open items={[{ id: 'recurring', label: 'Recurring habits', checked }]} />)
+      await Promise.resolve()
+    })
+    const rows = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.props.accessibilityState).toEqual({ disabled: false, checked })
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it('allows the full recurring label to grow at 200% text with a first-line check', async () => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Menu open items={[{ id: 'repeat', label: 'Mostrar hábitos que se repetem', checked: true }]} />)
+    })
+    const label = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Mostrar hábitos que se repetem')[0]!
+    expect(label.props.numberOfLines).toBeUndefined()
+    const row = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityState as { checked?: boolean } | undefined)?.checked === true)[0]!
+    expect(StyleSheet.flatten((row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>)({ pressed: false })).alignItems).toBe('flex-start')
+    await TestRenderer.act(() => tree.update(<></>))
+    __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 })
+  })
+
   it('matches menu icon stroke to medium-weight labels', async () => {
     let tree: any
     await TestRenderer.act(async () => {
@@ -78,7 +134,7 @@ describe('Menu (mobile)', () => {
       await Promise.resolve()
     })
     expect(tree.root.findByType(Checkbox).props.strokeWidth).toBe(2)
-    await TestRenderer.act(() => tree.unmount())
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('uses a sheet at 412 and keeps the destructive item last', async () => {
@@ -92,10 +148,10 @@ describe('Menu (mobile)', () => {
     expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([56, 56])
     expect(rows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([undefined, undefined])
     expect(tree.root.findAllByType('ScrollView')).toHaveLength(1)
-    const sheet = tree.root.findAll((node: any) => node.type?.name === 'TrueSheet')[0]
+    const sheet = tree.root.findAll((node: any) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]
     if (!sheet) throw new Error('Sheet presentation did not render its native backdrop')
     expect(sheet.props.dimmed).toBe(true)
-    await TestRenderer.act(() => tree.unmount())
+    await TestRenderer.act(() => tree.update(<></>))
   })
 
   it('uses the anchored presentation when explicitly selected and reports one id', async () => {
@@ -123,7 +179,7 @@ describe('Menu (mobile)', () => {
     })
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
     const wideRows = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem')
-    expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([48, 48])
+    expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([44, 44])
     expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([undefined, undefined])
 
     const edit = tree.root
@@ -138,7 +194,7 @@ describe('Menu (mobile)', () => {
     ))[0]
     if (!catcher) throw new Error('Anchored menu catcher did not render')
     expect(StyleSheet.flatten(catcher.props.style).backgroundColor).toBe('transparent')
-    await TestRenderer.act(() => tree.unmount())
+    await TestRenderer.act(() => tree.update(<></>))
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
 })

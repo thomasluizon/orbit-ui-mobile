@@ -33,6 +33,17 @@ describe('Menu', () => {
     document.body.innerHTML = ''
   })
 
+  it.each([true, false])('announces a checked menu row as %s and closes before selecting', async (checked) => {
+    setWide(false)
+    const events: string[] = []
+    render(<Menu open items={[{ id: 'recurring', label: 'Recurring habits', checked }]}
+      onClose={() => events.push('close')} onSelect={() => events.push('select')} />)
+    const row = await screen.findByRole('menuitemcheckbox', { name: 'Recurring habits' })
+    expect(row).toHaveAttribute('aria-checked', String(checked))
+    fireEvent.click(row)
+    expect(events).toEqual(['close', 'select'])
+  })
+
   it('uses the sheet presentation at 412 and orders the destructive item last', async () => {
     setWide(false)
     render(<Menu open title="Habit actions" items={items} />)
@@ -43,6 +54,14 @@ describe('Menu', () => {
     expect(rows[1]).toHaveAttribute('data-destructive')
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
     expect(stylesheet).toMatch(/\.orbit-sheet-panel \.orbit-menu-item \{\s*min-height: 56px;/)
+  })
+
+  it('names a compact menu and its sheet after the trigger while showing a short heading', async () => {
+    setWide(false)
+    render(<Menu open title="List options" shortTitle="Options" items={items} />)
+    expect(await screen.findByRole('dialog', { name: 'List options' })).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'List options' })).toBeInTheDocument()
+    expect(document.querySelector('.orbit-sheet-title')).toHaveTextContent('Options')
   })
 
   it('matches menu icon stroke to medium-weight labels', async () => {
@@ -113,8 +132,8 @@ describe('Menu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
-  it('moves focus with the arrow keys, Home and End, and wraps at both ends', async () => {
-    setWide(true)
+  it.each([true, false])('moves focus with the arrow keys, Home and End, and wraps at both ends (wide=%s)', async (wide) => {
+    setWide(wide)
     const anchorRef = createRef<HTMLButtonElement>()
     render(
       <>
@@ -126,7 +145,8 @@ describe('Menu', () => {
     const menu = await screen.findByRole('menu')
     const edit = screen.getByRole('menuitem', { name: 'Edit' })
     const remove = screen.getByRole('menuitem', { name: 'Delete' })
-    await waitFor(() => expect(edit).toHaveFocus())
+    if (wide) await waitFor(() => expect(edit).toHaveFocus())
+    else edit.focus()
 
     fireEvent.keyDown(menu, { key: 'ArrowDown' })
     expect(remove).toHaveFocus()

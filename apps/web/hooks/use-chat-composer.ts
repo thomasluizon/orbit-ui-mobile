@@ -171,7 +171,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const [activeSteps, setActiveSteps] = useState<{ domain: string; access: string }[]>([])
   const activeStepsRef = useRef<{ domain: string; access: string }[]>([])
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
-  const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
     fileInputRef,
@@ -191,13 +190,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     handleTextFileSelect,
     removeTextFile,
   } = useChatTextFileAttachment(setSendError)
-
-  if (speechError !== previousSpeechError) {
-    setPreviousSpeechError(speechError)
-    if (speechError) {
-      setSendError(speechError)
-    }
-  }
 
   /**
    * The app shell keeps this hook mounted through an account change, so the previous account's
@@ -406,14 +398,6 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       setInput((current) => (current ? `${current} ${transcript.trim()}` : transcript.trim()))
     }
   }, [isRecording, setInput, transcript])
-
-  useEffect(() => {
-    if (!speechError) return
-    const timer = globalThis.setTimeout(() => {
-      setSendError((current) => (current === speechError ? null : current))
-    }, 4000)
-    return () => globalThis.clearTimeout(timer)
-  }, [speechError])
 
   const buildChatFormData = useCallback((attempted: AttemptedSend) => {
     const formData = new FormData()
@@ -690,7 +674,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       contextualSuggestion,
     })
     return toComposerSuggestions(chips.map(({ id, key, params, promptKey, label: providedLabel, prompt: providedPrompt }) => {
-      const label = providedLabel ?? t(key, params)
+      const label = providedLabel ?? t(key)
       const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label)
       return { id, label, onSelect: () => {
         void sendMessage(prompt)
@@ -701,9 +685,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const composerProps = useMemo(() => {
     const words = {
       placeholder: t(isOnline ? 'shell.composer.placeholder' : 'shell.composer.offline.placeholder'),
-      inputLabel: t('shell.composer.placeholder'),
+      inputLabel: t('shell.composer.inputLabel'),
       ...(!isOnline ? { offlineReason: t('shell.composer.offline.reason') } : {}),
       send: t('shell.composer.send'),
+      actions: t('shell.composer.actions'),
       suggestionsLabel: t('shell.composer.suggestionsLabel'),
       retry: t('shell.composer.retry'),
     }
@@ -716,6 +701,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     const common = {
       words,
       value: input,
+      errorMessage: speechError ?? sendError ?? undefined,
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
       onPaste: handlePaste,
@@ -723,8 +709,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
       onAttachFile: openTextFilePicker,
       onAttachImage: openFilePicker,
       attachWords: {
-        file: t('chat.attachFile'),
-        image: t('chat.attachImage'),
+        file: t('shell.composer.attach.file'),
+        image: t('shell.composer.attach.image'),
         trayLabel: t('shell.composer.attach.trayLabel'),
         remove: (name: string) => t('shell.composer.attach.remove', { name }),
       },
@@ -776,6 +762,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     retryLastSend,
     setInput,
     sendMessage,
+    sendError,
+    speechError,
     speechSupported,
     t,
     toggleRecording,

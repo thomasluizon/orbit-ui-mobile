@@ -40,23 +40,26 @@ vi.mock('@/hooks/use-is-desktop', () => ({
   useIsWideDesktop: () => false,
 }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: vi.fn() }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { name: 'Test', email: 'test@example.com' } }),
 }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
 vi.mock('@/components/shell/shell-412', () => ({
-  Shell412: ({ children, composer, tabBar }: {
+  Shell412: ({ children, header, composer, tabBar }: {
     children: ReactNode
+    header?: ReactNode
     composer?: ReactNode
     tabBar?: ReactNode
-  }) => <main>{children}{composer}{tabBar}</main>,
+  }) => <main>{header}{children}{composer}{tabBar}</main>,
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, composer, tabBar }: {
+  ShellWide: ({ children, header, composer, tabBar }: {
     children: ReactNode
+    header?: ReactNode
     composer?: ReactNode
     tabBar?: ReactNode
-  }) => <main>{children}{composer}{tabBar}</main>,
+  }) => <main>{header}{children}{composer}{tabBar}</main>,
 }))
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: () => <p>Morning walk</p>,

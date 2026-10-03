@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
+import { Check } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -49,6 +50,22 @@ function useWidePresentation(wideFrom: number): boolean {
   return wide
 }
 
+function moveMenuFocus(event: KeyboardEvent<HTMLDivElement>) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+    '[role="menuitem"]:not([disabled]), [role="menuitemcheckbox"]:not([disabled])',
+  ))
+  if (buttons.length === 0) return
+  event.preventDefault()
+  const activeIndex = buttons.findIndex((button) => button === document.activeElement)
+  const nextIndex = event.key === 'Home' || (activeIndex < 0 && event.key === 'ArrowDown')
+    ? 0
+    : event.key === 'End' || (activeIndex < 0 && event.key === 'ArrowUp')
+      ? buttons.length - 1
+      : (activeIndex + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length
+  buttons[nextIndex]?.focus()
+}
+
 /** The sheet presentation closes through its exit transition before it reports the choice. */
 function MenuSheet({
   id,
@@ -56,6 +73,7 @@ function MenuSheet({
   onSelect,
   onClose,
   title,
+  shortTitle,
   finalFocus,
 }: Readonly<{
   id?: string
@@ -63,13 +81,14 @@ function MenuSheet({
   onSelect?: (id: string) => void
   onClose?: () => void
   title?: string
+  shortTitle?: string
   finalFocus: () => boolean
 }>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
   return (
-    <Sheet ref={sheetRef} open title={title} onClose={onClose} finalFocus={finalFocus}>
-      <div id={id} role="menu" aria-label={title}>
+    <Sheet ref={sheetRef} open title={shortTitle ?? title} accessibleTitle={title} onClose={onClose} finalFocus={finalFocus}>
+      <div id={id} role="menu" aria-label={title} onKeyDown={moveMenuFocus}>
         <MenuItems
           items={items}
           onActivate={(id) =>
@@ -90,22 +109,29 @@ interface MenuItemsProps {
 }
 
 function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
+  const [focusedId, setFocusedId] = useState<string | null>(null)
+  const rows = orderedItems(items)
+  const firstEnabledId = rows.find((item) => !item.disabled || item.badge)?.id
   return (
     <div className="orbit-menu-items">
-      {orderedItems(items).map((item) => {
+      {rows.map((item) => {
         const disabled = Boolean(item.disabled && !item.badge)
         return (
           <button
             key={item.id}
             type="button"
-            role="menuitem"
+            role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+            aria-checked={item.checked}
             disabled={disabled}
+            tabIndex={disabled || item.id !== (focusedId ?? firstEnabledId) ? -1 : 0}
+            onFocus={() => setFocusedId(item.id)}
             data-destructive={item.destructive || undefined}
             className="orbit-menu-item"
             onClick={() => onActivate(item.id)}
           >
             {item.icon ? <Icon name={item.icon} size={20} strokeWidth={2} /> : null}
             <span className="orbit-menu-label">{item.label}</span>
+            {item.checked ? <span className="orbit-menu-check" aria-hidden="true"><Check size={20} strokeWidth={2} /></span> : null}
             {item.badge ? <Badge>{item.badge}</Badge> : null}
           </button>
         )
@@ -182,6 +208,7 @@ export function Menu({
   onSelect,
   onClose,
   title,
+  shortTitle,
   presentation = 'auto',
   anchorRef,
   align = 'end',
@@ -245,25 +272,13 @@ export function Menu({
       focusTarget?.focus()
       return
     }
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
-    const buttons = Array.from(
-      panelRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [],
-    )
-    if (buttons.length === 0) return
-    event.preventDefault()
-    const activeIndex = buttons.findIndex((button) => button === document.activeElement)
-    const nextIndex = event.key === 'Home'
-      ? 0
-      : event.key === 'End'
-        ? buttons.length - 1
-        : (activeIndex + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length
-    buttons[nextIndex]?.focus()
+    moveMenuFocus(event)
   }
 
   if (!open || dismissed || items.length === 0) return null
 
   if (resolvedPresentation === 'sheet') {
-    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} finalFocus={restoreSheetFocus} />
+    return <MenuSheet id={id} items={items} onClose={onClose} onSelect={onSelect} title={title} shortTitle={shortTitle} finalFocus={restoreSheetFocus} />
   }
 
   if (!portalTarget) return null
@@ -280,8 +295,8 @@ export function Menu({
       <MenuItems
         items={items}
         onActivate={(id) => {
-          onSelect?.(id)
           onClose?.()
+          onSelect?.(id)
         }}
       />
     </AnchoredPopover>,

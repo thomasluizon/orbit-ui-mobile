@@ -1,19 +1,21 @@
+import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Calendar, ChartLine, CircleDot, Gift, Home, Trash2, User } from '@/components/ui/icons'
-import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
+import { CircleDot, Gift, Trash2 } from '@/components/ui/icons'
+import { formatNotificationRelativeTime, getNotificationTargetKey, getDestinationForLabel } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const TARGET_ICONS = {
-  'nav.today': Home,
-  'nav.calendar': Calendar,
-  'nav.progress': ChartLine,
-  'nav.profile': User,
-  'profile.wrappedTitle': Gift,
-  'notifications.habit': CircleDot,
+function NotificationTargetIcon({ targetKey, color }: Readonly<{
+  targetKey: NonNullable<ReturnType<typeof getNotificationTargetKey>>
+  color: string
+}>) {
+  const destination = getDestinationForLabel(targetKey)
+  if (destination) return <DestinationIcon destination={destination} size={16} color={color} />
+  const Icon = targetKey === 'profile.wrappedTitle' ? Gift : CircleDot
+  return <Icon size={16} color={color} accessible={false} />
 }
 
 export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
@@ -27,7 +29,6 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
-  const TargetIcon = targetKey ? TARGET_ICONS[targetKey] : null
   return (
     <View testID={item.isRead ? 'notification-read' : 'notification-unread'}
       style={[styles.wrapper, !item.isRead && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
@@ -52,8 +53,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
             </Text>
           </View>
           <Text style={[styles.body, { color: tokens.fg2 }]}>{item.body}</Text>
-          {targetKey && TargetIcon ? <View style={styles.target}>
-            <TargetIcon size={16} color={tokens.fg3} />
+          {targetKey ? <View style={styles.target}>
+            <NotificationTargetIcon targetKey={targetKey} color={tokens.fg3} />
             <Text style={[styles.meta, { color: tokens.fg2 }]}>{t(targetKey)}</Text>
           </View> : null}
         </View>

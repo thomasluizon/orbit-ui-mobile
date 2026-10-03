@@ -5,7 +5,6 @@ import {
   Text,
   AccessibilityInfo,
   Pressable,
-  Linking,
   Platform,
   FlatList,
   type ListRenderItem,
@@ -24,7 +23,7 @@ import { FollowUpChips } from "@/components/chat/follow-up-chips";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { MotionPressable } from "@/components/ui/motion-pressable";
-import { ChevronDown, RefreshCw, X } from "@/components/ui/icons";
+import { ChevronDown, X } from "@/components/ui/icons";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { useConversationKeyboardScroll } from "@/components/chat/use-conversation-keyboard-scroll";
 import { createTokensV2 } from "@/lib/theme";
@@ -94,10 +93,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     messages,
     isTyping,
     streamingMessageId,
-    sendError,
-    canRetryLastSend,
-    retryLastSend,
-    speechError,
     composerProps,
     showSuggestions,
     sendMessage,
@@ -113,7 +108,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   } = chat;
   const keyboardScroll = useConversationKeyboardScroll(flatListRef);
 
-  const microphonePermissionDenied = speechError === t("speech.micDenied");
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
@@ -241,73 +235,10 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             paddingBottom: insets.bottom,
           }}
         >
-          {sendError ? (
-            <View
-              accessibilityRole="alert"
-              accessibilityLiveRegion="assertive"
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 12,
-                paddingHorizontal: 16,
-                paddingTop: 12,
-              }}
-            >
-              <Text
-                style={{
-                  color: tokens.statusBadText,
-                  fontFamily: "Geist_400Regular",
-                  fontSize: 14,
-                }}
-              >
-                {sendError}
-              </Text>
-              {canRetryLastSend ? (
-                /* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => void retryLastSend()}
-                  style={{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }}
-                >
-                  <RefreshCw size={16} strokeWidth={1.8} color={tokens.fg2} />
-                  <Text style={{ color: tokens.fg2, fontFamily: "Geist_500Medium", fontSize: 14 }}>
-                    {t("shell.composer.retry")}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
-          {microphonePermissionDenied ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("common.openSettings")}
-              onPress={() => {
-                void Linking.openSettings();
-              }}
-              style={({ pressed }) => ({
-                minHeight: 44,
-                alignSelf: "center",
-                justifyContent: "center",
-                opacity: pressed ? 0.7 : 1,
-              })}
-            >
-              <Text
-                style={{
-                  color: tokens.fg2,
-                  fontFamily: "Geist_500Medium",
-                  fontSize: 14,
-                  textDecorationLine: "underline",
-                }}
-              >
-                {t("common.openSettings")}
-              </Text>
-            </Pressable>
-          ) : null}
           <Composer
             {...composerProps}
             autoFocus
-            suggestions={messages.length === 0 ? [] : composerProps.suggestions}
+            suggestions={composerProps.suggestions}
             onInputFocus={keyboardScroll.onComposerFocus}
             onInputBlur={keyboardScroll.onComposerBlur}
           />

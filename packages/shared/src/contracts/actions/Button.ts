@@ -9,6 +9,7 @@ interface ButtonBase {
   variant?: 'primary' | 'ghost' | 'secondary' | 'destructive' | 'caution'
   size?: 'md' | 'sm'
   loading?: boolean
+  minimumHeight?: number
   disabled?: boolean
   /** Matches the width of its partner in a stacked dialog action pair. */
   matchedWidth?: boolean

@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { act } from 'react'
 import { hydrateRoot } from 'react-dom/client'
-import { renderToString } from 'react-dom/server'
+import { LayoutDashboard, LayoutDashboardFilled } from '@/components/ui/icons'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Composer } from '@/components/shell/composer'
 import en from '@orbit/shared/i18n/en.json'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -160,6 +161,22 @@ describe('DestinationShell', () => {
     mocks.setLastDestination.mockImplementation((destination: string) => { mocks.lastDestination = destination })
     resetRouteTransitionIntent()
     vi.clearAllMocks()
+  })
+
+  it.each(['/', '/calendar', '/progress', '/profile'])('uses filled active icons and the dashboard destination on %s', (pathname) => {
+    mocks.pathname = pathname
+    render(<DestinationShell onCreate={() => {}}><h1>Root</h1></DestinationShell>)
+    const tabs = within(screen.getByRole('navigation', { name: 'nav.mainNavigation' })).getAllByRole('button')
+    const active = tabs.filter((button) => button.hasAttribute('aria-current'))
+    expect(active).toHaveLength(1)
+    expect(active[0]!.querySelector('svg')).toHaveAttribute('fill', 'var(--primary)')
+    expect(tabs.filter((button) => !button.hasAttribute('aria-current')).every((button) => button.querySelector('svg')?.getAttribute('fill') === 'none')).toBe(true)
+    const progress = screen.getByRole('button', { name: 'nav.progress' }).querySelector('svg')!
+    const expected = document.createElement('div')
+    const Icon = pathname === '/progress' ? LayoutDashboardFilled : LayoutDashboard
+    expected.innerHTML = renderToStaticMarkup(<Icon size={24} strokeWidth={pathname === '/progress' ? 2 : 1.5} />)
+    expect(progress.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
+    expect(progress).toHaveAttribute('aria-hidden', 'true')
   })
 
   it.each([[false, '/nao-existe'], [true, '/nao-existe'], [false, '/habits/missing'], [true, '/habits/missing']] as const)('shows an unselected not-found shell without a composer at wide=%s for %s', (wide, pathname) => {
@@ -682,13 +699,13 @@ describe('DestinationShell', () => {
     view.rerender(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
     expect.soft(screen.getAllByRole('list', { name: 'notifications.title' })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'notifications.markAllRead' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'notifications.options' })).not.toBeInTheDocument()
     await act(async () => {
       queryClient.setQueryData(notificationKeys.lists(), { items: [createMockNotification({ isRead: false })], unreadCount: 1 })
       await new Promise((resolve) => setTimeout(resolve, 300))
     })
     expect(screen.getByRole('heading', { level: 1, name: 'notifications.title' }).closest('[data-shell-header]')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'notifications.markAllRead' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'notifications.options' }).closest('[data-shell-header]')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     expect(mocks.push).toHaveBeenCalledWith('/profile')
     mocks.pathname = '/profile'

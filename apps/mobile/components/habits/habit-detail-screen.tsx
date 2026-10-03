@@ -143,15 +143,17 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
 
 function Metrics({ visible, loading, metrics, isBadHabit, tokens }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
+  const { width, fontScale } = useWindowDimensions()
+  const gridStyle = [styles.tileGrid, width / fontScale < 600 && styles.stackedTiles]
   if (!visible) return null
-  if (loading) return <View style={styles.tileGrid}><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /></View>
+  if (loading) return <View accessible accessibilityRole="progressbar" accessibilityLabel={t('habits.detail.loading')} style={gridStyle}>{[isBadHabit ? 'daysFree' : 'currentStreak', 'longestStreak', 'monthlyRate'].map((key) => <View key={key} style={{ flex: 1 }} importantForAccessibility="no-hide-descendants"><StatTile state="loading" label={t(`habits.detail.${key}`)} loadingLabel={t('habits.detail.loading')} /></View>)}</View>
   if (!metrics || metrics.totalCompletions === 0) return <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3, textAlign: 'center', paddingVertical: 16 }]}>{t('habits.detail.noDataYet')}</Text>
   const values = [
     { label: t(isBadHabit ? 'habits.detail.daysFree' : 'habits.detail.currentStreak'), value: String(metrics.currentStreak) },
     { label: t('habits.detail.longestStreak'), value: String(metrics.longestStreak) },
     { label: t('habits.detail.monthlyRate'), value: `${Math.round(metrics.monthlyCompletionRate)}%` },
   ]
-  return <View style={styles.tileGrid}>{values.map((item) => <StatTile key={item.label} label={item.label} value={item.value} />)}</View>
+  return <View style={gridStyle}>{values.map((item) => <StatTile key={item.label} label={item.label} value={item.value} />)}</View>
 }
 
 function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
@@ -629,6 +631,7 @@ const styles = StyleSheet.create({
   childReason: { alignSelf: 'flex-end', paddingRight: 12, paddingBottom: 8 },
   disclosureTitle: { fontSize: 17 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stackedTiles: { flexDirection: 'column' },
   tileGrid: { flexDirection: 'row', gap: 8 },
   metric: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
   metricValue: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, fontVariant: ['tabular-nums'] },

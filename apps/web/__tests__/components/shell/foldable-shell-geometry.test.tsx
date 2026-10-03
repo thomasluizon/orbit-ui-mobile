@@ -4,7 +4,16 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import en from '@orbit/shared/i18n/en.json'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { Composer } from '@/components/shell/composer'
+import { AppBar } from '@/components/ui/app-bar'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { FlowShell } from '@/components/shell/flow-shell'
+import { HabitCreateActions } from '@/components/habits/habit-create-actions'
 import { NotFoundContent } from '@/components/ui/not-found-content'
 import { Toast } from '@/components/ui/toast'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -26,6 +35,92 @@ describe('Foldable shell geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([360, 740, 1100].flatMap((width) => [false, true].map((navigationEnabled) => ({ width, navigationEnabled }))))(
+    'keeps the full Create target revealable at $width with a 120px height budget and nav=$navigationEnabled', async ({ width, navigationEnabled }) => {
+    const action = <div className="p-4"><HabitCreateActions presentation="screen" pending={false} empty={false}
+      subHabit={false} online formId="create-habit" onCancel={vi.fn()} /></div>
+    const flow = navigationEnabled ? { items: [], activeId: '', navLabel: en.nav.mainNavigation, composer: action } : { nav: false as const, action }
+    const { container } = render(<ShellWide {...flow}
+      header={<AppBar title={en.habits.createHabit} onBack={vi.fn()} backLabel={en.common.back} />}
+    >
+      <div style={{ height: 1600 }}>Habit form</div>
+    </ShellWide>)
+    const page = await browser.newPage({ viewport: { width, height: 120 } })
+    try {
+      await page.setContent(`<style>${stylesheet}\n[data-shell-column] { padding-top: 24px; } :root { --safe-bottom: 0px; }</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const pinned = document.querySelector<HTMLElement>('[data-shell-pinned-slot]')!
+        const button = pinned.querySelector<HTMLButtonElement>('button')!
+        button.scrollIntoView({ block: 'center', behavior: 'instant' })
+        const target = button.getBoundingClientRect()
+        const viewport = pinned.getBoundingClientRect()
+        return { targetHeight: target.height, viewportHeight: viewport.height, top: target.top,
+          bottom: target.bottom, viewportTop: viewport.top, viewportBottom: viewport.bottom,
+          enabled: !button.disabled, hit: document.elementFromPoint(target.x + target.width / 2, target.y + target.height / 2)?.closest('button') === button }
+      })
+      expect(geometry.targetHeight).toBeGreaterThanOrEqual(50)
+      expect(geometry.viewportHeight).toBeGreaterThanOrEqual(geometry.targetHeight)
+      expect(geometry.viewportBottom).toBeLessThanOrEqual(120)
+      expect(geometry.top).toBeGreaterThanOrEqual(geometry.viewportTop)
+      expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportBottom)
+      expect(geometry.enabled).toBe(true)
+      expect(geometry.hit).toBe(true)
+    } finally { await page.close() }
+  })
+
+  it.each([840, 1100].flatMap((width) => (['card', 'onboarding'] as const).map((mode) => ({ width, mode }))))(
+    'preserves full-height flow centering at $width in $mode mode', async ({ width, mode }) => {
+    const { container } = render(<FlowShell mode={mode} action={<button type="button" className="h-[50px]">Continue</button>}>
+      <div style={{ height: 100 }}>Flow content</div>
+    </FlowShell>)
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scrollerElement = document.querySelector('[data-shell-scroller]')!
+        const scroller = scrollerElement.getBoundingClientRect()
+        const flow = document.querySelector<HTMLElement>('[data-flow-mode]')!
+        const content = flow.firstElementChild!.getBoundingClientRect()
+        const box = flow.getBoundingClientRect()
+        const style = getComputedStyle(flow)
+        return { height: box.height, scrollerHeight: scroller.height,
+          padding: parseFloat(getComputedStyle(scrollerElement).paddingBottom),
+          leading: content.top - box.top - parseFloat(style.paddingTop),
+          trailing: box.bottom - content.bottom - parseFloat(style.paddingBottom) }
+      })
+      expect(geometry.padding).toBe(width < 1024 ? 96 : 32)
+      expect(geometry.height).toBeCloseTo(geometry.scrollerHeight - (width < 1024 ? 96 : 32), 0)
+      expect(geometry.leading).toBeGreaterThan(0)
+      expect(geometry.leading).toBeCloseTo(geometry.trailing, 0)
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1280].flatMap((width) => [100, 1600].map((contentHeight) => ({ width, contentHeight }))))(
+    'owns onboarding clearance at $width with $contentHeight px of content', async ({ width, contentHeight }) => {
+    const { container } = render(<FlowShell mode="onboarding"
+      action={<button type="button" className="h-[50px]">Continue</button>}>
+      <div data-onboarding-content="" style={{ height: contentHeight }}>Onboarding content</div>
+    </FlowShell>)
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        scroller.scrollTop = scroller.scrollHeight
+        const content = document.querySelector('[data-onboarding-content]')!.getBoundingClientRect()
+        const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
+        return { padding: parseFloat(getComputedStyle(scroller).paddingBottom),
+          clearance: bottom.top - content.bottom, bottom: bottom.bottom,
+          documentWidth: document.documentElement.scrollWidth }
+      })
+      const clearance = width < 1024 ? 96 : 32
+      expect(geometry.padding).toBe(clearance)
+      expect(geometry.clearance).toBeGreaterThanOrEqual(clearance)
+      expect(geometry.bottom).toBeLessThanOrEqual(900)
+      expect(geometry.documentWidth).toBe(width)
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 500, 740, 1024, 1352])('aligns feedback and not-found content without reserving composer space at %ipx', async (width) => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
@@ -69,6 +164,45 @@ describe('Foldable shell geometry', () => {
       expect.soft(bounds.celebration).toEqual(bounds.content)
       expect.soft(bounds.title).toEqual(bounds.content)
       expect(bounds.documentWidth).toBe(width)
+    } finally { await page.close() }
+  })
+
+  it.each([360, 320])('budgets the real header, composer and tab bar inside a %ipx tall window', async (height) => {
+    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+      header={<AppBar title={en.nav.today} onBack={vi.fn()} backLabel={en.common.back} />}
+      composer={<Composer state="idle" value="" words={en.shell.composer}
+        suggestions={toComposerSuggestions(['today', 'calendar', 'progress'].map((id) => ({ id, label: en.nav[id as 'today' | 'calendar' | 'progress'], onSelect: vi.fn() })))}
+        onChangeValue={vi.fn()} onSend={vi.fn()} onVoice={vi.fn()} voiceWords={en.shell.composer.voice}
+        onAttachFile={vi.fn()} onAttachImage={vi.fn()}
+        attachWords={{ file: en.chat.attachFile, image: en.chat.attachImage, trayLabel: en.chat.attachFile, remove: (name) => name }}
+        onOpenConversation={vi.fn()} conversationLabel={en.todayAstra.openConversation} />}
+      tabBar={<BottomTabBar label={en.nav.mainNavigation} activeId="hoje" onSelect={vi.fn()}
+        items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: en.nav[DESTINATION_ICONS[id].commandId], icon: ({ active }) => <DestinationIcon destination={id} active={active} /> }))} />}>
+      <div style={{ height: 1600 }}>Long habit detail</div>
+    </ShellWide>)
+    const page = await browser.newPage({ viewport: { width: 740, height } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const geometry = await page.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+        const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+        scroller.scrollTop = scroller.scrollHeight
+        return { bottom: box('[data-shell-bottom]').bottom, headerTop: box('[data-shell-header]').top,
+          tabsHeight: box('[data-shell-tab-bar]').height, scrollerHeight: scroller.clientHeight,
+          clearance: box('[data-shell-bottom]').top - scroller.lastElementChild!.getBoundingClientRect().bottom }
+      })
+      expect(geometry.bottom).toBeLessThanOrEqual(height)
+      expect(geometry.headerTop).toBe(0)
+      expect(geometry.tabsHeight).toBe(80)
+      expect(geometry.scrollerHeight).toBeGreaterThanOrEqual(48)
+      expect(geometry.clearance).toBeGreaterThanOrEqual(95)
+      for (const control of await page.locator('[data-shell-pinned-slot] button:not([disabled]), [data-shell-pinned-slot] textarea').all()) {
+        await control.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
+        const box = (await control.boundingBox())!
+        const pinned = (await page.locator('[data-shell-pinned-slot]').boundingBox())!
+        expect(box.y).toBeGreaterThanOrEqual(pinned.y)
+        expect(box.y + box.height).toBeLessThanOrEqual(pinned.y + pinned.height)
+      }
     } finally { await page.close() }
   })
 

@@ -21,7 +21,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
     const words = locale === 'pt-BR' ? ptBR : en
 
     for (const width of [412, 500, 1352, 1440]) {
-      test(`keeps all four values at the same size at ${width}px`, async ({ page, context }) => {
+      test(`keeps three figure values at the same size and the top habit in a row at ${width}px`, async ({ page, context }) => {
         await page.setViewportSize({ width, height: 915 })
         const profile = profileSchema.parse({
           ...profileFixture, language: locale, plan: 'pro', hasProAccess: true,
@@ -48,8 +48,20 @@ for (const locale of ['en', 'pt-BR'] as const) {
         )
         await page.goto('/progress')
         const windowSection = page.getByRole('region', { name: words.progressScreen.sections.window })
-        const values = windowSection.locator('span[title]')
-        await expect(values).toHaveText(['38%', '2', words.dates.daysValue.monday, 'Caminhar'])
+        const values = windowSection.locator('[data-state="default"] > span[title]')
+        await expect(values).toHaveText(['38%', '2', words.dates.daysAbbreviated.monday])
+        const habitRow = windowSection.getByTestId('progress-top-habit')
+        const habitTitle = habitRow.locator('span[title]')
+        await expect(habitRow).toBeVisible()
+        await expect(habitRow).toContainText(words.progressScreen.window.topHabit)
+        await expect(habitTitle).toHaveAttribute('title', 'Caminhar')
+        await expect(habitTitle).toContainText('Caminhar')
+        await expect(habitRow.locator('a, button, [role="button"], [data-state]')).toHaveCount(0)
+        expect(await habitTitle.evaluate((element) => ({
+          fontSize: getComputedStyle(element).fontSize,
+          tabular: getComputedStyle(element).fontVariantNumeric.includes('tabular-nums'),
+          precedingFigures: element.parentElement?.previousElementSibling?.querySelectorAll('[data-state="default"]').length,
+        }))).toEqual({ fontSize: '17px', tabular: false, precedingFigures: 3 })
         await page.evaluate(() => document.fonts.ready)
         const geometry = await values.evaluateAll((elements) => elements.map((value) => {
           const tile = value.parentElement!
@@ -63,7 +75,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
               && valueBounds.top >= tileBounds.top && valueBounds.bottom <= tileBounds.bottom,
           }
         }))
-        expect(geometry.map((value) => value.fontSize)).toEqual(['24px', '24px', '24px', '24px'])
+        expect(geometry.map((value) => value.fontSize)).toEqual(['22px', '22px', '22px'])
         for (const value of geometry) {
           expect(value.scrollWidth).toBeLessThanOrEqual(value.clientWidth)
           expect(value.inside).toBe(true)

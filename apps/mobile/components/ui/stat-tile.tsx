@@ -43,7 +43,9 @@ export function StatTile(props: Readonly<StatTileProps>) {
       accessibilityLabel={state === 'loading' ? props.loadingLabel : undefined}
     >
       {state === 'loading' ? (
-        <View style={[styles.valueSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingValue}>
+          <Text style={[styles.value, { opacity: 0 }]}>0</Text><View style={[styles.valueSkeleton, { position: 'absolute', backgroundColor: tokens.bgElev2 }]} />
+        </View>
       ) : (
         <TileValue
           value={shownStatValue(props)}
@@ -52,7 +54,6 @@ export function StatTile(props: Readonly<StatTileProps>) {
         />
       )}
       <Text
-        numberOfLines={2}
         style={[styles.label, { color: isEmpty ? tokens.fg3 : tokens.fg2 }]}
       >
         {label}
@@ -71,12 +72,12 @@ const styles = StyleSheet.create({
     minHeight: STAT_TILE_MIN_HEIGHT,
     borderRadius: 20,
     borderWidth: 1,
-    padding: 24,
+    padding: 16,
   },
   value: {
     fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 24,
-    lineHeight: 24 * 1.4,
+    fontSize: 22,
+    lineHeight: 22 * 1.4,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
     maxWidth: '100%',
@@ -91,9 +92,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 20,
-    minHeight: 40,
     textAlign: 'center',
   },
+  loadingValue: { minWidth: 64, alignItems: 'center', justifyContent: 'center' },
   valueSkeleton: {
     width: 64,
     height: 24,

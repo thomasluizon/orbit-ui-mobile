@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList } from "react-native";
+import { FlatList, Linking } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
@@ -281,23 +281,6 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     },
     [queryClient],
   );
-
-  useEffect(() => {
-    if (!speechError) return;
-
-    let active = true;
-    void Promise.resolve().then(() => {
-      if (active) setSendError(speechError);
-    });
-    const timer = setTimeout(() => {
-      setSendError((current) => (current === speechError ? null : current));
-    }, 4000);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [speechError]);
 
   const validateImageAsset = useCallback(
     (asset: ImagePicker.ImagePickerAsset): string | null => {
@@ -811,7 +794,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
       contextualSuggestion,
     });
     return toComposerSuggestions(chips.map(({ id, key, params, promptKey, label: providedLabel, prompt: providedPrompt }) => {
-      const label = providedLabel ?? t(key, params);
+      const label = providedLabel ?? t(key);
       const prompt = providedPrompt ?? (promptKey ? t(promptKey, params) : label);
       return { id, label, onSelect: () => {
         void sendMessage(prompt);
@@ -822,9 +805,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const composerProps = useMemo(() => {
     const words = {
       placeholder: t(isOnline ? "shell.composer.placeholder" : "shell.composer.offline.placeholder"),
-      inputLabel: t("shell.composer.placeholder"),
+      inputLabel: t("shell.composer.inputLabel"),
       ...(!isOnline ? { offlineReason: t("shell.composer.offline.reason") } : {}),
       send: t("shell.composer.send"),
+      actions: t("shell.composer.actions"),
       suggestionsLabel: t("shell.composer.suggestionsLabel"),
       retry: t("shell.composer.retry"),
     };
@@ -837,14 +821,18 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     const common = {
       words,
       value: input,
+      errorMessage: speechError ?? sendError ?? undefined,
+      ...(speechError === t("speech.micDenied") ? {
+        errorRecovery: { label: t("common.openSettings"), onSelect: () => { void Linking.openSettings(); } },
+      } : {}),
       onChangeValue: setInput,
       onSend: () => void sendMessage(),
       suggestions: composerSuggestions,
       onAttachFile: () => void openTextFilePicker(),
       onAttachImage: () => void openFilePicker(),
       attachWords: {
-        file: t("chat.attachFile"),
-        image: t("chat.attachImage"),
+        file: t("shell.composer.attach.file"),
+        image: t("shell.composer.attach.image"),
         trayLabel: t("shell.composer.attach.trayLabel"),
         remove: (name: string) => t("shell.composer.attach.remove", { name }),
       },
@@ -895,6 +883,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     retryLastSend,
     setInput,
     sendMessage,
+    sendError,
+    speechError,
     speechSupported,
     t,
     toggleRecording,

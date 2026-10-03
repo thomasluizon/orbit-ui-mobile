@@ -142,7 +142,7 @@ export function Sheet({
 
   const header = title || accessibleTitle || headerAccessory || onClose || onAttemptDismiss ? (
     <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
-      {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : (
+      {title ? <Text accessibilityLabel={accessibleTitle} numberOfLines={1} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
       {headerAccessory}
@@ -196,7 +196,7 @@ export function Sheet({
       scrollable={false}
     >
       {virtualizedBody ? (
-        <View testID="sheet-virtualized-body" style={[bodyStyle, { maxHeight: maxBodyHeight }]}>
+        <View testID="sheet-virtualized-body" style={[bodyStyle, virtualizedBodyStyle(maxBodyHeight, Boolean(footer))]}>
           {children}
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </View>
@@ -236,6 +236,10 @@ function renderSheetFooter(
   )
 }
 
+function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
+  return [{ maxHeight }, hasFooter ? { paddingBottom: 0 } : null]
+}
+
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     header: {
@@ -260,13 +264,12 @@ function createStyles(tokens: Tokens) {
       alignItems: 'center',
       borderRadius: 999,
       overflow: 'hidden',
-      height: 44,
+      minHeight: 48,
       justifyContent: 'center',
-      width: 44,
+      width: 48,
     },
     pressed: {
       backgroundColor: tokens.bgHover,
-      transform: [{ scale: 0.96 }],
     },
     body: {
       paddingHorizontal: 24,

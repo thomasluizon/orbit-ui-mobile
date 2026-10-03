@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { createMockHabit, createMockProfile } from './factories'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
-import { buildComposerChips, resolveComposerChipSurface, type ComposerChipState } from '../chat/composer-chips'
+import { buildComposerChips, resolveComposerChipSurface, resolveComposerDockSuggestions, resolveComposerStripLayout, type ComposerChipState } from '../chat/composer-chips'
+import { toComposerSuggestions } from '../contracts/composer'
 
 const now = new Date('2026-09-12T12:00:00.000Z')
 const pending = createMockHabit({ title: 'Reading' })
@@ -22,6 +23,13 @@ function ids(overrides: Partial<ComposerChipState> = {}) {
 }
 
 describe('composer chips', () => {
+  it('moves Today chips out of the dock while retaining habit detail chips and callbacks', () => {
+    const suggestions = toComposerSuggestions(buildComposerChips(state()).map((chip) => ({
+      id: chip.id, label: chip.key, onSelect: () => chip.id,
+    })))
+    expect(resolveComposerDockSuggestions('/', suggestions)).toEqual([])
+    expect(resolveComposerDockSuggestions('/habits/reading', suggestions)).toBe(suggestions)
+  })
   it.each([
     ['/habits/new', 'today'],
     ['/habits/reading', 'habitDetail'],
@@ -163,33 +171,28 @@ describe('composer chips', () => {
     }
   })
 
-  it.each([
-    [en, 'Meditate', 'Log', 'Simplify', 'Keep only', 'Review', 'Move', 'to tonight'],
-    [en, 'House routine', 'Log', 'Simplify', 'Keep only', 'Review', 'Move', 'to tonight'],
-    [ptBR, 'Caminhar', 'Registrar', 'Simplificar', 'Manter só', 'Rever', 'Mover', 'para hoje à noite'],
-    [ptBR, 'Rotina da casa', 'Registrar', 'Simplificar', 'Manter só', 'Rever', 'Mover', 'para hoje à noite'],
-  ] as const)('quotes verb and noun titles in every localized Today action', (locale, title, log, trim, keep, review, move, tonight) => {
+  it.each([en, ptBR])('separates short labels from requests with complete habit titles', locale => {
+    const title = 'A habit title with spaces, "quotes", accents and '.repeat(5)
     const habit = createMockHabit({ title, hasSubHabits: true, isOverdue: true })
     const variants = [
       state({ habits: [habit] }),
       state({ habits: [habit], profile: createMockProfile({ lastCompletionDate: '2026-09-08' }) }),
       state({ habits: [{ ...habit, isCompleted: true }] }),
+      state({ surface: 'progress', habits: [habit] }),
     ]
-    const chips = variants.flatMap(buildComposerChips)
-    const expected = {
-      logHabit: `${log} "${title}"`,
-      trimHabit: `${trim} "${title}"`,
-      keepOnlyHabit: `${keep} "${title}"`,
-      reviewHabit: `${review} "${title}"`,
-      moveOverdue: `${move} "${title}" ${tonight}`,
+    const chips = variants.flatMap(buildComposerChips).filter(chip => chip.params)
+    expect(new Set(chips.map(chip => chip.id)).size).toBe(6)
+    for (const chip of chips) {
+      const [, , , group, name] = chip.key.split('.')
+      const labels = locale.shell.composer.chips[group as keyof typeof locale.shell.composer.chips]
+      expect(labels[name as keyof typeof labels]).not.toContain('{title}')
+      expect(chip.params?.title).toBe(title)
+      expect(chip.promptKey).toBe(`shell.composer.prompts.${chip.id}`)
+      const prompts: Record<string, string> = locale.shell.composer.prompts[group as keyof typeof locale.shell.composer.prompts]
+      const prompt = prompts[name!]!
+      expect(prompt.replace('{title}', chip.params!.title)).toContain(title)
+      expect(prompt.match(/\{title\}/g)).toHaveLength(1)
     }
-    for (const name of Object.keys(expected) as (keyof typeof expected)[]) {
-      const chip = chips.find((candidate) => candidate.id === `today.${name}`)
-      expect(chip).toBeDefined()
-      expect(chip?.params?.title).toBe(title)
-      expect(locale.shell.composer.chips.today[name].replace('{title}', chip?.params?.title ?? '')).toBe(expected[name])
-    }
-    expect(locale.habits.detail.log.replace('{title}', title)).toBe(expected.logHabit)
   })
 
   it('never returns one, two, or more than six chips', () => {
@@ -199,6 +202,37 @@ describe('composer chips', () => {
           const count = buildComposerChips(state({ surface, status, habits, detailHabit: { title: 'Reading', checklistItems: [] } })).length
           expect(count === 0 || (count >= 3 && count <= 6)).toBe(true)
         }
+      }
+    }
+  })
+})
+
+
+describe('composer strip layout', () => {
+  it('keeps the full row when chips fit or measurements are still arriving', () => {
+    expect(resolveComposerStripLayout(320, [80, 80, 80])).toEqual({ visibleWidth: 320, firstChipMinWidth: 0 })
+    expect(resolveComposerStripLayout(320, [80, 0, 80])).toEqual({ visibleWidth: 320, firstChipMinWidth: 0 })
+    expect(resolveComposerStripLayout(320, [])).toEqual({ visibleWidth: 320, firstChipMinWidth: 0 })
+  })
+
+  it('keeps every chip reachable and the next chip peeking across every compact width', () => {
+    for (let width = 320; width <= 1023; width++) for (const scale of [1, 2]) {
+      for (const naturalWidths of [[180, 200, 160], [424, 367, 307, 313], [80, 800, 120], [160, 140, 120, 180, 160, 140]]) {
+        const available = width - 32
+        const chipWidths = naturalWidths.map(size => Math.min(size * scale, available - 32))
+        const total = chipWidths.reduce((sum, size) => sum + size, (chipWidths.length - 1) * 8)
+        const layout = resolveComposerStripLayout(available, chipWidths)
+        if (total <= available) {
+          expect(layout.visibleWidth).toBe(available)
+          continue
+        }
+        chipWidths[0] = Math.max(chipWidths[0]!, layout.firstChipMinWidth)
+        const starts = chipWidths.map((_, index) => chipWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const partial = starts.findIndex((start, index) => start < layout.visibleWidth && start + chipWidths[index]! > layout.visibleWidth)
+        expect(partial).toBeGreaterThan(0)
+        expect(layout.visibleWidth - starts[partial]!).toBe(24)
+        expect(layout.visibleWidth).toBeLessThanOrEqual(available)
+        expect(chipWidths.every(size => size <= layout.visibleWidth)).toBe(true)
       }
     }
   })

@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { FreezeBankWords } from '@orbit/shared/contracts/display'
 import { FreezeBank } from '@/components/ui/freeze-bank'
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 const words: FreezeBankWords = {
   active: 'Active',
@@ -35,21 +37,23 @@ const baseProps = {
 } as const
 
 describe('FreezeBank', () => {
-  it('shows three named marks, both tiles and bank bookkeeping without a disclosure', () => {
+  it('keeps bank bookkeeping inline and discloses the three named marks', () => {
     render(<FreezeBank {...baseProps} />)
     expect(screen.getByText('Banked')).toBeInTheDocument()
-    const legend = screen.getByRole('group', { name: 'Streak day legend' })
-    expect(legend).toHaveTextContent('Active')
-    expect(legend).toHaveTextContent('Frozen')
-    expect(legend).toHaveTextContent('Missed')
-    expect(legend).not.toHaveTextContent('Today')
+    expect(screen.queryByText('Active')).not.toBeInTheDocument()
     expect(screen.getByText('Best streak')).toBeInTheDocument()
     expect(screen.getByText('Silver')).toBeInTheDocument()
     expect(screen.getByText('4 of 7 streak days')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '4')
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuemax', '7')
     expect(screen.getByText('No protected days yet')).toBeInTheDocument()
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Streak day legend' }))
+    const legend = screen.getByRole('dialog')
+    expect(legend).toHaveTextContent('Active')
+    expect(legend).toHaveTextContent('Frozen')
+    expect(legend).toHaveTextContent('Missed')
+    expect(legend).not.toHaveTextContent('Today')
+
   })
 
   it('omits the entire earning row while full and resumes after the bank drops', () => {

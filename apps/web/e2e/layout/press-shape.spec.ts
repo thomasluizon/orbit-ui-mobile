@@ -130,19 +130,24 @@ for (const width of [412, 1280] as const) {
 
       const composer = page.locator('[data-shell-pinned-slot]')
       await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.todayAstra.openConversation }), 'pill')
-      await expectHoverOnHitArea(composer.getByRole('group', { name: ptBr.shell.composer.suggestionsLabel }).getByRole('button').first(), 'pill')
-      for (const label of [ptBr.chat.attachFile, ptBr.chat.attachImage, ptBr.shell.composer.voice.start]) {
-        await expectHoverOnHitArea(composer.getByRole('button', { name: label }), 'pill')
-      }
+      await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.shell.composer.actions }), 'pill')
       await composer.locator('[data-composer-input]').focus()
       const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
       await expect(conversation).toBeVisible()
       await expect(composer).toBeHidden()
       await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
+      await expectHoverOnHitArea(conversation.getByRole('group', { name: ptBr.shell.composer.suggestionsLabel }).getByRole('button').first(), 'pill')
       const conversationField = conversation.locator('[data-composer-input]')
       await expect(conversationField).toBeFocused()
       await conversationField.fill('Como começo?')
       await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
+      await conversation.getByRole('button', { name: ptBr.shell.composer.actions }).click()
+      const menu = page.getByRole('menu', { name: ptBr.shell.composer.actions, exact: true })
+      for (const label of [ptBr.shell.composer.attach.file, ptBr.shell.composer.attach.image, ptBr.shell.composer.voice.start]) {
+        await expectHoverOnHitArea(menu.getByRole('menuitem', { name: label, exact: true }), 12)
+      }
+      await page.keyboard.press('Escape')
+      await expect(menu).toBeHidden()
 
       await page.goto('/about')
       await expect(page.locator('main')).toBeVisible()
@@ -214,13 +219,21 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { name: ptBr.common.close }), 'pill', '--bg-hover')
 
       await page.goto('/calendar')
-      for (const label of [ptBr.calendar.goToCurrentMonth, ptBr.common.selectYear, ptBr.common.previousMonth, ptBr.common.nextMonth]) {
+      for (const label of [ptBr.common.previousMonth, ptBr.common.nextMonth]) {
         await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill', '--bg-hover')
       }
+      const monthTitle = page.getByRole('button', { name: new RegExp(`, ${ptBr.calendar.monthPicker}$`) })
+      await expectFullTouchTarget(monthTitle, 'pill', '--bg-hover')
       await expectHoverOnHitArea(page.getByRole('radiogroup').getByRole('radio', { checked: false }).first(), 8)
-      await page.getByRole('button', { name: ptBr.common.selectYear }).click()
-      await expectHoverOnHitArea(page.getByRole('dialog').getByRole('button', { pressed: false }).first(), 'pill')
-      await page.getByRole('dialog').getByRole('button', { pressed: true }).click()
+      await monthTitle.click()
+      const monthPicker = page.getByRole('dialog', { name: ptBr.calendar.monthPicker, exact: true })
+      await expectFullTouchTarget(monthPicker.getByRole('button', { name: ptBr.calendar.thisMonth, exact: true }), 'pill', '--bg-hover')
+      const yearTitle = monthPicker.getByRole('button', { name: new RegExp(`, ${ptBr.common.selectYear}$`) })
+      await expectFullTouchTarget(yearTitle, 'pill', '--bg-hover')
+      await yearTitle.click()
+      await expectHoverOnHitArea(monthPicker.getByRole('button', { pressed: false }).first(), 'pill')
+      await monthPicker.getByRole('button', { pressed: true }).click()
+      await monthPicker.getByRole('button', { name: ptBr.calendar.thisMonth, exact: true }).click()
       await expectHoverOnHitArea(page.locator('[role="radio"]:not([data-selected])').first(), 8)
       await expectHoverOnHitArea(page.locator('button[data-testid^="calendar-day-select-"]').first(), 'pill')
     })
@@ -274,9 +287,10 @@ for (const width of [412, 1280] as const) {
       })
       await page.goto('/calendar')
       await page.getByRole('radio', { name: ptBr.calendar.view.week, exact: true }).click()
-      for (const label of [ptBr.common.previousWeek, ptBr.common.nextWeek, ptBr.calendar.goToCurrentWeek]) {
+      for (const label of [ptBr.common.previousWeek, ptBr.common.nextWeek]) {
         await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill')
       }
+      await expectFullTouchTarget(page.getByRole('button', { name: new RegExp(`, ${ptBr.calendar.goToCurrentWeek}$`) }), 'pill')
       await expectFullTouchTarget(page.getByTestId('time-grid-all-day-more').first(), 8)
     })
 

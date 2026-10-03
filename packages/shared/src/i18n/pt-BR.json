@@ -56,6 +56,7 @@
     "action": "Ir para Hoje"
   },
   "notifications": {
+    "options": "Opções dos avisos",
     "title": "Avisos",
     "bell": "Avisos",
     "bellWithCount": "Avisos, {count} sem ler",
@@ -66,6 +67,7 @@
     "deleteError": "Não foi possível apagar o aviso. Tente de novo.",
     "deleteAllError": "Não foi possível limpar os avisos. Tente de novo.",
     "markAllRead": "Marcar tudo como lido",
+    "markAllReadMenu": "Marcar lidos",
     "markAsRead": "Marcar como lido",
     "markRead": "Marcar {title} como lido",
     "deleteAll": "Limpar tudo",
@@ -90,6 +92,7 @@
     "openIn": "Abrir em {target}"
   },
   "common": {
+    "options": "Opções",
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",
     "backToDestination": "Voltar para {destination}",
@@ -210,19 +213,21 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
-      "placeholder": "Peça algo à Astra",
+      "placeholder": "Astra",
       "send": "Enviar",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
       "voice": {
-        "start": "Falar",
+        "start": "Voz",
         "stop": "Parar",
         "recording": "Ouvindo",
-        "transcribing": "Escrevendo o que você disse"
+        "transcribing": "Transcrevendo"
       },
       "attach": {
-        "trayLabel": "Arquivos anexados",
-        "remove": "Remover {name}"
+        "trayLabel": "Anexos",
+        "remove": "Remover {name}",
+        "file": "Documento",
+        "image": "Foto"
       },
       "limit": {
         "reason": "A cota de {allowance} mensagens para a Astra de hoje foi usada. Listas, registro de hábitos e entrada por voz continuam funcionando sem usar a Astra."
@@ -231,35 +236,35 @@
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
       },
       "offline": {
-        "placeholder": "Sem conexão",
+        "placeholder": "Offline",
         "reason": "Sem conexão. A Astra volta quando a conexão voltar."
       },
       "chips": {
         "today": {
-          "moveOverdue": "Mover \"{title}\" para hoje à noite",
-          "logHabit": "Registrar \"{title}\"",
+          "moveOverdue": "Mover hábito para a noite",
+          "logHabit": "Registrar próximo hábito",
           "logYesterday": "Registrar ontem",
           "pushTomorrow": "Adiar tudo para amanhã",
-          "trimHabit": "Simplificar \"{title}\"",
+          "trimHabit": "Simplificar etapas",
           "createMorningHabit": "Criar hábito de manhã",
           "logLastDays": "Registrar os últimos dias",
           "resumeHabits": "Retomar os hábitos",
           "cutToTwo": "Reduzir para dois por dia",
           "changeTimes": "Mudar os horários",
           "pauseWhatDoesNotFit": "Pausar o que não cabe",
-          "keepOnlyHabit": "Manter só \"{title}\"",
+          "keepOnlyHabit": "Manter só um hábito",
           "buildMorningRoutine": "Montar uma rotina de manhã",
           "startOneHabit": "Começar com um hábito",
           "suggestThreeHabits": "Sugerir três hábitos",
           "createEveningHabit": "Criar hábito de noite",
-          "reviewHabit": "Rever \"{title}\""
+          "reviewHabit": "Rever etapas do hábito"
         },
         "calendar": {
           "slippedThisWeek": "O que faltou nesta semana",
           "syncCalendar": "Sincronizar a agenda"
         },
         "progress": {
-          "createGoal": "Criar uma meta para {title}",
+          "createGoal": "Criar meta para um hábito",
           "brokenStreak": "Por que a sequência quebrou",
           "trimGoals": "Reduzir minhas metas",
           "stuckThisWeek": "O que está pegando esta semana"
@@ -275,7 +280,21 @@
           "pauseThisWeek": "Pausar esta semana",
           "rename": "Renomear"
         }
-      }
+      },
+      "prompts": {
+        "today": {
+          "moveOverdue": "Mover \"{title}\" para hoje à noite",
+          "logHabit": "Registrar \"{title}\"",
+          "trimHabit": "Simplificar \"{title}\"",
+          "keepOnlyHabit": "Manter só \"{title}\"",
+          "reviewHabit": "Rever \"{title}\""
+        },
+        "progress": {
+          "createGoal": "Criar uma meta para {title}"
+        }
+      },
+      "inputLabel": "Peça à Astra",
+      "actions": "Adicionar"
     }
   },
   "todayAstra": {
@@ -353,6 +372,15 @@
     "tomorrow": "Amanhã",
     "nextDay": "Próximo dia",
     "previousDay": "Dia anterior",
+    "daysAbbreviated": {
+      "monday": "seg.",
+      "tuesday": "ter.",
+      "wednesday": "qua.",
+      "thursday": "qui.",
+      "friday": "sex.",
+      "saturday": "sáb.",
+      "sunday": "dom."
+    },
     "daysShort": {
       "monday": "Seg",
       "tuesday": "Ter",
@@ -498,7 +526,9 @@
     "searchPlaceholder": "Buscar hábitos...",
     "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
+    "showCompletedMenu": "Mostrar feitos",
     "hideCompleted": "Ocultar concluídos",
+    "hideCompletedMenu": "Ocultar feitos",
     "collapseAll": "Recolher tudo",
     "expandAll": "Expandir tudo",
     "refresh": "Atualizar",
@@ -956,7 +986,7 @@
       "selected": "selecionado",
       "readOnly": "somente leitura"
     },
-    "bestStreak": "Melhor sequência",
+    "bestStreak": "Recorde",
     "totalLogs": "Registros",
     "missedCount": "Sem registro",
     "emptyMonth": "Nenhum hábito estava programado neste mês.",
@@ -1018,6 +1048,11 @@
     },
     "completionHistory": "Histórico de Conclusão",
     "showRecurring": "Mostrar hábitos que se repetem",
+    "googleCalendar": "Google Calendar",
+    "options": "Opções do calendário",
+    "monthPicker": "Mês e ano",
+    "thisMonth": "Este mês",
+    "legendTitle": "Legenda",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
     "profileHint": "Importe eventos como hábitos",
@@ -1905,6 +1940,7 @@
       "proHint": "Gerencie sua assinatura",
       "free": "Plano grátis",
       "freeHint": "Faça upgrade para ter tudo",
+      "active": "Ativo",
       "trial": "Teste Pro",
       "trialUntil": "{plan} até {date}",
       "trialDaysLeft": "falta {days} dia | faltam {days} dias",
@@ -2878,6 +2914,7 @@
       "missed": "dia sem registro",
       "today": "Hoje",
       "legend": "Legenda dos dias da sequência",
+      "legendTitle": "Legenda",
       "banked": "No banco",
       "used": "Usados neste mês",
       "next": "Próximo congelamento",
@@ -2907,6 +2944,7 @@
     },
     "goals": {
       "views": "Visualizações das metas",
+      "filter": "Filtrar",
       "targetReached": "Alvo alcançado",
       "reorderError": "Não foi possível salvar a ordem. Tente arrastar de novo.",
       "all": "Todas",
@@ -2937,12 +2975,12 @@
       "empty": "Nada para medir ainda",
       "emptyAction": "Começar um hábito",
       "chartLabel": "Últimos 30 dias",
-      "completionRate": "Taxa de conclusão",
-      "activeDays": "Dias com registro",
-      "bestWeekday": "Melhor dia da semana",
-      "bestWeekdayEmpty": "Ainda não há melhor dia",
-      "topHabit": "Hábito mais constante",
-      "topHabitEmpty": "Ainda não há hábito constante",
+      "completionRate": "Conclusão",
+      "activeDays": "Dias ativos",
+      "bestWeekday": "Melhor dia",
+      "bestWeekdayEmpty": "Sem dados",
+      "topHabit": "Mais constante",
+      "topHabitEmpty": "Sem dados",
       "lockedTitle": "Números de trinta dias",
       "lockedBody": "O Orbit Pro mostra seus números dos últimos trinta dias.",
       "lockedAction": "Ver o Orbit Pro"

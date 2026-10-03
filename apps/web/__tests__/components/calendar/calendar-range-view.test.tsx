@@ -45,8 +45,6 @@ function renderRange(isLoading = false) {
       nextRangeDisabled={false}
       isLoading={isLoading}
       loadingLabel="Loading range"
-      showRecurring={true}
-      onShowRecurringChange={vi.fn()}
       stats={[
         { key: 'bestStreak', value: model.stats.bestStreak, label: 'Best streak' },
         { key: 'totalLogs', value: model.stats.totalLogs, label: 'Logs' },
@@ -84,10 +82,10 @@ describe('CalendarRangeView', () => {
     expect(screen.getByRole('region', { name: 'Jun 1 to Jun 14' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('progressbar', { name: 'Loading range' })).toBeInTheDocument()
     expect(screen.getByTestId('month-grid-days').children).toHaveLength(14)
-    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: 'var(--calendar-grid-gap)' })
     expect(screen.queryAllByRole('img')).toHaveLength(0)
-    expect(screen.queryByText('Logs')).not.toBeInTheDocument()
     const loadingStats = screen.getByTestId('calendar-stats')
+    expect(screen.getByText('Logs').closest('[aria-hidden="true"]')).toBe(loadingStats)
     const loadingStatsStyle = loadingStats.style.cssText
     expect(loadingStats.children).toHaveLength(3)
     expect(loadingStats.querySelectorAll('[data-state="loading"]')).toHaveLength(3)
@@ -109,8 +107,6 @@ describe('CalendarRangeView', () => {
         nextRangeDisabled={false}
         isLoading={false}
         loadingLabel="Loading range"
-        showRecurring={true}
-        onShowRecurringChange={vi.fn()}
         stats={[
           { key: 'bestStreak', value: 1, label: 'Best streak' },
           { key: 'totalLogs', value: 1, label: 'Logs' },

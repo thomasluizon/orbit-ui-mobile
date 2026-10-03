@@ -262,6 +262,11 @@ describe('UpgradePage', () => {
       const eyebrow = daysLeft !== null && daysLeft <= 1 ? messages.upgrade.convert.trialLastDay
         : daysLeft === null ? messages.upgrade.convert.trialEyebrow : null
       if (eyebrow) expect(screen.getByText(eyebrow)).toBeInTheDocument()
+      if (daysLeft !== null) {
+        const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(String(mockProfile.trialEndsAt)))
+        const hint = messages.upgrade.billing.plan.trialHint.replace('{date}', date)
+        expect(screen.getByText(hint)).toBeInTheDocument()
+      }
     })
 
     it('keeps the free heading outside a trial', () => {

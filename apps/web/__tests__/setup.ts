@@ -41,3 +41,11 @@ if (typeof SVGElement !== 'undefined') {
     },
   })
 }
+
+if (typeof window !== 'undefined') {
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  })
+}

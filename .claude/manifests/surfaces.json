@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 207,
-  "cellCount": 884,
+  "surfaceCount": 212,
+  "cellCount": 904,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -142,7 +142,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -178,7 +177,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -214,7 +212,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -250,7 +247,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -286,7 +282,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -322,7 +317,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -358,7 +352,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -394,7 +387,6 @@
         "apps/web/components/calendar/calendar-sync-boundary.tsx",
         "apps/web/components/calendar/calendar-time-grid.tsx",
         "apps/web/components/calendar/calendar-week-view.tsx",
-        "apps/web/components/calendar/show-recurring-toggle.tsx",
         "apps/web/components/dates/event-row.tsx",
         "apps/web/components/ui/settings-description.tsx",
         "apps/web/hooks/use-calendar-auto-sync.ts",
@@ -3437,6 +3429,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-components-calendar-options",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-calendar-options",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-calendar-options",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-calendar-options",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-components-calendar-shell",
       "platform": "web",
       "kind": "overlay",
@@ -6081,6 +6125,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-streak-legend",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-time-field",
       "platform": "web",
       "kind": "overlay",
@@ -6251,14 +6347,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -6286,14 +6380,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -6321,14 +6413,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -6356,14 +6446,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -6391,14 +6479,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -6426,14 +6512,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -6461,14 +6545,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -6496,14 +6578,12 @@
         "apps/mobile/app/(tabs)/calendar/_components/calendar-sync-boundary.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
-        "apps/mobile/app/(tabs)/calendar/_components/show-recurring-toggle.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-content.tsx",
         "apps/mobile/components/calendar-sync/calendar-import-styles.ts",
         "apps/mobile/components/calendar-sync/calendar-picker-section.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-event-row.tsx",
         "apps/mobile/components/calendar-sync/calendar-sync-select-all-toggle.tsx",
         "apps/mobile/components/dates/event-row.tsx",
-        "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/components/ui/settings-description.tsx",
         "apps/mobile/hooks/use-calendar-auto-sync.ts",
         "apps/mobile/hooks/use-calendar-entry-mutation-lock.ts",
@@ -9405,6 +9485,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-components-calendar-options",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-options",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-options",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-calendar-options",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-options.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-components-calendar-shell",
       "platform": "mobile",
       "kind": "overlay",
@@ -11805,6 +11937,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-components-throttle-screen",
       "platform": "mobile",
       "kind": "overlay",
@@ -12267,6 +12451,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/sheet.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-streak-legend",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/streak-legend.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/streak-legend.tsx"
       ],
       "state": "default",
       "theme": "dark",

@@ -124,17 +124,17 @@ describe('DateField', () => {
     expect(screen.getByRole('button', { name: '2030' })).toBeInTheDocument()
   })
 
-  it('fills every year hit area on a 48px row pitch', () => {
+  it('fills every 48px year hit area on a 52px row pitch', () => {
     render(<DateField value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.click(screen.getByLabelText('common.selectYear'))
 
     const year = screen.getByRole('button', { name: '2030' })
-    expect(year).toHaveClass('h-11', 'rounded-full', 'hover:bg-[var(--bg-hover)]')
+    expect(year).toHaveClass('min-h-12', 'rounded-full', 'hover:bg-[var(--bg-hover)]')
     expect(year.firstElementChild).toBeNull()
 
     const grid = year.parentElement
-    expect(grid?.style.gridAutoRows).toBe('44px')
+    expect(grid?.style.gridAutoRows).toBe('minmax(48px, auto)')
     expect(grid?.style.rowGap).toBe('4px')
   })
 

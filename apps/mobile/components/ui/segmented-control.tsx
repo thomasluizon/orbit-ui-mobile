@@ -1,5 +1,5 @@
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { createTokensV2 } from '@/lib/theme'
@@ -10,12 +10,18 @@ function SegmentOption<TValue extends string>({
   onChange,
   option,
   selected,
+  fullWidth,
+  columns,
+  fontScale,
   tokens,
 }: Readonly<{
   controlDisabled: boolean
   onChange: (value: TValue) => void
   option: SegmentedControlOption<TValue>
   selected: boolean
+  fullWidth: boolean
+  columns: number
+  fontScale: number
   tokens: ReturnType<typeof createTokensV2>
 }>) {
   const disabled = controlDisabled || Boolean(option.disabled)
@@ -38,6 +44,7 @@ function SegmentOption<TValue extends string>({
       onPress={onActivate}
       style={({ pressed }) => [
         styles.option,
+        fullWidth ? { width: `${100 / columns}%`, minHeight: 48, paddingHorizontal: 8, borderWidth: 0 } : { flexBasis: 112 * fontScale, flexGrow: 1, flexShrink: 0 },
         selected
           ? { backgroundColor: tokens.bgHover, borderColor: tokens.primary }
           : styles.unselected,
@@ -45,7 +52,8 @@ function SegmentOption<TValue extends string>({
         pressed ? [styles.pressed, { backgroundColor: tokens.bgHover }] : null,
       ]}
     >
-      <Text numberOfLines={1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
+      {fullWidth && selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderWidth: 2, borderColor: tokens.primary, borderRadius: 8 }]} /> : null}
+      <Text numberOfLines={fontScale > 1.3 ? undefined : 1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
         {option.label}
       </Text>
     </Pressable>
@@ -53,6 +61,7 @@ function SegmentOption<TValue extends string>({
 }
 
 export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
+  const { fontScale } = useWindowDimensions()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
@@ -63,6 +72,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
       testID={`segmented-control-${props.disabled ? 'disabled' : 'enabled'}`}
       style={[
         styles.group,
+        props.fullWidth ? styles.fullWidth : null,
         { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
       ]}
     >
@@ -73,6 +83,9 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
           onChange={props.onChange}
           option={option}
           selected={option.value === props.value}
+          fullWidth={Boolean(props.fullWidth)}
+          columns={fontScale > 1.3 ? 2 : props.options.length}
+          fontScale={fontScale}
           tokens={tokens}
         />
       ))}
@@ -86,10 +99,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 4,
     maxWidth: '100%',
     padding: 4,
   },
+  fullWidth: { alignSelf: 'stretch', width: '100%', padding: 0, gap: 0, borderWidth: 0, flexWrap: 'wrap' },
   disabled: {
     opacity: 0.4,
   },
@@ -114,5 +129,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
     lineHeight: 20,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
 })

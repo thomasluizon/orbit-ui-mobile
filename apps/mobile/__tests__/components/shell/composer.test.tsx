@@ -1,5 +1,8 @@
 import React from 'react'
-import { AccessibilityInfo, Animated, StyleSheet } from 'react-native'
+import { AccessibilityInfo, Animated, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Square } from '@/components/ui/icons'
@@ -7,6 +10,7 @@ import { Composer } from '@/components/shell/composer'
 import { createTokensV2 } from '@/lib/theme'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
 
 vi.mock('react-native', async (importOriginal) => {
@@ -51,6 +55,7 @@ const TestRenderer = require('react-test-renderer')
 const words = {
   placeholder: 'placeholder sentinel',
   send: 'send sentinel',
+  actions: 'actions sentinel',
   suggestionsLabel: 'suggestions sentinel',
 }
 const voiceWords = {
@@ -121,9 +126,16 @@ function textValues(root: ReturnType<typeof TestRenderer.create>['root']) {
 }
 
 function pressControl(control: { props: Record<string, (() => void) | undefined> }) {
-  TestRenderer.act(() => control.props.onPressIn?.())
-  TestRenderer.act(() => control.props.onPress?.())
-  TestRenderer.act(() => control.props.onPressOut?.())
+  const { onPressIn, onPress, onPressOut } = control.props
+  TestRenderer.act(() => onPressIn?.())
+  TestRenderer.act(() => onPress?.())
+  TestRenderer.act(() => onPressOut?.())
+}
+
+function menuItem(tree: ReturnType<typeof TestRenderer.create>, label: string) {
+  return tree.root.findAllByType('Pressable').find(
+    (node: { props: { accessibilityRole?: string }; findByType: (type: string) => { props: { children: string } } }) => node.props.accessibilityRole === 'menuitem' && node.findByType('Text').props.children === label,
+  )
 }
 
 interface ComposerHost {
@@ -181,102 +193,191 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
 }
 
 describe('Composer (mobile)', () => {
-  it('caps long suggestion targets to the live scroll viewport without remounting', () => {
-    const chips = suggestions(3)
-    const tree = renderComposer(props({ suggestions: chips, value: 'Keep this draft' }))
-    const firstChip = byLabel(tree.root, chips[0]!.label)[0]
-    const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
-    for (const width of [328, 568, 328]) {
-      TestRenderer.act(() => scroller.props.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width, height: 44 } } }))
-      const config = Yoga.Config.create()
-      config.setErrata(Yoga.ERRATA_ALL)
-      const target = Yoga.Node.create(config)
-      const label = Yoga.Node.create(config)
-      try {
-        applyComposerLayoutStyle(target, StyleSheet.flatten(firstChip.props.style))
-        applyComposerLayoutInsets(target, StyleSheet.flatten(firstChip.props.style))
-        applyComposerLayoutStyle(label, StyleSheet.flatten(firstChip.findByType('Text').props.style))
-        label.setMeasureFunc(() => ({ width: 1600, height: 20 }))
-        target.insertChild(label, 0)
-        target.calculateLayout(undefined, undefined)
-        expect(target.getComputedWidth()).toBeLessThanOrEqual(width)
-        expect(target.getComputedHeight()).toBeGreaterThanOrEqual(44)
-        expect(label.getComputedLeft() + label.getComputedWidth()).toBeLessThanOrEqual(target.getComputedWidth())
-        expect(byLabel(tree.root, chips[0]!.label)[0]).toBe(firstChip)
-        expect(tree.root.findByType('TextInput').props.value).toBe('Keep this draft')
-        expect(firstChip.findByType('Text').props.numberOfLines).toBe(1)
-      } finally { target.freeRecursive(); config.free() }
-    }
-    pressControl(firstChip)
-    expect(chips[0]!.onSelect).toHaveBeenCalledOnce()
+  it('reserves a scaled text line before the first native content-size event', () => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const tree = renderComposer(props())
+    try { expect(StyleSheet.flatten(tree.root.findByType('TextInput').props.style).height).toBe(72) }
+    finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+  })
+
+  it('opens the full attachment name without removing it or changing the draft', () => {
+    const name = 'A long document name '.repeat(15) + '.txt'
+    const onAttachRemove = vi.fn()
+    const tree = renderComposer(props({ value: 'Keep this draft', attachWords, onAttachFile: vi.fn(), onAttachRemove,
+      attachments: [{ id: 'file', kind: 'file', name }] }))
+    pressControl(byLabel(tree.root, name)[0])
+    const sheet = tree.root.findByType('Sheet')
+    expect(sheet.props.title).toBe(attachWords.trayLabel)
+    expect(textValues(sheet)).toContain(name)
+    pressControl(byLabel(sheet, 'attempt-dismiss')[0])
+    expect(tree.root.findByType('TextInput').props.value).toBe('Keep this draft')
+    expect(onAttachRemove).not.toHaveBeenCalled()
     TestRenderer.act(() => tree.unmount())
   })
 
-  it.each([320, 360, 412, 600])('contains content-sized input and grouped controls at %ipx with native Yoga errata', (width) => {
+  it('keeps whole suggestion labels in one horizontally scrolling row', () => {
+    const chips = suggestions(3)
+    const tree = renderComposer(props({ suggestions: chips, value: 'Keep this draft' }))
+    TestRenderer.act(() => tree.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 380, height: 48 } } }))
+    const firstChip = byLabel(tree.root, chips[0]!.label)[0]
+    const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
+    expect(scroller.props.horizontal).toBe(true)
+    expect(firstChip.findByType('Text').props.numberOfLines).toBeUndefined()
+    expect(StyleSheet.flatten(firstChip.props.style).maxWidth).toBeLessThanOrEqual(348)
+    const config = Yoga.Config.create()
+    const target = Yoga.Node.create(config)
+    const label = Yoga.Node.create(config)
+    try {
+      applyComposerLayoutStyle(target, StyleSheet.flatten(firstChip.props.style))
+      applyComposerLayoutInsets(target, StyleSheet.flatten(firstChip.props.style))
+      label.setMeasureFunc(width => ({ width: Math.min(1600, width), height: 40 * Math.ceil(1600 / width) }))
+      applyComposerLayoutStyle(label, StyleSheet.flatten(firstChip.findByType('Text').props.style))
+      target.insertChild(label, 0)
+      target.calculateLayout(undefined, undefined)
+      expect(target.getComputedWidth()).toBeLessThanOrEqual(348)
+      expect(target.getComputedHeight()).toBeGreaterThan(48)
+      expect(target.getComputedHeight()).toBeGreaterThanOrEqual(48)
+      expect(label.getComputedLeft() + label.getComputedWidth()).toBeLessThanOrEqual(target.getComputedWidth())
+      expect(label.getComputedTop() + label.getComputedHeight()).toBeLessThanOrEqual(target.getComputedHeight() - 12)
+      pressControl(firstChip)
+      expect(chips[0]!.onSelect).toHaveBeenCalledOnce()
+      expect(tree.root.findByType('TextInput').props.value).toBe('Keep this draft')
+    } finally { target.freeRecursive(); config.free(); TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([en, ptBR].flatMap(messages => [1, 2].flatMap(fontScale =>
+    (['pending', 'returning', 'completed', 'progress', 'habitDetail'] as const).map(scenario => ({ messages, fontScale, scenario })))))(
+    'bounds live $scenario labels and aligns icons with the first line at $fontScale text', ({ messages, fontScale, scenario }) => {
+      __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
+      const title = 'Ler um capítulo com acentos e detalhes '.repeat(5)
+      const surface = scenario === 'habitDetail' ? 'habitDetail' : scenario === 'progress' ? 'progress' : 'today'
+      const habit = createMockHabit({ title, hasSubHabits: true, isOverdue: true, isCompleted: scenario === 'completed' })
+      const chips = buildComposerChips({ surface, status: 'success', habits: [habit], totalHabitCount: 1,
+        profile: createMockProfile({ lastCompletionDate: scenario === 'returning' ? '2026-09-01' : null }),
+        now: new Date('2026-09-10T12:00:00Z'), detailHabit: { title, checklistItems: [] } })
+      const suggestions = toComposerSuggestions(chips.map(({ id, params }) => {
+        const [group, name] = id.split('.')
+        const labels: Record<string, string> = messages.shell.composer.chips[group as keyof typeof messages.shell.composer.chips]
+        return { id, label: labels[name!]!.replace('{title}', params?.title ?? ''), icon: <Square size={20} />, onSelect: vi.fn() }
+      }))
+      const tree = renderComposer(props({ suggestions, words: messages.shell.composer }))
+      try {
+        const host = tree.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!
+        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 288, height: 48 } } }))
+        for (const suggestion of suggestions) {
+          const chip = byLabel(tree.root, suggestion.label)[0]
+          const text = chip.findByType('Text')
+          const style = StyleSheet.flatten(chip.props.style)
+          expect(style.maxWidth).toBe(256)
+          expect(style.minHeight).toBe(48)
+          expect(style.height).toBeUndefined()
+          expect(style.alignItems).toBe('flex-start')
+          expect(text.props.children).toBe(suggestion.label)
+          expect(suggestion.label).not.toContain(title)
+          expect(text.props.numberOfLines).toBeUndefined()
+          expect(StyleSheet.flatten(text.props.style)).toMatchObject({ flexShrink: 1, lineHeight: 20 })
+          const icon = chip.findAllByType('View').find((node: { props: Record<string, unknown> }) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).justifyContent === 'center')!
+          expect(StyleSheet.flatten(icon.props.style).height).toBe(20 * fontScale)
+        }
+      } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+    },
+  )
+
+  it.each([320, 360, 384, 412, 640, 768, 900, 1023].flatMap(width => [1, 2].map(fontScale => ({ width, fontScale })) ))(
+    'reserves a 24 dp peek after measured chips at $width and $fontScale text', ({ width, fontScale }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+      const tree = renderComposer(props())
+      try {
+        const available = width - 32
+        const host = tree.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!
+        expect(host).toBeDefined()
+        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: available, height: 48 } } }))
+        const chipWidths = [180, 200, 160].map(natural => Math.min(natural * fontScale, available - 32))
+        for (const [index, chipWidth] of chipWidths.entries()) {
+          const chip = byLabel(tree.root, `chip sentinel ${index}`)[0]
+          const style = StyleSheet.flatten(chip.props.style)
+          expect(style.maxWidth).toBe(available - 32)
+          expect(style.minHeight).toBe(48)
+          expect(style.alignItems).toBe('flex-start')
+          expect(StyleSheet.flatten(chip.findByType('Text').props.style).flexShrink).toBe(1)
+          expect(chip.findByType('Text').props.numberOfLines).toBeUndefined()
+          TestRenderer.act(() => chip.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: chipWidth, height: 48 } } }))
+        }
+        const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
+        const visible = StyleSheet.flatten(scroller.props.style).width ?? available
+        chipWidths[0] = Math.max(chipWidths[0]!, StyleSheet.flatten(byLabel(tree.root, 'chip sentinel 0')[0].props.style).minWidth)
+        const starts = chipWidths.map((_, index) => chipWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const partial = starts.findIndex((start, index) => start < visible && start + chipWidths[index]! > visible)
+        if (chipWidths.reduce((sum, size) => sum + size, 16) > available) {
+          expect(partial).toBeGreaterThan(0)
+          expect(visible - starts[partial]!).toBe(24)
+        } else expect(visible).toBe(available)
+        expect(chipWidths.every(size => size <= visible)).toBe(true)
+        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 288, height: 48 } } }))
+        const resizedWidths = chipWidths.map(size => Math.min(size, 256))
+        const resizedVisible = StyleSheet.flatten(scroller.props.style).width
+        resizedWidths[0] = Math.max(resizedWidths[0]!, StyleSheet.flatten(byLabel(tree.root, 'chip sentinel 0')[0].props.style).minWidth)
+        const resizedStarts = resizedWidths.map((_, index) => resizedWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const resizedPartial = resizedStarts.findIndex((start, index) => start < resizedVisible && start + resizedWidths[index]! > resizedVisible)
+        expect(resizedPartial).toBeGreaterThan(0)
+        expect(resizedVisible - resizedStarts[resizedPartial]!).toBe(24)
+      } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+    },
+  )
+
+  it.each([320, 360, 384, 412].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].flatMap((withOpener) =>
+    [en, ptBR].flatMap((locale) => ['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'].map((state) => ({ width, fontScale, withOpener, locale, state }))),
+  ))))('keeps every control inside the pill at $width and $fontScale text while $state', ({ width, fontScale, withOpener, locale, state }) => {
     const config = Yoga.Config.create()
     config.setErrata(Yoga.ERRATA_ALL)
-    try {
-      for (const locale of [en, ptBR]) for (const withOpener of [false, true]) for (const value of ['', 'A single line', 'First\nSecond\nThird', 'One\nTwo\nThree\nFour\nFive']) {
-        const lineCount = value.split('\n').length
-        const tree = renderComposer(props({
-          value, suggestions: [], words: { ...words, placeholder: locale.shell.composer.placeholder },
-          onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords,
-          ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}),
-        }))
-        const nodes = new Map<string, YogaNode>()
-        let layout = composerLayout(tree.toJSON(), config, nodes, lineCount)
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+    const tree = renderComposer(props({
+      state, ...(state === 'offline' || state === 'atLimit' ? { limitReason: 'persistent reason' } : {}),
+      suggestions: [], words: { ...locale.shell.composer, ...(state === 'offline' ? { placeholder: locale.shell.composer.offline.placeholder } : {}) },
+      onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords,
+      ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}),
+    }))
         try {
-          layout.calculateLayout(width, undefined)
-          TestRenderer.act(() => tree.root.findByProps({ testID: 'composer-field' }).props.onLayout({ nativeEvent: { layout: { width: nodes.get('composer-field')!.getComputedWidth() } } }))
-          layout.freeRecursive()
-          nodes.clear()
-          layout = composerLayout(tree.toJSON(), config, nodes, lineCount)
-          layout.calculateLayout(width, undefined)
-          const input = nodes.get('input')!
-          const slot = nodes.get('composer-text-slot')!
-          const field = nodes.get('composer-field')!
-          const controls = nodes.get('composer-controls')!
-          const row = field.getParent()!
-          expect(input.getComputedHeight()).toBe(Math.min(96, 24 * lineCount + 24))
-          expect(field.getComputedTop()).toBeGreaterThanOrEqual(0)
-          expect(field.getComputedTop() + field.getComputedHeight()).toBeLessThanOrEqual(row.getComputedHeight())
-          expect(slot.getComputedTop() + input.getComputedTop()).toBeGreaterThanOrEqual(0)
-          expect(slot.getComputedTop() + input.getComputedTop() + input.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight())
-          expect(controls.getComputedHeight()).toBe(44)
-          expect(controls.getComputedTop() + controls.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight())
-          expect(controls.getComputedWidth()).toBe(140)
-          expect(input.getComputedWidth() - input.getComputedPadding(Yoga.EDGE_LEFT) - input.getComputedPadding(Yoga.EDGE_RIGHT)).toBeGreaterThanOrEqual(width === 320 && withOpener ? 140 : 160)
-        } finally {
-          layout.freeRecursive()
-          TestRenderer.act(() => tree.unmount())
-        }
-      }
-    } finally {
-      config.free()
-    }
+          for (const lineCount of state === 'recording' || state === 'transcribing' ? [1] : [1, 3, 5, 8]) {
+            const nativeInput = tree.root.findAllByType('TextInput')[0]
+            if (nativeInput) TestRenderer.act(() => nativeInput.props.onContentSizeChange({ nativeEvent: { target: 1, contentSize: { width: 136, height: 24 * fontScale * lineCount + 24 } } }))
+            const nodes = new Map<string, YogaNode>()
+            const layout = composerLayout(tree.toJSON(), config, nodes, lineCount)
+            try {
+              layout.calculateLayout(width, undefined)
+              const field = nodes.get('composer-field')!
+              const controls = nodes.get('composer-controls')!
+              expect(field.getComputedWidth()).toBe(width - 32)
+              expect(controls.getComputedWidth()).toBe(48)
+              expect(controls.getComputedHeight()).toBe(48)
+              expect(controls.getComputedTop() + controls.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight())
+              const send = nodes.get(state === 'sending' ? 'composer-send-accent' : 'composer-send-neutral')!
+              expect(send.getParent()).toEqual(field)
+              expect(send.getComputedWidth()).toBe(48)
+              expect(send.getComputedHeight()).toBe(48)
+              expect(send.getComputedLeft()).toBeGreaterThanOrEqual(controls.getComputedLeft() + controls.getComputedWidth())
+              expect(send.getComputedLeft() + send.getComputedWidth()).toBeLessThanOrEqual(field.getComputedWidth())
+              if (nativeInput) {
+                const input = nodes.get('input')!
+                const slot = nodes.get('composer-text-slot')!
+                expect(input.getComputedHeight()).toBe(24 * fontScale * Math.min(5, lineCount) + 24)
+                expect(field.getComputedHeight()).toBe(input.getComputedHeight() + 8)
+                expect(slot.getComputedWidth()).toBe(width - 32 - 8 - 96 - (withOpener ? 48 : 0))
+                expect(controls.getComputedLeft()).toBeGreaterThanOrEqual(slot.getComputedLeft() + slot.getComputedWidth())
+              } else expect(field.getComputedHeight()).toBe(56)
+            } finally { layout.freeRecursive() }
+          }
+        } finally { TestRenderer.act(() => tree.unmount()); config.free(); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
   })
 
-  it('gives text a flexible word-sized minimum and lets the controls wrap together', () => {
-    const tree = renderComposer(props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords }))
-    const input = tree.root.findByType('TextInput')
-    expect(StyleSheet.flatten(input.props.style)).toMatchObject({ minWidth: 0 })
-    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-text-slot' }).props.style)).toMatchObject({ flexGrow: 1, flexShrink: 1, flexBasis: 176, minWidth: 176 })
-    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-field' }).props.style)).toMatchObject({ flexWrap: 'wrap' })
-    const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })
-    expect(placeholder.props.numberOfLines).toBe(1)
-    expect(placeholder.props.ellipsizeMode).toBe('tail')
-  })
-
-  it('keeps the text minimum inside the field when focus thickens its border without another layout event', () => {
+  it('keeps field geometry unchanged when focus thickens its inset outline', () => {
     const tree = renderComposer(props())
     const field = tree.root.findByProps({ testID: 'composer-field' })
-    TestRenderer.act(() => field.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 176, height: 96 } } }))
-    const textMinimum = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-text-slot' }).props.style).minWidth
-    expect(textMinimum()).toBe(158)
+    const resting = StyleSheet.flatten(field.props.style)
     TestRenderer.act(() => tree.root.findByType('TextInput').props.onFocus())
-    expect(textMinimum()).toBe(156)
+    expect(StyleSheet.flatten(field.props.style)).toEqual(resting)
     TestRenderer.act(() => tree.root.findByType('TextInput').props.onBlur())
-    expect(textMinimum()).toBe(158)
+    expect(StyleSheet.flatten(field.props.style)).toEqual(resting)
     TestRenderer.act(() => tree.unmount())
   })
 
@@ -404,12 +505,9 @@ describe('Composer (mobile)', () => {
   it('replaces its resting field border with one focused border', async () => {
     const tree = await renderComposer(props())
     const input = byLabel(tree.root, words.placeholder)[0]
-    const field = () => {
-      let ancestor = input.parent
-      while (ancestor && StyleSheet.flatten(ancestor.props.style)?.borderWidth === undefined) ancestor = ancestor.parent
-      if (!ancestor) throw new Error('Expected a bordered field')
-      return ancestor
-    }
+    const field = () => tree.root.findByProps({ testID: 'composer-field' }).findAllByType('View').find(
+      (node: { props: { pointerEvents?: string } }) => node.props.pointerEvents === 'none',
+    )
     expect(StyleSheet.flatten(field().props.style).borderWidth).toBe(1)
     TestRenderer.act(() => input.props.onFocus())
     expect(StyleSheet.flatten(field().props.style).borderWidth).toBe(2)
@@ -491,7 +589,10 @@ describe('Composer (mobile)', () => {
   it('disables input and send and hides suggestions during sending', async () => {
     const tree = await renderComposer(props({ state: 'sending', value: 'oi' }))
     expect(byLabel(tree.root, words.placeholder)[0].props.editable).toBe(false)
-    expect(byLabel(tree.root, words.send)[0].props.disabled).toBe(true)
+    const send = byLabel(tree.root, words.send)[0]
+    expect(send.props.disabled).toBe(true)
+    expect(send.props.accessibilityState.busy).toBe(true)
+    expect(send.findAll((node: { type: unknown }) => node.type === 'ActivityIndicator')).toHaveLength(1)
     expect(byLabel(tree.root, words.suggestionsLabel)).toHaveLength(0)
   })
 
@@ -517,7 +618,8 @@ describe('Composer (mobile)', () => {
   it('renders and invokes voice only when the capability is present', async () => {
     const onVoice = vi.fn()
     const tree = await renderComposer(props({ onVoice, voiceWords }))
-    pressControl(byLabel(tree.root, voiceWords.start)[0])
+    pressControl(byLabel(tree.root, words.actions)[0])
+    pressControl(menuItem(tree, voiceWords.start))
     expect(onVoice).toHaveBeenCalledOnce()
     TestRenderer.act(() => tree.update(<Composer {...props()} />))
     expect(byLabel(tree.root, voiceWords.start)).toHaveLength(0)
@@ -540,7 +642,7 @@ describe('Composer (mobile)', () => {
 
   it('clips every composer icon hit area to a circle', async () => {
     const tree = await renderComposer(props({ onAttachFile: vi.fn(), onAttachImage: vi.fn(), onVoice: vi.fn(), attachWords, voiceWords }))
-    for (const label of [attachWords.file, attachWords.image, voiceWords.start]) {
+    for (const label of [words.actions]) {
       expect(StyleSheet.flatten(byLabel(tree.root, label)[0].props.style)).toMatchObject({ borderRadius: 999, overflow: 'hidden' })
     }
   })
@@ -568,11 +670,13 @@ describe('Composer (mobile)', () => {
     const onAttachFile = vi.fn()
     const onAttachImage = vi.fn()
     const tree = await renderComposer(props({ onAttachFile, onAttachImage, attachWords }))
-    expect(byLabel(tree.root, attachWords.file)).toHaveLength(1)
-    expect(byLabel(tree.root, attachWords.image)).toHaveLength(1)
+    expect(byLabel(tree.root, words.actions)).toHaveLength(1)
     expect(byLabel(tree.root, attachWords.trayLabel)).toHaveLength(0)
-    pressControl(byLabel(tree.root, attachWords.file)[0])
-    pressControl(byLabel(tree.root, attachWords.image)[0])
+    pressControl(byLabel(tree.root, words.actions)[0])
+    expect(tree.root.findByType('Sheet').props.title).toBe(words.actions)
+    pressControl(menuItem(tree, attachWords.file))
+    pressControl(byLabel(tree.root, words.actions)[0])
+    pressControl(menuItem(tree, attachWords.image))
     expect(onAttachFile).toHaveBeenCalledOnce()
     expect(onAttachImage).toHaveBeenCalledOnce()
   })
@@ -630,8 +734,8 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça algo à Astra'],
-    ['en', en.shell.composer.placeholder, 'Ask Astra for something'],
+    ['pt-BR', ptBR.shell.composer.placeholder, 'Astra'],
+    ['en', en.shell.composer.placeholder, 'Astra'],
   ])('shows the %s composer placeholder', async (_locale, placeholder, expected) => {
     const tree = await renderComposer(props({ words: { ...words, placeholder } }))
     expect(placeholder).toBe(expected)
@@ -640,8 +744,8 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
-    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
+    ['pt-BR', ptBR.shell.composer.offline, 'Offline', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'Offline', 'No connection. Astra comes back when the connection does.'],
   ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
     const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason }))
     expect(byLabel(tree.root, 'Ask Astra for something')[0]).toBeDefined()

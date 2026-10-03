@@ -50,6 +50,7 @@ function isActiveView(value: unknown): value is ActiveView {
 export interface PersistedUIState {
   activeFilters: HabitsFilter;
   activeView: ActiveView;
+  calendarShowRecurring: boolean;
 }
 
 export function migratePersistedUIState(
@@ -62,6 +63,7 @@ export function migratePersistedUIState(
   delete activeFilters.search;
   return {
     activeFilters,
+    calendarShowRecurring: typeof state.calendarShowRecurring === "boolean" ? state.calendarShowRecurring : true,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
   };
 }
@@ -72,6 +74,8 @@ export interface UIStoreState {
   activeFilters: HabitsFilter;
   setFilters: (filters: Partial<HabitsFilter>) => void;
 
+  calendarShowRecurring: boolean;
+  setCalendarShowRecurring: (show: boolean) => void;
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
 
@@ -144,6 +148,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   return {
     activeFilters,
     activeView: state.activeView,
+    calendarShowRecurring: state.calendarShowRecurring,
   };
 }
 
@@ -194,6 +199,8 @@ export function createUIStoreState(
         activeFilters: { ...state.activeFilters, ...filters },
       })),
 
+    calendarShowRecurring: true,
+    setCalendarShowRecurring: (calendarShowRecurring) => set({ calendarShowRecurring }),
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),
 

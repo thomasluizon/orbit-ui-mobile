@@ -322,6 +322,72 @@ describe('web useChatComposer streaming send', () => {
     await waitFor(() => expect(screen.getByText('Hi there')).toBeVisible())
   })
 
+  it('keeps voice failures visible in the dock without opening the conversation or losing the draft', () => {
+    useChatStore.setState({ draft: 'Keep my draft', draftHydrated: true })
+    const view = render(<ComposerConversationHarness />)
+    mocks.state.speechError = 'microphone denied'
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.getByRole('alert')).toHaveTextContent('microphone denied')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(screen.getByRole('textbox')).toHaveValue('Keep my draft')
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.getByRole('alert')).toHaveTextContent('microphone denied')
+    mocks.state.speechError = null
+    mocks.state.isRecording = true
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'shell.composer.voice.stop' })).toBeEnabled()
+    mocks.state.isRecording = false
+    mocks.state.isTranscribing = true
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    mocks.state.isTranscribing = false
+    mocks.state.transcript = 'Voice recovered'
+    view.rerender(<ComposerConversationHarness />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveValue('Keep my draft Voice recovered')
+  })
+
+  it.each(['transport', 'attachment'] as const)('preserves a %s error through speech denial and recovery', async (producer) => {
+    const { result, rerender } = renderHook(() => useChatComposer())
+    if (producer === 'transport') {
+      mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+      await act(async () => { await result.current.sendMessage('Plan my morning') })
+    } else {
+      await act(async () => { await result.current.handleTextFileSelect(fileChangeEvent(textFile('notes.txt', '', 21 * 1024 * 1024))) })
+    }
+    const originalError = result.current.composerProps.errorMessage
+    expect(originalError).toBeTruthy()
+    mocks.state.speechError = 'microphone denied'
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe('microphone denied')
+    mocks.state.speechError = null
+    mocks.state.isRecording = true
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(originalError)
+    mocks.state.isRecording = false
+    mocks.state.transcript = 'Voice recovered'
+    rerender()
+    expect(result.current.composerProps.errorMessage).toBe(originalError)
+  })
+
+  it('offers one retry action in the owning conversation after a transport failure', async () => {
+    mocks.fetch.mockRejectedValueOnce(new Error('network unavailable'))
+      .mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    render(<ComposerConversationHarness />)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Plan my morning' } })
+    fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('chat.sendError'))
+    const retries = screen.getAllByRole('button', { name: 'shell.composer.retry' })
+    expect(retries).toHaveLength(1)
+    expect(retries[0]!.closest('[data-composer-root]')).not.toBeNull()
+    fireEvent.click(retries[0]!)
+    await waitFor(() => expect(screen.getByText('Hi there')).toBeVisible())
+    expect(mocks.fetch).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'shell.composer.retry' })).not.toBeInTheDocument()
+  })
+
   it('opens the conversation when sending a finished voice transcript', async () => {
     mocks.state.isRecording = true
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
@@ -392,6 +458,7 @@ describe('web useChatComposer streaming send', () => {
     useUIStore.getState().setCalendarHasError(false)
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   })
 
   afterEach(() => {
@@ -990,7 +1057,7 @@ describe('web useChatComposer streaming send', () => {
     }
 
     render(<ComposerHarness />)
-    fireEvent.paste(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+    fireEvent.paste(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' }), {
       clipboardData: {
         items: [{ type: pastedImage.type, getAsFile: () => pastedImage }],
       },
@@ -999,7 +1066,7 @@ describe('web useChatComposer streaming send', () => {
     expect(screen.getByRole('list', { name: 'shell.composer.attach.trayLabel' })).toBeInTheDocument()
     expect(screen.getByText('pasted.jpg')).toBeInTheDocument()
 
-    fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.placeholder' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'shell.composer.inputLabel' }), {
       target: { value: 'log my walk' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'shell.composer.send' }))
@@ -1156,7 +1223,7 @@ describe('web useChatComposer streaming send', () => {
       expect(result.current.canSend).toBe(false)
       expect(result.current.composerProps.state).toBe('offline')
       expect(result.current.composerProps.words.placeholder).toBe('shell.composer.offline.placeholder')
-      expect(result.current.composerProps.words.inputLabel).toBe('shell.composer.placeholder')
+      expect(result.current.composerProps.words.inputLabel).toBe('shell.composer.inputLabel')
 
       act(() => {
         Object.defineProperty(globalThis.navigator, 'onLine', {
@@ -1302,18 +1369,18 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
-  it('clears a new speech permission error after its visible timeout', async () => {
+  it('keeps an actionable speech permission error visible after its former timeout', async () => {
     vi.useFakeTimers()
     const { result, rerender } = renderHook(() => useChatComposer())
 
     mocks.state.speechError = 'microphone denied'
     rerender()
-    expect(result.current.sendError).toBe('microphone denied')
+    expect(result.current.composerProps.errorMessage).toBe('microphone denied')
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4000)
     })
-    expect(result.current.sendError).toBeNull()
+    expect(result.current.composerProps.errorMessage).toBe('microphone denied')
   })
 
   it('omits voice when speech is unavailable at the account limit', () => {
@@ -1513,6 +1580,18 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.state.habitFilters.at(-1)?.dateFrom).toBe('2026-09-11')
   })
 
+  it.each(['/', '/habits/reading'])('places dock suggestions according to the owning route %s', (pathname) => {
+    mocks.pathname = pathname
+    mocks.state.profile = createMockProfile({ hasImportedCalendar: true, hasSeenImportPrompt: true })
+    mocks.state.detail = makeHabitDetail()
+    answerSessionWith({ expiresAt: Date.now() + 3600000, userId: 'user-1' })
+    render(<AppLayout><div>Content</div></AppLayout>)
+    expect(screen.getByRole('textbox')).toBeVisible()
+    const group = screen.queryByRole('group', { name: 'shell.composer.suggestionsLabel' })
+    if (pathname === '/') expect(group).not.toBeInTheDocument()
+    else expect(group).toBeVisible()
+  })
+
   it('queries the selected day with the visible Today general filter', () => {
     renderHook(() => useChatComposer({ pathname: '/', today: '2026-09-12', selectedDate: '2026-09-11', includeGeneral: true }))
     expect(mocks.state.habitFilters.at(-1)).toMatchObject({
@@ -1544,7 +1623,7 @@ describe('web useChatComposer streaming send', () => {
     }
 
     const view = render(<TodayComposer />)
-    const chip = screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read"}' })
+    const chip = screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit' })
     act(() => chip.focus())
     expect(chip).toHaveFocus()
 
@@ -1559,10 +1638,10 @@ describe('web useChatComposer streaming send', () => {
       totalCount: 2,
     }
     view.rerender(<TodayComposer />)
-    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read outside"}' })).toBe(chip)
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.logHabit' })).toBe(chip)
     expect(chip).toHaveFocus()
-    expect(screen.queryByRole('button', { name: 'shell.composer.chips.today.logHabit:{"title":"Read"}' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.moveOverdue:{"title":"Walk"}' })).toBeInTheDocument()
+    expect(chip).not.toHaveTextContent('Read outside')
+    expect(screen.getByRole('button', { name: 'shell.composer.chips.today.moveOverdue' })).toBeInTheDocument()
   })
 
   it('gates Calendar chips on the Calendar error rather than the Today query', () => {
@@ -1595,6 +1674,22 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe(suggestion.label)
+  })
+
+  it.each(['moveOverdue', 'logHabit', 'trimHabit', 'keepOnlyHabit', 'reviewHabit', 'createGoal'])('sends the complete habit title behind the short %s label', async action => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const title = 'Read a chapter with "quotes" and accents á '.repeat(5)
+    const habit = createMockHabit({ title, isOverdue: true, hasSubHabits: true, isCompleted: action === 'reviewHabit' })
+    mocks.state.habitData = { topLevelHabits: [habit], totalCount: 1 }
+    mocks.state.profile = createMockProfile({ lastCompletionDate: action === 'keepOnlyHabit' ? '2026-09-08' : null })
+    const surface = action === 'createGoal' ? 'progress' : 'today'
+    const { result } = renderHook(() => useChatComposer({ pathname: surface === 'progress' ? '/progress' : '/' }))
+    const suggestion = result.current.composerProps.suggestions.find(chip => chip.id === `${surface}.${action}`)!
+    expect(suggestion.label).toBe(`shell.composer.chips.${surface}.${action}`)
+    act(() => suggestion.onSelect())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody = mocks.fetch.mock.calls[0]![1].body as FormData
+    expect(requestBody.get('message')).toBe(`shell.composer.prompts.${surface}.${action}:${JSON.stringify({ title })}`)
   })
 
   it('keeps a Progress goal request available beside an existing draft', async () => {

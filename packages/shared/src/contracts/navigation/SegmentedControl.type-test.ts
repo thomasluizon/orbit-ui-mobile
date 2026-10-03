@@ -18,7 +18,7 @@ type Archived = { value: 'archived'; label: 'Archived' }
 type TwoOptions = { options: readonly [All, Active]; value: 'all'; onChange: (value: 'all' | 'active') => void; label: 'View' }
 type ThreeOptions = { options: readonly [All, Active, Done]; value: 'done'; onChange: (value: 'all' | 'active' | 'done') => void; label: 'View' }
 type FourOptions = { options: readonly [All, Active, Done, Archived]; value: 'archived'; onChange: (value: Value) => void; label: 'View' }
-type ExpectedKeys = 'options' | 'value' | 'onChange' | 'label' | 'disabled' | 'wideFill'
+type ExpectedKeys = 'options' | 'value' | 'onChange' | 'label' | 'disabled' | 'wideFill' | 'fullWidth'
 type ConcreteProps = SegmentedControlProps<Value>
 type ExpectedOptions =
   | readonly [SegmentedControlOption<Value>, SegmentedControlOption<Value>]

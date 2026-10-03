@@ -1,3 +1,4 @@
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -77,7 +78,7 @@ const mocks = vi.hoisted(() => ({
         bestStreak: 9,
         badHabitSlips: 0,
         weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
-        topHabits: [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
+        topHabits: [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
         needsAttention: [],
       },
       narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
@@ -121,6 +122,7 @@ const mocks = vi.hoisted(() => ({
   streakSnapshotZones: null as Set<string> | null,
   isDesktop: false,
   usePortugueseCatalog: false,
+  useEnglishCatalog: false,
 }))
 
 vi.mock('next-intl', async (importOriginal) => ({
@@ -128,10 +130,11 @@ vi.mock('next-intl', async (importOriginal) => ({
   useLocale: () => mocks.usePortugueseCatalog ? 'pt-BR' : 'en',
   useTranslations: () => mocks.usePortugueseCatalog
     ? createTranslator({ locale: 'pt-BR', messages: ptBR })
-    : (key: string, values?: Record<string, unknown>) =>
+    : mocks.useEnglishCatalog ? createTranslator({ locale: 'en', messages: en }) : (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
+vi.mock('next/navigation', () => ({ useRouter: () => mocks.router, usePathname: () => '/progress' }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
@@ -164,7 +167,8 @@ vi.mock('@/hooks/use-retrospective', () => ({
     return mocks.retrospective
   },
 }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
+vi.mock('@/hooks/use-is-desktop', () => ({
+  useIsWideDesktop: () => false, useIsDesktop: () => mocks.isDesktop }))
 
 import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
@@ -194,6 +198,13 @@ function getStreakStatus(): HTMLElement {
   return within(screen.getByRole('region', { name: 'progressScreen.sections.streak' })).getByRole('status')
 }
 
+async function selectGoalFilter(view: string) {
+  fireEvent.click(screen.getByRole('button', { name: /^progressScreen.goals.filter:/ }))
+  fireEvent.click(screen.getByRole('menuitemcheckbox', { name: `progressScreen.goals.${view}` }))
+  if (vi.isFakeTimers()) await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+  await waitFor(() => expect(screen.getByRole('button', { name: `progressScreen.goals.filter: progressScreen.goals.${view}` })).toBeInTheDocument())
+}
+
 describe('ProgressContent', () => {
   let textStyles: string
   let stylesheet: string
@@ -205,6 +216,50 @@ describe('ProgressContent', () => {
     browser = await launch
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 360, 384, 412].flatMap((width) => [false, true].map((locked) => ({ width, locked }))))(
+    'keeps drawn streak captions on one line at $width with locked=$locked', async ({ width, locked }) => {
+      mocks.account.profile.canViewGamification = !locked
+      for (const [catalog, expected] of [[en, 'Longest streak'], [ptBR, 'Maior sequência']] as const) {
+        mocks.useEnglishCatalog = catalog === en
+        mocks.usePortugueseCatalog = catalog === ptBR
+        const { container, unmount } = render(<ProgressContent />)
+        const page = await browser.newPage({ viewport: { width, height: 1600 } })
+        try {
+          const streak = screen.getByRole('region', { name: catalog.progressScreen.sections.streak })
+          expect(within(streak).getByText(expected)).toBeInTheDocument()
+          expect(streak.querySelector('[data-component="freeze-bank"]') !== null).toBe(!locked)
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          await loadAppFonts(page)
+          const figures = page.getByRole('region', { name: catalog.progressScreen.sections.streak })
+            .locator('[data-state="default"] > span')
+          const geometry = await figures.evaluateAll((elements) => elements.map((element) => {
+            const range = document.createRange()
+            range.selectNodeContents(element)
+            const text = range.getBoundingClientRect()
+            const tile = element.parentElement!.getBoundingClientRect()
+            const style = getComputedStyle(element)
+            return { text: element.textContent, lines: range.getClientRects().length,
+              width: text.width, available: tile.width - 32,
+              clipped: style.overflow === 'hidden' || style.textOverflow === 'ellipsis',
+              inside: text.left >= tile.left + 16 - 0.5 && text.right <= tile.right - 16 + 0.5 }
+          }))
+          expect(geometry).toHaveLength(4)
+          for (const figure of geometry) {
+            expect(figure.lines, figure.text!).toBe(1)
+            expect(figure.clipped, figure.text!).toBe(false)
+            expect(figure.inside, figure.text!).toBe(true)
+            expect(figure.width, figure.text!).toBeLessThanOrEqual(figure.available + 0.5)
+          }
+        } finally {
+          await page.close()
+          unmount()
+          mocks.useEnglishCatalog = false
+          mocks.usePortugueseCatalog = false
+        }
+      }
+    },
+  )
 
   it.each([1352, 1100, 840, 412].flatMap((width) => [false, true].map((panelOpen) => ({ width, panelOpen }))))(
     'keeps the content gutter at $width with conversation open=$panelOpen', async ({ width, panelOpen }) => {
@@ -227,10 +282,16 @@ describe('ProgressContent', () => {
           const column = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
           const section = document.querySelector('section')!.getBoundingClientRect()
           const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
-          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left, columnWidth: column.width }
+          const header = document.querySelector('[data-root-notification-header]')?.getBoundingClientRect()
+          const bell = document.querySelector('[data-root-notification-header] button')?.getBoundingClientRect()
+          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left,
+            columnWidth: column.width, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
+            trailingInset: bell && bell.width > 0 ? column.right - bell.right : null }
         })
         const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
-        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth })
+        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,
+          topInset: width < 1024 ? 96 : 16, headerHeight: width < 1024 ? 48 : 0,
+          trailingInset: width < 1024 ? gutter : null })
       } finally {
         media.mockRestore()
         await page.close()
@@ -365,7 +426,7 @@ describe('ProgressContent', () => {
     expect(sweep).toHaveClass('transition-[stroke-dashoffset]')
   })
 
-  it('filters the same goal list through all four views', () => {
+  it('filters the same goal list through all four views', async () => {
     mocks.goals.data.allGoals = [
       createMockGoal({ id: 'active', title: 'Active goal', status: 'Active', position: 0 }),
       createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', position: 1 }),
@@ -379,11 +440,11 @@ describe('ProgressContent', () => {
       ['completed', 'Completed goal'],
       ['abandoned', 'Abandoned goal'],
     ] as const) {
-      fireEvent.click(screen.getByRole('radio', { name: `progressScreen.goals.${view}` }))
+      await selectGoalFilter(view)
       expect(getGoalCard(visible)).toBeInTheDocument()
       expect(getGoalCards()).toHaveLength(1)
     }
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
+    await selectGoalFilter('all')
     expect(getGoalCards()).toHaveLength(3)
   })
 
@@ -413,14 +474,14 @@ describe('ProgressContent', () => {
     expect(mocks.updateStatus.mutate).not.toHaveBeenCalled()
   })
 
-  it('shows an abandoned outline badge without progress and clears a distinct empty filter', () => {
+  it('shows an abandoned outline badge without progress and clears a distinct empty filter', async () => {
     mocks.goals.data.allGoals = [createMockGoal({ status: 'Abandoned', progressPercentage: 100, trackingStatus: 'behind' })]
     render(<ProgressPage />)
     const card = getGoalCard('Read 12 Books')
     expect(card.querySelector('[data-variant="outline"]')).toHaveTextContent('goals.status.abandoned')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(within(card).queryByText((content) => content.startsWith('progressScreen.goals.progress'))).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.completed' }))
+    await selectGoalFilter('completed')
     expect(screen.getByText('progressScreen.goals.filterEmpty')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.goals.empty')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.clearFilter' }))
@@ -479,7 +540,8 @@ describe('ProgressContent', () => {
     fireEvent.keyDown(document, { code: 'Escape' })
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
     await act(() => vi.advanceTimersByTime(50))
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    vi.useRealTimers()
+    await selectGoalFilter('active')
     expect(card).not.toHaveAttribute('aria-roledescription')
     fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
     fireEvent.mouseMove(document, { clientX: 0, clientY: 100 })
@@ -521,10 +583,11 @@ describe('ProgressContent', () => {
     expect(screen.getAllByTestId('goal-reorder-status')).toEqual(statuses)
 
     mocks.reorder.isError = true
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    vi.useRealTimers()
+    await selectGoalFilter('active')
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.goals.reorderError')
     expect(screen.getByRole('button', { name: /Goal one/ })).not.toHaveAttribute('aria-keyshortcuts')
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
+    await selectGoalFilter('all')
   })
 
   it('replays the same boundary without timing between actions', () => {
@@ -594,7 +657,7 @@ describe('ProgressContent', () => {
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
     mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
-    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', (query) => {
@@ -624,7 +687,7 @@ describe('ProgressContent', () => {
     mocks[query].isError = true
     const { rerender } = render(<ProgressPage />)
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(within(screen.getByRole('alert')).getAllByRole('button')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
     mocks[query].isError = false
@@ -763,12 +826,73 @@ describe('ProgressContent', () => {
     expect(figures).toEqual([
       '75%progressScreen.window.completionRate',
       '12progressScreen.window.activeDays',
-      'dates.daysValue.thursdayprogressScreen.window.bestWeekday',
-      'ReadprogressScreen.window.topHabit',
+      'dates.daysAbbreviated.thursdayprogressScreen.window.bestWeekday',
     ])
-    for (const value of ['75%', '12', 'dates.daysValue.thursday', 'Read']) {
-      expect(within(windowSection).getByText(value)).toHaveStyle({ fontSize: 24, overflowWrap: 'anywhere' })
+    for (const value of ['75%', '12', 'dates.daysAbbreviated.thursday']) {
+      expect(within(windowSection).getByText(value)).toHaveStyle({ fontSize: 22, whiteSpace: 'nowrap' })
     }
+  })
+
+  it.each([320, 360, 384, 412])('keeps the owning Progress figures readable at %ipx with large text', async (width) => {
+    for (const catalog of [en, ptBR]) {
+      mocks.usePortugueseCatalog = catalog === ptBR
+      mocks.useEnglishCatalog = catalog === en
+      mocks.goals.data.allGoals = [createMockGoal()]
+      const habitName = 'Read a very long chapter title before the morning conversation '.repeat(5)
+      mocks.retrospective.data.metrics.topHabits[0]!.name = habitName
+      mocks.retrospective.data.metrics.topHabits[0]!.emoji = '📚'
+      const { container, unmount } = render(<ProgressContent />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div style="width:${width}px">${container.innerHTML}</div>`)
+        await loadAppFonts(page)
+        await page.evaluate(() => {
+          const elements = Array.from(document.querySelectorAll<HTMLElement>('div, span, p, button'))
+          const sizes = elements.map((element) => ({ element, size: parseFloat(getComputedStyle(element).fontSize), line: parseFloat(getComputedStyle(element).lineHeight) }))
+          for (const { element, size, line } of sizes) { element.style.fontSize = `${size * 2}px`; if (Number.isFinite(line)) element.style.lineHeight = `${line * 2}px` }
+        })
+        const geometry = await page.locator('[data-state="default"] > span').evaluateAll((elements) => elements.map((element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const bounds = range.getBoundingClientRect()
+          const tile = element.parentElement!.getBoundingClientRect()
+          return { text: element.textContent, lines: range.getClientRects().length, inside: bounds.left >= tile.left && bounds.right <= tile.right }
+        }))
+        const habit = await page.locator('[data-testid="progress-top-habit"]').evaluate((element) => {
+          const title = element.querySelector('[title]')!
+          const style = getComputedStyle(title)
+          const bounds = title.getBoundingClientRect()
+          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: !!element.querySelector('a, button') }
+        })
+        expect(habit.full).toContain(habitName)
+        expect(habit.emoji).toContain('📚')
+        expect(habit.title).toBe(habitName)
+        expect(habit.lines).toBeCloseTo(2, 1)
+        expect(habit.width).toBe(habit.rowWidth)
+        expect(habit.interactive).toBe(false)
+        expect(geometry).toHaveLength(10)
+        for (const figure of geometry) { expect(figure.lines, figure.text!).toBe(1); expect(figure.inside, figure.text!).toBe(true) }
+      } finally { await page.close(); unmount(); mocks.usePortugueseCatalog = false; mocks.useEnglishCatalog = false }
+    }
+  })
+
+  it('discloses the streak legend and keeps the top habit outside the figures', async () => {
+    render(<ProgressContent />)
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    expect(windowSection.querySelectorAll('[data-state="default"]')).toHaveLength(3)
+    expect(within(windowSection).getByText('dates.daysAbbreviated.thursday')).toBeInTheDocument()
+    const habit = within(windowSection).getByTestId('progress-top-habit')
+    expect(habit).toHaveTextContent('Read')
+    expect(habit.querySelector('button, a')).toBeNull()
+    expect(screen.queryByText('progressScreen.streak.active')).not.toBeInTheDocument()
+    const entry = screen.getByRole('button', { name: 'progressScreen.streak.legend' })
+    entry.focus()
+    fireEvent.click(entry)
+    expect(screen.getByRole('dialog')).toHaveTextContent('progressScreen.streak.active')
+    fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(entry).toHaveFocus()
+    expect(habit).toHaveTextContent('Read')
   })
 
   it('renders pay-gate refusals as the three locked sections', async () => {
@@ -855,7 +979,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
-    expect(windowSection.querySelectorAll('[data-state="empty"]')).toHaveLength(2)
+    expect(windowSection.querySelectorAll('[data-state="empty"]')).toHaveLength(1)
     expect(within(windowSection).queryByText('18')).not.toBeInTheDocument()
   })
 
@@ -1342,16 +1466,16 @@ describe('ProgressContent', () => {
     expect(strip.lastElementChild).toHaveAttribute('data-state', 'today')
   })
 
-  it('stage 5 opens inline detail and restores the filtered list on back', () => {
+  it('stage 5 opens inline detail and restores the filtered list on back', async () => {
     mocks.goals.data.allGoals = [createMockGoal()]
     render(<ProgressPage />)
-    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    await selectGoalFilter('active')
     fireEvent.click(getGoalCard('Read 12 Books'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'goal-detail' })).toHaveTextContent('goal-1')
     fireEvent.click(screen.getByRole('button', { name: 'Back to goals' }))
-    expect(screen.getByRole('radio', { name: 'progressScreen.goals.active' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'progressScreen.goals.filter: progressScreen.goals.active' })).toBeInTheDocument()
     expect(getGoalCard('Read 12 Books')).toBeInTheDocument()
   })
 
@@ -1384,4 +1508,13 @@ describe('ProgressContent', () => {
     expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
   })
 
+})
+
+it('places the Progresso bell in scrolling root content and opens Avisos', () => {
+  const { container } = render(<ProgressPage />)
+  const row = container.querySelector('[data-root-notification-header]')!
+  expect(row.parentElement).toHaveClass('flex-col')
+  expect(row.parentElement).not.toHaveClass('sticky', 'fixed')
+  fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))
+  expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
 })

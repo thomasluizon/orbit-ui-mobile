@@ -412,7 +412,7 @@ describe('Sheet (mobile)', () => {
       const actionStyle = StyleSheet.flatten(actions.props.style)
       const body = tree!.root.findByProps({ testID: virtualizedBody ? 'sheet-virtualized-body' : 'sheet-body-scroll' })
       const bodyStyle = StyleSheet.flatten(virtualizedBody ? body.props.style : body.props.contentContainerStyle)
-      expect(bodyStyle.paddingBottom).toBe(24)
+      expect(bodyStyle.paddingBottom).toBe(virtualizedBody ? 0 : 24)
       expect(actionStyle.paddingTop).toBe(16)
       expect(actionStyle.borderTopWidth ?? actionStyle.borderWidth ?? 0).toBe(0)
       expect(footerStyle.borderTopWidth ?? footerStyle.borderWidth ?? 0).toBe(0)
@@ -651,4 +651,26 @@ it('fills the real sheet header close target with the neutral interaction token'
   let headerTree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { headerTree = TestRenderer.create(tree!.root.findByType(TrueSheet).props.header) })
   expectPressFill(headerTree, 'common.close', createTokensV2().bgHover, 999)
+  const close = tree!.root.findByType(TrueSheet).props.header.props.children.at(-1)
+  for (const pressed of [false, true]) {
+    const shape = StyleSheet.flatten(close.props.style({ pressed }))
+    expect(shape.width).toBeGreaterThanOrEqual(48)
+    expect(shape.minHeight).toBeGreaterThanOrEqual(48)
+    expect(shape.transform).toBeUndefined()
+  }
+})
+
+it('keeps the sheet dismiss target at least 48 dp', async () => {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    tree = TestRenderer.create(<Sheet open title="Options" onClose={vi.fn()}><Text>Content</Text></Sheet>)
+    await Promise.resolve()
+  })
+  let headerTree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { headerTree = TestRenderer.create(tree.root.findByType(TrueSheet).props.header) })
+  const close = headerTree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.accessibilityLabel === 'common.close')[0]
+  const bounds = StyleSheet.flatten(typeof close.props.style === 'function' ? close.props.style({ pressed: false }) : close.props.style)
+  expect(bounds.width).toBeGreaterThanOrEqual(48)
+  expect(bounds.minHeight ?? bounds.height).toBeGreaterThanOrEqual(48)
+  TestRenderer.act(() => { headerTree.unmount(); tree.unmount() })
 })

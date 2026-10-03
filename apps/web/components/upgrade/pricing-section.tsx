@@ -8,6 +8,7 @@ type SubscriptionInterval = 'monthly' | 'yearly'
 
 interface PricingSectionProps {
   stayFreeHref?: string
+  dateHint?: string
   focusOnMount?: boolean
   profile: { isTrialActive?: boolean } | null
   plans: ReturnType<typeof useSubscriptionPlans>['plans']
@@ -27,6 +28,7 @@ interface PricingSectionProps {
 export function PricingSection({
   stayFreeHref = '/profile',
   focusOnMount = false,
+  dateHint,
   profile,
   plans,
   isLoadingPlans,
@@ -43,7 +45,7 @@ export function PricingSection({
 }: Readonly<PricingSectionProps>) {
   return (
     <div className="flex flex-col gap-8">
-      <ProPitch profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} />
+      <ProPitch dateHint={dateHint} profile={profile} trialDaysLeft={trialDaysLeft} t={t} focusOnMount={focusOnMount} />
 
       <div className="flex flex-col gap-4">
         <PlanSelection

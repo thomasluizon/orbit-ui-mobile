@@ -63,8 +63,8 @@ export function CheckCircle({
       style={({ pressed }) => {
         const pressedOpacity = pressed ? 0.85 : 1
         return {
-          width: 44,
-          height: 44,
+          width: 48,
+          minHeight: 48,
           borderRadius: 999,
           overflow: 'hidden',
           alignItems: 'center',

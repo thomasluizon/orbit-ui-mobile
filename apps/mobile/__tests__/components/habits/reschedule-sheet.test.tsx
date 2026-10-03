@@ -82,6 +82,7 @@ describe('RescheduleSheet (mobile)', () => {
     const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
     const actions = tree.root.findAll((node) => node.type === 'SheetActions')[0]!
     expect(actions).toBeDefined()
+    expect(actions.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')).toHaveLength(1)
     expect(actions.findAll((node) => node.type === 'Pressable' && typeof node.props.testID === 'string').map((node) => node.props.testID)).toEqual(['button-ghost-sm', 'button-primary-sm'])
     const terminalAction = state === 'free' ? 'upgrade' : state === 'error' ? 'retry' : 'accept'
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['habits.reschedule.dismiss', `habits.reschedule.${terminalAction}`])

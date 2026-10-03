@@ -4,6 +4,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -135,6 +136,7 @@ vi.mock('@/hooks/use-color-scheme', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/profile',
   useRouter: () => ({
     push: mockRouterPush,
     replace: mockRouterPush,
@@ -186,9 +188,7 @@ vi.mock('@/components/gamification/streak-badge', () => ({
   StreakBadge: () => null,
 }))
 
-vi.mock('@/components/navigation/notification-bell', () => ({
-  NotificationBell: () => null,
-}))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({
   FreshStartModal: () => null,
@@ -202,9 +202,6 @@ vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/components/profile/profile-nav-icon', () => ({
-  ProfileNavIcon: () => null,
-}))
 
 
 vi.mock('@/components/referral/referral-card', () => ({
@@ -242,6 +239,98 @@ describe('ProfilePage', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 412].flatMap((width) => [1, 2].flatMap((textScale) => ['free', 'trial', 'paid', 'lifetime'].map((plan) => ({ locale, width, textScale, plan }))))))('keeps $plan Perfil rows readable in $locale at $width px and $textScale text scale', async ({ locale, width, textScale, plan }) => {
+      translateProMessages(locale as 'en' | 'pt-BR')
+      mockProfileState.current.profile = createMockProfile({
+        name: 'Marina', email: 'marina.silva.long.address@example.com', hasProAccess: plan !== 'free',
+        isTrialActive: plan === 'trial', isLifetimePro: plan === 'lifetime',
+        trialEndsAt: plan === 'trial' ? '2099-10-09T12:00:00Z' : null,
+      })
+      const { container } = render(<ProfilePage />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        await page.evaluate((scale) => {
+          for (const element of document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')) {
+            if (element.children.length > 0 || !element.textContent) continue
+            element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * scale}px`
+          }
+        }, textScale)
+        const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell')).map((row) => {
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          const range = document.createRange()
+          range.selectNodeContents(title)
+          const icon = row.querySelector('svg')!
+          return {
+            label: title.textContent,
+            height: row.getBoundingClientRect().height,
+            textEdge: title.getBoundingClientRect().left,
+            textWidth: range.getBoundingClientRect().width,
+            lines: range.getClientRects().length,
+            titleTop: title.getBoundingClientRect().top,
+            iconTop: icon.getBoundingClientRect().top,
+            titleOverflow: title.scrollWidth > title.clientWidth,
+            ellipsis: getComputedStyle(title).textOverflow === 'ellipsis',
+            right: title.getBoundingClientRect().right,
+            available: title.getBoundingClientRect().width,
+            iconWidth: icon.getBoundingClientRect().width,
+            iconHidden: icon.closest('[aria-hidden="true"]') !== null,
+            overflow: row.scrollWidth > row.clientWidth,
+          }
+        }))
+        expect(rows).toHaveLength(11)
+        for (const row of rows) {
+          if (textScale === 1) {
+            expect(row.height, row.label!).toBeLessThanOrEqual(68)
+            expect(row.lines, row.label!).toBe(1)
+          }
+          expect(row.height, row.label!).toBeGreaterThanOrEqual(48)
+          expect(row.textEdge, row.label!).toBe(rows[0]!.textEdge)
+          expect(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
+          expect(row.iconWidth, row.label!).toBe(24)
+          expect(row.iconHidden, row.label!).toBe(true)
+          expect(row.overflow, row.label!).toBe(false)
+          expect(row.titleOverflow, row.label!).toBe(false)
+          expect(row.ellipsis, row.label!).toBe(false)
+          expect(row.right, row.label!).toBeLessThanOrEqual(width)
+          if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.iconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
+        }
+        if (textScale === 2 && locale === 'pt-BR') expect(rows.find(({ label }) => label === ptBR.profile.calendarSync.title)!.lines).toBeGreaterThan(1)
+      } finally { await page.close() }
+    })
+
+    it.each([1, 2])('reveals the full account email within the row at %s text scale', async (textScale) => {
+      translateProMessages('en')
+      const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
+      mockProfileState.current.profile = createMockProfile({ name: `Marina ${'Silva'.repeat(16)}`, email })
+      render(<ProfilePage />)
+      const accountLink = screen.getByRole('link', { name: /Marina/ })
+      expect(accountLink).toHaveAttribute('href', '/profile/account')
+      await act(async () => { fireEvent.click(accountLink) })
+      const { container } = render(<ProfileAccountRoute />)
+      const page = await browser.newPage({ viewport: { width: 320, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(({ email, textScale }) => {
+          const row = Array.from(document.querySelectorAll('.orbit-list-row-shell')).find((row) => row.textContent.includes(email))!
+          const description = Array.from(row.querySelectorAll<HTMLElement>('span')).find((span) => span.textContent === email)!
+          description.style.fontSize = `${parseFloat(getComputedStyle(description).fontSize) * textScale}px`
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          title.style.fontSize = `${parseFloat(getComputedStyle(title).fontSize) * textScale}px`
+          const range = document.createRange()
+          range.selectNodeContents(title)
+          return { overflow: row.scrollWidth > row.clientWidth, clamped: getComputedStyle(description).webkitLineClamp, text: description.textContent, nameLines: range.getClientRects().length, lineHeightRatio: parseFloat(getComputedStyle(title).lineHeight) / parseFloat(getComputedStyle(title).fontSize) }
+        }, { email, textScale })
+        expect(geometry.text).toBe(email)
+        expect(geometry.clamped).toBe('none')
+        expect(geometry.overflow).toBe(false)
+        expect(geometry.nameLines).toBeGreaterThanOrEqual(3)
+        expect(geometry.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
+      } finally { await page.close() }
+    })
+
     it.each([320, 412, 600, 840, 1023, 1024, 1352])('insets the first account card at %ipx and preserves the wide shell', async (width) => {
       const { container } = render(
         <ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
@@ -255,19 +344,24 @@ describe('ProfilePage', () => {
           const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
           const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
           const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
-          return { columnInset: card.top - column.top, scrollerInset: card.top - scroller.top }
+          const row = document.querySelector('[data-root-notification-header]')!.getBoundingClientRect()
+          const bell = document.querySelector('[data-root-notification-header] button')!.getBoundingClientRect()
+          return { columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
+            headerHeight: row.height, trailingInset: column.right - bell.right }
         })
-        expect(geometry.columnInset).toBe(width < 1024 ? 16 : 32)
-        expect(geometry.scrollerInset).toBe(width < 1024 ? 16 : 0)
+        expect(geometry.columnInset).toBe(width < 1024 ? 76 : 32)
+        expect(geometry.scrollerInset).toBe(width < 1024 ? 76 : 0)
+        expect(geometry.headerHeight).toBe(width < 1024 ? 48 : 0)
+        if (width < 1024) expect(geometry.trailingInset).toBe(16)
       } finally { await page.close() }
     })
   })
 
   const proPlans = [
     { state: 'free', hasProAccess: false, isTrialActive: false, isLifetimePro: false, en: 'Free', pt: 'Grátis' },
-    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Pro Trial until Oct 9, 2099', pt: 'Teste Pro até 9 de out. de 2099' },
-    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Pro', pt: 'Pro' },
-    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime Pro', pt: 'Pro Vitalício' },
+    { state: 'trial', hasProAccess: true, isTrialActive: true, isLifetimePro: false, en: 'Trial', pt: 'Teste' },
+    { state: 'paid', hasProAccess: true, isTrialActive: false, isLifetimePro: false, en: 'Active', pt: 'Ativo' },
+    { state: 'lifetime', hasProAccess: true, isTrialActive: false, isLifetimePro: true, en: 'Lifetime', pt: 'Vitalício' },
   ] as const
 
   function translateProMessages(locale: 'en' | 'pt-BR') {
@@ -298,6 +392,22 @@ describe('ProfilePage', () => {
       })
       render(<ProfilePage />)
       const group = screen.getByTestId('profile-settings-group-you')
+      const rows = group.querySelectorAll('.orbit-list-row-shell')
+      expect(rows).toHaveLength(5)
+      for (const row of rows) {
+        const title = row.querySelector('[data-slot="list-row-title"]')!
+        const icons = row.querySelectorAll('svg')
+        const navigates = row.querySelector('a') !== null
+        expect(icons, title.textContent!).toHaveLength(navigates ? 2 : 1)
+        expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
+        expect(icons[0]!.getAttribute('width')).toBe('24')
+        expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        if (navigates) {
+          expect(title.compareDocumentPosition(icons[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+          expect(icons[1]!.getAttribute('aria-hidden')).toBe('true')
+          expect(icons[1]!.getAttribute('focusable')).toBe('false')
+        }
+      }
       const titles = Array.from(group.querySelectorAll('[data-slot="list-row-title"]')).map((node) => node.textContent)
       expect(titles.slice(0, 3)).toEqual([mockProfileState.current.profile.name, 'Orbit Pro', locale === 'en' ? 'Preferences' : 'Preferências'])
       const expectedValue = locale === 'en' ? plan.en : plan.pt
@@ -1122,4 +1232,12 @@ describe('ProfilePage', () => {
     expect(document.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(8)
     expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0)
   })
+})
+
+it('places the Perfil bell inside the destination scroller and opens Avisos', () => {
+  const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
+  const row = container.querySelector<HTMLElement>('[data-root-notification-header]')!
+  expect(container.querySelector('[data-shell-scroller]')).toContainElement(row)
+  fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))
+  expect(mockRouterPush).toHaveBeenCalledWith('/notifications')
 })

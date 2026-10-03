@@ -111,14 +111,14 @@ function SelectionStatusGlyph({
   if (showParentRing(hasChildren, completionStatusUnavailable)) {
     return (
       <span role="img" aria-label={`${statusName}, ${childProgress?.done ?? 0}/${childProgress?.total ?? 0}`}
-        className="flex h-11 w-11 items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
+        className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
         <ParentRing done={childProgress?.done ?? 0} total={childProgress?.total ?? 0}
           size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit)} />
       </span>
     )
   }
   return (
-    <span className="flex h-11 w-11 items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
+    <span className="flex min-h-[48px] w-[48px] items-center justify-center" style={{ opacity: dimmed ? 0.4 : 1 }}>
       <StatusRing status={state} size={depth === 1 ? 24 : 30} label={statusName} />
     </span>
   )
@@ -141,7 +141,7 @@ function InteractiveParentRing({
       aria-disabled={disabled && completionReason ? true : undefined}
       aria-describedby={completionReasonId(disabled, completionReason, reasonId)}
       title={disabled ? completionReason : undefined}
-      className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}>
+      className={`appearance-none border-0 bg-transparent flex min-h-[48px] w-[48px] items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}>
       <ParentRing done={childProgress?.done ?? 0} total={childProgress?.total ?? 0}
         size={depth === 1 ? 24 : 30} {...resolveParentRingColors(habit.isBadHabit)} />
       <CompletionReason id={reasonId} disabled={disabled} reason={completionReason} />
@@ -215,7 +215,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
               else openMenu()
             }}
             className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] cursor-pointer hover:text-[var(--fg-1)] active:scale-[0.96]"
-            style={{ width: 44, height: 44 }}
+            style={{ width: 48, minHeight: 48 }}
           >
             <MoreVertical size={20} strokeWidth={1.8} />
           </button>
