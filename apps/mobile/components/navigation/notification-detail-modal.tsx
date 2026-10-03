@@ -10,7 +10,6 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Button } from '@/components/ui/pill-button'
-import { ActionRow } from '@/components/ui/action-row'
 import { useUIStore } from '@/stores/ui-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
@@ -69,7 +68,7 @@ export function NotificationDetailModal({
       onClose={onClose}
       title={notification.title}
       actions={
-        <ActionRow>
+        <>
           {canMarkAsRead ? (
             /* eslint-disable-next-line local/max-button-words -- granted canvas label, Orbit Avisos.dc.html:213 (D42) */
             <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
@@ -85,7 +84,7 @@ export function NotificationDetailModal({
           <Button variant="destructive" size="sm" onClick={handleDelete}>
             {t('notifications.delete')}
           </Button>
-        </ActionRow>
+        </>
       }
     >
       <View style={styles.container}>

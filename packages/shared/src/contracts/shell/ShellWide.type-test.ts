@@ -45,6 +45,7 @@ type ExpectedNav = {
   onSelect?: (id: string) => void
   navLabel: string
   account?: string
+  notifications?: React.ReactNode
   composer?: React.ReactNode
   action?: never
 }
@@ -56,6 +57,7 @@ type ExpectedFlow = {
   onCreate?: never
   createLabel?: never
   account?: never
+  notifications?: never
   onPalette?: never
   paletteLabel?: never
   paletteHint?: never

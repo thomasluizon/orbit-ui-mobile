@@ -15,6 +15,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
+  minimumHeight,
   variant = 'primary',
   size: requestedSize = 'sm',
   onClick,
@@ -86,7 +87,7 @@ export function Button({
         styles.base,
         iconOnly
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
-          : { height: sizeSpec.height, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
+          : { height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight ?? 44, width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed && !disabled && !loading),
         disabled && !loading ? styles.disabled : null,
         pressed && !disabled && !loading && quietsOnPress ? styles.pressedQuiet : null,

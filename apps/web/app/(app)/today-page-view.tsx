@@ -102,13 +102,14 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
       <TodayDateControl
         {...view.nav.dateNav}
         moreLabel={t('habits.listOptions')}
+        menuHeading={t('common.options')}
         searchLabel={t('habits.search.title')}
         onSearch={() => router.push('/search')}
         selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
         allCollapsed={view.habitListAllCollapsed}
         refreshLabel={t('habits.refresh')}
-        completedLabel={view.showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        completedLabel={view.showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
         showCompleted={view.showCompleted}
         isFetching={view.data.isFetching}
         onToggleSelect={view.toggleSelectMode}

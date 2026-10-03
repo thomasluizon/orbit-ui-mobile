@@ -2,14 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import Yoga from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
-import { AdjustmentsHorizontal, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
+import { MoreVertical, Checkbox, ChevronsDown, ChevronsUp, Eye, EyeOff, RefreshCw } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { Menu } from '@/components/ui/menu'
+import { Shell412 } from '@/components/shell/shell-412'
 import { TodayDateControl } from '@/components/today/today-date-control'
-import { createStyles } from '@/components/habit-list/styles'
-import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -24,6 +24,8 @@ const callbacks = {
 }
 
 const props = {
+  menuHeading: 'Options',
+  shortDayName: 'Wed',
   dayName: 'Wednesday',
   numericDate: '08/04/2026',
   isTodaySelected: false,
@@ -69,14 +71,14 @@ function button(renderer: ReturnType<typeof TestRenderer.create>, label: string)
 }
 
 describe('Today date control feedback (mobile)', () => {
-  it('opens search from the final control in the date row', () => {
+  it('opens search from the header row', () => {
     const renderer = renderControl()
     const search = button(renderer, 'Search')
     if (!search) throw new Error('Search control did not render')
     TestRenderer.act(() => search.props.onPress())
     expect(props.onSearch).toHaveBeenCalledOnce()
   })
-  it('keeps the full date accessible and lets its labels wrap', () => {
+  it('keeps the full date accessible without truncating its labels', () => {
     const renderer = renderControl()
     const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
     const labels = date.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && (node.props.children === 'Wednesday' || node.props.children === '08/04/2026'))
@@ -99,7 +101,7 @@ describe('Today date control feedback (mobile)', () => {
     if (!today) throw new Error('Today control did not render')
     expect(today.props.testID).toBe('button-ghost-sm')
     const next = button(renderer, 'Next day')
-    expect(today.parent.children.indexOf(today)).toBe(today.parent.children.indexOf(next) + 1)
+    expect(today.parent).not.toBe(next.parent)
     TestRenderer.act(() => today.props.onPress())
     expect(callbacks.onGoToToday).toHaveBeenCalledOnce()
   })
@@ -108,7 +110,7 @@ describe('Today date control feedback (mobile)', () => {
     const renderer = renderControl()
     const control = button(renderer, 'List options')
     if (!control) throw new Error('List options control did not render')
-    expect(control.findAllByType(AdjustmentsHorizontal)).toHaveLength(1)
+    expect(control.findAllByType(MoreVertical)).toHaveLength(1)
     TestRenderer.act(() => control.props.onPress())
     const menu = renderer.root.findByType(Menu)
     expect(menu.props.title).toBe('List options')
@@ -120,6 +122,7 @@ describe('Today date control feedback (mobile)', () => {
     expect([labels.collapseAll, labels.expandAll]).toEqual(['Recolher tudo', 'Expandir tudo'])
     const controlProps = {
       moreLabel: labels.listOptions,
+      menuHeading: ptBr.common.options,
       selectLabel: ptBr.common.select,
       collapseLabel: labels.collapseAll,
       refreshLabel: labels.refresh,
@@ -130,7 +133,7 @@ describe('Today date control feedback (mobile)', () => {
     if (!control) throw new Error('List options control did not render')
     TestRenderer.act(() => control.props.onPress())
     const menu = renderer.root.findByType(Menu)
-    expect(menu.props.title).toBe(labels.listOptions)
+    expect(menu.props.title).toBe(ptBr.habits.listOptions)
     expect(menu.props.open).toBe(true)
     expect(menu.props.items.map(({ label, icon }: { label: string; icon?: string }) => [label, icon])).toEqual([
       [ptBr.common.select, 'checkbox'],
@@ -163,78 +166,59 @@ describe('Today date control feedback (mobile)', () => {
     const renderer = renderControl()
     const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Wednesday, 08/04/2026')
     expect(StyleSheet.flatten(date.props.style)).not.toHaveProperty('alignItems', 'center')
-    expect(StyleSheet.flatten(date.props.style)).toMatchObject({ minWidth: 0, maxWidth: '100%' })
+    expect(StyleSheet.flatten(date.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 0 })
     const row = date.parent
-    expect(StyleSheet.flatten(row.props.style)).toHaveProperty('flexWrap', 'wrap')
+    expect(StyleSheet.flatten(row.props.style).flexWrap).toBeUndefined()
     const day = date.findAllByType(Text)[0]
     expect(StyleSheet.flatten(day.props.style)).toMatchObject({ fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22 })
   })
 
-  it.each([1, 2])('keeps an off-today date and controls inside 400dp with text scale %s', (fontScale) => {
-    const dayName = 'Quarta-feira'
-    const renderer = renderControl({ dayName })
-    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === `${dayName}, 08/04/2026`)
-    const row = date.parent
-    const rowStyle = StyleSheet.flatten(row.props.style)
+  it.each([1, 2].flatMap((fontScale) => [320, 400].map((width) => ({ fontScale, width }))))('groups the date at $width dp and $fontScale text scale', ({ fontScale, width }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+    const renderer = renderControl({ dayName: 'Quarta-feira', shortDayName: 'Qua.', numericDate: '8 abr.' })
+    const date = renderer.root.find((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Quarta-feira, 8 abr.')
     const dateStyle = StyleSheet.flatten(date.props.style)
-    expect(rowStyle).toHaveProperty('flexWrap', 'wrap')
-    expect(dateStyle).toMatchObject({ flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' })
-    expect(button(renderer, 'Go to today')).toBeDefined()
-
-    const listContent = StyleSheet.flatten(createStyles(createTokensV2()).listContent)
-    const rowWidth = 400 - 2 * listContent.paddingHorizontal
-    const dayWidth = measuredTextWidth(dayName, 'Space Grotesk', 22,
+    const rowStyle = StyleSheet.flatten(date.parent.props.style)
+    const rowWidth = width - 32
+    const day = width / fontScale < 240 ? 'Qua.' : 'Quarta-feira'
+    const dayWidth = measuredTextWidth(day, 'Space Grotesk', 22,
       require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')) * fontScale
-    const numericWidth = measuredTextWidth(props.numericDate, 'Geist Mono', 12,
+    const numericWidth = measuredTextWidth('8 abr.', 'Geist Mono', 12,
       require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf')) * fontScale
-    const jumpWidth = measuredTextWidth(props.todayLabel, 'Geist', BUTTON_SIZES.sm.fontSize,
-      require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')) * fontScale
-      + BUTTON_SIZES.sm.paddingX * 2
-
     const layout = Yoga.Node.create()
     try {
       layout.setWidth(rowWidth)
       layout.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
-      layout.setFlexWrap(rowStyle.flexWrap === 'wrap' ? Yoga.WRAP_WRAP : Yoga.WRAP_NO_WRAP)
-      layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap ?? 0)
-
-      const icon = () => {
+      layout.setAlignItems(Yoga.ALIGN_CENTER)
+      layout.setMinHeight(rowStyle.minHeight)
+      layout.setPadding(Yoga.EDGE_TOP, rowStyle.paddingVertical)
+      layout.setPadding(Yoga.EDGE_BOTTOM, rowStyle.paddingVertical)
+      layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap)
+      for (const childWidth of [48, Math.max(dayWidth, numericWidth), 48]) {
         const node = Yoga.Node.create()
-        node.setWidth(44)
-        node.setHeight(44)
-        return node
+        node.setWidth(childWidth)
+        node.setHeight(48)
+        node.setFlexGrow(dateStyle.flexGrow)
+        node.setFlexShrink(dateStyle.flexShrink)
+        layout.insertChild(node, layout.getChildCount())
       }
-      layout.insertChild(icon(), 0)
-      const dateNode = Yoga.Node.create()
-      dateNode.setFlexBasisAuto()
-      dateNode.setFlexGrow(dateStyle.flexGrow ?? 0)
-      dateNode.setFlexShrink(dateStyle.flexShrink ?? 1)
-      dateNode.setMaxWidthPercent(100)
-      dateNode.setMinWidth(dateStyle.minWidth ?? 0)
-      for (const width of [dayWidth, numericWidth]) {
-        const textNode = Yoga.Node.create()
-        textNode.setMeasureFunc(() => ({ width, height: 26 * fontScale }))
-        dateNode.insertChild(textNode, dateNode.getChildCount())
-      }
-      layout.insertChild(dateNode, 1)
-      layout.insertChild(icon(), 2)
-      const jump = Yoga.Node.create()
-      jump.setWidth(jumpWidth)
-      jump.setHeight(44)
-      layout.insertChild(jump, 3)
-      layout.insertChild(icon(), 4)
-      layout.insertChild(icon(), 5)
-
       layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
-      expect(dateNode.getComputedLayout().width).toBeGreaterThanOrEqual(dayWidth)
-      for (let index = 0; index < layout.getChildCount(); index += 1) {
+      for (let index = 0; index < 3; index += 1) {
         const bounds = layout.getChild(index).getComputedLayout()
-        expect(bounds.left).toBeGreaterThanOrEqual(0)
+        expect(bounds.top).toBeGreaterThanOrEqual(4)
+        expect(layout.getComputedLayout().height - bounds.top - bounds.height).toBeGreaterThanOrEqual(4)
         expect(bounds.left + bounds.width).toBeLessThanOrEqual(rowWidth)
       }
-      expect(layout.getChild(5).getComputedLayout().top).toBeGreaterThan(0)
+      expect(layout.getChild(2).getComputedLayout().left).toBe(48 + Math.max(dayWidth, numericWidth) + 8)
+      const header = button(renderer, 'Search')!.parent
+      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 48, gap: 4 })
+      const jumpWidth = measuredTextWidth('Hoje', 'Geist', BUTTON_SIZES.sm.fontSize,
+        require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')) * fontScale + BUTTON_SIZES.sm.paddingX * 2
+      expect(jumpWidth + 3 * 48 + 4 * 4).toBeLessThanOrEqual(rowWidth)
     } finally {
       layout.freeRecursive()
+      TestRenderer.act(() => renderer.unmount())
+      __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
     }
   })
 
@@ -249,4 +233,53 @@ describe('Today date control feedback (mobile)', () => {
     expect(pressed.backgroundColor).toBeUndefined()
     expect(next.props.disabled).toBe(true)
   })
+})
+
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('expo-router', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
+
+it('separates the header actions from the grouped date arrows', () => {
+  const renderer = renderControl()
+  const previous = button(renderer, 'Previous day')!
+  const search = button(renderer, 'Search')!
+  expect(previous.parent).not.toBe(search.parent)
+  expect(previous.parent.findAllByType(Pressable)).toHaveLength(2)
+  expect(renderer.root.findAllByType(Pressable).filter((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'notifications.bell')).toHaveLength(1)
+})
+
+it('pins one header in the owning shell and clears it when Hoje loses focus', () => {
+  let renderer: ReturnType<typeof TestRenderer.create>
+  const shell = (active: boolean) => <Shell412 tabBar={<Text>Tabs</Text>}><TodayDateControl {...props} headerActive={active} /></Shell412>
+  TestRenderer.act(() => { renderer = TestRenderer.create(shell(true)) })
+  const header = renderer!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'shell-header')[0]
+  const scroller = renderer!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'shell-scroller')[0]
+  expect(header.findAllByType(Pressable).some((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Search')).toBe(true)
+  expect(scroller.findAllByType(Pressable).some((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Search')).toBe(false)
+  expect(scroller.findAllByType(Pressable).some((node: { props: Record<string, unknown> }) => node.props.accessibilityLabel === 'Next day')).toBe(true)
+  TestRenderer.act(() => renderer!.update(shell(false)))
+  expect(renderer!.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'shell-header')).toHaveLength(0)
+  TestRenderer.act(() => renderer!.unmount())
+})
+
+it.each([false, true])('keeps the open Portuguese menu labels inside 320 dp at 200 percent, completed=%s', (showCompleted) => {
+  __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+  const renderer = renderControl({ moreLabel: ptBr.habits.listOptions, menuHeading: ptBr.common.options, selectLabel: ptBr.common.select,
+    collapseLabel: ptBr.habits.collapseAll, refreshLabel: ptBr.habits.refresh,
+    completedLabel: showCompleted ? ptBr.habits.hideCompletedMenu : ptBr.habits.showCompletedMenu, showCompleted })
+  try {
+    TestRenderer.act(() => button(renderer, ptBr.habits.listOptions)!.props.onPress())
+    const menu = renderer.root.findByType(Menu)
+    expect(measuredTextWidth(menu.props.shortTitle, 'Geist', 44,
+      require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'))).toBeLessThanOrEqual(320 - 2 * 24 - 16 - 48)
+    for (const item of menu.props.items) {
+      const text = renderer.root.findAllByType(Text).find((node: { props: Record<string, unknown> }) => node.props.children === item.label)!
+      const fontSize = StyleSheet.flatten(text.props.style).fontSize
+      const measured = measuredTextWidth(item.label, 'Geist', fontSize * 2,
+        require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf'))
+      expect(measured).toBeLessThanOrEqual(320 - 2 * 24 - 2 * 12 - 20 - 12)
+    }
+  } finally {
+    TestRenderer.act(() => renderer.unmount())
+    __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 })
+  }
 })

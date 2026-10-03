@@ -12,7 +12,6 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { CalendarHeader, CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import { HabitDrill } from '@/components/habits/habit-list/habit-drill'
@@ -24,6 +23,9 @@ import { fireEvent, render, within } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
 vi.mock('@/hooks/use-push-subscriptions', () => ({
   usePushSubscriptions: () => ({ count: 0, max: 5, isCurrentDeviceRegistered: false, isLoading: false, isError: false }),
@@ -140,7 +142,6 @@ describe('interaction fill parity in Chromium', () => {
     }
     const controls = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr} timeZone="UTC">
       <CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={noop} onNextMonth={noop} onCurrentMonth={noop} onSelectMonth={noop} />
-      <NotificationBellDisplay count={0} onClick={noop} />
       <CalendarWeekNav weekLabel="Week" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={noop} onNextWeek={noop} onCurrentWeek={noop} />
       <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isTodaySelected={false} nextDisabled={false}
         previousLabel="Previous day" todayLabel="Today" goToTodayLabel="Go to Today" nextLabel="Next day"

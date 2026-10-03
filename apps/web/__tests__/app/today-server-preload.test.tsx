@@ -40,11 +40,12 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({ notifications: [] }),
+  useNotifications: () => ({ notifications: [], unreadCount: 0 }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
 }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: DEFAULT_CONFIG }) }))
-vi.mock('@/components/shell/destination-shell', () => ({
+vi.mock('@/components/shell/destination-shell', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/shell/destination-shell')>(),
   useShellComposerSlot: () => undefined,
 }))
 

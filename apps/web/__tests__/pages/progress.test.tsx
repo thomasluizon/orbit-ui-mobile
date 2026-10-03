@@ -131,7 +131,8 @@ vi.mock('next-intl', async (importOriginal) => ({
     : (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
 }))
-vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
+vi.mock('next/navigation', () => ({ useRouter: () => mocks.router, usePathname: () => '/progress' }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
@@ -164,7 +165,8 @@ vi.mock('@/hooks/use-retrospective', () => ({
     return mocks.retrospective
   },
 }))
-vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
+vi.mock('@/hooks/use-is-desktop', () => ({
+  useIsWideDesktop: () => false, useIsDesktop: () => mocks.isDesktop }))
 
 import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
@@ -227,10 +229,16 @@ describe('ProgressContent', () => {
           const column = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
           const section = document.querySelector('section')!.getBoundingClientRect()
           const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
-          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left, columnWidth: column.width }
+          const header = document.querySelector('[data-root-notification-header]')?.getBoundingClientRect()
+          const bell = document.querySelector('[data-root-notification-header] button')?.getBoundingClientRect()
+          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left,
+            columnWidth: column.width, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
+            trailingInset: bell && bell.width > 0 ? column.right - bell.right : null }
         })
         const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
-        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth })
+        expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,
+          topInset: width < 1024 ? 96 : 16, headerHeight: width < 1024 ? 48 : 0,
+          trailingInset: width < 1024 ? gutter : null })
       } finally {
         media.mockRestore()
         await page.close()
@@ -624,7 +632,7 @@ describe('ProgressContent', () => {
     mocks[query].isError = true
     const { rerender } = render(<ProgressPage />)
     expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+    expect(within(screen.getByRole('alert')).getAllByRole('button')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
     mocks[query].isError = false
@@ -1384,4 +1392,13 @@ describe('ProgressContent', () => {
     expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
   })
 
+})
+
+it('places the Progresso bell in scrolling root content and opens Avisos', () => {
+  const { container } = render(<ProgressPage />)
+  const row = container.querySelector('[data-root-notification-header]')!
+  expect(row.parentElement).toHaveClass('flex-col')
+  expect(row.parentElement).not.toHaveClass('sticky', 'fixed')
+  fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))
+  expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
 })

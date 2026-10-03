@@ -121,6 +121,7 @@ afterEach(() => {
 
 it('renders clear-all actions with small ghost cancel before destructive confirm', () => {
   TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
+  press('Alert options')
   press('Clear all')
 
   const pairs = tree?.root.findAll((node) => node.type === 'View' && node.props.testID === 'action-row')
@@ -128,7 +129,7 @@ it('renders clear-all actions with small ghost cancel before destructive confirm
   const actions = pairs?.at(-1)?.findAll(
     (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
   )
-  expect.soft(actions?.map((button) => button.findAll((node) => node.type === 'Text').map((node) => node.props.children).join(''))).toEqual(['Cancel', 'Delete notifications'])
+  expect.soft(actions?.map((button) => button.findAll((node) => node.type === 'Text').map((node) => node.props.children).join(''))).toEqual(['Cancel', 'Delete'])
   expect.soft(actions?.map((button) => button.props.testID)).toEqual(['button-ghost-sm', 'button-destructive-sm'])
 })
 
@@ -148,9 +149,11 @@ it.each([
     pressStarting('Reminder.')
     press(label)
   } else if (label === 'Clear all') {
+    press('Alert options')
     press(label)
-    press('Delete notifications')
+    press('Delete')
   } else {
+    press('Alert options')
     press(label)
   }
 
@@ -269,7 +272,7 @@ it.each([false, true])('deletes only the selected row with Undo when read is %s'
   expect(buttons('Sibling.')).toHaveLength(1)
   expect(buttons('Mark as read')).toHaveLength(0)
   expect(tree?.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'image'
-    && node.props.accessibilityLabel === 'Alerts, 1 unread')).toHaveLength(2)
+    && node.props.accessibilityLabel === 'Alerts, 1 unread')).toHaveLength(1)
   expect(apiClient).not.toHaveBeenCalled()
   press('Undo')
   expect(buttons('Selected.')).toHaveLength(1)

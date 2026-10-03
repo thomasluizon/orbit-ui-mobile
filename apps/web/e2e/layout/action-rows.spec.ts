@@ -112,7 +112,7 @@ for (const width of [412, 1352]) {
         '/habits/new': '[data-habit-create-screen] form',
         [`/habits/${habitId}`]: '[data-habit-detail-content] h1',
         '/upgrade': '.orbit-pill-action',
-        '/notifications': '.orbit-pill-action',
+        '/notifications': 'ul[aria-busy="false"] > li[data-read]',
         '/about': '[data-testid="about-content"]',
         '/support': 'form .orbit-pill-action',
       }
@@ -133,12 +133,27 @@ for (const width of [412, 1352]) {
           if (route === '/upgrade') await expect(page.getByRole('button', { name: messages.upgrade.billing.payment.change, exact: true })).toBeVisible()
           if (route === '/progress') await expect(page.locator('[data-goal-id]')).toHaveCount(2)
           if (route === '/notifications') {
+            const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
+            await expect(consent).toBeVisible()
+            await consent.getByRole('button', { name: messages.common.close, exact: true }).click()
+            await expect(consent).toHaveCount(0)
             const header = column.locator('[data-shell-header]')
-            await expect(header.getByRole('button', { name: messages.notifications.markAllRead, exact: true })).toBeVisible()
-            await expect(header.getByRole('button', { name: messages.notifications.deleteAll, exact: true })).toBeVisible()
-            await expect(header.locator('[data-slot="action-row"] .orbit-pill-action')).toHaveCount(2)
+            await expect(header.getByRole('button', { name: messages.notifications.options, exact: true })).toBeVisible()
             await expect(main.getByText(notifications.items[0]!.title, { exact: true })).toBeVisible()
             await expect(main.getByText(notifications.items[1]!.title, { exact: true })).toBeVisible()
+            await header.getByRole('button', { name: messages.notifications.options, exact: true }).click()
+            const menu = page.getByRole('menu', { name: messages.notifications.options, exact: true })
+            await expect(menu.getByRole('menuitem', { name: messages.notifications.markAllReadMenu, exact: true })).toBeVisible()
+            await menu.getByRole('menuitem', { name: messages.notifications.deleteAll, exact: true }).click()
+            const confirmation = page.getByRole('dialog', { name: messages.notifications.deleteAllAction, exact: true })
+            await expect(confirmation).toBeVisible()
+            const actions = confirmation.locator('[data-slot="action-row"]')
+            await expect(actions.locator('.orbit-pill-action')).toHaveCount(2)
+            await expect(actions.getByRole('button', { name: messages.common.cancel, exact: true })).toHaveAttribute('data-size', 'sm')
+            await expect(actions.getByRole('button', { name: messages.notifications.deleteAllAction, exact: true })).toHaveAttribute('data-size', 'sm')
+            await expect(actions).toHaveCSS('justify-content', 'flex-end')
+            await expect(actions).toHaveCSS('gap', '12px')
+            await assertActionGeometry(page, confirmation)
           }
           if (route === '/habits/'+habitId) await expect(page.getByRole('heading', { name: habit.title, exact: true })).toBeVisible()
           await assertActionGeometry(page)

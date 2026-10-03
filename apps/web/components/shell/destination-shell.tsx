@@ -21,6 +21,7 @@ import { Plus } from '@/components/ui/icons'
 import { DestinationIcon, getDestinationIcon } from '@/components/navigation/destination-icon'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
+import { NotificationBell } from '@/components/navigation/notification-bell'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -266,6 +267,7 @@ function DestinationShellContent({
         {...wideCreate}
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
+        notifications={wide ? <NotificationBell /> : undefined}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}

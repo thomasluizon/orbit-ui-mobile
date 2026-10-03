@@ -1,5 +1,6 @@
 import { useCallback, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
+import { ActionRow } from '@/components/ui/action-row'
 
 interface SheetHandle {
   requestClose: (exitAction?: () => void) => void
@@ -65,7 +66,7 @@ export function Sheet({ title, accessibleTitle, actions, onClose, children, ref 
   return (
     <div
       role="dialog"
-      aria-label={title ?? accessibleTitle}
+      aria-label={accessibleTitle ?? title}
       aria-hidden={presented ? undefined : true}
       data-testid="sheet"
     >
@@ -76,7 +77,7 @@ export function Sheet({ title, accessibleTitle, actions, onClose, children, ref 
         </button>
       ) : null}
       <div data-slot="sheet-body">{children}</div>
-      <div data-slot="sheet-actions">{actions}</div>
+      <div data-slot="sheet-actions">{actions ? <ActionRow>{actions}</ActionRow> : null}</div>
     </div>
   )
 }

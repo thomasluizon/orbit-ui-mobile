@@ -17,6 +17,7 @@ type ExpectedButtonBase = {
   variant?: 'primary' | 'ghost' | 'secondary' | 'destructive' | 'caution'
   size?: 'md' | 'sm'
   loading?: boolean
+  minimumHeight?: number
   disabled?: boolean
   matchedWidth?: boolean
   onClick?: () => void

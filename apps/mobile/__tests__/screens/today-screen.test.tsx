@@ -48,7 +48,10 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mocks.profileReady ? { hasCompletedOnboarding: mocks.onboardingComplete, timeZone: 'UTC', plan: mocks.plan, hasProAccess: mocks.plan !== 'free', isTrialActive: mocks.plan === 'trial' } : undefined }),
 }))
 
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+
 vi.mock('expo-router', () => ({
+  usePathname: () => '/',
   useRouter: () => ({ push: mocks.routerPush }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     mocks.focusCallbacks.push(callback)

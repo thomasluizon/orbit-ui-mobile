@@ -56,6 +56,7 @@
     "action": "Ir para Hoje"
   },
   "notifications": {
+    "options": "Opções dos avisos",
     "title": "Avisos",
     "bell": "Avisos",
     "bellWithCount": "Avisos, {count} sem ler",
@@ -66,6 +67,7 @@
     "deleteError": "Não foi possível apagar o aviso. Tente de novo.",
     "deleteAllError": "Não foi possível limpar os avisos. Tente de novo.",
     "markAllRead": "Marcar tudo como lido",
+    "markAllReadMenu": "Marcar lidos",
     "markAsRead": "Marcar como lido",
     "markRead": "Marcar {title} como lido",
     "deleteAll": "Limpar tudo",
@@ -90,6 +92,7 @@
     "openIn": "Abrir em {target}"
   },
   "common": {
+    "options": "Opções",
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",
     "backToDestination": "Voltar para {destination}",
@@ -502,7 +505,9 @@
     "searchPlaceholder": "Buscar hábitos...",
     "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
+    "showCompletedMenu": "Mostrar feitos",
     "hideCompleted": "Ocultar concluídos",
+    "hideCompletedMenu": "Ocultar feitos",
     "collapseAll": "Recolher tudo",
     "expandAll": "Expandir tudo",
     "refresh": "Atualizar",

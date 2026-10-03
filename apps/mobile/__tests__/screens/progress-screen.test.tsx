@@ -162,7 +162,10 @@ vi.mock('react-i18next', async () => {
     }),
   }
 })
-vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+
+vi.mock('expo-router', () => ({
+  usePathname: () => '/progress', useRouter: () => mocks.router }))
 vi.mock('react-native-draggable-flatlist', () => ({
   NestableScrollContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   NestableDraggableFlatList: ({ data, renderItem, ...props }: {
@@ -1616,4 +1619,13 @@ describe('mobile ProgressContent', () => {
     expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(0)
   })
 
+})
+
+it('places the Progresso bell in the scrolling root and opens Avisos', async () => {
+  const tree = await renderProgress()
+  const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'root-notification-header')[0]!
+  expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48, justifyContent: 'flex-end' })
+  const bell = row.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')[0]!
+  TestRenderer.act(() => (bell.props.onPress as () => void)())
+  expect(mocks.router.push).toHaveBeenCalledWith('/notifications')
 })

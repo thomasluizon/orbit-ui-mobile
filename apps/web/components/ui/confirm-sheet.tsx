@@ -2,7 +2,6 @@
 
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
-import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -13,6 +12,7 @@ interface ConfirmSheetProps {
   message: string
   confirmLabel: string
   cancelLabel?: string
+  minimumActionHeight?: number
   /** Marks the confirm action as the destructive one. */
   destructive?: boolean
   inlineActions?: boolean
@@ -33,6 +33,7 @@ export function ConfirmSheet({
   message,
   confirmLabel,
   cancelLabel,
+  minimumActionHeight,
   destructive = false,
   inlineActions = false,
   confirmImmediately = false,
@@ -89,7 +90,7 @@ export function ConfirmSheet({
     closeSheet(() => { setLifecycle((current) => ({ ...current, mounted: false })); onConfirm() })
   }
   const cancelButton = (
-    <PillButton variant="ghost" size="sm" buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
+    <PillButton variant="ghost" size="sm" minimumHeight={minimumActionHeight} buttonRef={cancelRef} disabled={actionsDisabled} onClick={cancel}>
       {cancelLabel ?? t('common.cancel')}
     </PillButton>
   )
@@ -97,6 +98,7 @@ export function ConfirmSheet({
     <PillButton
       variant={destructive ? 'destructive' : inlineActions && isDesktop ? 'secondary' : 'primary'}
       size="sm"
+      minimumHeight={minimumActionHeight}
       disabled={actionsDisabled}
       loading={loading}
       onClick={confirm}
@@ -121,9 +123,9 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <ActionRow>
+        <>
           {cancelButton}{confirmButton}
-        </ActionRow>
+        </>
       }
     >
       <p className="break-words text-sm text-[var(--fg-2)]">{message}</p>

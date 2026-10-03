@@ -188,6 +188,8 @@ function TodayScreenContent() {
         />
       ) : null}
       <TodayDateControl
+        headerActive={todayFocused}
+        shortDayName={date.shortDayName}
         searchLabel={t('habits.search.title')}
         onSearch={() => router.push('/search')}
         dayName={date.dayName}
@@ -199,11 +201,12 @@ function TodayScreenContent() {
         goToTodayLabel={t('dates.goToToday')}
         nextLabel={t('dates.nextDay')}
         moreLabel={t('habits.listOptions')}
+        menuHeading={t('common.options')}
         selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
         collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
         allCollapsed={habitListAllCollapsed}
         refreshLabel={t('habits.refresh')}
-        completedLabel={showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        completedLabel={showCompleted ? t('habits.hideCompletedMenu') : t('habits.showCompletedMenu')}
         showCompleted={showCompleted}
         isFetching={habitsQuery.isFetching}
         onToggleSelect={selection.handleToggleSelectMode}
