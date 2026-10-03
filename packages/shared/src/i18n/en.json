@@ -2959,7 +2959,7 @@
       "active": "Active",
       "completed": "Completed",
       "abandoned": "Abandoned",
-      "empty": "Your goals",
+      "empty": "No goals yet",
       "createAction": "Create goal",
       "request": "Help me create a goal.",
       "filterEmpty": "No goals match this view.",

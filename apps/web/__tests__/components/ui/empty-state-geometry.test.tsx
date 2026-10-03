@@ -15,6 +15,13 @@ const cases = [320, 360, 384, 412].flatMap((width) => [
   { width, locale: 'pt-BR', words: ptBR }, { width, locale: 'en', words: en },
 ].flatMap(({ words, ...viewport }) => emptyStateTitles(words).map((title) => ({ ...viewport, ...title }))))
 
+it.each([
+  { locale: 'pt-BR', words: ptBR, goals: 'Nenhuma meta ainda' },
+  { locale: 'en', words: en, goals: 'No goals yet' },
+])('explains the empty goals section in $locale', ({ words, goals }) => {
+  expect(words.progressScreen.goals.empty).toBe(goals)
+})
+
 describe('EmptyState title geometry', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser

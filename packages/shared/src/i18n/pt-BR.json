@@ -2959,7 +2959,7 @@
       "active": "Ativas",
       "completed": "Concluídas",
       "abandoned": "Abandonadas",
-      "empty": "Suas metas",
+      "empty": "Nenhuma meta ainda",
       "createAction": "Criar meta",
       "request": "Me ajuda a criar uma meta.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
