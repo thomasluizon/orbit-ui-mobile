@@ -189,6 +189,10 @@ describe('Today date control feedback (mobile)', () => {
     try {
       layout.setWidth(rowWidth)
       layout.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+      layout.setAlignItems(Yoga.ALIGN_CENTER)
+      layout.setMinHeight(rowStyle.minHeight)
+      layout.setPadding(Yoga.EDGE_TOP, rowStyle.paddingVertical)
+      layout.setPadding(Yoga.EDGE_BOTTOM, rowStyle.paddingVertical)
       layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap)
       for (const childWidth of [48, Math.max(dayWidth, numericWidth), 48]) {
         const node = Yoga.Node.create()
@@ -201,7 +205,8 @@ describe('Today date control feedback (mobile)', () => {
       layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
       for (let index = 0; index < 3; index += 1) {
         const bounds = layout.getChild(index).getComputedLayout()
-        expect(bounds.top).toBe(0)
+        expect(bounds.top).toBeGreaterThanOrEqual(4)
+        expect(layout.getComputedLayout().height - bounds.top - bounds.height).toBeGreaterThanOrEqual(4)
         expect(bounds.left + bounds.width).toBeLessThanOrEqual(rowWidth)
       }
       expect(layout.getChild(2).getComputedLayout().left).toBe(48 + Math.max(dayWidth, numericWidth) + 8)

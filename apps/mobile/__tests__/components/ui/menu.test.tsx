@@ -5,6 +5,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Checkbox } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -16,11 +17,11 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.unmock('@/components/ui/sheet')
 
 vi.mock('@lodev09/react-native-true-sheet', () => ({
-  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode }> {
+  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; footer?: React.ReactNode }> {
     present = vi.fn(() => Promise.resolve())
     dismiss = vi.fn(() => Promise.resolve())
     render() {
-      return this.props.children ?? null
+      return <>{this.props.children}{this.props.footer}</>
     }
   },
 }))
@@ -39,6 +40,18 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it('renders one trailing action row through the real confirmation sheet', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<ConfirmSheet open destructive title="Delete" message="Clear alerts"
+        confirmLabel="Delete" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    })
+    try {
+      const rows = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.testID === 'action-row')
+      expect(rows).toHaveLength(1)
+      expect(StyleSheet.flatten(rows[0]!.props.style)).toMatchObject({ justifyContent: 'flex-end', gap: 12 })
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
   it.each((['dark', 'light'] as const).flatMap((mode) =>
     (['sheet', 'anchored'] as const).map((presentation) => ({ mode, presentation }))))(
     'keeps danger colours and changes only fill when pressed in $mode $presentation',
@@ -139,7 +152,7 @@ describe('Menu (mobile)', () => {
     })
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
     const wideRows = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem')
-    expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([48, 48])
+    expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([44, 44])
     expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([undefined, undefined])
 
     const edit = tree.root

@@ -44,7 +44,9 @@ describe('RescheduleSheet', () => {
     if (state === 'error') h.reschedule.error = new Error('unavailable')
     render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
     const primary = state === 'free' ? 'habits.reschedule.upgrade' : state === 'error' ? 'habits.reschedule.retry' : 'habits.reschedule.accept'
-    const actions = screen.getByTestId('sheet').querySelector('[data-slot="sheet-actions"] [data-slot="action-row"]')!
+    const footer = screen.getByTestId('sheet').querySelector('[data-slot="sheet-actions"]')!
+    expect(footer.querySelectorAll('[data-slot="action-row"]')).toHaveLength(1)
+    const actions = footer.querySelector('[data-slot="action-row"]')!
     expect(Array.from(actions.children).map((button) => button.textContent)).toEqual(['habits.reschedule.dismiss', primary])
     expect(Array.from(actions.children).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
     expect(Array.from(actions.children).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])

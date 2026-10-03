@@ -104,7 +104,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
 const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 48, paddingHorizontal: 16 },
   spacer: { flex: 1 },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 53 },
+  row: { alignItems: 'center', flexDirection: 'row', gap: 4, minHeight: 56, paddingVertical: 4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
   dateText: { alignItems: 'flex-start', flexGrow: 0, flexShrink: 0 },
   dayName: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, letterSpacing: -0.44, textAlign: 'left' },

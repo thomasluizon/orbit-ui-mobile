@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { createRef } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
@@ -9,10 +10,15 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from '@/app/(app)/today-shell'
+import { DestinationShell } from '@/components/shell/destination-shell'
+import { Menu } from '@/components/ui/menu'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 25 }) }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanner: () => null }))
 
 const noop = () => {}
 const props = {
@@ -44,6 +50,60 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([412, 1352].flatMap((width) => ['dark', 'light'].map((mode) => ({ width, mode }))))(
+    'keeps the first Hoje scroller control ring complete at $width in $mode', async ({ width, mode }) => {
+      const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+        <DestinationShell onCreate={noop}><TodayDateControl {...props} isTodaySelected /></DestinationShell>
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
+        const previous = page.locator('main[data-shell-scroller] button').first()
+        expect(await previous.getAttribute('aria-label')).toBe(props.previousLabel)
+        await previous.focus()
+        await page.keyboard.press('Shift+Tab')
+        await page.keyboard.press('Tab')
+        const ring = await previous.evaluate((element) => {
+          const style = getComputedStyle(element)
+          const extent = Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset)
+          const bounds = element.getBoundingClientRect()
+          const clippedBy: string[] = []
+          for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+            const ancestorStyle = getComputedStyle(ancestor)
+            const clip = ancestor.getBoundingClientRect()
+            if ((ancestorStyle.overflowY !== 'visible' && (bounds.top - extent < clip.top || bounds.bottom + extent > clip.bottom))
+              || (ancestorStyle.overflowX !== 'visible' && (bounds.left - extent < clip.left || bounds.right + extent > clip.right))) {
+              clippedBy.push(ancestor.outerHTML.split('>')[0]!)
+            }
+          }
+          return { focused: document.activeElement === element, width: Number.parseFloat(style.outlineWidth), clippedBy }
+        })
+        expect(ring.focused).toBe(true)
+        expect(ring.width).toBeGreaterThanOrEqual(2)
+        expect(ring.clippedBy).toEqual([])
+      } finally { await page.close() }
+    },
+  )
+
+  it.each(['anchored', 'sheet'] as const)('keeps %s menu rows at their presentation minimum', async (presentation) => {
+    const menuPresentation = presentation === 'sheet' ? { presentation } : { presentation, anchorRef: createRef<HTMLButtonElement>() }
+    render(<NextIntlClientProvider locale="en" messages={en}><Menu open {...menuPresentation} title="Actions" items={[
+      { id: 'edit', label: 'Edit', icon: 'edit' }, { id: 'delete', label: 'Delete', icon: 'trash', destructive: true },
+    ]} /></NextIntlClientProvider>)
+    await screen.findByRole('menu', { name: 'Actions' })
+    const page = await browser.newPage({ viewport: { width: presentation === 'sheet' ? 412 : 1280, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
+      await page.evaluate(async () => { await document.fonts.ready })
+      const heights = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
+      expect(heights).toEqual(presentation === 'sheet' ? [56, 56] : [44, 44])
+      await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+      const enlarged = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
+      expect(enlarged.every((height) => height > (presentation === 'sheet' ? 56 : 44))).toBe(true)
+    } finally { await page.close() }
+  })
 
   const headerCases = (['en', 'pt-BR'] as const).flatMap((locale) => [
     ...[320, 400, 412].flatMap((width) => [1, 2].map((scale) => ({ locale, width, scale, labelResize: false }))),
@@ -151,6 +211,9 @@ describe('Hoje header geometry', () => {
     render(<NextIntlClientProvider locale={locale} messages={messages}><ConfirmSheet open destructive
       title={messages.notifications.deleteAllAction} minimumActionHeight={48} message={messages.notifications.deleteAllConfirmDescription}
       confirmLabel={messages.notifications.deleteAllAction} onCancel={noop} onConfirm={noop} /></NextIntlClientProvider>)
+    const dialog = screen.getByRole('dialog', { name: messages.notifications.deleteAllAction })
+    expect(dialog.querySelectorAll('[data-slot="action-row"]')).toHaveLength(1)
+    expect(dialog.querySelector<HTMLElement>('[data-slot="action-row"]')!.style.justifyContent).toBe('flex-end')
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)

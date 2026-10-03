@@ -79,7 +79,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
   const hosted = useShellHeaderSlot(header, `${props.dayName}:${props.isTodaySelected}`)
   return <>
     {!hosted ? header() : null}
-    <div data-today-date-row="" className="@container flex min-h-[53px] items-center gap-[4px] px-[16px]">
+    <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[4px] px-[16px] py-[4px]">
       <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
         <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>

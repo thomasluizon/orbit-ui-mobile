@@ -1,7 +1,6 @@
 import { StyleSheet, Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
-import { ActionRow } from '@/components/ui/action-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createTokensV2 } from '@/lib/theme'
@@ -123,9 +122,9 @@ export function ConfirmSheet({
         onCancel()
       }}
       actions={
-        <ActionRow>
+        <>
           {cancelButton}{confirmButton}
-        </ActionRow>
+        </>
       }
     >
       <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text>
