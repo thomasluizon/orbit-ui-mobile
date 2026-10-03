@@ -1126,6 +1126,10 @@ for (const count of [0, 1, 6]) {
   T(`relay: first crossing with ${count} launchers starts drain`, checkRelayStop({ ...relayOptions, wakeSources }).begin, true)
   T(`relay: pending drain with ${count} launchers injects only when empty`, Boolean(checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources })), count === 0)
 }
+for (const type of ["workflow", "subagent"]) {
+  const backgroundRuns = [{ id: `${type}-task`, type }]
+  T(`relay: pending ${type} blocks completion`, checkRelayStop({ ...relayOptions, backgroundRuns, state: { ...relayState, relay: { pending: true } } }), null)
+}
 T("relay: release watcher keeps drain waiting", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true } }, wakeSources: [{ pid: 1, what: "Release ui run 1" }] }), null)
 T("relay: retry cooldown injects nothing", checkRelayStop({ ...relayOptions, state: { ...relayState, relay: { pending: true, lastAttemptAt: new Date().toISOString() } } }), null)
 T("relay: two failures near auto compact permit fallback", checkRelayStop({ ...relayOptions, measuredTokens: 950000, state: { ...relayState, relay: { pending: true, failures: 2 } } }).fallback, true)
@@ -1198,6 +1202,64 @@ T("relay post-tool: pending checks preserve handoff request", readHandoffRequest
 clearWakeSource(process.pid, wakeCheckout)
 T("relay post-tool: drained workers receive completion context", JSON.parse(postToolRelay().stdout || "{}").hookSpecificOutput,
   { hookEventName: "PostToolUse", additionalContext: checkRelayStop({ ...relayOptions, state: midTurnState }).message })
+const backgroundLaunches = JSON.parse(readFileSync(join(repoRoot, "tools", "__tests__", "fixtures", "claude-background-launches.json"), "utf8"))
+const claudeDirectory = join(wakeCheckout, ".git", "claude")
+mkdirSync(join(claudeDirectory, "sessions"), { recursive: true })
+writeFileSync(join(claudeDirectory, "sessions", `${process.pid}.json`), JSON.stringify({ pid: process.pid, sessionId: relayPayload.session_id }))
+const backgroundHook = (payload) => spawnSync(process.execPath, [join(wakeHooks, "relay-at-threshold.mjs")], {
+  input: JSON.stringify(payload), encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory },
+})
+for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
+  writeRunState(relayState, wakeCheckout)
+  const response = backgroundLaunches[type]
+  const launched = backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: response })
+  T(`relay adapter: ${type} threshold names the background drain`, launched.stdout.includes(type), true)
+  const id = response.taskId ?? response.agentId
+  const waiting = { ...relayPayload, background_tasks: [{ id, type, status: "running", description: "Background work" }] }
+  T(`relay adapter: live ${type} Stop cannot complete drain`, backgroundHook(waiting).stdout, "")
+  T(`relay adapter: live ${type} PostToolUse cannot complete drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout, "")
+  T(`relay adapter: finished ${type} completes on authoritative empty Stop`, backgroundHook(relayPayload).stdout.includes("drain is complete"), true)
+  backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: response })
+  const recordPath = join(wakeCheckout, ".git", "orbit-background-runs", relayPayload.session_id, `${id}.json`)
+  const record = JSON.parse(readFileSync(recordPath, "utf8"))
+  writeFileSync(recordPath, JSON.stringify({ ...record, processStartIdentity: "previous process" }))
+  T(`relay adapter: stale ${type} does not strand the pending drain`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout.includes("drain is complete"), true)
+}
+const backgroundModulePath = join(wakeCheckout, "tools", "lib", "background-runs.mjs")
+const backgroundModuleSource = readFileSync(backgroundModulePath, "utf8")
+const probeMarker = join(claudeDirectory, "identity-probe-entered")
+const recorderTranscript = readFileSync(relayTranscript, "utf8")
+writeFileSync(relayTranscript, Array.from({ length: 20 }, (_, index) => JSON.stringify({ type: "assistant", message: { id: `recorder-${index}`, usage: relayUsage } })).join("\n") + "\n")
+for (const [type, tool] of [["workflow", "Workflow"], ["subagent", "Agent"]]) {
+  writeRunState(relayState, wakeCheckout)
+  rmSync(probeMarker, { force: true })
+  const probeEntry = "const sessionOwner = (sessionId, claudeDirectory) => {"
+  T("relay recorder: slow probe injection targets the production identity lookup", backgroundModuleSource.includes(probeEntry), true)
+  writeFileSync(backgroundModulePath, backgroundModuleSource.replace(probeEntry, `${probeEntry}
+    writeFileSync(${JSON.stringify(probeMarker)}, "entered")
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000)
+  `))
+  let interrupted
+  try {
+    interrupted = spawnSync(process.execPath, [join(wakeHooks, "relay-at-threshold.mjs")], {
+      input: JSON.stringify({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: tool, tool_response: backgroundLaunches[type] }),
+      encoding: "utf8", env: { ...process.env, CLAUDE_CONFIG_DIR: claudeDirectory }, timeout: 1500, killSignal: "SIGKILL",
+    })
+  } finally { writeFileSync(backgroundModulePath, backgroundModuleSource) }
+  T(`relay recorder: ${type} launch times out inside the identity probe`, existsSync(probeMarker) && interrupted.error?.code === "ETIMEDOUT", true)
+  const id = backgroundLaunches[type].taskId ?? backgroundLaunches[type].agentId
+  const crossing = backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} })
+  T(`relay recorder: interrupted ${type} launch is named at the threshold before Stop`, crossing.stdout.includes(`${type} ${id}`), true)
+  T(`relay recorder: interrupted ${type} launch holds the pending drain before Stop`, backgroundHook({ ...relayPayload, hook_event_name: "PostToolUse", tool_name: "Bash", tool_response: {} }).stdout, "")
+  const refused = spawnSync(process.execPath, [realpathSync(join(wakeCheckout, "tools", "relay-session.mjs"))], {
+    encoding: "utf8", env: { ...process.env, CLAUDE_CODE_SESSION_ID: relayPayload.session_id },
+  })
+  T(`relay recorder: relay CLI refuses the interrupted ${type} launch by id`, { status: refused.status, stderr: refused.stderr },
+    { status: 1, stderr: `RELAY_FAILED: relay drain has background ${type} ${id}\n` })
+  T(`relay recorder: owning Stop settles interrupted ${type} launch`, backgroundHook(relayPayload).stdout.includes("drain is complete"), true)
+}
+writeFileSync(relayTranscript, recorderTranscript)
+writeRunState(midTurnState, wakeCheckout)
 writeRunState({ ...midTurnState, relay: { ...midTurnState.relay, lastAttemptAt: new Date().toISOString() } }, wakeCheckout)
 T("relay post-tool: retry cooldown injects nothing", postToolRelay().stdout, "")
 writeRunState(relayState, wakeCheckout)

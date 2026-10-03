@@ -19,6 +19,8 @@ It includes `--sleep`. It never invokes `/questions`, asks the owner anything, o
 session before a successor is confirmed. This is the exception to the owner handoff's ending
 rule below. Every other inventory, spec, prompt, commit and push requirement still applies.
 
+Relay mode waits for every live background Workflow run and background subagent to finish before ending the session, with the hook and relay tool checking recorded launch and completion evidence and the owning process start identity.
+
 Read the open chain with `openSessionChain` from `tools/lib/session-chain.mjs`, using this
 session's exact id. Carry every chain entry's complete decisions and open owner questions,
 along with the current decision log. Put every unresolved owner question in the spec's
