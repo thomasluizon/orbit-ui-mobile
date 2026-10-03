@@ -1069,7 +1069,7 @@
     "profileButton": "Google Calendar",
     "profileHint": "Importe eventos como hábitos",
     "fetchingEvents": "Buscando seus eventos...",
-    "noEvents": "Nenhum evento encontrado no seu Google Calendar.",
+    "noEvents": "Nenhum evento",
     "eventsFound": "{count} evento encontrado | {count} eventos encontrados",
     "selectAll": "Selecionar todos",
     "deselectAll": "Desmarcar todos",
@@ -1130,7 +1130,7 @@
       "reconnectBody": "A sincronização automática está pausada. Reconecte para retomar.",
       "reconnectCta": "Reconectar",
       "reviewModeTitle": "Revisar novos eventos",
-      "reviewModeEmpty": "Nenhum evento novo para revisar.",
+      "reviewModeEmpty": "Nada para revisar",
       "dismissSuggestion": "Descartar",
       "enableSuccess": "Sincronização automática ativada",
       "disableSuccess": "Sincronização automática desativada",
@@ -1209,7 +1209,7 @@
       }
     },
     "empty": {
-      "title": "Fale com a Astra sobre a sua rotina"
+      "title": "Fale com a Astra"
     },
     "placeholder": "Pergunte à Astra",
     "copy": "Copiar",
@@ -2959,7 +2959,7 @@
       "active": "Ativas",
       "completed": "Concluídas",
       "abandoned": "Abandonadas",
-      "empty": "Uma meta acompanha o que você quer alcançar: crie a partir de um hábito ou peça à Astra.",
+      "empty": "Suas metas",
       "createAction": "Criar meta",
       "request": "Me ajuda a criar uma meta.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
@@ -2994,7 +2994,7 @@
       "lockedAction": "Ver o Orbit Pro"
     },
     "achievements": {
-      "empty": "Ainda não há conquistas disponíveis.",
+      "empty": "Conquistas",
       "xp": "{current} / {next} XP",
       "xpProgress": "Progresso até o próximo nível",
       "earnedLabel": "Conquistada",
