@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createMockHabit, createMockProfile } from './factories'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
-import { buildComposerChips, resolveComposerChipSurface, resolveComposerDockSuggestions, type ComposerChipState } from '../chat/composer-chips'
+import { buildComposerChips, resolveComposerChipSurface, resolveComposerDockSuggestions, resolveComposerStripLayout, type ComposerChipState } from '../chat/composer-chips'
 import { toComposerSuggestions } from '../contracts/composer'
 
 const now = new Date('2026-09-12T12:00:00.000Z')
@@ -207,6 +207,37 @@ describe('composer chips', () => {
           const count = buildComposerChips(state({ surface, status, habits, detailHabit: { title: 'Reading', checklistItems: [] } })).length
           expect(count === 0 || (count >= 3 && count <= 6)).toBe(true)
         }
+      }
+    }
+  })
+})
+
+
+describe('composer strip layout', () => {
+  it('keeps the full row when chips fit or measurements are still arriving', () => {
+    expect(resolveComposerStripLayout(320, [80, 80, 80])).toEqual({ visibleWidth: 320, firstChipMinWidth: 0 })
+    expect(resolveComposerStripLayout(320, [80, 0, 80])).toEqual({ visibleWidth: 320, firstChipMinWidth: 0 })
+    expect(resolveComposerStripLayout(320, [])).toEqual({ visibleWidth: 320, firstChipMinWidth: 0 })
+  })
+
+  it('keeps every chip reachable and the next chip peeking across every compact width', () => {
+    for (let width = 320; width <= 1023; width++) for (const scale of [1, 2]) {
+      for (const naturalWidths of [[180, 200, 160], [424, 367, 307, 313], [80, 800, 120], [160, 140, 120, 180, 160, 140]]) {
+        const available = width - 32
+        const chipWidths = naturalWidths.map(size => Math.min(size * scale, available - 32))
+        const total = chipWidths.reduce((sum, size) => sum + size, (chipWidths.length - 1) * 8)
+        const layout = resolveComposerStripLayout(available, chipWidths)
+        if (total <= available) {
+          expect(layout.visibleWidth).toBe(available)
+          continue
+        }
+        chipWidths[0] = Math.max(chipWidths[0]!, layout.firstChipMinWidth)
+        const starts = chipWidths.map((_, index) => chipWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const partial = starts.findIndex((start, index) => start < layout.visibleWidth && start + chipWidths[index]! > layout.visibleWidth)
+        expect(partial).toBeGreaterThan(0)
+        expect(layout.visibleWidth - starts[partial]!).toBe(24)
+        expect(layout.visibleWidth).toBeLessThanOrEqual(available)
+        expect(chipWidths.every(size => size <= layout.visibleWidth)).toBe(true)
       }
     }
   })

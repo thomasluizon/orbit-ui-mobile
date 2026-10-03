@@ -6,6 +6,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
+import { COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
@@ -76,32 +77,46 @@ function SuggestionStrip({
   tokens,
   focusTarget,
 }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string; tokens: AppTokensV2; focusTarget: React.RefObject<TextInput | null> }>) {
+  const { fontScale } = useWindowDimensions()
+  const [availableWidth, setAvailableWidth] = useState(0)
+  const [measurements, setMeasurements] = useState<Record<string, number>>({})
+  const widths = suggestions.map(suggestion => measurements[suggestion.id] ?? 0)
+  const layout = resolveComposerStripLayout(availableWidth, widths)
+  const maxWidth = availableWidth > 0 ? availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
   return (
-    <ScrollView
-      horizontal
-      accessibilityLabel={label}
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.suggestions}
-    >
-      {suggestions.map((suggestion) => (
-        <InsetFocusPressable
-          key={suggestion.id}
-          accessibilityRole="button"
-          accessibilityLabel={suggestion.label}
-          onPress={() => {
-            if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
-            suggestion.onSelect()
-          }}
-          style={({ pressed }) => [
-            styles.suggestion,
-            { backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
-          ]}
-        >
-          {suggestion.icon}
-          <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
-        </InsetFocusPressable>
-      ))}
-    </ScrollView>
+    <View testID="composer-suggestions-layout" onLayout={event => setAvailableWidth(event.nativeEvent.layout.width)}>
+      <ScrollView
+        horizontal
+        accessibilityLabel={label}
+        showsHorizontalScrollIndicator={false}
+        style={{ width: layout.visibleWidth || undefined, flexGrow: 0 }}
+        contentContainerStyle={styles.suggestions}
+      >
+        {suggestions.map((suggestion, index) => (
+          <InsetFocusPressable
+            key={suggestion.id}
+            accessibilityRole="button"
+            accessibilityLabel={suggestion.label}
+            onLayout={event => {
+              const width = event.nativeEvent.layout.width
+              setMeasurements(previous => previous[suggestion.id] === width ? previous : { ...previous, [suggestion.id]: width })
+            }}
+            onPress={() => {
+              if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
+              suggestion.onSelect()
+            }}
+            style={({ pressed }) => [
+              styles.suggestion,
+              { maxWidth, minWidth: index === 0 ? layout.firstChipMinWidth : undefined,
+                backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
+            ]}
+          >
+            {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
+            <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+          </InsetFocusPressable>
+        ))}
+      </ScrollView>
+    </View>
   )
 }
 
@@ -453,22 +468,30 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   suggestions: {
-    gap: 8,
+    gap: COMPOSER_CHIP_GAP,
+    alignItems: 'flex-start',
   },
   suggestion: {
     minHeight: 48,
+    flexShrink: 0,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    alignItems: 'flex-start',
+    gap: COMPOSER_CHIP_GAP,
     paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: 999,
-    overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  suggestionIcon: {
+    flexShrink: 0,
+    justifyContent: 'center',
   },
   suggestionText: {
     minWidth: 0,
+    flexShrink: 1,
     fontFamily: 'Geist_500Medium',
     fontSize: 14,
+    lineHeight: 20,
   },
   voiceStatus: {
     minHeight: 48,

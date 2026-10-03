@@ -9,6 +9,7 @@ import {
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
 import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
+import { COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { ArrowUp, FileText, Image as ImageIcon, Loader2, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet } from '@/components/ui/sheet'
@@ -71,30 +72,50 @@ function AttachmentTray({
 }
 
 function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string }>) {
+  const layoutRef = useRef<HTMLDivElement>(null)
+  const [layout, setLayout] = useState({ availableWidth: 0, visibleWidth: 0, firstChipMinWidth: 0 })
+  useEffect(() => {
+    const host = layoutRef.current!
+    const observer = new ResizeObserver(() => {
+      const availableWidth = host.getBoundingClientRect().width
+      const chipWidths = [...host.querySelectorAll('button')].map(button => button.getBoundingClientRect().width)
+      const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
+      setLayout(previous => previous.availableWidth === next.availableWidth && previous.visibleWidth === next.visibleWidth
+        && previous.firstChipMinWidth === next.firstChipMinWidth ? previous : next)
+    })
+    observer.observe(host)
+    host.querySelectorAll('button').forEach(button => observer.observe(button))
+    return () => observer.disconnect()
+  }, [suggestions])
+  const maxWidth = layout.availableWidth > 0 ? layout.availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
   return (
-    <div
-      aria-label={label}
-      role="group"
-      data-focus-inset=""
-      onFocusCapture={revealFocusedControl}
-      className="-mx-1 -my-1 flex min-w-0 gap-2 overflow-x-auto p-1 scroll-p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {suggestions.map((suggestion) => (
-        <button
-          key={suggestion.id}
-          type="button"
-          aria-label={suggestion.label}
-          onClick={(event) => {
-            const root = event.currentTarget.closest('[data-composer-root]')
-            if (root instanceof HTMLElement) root.focus()
-            suggestion.onSelect()
-          }}
-          className="flex min-h-[48px] shrink-0 items-center gap-2 rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
-        >
-          {suggestion.icon}
-          <span className="whitespace-nowrap">{suggestion.label}</span>
-        </button>
-      ))}
+    <div ref={layoutRef} className="min-w-0">
+      <div
+        aria-label={label}
+        role="group"
+        data-focus-inset=""
+        onFocusCapture={revealFocusedControl}
+        style={{ width: layout.visibleWidth || undefined }}
+        className="flex min-w-0 items-start gap-[8px] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {suggestions.map((suggestion, index) => (
+          <button
+            key={suggestion.id}
+            type="button"
+            aria-label={suggestion.label}
+            style={{ maxWidth, minWidth: index === 0 ? layout.firstChipMinWidth : undefined }}
+            onClick={(event) => {
+              const root = event.currentTarget.closest('[data-composer-root]')
+              if (root instanceof HTMLElement) root.focus()
+              suggestion.onSelect()
+            }}
+            className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-[12px] py-[12px] text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+          >
+            {suggestion.icon ? <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center">{suggestion.icon}</span> : null}
+            <span data-suggestion-label className="min-w-0 [overflow-wrap:anywhere]">{suggestion.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

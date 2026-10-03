@@ -215,21 +215,24 @@ describe('Composer (mobile)', () => {
   it('keeps whole suggestion labels in one horizontally scrolling row', () => {
     const chips = suggestions(3)
     const tree = renderComposer(props({ suggestions: chips, value: 'Keep this draft' }))
+    TestRenderer.act(() => tree.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!.props.onLayout({ nativeEvent: { layout: { width: 380 } } }))
     const firstChip = byLabel(tree.root, chips[0]!.label)[0]
     const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
     expect(scroller.props.horizontal).toBe(true)
     expect(firstChip.findByType('Text').props.numberOfLines).toBeUndefined()
-    expect(StyleSheet.flatten(firstChip.props.style).maxWidth).toBeUndefined()
+    expect(StyleSheet.flatten(firstChip.props.style).maxWidth).toBeLessThanOrEqual(348)
     const config = Yoga.Config.create()
     const target = Yoga.Node.create(config)
     const label = Yoga.Node.create(config)
     try {
       applyComposerLayoutStyle(target, StyleSheet.flatten(firstChip.props.style))
       applyComposerLayoutInsets(target, StyleSheet.flatten(firstChip.props.style))
-      label.setMeasureFunc(() => ({ width: 1600, height: 40 }))
+      label.setMeasureFunc(width => ({ width: Math.min(1600, width), height: 40 * Math.ceil(1600 / width) }))
+      applyComposerLayoutStyle(label, StyleSheet.flatten(firstChip.findByType('Text').props.style))
       target.insertChild(label, 0)
       target.calculateLayout(undefined, undefined)
-      expect(target.getComputedWidth()).toBeGreaterThanOrEqual(1624)
+      expect(target.getComputedWidth()).toBeLessThanOrEqual(348)
+      expect(target.getComputedHeight()).toBeGreaterThan(48)
       expect(target.getComputedHeight()).toBeGreaterThanOrEqual(48)
       expect(label.getComputedLeft() + label.getComputedWidth()).toBeLessThanOrEqual(target.getComputedWidth())
       pressControl(firstChip)
@@ -237,6 +240,48 @@ describe('Composer (mobile)', () => {
       expect(tree.root.findByType('TextInput').props.value).toBe('Keep this draft')
     } finally { target.freeRecursive(); config.free(); TestRenderer.act(() => tree.unmount()) }
   })
+
+  it.each([320, 360, 384, 412, 640, 768, 900, 1023].flatMap(width => [1, 2].map(fontScale => ({ width, fontScale })) ))(
+    'reserves a 24 dp peek after measured chips at $width and $fontScale text', ({ width, fontScale }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+      const tree = renderComposer(props())
+      try {
+        const available = width - 32
+        const host = tree.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!
+        expect(host).toBeDefined()
+        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { width: available } } }))
+        const chipWidths = [180, 200, 160].map(natural => Math.min(natural * fontScale, available - 32))
+        for (const [index, chipWidth] of chipWidths.entries()) {
+          const chip = byLabel(tree.root, `chip sentinel ${index}`)[0]
+          const style = StyleSheet.flatten(chip.props.style)
+          expect(style.maxWidth).toBe(available - 32)
+          expect(style.minHeight).toBe(48)
+          expect(style.alignItems).toBe('flex-start')
+          expect(StyleSheet.flatten(chip.findByType('Text').props.style).flexShrink).toBe(1)
+          expect(chip.findByType('Text').props.numberOfLines).toBeUndefined()
+          TestRenderer.act(() => chip.props.onLayout({ nativeEvent: { layout: { width: chipWidth } } }))
+        }
+        const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
+        const visible = StyleSheet.flatten(scroller.props.style).width ?? available
+        chipWidths[0] = Math.max(chipWidths[0]!, StyleSheet.flatten(byLabel(tree.root, 'chip sentinel 0')[0].props.style).minWidth)
+        const starts = chipWidths.map((_, index) => chipWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const partial = starts.findIndex((start, index) => start < visible && start + chipWidths[index]! > visible)
+        if (chipWidths.reduce((sum, size) => sum + size, 16) > available) {
+          expect(partial).toBeGreaterThan(0)
+          expect(visible - starts[partial]!).toBe(24)
+        } else expect(visible).toBe(available)
+        expect(chipWidths.every(size => size <= visible)).toBe(true)
+        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { width: 288 } } }))
+        const resizedWidths = chipWidths.map(size => Math.min(size, 256))
+        const resizedVisible = StyleSheet.flatten(scroller.props.style).width
+        resizedWidths[0] = Math.max(resizedWidths[0]!, StyleSheet.flatten(byLabel(tree.root, 'chip sentinel 0')[0].props.style).minWidth)
+        const resizedStarts = resizedWidths.map((_, index) => resizedWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const resizedPartial = resizedStarts.findIndex((start, index) => start < resizedVisible && start + resizedWidths[index]! > resizedVisible)
+        expect(resizedPartial).toBeGreaterThan(0)
+        expect(resizedVisible - resizedStarts[resizedPartial]!).toBe(24)
+      } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+    },
+  )
 
   it.each([320, 360, 384, 412].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].flatMap((withOpener) =>
     [en, ptBR].flatMap((locale) => ['idle', 'sending', 'offline', 'atLimit', 'recording', 'transcribing'].map((state) => ({ width, fontScale, withOpener, locale, state }))),
