@@ -87,6 +87,34 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([en, ptBR])('reserves a 16 to 32 pixel peek for live Today chips at 320 with doubled text', async (messages) => {
+    const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0,
+      profile: createMockProfile() })
+    const labels = messages.shell.composer.chips.today
+    const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
+      label: labels[id.replace('today.', '') as keyof typeof labels], onSelect: vi.fn() })))
+    const view = render(<Composer state="idle" value="" suggestions={suggestions} words={messages.shell.composer}
+      onChangeValue={vi.fn()} onSend={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}html{font-size:32px}</style>${view.container.innerHTML}`)
+      await loadAppFonts(page)
+      const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
+      const measured = await strip.evaluate((element) => {
+        const viewport = element.getBoundingClientRect()
+        const controls = [...element.querySelectorAll('button')].map((button) => {
+          const bounds = button.getBoundingClientRect()
+          return { label: button.textContent, left: bounds.left, right: bounds.right, width: bounds.width }
+        })
+        const partial = controls.find((control) => control.left < viewport.right && control.right > viewport.right)
+        return { availableWidth: viewport.width, controls, peek: partial ? viewport.right - partial.left : 0 }
+      })
+      const evidence = JSON.stringify(measured)
+      expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
+      expect(measured.peek, evidence).toBeLessThanOrEqual(32)
+    } finally { await page.close(); view.unmount() }
+  })
+
   it.each([412, 1280].flatMap((width) => [false, true].map((forcedColors) => ({ width, forcedColors }))))(
     'draws one field and action focus ring at $width with forced colors $forcedColors', async ({ width, forcedColors }) => {
       const view = render(<Composer {...geometryProps('typing', en, false)} />)
