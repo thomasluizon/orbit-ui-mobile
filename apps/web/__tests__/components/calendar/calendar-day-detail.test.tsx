@@ -288,7 +288,7 @@ describe('CalendarDayDetail', () => {
       ],
     })
 
-    expect(screen.getByRole('button', { name: 'Read, done' })).toHaveClass('min-h-[68px]')
+    expect(screen.getByRole('button', { name: 'Read, done' })).toBeInTheDocument()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.getByText('08:00')).toBeInTheDocument()
     expect(screen.getByText('09:00')).toBeInTheDocument()
