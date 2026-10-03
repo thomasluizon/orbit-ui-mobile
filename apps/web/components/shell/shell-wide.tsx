@@ -197,6 +197,13 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   )
 }
 
+function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boolean) {
+  if (!hasBottomChrome) return { padding: '', minimum: 'min-h-0' }
+  return reservesComposerSpace
+    ? { padding: 'pb-24 lg:pb-8', minimum: 'min-h-24 lg:min-h-8' }
+    : { padding: 'pb-8', minimum: 'min-h-8' }
+}
+
 function ShellWideBackground({
   props,
   conversationOpen,
@@ -215,14 +222,12 @@ function ShellWideBackground({
   const hasFlowAction = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
-  const scrollerClearance = pinnedSlot !== undefined || props.fab !== undefined
-    ? 'pb-24 lg:pb-8'
-    : 'pb-8'
+  const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || props.fab !== undefined)
   const scroller = (
     <main
       ref={registerScroller}
       data-shell-scroller=""
-      className={`relative overflow-y-auto overflow-x-hidden ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${hasBottomChrome ? scrollerClearance : ''}`}
+      className={`relative overflow-y-auto overflow-x-hidden ${hasFlowAction ? 'h-full' : 'min-h-0 flex-1'} ${scrollerSpacing.padding}`}
     >
       <span
         aria-hidden="true"
@@ -244,7 +249,7 @@ function ShellWideBackground({
       <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
         <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           {props.header !== undefined ? <div data-shell-header="" className={hasFlowAction ? 'min-h-11 overflow-y-auto overscroll-contain' : 'shrink-0'}>{props.header}</div> : null}
-          <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.scrollToTop !== undefined && !conversationOpen ? (
               <div data-shell-scroll-to-top="" className="pointer-events-none absolute inset-x-0 top-2 z-sticky flex justify-center">
