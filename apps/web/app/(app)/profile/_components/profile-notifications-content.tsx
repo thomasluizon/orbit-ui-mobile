@@ -15,7 +15,7 @@ export function ProfileNotificationsContent() {
     await pushPreferences.togglePush(!pushSubscriptions.isCurrentDeviceRegistered)
     await pushSubscriptions.refresh()
   }
-  return <div className="flex flex-col" style={{ gap: 12 }}>
+  return <div className="flex flex-col" style={{ gap: 24 }}>
       <MarketingConsentSection showSectionLabel={false} contained acceptVariant="secondary" />
       <PushDevicesRow
         count={pushSubscriptions.count}

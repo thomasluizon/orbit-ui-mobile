@@ -38,7 +38,7 @@ export function ProfileNotificationsContent() {
   }
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <View style={{ gap: 12 }}>
+  return <View style={{ gap: 24 }}>
       <MarketingConsentSection showSectionLabel={false} contained />
       <PushDevicesRow
         tokens={tokens}
