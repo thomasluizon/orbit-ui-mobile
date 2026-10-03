@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Pressable, StyleSheet } from 'react-native'
 import { Moon, Sun } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -14,7 +15,6 @@ export function ThemeToggle() {
   return (
     <Pressable
       onPress={toggleTheme}
-      hitSlop={2}
       accessibilityRole="button"
       accessibilityLabel={
         isDark
@@ -41,8 +41,8 @@ export function ThemeToggle() {
 
 const styles = StyleSheet.create({
   button: {
-    width: 40,
-    height: 40,
+    width: TOUCH_TARGET_MIN,
+    height: TOUCH_TARGET_MIN,
     borderRadius: 999,
     overflow: 'hidden',
     borderWidth: 1.5,

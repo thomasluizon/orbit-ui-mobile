@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from "react-native";
 import { createTokensV2, radius, tintFromPrimary } from "@/lib/theme";
 
@@ -65,8 +66,8 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     addButton: {
-      minHeight: 44,
-      minWidth: 44,
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
       overflow: "hidden",
       flexDirection: "row",
       alignItems: "center",
@@ -94,7 +95,7 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     dropdownItem: {
       justifyContent: "center",
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       paddingHorizontal: 12,
       paddingVertical: 12,
       borderRadius: 12,
@@ -135,8 +136,8 @@ export function createSectionStyles(tokens: AppTokens) {
       gap: 4,
     },
     unitButton: {
-      minHeight: 44,
-      minWidth: 44,
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
       overflow: "hidden",
       paddingHorizontal: 8,
       paddingVertical: 8,
@@ -158,8 +159,8 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     customAddButton: {
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: radius.full,
       overflow: "hidden",
       backgroundColor: tokens.primary,
@@ -179,6 +180,9 @@ export function createSectionStyles(tokens: AppTokens) {
       gap: 8,
     },
     whenButton: {
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
+      justifyContent: "center",
       flex: 1,
       paddingHorizontal: 12,
       paddingVertical: 8,
@@ -205,6 +209,9 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     timeControls: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "flex-end" },
     timeAddButton: {
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
+      justifyContent: "center",
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderRadius: radius.full,
@@ -216,8 +223,8 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fgOnPrimary,
     },
     timeCancelButton: {
-      width: 40,
-      height: 40,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -354,8 +361,8 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 0,
     },
     emojiCategoryTab: {
-      minWidth: 44,
-      minHeight: 44,
+      minWidth: TOUCH_TARGET_MIN,
+      minHeight: TOUCH_TARGET_MIN,
       justifyContent: "center",
       overflow: "hidden",
       backgroundColor: tokens.bgField,
@@ -400,8 +407,8 @@ export function createStyles(tokens: AppTokens) {
     },
     emojiOption: {
       overflow: "hidden",
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: 12,
       alignItems: "center",
       justifyContent: "center",
@@ -544,8 +551,8 @@ export function createStyles(tokens: AppTokens) {
       flex: 1,
     },
     removeEndDateButton: {
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: radius.full,
       alignItems: "center",
       justifyContent: "center",
@@ -596,8 +603,8 @@ export function createStyles(tokens: AppTokens) {
       gap: 4,
     },
     colorCell: {
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -616,8 +623,8 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     tagFormSave: {
-      minWidth: 44,
-      minHeight: 44,
+      minWidth: TOUCH_TARGET_MIN,
+      minHeight: TOUCH_TARGET_MIN,
       justifyContent: "center",
       overflow: "hidden",
       paddingHorizontal: 12,
@@ -633,8 +640,8 @@ export function createStyles(tokens: AppTokens) {
     tagFormCancel: {
       borderRadius: radius.full,
       overflow: "hidden",
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -642,7 +649,7 @@ export function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      minHeight: 44,
+      minHeight: TOUCH_TARGET_MIN,
       paddingVertical: 12,
     },
     moreOptionsLabel: {

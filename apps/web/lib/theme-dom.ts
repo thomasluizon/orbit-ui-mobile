@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import {
   motionDurations,
   neutralColors,
@@ -34,6 +35,9 @@ export function resolveWebThemeVariables(
   const status = statusConstants[theme]
 
   return {
+    '--touch-min': `${TOUCH_TARGET_MIN}px`,
+    '--month-grid-touch-min': `${MONTH_GRID_TARGET_MIN}px`,
+    '--pill-visible-min': `${SMALL_PILL_VISIBLE_MIN}px`,
     '--bg': neutral.bg,
     '--bg-card': neutral.bgCard,
     '--bg-field': neutral.bgField,

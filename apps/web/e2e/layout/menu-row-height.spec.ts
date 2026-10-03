@@ -56,7 +56,7 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       const items = menu.getByRole('menuitem')
       expect(await items.count()).toBeGreaterThan(0)
       for (const item of await items.all()) {
-        await expect(item).toHaveCSS('height', width === 412 ? '56px' : '44px')
+        await expect(item).toHaveCSS('height', width === 412 ? '56px' : '48px')
       }
       const destructive = items.last()
       await expect(destructive).toHaveAttribute('data-destructive')
@@ -94,7 +94,7 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       const listMenu = page.getByRole('menu', { name: ptBr.habits.listOptions })
       await expect(listMenu).toBeVisible()
       for (const item of await listMenu.getByRole('menuitem').all()) {
-        await expect(item).toHaveCSS('height', width === 412 ? '56px' : '44px')
+        await expect(item).toHaveCSS('height', width === 412 ? '56px' : '48px')
       }
     })
   })

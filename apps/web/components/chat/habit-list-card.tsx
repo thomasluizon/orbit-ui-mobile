@@ -31,14 +31,14 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
     return {
       id: item.id,
       label: (
-        <button aria-label={t('chat.habitList.open', { name: item.title })} className="flex min-h-11 min-w-0 items-center gap-3 border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:text-[var(--fg-2)]" onClick={() => router.push(`/habits/${item.id}`)} type="button">
+        <button aria-label={t('chat.habitList.open', { name: item.title })} className="flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:text-[var(--fg-2)]" onClick={() => router.push(`/habits/${item.id}`)} type="button">
           <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)]">{item.emoji ?? '•'}</span>
           <span className="truncate">{item.title}</span>
         </button>
       ),
       meta: item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       control: occurrence ? (
-        <button aria-label={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} className="grid size-11 place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)]" onClick={() => {
+        <button aria-label={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} className="grid size-[var(--touch-min)] place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)]" onClick={() => {
           logHabit.mutate({ habitId: item.id, intent: logged ? 'unlog' : 'log' })
         }} type="button">
           <StatusRing status={logged ? 'done' : item.status === 'overdue' ? 'overdue' : 'empty'} size={24} label={t(logged ? 'chat.habitList.logged' : 'chat.habitList.pending')} />

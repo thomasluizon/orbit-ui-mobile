@@ -201,7 +201,7 @@ describe('Hoje header geometry', () => {
       await page.setContent(`<style>${stylesheet}</style>${document.body.innerHTML}`)
       await page.evaluate(async () => { await document.fonts.ready })
       const heights = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
-      expect(heights).toEqual(presentation === 'sheet' ? [56, 56] : [44, 44])
+      expect(heights).toEqual(presentation === 'sheet' ? [56, 56] : [48, 48])
       const fontSizes = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => Number.parseFloat(getComputedStyle(item).fontSize)))
       expect(fontSizes).toEqual([14, 14])
       await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
@@ -209,10 +209,10 @@ describe('Hoje header geometry', () => {
       expect(enlargedFontSizes).toEqual([28, 28])
       const enlarged = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
       if (presentation === 'sheet') expect(enlarged).toEqual([56, 56])
-      else expect(enlarged.every((height) => height > 44)).toBe(true)
+      else expect(enlarged.every((height) => height > 48)).toBe(true)
       await page.evaluate(() => { document.documentElement.style.fontSize = '48px' })
       const grown = await page.locator('[role="menuitem"]').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height))
-      expect(grown.every((height) => height > (presentation === 'sheet' ? 56 : 44))).toBe(true)
+      expect(grown.every((height) => height > (presentation === 'sheet' ? 56 : 48))).toBe(true)
     } finally { await page.close() }
   })
 

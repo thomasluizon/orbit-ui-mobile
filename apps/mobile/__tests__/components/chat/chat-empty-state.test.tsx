@@ -243,7 +243,7 @@ describe('ChatEmptyState (mobile)', () => {
     for (const chip of chips) {
       TestRenderer.act(() => chip.props.onPressIn())
       expect(StyleSheet.flatten(chip.props.style)).toMatchObject({
-        minHeight: 44,
+        minHeight: 48,
         borderRadius: 999,
         overflow: 'hidden',
         backgroundColor: tokens.bgHover,

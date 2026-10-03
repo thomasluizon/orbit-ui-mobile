@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
-import { BUTTON_SIZES } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, BUTTON_SIZES } from '@orbit/shared/theme'
 import { ProgressBar } from '@/components/ui/progress-bar'
 
 interface AstraAllowancePanelProps {
@@ -74,7 +74,7 @@ export function AstraAllowancePanel({
             className="touch-target inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full overflow-hidden border-0 bg-transparent font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]"
             style={{
               fontFamily: 'var(--font-sans)',
-              minHeight: 44,
+              minHeight: TOUCH_TARGET_MIN,
               paddingInline: BUTTON_SIZES.sm.paddingX,
               fontSize: BUTTON_SIZES.sm.fontSize,
             }}

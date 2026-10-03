@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { getDestinationIcon } from '@/components/navigation/destination-icon'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -26,6 +27,6 @@ export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<
 
 const styles = StyleSheet.create({
   group: { gap: 4 }, heading: { fontFamily: 'GeistMono_400Regular', fontSize: 12, textTransform: 'uppercase', padding: 12 },
-  row: { minHeight: 44, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center', borderRadius: radius.md, overflow: 'hidden' },
+  row: { minHeight: TOUCH_TARGET_MIN, padding: 12, gap: 12, flexDirection: 'row', alignItems: 'center', borderRadius: radius.md, overflow: 'hidden' },
   label: { flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 17 },
 })

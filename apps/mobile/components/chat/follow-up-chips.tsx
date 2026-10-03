@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { Pressable, Text, View } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -20,7 +21,7 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
         accessibilityLabel={text}
         onPress={() => onSelect(text)}
         style={({ pressed }) => ({
-          minHeight: 44, maxWidth: '100%', justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999, overflow: 'hidden',
+          minHeight: TOUCH_TARGET_MIN, maxWidth: '100%', justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999, overflow: 'hidden',
           backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
           borderWidth: 1, borderColor: tokens.hairline,
         })}

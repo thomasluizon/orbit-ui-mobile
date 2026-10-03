@@ -1,3 +1,4 @@
+import { measureTextOverflow } from '../../../e2e/layout/text-overflow-geometry'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
@@ -59,6 +60,7 @@ describe('Pro tier geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       const step = page.locator('[data-onboarding-step="paywall"]')
+      expect(await step.evaluate(measureTextOverflow)).toEqual([])
       const geometry = await step.evaluate(measureOnboardingProStep)
       expect(geometry.tiers.map((tier) => tier.interval)).toEqual(['yearly', 'monthly'])
       for (const tier of geometry.tiers) {
@@ -84,7 +86,8 @@ describe('Pro tier geometry in Chromium', () => {
         .filter((card) => card.querySelector('button') && !card.closest('[inert]'))
         .map((card) => {
           const bounds = card.getBoundingClientRect()
-          const button = card.querySelector('button')!.getBoundingClientRect()
+          const action = card.querySelector('button')!
+          const button = action.getBoundingClientRect()
           const style = getComputedStyle(card)
           const clone = card.cloneNode(true) as HTMLElement
           clone.style.width = `${bounds.width}px`

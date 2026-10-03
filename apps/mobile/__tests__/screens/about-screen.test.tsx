@@ -164,7 +164,7 @@ describe('AboutScreen', () => {
     expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
   })
 
-  it.each([412, 1280])('gives every destination a 52px body and a 44px content target at %ipx', (width) => {
+  it.each([412, 1280])('gives every destination a 52px touch body with decorative content at %ipx', (width) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree!: { root: TestNode; unmount: () => void }
     TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
@@ -175,7 +175,7 @@ describe('AboutScreen', () => {
       const body = StyleSheet.flatten(style({ pressed: false }))
       expect(body.minHeight).toBe(52)
       expect(body.paddingVertical).toBe(4)
-      expect(destination.findAll((node) => node.type === 'View' && flattenedStyle(node).minHeight === 44).length).toBeGreaterThan(0)
+      expect(destination.findAll((node) => node.type === 'View' && flattenedStyle(node).minHeight === 24).length).toBeGreaterThan(0)
     }
     TestRenderer.act(() => tree.unmount())
   })

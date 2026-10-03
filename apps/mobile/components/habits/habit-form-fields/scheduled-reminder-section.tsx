@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PillButton } from "@/components/ui/pill-button";
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
@@ -33,7 +34,6 @@ function ReminderWhenOption({ label, selected, onSelect, styles }: Readonly<{
         selected && styles.whenButtonActive,
         pressed && { transform: [{ scale: 0.96 }] },
       ]}
-      hitSlop={{ top: 3, bottom: 3 }}
       accessibilityRole="radio"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected }}
@@ -145,7 +145,7 @@ export function ScheduledReminderSection({
           <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
             {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
           </Text>
-          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
+          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
             <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
               {t("common.openSettings")}
             </Text>
@@ -161,10 +161,7 @@ export function ScheduledReminderSection({
                     {scheduledReminderLabel(sr)}
                   </Text>
                   <Pressable
-                    style={({ pressed }) =>
-                      pressed ? { transform: [{ scale: 0.96 }] } : null
-                    }
-                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', transform: [{ scale: pressed ? 0.96 : 1 }] })}
                     accessibilityRole="button"
                     accessibilityLabel={t("habits.form.removeScheduledReminder")}
                     onPress={() => removeScheduledReminder(idx)}

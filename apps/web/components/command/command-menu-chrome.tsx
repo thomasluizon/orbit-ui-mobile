@@ -16,7 +16,7 @@ export function CommandHabitSkeleton({ heading }: Readonly<{ heading: string }>)
     <CommandGroup forceMount heading={heading} className={GROUP_CLASS}>
       <div aria-hidden="true">
         {SKELETON_ROW_WIDTHS.map((width) => (
-          <div key={width} className="flex min-h-[44px] items-center gap-3 px-3">
+          <div key={width} className="flex min-h-[var(--touch-min)] items-center gap-3 px-3">
             <span className="skeleton-pulse size-6 shrink-0 rounded-[8px] bg-[var(--bg-well)]" />
             <span
               className="skeleton-pulse h-4 rounded-[8px] bg-[var(--bg-well)]"

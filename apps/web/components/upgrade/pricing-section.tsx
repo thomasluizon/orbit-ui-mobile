@@ -91,7 +91,7 @@ export function PricingSection({
                 event.preventDefault()
                 onStayFree()
               }}
-              className="inline-flex min-h-11 items-center text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              className="inline-flex min-h-[var(--touch-min)] items-center text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               {t('upgrade.convert.stayFree')}
             </Link>

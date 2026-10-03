@@ -179,7 +179,7 @@ describe('Menu (mobile)', () => {
     })
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
     const wideRows = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem')
-    expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([44, 44])
+    expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).minHeight)).toEqual([48, 48])
     expect(wideRows.map((row: any) => StyleSheet.flatten(row.props.style({ pressed: false })).height)).toEqual([undefined, undefined])
 
     const edit = tree.root

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -34,7 +35,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
     return {
       id: item.id,
       label: (
-        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: item.title })} onPress={() => router.push({ pathname: '/habits/[id]', params: { id: item.id } })} style={{ minHeight: 44, minWidth: 0, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t('chat.habitList.open', { name: item.title })} onPress={() => router.push({ pathname: '/habits/[id]', params: { id: item.id } })} style={{ minHeight: TOUCH_TARGET_MIN, minWidth: 0, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 }}>
           <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 32, height: 32, flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: tokens.bgWell }}><Text>{item.emoji ?? '•'}</Text></View>
           <Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text>
         </Pressable>
@@ -43,7 +44,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
       control: occurrence ? (
         <Pressable accessibilityRole="button" accessibilityLabel={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} onPress={() => {
           logHabit.mutate({ habitId: item.id, date: occurrenceDate, intent: logged ? 'unlog' : 'log' })
-        }} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+        }} style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center' }}>
           <StatusRing status={logged ? 'done' : item.status === 'overdue' ? 'overdue' : 'empty'} size={24} label={t(logged ? 'chat.habitList.logged' : 'chat.habitList.pending')} />
         </Pressable>
       ) : undefined,

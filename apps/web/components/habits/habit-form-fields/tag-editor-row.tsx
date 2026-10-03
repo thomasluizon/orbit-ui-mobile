@@ -44,7 +44,7 @@ export function TagEditorRow({
       />
       <button
         type="button"
-        className="habit-control-motion shrink-0 min-h-11 min-w-11 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96] disabled:opacity-40"
+        className="habit-control-motion shrink-0 min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:bg-[var(--primary-pressed)] active:scale-[0.96] disabled:opacity-40"
         style={{
           padding: '8px 12px',
           fontFamily: 'var(--font-sans)',
@@ -59,7 +59,7 @@ export function TagEditorRow({
       <button
         type="button"
         aria-label={cancelAriaLabel}
-        className="habit-control-motion touch-target shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+        className="habit-control-motion touch-target shrink-0 grid size-[var(--touch-min)] place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         disabled={disabled}
         onClick={onCancel}
       >

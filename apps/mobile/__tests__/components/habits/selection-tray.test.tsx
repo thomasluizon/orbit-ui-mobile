@@ -74,7 +74,7 @@ describe('SelectionTray', () => {
       const button = findButtonByLabel(tree, label)
       const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
       expect(button.props.hitSlop).toBeUndefined()
-      expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 44, height: 44 })
+      expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 48, height: 48 })
       expect(StyleSheet.flatten(style({ pressed: true })).backgroundColor).toBe(createTokensV2('purple', 'dark').bgHoverOpaque)
     }
   })
@@ -86,7 +86,7 @@ describe('SelectionTray', () => {
     const style = control.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
     expect(control.props.hitSlop).toBeUndefined()
     expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({
-      minHeight: 44, minWidth: 44,
+      minHeight: 48, minWidth: 48,
       borderRadius: 999, overflow: 'hidden',
     })
     const child = control.props.children as (state: { pressed: boolean }) => ReactElement<{ children: [ReactElement<{ style: StyleProp<ViewStyle>; pointerEvents: string }>, ReactElement] }>

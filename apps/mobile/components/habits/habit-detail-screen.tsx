@@ -1,4 +1,3 @@
-
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native'
@@ -6,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useIsFocused, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import { useReducedMotion } from 'react-native-reanimated'
-import { motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN, motionEasings, resolveResponsiveTypeRole } from '@orbit/shared/theme'
 import {
   buildHabitDetailUpdateRequest,
   createAccountScopedHabitDetailWriteQueue,
@@ -190,7 +189,7 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
         </View>
       </View>
       {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text numberOfLines={1} style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name}</Text></View>)}</View></View> : null}
-      {habit.description ? <Pressable testID="habit-detail-description" style={styles.headerMetadata} accessibilityRole="button" accessibilityLabel={habit.description} accessibilityHint={t('habits.detail.viewDescription')} accessibilityState={{ expanded: descriptionOpen }} onPress={() => setDescriptionOpen((open) => !open)} hitSlop={{ bottom: 12 }}><Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { color: tokens.fg3 }]}>{habit.description}</Text></Pressable> : null}
+      {habit.description ? <Pressable testID="habit-detail-description" style={[styles.headerMetadata, { minHeight: TOUCH_TARGET_MIN }]} accessibilityRole="button" accessibilityLabel={habit.description} accessibilityHint={t('habits.detail.viewDescription')} accessibilityState={{ expanded: descriptionOpen }} onPress={() => setDescriptionOpen((open) => !open)}><Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { color: tokens.fg3 }]}>{habit.description}</Text></Pressable> : null}
     </>
   )
 }
@@ -227,7 +226,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
               accessibilityElementsHidden={day.outsideMonth}
               importantForAccessibility={day.outsideMonth ? 'no-hide-descendants' : 'auto'}
               accessibilityLabel={day.outsideMonth ? undefined : `${cellLabel}, ${outcomeWord}, ${t('habits.detail.readOnlyWord')}`}
-              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: day.outsideMonth ? 0 : 1 }}
+              style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center', justifyContent: 'center', opacity: day.outsideMonth ? 0 : 1 }}
             >
               <Text style={{ color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] }}>{day.day}</Text>
             </View>
@@ -628,7 +627,7 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerSpacer: { flex: 1 },
   headerCopy: { width: '100%', minWidth: 0, gap: 4 },
-  renameTarget: { minWidth: 44, paddingVertical: 8, marginVertical: -8 },
+  renameTarget: { minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, paddingVertical: 8, marginVertical: -8 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
@@ -647,7 +646,7 @@ const styles = StyleSheet.create({
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
-  disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  disclosure: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rescueCard: { gap: 12, padding: 24, borderRadius: 20, borderWidth: 1 },
   rescueContent: { gap: 12 },
   rescueHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

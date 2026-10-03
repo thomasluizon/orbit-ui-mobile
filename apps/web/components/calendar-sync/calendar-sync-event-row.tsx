@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useTimeFormat } from '@/hooks/use-time-format'
 
 import { Bell, X } from '@/components/ui/icons'
@@ -191,7 +193,7 @@ export function CalendarSyncEventRow({
           disabled={dismissPending}
           aria-label={t('calendar.autoSync.dismissSuggestion')}
           className="icon-btn touch-target group/dismiss shrink-0 disabled:opacity-50"
-          style={{ minWidth: 44, minHeight: 44, marginTop: 8, marginInlineStart: 12, marginInlineEnd: 16, color: 'var(--fg-3)' }}
+          style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, marginTop: 8, marginInlineStart: 12, marginInlineEnd: 16, color: 'var(--fg-3)' }}
         >
           <X size={20} strokeWidth={1.8} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
         </button>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
-import { zLayers } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   Pressable,
@@ -163,7 +163,6 @@ export function Toast(props: Readonly<ToastProps & { outlined?: boolean }>) {
           onBlur={() => { setFocused(false); setActionPressed(false); setActionFocused(false) }}
           accessibilityRole="button"
           accessibilityLabel={props.actionLabel}
-          hitSlop={8}
           style={[styles.action, resolveActionOutline(actionFocused, tokens.fg1)]}
           testID="toast-action"
         >
@@ -237,7 +236,7 @@ const styles = StyleSheet.create({
   copy: { flex: 1, gap: 4 },
   message: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   detail: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  action: { padding: 8, minWidth: 28, minHeight: 28 },
+  action: { padding: 8, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN },
   actionText: {
     fontFamily: 'Geist_500Medium',
     fontSize: 14,

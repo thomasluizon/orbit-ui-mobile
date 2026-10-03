@@ -1,3 +1,4 @@
+import { measureTextOverflow } from './text-overflow-geometry'
 import { expect, test } from '@playwright/test'
 import { measureOnboardingProStep } from './onboarding-pro-step-geometry'
 import { API } from '@orbit/shared/api'
@@ -47,7 +48,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(bounds!.width).toBeLessThanOrEqual(width >= 1024 ? 560 : 440)
         const geometry = await step.evaluate(measureOnboardingProStep)
         expect(geometry.horizontalOffset).toBeLessThanOrEqual(1)
-        expect(geometry.overflow).toEqual([])
+        expect(await step.evaluate(measureTextOverflow)).toEqual([])
         expect(geometry.wrappedActions).toEqual([])
         if (branch === 'trial') {
           await expect(step.getByRole('button', { name: messages.onboarding.flow.done.seeDay, exact: true })).toHaveCount(1)

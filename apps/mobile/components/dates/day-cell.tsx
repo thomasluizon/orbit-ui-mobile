@@ -1,3 +1,4 @@
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
@@ -71,11 +72,11 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const outcome = resolveDayCellOutcome(props)
-  const size = props.size ?? 44
+  const size = props.size ?? MONTH_GRID_TARGET_MIN
   const interactive = Boolean(props.loggable) && !props.outsideMonth
   const containerStyle = [
     styles.container,
-    { width: size, height: size, borderRadius: size / 2, overflow: 'hidden' as const },
+    { width: props.size ?? '100%' as const, minHeight: size, borderRadius: size / 2, overflow: 'hidden' as const },
     props.outsideMonth ? styles.outsideMonth : null,
   ]
   const state = { ...props.accessibilityState, disabled: !props.loggable }

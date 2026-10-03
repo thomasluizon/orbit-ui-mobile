@@ -47,8 +47,8 @@ const TestRenderer = require('react-test-renderer')
 
 const HEADER_HEIGHT = 56
 const COLLECTION_SIZE = 25
-/** Every row is at least a 44px touch target, so this is a lower bound on the list's scrolled content. */
-const ROW_HEIGHT_FLOOR = 44
+/** Every row is at least a 48px touch target, so this is a lower bound on the list's scrolled content. */
+const ROW_HEIGHT_FLOOR = 48
 /** The test renderer measures no text, so each line takes a fixed height. Any positive height gives the same containment result. */
 const TEXT_LINE_HEIGHT = 20
 /**
@@ -228,8 +228,22 @@ describe('Sheet virtualized body (mobile)', () => {
     const sheet = tree.root.findByType(TrueSheet)
     const measured = ['native-sheet-header', 'native-sheet-footer'].map((testID) => {
       const host = findHost(tree.toJSON(), (element) => element.props.testID === testID)!
-      const layout = buildLayoutTree(host, new Map())
-      try { layout.calculateLayout(640, undefined); return layout.getComputedHeight() } finally { layout.freeRecursive() }
+      const nodes = new Map<HostJson, YogaNode>()
+      const layout = buildLayoutTree(host, nodes)
+      try {
+        layout.calculateLayout(640, undefined)
+        if (testID === 'native-sheet-footer') {
+          const action = findHost(host, (element) => element.type === 'Pressable')!
+          const button = nodes.get(action)!
+          const slop = action.props.hitSlop as number
+          const parent = button.getParent()!
+          expect(button.getComputedHeight()).toBe(44)
+          expect(button.getComputedHeight() + slop * 2).toBe(48)
+          expect(button.getComputedTop() - slop).toBeGreaterThanOrEqual(0)
+          expect(button.getComputedTop() + button.getComputedHeight() + slop).toBeLessThanOrEqual(parent.getComputedHeight())
+        }
+        return layout.getComputedHeight()
+      } finally { layout.freeRecursive() }
     })
     expect(measured).toEqual([72, 108])
     TestRenderer.act(() => {

@@ -1,4 +1,3 @@
-
 import { ActionRow } from '@/components/ui/action-row'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { TimeField } from '@/components/ui/time-field'
@@ -19,7 +18,7 @@ import { Switch } from '@/components/ui/switch'
 import { addPendingOperationListRow, changePendingOperationListRow, isPendingOperationEditableField, pendingOperationListRows, removePendingOperationListRow } from '@orbit/shared/hooks'
 import { XCircle, X } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RadioRow } from '@/components/ui/select-check'
@@ -84,7 +83,7 @@ function RemoveItemButton({ label, disabled, onClick }: Readonly<{ label: string
   return <Pressable
     accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}
     disabled={disabled} onPress={onClick}
-    style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}
+    style={({ pressed }) => ({ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}
   ><X accessible={false} color={tokens.fg2} size={20} strokeWidth={1.5} /></Pressable>
 }
 
@@ -118,7 +117,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
         if (field.valueType === 'boolean') return <View key={field.field} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><Switch label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} /></View>
         if (field.field === 'days') {
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
-          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{PENDING_OPERATION_WEEKDAYS.map((day) => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: days.includes(day), disabled: busy }} disabled={busy} onPress={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1.5, borderColor: days.includes(day) ? tokens.primary : tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : days.includes(day) ? tokens.selectionBg : 'transparent' })}><Text style={{ color: tokens.fg1 }}>{labels.dayLabels[day]}</Text></Pressable>)}</View></View>
+          return <View key={field.field} style={{ gap: 8 }}><Text style={{ color: tokens.fg1 }}>{label}</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{PENDING_OPERATION_WEEKDAYS.map((day) => <Pressable key={day} accessibilityRole="button" accessibilityState={{ selected: days.includes(day), disabled: busy }} disabled={busy} onPress={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 12, justifyContent: 'center', borderRadius: 999, overflow: 'hidden', borderWidth: 1.5, borderColor: days.includes(day) ? tokens.primary : tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : days.includes(day) ? tokens.selectionBg : 'transparent' })}><Text style={{ color: tokens.fg1 }}>{labels.dayLabels[day]}</Text></Pressable>)}</View></View>
         }
         if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={(draft[field.field] ?? '') as Time24 | ''} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input

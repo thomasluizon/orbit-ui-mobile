@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, useCallback } from "react";
 import { View, Text, } from "react-native";
@@ -26,7 +27,7 @@ export function HabitEmojiSelector({
   styles,
   onSelect,
   isDisabled = false,
-  wellSize = 46,
+  wellSize = TOUCH_TARGET_MIN,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -65,7 +66,7 @@ export function HabitEmojiSelector({
         <Pressable focusInset
           style={({ pressed }) => [
             styles.emojiWell,
-            { width: wellSize, height: wellSize, borderRadius: 12, overflow: 'hidden' },
+            { width: Math.max(wellSize, TOUCH_TARGET_MIN), height: Math.max(wellSize, TOUCH_TARGET_MIN), borderRadius: 12, overflow: 'hidden' },
             pressed
               ? {
                   backgroundColor: tokens.bgHover,
@@ -96,7 +97,7 @@ export function HabitEmojiSelector({
         headerAccessory={selectedEmoji ? (
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
             <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
-            <Pressable focusInset accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: 44, justifyContent: 'center', width: 44 }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
+            <Pressable focusInset accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} accessibilityState={{ disabled: isDisabled }} disabled={isDisabled} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, overflow: 'hidden', height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN }, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null, isDisabled ? { opacity: 0.45 } : null]} onPress={() => onSelect("")}>
               <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
@@ -117,7 +118,7 @@ export function HabitEmojiSelector({
                 <Pressable focusInset
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.emojiClearSearch")}
-                  style={({ pressed }) => [{ width: 44, height: 44, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, pressed && { backgroundColor: tokens.bgHover }]}
+                  style={({ pressed }) => [{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, pressed && { backgroundColor: tokens.bgHover }]}
                   onPress={() => setQuery('')}
                 >
                   <X size={20} color={tokens.fg2} strokeWidth={1.8} />

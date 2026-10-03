@@ -143,7 +143,7 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
   if (props.state === 'atLimit' || props.state === 'offline') {
     return (
       <div className="flex flex-col gap-2">
-        <p className="m-0 min-h-11 text-sm leading-5 text-[var(--fg-2)]">{props.limitReason}</p>
+        <p className="m-0 min-h-[var(--touch-min)] text-sm leading-5 text-[var(--fg-2)]">{props.limitReason}</p>
         {props.limitRecovery}
       </div>
     )

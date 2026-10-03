@@ -36,7 +36,7 @@ function SegmentOption<TValue extends string>({
       onClick={onActivate}
       onKeyDown={onKeyDown}
       data-disabled={disabled || undefined}
-      className={`habit-control-motion ${fullWidth ? 'min-h-12 px-2' : 'min-h-11 px-3'} min-w-0 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] data-[selected]:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-40${wideFill ? ' min-[1024px]:flex-1 basis-[8em] grow' : ''}`}
+      className={`habit-control-motion ${fullWidth ? 'min-h-12 px-2' : 'min-h-[var(--touch-min)] px-3'} min-w-0 rounded-[8px] text-[0.875rem] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] data-[selected]:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-40${wideFill ? ' min-[1024px]:flex-1 basis-[8em] grow' : ''}`}
     >
       <span className={`block ${fullWidth ? 'whitespace-nowrap' : 'whitespace-normal'}`}>{option.label}</span>
     </button>

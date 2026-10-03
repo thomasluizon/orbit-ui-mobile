@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type {
   BlockFrameItem,
   BlockFrameItemStatus,
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
   rowLabelNode: { minWidth: 0 },
   meta: { fontFamily: 'Geist_400Regular', fontSize: 12 },
   trailing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
+  iconButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   status: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusLabel: { fontFamily: 'Geist_400Regular', fontSize: 12 },
   irreversibleMark: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -311,10 +312,10 @@ const styles = StyleSheet.create({
   loadingBody: { flex: 1, minHeight: 0, gap: 8 },
   rowSkeleton: { height: 16, flex: 1, borderRadius: 8 },
   iconSkeleton: { height: 20, width: 20, borderRadius: 8 },
-  actionSkeleton: { height: 44, borderRadius: 8 },
+  actionSkeleton: { height: TOUCH_TARGET_MIN, borderRadius: 8 },
   staleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   staleMessage: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14 },
-  refreshButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12 },
+  refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12 },
   refreshLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   actionRow: { gap: 12 },
   actionContent: { gap: 12 },

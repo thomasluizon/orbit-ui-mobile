@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
@@ -19,7 +20,7 @@ function getDisabledStyle(disabled: boolean) {
 }
 
 function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean, hasTrailing: boolean) {
-  return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null, compact && hasTrailing ? styles.controlRowBody : null]
+  return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null, compact && hasAction ? { minHeight: TOUCH_TARGET_MIN + 8 } : null, compact && hasTrailing ? styles.controlRowBody : null]
 }
 
 function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
@@ -32,7 +33,7 @@ function titleLineLimit(textMode: ListRowProps['textMode'], wrapTitle: ListRowPr
 }
 
 function chevronStyle(textMode: ListRowProps['textMode']) {
-  return textMode ? styles.chevron : styles.control
+  return textMode ? styles.chevron : [styles.chevron, { width: TOUCH_TARGET_MIN }]
 }
 
 function wrappedTitleStyle(textMode: ListRowProps['textMode'], wrapTitle: ListRowProps['wrapTitle']) {
@@ -110,11 +111,11 @@ const styles = StyleSheet.create({
   compactBody: { minHeight: 52, paddingVertical: 4 },
   formBody: { paddingHorizontal: 12 },
   bareBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 0, paddingStart: 0, paddingEnd: 0 },
-  bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   controlRowBody: { paddingVertical: 0 },
   controlRowText: { paddingVertical: 4 },
   bodyWithAction: { paddingEnd: 0 },
-  action: { width: 44, height: 44, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
+  action: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, minHeight: 24, flexShrink: 0, alignItems: 'center' },
   textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
@@ -129,6 +130,6 @@ const styles = StyleSheet.create({
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
   wrappedValue: { flexShrink: 0, maxWidth: '100%' },
   trailing: { flexShrink: 0, paddingHorizontal: 8 },
-  control: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  control: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   disabled: { opacity: 0.5 },
 })

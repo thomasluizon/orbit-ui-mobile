@@ -71,7 +71,7 @@ function SidebarItem({
     </>
   )
   const className = [
-    'flex h-11 w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
+    'flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium',
     'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
     active
       ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
@@ -111,7 +111,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
           <button
             type="button"
             onClick={props.onPalette}
-            className="flex h-11 items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] active:scale-[0.96]"
+            className="flex min-h-[var(--touch-min)] items-center gap-3 rounded-[12px] bg-[var(--bg-field)] px-3 text-[14px] text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--border-control)] transition-[background-color,color,box-shadow,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] active:scale-[0.96]"
           >
             <Search size={20} strokeWidth={1.5} aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate text-left">{props.paletteLabel}</span>
@@ -146,7 +146,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
         {props.account ? (
           <Link
             href="/profile"
-            className="flex h-11 min-w-0 items-center gap-3 rounded-[12px] px-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+            className="flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
           >
             <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
               {Array.from(props.account)[0]?.toLocaleUpperCase()}
@@ -154,7 +154,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
             <span className="min-w-0 truncate">{props.account}</span>
           </Link>
         ) : (
-          <div data-shell-account="" data-loading="true" aria-hidden="true" className="h-11" />
+          <div data-shell-account="" data-loading="true" aria-hidden="true" className="min-h-[var(--touch-min)]" />
         )}
       </div>
     </aside>
@@ -248,7 +248,7 @@ function ShellWideBackground({
 
       <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
         <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col lg:pt-8" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
-          {props.header !== undefined ? <div data-shell-header="" className={hasFlowAction ? 'min-h-11 overflow-y-auto overscroll-contain' : 'shrink-0'}>{props.header}</div> : null}
+          {props.header !== undefined ? <div data-shell-header="" className={hasFlowAction ? 'min-h-[var(--touch-min)] overflow-y-auto overscroll-contain' : 'shrink-0'}>{props.header}</div> : null}
           <div className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
             {props.scrollToTop !== undefined && !conversationOpen ? (

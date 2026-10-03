@@ -179,7 +179,7 @@ describe('HabitChecklist checked rows', () => {
       const style = button.props.style as (state: { pressed: boolean }) => ViewStyle[]
       const pressed = StyleSheet.flatten(style({ pressed: true }))
       expect(button.props.hitSlop).toBeUndefined()
-      expect(pressed).toMatchObject({ width: 44, height: 44 })
+      expect(pressed).toMatchObject({ width: 48, height: 48 })
       if (!button.props.disabled) expect(pressed.backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
     }
   })
@@ -207,7 +207,7 @@ describe('HabitChecklist editable rows', () => {
     const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')
     if (!input) throw new Error('Expected checklist add input')
     let row = input.parent
-    while (row && StyleSheet.flatten(row.props.style as ViewStyle).minHeight !== 44) row = row.parent
+    while (row && StyleSheet.flatten(row.props.style as ViewStyle).minHeight !== 48) row = row.parent
     if (!row) throw new Error('Expected checklist add row')
     expect(StyleSheet.flatten(row.props.style as object)).toMatchObject({ gap: 12 })
   })

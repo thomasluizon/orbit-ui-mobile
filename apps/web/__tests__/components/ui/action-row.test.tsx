@@ -52,7 +52,7 @@ describe('ActionRow (web)', () => {
           </ActionRow></div></ActionRow>
         </footer>,
       )
-      const page = await browser.newPage()
+      const page = await browser.newPage({ viewport: { width: Math.max(1280, width + 96), height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
@@ -64,14 +64,21 @@ describe('ActionRow (web)', () => {
           const right = bounds.right - Number.parseFloat(styles.paddingRight)
           const buttons = [...footer.querySelectorAll('button')].map((button) => {
             const action = button.getBoundingClientRect()
-            return { left: action.left, right: action.right, height: action.height, width: action.width, top: action.top }
+            const hits = [
+              [action.left - 2, action.top + action.height / 2],
+              [action.right + 1.99, action.top + action.height / 2],
+              [action.left + action.width / 2, action.top - 2],
+              [action.left + action.width / 2, action.bottom + 1.99],
+            ].map(([x, y]) => button.contains(document.elementFromPoint(x!, y!)))
+            return { hits, left: action.left, right: action.right, height: action.height, width: action.width, top: action.top }
           })
           return { left, right, buttons }
         })
         for (const button of measured.buttons) {
           expect(button.left).toBeGreaterThanOrEqual(measured.left)
           expect(button.right).toBeLessThanOrEqual(measured.right)
-          expect(button.height).toBeGreaterThanOrEqual(44)
+          expect(button.height).toBe(44)
+          expect(button.hits).toEqual([true, true, true, true])
           expect(button.width).toBeLessThan(measured.right - measured.left)
         }
         expect(measured.buttons.at(-1)!.right).toBeCloseTo(measured.right, 1)

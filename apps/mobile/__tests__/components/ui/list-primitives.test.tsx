@@ -105,8 +105,8 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ alignItems: 'stretch' })
     expect(StyleSheet.flatten(row.props.style)).not.toHaveProperty('padding')
     for (const pressed of [false, true]) {
-      expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 44, height: 44, marginVertical: 16, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden', flexShrink: 0 })
-      expect(StyleSheet.flatten(actionContent(action, pressed).props.style)).toMatchObject({ width: 44, height: 44, flexShrink: 0 })
+      expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 16, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden', flexShrink: 0 })
+      expect(StyleSheet.flatten(actionContent(action, pressed).props.style)).toMatchObject({ width: 48, height: 48, flexShrink: 0 })
     }
     press(action)
     expect(onDownload).toHaveBeenCalledOnce()
@@ -116,9 +116,9 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).not.toHaveProperty('padding')
     expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16 })
     const chevron = navigation.findAllByType(View).find((node) =>
-      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 44,
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 48,
     )
-    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 44, height: 44, flexShrink: 0 })
+    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 48, minHeight: 24, flexShrink: 0 })
 
     void act(() => { tree.update(<ListRow title="Read only" readOnly />) })
     expect(tree.root.findAllByType(View).some((node) =>
@@ -147,8 +147,8 @@ describe('list primitives on mobile', () => {
     expect(rowStyle).not.toHaveProperty('padding')
     const [body, action] = tree.root.findAllByType(Pressable)
     if (!body || !action) throw new Error('ListRow controls did not render')
-    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16, paddingEnd: 0 })
-    expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 44, height: 44, marginVertical: 4, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden' })
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 56, paddingVertical: 4, paddingHorizontal: 16, paddingEnd: 0 })
+    expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 4, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden' })
     void act(() => { (body.props.onPressIn as () => void)() })
     expect(StyleSheet.flatten(resolvePressedStyle(body))).not.toHaveProperty('transform')
     expect(StyleSheet.flatten(body.findByType(View).props.style)).toMatchObject({ transform: [{ scale: 0.96 }] })

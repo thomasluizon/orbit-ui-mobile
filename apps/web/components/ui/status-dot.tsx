@@ -1,7 +1,7 @@
 'use client'
 
 import type { CSSProperties, MouseEvent } from 'react'
-import { orbitalMotion } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, orbitalMotion } from '@orbit/shared/theme'
 import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
 
 /** Single desaturated status dot. Hollow when state === 'empty'. */
@@ -65,7 +65,7 @@ export function StatusDot({
     )
   }
 
-  const hitPadding = Math.max(0, (44 - size) / 2)
+  const hitPadding = Math.max(0, (TOUCH_TARGET_MIN - size) / 2)
 
   return (
     <button
@@ -77,7 +77,6 @@ export function StatusDot({
       className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center transition-transform duration-[var(--status-dot-press-duration)] enabled:active:scale-[var(--status-dot-press-scale)] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
       style={{
         padding: hitPadding,
-        margin: -hitPadding,
         opacity: disabled ? 0.4 : 1,
         '--status-dot-press-duration': `${orbitalMotion.press.duration}ms`,
         '--status-dot-press-scale': orbitalMotion.press.scale,

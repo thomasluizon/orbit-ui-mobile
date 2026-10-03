@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { typeRoles } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, typeRoles } from '@orbit/shared/theme'
 import { StyleSheet, Text, View } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
@@ -64,8 +64,8 @@ export function Chip({
 
 const styles = StyleSheet.create({
   chip: {
-    minHeight: 44,
-    minWidth: 44,
+    minHeight: TOUCH_TARGET_MIN,
+    minWidth: TOUCH_TARGET_MIN,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: radius.full,

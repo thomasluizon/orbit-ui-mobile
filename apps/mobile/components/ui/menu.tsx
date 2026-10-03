@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import {
@@ -128,7 +129,7 @@ export function Menu({
   }
 
   const panelWidth = Math.min(PANEL_WIDTH, width - 16)
-  const estimatedHeight = Math.min(orderedItems.length * 44 + 16, height - 16)
+  const estimatedHeight = Math.min(orderedItems.length * TOUCH_TARGET_MIN + 16, height - 16)
   const position = getPopoverPosition({
     anchorRect: anchorRect ?? getFallbackPopoverAnchorRect(width),
     viewportWidth: width,
@@ -265,7 +266,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexDirection: 'row',
     gap: 12,
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },

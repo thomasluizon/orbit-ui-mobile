@@ -18,8 +18,8 @@ export function expectPressFill(tree: PressTree, label: string, backgroundColor:
   }
   expect(host().props.hitSlop).toBeUndefined()
   const resting = resolved(false)
-  expect(resting.minHeight ?? resting.height).toBeGreaterThanOrEqual(44)
-  expect(resting.minWidth ?? resting.width).toBeGreaterThanOrEqual(44)
+  expect(resting.minHeight ?? resting.height).toBeGreaterThanOrEqual(48)
+  expect(resting.minWidth ?? resting.width).toBeGreaterThanOrEqual(48)
   void renderer.act(() => { (host().props.onPressIn as (() => void) | undefined)?.() })
   expect(resolved(true)).toMatchObject({ backgroundColor, borderRadius, overflow: 'hidden' })
   expect(resolved(true).backgroundColor).not.toBe(resting.backgroundColor)

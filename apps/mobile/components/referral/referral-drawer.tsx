@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useCallback, useMemo, useState } from 'react'
 import {
   AccessibilityInfo,
@@ -268,8 +269,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     copyButton: {
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: radius.full,
       overflow: 'hidden',
       alignItems: 'center',

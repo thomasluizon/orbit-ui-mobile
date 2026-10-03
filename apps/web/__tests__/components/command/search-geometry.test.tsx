@@ -131,7 +131,7 @@ describe('search result geometry in Chromium', () => {
       for (const row of measured.rows) {
         expect(row.left, JSON.stringify(measured)).toBe(measured.field.left)
         expect(row.right, JSON.stringify(measured)).toBe(measured.field.right)
-        expect(row.height).toBeGreaterThanOrEqual(44)
+        expect(row.height).toBeGreaterThanOrEqual(48)
       }
     } finally { await page.close() }
   })

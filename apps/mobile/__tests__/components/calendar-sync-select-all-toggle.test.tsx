@@ -47,7 +47,7 @@ describe('mobile SelectAllToggle', () => {
     expect(button.props.disabled).toBe(disabled)
     expect(button.props.hitSlop).toBeUndefined()
     expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', ...(disabled ? { opacity: 0.6 } : {}) })
-    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 44, height: 44, backgroundColor: tokens.bgHover })
+    expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 48, height: 48, backgroundColor: tokens.bgHover })
   })
 
   it('exposes the select-all label when nothing is selected', () => {

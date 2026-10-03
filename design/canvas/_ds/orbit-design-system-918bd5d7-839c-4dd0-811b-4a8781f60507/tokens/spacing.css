@@ -8,5 +8,5 @@
   --pad-row:var(--s-4);    /* list row padding: 16 */
   --row-h:68px;            /* habit row */
   --row-h-compact:52px;    /* settings / plain list row */
-  --touch-min:44px; --touch-comfy:56px;
+  --touch-min:48px; --touch-comfy:56px;
 }

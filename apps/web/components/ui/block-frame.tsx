@@ -68,7 +68,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
         {isEditable && onEditItem && props.editLabel ? (
           <button
             aria-label={props.editLabel}
-            className="flex size-11 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)]"
+            className="flex size-[var(--touch-min)] items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)]"
             onClick={() => onEditItem(item.id)}
             type="button"
           >
@@ -98,7 +98,7 @@ function LoadingBody({ rows, hasActions }: Readonly<{ rows: number; hasActions: 
           </div>
         ))}
       </div>
-      {hasActions ? <div className="h-11 rounded-[8px] bg-[var(--bg-elev-2)]" /> : null}
+      {hasActions ? <div className="h-[var(--touch-min)] rounded-[8px] bg-[var(--bg-elev-2)]" /> : null}
     </>
   )
 }
@@ -127,7 +127,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
     return (
       <div className="flex shrink-0 justify-end text-sm text-[var(--fg-2)]">
         {frameProps.onRefresh ? <button
-          className="flex min-h-11 items-center gap-2 rounded-full px-3 text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"
+          className="flex min-h-[var(--touch-min)] items-center gap-2 rounded-full px-3 text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"
           onClick={frameProps.onRefresh}
           type="button"
         >

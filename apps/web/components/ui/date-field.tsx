@@ -1,5 +1,7 @@
 'use client'
 
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useState, useId, useRef, useCallback, useMemo, useEffect } from 'react'
 import {
   addMonths,
@@ -168,7 +170,7 @@ export function DateField({
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 
-      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * 44} virtualizedBody={pickerMode === 'years'}>
+      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * MONTH_GRID_TARGET_MIN} virtualizedBody={pickerMode === 'years'}>
         <div className="flex shrink-0 items-center justify-between mb-2">
           <button
             type="button"
@@ -187,7 +189,7 @@ export function DateField({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="inline-flex min-h-11 min-w-11 items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+              className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center text-xs font-medium rounded-sm px-1 py-1 hover:bg-[var(--bg-hover)] transition-[background-color,color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
               style={{ color: 'var(--fg-1)' }}
             >
               {yearLabel}
@@ -248,6 +250,7 @@ export function DateField({
                         <button
                           type="button"
                           data-day={format(day, 'yyyy-MM-dd')}
+                          style={{ width: '100%' }}
                           tabIndex={isRoving ? 0 : -1}
                           aria-label={formatLocaleDate(day, locale, {
                             month: 'long',
@@ -256,7 +259,7 @@ export function DateField({
                           })}
                           aria-pressed={!!isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          className="group mx-auto flex size-11 items-center justify-center overflow-hidden rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center overflow-hidden rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
                           onClick={() => selectDay(day)}
                         >
                           <span

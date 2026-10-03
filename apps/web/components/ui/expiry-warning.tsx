@@ -1,11 +1,13 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
 
 const EXPIRY_ACTION_STYLE = {
-  minHeight: 44,
+  minHeight: TOUCH_TARGET_MIN,
   margin: '-12px 0',
   fontFamily: 'var(--font-sans)',
   fontSize: 13,

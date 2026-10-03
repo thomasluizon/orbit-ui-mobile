@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PillButton } from "@/components/ui/pill-button";
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, type ReactNode } from "react";
@@ -113,7 +114,7 @@ export function ReminderSection({
           <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
             {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
           </Text>
-          {permission.showNotice && <Pressable accessibilityRole="button" style={({ pressed }) => [{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start", borderRadius: 999, overflow: "hidden" }, pressed && { backgroundColor: tokens.bgHover }]} onPress={permission.openSettings}>
+          {permission.showNotice && <Pressable accessibilityRole="button" style={({ pressed }) => [{ minHeight: TOUCH_TARGET_MIN, justifyContent: "center", alignSelf: "flex-start", borderRadius: 999, overflow: "hidden" }, pressed && { backgroundColor: tokens.bgHover }]} onPress={permission.openSettings}>
             <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
               {t("common.openSettings")}
             </Text>
@@ -130,7 +131,7 @@ export function ReminderSection({
                 <Pressable
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   style={({ pressed }) => [
-                    { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" },
+                    { minHeight: TOUCH_TARGET_MIN, minWidth: TOUCH_TARGET_MIN, alignItems: "center", justifyContent: "center" },
                     { borderRadius: 999, overflow: "hidden" },
                     reminderTimes.length + scheduledReminderCount <= 1 && { opacity: 0.45 },
                     pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback } from 'react'
 import {
   View,
@@ -366,7 +367,7 @@ export function DateField({
 }
 
 const DAY_SIZE = 36
-const DAY_TARGET_SIZE = 44
+const DAY_TARGET_SIZE = MONTH_GRID_TARGET_MIN
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
@@ -401,16 +402,16 @@ function createStyles(tokens: AppTokens) {
     },
     monthNavButton: {
       overflow: 'hidden',
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: radius.sm,
       alignItems: 'center',
       justifyContent: 'center',
     },
     yearButton: {
       overflow: 'hidden',
-      minWidth: 44,
-      minHeight: 44,
+      minWidth: TOUCH_TARGET_MIN,
+      minHeight: TOUCH_TARGET_MIN,
       borderRadius: radius.sm,
       alignItems: 'center',
       justifyContent: 'center',
@@ -449,8 +450,8 @@ function createStyles(tokens: AppTokens) {
       textAlign: 'center',
     },
     dayTarget: {
-      width: DAY_TARGET_SIZE,
-      height: DAY_TARGET_SIZE,
+      width: `${100 / 7}%`,
+      minHeight: DAY_TARGET_SIZE,
       borderRadius: radius.full,
       justifyContent: 'center',
       alignItems: 'center',

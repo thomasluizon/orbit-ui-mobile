@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { zLayers } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, zLayers } from '@orbit/shared/theme'
 import { getSessionGeneration, refreshSession, useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
@@ -159,7 +159,6 @@ export function ExpiryWarning() {
         <Pressable
           onPress={() => void handleAction()}
           disabled={refreshState === 'refreshing'}
-          hitSlop={6}
           style={styles.actionPress}
           accessibilityRole="button"
           accessibilityState={{
@@ -218,6 +217,8 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.statusOverdueText,
     },
     actionPress: {
+      minWidth: TOUCH_TARGET_MIN,
+      minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,

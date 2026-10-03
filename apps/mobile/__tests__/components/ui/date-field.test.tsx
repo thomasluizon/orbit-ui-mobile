@@ -95,8 +95,8 @@ describe('DateField (mobile)', () => {
           ? target.props.style({ pressed: false })
           : target.props.style,
       )
-      expect(targetStyle.width).toBe(44)
-      expect(targetStyle.height).toBe(44)
+      expect(targetStyle.width).toBe(`${100 / 7}%`)
+      expect(targetStyle.minHeight).toBe(44)
 
       const circle = target.props.children
       const circleStyle = flatten(circle.props.style)
@@ -118,8 +118,8 @@ describe('DateField (mobile)', () => {
       const resting = flatten(target.props.style({ pressed: false }))
       const pressed = flatten(target.props.style({ pressed: true }))
       expect(target.props.hitSlop).toBeUndefined()
-      expect(resting.minHeight ?? resting.height).toBe(44)
-      expect(resting.minWidth ?? resting.width).toBe(44)
+      expect(resting.minHeight ?? resting.height).toBe(48)
+      expect(resting.minWidth ?? resting.width).toBe(48)
       expect(pressed).toMatchObject({ borderRadius: 8, overflow: 'hidden' })
       expect(pressed.backgroundColor).toBe(target.props.disabled ? undefined : tokens.bgHover)
       expect(resting.backgroundColor).toBeUndefined()

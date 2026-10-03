@@ -14,7 +14,7 @@ async function assertCompactTarget(row: Locator) {
     }
   })
   expect(bounds.height).toBe(52)
-  expect(bounds.width).toBeGreaterThanOrEqual(44)
+  expect(bounds.width).toBeGreaterThanOrEqual(48)
   expect(bounds.clipped).toBe(false)
   expect(bounds.paddingStart).toBe(16)
 }

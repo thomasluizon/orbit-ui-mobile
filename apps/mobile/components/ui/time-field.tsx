@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useMemo, useRef, useState } from 'react'
 import { InsetFocusPressable } from './inset-focus-pressable'
 import {
@@ -38,7 +39,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
 
-const ROW_HEIGHT = 44
+const ROW_HEIGHT = TOUCH_TARGET_MIN
 const COLUMN_HEIGHT = 220
 
 type Tokens = ReturnType<typeof createTokensV2>

@@ -13,7 +13,7 @@ import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-const cases = [412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
+const cases = [320, 360, 412, 1280].flatMap((width) => (['en', 'pt-BR'] as const).flatMap((locale) =>
   ['fixed', 'flexible', 'unresolved', 'proposed', 'locked'].map((cadence) => ({ width, locale, cadence })),
 ))
 
@@ -59,7 +59,7 @@ describe('habit understanding geometry', () => {
         const dayTargets = [...fieldset.querySelectorAll('button')].map((button) => {
           const bounds = button.getBoundingClientRect()
           const parent = fieldset.getBoundingClientRect()
-          return { width: bounds.width, height: bounds.height, top: bounds.top, contained: bounds.left >= parent.left && bounds.right <= parent.right }
+          return { width: bounds.width, height: bounds.height, top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right, contained: bounds.left >= parent.left && bounds.right <= parent.right }
         })
         const emoji = main.querySelector('button[aria-haspopup="dialog"]')!
         return { overflowing: main.scrollWidth > main.clientWidth, dayTargets, radius: getComputedStyle(emoji).borderRadius,
@@ -69,9 +69,13 @@ describe('habit understanding geometry', () => {
       expect(measured.radioGroups).toBe(0)
       expect(measured.radius).toBe('12px')
       expect(measured.buttonCount).toBe(['fixed', 'proposed'].includes(cadence) ? 8 : 10)
-      expect(new Set(measured.dayTargets.map((target) => target.top)).size).toBe(1)
+      for (let index = 1; index < measured.dayTargets.length; index++) {
+        const previous = measured.dayTargets[index - 1]!
+        const target = measured.dayTargets[index]!
+        expect(target.top >= previous.bottom || target.left >= previous.right).toBe(true)
+      }
       for (const target of measured.dayTargets) {
-        expect(target).toMatchObject({ width: 44, height: 44, contained: true })
+        expect(target).toMatchObject({ width: 48, height: 48, contained: true })
       }
       for (const control of await page.locator('main button:not([aria-haspopup])').all()) {
         expect(await control.isDisabled()).toBe(cadence === 'locked')

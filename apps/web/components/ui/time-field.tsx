@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { TimeFieldProps } from '@orbit/shared/contracts/forms'
@@ -60,7 +62,7 @@ function TimeOption({
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
-      className={`w-full min-h-[44px] snap-center rounded-[12px] py-2 text-center text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
+      className={`w-full min-h-[var(--touch-min)] rounded-[12px] py-2 text-center text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
         selected
           ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]'
           : 'text-[var(--fg-1)] hover:bg-[var(--bg-hover)]'
@@ -90,7 +92,7 @@ function TimeColumn({ values, selected, formatValue, label, onSelect }: Readonly
   }, [])
 
   return (
-    <div ref={listRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className="relative h-full min-h-0 min-w-0 flex-1 snap-y overflow-y-auto overscroll-contain px-1 [scrollbar-width:thin]">
+    <div ref={listRef} data-focus-inset="" onFocusCapture={revealFocusedControl} className="relative h-full min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-1 [scrollbar-width:thin]">
       <RadioGroup aria-label={label}>
         {values.map((option) => (
           <TimeOption
@@ -150,7 +152,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
           data-focus-perimeter=""
           aria-invalid={error ? true : undefined}
           aria-describedby={error || hint ? descriptionId : undefined}
-          className={`orbit-field-hover min-h-[54px] w-full rounded-[12px] border-0 bg-[var(--bg-field)] px-4 text-base text-[var(--fg-1)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] ${canClear ? 'pr-24' : 'pr-12'} ${error ? 'shadow-[inset_0_0_0_2px_var(--status-bad)]' : 'shadow-[inset_0_0_0_1px_var(--border-control)]'} disabled:opacity-60`}
+          className={`orbit-field-hover min-h-[54px] w-full rounded-[12px] border-0 bg-[var(--bg-field)] px-4 text-base text-[var(--fg-1)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight] ${canClear ? 'pr-[calc(2*var(--touch-min)+8px)]' : 'pr-[calc(var(--touch-min)+8px)]'} ${error ? 'shadow-[inset_0_0_0_2px_var(--status-bad)]' : 'shadow-[inset_0_0_0_1px_var(--border-control)]'} disabled:opacity-60`}
         />
         <button
           type="button"
@@ -160,7 +162,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
           aria-label={`${label}: ${selectTimeLabel}`}
           onClick={onOpenPicker}
           className="absolute top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)] disabled:opacity-60"
-          style={{ right: canClear ? 48 : 4, width: 44, height: 44 }}
+          style={{ right: canClear ? TOUCH_TARGET_MIN + 4 : 4, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
         >
           <Clock3 size={20} strokeWidth={1.8} aria-hidden="true" />
         </button>
@@ -170,7 +172,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
             onClick={onClear}
             aria-label={clearLabel}
             className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)]"
-            style={{ width: 44, height: 44 }}
+            style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
           >
             <X size={16} strokeWidth={1.8} aria-hidden="true" />
           </button>
@@ -275,7 +277,7 @@ export function TimeField({
           onClose={() => setOpen(false)}
           actions={<PillButton size="sm" onClick={applyDraft}>{t('common.done')}</PillButton>}
         >
-          <div className="flex min-h-[44px] shrink gap-1" style={{ height: 220 }}>
+          <div className="flex min-h-[var(--touch-min)] shrink gap-1" style={{ height: 220 }}>
             <TimeColumn
               values={resolvedHourCycle === 'h23' ? HOURS_24 : HOURS_12}
               selected={resolvedHourCycle === 'h23' ? pickerDraft.hour24 : hour12}

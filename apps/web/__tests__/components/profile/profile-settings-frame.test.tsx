@@ -31,7 +31,7 @@ describe('ProfileSettingsFrame', () => {
     )
 
     expect(screen.getByTestId('profile-value-row')).toHaveStyle({
-      minHeight: '44px',
+      minHeight: '48px',
       padding: '12px 16px',
     })
     expect(screen.getByTestId('profile-value-row')).toHaveClass('flex-wrap')

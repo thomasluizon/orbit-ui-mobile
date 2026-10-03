@@ -247,8 +247,8 @@ await Promise.resolve()
       minutesScroll.props.onLayout({ nativeEvent: { layout: { height: 220 } } })
     })
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: 844, animated: false })
-    expect(scrollTo).toHaveBeenCalledWith({ y: 2428, animated: false })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 940, animated: false })
+    expect(scrollTo).toHaveBeenCalledWith({ y: 2668, animated: false })
   })
 
   it('renders a clear button when value is set and onClear is provided', async () => {

@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import { ListRow } from '@/components/ui/list-row'
 import { Pressable, Text, View } from 'react-native'
@@ -59,7 +60,7 @@ function PushDevicesFeedback({
         </Text>
       ) : null}
       {permissionStatus === 'denied' ? (
-        <Pressable accessibilityRole="button" onPress={onOpenSettings} style={{ minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' }}>
+        <Pressable accessibilityRole="button" onPress={onOpenSettings} style={{ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 16, justifyContent: 'center' }}>
           <Text style={{ color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{t('settings.notifications.openSettings')}</Text>
         </Pressable>
       ) : null}

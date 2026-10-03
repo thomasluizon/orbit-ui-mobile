@@ -81,7 +81,7 @@ describe('mobile Toast', () => {
     expect(contrastOnSurface(focusedStyle.outlineColor, [tokens.bg])).toBeGreaterThanOrEqual(3)
   })
 
-  it('expands even a one-character action to a 44px target without reaching the copy', () => {
+  it('expands even a one-character action to a 48px target without reaching the copy', () => {
     const tree = render(
       <Toast kind="lost" message="Lost" detail="Try again" actionLabel="i" onAction={() => {}} />,
     )
@@ -91,10 +91,10 @@ describe('mobile Toast', () => {
     )
     const toastStyle = StyleSheet.flatten(tree.root.findByProps({ testID: 'toast-lost' }).props.style)
 
-    expect(actionStyle.minWidth + action.props.hitSlop * 2).toBeGreaterThanOrEqual(44)
-    expect(actionStyle.minHeight + action.props.hitSlop * 2).toBeGreaterThanOrEqual(44)
-    expect(toastStyle.gap).toBeGreaterThanOrEqual(action.props.hitSlop)
-    expect(toastStyle.padding).toBeGreaterThanOrEqual(action.props.hitSlop)
+    expect(actionStyle.minWidth + (action.props.hitSlop ?? 0) * 2).toBeGreaterThanOrEqual(48)
+    expect(actionStyle.minHeight + (action.props.hitSlop ?? 0) * 2).toBeGreaterThanOrEqual(48)
+    expect(toastStyle.gap).toBeGreaterThanOrEqual(action.props.hitSlop ?? 0)
+    expect(toastStyle.padding).toBeGreaterThanOrEqual(action.props.hitSlop ?? 0)
   })
 
   it.each([48, 112, 200])('keeps the public route height unchanged with a %ipx toast', (toastHeight) => {

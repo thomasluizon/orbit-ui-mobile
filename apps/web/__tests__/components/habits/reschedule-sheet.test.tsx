@@ -48,8 +48,8 @@ describe('RescheduleSheet', () => {
     expect(footer.querySelectorAll('[data-slot="action-row"]')).toHaveLength(1)
     const actions = footer.querySelector('[data-slot="action-row"]')!
     expect(Array.from(actions.children).map((button) => button.textContent)).toEqual(['habits.reschedule.dismiss', primary])
-    expect(Array.from(actions.children).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
-    expect(Array.from(actions.children).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])
+    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-size'))).toEqual(['sm', 'sm'])
+    expect(Array.from(actions.querySelectorAll('button')).map((button) => button.getAttribute('data-variant'))).toEqual(['ghost', 'primary'])
   })
   it.each(['free', 'error', 'accept'] as const)('dismisses the %s footer without applying or navigating', (state) => {
     if (state === 'free') h.profile = { hasProAccess: false, language: 'en' }

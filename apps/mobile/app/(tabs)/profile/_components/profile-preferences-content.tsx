@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { buildProfilePickerLabels, buildClockFormatOptions, resolveHourCycle, deriveProfilePreferenceValues } from '@orbit/shared/utils'
 import {
   ProfileValueRow,
@@ -48,7 +49,7 @@ function buildPreferenceRows(
             accessibilityState={{ selected }}
             accessibilityLabel={t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
             onPress={() => controls.handleThemeModeChange(mode)}
-            style={{ minHeight: 44, paddingHorizontal: 12, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? tokens.primaryDim : tokens.bgWell, borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline }}
+            style={{ minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 12, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? tokens.primaryDim : tokens.bgWell, borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline }}
           >
             <Text style={{ color: selected ? tokens.fg1 : tokens.fg2 }}>{t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}</Text>
           </Pressable>

@@ -500,7 +500,7 @@ describe('PendingOperationCard (mobile)', () => {
     const remove = tree.root.findAllByType(Pressable).find((node: any) => node.props.accessibilityLabel === 'chat.operation.remove Run')
     const tokens = createTokensV2('purple', 'dark')
 
-    expect(StyleSheet.flatten(remove.props.style({ pressed: true }))).toMatchObject({ width: 44, height: 44, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
+    expect(StyleSheet.flatten(remove.props.style({ pressed: true }))).toMatchObject({ width: 48, height: 48, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgHover })
     expect(StyleSheet.flatten(remove.props.style({ pressed: false })).backgroundColor).toBe('transparent')
   })
 

@@ -55,7 +55,7 @@ describe('PillButton (mobile)', () => {
     const visibleHeight = pressableHeight(tree)
 
     expect(visibleHeight).toBe(44)
-    expect(button.props.hitSlop).toBeUndefined()
+    expect(button.props.hitSlop).toBe(2)
     const geometry = flattenStyle(button.props.style({ pressed: false }))
     expect(geometry.minWidth).toBe(44)
     if (iconOnly) expect(Math.max(geometry.width, geometry.minWidth)).toBe(44)
@@ -68,7 +68,7 @@ describe('PillButton (mobile)', () => {
     expect(textContents(tree)).toContain('i')
     expect(geometry.minHeight).toBe(44)
     expect(geometry.minWidth).toBe(44)
-    expect(button.props.hitSlop).toBeUndefined()
+    expect(button.props.hitSlop).toBe(2)
   })
 
   it('keeps the standard target at its existing 50px size', () => {
@@ -158,6 +158,18 @@ describe('PillButton (mobile)', () => {
     expect(labels).toContain('Ghost')
     expect(labels).toContain('Delete')
     expect(labels).toContain('Caution')
+  })
+
+  it.each([false, true])('reserves a non-overlapping 48px small hit area (iconOnly: %s)', (iconOnly) => {
+    const tree = renderPill(iconOnly
+      ? <PillButton iconOnly label="Open menu"><span>Menu</span></PillButton>
+      : <PillButton>Continue</PillButton>)
+    const button = tree.root.findByType('Pressable')
+    const geometry = flattenStyle(button.props.style({ pressed: false }))
+    const visibleHeight = Math.max(geometry.height, geometry.minHeight)
+    expect(visibleHeight).toBe(44)
+    expect(visibleHeight + (button.props.hitSlop ?? 0) * 2).toBe(48)
+    expect(tree.root.findAllByType('View')).toHaveLength(0)
   })
 
   it('drives the pill height from the two-size scale', () => {

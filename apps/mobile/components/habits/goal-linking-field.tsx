@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
@@ -82,12 +83,12 @@ function createStyles(tokens: Tokens) {
     chip: { backgroundColor: tokens.bgWell, borderRadius: 8, maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 8 },
     chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 13, flexShrink: 1 },
     list: { flexShrink: 1, gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
-    search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: 44, paddingHorizontal: 12 },
+    search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: TOUCH_TARGET_MIN, paddingHorizontal: 12 },
     virtualList: { maxHeight: 320 },
     row: { alignItems: 'center', borderRadius: 12, overflow: 'hidden', flexDirection: 'row', gap: 12, minHeight: 48, paddingHorizontal: 12 },
     rowTitle: { color: tokens.fg1, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16 },
     rowValue: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }, disabled: { opacity: 0.4 }, pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
     empty: { alignItems: 'center', gap: 16, padding: 32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
-    action: { backgroundColor: tokens.bgWell, borderRadius: 999, overflow: 'hidden', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }, actionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    action: { backgroundColor: tokens.bgWell, borderRadius: 999, overflow: 'hidden', minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', paddingHorizontal: 16 }, actionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
   })
 }

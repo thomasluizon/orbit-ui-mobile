@@ -59,8 +59,8 @@ describe('neutral press feedback on Android', () => {
     for (const button of buttons) {
       const rest = resolvedStyle(button, false)
       expect(rest.backgroundColor ?? 'transparent').toBe('transparent')
-      expect(rest.minHeight ?? rest.height).toBeGreaterThanOrEqual(44)
-      expect(rest.minWidth ?? rest.width).toBeGreaterThanOrEqual(44)
+      expect(Number(rest.minHeight ?? rest.height) + 2 * Number(button.props.hitSlop ?? 0)).toBeGreaterThanOrEqual(48)
+      expect(Number(rest.minWidth ?? rest.width) + 2 * Number(button.props.hitSlop ?? 0)).toBeGreaterThanOrEqual(48)
       const pressed = resolvedStyle(button, true)
       expect(pressed.backgroundColor).toBe(button.props.accessibilityLabel !== 'Ghost' && button.props.accessibilityLabel !== 'profile.allowance.seePro' ? createTokensV2('orange', mode).bgHoverOpaque : createTokensV2('orange', mode).bgHover)
       expect(pressed.transform).toBeUndefined()

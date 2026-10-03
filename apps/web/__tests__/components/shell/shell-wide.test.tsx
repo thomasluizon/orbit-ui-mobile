@@ -190,12 +190,12 @@ describe('ShellWide', () => {
     const create = screen.getByRole('button', { name: 'Create' })
     const placeholder = container.querySelector('[data-shell-account]')
     expect(placeholder).toHaveAttribute('data-loading', 'true')
-    expect(placeholder).toHaveClass('h-11')
+    expect(placeholder).toHaveClass('min-h-[var(--touch-min)]')
     expect(placeholder?.previousElementSibling).toContainElement(create)
 
     rerender(<ShellWide {...props} account="Ada Lovelace" />)
     const account = screen.getByRole('link', { name: 'Ada Lovelace' })
-    expect(account).toHaveClass('h-11')
+    expect(account).toHaveClass('min-h-[var(--touch-min)]')
     expect(account.previousElementSibling).toContainElement(create)
   })
 

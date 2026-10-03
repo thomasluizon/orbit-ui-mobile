@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -514,7 +515,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   quietAction: {
-    minHeight: 44,
+    minHeight: TOUCH_TARGET_MIN,
     justifyContent: 'center',
   },
   quietPressed: {

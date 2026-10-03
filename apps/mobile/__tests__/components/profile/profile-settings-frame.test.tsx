@@ -53,7 +53,7 @@ describe('ProfileSettingsFrame', () => {
     })
 
     expect(tree.root.findByProps({ testID: 'profile-value-row' }).props.style).toEqual(
-      expect.objectContaining({ minHeight: 44, paddingHorizontal: 16, paddingVertical: 12, flexWrap: 'wrap' }),
+      expect.objectContaining({ minHeight: 48, paddingHorizontal: 16, paddingVertical: 12, flexWrap: 'wrap' }),
     )
     expect(tree.root.findByProps({ testID: 'profile-value-row' }).findAllByType('View').at(-1)?.props.style).toEqual(
       expect.objectContaining({ maxWidth: '100%', flexShrink: 1 }),

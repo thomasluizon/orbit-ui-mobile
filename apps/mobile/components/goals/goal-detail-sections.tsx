@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ListRow } from '@/components/ui/list-row'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
 import { formatGoalHistoryDelta, formatGoalHistoryNumber } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
@@ -89,7 +90,6 @@ export function GoalProgressHistorySection({
       {entries.length > HISTORY_PREVIEW_COUNT ? (
         <Pressable
           onPress={() => setShowAllHistory((prev) => !prev)}
-          hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           style={({ pressed }) => [
             styles.toggleAll,
             pressed && { opacity: 0.7 },
@@ -201,6 +201,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexShrink: 1,
     },
     toggleAll: {
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
+      justifyContent: 'center',
       paddingHorizontal: 0,
       paddingVertical: 8,
     },

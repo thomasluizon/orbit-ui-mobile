@@ -3,7 +3,7 @@ import { Keyboard, ScrollView, StyleSheet, View, useWindowDimensions } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { ShellNoticeSlotProvider, useShellNoticeHost } from '@/hooks/use-shell-notice-slot'
-import { BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, BUTTON_SIZES, zLayers, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
@@ -61,6 +61,28 @@ function ShellBottomChrome({
   )
 }
 
+function FlowViewport({ enabled, constrained, minimumHeight, children }: Readonly<{
+  enabled: boolean
+  constrained: boolean
+  minimumHeight: number
+  children: ReactNode
+}>) {
+  return (
+    <ScrollView
+      testID="shell-flow-viewport"
+      scrollEnabled={enabled && constrained}
+      nestedScrollEnabled={enabled && constrained}
+      keyboardShouldPersistTaps="handled"
+      style={styles.flowViewport}
+      contentContainerStyle={enabled && constrained
+        ? { flexGrow: 1, minHeight: minimumHeight + TOUCH_TARGET_MIN }
+        : styles.flowViewportContent}
+    >
+      {children}
+    </ScrollView>
+  )
+}
+
 function ShellScrollToTopSlot({ visible, content }: Readonly<{ visible: boolean; content: React.ReactNode }>) {
   if (!visible || content === undefined) return null
   return <View testID="shell-scroll-to-top" pointerEvents="box-none" style={styles.scrollToTop}>{content}</View>
@@ -87,8 +109,13 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()
+  const safeTop = (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0
   const columnWidth = Math.min(width, SHELL_CONTENT_MAX_WIDTH)
   const [keyboardVisible, setKeyboardVisible] = useState(false)
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null)
+  const safeBottom = keyboardVisible ? 0 : insets.bottom
+  const minimumFlowHeight = safeTop + TOUCH_TARGET_MIN + BUTTON_SIZES.md.height + safeBottom
+  const constrainedFlow = !navigationEnabled && viewportHeight !== null && viewportHeight < minimumFlowHeight
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true))
     const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false))
@@ -106,37 +133,40 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   const shell = (
     <View
       testID="shell-412"
+      onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
       style={[styles.root, { backgroundColor: tokens.bg }]}
     >
-      <View
-        testID="shell-background"
-        style={[styles.background, { width: columnWidth, paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
-        importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
-      >
-        {header !== undefined ? (
-          navigationEnabled ? <View testID="shell-header">{header}</View> : (
-            <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{header}</ScrollView>
-          )
-        ) : null}
+      <FlowViewport enabled={!navigationEnabled} constrained={constrainedFlow} minimumHeight={minimumFlowHeight}>
+        <View
+          testID="shell-background"
+          style={[styles.background, { width: columnWidth, paddingTop: safeTop }]}
+          importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
+        >
+          {header !== undefined ? (
+            navigationEnabled ? <View testID="shell-header">{header}</View> : (
+              <ScrollView testID="shell-header" style={[styles.pinnedSlot, styles.flowHeader]} keyboardShouldPersistTaps="handled">{header}</ScrollView>
+            )
+          ) : null}
 
-        <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && styles.flowScroller]}>
-          {props.children}
-          <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
+          <View testID="shell-scroller" style={[styles.scroller, !navigationEnabled && !constrainedFlow && styles.flowScroller]}>
+            {props.children}
+            <ShellScrollToTopSlot visible={!conversationOpen} content={registeredScrollToTop.content ?? props.scrollToTop} />
+          </View>
+
+          <ShellBottomChrome
+            visible={hasBottomChrome}
+            navigationEnabled={navigationEnabled}
+            pinnedSlot={conversationOpen ? undefined : pinnedSlot}
+            notice={notice}
+            fab={props.fab}
+            tabBar={props.tabBar}
+            backgroundColor={tokens.bg}
+            safeAreaBottom={safeBottom}
+          />
+
+          {props.sheets}
         </View>
-
-        <ShellBottomChrome
-          visible={hasBottomChrome}
-          navigationEnabled={navigationEnabled}
-          pinnedSlot={conversationOpen ? undefined : pinnedSlot}
-          notice={notice}
-          fab={props.fab}
-          tabBar={props.tabBar}
-          backgroundColor={tokens.bg}
-          safeAreaBottom={keyboardVisible ? 0 : insets.bottom}
-        />
-
-        {props.sheets}
-      </View>
+      </FlowViewport>
 
       {conversationOpen ? (
         <View
@@ -172,6 +202,8 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 }
 
 const styles = StyleSheet.create({
+  flowViewport: { flex: 1 },
+  flowViewportContent: { flex: 1 },
   keyboardOwner: {
     flex: 1,
   },
@@ -186,11 +218,11 @@ const styles = StyleSheet.create({
   },
   scroller: {
     flex: 1,
-    minHeight: 48,
+    minHeight: TOUCH_TARGET_MIN,
   },
   scrollToTop: { position: 'absolute', top: 8, left: 0, right: 0, alignItems: 'center', zIndex: zLayers.sticky },
   flowScroller: { minHeight: 0 },
-  flowHeader: { minHeight: 44 },
+  flowHeader: { minHeight: TOUCH_TARGET_MIN },
   bottomChrome: {
     flexShrink: 1,
     minHeight: 0,

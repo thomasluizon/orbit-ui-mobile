@@ -98,8 +98,8 @@ describe('AstraConversation header (mobile)', () => {
 
     TestRenderer.act(() => close[0].props.onPressIn())
     expect(StyleSheet.flatten(close[0].props.style)).toMatchObject({
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
       borderRadius: 999,
       overflow: 'hidden',
       backgroundColor: createTokensV2('orange', 'dark').bgHover,

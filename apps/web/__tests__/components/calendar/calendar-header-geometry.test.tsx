@@ -174,7 +174,7 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([{ width: 412, height: 56 }, { width: 1280, height: 44 }])('retains shared menu row height at $width', async ({ width, height }) => {
+  it.each([{ width: 412, height: 56 }, { width: 1280, height: 48 }])('retains shared menu row height at $width', async ({ width, height }) => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu open presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]} /></NextIntlClientProvider>)
     const portal = document.querySelector('.orbit-sheet-portal')!
     const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -253,12 +253,12 @@ describe('Calendar header geometry in Chromium', () => {
         card: document.querySelector('[data-testid="calendar-grid-card"]')!.getBoundingClientRect().width,
         gridScroll: document.querySelector('[data-testid="calendar-grid"]')!.scrollWidth,
         gridWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth,
-        targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
+        targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, columnWidth: button.parentElement!.getBoundingClientRect().width })),
       }))
       expect(geometry.scroll).toBe(geometry.page)
       expect(geometry.gridScroll).toBeLessThanOrEqual(geometry.gridWidth)
       expect(geometry.card).toBeLessThanOrEqual(312)
-      for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44) }
+      for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
     } finally { await page.close() }
   })
 

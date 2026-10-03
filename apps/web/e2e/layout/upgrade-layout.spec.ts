@@ -1,3 +1,4 @@
+import { measureTextOverflow } from './text-overflow-geometry'
 import { expect, type Locator, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -101,12 +102,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toHaveCount(0)
           await page.evaluate(() => document.fonts.ready)
 
-          const overflows = await upgradeScreen.evaluate((root) =>
-            Array.from(root.querySelectorAll('p,h1,h2,h3,a,button,span'))
-              .filter((element) => element.textContent.trim())
-              .filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5)
-              .map((element) => element.textContent.trim()),
-          )
+          const overflows = await upgradeScreen.evaluate(measureTextOverflow, 'p,h1,h2,h3,a,button,span')
           expect(overflows, `copy stays inside the layout at ${width}px`).toEqual([])
 
           if (width === 320) {
@@ -197,12 +193,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           }
           await page.evaluate(() => document.fonts.ready)
 
-          const overflows = await upgradeScreen.evaluate((root) =>
-            Array.from(root.querySelectorAll('p,h1,h2,a,button,span'))
-              .filter((element) => element.textContent.trim())
-              .filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5)
-              .map((element) => element.textContent.trim()),
-          )
+          const overflows = await upgradeScreen.evaluate(measureTextOverflow, 'p,h1,h2,a,button,span')
           expect(overflows, `subscription copy stays inside the layout at ${width}px`).toEqual([])
 
           const usageLines = await renderedLineCounts(page, messages.upgrade.billing.usage.aiMessages)

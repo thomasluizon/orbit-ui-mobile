@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatusRing } from '@/components/ui/status-ring'
@@ -39,5 +40,5 @@ export function HabitLogButton({ label, logged, completed = logged, onPress, pro
 }
 
 const styles = StyleSheet.create({
-  button: { width: 44, height: 44, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  button: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 })

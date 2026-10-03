@@ -1,5 +1,7 @@
 'use client'
 
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+
 import { useTranslations } from 'next-intl'
 
 interface GoalLoadErrorProps {
@@ -27,7 +29,7 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
         onClick={onRetry}
         className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
         style={{
-          minHeight: 44,
+          minHeight: TOUCH_TARGET_MIN,
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 500,

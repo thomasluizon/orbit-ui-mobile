@@ -92,14 +92,14 @@ describe('pressed hit area shapes', () => {
     withTree(<Chip onPress={() => {}} accessibilityLabel="Filter">Filter</Chip>, (tree) => {
       const control = findPressable(tree, 'Filter')
       expect(control.props.hitSlop).toBeUndefined()
-      expect(pressedFill(control, true)).toMatchObject({ minHeight: 44, minWidth: 44 })
+      expect(pressedFill(control, true)).toMatchObject({ minHeight: 48, minWidth: 48 })
     })
   })
 
-  it('paints the small pill target in a real 44px box without invisible slop', () => {
+  it('keeps the small pill paint within its reserved 48px hit area', () => {
     withTree(<PillButton size="sm" accessibleName="Copy">Copy</PillButton>, (tree) => {
       const control = findPressable(tree, 'Copy')
-      expect(control.props.hitSlop).toBeUndefined()
+      expect(control.props.hitSlop).toBe(2)
       expect(pressedFill(control, true)).toMatchObject({ minHeight: 44, minWidth: 44 })
     })
   })
@@ -126,8 +126,8 @@ describe('pressed hit area shapes', () => {
     expect(pressedStyle(<ListRow title="Goal habit" compact={false} accessibilityLabel="Goal habit" onClick={() => {}} />, 'Goal habit').minHeight).toBe(56)
     expect(pressedStyle(<ListRow title="Account" description="account@example.com" accessibilityLabel="Account" onClick={() => {}} />, 'Account').minHeight).toBe(76)
     const row = <ListRow title="Key" accessibilityLabel="Key" compact onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />
-    expect(pressedStyle(row, 'Key')).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16 })
-    expect(pressedStyle(row, 'Revoke')).toMatchObject({ width: 44, height: 44, marginVertical: 4, marginEnd: 16, alignSelf: 'center' })
+    expect(pressedStyle(row, 'Key')).toMatchObject({ minHeight: 56, paddingVertical: 4, paddingHorizontal: 16 })
+    expect(pressedStyle(row, 'Revoke')).toMatchObject({ width: 48, height: 48, marginVertical: 4, marginEnd: 16, alignSelf: 'center' })
     withTree(row, (tree) => {
       const body = pressedFill(findPressable(tree, 'Key'), false)
       const action = pressedFill(findPressable(tree, 'Revoke'), false)
@@ -229,7 +229,7 @@ describe('pressed hit area shapes', () => {
     withTree(<CalendarSyncEventRow event={event} weekStartDay={1} selected={false} isReviewMode suggestionId="suggestion-1" dismissPending={dismissPending} styles={createCalendarSyncStyles()} tokens={tokens} t={((key: string) => key) as never} onToggle={() => {}} onDismiss={() => {}} />, (tree) => {
       const control = findPressable(tree, 'calendar.autoSync.dismissSuggestion')
       expect(control.props.hitSlop).toBeUndefined()
-      expect(pressedFill(control, true)).toMatchObject({ width: 44, height: 44, backgroundColor: tokens.bgHover, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
+      expect(pressedFill(control, true)).toMatchObject({ width: 48, height: 48, backgroundColor: tokens.bgHover, borderRadius: 999, ...(dismissPending ? { opacity: 0.6 } : {}) })
       expect(pressedFill(control, false).backgroundColor).toBe('transparent')
     })
   })
@@ -238,7 +238,7 @@ describe('pressed hit area shapes', () => {
     withTree(<StreakBadge streak={3} />, (tree) => {
       const control = tree.root.findAllByType(Pressable)[0]!
       expect(control.props.hitSlop).toBeUndefined()
-      expect(pressedFill(control, true)).toMatchObject({ minWidth: 44, minHeight: 44, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgElev })
+      expect(pressedFill(control, true)).toMatchObject({ minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgElev })
       expect(pressedFill(control, false).backgroundColor).toBe(tokens.bgElev)
       expect(pressedFill(control, true).borderWidth ?? 0).toBe(0)
     })

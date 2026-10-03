@@ -44,7 +44,7 @@ function buildPreferenceRows(
           data-selected={controls.currentTheme === mode ? '' : undefined}
           aria-pressed={controls.currentTheme === mode}
           onClick={() => controls.handleThemeModeChange(mode)}
-          className="orbit-profile-theme-choice min-h-11 rounded-full px-3 font-sans text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+          className="orbit-profile-theme-choice min-h-[var(--touch-min)] rounded-full px-3 font-sans text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
         >
           {t(mode === 'dark' ? 'preferences.themeModeDark' : 'preferences.themeModeLight')}
         </button>

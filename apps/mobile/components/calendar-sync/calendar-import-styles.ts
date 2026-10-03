@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export function createStyles() {
@@ -129,16 +130,16 @@ export function createStyles() {
     },
     dismissButton: {
       overflow: 'hidden',
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
     },
     quietAction: {
-      minHeight: 44,
-      minWidth: 44,
+      minHeight: TOUCH_TARGET_MIN,
+      minWidth: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
@@ -158,8 +159,8 @@ export function createStyles() {
     },
     quietActionIcon: {
       overflow: 'hidden',
-      width: 44,
-      height: 44,
+      width: TOUCH_TARGET_MIN,
+      height: TOUCH_TARGET_MIN,
       borderRadius: 999,
       borderWidth: 1,
       alignItems: 'center',

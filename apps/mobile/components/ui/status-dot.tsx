@@ -1,3 +1,4 @@
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Pressable, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -71,13 +72,16 @@ export function StatusDot({
     <Pressable
       onPress={onToggle}
       disabled={disabled}
-      hitSlop={Math.max(0, (44 - size) / 2)}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? state}
       accessibilityState={{ disabled }}
       style={({ pressed }) => {
         const pressedOpacity = pressed ? 0.85 : 1
         return {
+          minWidth: TOUCH_TARGET_MIN,
+          minHeight: TOUCH_TARGET_MIN,
+          alignItems: 'center',
+          justifyContent: 'center',
           transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
           opacity: disabled ? 0.4 : pressedOpacity,
         }
