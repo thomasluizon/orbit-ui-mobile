@@ -169,12 +169,7 @@ describe('PillButton (mobile)', () => {
     const visibleHeight = Math.max(geometry.height, geometry.minHeight)
     expect(visibleHeight).toBe(44)
     expect(visibleHeight + (button.props.hitSlop ?? 0) * 2).toBe(48)
-    const reservation = tree.root.findAllByType('View').find((node: { props: { style: unknown } }) => flattenStyle(node.props.style).minHeight === 48)
-    expect(reservation).toBeDefined()
-    const reserved = flattenStyle(reservation.props.style)
-    expect(reserved.minHeight).toBe(48)
-    expect(reserved.minWidth).toBe(48)
-    expect(reserved.padding * 2).toBe((button.props.hitSlop ?? 0) * 2)
+    expect(tree.root.findAllByType('View')).toHaveLength(0)
   })
 
   it('drives the pill height from the two-size scale', () => {

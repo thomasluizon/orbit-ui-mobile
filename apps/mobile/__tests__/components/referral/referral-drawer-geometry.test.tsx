@@ -68,13 +68,17 @@ function applyStyle(node: YogaNode, style: Record<string, unknown>) {
   if (typeof style.flex === 'number') node.setFlex(style.flex)
   if (typeof style.width === 'number' || style.width === '100%') node.setWidth(style.width)
   if (typeof style.height === 'number') node.setHeight(style.height)
+  if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
+  if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
 }
 
 function buildLayout(element: HostNode, nodes: Map<HostNode, YogaNode>): YogaNode {
   const node = Yoga.Node.create()
   nodes.set(element, node)
-  const style = StyleSheet.flatten((element.type === 'ScrollView' ? element.props.contentContainerStyle : element.props.style) as never) as Record<string, unknown> | undefined
+  const hostStyle = element.type === 'ScrollView' ? element.props.contentContainerStyle : element.props.style
+  const resolvedStyle = typeof hostStyle === 'function' ? hostStyle({ pressed: false }) : hostStyle
+  const style = StyleSheet.flatten(resolvedStyle as never) as Record<string, unknown> | undefined
   if (style) applyStyle(node, style)
   if (element.type === 'Text') {
     /** Fixed text measurements isolate horizontal insets from native font rendering. */
@@ -130,9 +134,18 @@ describe('Referral drawer sheet geometry (mobile)', () => {
         expect(bounds(nodes.get(surface)!)).toEqual({ left: 24, right: panelWidth - 24 })
       }
       const share = findHost(elements, (element) => element.type === 'Pressable' && (element.children ?? []).some((child) => typeof child !== 'string' && child.children?.includes('referral.drawer.share')))
-      const target = nodes.get(share)!.getParent()!
-      expect(bounds(target).right).toBe(panelWidth - 24)
-      expect(bounds(nodes.get(share)!).right).toBe(panelWidth - 26)
+      const button = nodes.get(share)!
+      const parent = button.getParent()!
+      const parentHost = findHost(elements, (element) => (element.children ?? []).includes(share))
+      const parentSlop = parentHost.props.hitSlop as { left: number; right: number }
+      const slop = share.props.hitSlop as number
+      expect(bounds(button).right).toBe(panelWidth - 24)
+      expect(button.getComputedHeight()).toBe(44)
+      expect(button.getComputedHeight() + slop * 2).toBe(48)
+      expect(button.getComputedLeft() - slop).toBeGreaterThanOrEqual(-parentSlop.left)
+      expect(button.getComputedLeft() + button.getComputedWidth() + slop).toBeLessThanOrEqual(parent.getComputedWidth() + parentSlop.right)
+      expect(button.getComputedTop() - slop).toBeGreaterThanOrEqual(0)
+      expect(button.getComputedTop() + button.getComputedHeight() + slop).toBeLessThanOrEqual(parent.getComputedHeight())
     } finally {
       layout.freeRecursive()
       await TestRenderer.act(() => { tree!.unmount() })

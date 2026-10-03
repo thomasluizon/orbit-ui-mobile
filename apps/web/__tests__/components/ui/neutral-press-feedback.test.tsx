@@ -150,7 +150,7 @@ describe('neutral press feedback in Chromium', () => {
             expect(rest.fill, `${label} rest`).toBe('rgba(0, 0, 0, 0)')
             expect(rest.width, `${label} width`).toBeGreaterThanOrEqual(44)
             expect(rest.height, `${label} height`).toBeGreaterThanOrEqual(44)
-            expect(rest.overflow, `${label} clipping`).toBe(await control.evaluate((element) => element.parentElement?.classList.contains('orbit-small-pill-target')) ? 'visible' : 'hidden')
+            expect(rest.overflow, `${label} clipping`).toBe(await control.evaluate((element) => element.matches('.orbit-pill-action[data-size=sm]')) ? 'visible' : 'hidden')
             expect(Number.parseFloat(rest.radius), `${label} radius`).toBeGreaterThan(0)
             if (label === 'common.selectAll' || label === 'common.deselectAll') expect(Math.min(Number.parseFloat(rest.radius), rest.width / 2, rest.height / 2)).toBe(Math.min(rest.width, rest.height) / 2)
             if (!hasTouch) {

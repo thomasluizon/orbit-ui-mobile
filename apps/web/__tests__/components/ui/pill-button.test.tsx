@@ -5,6 +5,7 @@ import tailwind from '@tailwindcss/postcss'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { measureTextOverflow } from '../../../e2e/layout/text-overflow-geometry'
 import { measureOnboardingProStep } from '../../../e2e/layout/onboarding-pro-step-geometry'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { SelectAllToggle } from '@/components/calendar-sync/select-all-toggle'
@@ -73,6 +74,24 @@ describe('PillButton', () => {
       }
     })
 
+    it('distinguishes expanded hit areas from real label overflow', async () => {
+      const { container } = render(<section><PillButton>Subscribe</PillButton></section>)
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const section = page.locator('section')
+        expect(await section.evaluate(measureTextOverflow)).toEqual([])
+        await section.locator('button').evaluate((button) => {
+          button.style.width = '44px'
+          button.style.paddingInline = '0px'
+        })
+        expect(await section.evaluate(measureTextOverflow)).toContain('Subscribe')
+      } finally {
+        await page.close()
+      }
+    })
+
     it.each([412, 1280])('paints the import icon target including both pseudo-elements at %ipx', async (width) => {
       const { container } = render(<SelectAllToggle allSelected={false} onToggle={() => {}} selectAllLabel="Select all" deselectAllLabel="Deselect all" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -102,7 +121,7 @@ describe('PillButton', () => {
       { label: 'Continue', iconOnly: false },
       { label: 'i', iconOnly: false },
       { label: 'Open menu', iconOnly: true },
-    ])('keeps the visible pill and expands its reserved hit area to 48px: $label', async ({ label, iconOnly }) => {
+    ])('keeps the visible pill and expands its hit area to 48px: $label', async ({ label, iconOnly }) => {
       const { container } = render(iconOnly
         ? <PillButton size="sm" iconOnly label={label}><span /></PillButton>
         : <PillButton size="sm">{label}</PillButton>)
@@ -118,19 +137,21 @@ describe('PillButton', () => {
             return { content: style.content, left: style.left, right: style.right, top: style.top, bottom: style.bottom }
           })
           const hits = ([
+            [bounds.left - 2, bounds.y + bounds.height / 2],
+            [bounds.right + 1.99, bounds.y + bounds.height / 2],
             [bounds.x + 0.25, bounds.y + bounds.height / 2],
             [bounds.right - 0.25, bounds.y + bounds.height / 2],
             [bounds.x + bounds.width / 2, bounds.y + 0.25],
             [bounds.x + bounds.width / 2, bounds.bottom - 0.25],
-            [bounds.x + bounds.width / 2, bounds.y - 1],
-            [bounds.x + bounds.width / 2, bounds.bottom + 1],
+            [bounds.x + bounds.width / 2, bounds.y - 2],
+            [bounds.x + bounds.width / 2, bounds.bottom + 1.99],
           ] as const).map(([x, y]) => button.contains(document.elementFromPoint(x, y)))
           return { width: bounds.width, height: bounds.height, extensions, hits }
         })
         expect(measured.width).toBeGreaterThanOrEqual(44)
         expect(measured.height).toBe(44)
         expect(measured.extensions.some(({ content }) => content !== 'none')).toBe(true)
-        expect(measured.hits).toEqual([true, true, true, true, true, true])
+        expect(measured.hits).toEqual([true, true, true, true, true, true, true, true])
       } finally {
         await page.close()
       }

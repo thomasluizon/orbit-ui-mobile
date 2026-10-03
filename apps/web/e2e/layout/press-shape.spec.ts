@@ -44,7 +44,13 @@ async function readHitBoxOnceStill(control: Locator) {
 async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
   return control.evaluate((element, fillPseudo) => {
     const bounds = element.getBoundingClientRect()
-    const reservation = element.closest('.orbit-small-pill-target')?.getBoundingClientRect()
+    const smallPill = element.matches('.orbit-pill-action[data-size="sm"]')
+    const hitChecks = [
+      [bounds.left - 2, bounds.top + bounds.height / 2],
+      [bounds.right + 1.99, bounds.top + bounds.height / 2],
+      [bounds.left + bounds.width / 2, bounds.top - 2],
+      [bounds.left + bounds.width / 2, bounds.bottom + 1.99],
+    ].map(([x, y]) => element.contains(document.elementFromPoint(x!, y!)))
     const hit = { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom }
     const pixels = (value: string) => Number.parseFloat(value) || 0
     for (const pseudo of ['::before', '::after']) {
@@ -76,8 +82,7 @@ async function readTargetGeometry(control: Locator, fillPseudo?: '::after') {
     const opaqueHoverFill = getComputedStyle(probe).backgroundColor
     probe.remove()
     return {
-      smallPill: element.closest('.orbit-small-pill-target') !== null,
-      reservation: reservation ? { left: reservation.left, top: reservation.top, right: reservation.right, bottom: reservation.bottom } : null,
+      smallPill, hitChecks,
       hoverFill,
       opaqueHoverFill,
       hit,
@@ -106,7 +111,7 @@ async function expectHoverOnHitArea(control: Locator, radius: 'pill' | 8 | 12 | 
   for (const edge of ['left', 'top', 'right', 'bottom'] as const) {
     const paintInset = geometry.smallPill ? (edge === 'left' || edge === 'top' ? 2 : -2) : 0
     expect(geometry.painted[edge], `the fill reaches the ${edge} paint edge`).toBeCloseTo(geometry.hit[edge] + paintInset, 1)
-    if (geometry.smallPill) expect(geometry.reservation![edge]).toBeCloseTo(geometry.hit[edge], 1)
+    if (geometry.smallPill) expect(geometry.hitChecks).toEqual([true, true, true, true])
   }
   expect(geometry.radius).toBeCloseTo(radius === 'pill' ? Math.min(geometry.width, geometry.height) / 2 : radius, 1)
 }

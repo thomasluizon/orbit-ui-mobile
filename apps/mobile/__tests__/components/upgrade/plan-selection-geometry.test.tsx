@@ -11,6 +11,7 @@ import { createTokensV2 } from '@/lib/theme'
 interface HostJson {
   type: string
   props: {
+    hitSlop?: number
     style?: StyleProp<ViewStyle & TextStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle & TextStyle>)
     testID?: string
     importantForAccessibility?: string
@@ -37,8 +38,11 @@ function textOf(element: HostJson): string {
 }
 
 function applyInsets(node: Node, style: ViewStyle) {
-  for (const [key, edge] of [['padding', Yoga.EDGE_ALL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingVertical', Yoga.EDGE_VERTICAL], ['paddingTop', Yoga.EDGE_TOP]] as const) {
+  for (const [key, edge] of [['padding', Yoga.EDGE_ALL], ['paddingHorizontal', Yoga.EDGE_HORIZONTAL], ['paddingVertical', Yoga.EDGE_VERTICAL], ['paddingTop', Yoga.EDGE_TOP], ['paddingBottom', Yoga.EDGE_BOTTOM]] as const) {
     if (typeof style[key] === 'number') node.setPadding(edge, style[key])
+  }
+  for (const [key, edge] of [['marginBottom', Yoga.EDGE_BOTTOM], ['marginHorizontal', Yoga.EDGE_HORIZONTAL]] as const) {
+    if (typeof style[key] === 'number') node.setMargin(edge, style[key])
   }
   if (style.position === 'absolute') {
     node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
@@ -125,8 +129,16 @@ describe('Android Pro tier Yoga geometry', () => {
           const renderedStyle = typeof element.props.style === 'function' ? element.props.style({ pressed: false }) : element.props.style
           const style = StyleSheet.flatten(renderedStyle ?? {})
           const padding = Number(style.padding) + (style.borderWidth ?? 0)
-          const belowButton = card.getComputedHeight() - action.getComputedTop() - action.getComputedHeight()
+          const belowButton = card.getComputedHeight() - action.getComputedTop() - button.getComputedTop() - button.getComputedHeight()
           const contentHeight = card.getComputedHeight() - belowButton + padding
+          const actionElement = element.children!.filter((child): child is HostJson => typeof child !== 'string').at(-1)!
+          const pressable = actionElement.children![0] as HostJson
+          const hitPadding = pressable.props.hitSlop ?? 0
+          expect(button.getComputedHeight() + 2 * hitPadding).toBe(48)
+          expect(button.getComputedTop()).toBeGreaterThanOrEqual(hitPadding)
+          expect(action.getComputedHeight() - button.getComputedTop() - button.getComputedHeight()).toBeGreaterThanOrEqual(hitPadding)
+          expect(button.getComputedLeft()).toBeGreaterThanOrEqual(hitPadding)
+          expect(action.getComputedWidth() - button.getComputedLeft() - button.getComputedWidth()).toBeGreaterThanOrEqual(hitPadding)
           process.stdout.write(`${JSON.stringify({ width, locale, interval, cardHeight: card.getComputedHeight(), contentHeight, reservedHeight: content?.getComputedHeight(), belowButton, padding, buttonWidth: button.getComputedWidth(), actionWidth: action.getComputedWidth() })}\n`)
           return { height: card.getComputedHeight(), contentHeight, reservedHeight: content?.getComputedHeight(), buttonWidth: button.getComputedWidth(), actionWidth: action.getComputedWidth() }
         })

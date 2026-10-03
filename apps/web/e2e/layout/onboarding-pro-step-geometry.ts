@@ -1,6 +1,5 @@
 export function measureOnboardingProStep(root: HTMLElement) {
   const visible = (element: Element) => element.checkVisibility({ visibilityProperty: true })
-  const overflow = Array.from(root.querySelectorAll('p,h1,h2,h3,a,button')).filter(visible).filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5).map((element) => element.textContent.trim())
   const wrappedActions = Array.from(root.querySelectorAll('a,button')).filter(visible).filter((element) => {
     const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
     const lines = new Set<number>()
@@ -22,7 +21,6 @@ export function measureOnboardingProStep(root: HTMLElement) {
     const bounds = card.getBoundingClientRect()
     const action = card.querySelector('button')!
     const button = action.getBoundingClientRect()
-    const target = (action.closest('.orbit-small-pill-target') ?? action).getBoundingClientRect()
     const clone = card.cloneNode(true) as HTMLElement
     clone.style.width = `${bounds.width}px`
     clone.style.height = 'auto'
@@ -32,7 +30,7 @@ export function measureOnboardingProStep(root: HTMLElement) {
     const contentHeight = clone.getBoundingClientRect().height
     clone.remove()
     return { interval: card.dataset.tierContent, height: bounds.height, contentHeight,
-      belowButton: bounds.bottom - button.bottom, belowTarget: bounds.bottom - target.bottom, padding: parseFloat(getComputedStyle(card).paddingBottom) }
+      belowButton: bounds.bottom - button.bottom, padding: parseFloat(getComputedStyle(card).paddingBottom) }
   })
-  return { overflow, wrappedActions, horizontalOffset, tiers }
+  return { wrappedActions, horizontalOffset, tiers }
 }

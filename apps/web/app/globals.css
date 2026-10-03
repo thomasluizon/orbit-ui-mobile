@@ -1494,7 +1494,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   box-shadow: inset 0 0 0 4px var(--fg-1);
 }
 
-/* Small pills reserve their transparent hit extension in the surrounding layout. */
+/* Small pills expand their hit area without changing their visible geometry. */
 @layer components {
 .touch-target {
   position: relative;
@@ -1503,26 +1503,17 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 }
 
-.orbit-small-pill-target {
+.orbit-pill-action.touch-target {
   --pill-hit-padding: calc((var(--touch-min) - var(--pill-visible-min)) / 2);
-  display: inline-flex;
-  flex-shrink: 0;
-  min-width: var(--touch-min);
-  min-height: var(--touch-min);
-  padding: var(--pill-hit-padding);
-}
-
-.orbit-small-pill-target > .touch-target {
   min-width: var(--pill-visible-min);
   min-height: var(--pill-visible-min);
   overflow: visible;
 }
 
-.orbit-small-pill-target > .touch-target::after {
+.orbit-pill-action.touch-target::after {
   content: "";
   position: absolute;
   inset: calc(-1 * var(--pill-hit-padding));
-  border-radius: inherit;
 }
 
 /* ═══════════════════════════════════════════════════════

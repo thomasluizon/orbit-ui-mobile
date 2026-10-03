@@ -55,6 +55,13 @@ describe('Referral drawer sheet insets in Chromium', () => {
         const bodyStyle = getComputedStyle(body)
         const copy = body.querySelector('[aria-label="referral.drawer.copyLink"]')!
         const share = [...document.querySelectorAll('button')].find((button) => button.textContent === 'referral.drawer.share')!
+        const shareBounds = share.getBoundingClientRect()
+        const hits = [
+          [shareBounds.left - 2, shareBounds.top + shareBounds.height / 2],
+          [shareBounds.right + 1.99, shareBounds.top + shareBounds.height / 2],
+          [shareBounds.left + shareBounds.width / 2, shareBounds.top - 2],
+          [shareBounds.left + shareBounds.width / 2, shareBounds.bottom + 1.99],
+        ].map(([x, y]) => share.contains(document.elementFromPoint(x!, y!)))
         return {
           inset: parseFloat(bodyStyle.paddingLeft),
           edge: { left: bodyBounds.left + parseFloat(bodyStyle.paddingLeft), right: bodyBounds.right - parseFloat(bodyStyle.paddingRight) },
@@ -64,7 +71,8 @@ describe('Referral drawer sheet insets in Chromium', () => {
           error: bounds(body.querySelector('[role="alert"]')!),
           progress: bounds(body.querySelector('[role="progressbar"]')!),
           share: bounds(share),
-          target: bounds(share.parentElement!),
+          shareHeight: shareBounds.height,
+          hits,
           overflow: body.scrollWidth > body.clientWidth,
         }
       })
@@ -74,8 +82,9 @@ describe('Referral drawer sheet insets in Chromium', () => {
         expect(surface.left).toBeCloseTo(measured.edge.left, 1)
         expect(surface.right).toBeCloseTo(measured.edge.right, 1)
       }
-      expect(measured.target.right).toBeCloseTo(measured.edge.right, 1)
-      expect(measured.share.right).toBeCloseTo(measured.edge.right - 2, 1)
+      expect(measured.share.right).toBeCloseTo(measured.edge.right, 1)
+      expect(measured.shareHeight).toBe(44)
+      expect(measured.hits).toEqual([true, true, true, true])
     } finally { await page.close() }
   })
 

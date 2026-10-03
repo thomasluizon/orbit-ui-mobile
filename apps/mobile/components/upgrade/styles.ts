@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
@@ -159,6 +159,10 @@ export const styles = StyleSheet.create({
   tierAction: {
     alignItems: 'flex-start',
     paddingTop: 8,
+    paddingBottom: (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2,
+    marginBottom: -(TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2,
+    paddingHorizontal: (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2,
+    marginHorizontal: -(TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2,
   },
   renewalNote: {
     fontFamily: 'Geist_400Regular',

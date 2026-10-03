@@ -1,7 +1,7 @@
 'use client'
 
 import Link, { type LinkProps } from 'next/link'
-import { useContext, type CSSProperties, type Ref, type ReactNode } from 'react'
+import { useContext, type CSSProperties, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
@@ -68,10 +68,6 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
   }
 }
 
-function SmallPillTarget({ small, matchedWidth = false, children }: Readonly<{ small: boolean; matchedWidth?: boolean; children: ReactNode }>) {
-  return small ? <span className="orbit-small-pill-target" style={{ width: matchedWidth ? MATCHED_PILL_WIDTH : undefined }}>{children}</span> : children
-}
-
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
@@ -97,7 +93,6 @@ export function Button({
   const sizeSpec = BUTTON_SIZES[size]
 
   return (
-    <SmallPillTarget small={size === 'sm'} matchedWidth={matchedWidth}>
     <button
       ref={buttonRef}
       type={onClick ? 'button' : 'submit'}
@@ -118,7 +113,6 @@ export function Button({
       ) : iconOnly ? children : leadingIcon}
       {iconOnly ? null : <span>{children}</span>}
     </button>
-    </SmallPillTarget>
   )
 }
 
@@ -139,7 +133,6 @@ export function PillLink({
   const withinRow = useContext(ActionRowContext)
   const size = withinRow ? 'sm' : requestedSize
   return (
-    <SmallPillTarget small={size === 'sm'}>
     <Link
       href={href}
       aria-label={accessibleName}
@@ -150,7 +143,6 @@ export function PillLink({
     >
       <span>{children}</span>
     </Link>
-    </SmallPillTarget>
   )
 }
 

@@ -228,10 +228,24 @@ describe('Sheet virtualized body (mobile)', () => {
     const sheet = tree.root.findByType(TrueSheet)
     const measured = ['native-sheet-header', 'native-sheet-footer'].map((testID) => {
       const host = findHost(tree.toJSON(), (element) => element.props.testID === testID)!
-      const layout = buildLayoutTree(host, new Map())
-      try { layout.calculateLayout(640, undefined); return layout.getComputedHeight() } finally { layout.freeRecursive() }
+      const nodes = new Map<HostJson, YogaNode>()
+      const layout = buildLayoutTree(host, nodes)
+      try {
+        layout.calculateLayout(640, undefined)
+        if (testID === 'native-sheet-footer') {
+          const action = findHost(host, (element) => element.type === 'Pressable')!
+          const button = nodes.get(action)!
+          const slop = action.props.hitSlop as number
+          const parent = button.getParent()!
+          expect(button.getComputedHeight()).toBe(44)
+          expect(button.getComputedHeight() + slop * 2).toBe(48)
+          expect(button.getComputedTop() - slop).toBeGreaterThanOrEqual(0)
+          expect(button.getComputedTop() + button.getComputedHeight() + slop).toBeLessThanOrEqual(parent.getComputedHeight())
+        }
+        return layout.getComputedHeight()
+      } finally { layout.freeRecursive() }
     })
-    expect(measured).toEqual([72, 112])
+    expect(measured).toEqual([72, 108])
     TestRenderer.act(() => {
       sheet.props.header.props.onLayout({ nativeEvent: { layout: { height: measured[0] } } })
       sheet.props.footer.props.onLayout({ nativeEvent: { layout: { height: measured[1] } } })
