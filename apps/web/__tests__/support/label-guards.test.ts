@@ -14,6 +14,22 @@ describe('label and interaction fill guards in Chromium', () => {
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it('measures a transitioned hover fill on a control with a transparent resting surface', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.bringToFront()
+      await page.setContent(`<!doctype html><style>
+        button { width: 80px; height: 48px; border: 0; border-radius: 8px; background: transparent;
+          transition: background-color 240ms ease; }
+        button:hover { background: rgb(180, 180, 180); }
+        button:active { background: rgb(140, 140, 140); }
+      </style><button>Options</button>`)
+      await expectInteractionFill(page.locator('button'))
+    } finally {
+      await page.close()
+    }
+  })
+
   it('closes a popup opened on pointer down before measuring the next control', async () => {
     const page = await browser.newPage()
     try {

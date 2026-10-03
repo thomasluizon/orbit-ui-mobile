@@ -1,5 +1,14 @@
 import { expect, type Locator } from '@playwright/test'
 
+async function settleFillTransitions(control: Locator) {
+  await control.evaluate(async (element) => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    await Promise.all(element.getAnimations({ subtree: true })
+      .filter((animation) => animation instanceof CSSTransition)
+      .map((animation) => animation.finished))
+  })
+}
+
 async function readFill(control: Locator) {
   return control.evaluate((element) => {
     const fill = element.querySelector<HTMLElement>('[data-press-fill]') ?? element
@@ -63,8 +72,10 @@ export async function expectInteractionFill(control: Locator) {
   const overlays = page.locator('[role="menu"]:visible, [role="dialog"]:visible')
   const initialOverlayCount = await overlays.count()
   await page.mouse.move(0, 0)
+  await settleFillTransitions(control)
   const resting = await readFill(control)
   await control.hover()
+  await settleFillTransitions(control)
   await expect.poll(async () => {
     const hovered = await readFill(control)
     return hovered.background !== resting.background || hovered.opacity !== resting.opacity
@@ -73,6 +84,7 @@ export async function expectInteractionFill(control: Locator) {
   try {
     await page.mouse.down()
     await expect.poll(() => control.evaluate((element) => element.matches(':active'))).toBe(true)
+    await settleFillTransitions(control)
     await expectFillShape(control, 'press')
   } finally {
     await page.mouse.move(0, 0)
