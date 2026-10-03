@@ -11,10 +11,10 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
 import { expectOneFieldIndicator, inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
 
-async function expectCompleteTabIndicator(page: Page, control: Locator, surface: string) {
+async function expectCompleteTabIndicator(page: Page, control: Locator, surface: string, enterWith: 'Tab' | 'Shift+Tab' = 'Tab') {
   await control.focus()
-  await page.keyboard.press('Shift+Tab')
-  await page.keyboard.press('Tab')
+  await page.keyboard.press(enterWith === 'Tab' ? 'Shift+Tab' : 'Tab')
+  await page.keyboard.press(enterWith)
   await expect(control, surface).toBeFocused()
   const ring = await inspectFocusedRing(page)
   expect(ring?.focusVisible, surface).toBe(true)
@@ -98,26 +98,36 @@ for (const width of [412, 1352] as const) {
         await refreshTodayHabits(page)
         const pinned = page.locator('[data-shell-pinned-slot] [data-composer-root]')
         await expect(pinned).toBeVisible()
-        const chips = pinned.getByRole('group', { name: messages.shell.composer.suggestionsLabel }).getByRole('button')
-        const chipCount = await waitForSettledChips(chips)
-        for (let index = 0; index < chipCount; index += 1) {
-          await expectCompleteTabIndicator(page, chips.nth(index), `pinned composer chip ${index}`)
+        await expect(pinned.getByRole('group', { name: messages.shell.composer.suggestionsLabel })).toHaveCount(0)
+        const pinnedControls = pinned.locator('button:visible:not(:disabled)')
+        expect(await pinnedControls.count()).toBeGreaterThanOrEqual(2)
+        for (let index = 0; index < await pinnedControls.count(); index += 1) {
+          const control = pinnedControls.nth(index)
+          const enterWith = await control.getAttribute('data-open-conversation') === null ? 'Shift+Tab' : 'Tab'
+          await expectCompleteTabIndicator(page, control, `pinned composer control ${index}`, enterWith)
         }
         await pinned.locator('[data-composer-input]').focus()
         const conversation = page.locator('[data-shell-conversation]')
         await expect(conversation).toBeVisible()
         const field = conversation.locator('[data-composer-input]')
         await expectOneFieldIndicator(page, field, '[data-composer-input-row]', 'conversation field')
+        const composer = conversation.locator('[data-composer-root]')
+        const conversationChips = composer.getByRole('group', { name: messages.shell.composer.suggestionsLabel }).getByRole('button')
+        const initialChipCount = await waitForSettledChips(conversationChips)
+        for (let index = 0; index < initialChipCount; index += 1) {
+          await expectCompleteTabIndicator(page, conversationChips.nth(index), `initial conversation composer chip ${index}`)
+        }
+        const controls = composer.locator('button:visible:not(:disabled)')
+        for (let index = 0; index < await controls.count(); index += 1) {
+          await expectCompleteTabIndicator(page, controls.nth(index), `initial conversation composer control ${index}`)
+        }
         const final = chatStreamEventSchema.parse({ type: 'final', response: { aiMessage: 'Ready', actions: [] } })
         await page.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, (route) => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(final)}\n\n` }))
         await field.fill('Review my habits')
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
-        const composer = conversation.locator('[data-composer-root]')
         await expect(composer).toHaveAttribute('data-state', 'idle')
-        const conversationChips = composer.getByRole('group', { name: messages.shell.composer.suggestionsLabel }).getByRole('button')
         await expect(conversationChips.first()).toBeVisible()
         await waitForSettledChips(conversationChips)
-        const controls = conversation.locator('[data-composer-root] button:visible:not(:disabled)')
         for (let index = 0; index < await controls.count(); index += 1) {
           await expectCompleteTabIndicator(page, controls.nth(index), `conversation composer control ${index}`)
         }

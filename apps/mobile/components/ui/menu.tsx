@@ -127,7 +127,7 @@ export function Menu({
   }
 
   const panelWidth = Math.min(PANEL_WIDTH, width - 16)
-  const estimatedHeight = Math.min(orderedItems.length * 48 + 16, height - 16)
+  const estimatedHeight = Math.min(orderedItems.length * 44 + 16, height - 16)
   const position = getPopoverPosition({
     anchorRect: anchorRect ?? getFallbackPopoverAnchorRect(width),
     viewportWidth: width,

@@ -130,19 +130,24 @@ for (const width of [412, 1280] as const) {
 
       const composer = page.locator('[data-shell-pinned-slot]')
       await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.todayAstra.openConversation }), 'pill')
-      await expectHoverOnHitArea(composer.getByRole('group', { name: ptBr.shell.composer.suggestionsLabel }).getByRole('button').first(), 'pill')
-      for (const label of [ptBr.chat.attachFile, ptBr.chat.attachImage, ptBr.shell.composer.voice.start]) {
-        await expectHoverOnHitArea(composer.getByRole('button', { name: label }), 'pill')
-      }
+      await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.shell.composer.actions }), 'pill')
       await composer.locator('[data-composer-input]').focus()
       const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
       await expect(conversation).toBeVisible()
       await expect(composer).toBeHidden()
       await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
+      await expectHoverOnHitArea(conversation.getByRole('group', { name: ptBr.shell.composer.suggestionsLabel }).getByRole('button').first(), 'pill')
       const conversationField = conversation.locator('[data-composer-input]')
       await expect(conversationField).toBeFocused()
       await conversationField.fill('Como começo?')
       await expectHoverOnHitArea(conversation.getByRole('button', { name: ptBr.shell.composer.send }), 'pill')
+      await conversation.getByRole('button', { name: ptBr.shell.composer.actions }).click()
+      const menu = page.getByRole('menu', { name: ptBr.shell.composer.actions, exact: true })
+      for (const label of [ptBr.shell.composer.attach.file, ptBr.shell.composer.attach.image, ptBr.shell.composer.voice.start]) {
+        await expectHoverOnHitArea(menu.getByRole('menuitem', { name: label, exact: true }), 12)
+      }
+      await page.keyboard.press('Escape')
+      await expect(menu).toBeHidden()
 
       await page.goto('/about')
       await expect(page.locator('main')).toBeVisible()

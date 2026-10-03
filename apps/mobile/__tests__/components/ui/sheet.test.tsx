@@ -651,4 +651,11 @@ it('fills the real sheet header close target with the neutral interaction token'
   let headerTree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { headerTree = TestRenderer.create(tree!.root.findByType(TrueSheet).props.header) })
   expectPressFill(headerTree, 'common.close', createTokensV2().bgHover, 999)
+  const close = tree!.root.findByType(TrueSheet).props.header.props.children.at(-1)
+  for (const pressed of [false, true]) {
+    const shape = StyleSheet.flatten(close.props.style({ pressed }))
+    expect(shape.width).toBeGreaterThanOrEqual(48)
+    expect(shape.minHeight).toBeGreaterThanOrEqual(48)
+    expect(shape.transform).toBeUndefined()
+  }
 })

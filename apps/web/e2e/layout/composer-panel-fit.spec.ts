@@ -49,17 +49,15 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(typed.scrollHeight).toBe(typed.clientHeight)
 
         for (const name of [
-          messages.chat.attachFile,
-          messages.chat.attachImage,
-          messages.shell.composer.voice.start,
+          messages.shell.composer.actions,
           messages.shell.composer.send,
         ]) {
           const control = panel.getByRole('button', { name, exact: true })
           await expect(control).toBeVisible()
           const bounds = await control.boundingBox()
           expect(bounds).not.toBeNull()
-          expect(bounds!.width).toBeGreaterThanOrEqual(44)
-          expect(bounds!.height).toBeGreaterThanOrEqual(44)
+          expect(bounds!.width).toBeGreaterThanOrEqual(48)
+          expect(bounds!.height).toBeGreaterThanOrEqual(48)
           const panelBounds = await panel.boundingBox()
           expect(bounds!.x).toBeGreaterThanOrEqual(panelBounds!.x)
           expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(panelBounds!.x + panelBounds!.width)
@@ -70,11 +68,11 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
 }
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
-  for (const width of [320, 360, 412, 600] as const) {
+  for (const width of [320, 360, 384, 412, 600] as const) {
     test.describe(`${locale} compact composer at ${width}px`, () => {
       test.use({ viewport: { width, height: 915 } })
 
-      test('keeps usable text with an ellipsised single-line placeholder', async ({ page, context }) => {
+      test('keeps all controls in one pill with a whole single-line placeholder', async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
         await setLayoutProfileSession(context, profile)
@@ -86,13 +84,19 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           const input = element as HTMLTextAreaElement
           const style = getComputedStyle(input)
           return {
+            pillHeight: input.parentElement!.getBoundingClientRect().height,
+            controls: [...input.parentElement!.querySelectorAll('button')].map((button) => ({ top: button.getBoundingClientRect().top, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
             clientHeight: input.clientHeight,
             scrollHeight: input.scrollHeight,
             whiteSpace: getComputedStyle(input, '::placeholder').whiteSpace,
           }
         })
-        expect(empty.contentWidth).toBeGreaterThanOrEqual(width === 320 ? 140 : 160)
+        expect(empty.pillHeight).toBe(56)
+        expect(empty.controls).toHaveLength(3)
+        expect(new Set(empty.controls.map((control) => control.top)).size).toBe(1)
+        for (const control of empty.controls) { expect(control.width).toBe(48); expect(control.height).toBe(48) }
+        expect(empty.contentWidth).toBeGreaterThanOrEqual(136)
         expect(empty.scrollHeight).toBe(empty.clientHeight)
         expect(empty.whiteSpace).toBe('nowrap')
 
@@ -108,7 +112,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             right: input.getBoundingClientRect().right,
           }
         })
-        expect(typed.contentWidth).toBeGreaterThanOrEqual(width === 320 ? 140 : 160)
+        expect(typed.contentWidth).toBeGreaterThanOrEqual(136)
         expect(typed.whiteSpace).toBe('pre-wrap')
         expect(typed.wordBreak).toBe('normal')
         expect(typed.left).toBeGreaterThanOrEqual(0)

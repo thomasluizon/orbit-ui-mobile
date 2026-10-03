@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 209,
-  "cellCount": 892,
+  "surfaceCount": 210,
+  "cellCount": 896,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -11879,6 +11879,58 @@
       "ownedFiles": [
         "apps/mobile/components/review-moment/review-moment-sheet.tsx",
         "apps/mobile/hooks/use-review-reminder.ts"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-shell-composer",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
       ],
       "state": "default",
       "theme": "dark",
