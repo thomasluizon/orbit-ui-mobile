@@ -90,9 +90,10 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
       history.back()
     }
     let restoring = false
-    function handlePopState() {
+    function handlePopState(event: PopStateEvent) {
       const atBaseEntry = isCreationBaseEntry(history.state, guardId)
       if (approvedNavigation) {
+        event.stopImmediatePropagation()
         if (!atBaseEntry) {
           history.back()
           return
@@ -103,8 +104,9 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         action()
         return
       }
-      if (isLeaving()) return
+      if (restoreApprovedHistory || isLeaving()) return
       if (restoring) {
+        event.stopImmediatePropagation()
         restoring = false
         requestNavigation(() => returnToOrigin())
         return
@@ -113,6 +115,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         history.replaceState(markCreationEntry(guardId, true), '', location.href)
         return
       }
+      event.stopImmediatePropagation()
       restoring = true
       history.forward()
     }
@@ -135,14 +138,14 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         approvedClick = false
       })
     }
-    window.addEventListener('popstate', handlePopState)
+    window.addEventListener('popstate', handlePopState, true)
     window.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('click', handleClick, true)
     return () => {
       restoreApprovedHistory?.()
       activeNavigationGuard = null
       finishNavigation = null
-      window.removeEventListener('popstate', handlePopState)
+      window.removeEventListener('popstate', handlePopState, true)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('click', handleClick, true)
     }
