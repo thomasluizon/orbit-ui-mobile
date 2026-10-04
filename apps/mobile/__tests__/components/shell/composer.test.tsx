@@ -284,6 +284,39 @@ describe('Composer (mobile)', () => {
     },
   )
 
+  it('releases chip allocation through narrow wide narrow layout callbacks', () => {
+    const chips = buildComposerChips({ surface: 'habitDetail', status: 'success', habits: [], totalHabitCount: 1,
+      detailHabit: { title: 'Reading', checklistItems: [] }, profile: createMockProfile() })
+    const labels = en.shell.composer.chips.habitDetail
+    const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
+      label: labels[id.replace('habitDetail.', '') as keyof typeof labels], icon: <Square size={20} />, onSelect: vi.fn() })))
+    const tree = renderComposer(props({ suggestions, words: en.shell.composer }))
+    const naturalWidths = [111, 154, 105]
+    const layoutAt = (mounted: typeof tree, width: number) => {
+      const host = mounted.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!
+      TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height: 48 } } }))
+      for (const [index, suggestion] of suggestions.entries()) {
+        const chip = byLabel(mounted.root, suggestion.label)[0]
+        const content = chip.findAll((node: { props: Record<string, unknown> }) => typeof node.props.onLayout === 'function' && node.props.testID === 'composer-suggestion-content')[0]
+        const target = content ?? chip
+        const renderedWidth = content ? naturalWidths[index]! - 24 - 2 * StyleSheet.hairlineWidth
+          : Math.max(naturalWidths[index]!, StyleSheet.flatten(chip.props.style).minWidth ?? 0)
+        TestRenderer.act(() => target.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: renderedWidth, height: 24 } } }))
+      }
+      return StyleSheet.flatten(byLabel(mounted.root, suggestions[0]!.label)[0].props.style).minWidth
+    }
+    try {
+      for (const width of [288, 427, 288, 427]) {
+        const allocated = layoutAt(tree, width)
+        const fresh = renderComposer(props({ suggestions, words: en.shell.composer }))
+        try { expect(allocated).toBe(layoutAt(fresh, width)) }
+        finally { TestRenderer.act(() => fresh.unmount()) }
+        expect(allocated).toBe(width === 427 ? 0 : 256)
+        if (width === 288) expect(width - allocated - 8).toBe(24)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([320, 360, 384, 412, 640, 768, 900, 1023].flatMap(width => [1, 2].map(fontScale => ({ width, fontScale })) ))(
     'reserves a 24 dp peek after measured chips at $width and $fontScale text', ({ width, fontScale }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
@@ -302,7 +335,7 @@ describe('Composer (mobile)', () => {
           expect(style.alignItems).toBe('flex-start')
           expect(StyleSheet.flatten(chip.findByType('Text').props.style).flexShrink).toBe(1)
           expect(chip.findByType('Text').props.numberOfLines).toBeUndefined()
-          TestRenderer.act(() => chip.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: chipWidth, height: 48 } } }))
+          TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: chipWidth - 24 - 2 * StyleSheet.hairlineWidth, height: 24 } } }))
         }
         const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
         const visible = StyleSheet.flatten(scroller.props.style).width ?? available

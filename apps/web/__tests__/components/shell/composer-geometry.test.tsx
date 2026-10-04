@@ -177,6 +177,51 @@ describe('Composer compact geometry in Chromium', () => {
     }, 30_000,
   )
 
+  it('releases chip allocation when a mounted habit detail strip grows and shrinks', async () => {
+    const { suggestions } = liveChipSuggestions('habitDetail', en)
+    const configuration = { state: 'idle', value: '', suggestions, words: en.shell.composer }
+    const page = await browser.newPage({ viewport: { width: 600, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root" style="width:320px"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const strip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel })
+      const measure = () => strip.evaluate(element => {
+        element.scrollLeft = 0
+        const bounds = element.getBoundingClientRect()
+        const chips = [...element.querySelectorAll('button')].map(button => {
+          const chip = button.getBoundingClientRect()
+          return { left: chip.left - bounds.left, right: chip.right - bounds.left, width: chip.width }
+        })
+        const partial = chips.find(chip => chip.left < bounds.width && chip.right > bounds.width)
+        return { clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
+          available: element.parentElement!.getBoundingClientRect().width,
+          chips, peek: partial ? bounds.width - partial.left : 0 }
+      })
+      for (const width of [320, 459, 320, 459]) {
+        await page.locator('#root').evaluate((element, nextWidth) => { element.style.width = `${nextWidth}px` }, width)
+        await vi.waitFor(async () => {
+          const measured = await measure()
+          expect(measured.clientWidth).toBe(width - 32)
+          expect(measured.available).toBe(measured.clientWidth)
+          if (width === 459) {
+            expect(measured.scrollWidth, JSON.stringify(measured)).toBe(measured.clientWidth)
+            expect(measured.chips.every(chip => chip.left >= 0 && chip.right <= measured.clientWidth)).toBe(true)
+          } else {
+            expect(measured.scrollWidth).toBeGreaterThan(measured.clientWidth)
+            expect(measured.peek).toBeGreaterThanOrEqual(16)
+            expect(measured.peek).toBeLessThanOrEqual(32)
+          }
+        })
+      }
+      const resized = await measure()
+      await page.setContent(`<style>${stylesheet}</style><div id="root" style="width:459px"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      await vi.waitFor(async () => { expect(await measure()).toEqual(resized) })
+    } finally { await page.close() }
+  })
+
   it.each([en, ptBR])('reserves a 16 to 32 pixel peek for live Today chips at 320 with doubled text', async (messages) => {
     const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0,
       profile: createMockProfile() })

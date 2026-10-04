@@ -215,6 +215,18 @@ describe('composer strip layout', () => {
     expect(resolveComposerStripLayout(320, [])).toEqual({ visibleWidth: 320, firstChipMinWidth: 0 })
   })
 
+  it('resolves natural widths independently of previous allocations', () => {
+    const naturalWidths = [111, 154, 105]
+    const freshNarrow = resolveComposerStripLayout(288, naturalWidths)
+    const freshWide = resolveComposerStripLayout(427, naturalWidths)
+    expect(freshNarrow).toEqual({ visibleWidth: 288, firstChipMinWidth: 256 })
+    expect(freshWide).toEqual({ visibleWidth: 427, firstChipMinWidth: 0 })
+    for (const width of [288, 427, 288, 427]) {
+      expect(resolveComposerStripLayout(width, naturalWidths)).toEqual(width === 288 ? freshNarrow : freshWide)
+      expect(naturalWidths).toEqual([111, 154, 105])
+    }
+  })
+
   it('keeps every chip reachable and the next chip peeking across every compact width', () => {
     for (let width = 320; width <= 1023; width++) for (const scale of [1, 2]) {
       for (const naturalWidths of [[180, 200, 160], [424, 367, 307, 313], [80, 800, 120], [160, 140, 120, 180, 160, 140]]) {

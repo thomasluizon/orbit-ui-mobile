@@ -97,10 +97,6 @@ function SuggestionStrip({
             key={suggestion.id}
             accessibilityRole="button"
             accessibilityLabel={suggestion.label}
-            onLayout={event => {
-              const width = event.nativeEvent.layout.width
-              setMeasurements(previous => previous[suggestion.id] === width ? previous : { ...previous, [suggestion.id]: width })
-            }}
             onPress={() => {
               if (focusTarget.current) AccessibilityInfo.sendAccessibilityEvent(focusTarget.current, 'focus')
               suggestion.onSelect()
@@ -111,8 +107,17 @@ function SuggestionStrip({
                 backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
             ]}
           >
-            {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
-            <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+            <View
+              testID="composer-suggestion-content"
+              onLayout={event => {
+                const width = event.nativeEvent.layout.width + 2 * (styles.suggestion.paddingHorizontal + styles.suggestion.borderWidth)
+                setMeasurements(previous => previous[suggestion.id] === width ? previous : { ...previous, [suggestion.id]: width })
+              }}
+              style={styles.suggestionContent}
+            >
+              {suggestion.icon ? <View style={[styles.suggestionIcon, { height: 20 * fontScale }]}>{suggestion.icon}</View> : null}
+              <Text style={[styles.suggestionText, { color: tokens.fg2 }]}>{suggestion.label}</Text>
+            </View>
           </InsetFocusPressable>
         ))}
       </ScrollView>
@@ -493,6 +498,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  suggestionContent: {
+    minWidth: 0,
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: COMPOSER_CHIP_GAP,
   },
   suggestionIcon: {
     flexShrink: 0,
