@@ -412,9 +412,6 @@ export function EditHabitModal({
           </ActionRow>
         )}
       >
-        <p className="mb-4 text-sm text-[var(--fg-3)]">
-          {t('habits.form.editDescription')}
-        </p>
         <form id={formId} onSubmit={(event) => void handleSubmit(event)}>
           <fieldset
             disabled={detailFieldsPending}
