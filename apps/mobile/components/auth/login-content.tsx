@@ -9,7 +9,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { createLoginStyles } from '@/app/login-styles'
 import { useLoginFlow } from '@/app/use-login-flow'
-import { LoginHeader, ReferralBanner, LoginStepStage } from './login-sections'
+import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 
@@ -79,6 +79,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
                 onResendCode={() => void flow.resendCode()} />}
           </View>
         </LoginStepStage>}
+        <LoginValidationMessage message={flow.validationGeneralError} isOnline={flow.isOnline} styles={styles} />
       </View>
     </KeyboardAwareScrollView>
   </View>

@@ -7,7 +7,7 @@ import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 import { useLoginFlow } from './use-login-flow'
-import { LoginHeader, ReferralBanner, LoginStepStage } from './login-sections'
+import { LoginHeader, ReferralBanner, LoginStepStage, LoginValidationMessage } from './login-sections'
 
 export interface LoginCallback {
   state: 'pending' | 'failed' | 'account'
@@ -64,6 +64,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
               onVerifyCode={() => void flow.verifyCode()} onResendCode={() => void flow.resendCode()} />}
         </div>
       </LoginStepStage>}
+      <LoginValidationMessage message={flow.validationGeneralError} isOnline={flow.isOnline} />
     </div>
   )
 }

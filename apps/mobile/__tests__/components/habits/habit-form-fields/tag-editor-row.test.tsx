@@ -27,7 +27,9 @@ describe('tag editor press fills', () => {
     const input = tree.root.findAll((node) => node.props.accessibilityLabel === 'Tag')[0]!
     expect(input.props.accessibilityHint).toBe('Tag must have at most 50 characters')
     expect(input.props.value).toBe('Health')
-    const caption = tree.root.findAll((node) => node.props.accessibilityRole === 'alert' && node.props.accessibilityLiveRegion === 'polite')[0]
+    const caption = tree.root.findAll((node) => String(node.type) === 'Text').find((node) => node.props.children === 'Tag must have at most 50 characters')
     expect(caption?.props.children).toBe('Tag must have at most 50 characters')
+    expect(caption?.props.accessibilityRole).toBeUndefined()
+    expect(caption?.props.accessibilityLiveRegion).toBeUndefined()
     void renderer.act(() => tree.update(<></>))
   })

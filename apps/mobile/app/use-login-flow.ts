@@ -1,4 +1,4 @@
-import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError, getErrorMessage } from '@orbit/shared/utils'
+import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError, getBackendGeneralError } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -325,7 +325,8 @@ export function useLoginFlow(isAuthCallback = false) {
     validationErrorDetails: extractBackendErrorDetails(validationError),
     validationCode: extractBackendErrorCode(validationError) ?? (errorKey === 'auth.errors.codeFormat' ? 'VALIDATION_VERIFICATION_CODE_FORMAT' : undefined),
     onCodeBlur: () => { if (entry.codeDigits.join('').length > 0 && !isValidVerificationCode(entry.codeDigits.join(''))) setErrorKey('auth.errors.codeFormat') },
-    errorMessage: errorKey ? t(errorKey) : validationError && !getBackendFieldError(validationError, step === 'email' ? 'Email' : 'Code') ? getErrorMessage(validationError, '') : null, successMessage, showReferralBanner, fromOnboarding,
+    validationGeneralError: getBackendGeneralError(validationError, [step === 'email' ? 'Email' : 'Code']),
+    errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
     plannedHabitCount, isOnline, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
     canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),

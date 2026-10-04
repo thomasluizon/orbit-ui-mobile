@@ -60,3 +60,10 @@ export function LoginStepStage({ step, motionPreset, children }: Readonly<{
     </AnimatePresence>
   )
 }
+
+
+export function LoginValidationMessage({ message, isOnline }: Readonly<{ message?: string; isOnline: boolean }>) {
+  const visibleMessage = isOnline ? message : undefined
+  return <p role="status" aria-live="polite" aria-atomic="true"
+    className={visibleMessage ? 'whitespace-pre-line text-sm text-[var(--status-bad-text)]' : 'sr-only'}>{visibleMessage}</p>
+}

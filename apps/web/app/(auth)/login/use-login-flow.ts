@@ -1,4 +1,4 @@
-import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError, getErrorMessage } from '@orbit/shared/utils'
+import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError, getBackendGeneralError } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
@@ -270,7 +270,8 @@ export function useLoginFlow() {
     validationErrorDetails: extractBackendErrorDetails(validationError),
     validationCode: extractBackendErrorCode(validationError) ?? (errorKey === 'auth.errors.codeFormat' ? 'VALIDATION_VERIFICATION_CODE_FORMAT' : undefined),
     onCodeBlur: () => { if (entry.codeDigits.join('').length > 0 && !isValidVerificationCode(entry.codeDigits.join(''))) setErrorKey('auth.errors.codeFormat') },
-    errorMessage: errorKey ? t(errorKey) : validationError && !getBackendFieldError(validationError, step === 'email' ? 'Email' : 'Code') ? getErrorMessage(validationError, '') : null, successMessage, referralCode, fromOnboarding,
+    validationGeneralError: getBackendGeneralError(validationError, [step === 'email' ? 'Email' : 'Code']),
+    errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
     pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
     sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount }

@@ -869,3 +869,33 @@ it.each(['en', 'pt-BR'] as const)('shows the five-digit format error in the moun
   expect(input().props.accessibilityHint).toBe(testI18n.t('auth.codeHint'))
   await act(() => tree.unmount())
 })
+
+
+it.each([
+  { step: 'email', mixed: true }, { step: 'code', mixed: true },
+  { step: 'email', mixed: false }, { step: 'code', mixed: false },
+])('keeps unmapped validation visible in the owning $step form (mixed: $mixed)', async ({ step, mixed }) => {
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  await act(() => { tree = TestRenderer.create(React.createElement(LoginContent)) })
+  const input = () => tree.root.findAll((node) => String(node.type) === 'TextInput')[0]!
+  await act(() => (input().props.onChangeText as (value: string) => void)('user@test.com'))
+  if (step === 'code') {
+    await act(() => (input().props.onSubmitEditing as () => void)())
+    expect(input().props.accessibilityLabel).toBe('auth.verificationCode')
+  }
+  const field = step === 'email' ? 'Email' : 'Code'
+  const other = 'Other'
+  mocks.apiClient.mockRejectedValue(createApiClientError(400, { errors: { ...(mixed ? { [field]: ['Field failure'] } : {}), [other]: ['Other failure', 'Second failure'] } }, 'Fallback'))
+  if (step === 'email') await act(() => (input().props.onSubmitEditing as () => void)())
+  else await act(() => (input().props.onChangeText as (value: string) => void)('123456'))
+  if (mixed) expect(input().props.accessibilityHint).toBe('Field failure')
+  expect(tree.root.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children)).toContain('Other failure\nSecond failure')
+  if (mixed) expect(mocks.focus).toHaveBeenCalled()
+  expect(input().props.value).toBe(step === 'email' ? 'user@test.com' : '123456')
+  mocks.apiClient.mockRejectedValue(createApiClientError(400, { errors: { [other]: ['Unknown first', 'Unknown second'] } }, 'Fallback'))
+  await act(() => (input().props.onChangeText as (value: string) => void)(step === 'email' ? 'corrected@test.com' : '123457'))
+  if (step === 'email') await act(() => (input().props.onSubmitEditing as () => void)())
+  expect(tree.root.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children)).toContain('Unknown first\nUnknown second')
+  expect(input().props.accessibilityHint).not.toBe('Field failure')
+  await act(() => tree.update(React.createElement(React.Fragment)))
+})

@@ -78,7 +78,7 @@ export function TagEditorRow({
         <X size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
-    {error ? <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
+    {error ? <p id={errorId} className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
     </div>
   )
 }

@@ -716,6 +716,7 @@ it('keeps rejected tag Name validation beside its input in the owning habit edit
   expect(input).toHaveAttribute('aria-invalid', 'true')
   expect(input).toHaveFocus()
   expect(input).toHaveValue('Health')
+  expect(screen.getByText('Tag must have at most 50 characters')).not.toHaveAttribute('role', 'alert')
   fireEvent.change(input, { target: { value: 'Updated' } })
   expect(input).not.toHaveAttribute('aria-invalid')
 })

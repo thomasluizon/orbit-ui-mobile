@@ -596,3 +596,56 @@ it.each(['en', 'pt-BR'] as const)('shows the five-digit format error in the moun
   fireEvent.change(code, { target: { value: '1234' } })
   expect(code).not.toHaveAttribute('aria-invalid')
 })
+
+
+it.each([
+  { step: 'email', mixed: true }, { step: 'code', mixed: true },
+  { step: 'email', mixed: false }, { step: 'code', mixed: false },
+])('keeps unmapped validation visible in the owning $step form (mixed: $mixed)', async ({ step, mixed }) => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
+  render(React.createElement(LoginContent))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  if (step === 'code') {
+    fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+    await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
+  }
+  const field = step === 'email' ? 'Email' : 'Code'
+  const other = 'Other'
+  fetchMock.mockResolvedValue(jsonResponse({ errors: { ...(mixed ? { [field]: ['Field failure'] } : {}), [other]: ['Other failure', 'Second failure'] } }, 400))
+  const input = screen.getByRole('textbox')
+  if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+  else fireEvent.change(input, { target: { value: '123456' } })
+  if (mixed) await waitFor(() => expect(input).toHaveAccessibleDescription('Field failure'))
+  else await waitFor(() => expect(screen.getByText('Other failure', { exact: false })).toBeInTheDocument())
+  expect(screen.getByText('Other failure', { exact: false })).toHaveTextContent('Other failure Second failure')
+  if (mixed) expect(input).toHaveFocus()
+  expect(input).toHaveValue(step === 'email' ? 'user@test.com' : '123456')
+  fetchMock.mockResolvedValue(jsonResponse({ errors: { [other]: ['Unknown first', 'Unknown second'] } }, 400))
+  fireEvent.change(input, { target: { value: step === 'email' ? 'corrected@test.com' : '123457' } })
+  if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+  await waitFor(() => expect(screen.getByText('Unknown first', { exact: false })).toHaveTextContent('Unknown first Unknown second'))
+  expect(input).not.toHaveAttribute('aria-invalid')
+})
+
+
+it('keeps the general announcement region stable when verification returns email validation', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
+  render(React.createElement(LoginContent))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+  const code = await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
+  const generalRegion = screen.getAllByRole('status').at(-1)
+  expect(generalRegion).toBeEmptyDOMElement()
+  fetchMock.mockResolvedValue(jsonResponse({ errors: { Email: ['Email failure'], Other: ['Other failure', 'Second failure'] } }, 400))
+  fireEvent.change(code, { target: { value: '123456' } })
+  const email = await screen.findByRole('textbox', { name: mocks.translate('auth.email') })
+  expect(email).toHaveAccessibleDescription('Email failure')
+  expect(email).toHaveFocus()
+  expect(email).toHaveValue('user@test.com')
+  expect(screen.getByText('Other failure', { exact: false })).toBe(generalRegion)
+  expect(generalRegion).toHaveTextContent('Other failure Second failure')
+})

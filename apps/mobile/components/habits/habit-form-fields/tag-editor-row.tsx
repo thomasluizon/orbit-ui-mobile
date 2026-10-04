@@ -84,7 +84,7 @@ export function TagEditorRow({
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
     </View>
-    {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{error}</Text> : null}
+    {error ? <Text style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{error}</Text> : null}
     </View>
   );
 }
