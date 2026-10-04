@@ -46,16 +46,26 @@ describe('habit creation history exits', () => {
       history.pushState(null, '', '/')
       history.pushState(null, '', '/habits/new?from=%2F')
     } else history.replaceState(null, '', '/habits/new?from=%2F')
+    const traversalStates: unknown[] = []
+    const recordTraversal = () => traversalStates.push(history.state)
+    window.addEventListener('popstate', recordTraversal, true)
     const routerRestores: unknown[] = []
     const restoreRoute = () => routerRestores.push(history.state)
     window.addEventListener('popstate', restoreRoute)
     const guard = mountGuard()
     try {
+      expect(history.state).toEqual({ orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: true })
       act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/')))
       await waitFor(() => expect(location.pathname).toBe('/'))
       expect(routerRestores).toEqual([])
+      expect(traversalStates).toEqual([
+        { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
+        { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
+      ])
+      expect(history.state).toBeNull()
     } finally {
       guard.unmount()
+      window.removeEventListener('popstate', recordTraversal, true)
       window.removeEventListener('popstate', restoreRoute)
     }
   })
