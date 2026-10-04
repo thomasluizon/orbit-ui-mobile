@@ -965,7 +965,7 @@ describe('HabitList', () => {
     expect(screen.getByRole('button', { name: 'habits.seeUpcoming' })).toHaveAttribute('data-variant', 'ghost')
   })
 
-  it('shows all-done above an unfinished anytime habit', () => {
+  it('shows all-done above an unfinished anytime habit with a 24 gap', async () => {
     useActualHabitVisibility = true
     accountHabitCount.count = 2
     const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
@@ -974,12 +974,26 @@ describe('HabitList', () => {
     mockHabitsData.topLevelHabits = [due, anytime]
     mockHabitsData.totalCount = 2
 
-    renderWithProviders(<HabitList filters={defaultFilters} view="today" showCompleted={false} />)
+    const { container } = renderWithProviders(<HabitList filters={defaultFilters} view="today" showCompleted={false} />)
 
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
     expect(screen.getByText('Anytime habit')).toBeInTheDocument()
     expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText('Anytime habit')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
+    const cssPath = resolve('app/globals.css')
+    const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
+    const launch = launchChrome()
+    try {
+      const browser = await launch
+      const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+      await page.setContent(`<style>${stylesheet.css}</style>${container.innerHTML}`)
+      const gap = await page.getByText('habits.allDoneToday', { exact: true }).evaluate((element) => {
+        const banner = element.parentElement!
+        const row = document.querySelector('[data-testid="habit-card-anytime"]')!
+        return row.getBoundingClientRect().top - banner.getBoundingClientRect().bottom
+      })
+      expect(gap).toBe(24)
+    } finally { await closeChrome(launch) }
+  }, 45_000)
 
   it('keeps the all-done block above completed rows when they are shown', () => {
     useActualHabitVisibility = true

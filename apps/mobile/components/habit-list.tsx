@@ -371,16 +371,14 @@ function resolveParentSettlement(
 function renderAllDoneListHeader(
   showAllDone: boolean,
   header: ReactElement | null,
-  sectionInsetStyle: ReturnType<typeof createStyles>['sectionInset'],
+  headerStyle: ReturnType<typeof createStyles>['allDoneHeader'],
   onAction: (() => void) | undefined,
 ): ReactElement | null {
   if (!showAllDone) return header
   return (
-    <View>
+    <View style={headerStyle}>
       {header}
-      <View style={sectionInsetStyle}>
-        <HabitListAllDone onSeeUpcoming={onAction} />
-      </View>
+      <HabitListAllDone onSeeUpcoming={onAction} />
     </View>
   )
 }
@@ -1782,7 +1780,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const activeListHeader = renderAllDoneListHeader(
       showAllDone,
       listHeaderComponent,
-      styles.sectionInset,
+      styles.allDoneHeader,
       onSeeUpcoming,
     )
 

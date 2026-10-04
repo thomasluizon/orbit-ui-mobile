@@ -119,8 +119,9 @@ describe('Hoje group spacing', () => {
       await load()
       expect(await page.getByRole('status').evaluate((element) => {
         const placeholders = element.querySelectorAll('[data-variant]')
-        return placeholders[1]!.getBoundingClientRect().top - placeholders[0]!.getBoundingClientRect().bottom
-      })).toBeCloseTo(24, 1)
+        return { groups: placeholders[1]!.getBoundingClientRect().top - placeholders[0]!.getBoundingClientRect().bottom,
+          rows: placeholders[2]!.getBoundingClientRect().top - placeholders[1]!.getBoundingClientRect().bottom }
+      })).toEqual({ groups: 24, rows: 12 })
     } finally { await page.close() }
   })
 })

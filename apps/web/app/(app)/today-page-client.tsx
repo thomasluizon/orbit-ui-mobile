@@ -94,7 +94,7 @@ export function TodayPageClient({
       : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-6 p-4">
           <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
           <Skeleton variant="settings" grouped />
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-3">
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="habit-row" grouped />
             <Skeleton variant="habit-row" grouped />

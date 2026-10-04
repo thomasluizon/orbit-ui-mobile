@@ -84,6 +84,7 @@ export function createStyles(tokens: AppTokens) {
     },
 
     sectionInset: {},
+    allDoneHeader: { paddingBottom: 24 },
     listContent: {
       paddingHorizontal: 16,
     },

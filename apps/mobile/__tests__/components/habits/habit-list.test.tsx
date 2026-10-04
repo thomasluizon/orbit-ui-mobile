@@ -1,7 +1,8 @@
 import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
-import { FlatList } from 'react-native'
+import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
+import { FlatList, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
@@ -1146,7 +1147,7 @@ describe('HabitList', () => {
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
 
-  it('shows all-done above an unfinished anytime habit', () => {
+  it('shows all-done above an unfinished anytime habit with a 24 gap', () => {
     useActualHabitVisibility = true
     const due = createMockHabit({ id: 'due', title: 'Due habit', scheduledDates: [TODAY], isLoggedInRange: true })
     const anytime = createMockHabit({ id: 'anytime', title: 'Anytime habit', isGeneral: true })
@@ -1156,14 +1157,18 @@ describe('HabitList', () => {
 
     TestRenderer.act(() => {
       tree = createTestTree(
-        <HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }}
-          showCompleted={false} onCreatePress={vi.fn()} />,
+        <View><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }}
+          showCompleted={false} onCreatePress={vi.fn()} /></View>,
       )
     })
 
     expect(tree!.root.findAll((node) => node.type === HabitListAllDone)).toHaveLength(1)
     expect(tree!.root.findAll((node) => node.type === HabitRow)
       .map((node) => (node.props.habit as NormalizedHabit).id)).toContain('anytime')
+    const geometry = measureSafeArea((tree! as GeometryTree).toJSON(), (host) =>
+      host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('habits.allDoneToday'))
+        ? 'banner' : host.props.testID === 'habit-row' ? 'row' : undefined)
+    expect(geometry.get('row')!.top - geometry.get('banner')!.bottom).toBe(24)
   })
 
   it('keeps the all-done block above completed rows when they are shown', () => {

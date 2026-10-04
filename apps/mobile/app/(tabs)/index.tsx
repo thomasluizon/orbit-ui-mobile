@@ -317,7 +317,7 @@ function TodayScreenContent() {
 const styles = StyleSheet.create({
   screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
   profileLoading: { gap: 24, padding: 16 },
-  profileLoadingHabits: { gap: 16 },
+  profileLoadingHabits: { gap: 12 },
   listBand: { flex: 1 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },
