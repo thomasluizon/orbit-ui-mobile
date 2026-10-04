@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import en from '@orbit/shared/i18n/en.json'
@@ -7,15 +8,40 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { emptyGoalsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { measureScrollbarGutter } from './scrollbar-geometry'
+
+test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
 const calendarMonth = calendarMonthResponseSchema.parse({ habits: [], logs: {} })
 const goals = paginatedGoalResponseSchema.parse(emptyGoalsPageFixture)
+const overflowingGoals = paginatedGoalResponseSchema.parse({
+  ...emptyGoalsPageFixture,
+  items: Array.from({ length: 40 }, (_, index) => createMockGoal({
+    id: `goal-${index}`, title: `Livro ${index + 1}`, position: index,
+  })),
+  totalCount: 40,
+})
+
+async function waitForRoot(page: Page, root: string, words: typeof en | typeof ptBR, content: 'short' | 'long' = 'short') {
+  if (root === '/calendar') {
+    await expect(page.getByTestId('calendar-day-select-2026-09-04')).toBeVisible()
+    await expect(page.getByTestId('calendar-grid').getByRole('progressbar')).toHaveCount(0)
+  } else if (root === '/progress') {
+    if (content === 'short') await expect(page.getByText(words.progressScreen.goals.empty, { exact: true })).toBeVisible()
+    else await expect(page.locator('[data-goal-id]')).toHaveCount(overflowingGoals.items.length)
+  } else if (root === '/profile') {
+    await expect(page.getByTestId('profile-settings-groups')).toBeVisible()
+  }
+}
 
 async function measureBell(bell: Locator) {
-  return bell.evaluate((element) => {
+  const gutter = await bell.locator('xpath=ancestor::*[@data-shell-column]')
+    .locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
+  return bell.evaluate((element, gutter) => {
     const bounds = element.getBoundingClientRect()
     const row = element.parentElement!.getBoundingClientRect()
     const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
+    const scroller = element.closest('[data-shell-column]')!.querySelector<HTMLElement>('[data-shell-scroller]')!
     return {
       right: bounds.right,
       centerY: bounds.top + bounds.height / 2,
@@ -23,9 +49,11 @@ async function measureBell(bell: Locator) {
       height: bounds.height,
       rowHeight: row.height,
       rowCenterY: row.top + row.height / 2,
-      trailingInset: column.right - bounds.right,
+      trailingInset: column.right - bounds.right - gutter,
+      gutter,
+      overflows: scroller.scrollHeight > scroller.clientHeight,
     }
-  })
+  }, gutter)
 }
 
 test.beforeEach(async ({ context }) => {
@@ -40,48 +68,68 @@ test.beforeEach(async ({ context }) => {
 })
 
 for (const locale of ['en', 'pt-BR'] as const) {
-  for (const { width, mode } of [320, 412, 840, 1100, 1352].flatMap((width) =>
+  for (const { width, mode } of [320, 412, 600, 840, 1100, 1352].flatMap((width) =>
     (['dark', 'light'] as const).map((mode) => ({ width, mode })),
   )) {
     test.describe(`root bell position in ${locale} at ${width}px in ${mode}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: { themePreference: mode } })
       const words = locale === 'pt-BR' ? ptBR : en
 
-      test('aligns every root to Hoje and opens Avisos', async ({ page }) => {
-        let today: Awaited<ReturnType<typeof measureBell>> | undefined
-        for (const root of ['/', '/calendar', '/progress', '/profile']) {
-          await page.goto(root)
-          await waitForRoot(page, root, words)
-          const row = root === '/' ? page.locator('[data-today-header-actions]')
-            : root === '/calendar' ? page.getByTestId('calendar-shell-header')
-              : page.locator('[data-root-notification-header]')
-          const bell = page.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) }).filter({ visible: true })
-          await expect(bell).toHaveCount(1)
-          if (width >= 1024) await expectWideBell(page, row, root, words)
-          await page.evaluate(() => document.fonts.ready)
-          if (width < 1024) await expect(async () => {
-            const geometry = await measureBell(bell)
-            today ??= geometry
-            expect(Math.abs(geometry.right - today.right), `${root} trailing edge`).toBeLessThanOrEqual(1)
-            expect(Math.abs(geometry.centerY - today.centerY), `${root} vertical centre`).toBeLessThanOrEqual(1)
-            expect(geometry.trailingInset).toBe(16)
-            expect(geometry.width).toBeGreaterThanOrEqual(48)
-            expect(geometry.height).toBeGreaterThanOrEqual(48)
-            expect(geometry.rowHeight).toBeGreaterThanOrEqual(48)
-            expect(geometry.centerY).toBe(geometry.rowCenterY)
-          }).toPass({ timeout: 5000 })
-          if (width < 1024 && (root === '/progress' || root === '/profile')) {
-            await expect(row.getByRole('button')).toHaveCount(1)
-            await expect(row.getByRole('heading')).toHaveCount(0)
-            expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)
+      for (const content of width < 1024 ? ['short', 'long'] as const : ['short'] as const) {
+        test(`aligns every root to Hoje with ${content} content and opens Avisos`, async ({ page, context }) => {
+          if (content === 'long') await context.route(
+            (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
+            (route) => route.fulfill({ json: overflowingGoals }),
+          )
+          let today: Awaited<ReturnType<typeof measureBell>> | undefined
+          const rootOverflow = new Map<string, boolean>()
+          for (const root of ['/', '/calendar', '/progress', '/profile']) {
+            await page.goto(root)
+            await waitForRoot(page, root, words, content)
+            const row = root === '/' ? page.locator('[data-today-header-actions]')
+              : root === '/calendar' ? page.getByTestId('calendar-shell-header')
+                : page.locator('[data-root-notification-header]')
+            const bell = page.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) }).filter({ visible: true })
+            await expect(bell).toHaveCount(1)
+            if (width >= 1024) await expectWideBell(page, row, root, words)
+            else await expect(row.getByRole('button', { name: new RegExp(`^${words.notifications.bell}`) })).toBeVisible()
+            await page.evaluate(() => document.fonts.ready)
+            if (width < 1024) await expect(async () => {
+              const geometry = await measureBell(bell)
+              today ??= geometry
+              expect(Math.abs(geometry.right - today.right), `${root} trailing edge`).toBeLessThanOrEqual(0.5)
+              if (root === '/progress' && content === 'long') {
+                expect(geometry.overflows).toBe(true)
+                expect(geometry.gutter).toBeGreaterThan(0)
+              }
+              expect(Math.abs(geometry.centerY - today.centerY), `${root} vertical centre`).toBeLessThanOrEqual(1)
+              expect(geometry.trailingInset).toBe(16)
+              expect(geometry.width).toBeGreaterThanOrEqual(48)
+              expect(geometry.height).toBeGreaterThanOrEqual(48)
+              expect(geometry.rowHeight).toBeGreaterThanOrEqual(48)
+              expect(geometry.centerY).toBe(geometry.rowCenterY)
+              rootOverflow.set(root, geometry.overflows)
+            }).toPass({ timeout: 5000 })
+            if (width < 1024 && (root === '/progress' || root === '/profile')) {
+              await expect(row.getByRole('button')).toHaveCount(1)
+              await expect(row.getByRole('heading')).toHaveCount(0)
+              expect(await row.evaluate((element) => Boolean(element.closest('[data-shell-scroller]')))).toBe(true)
+            }
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+            await bell.click()
+            await expect(page).toHaveURL(/\/notifications$/)
+            await expect(page.getByRole('heading', { name: words.notifications.title, exact: true })).toBeVisible()
           }
-          expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-          await bell.click()
-          await expect(page).toHaveURL(/\/notifications$/)
-          await expect(page.getByRole('heading', { name: words.notifications.title, exact: true })).toBeVisible()
-        }
-      })
+          expectNonScrollingRoot(width, content, rootOverflow)
+        })
+      }
     })
+  }
+}
+
+function expectNonScrollingRoot(width: number, content: 'short' | 'long', rootOverflow: ReadonlyMap<string, boolean>) {
+  if (width < 1024 && content === 'short') {
+    expect([...rootOverflow.values()], 'short content includes a non-scrolling root').toContain(false)
   }
 }
 
@@ -131,17 +179,6 @@ async function recordBellFrames(page: Page, label: string) {
     sample()
     document.addEventListener('bell-resize-end', () => { cancelAnimationFrame(frame); resolve(counts) }, { once: true })
   }), label)
-}
-
-async function waitForRoot(page: Page, root: string, words: typeof en) {
-  if (root === '/calendar') {
-    await expect(page.getByTestId('calendar-day-select-2026-09-04')).toBeVisible()
-    await expect(page.getByTestId('calendar-grid').getByRole('progressbar')).toHaveCount(0)
-  } else if (root === '/progress') {
-    await expect(page.getByText(words.progressScreen.goals.empty, { exact: true })).toBeVisible()
-  } else if (root === '/profile') {
-    await expect(page.getByTestId('profile-settings-groups')).toBeVisible()
-  }
 }
 
 async function expectWideBell(page: Page, row: Locator, root: string, words: typeof en) {

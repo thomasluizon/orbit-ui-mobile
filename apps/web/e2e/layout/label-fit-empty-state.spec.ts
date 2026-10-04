@@ -65,6 +65,14 @@ for (const width of [320, 360, 384, 412]) {
         }
       })
 
+      test('Hoje keeps its empty habit title on one line', async ({ page }) => {
+        await page.goto('/')
+        const title = page.getByText(words.habits.emptyState, { exact: true })
+        await expect(title).toHaveCount(1)
+        await markRequiredLabels(title)
+        await expectLabelsFit(page, title.locator('..'))
+      })
+
       test('Progress names empty goals and achievements on one line', async ({ page }) => {
         await page.goto('/progress')
         for (const title of [words.progressScreen.goals.empty, words.progressScreen.achievements.empty]) {

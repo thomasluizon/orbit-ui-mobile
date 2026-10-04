@@ -6,12 +6,16 @@ import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { measureScrollbarGutter } from './scrollbar-geometry'
 
 const notification = createMockNotification({ title: 'Layout notification' })
 const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
 
 async function expectContentEdges(surface: Locator, reference: 'shell-column' | 'notice-column') {
-  const geometry = await surface.evaluate((element, reference) => {
+  const gutter = reference === 'shell-column'
+    ? await surface.locator('xpath=ancestor::*[@data-shell-scroller]').evaluate(measureScrollbarGutter)
+    : 0
+  const geometry = await surface.evaluate((element, { reference, gutter }) => {
     const contentColumn = reference === 'shell-column'
       ? element.closest('[data-shell-column]')
       : element.closest('[data-shell-notice]')?.parentElement
@@ -22,9 +26,9 @@ async function expectContentEdges(surface: Locator, reference: 'shell-column' | 
       left: bounds.left,
       right: bounds.right,
       contentLeft: column.left + 16,
-      contentRight: column.right - 16,
+      contentRight: column.right - 16 - gutter,
     }
-  }, reference)
+  }, { reference, gutter })
   expect(geometry.left).toBeCloseTo(geometry.contentLeft, 1)
   expect(geometry.right).toBeCloseTo(geometry.contentRight, 1)
 }
