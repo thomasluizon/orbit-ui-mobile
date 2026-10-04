@@ -224,6 +224,7 @@ export function HabitRowTrailing(props: Readonly<HabitRowTrailingProps>) {
             open={menuOpen}
             anchorRef={menuAnchorRef}
             title={habit.title || t('habits.actions.menuTitle')}
+            titleMode={habit.title ? 'typed' : 'label'}
             items={menuItems}
             onClose={closeMenu}
             onSelect={(id) => {

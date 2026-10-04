@@ -8,6 +8,7 @@ import type { ChatMessage, ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { i18n } from '@/lib/i18n'
 import type { DocumentPickerAsset } from 'expo-document-picker'
 
 import { Linking, StyleSheet } from 'react-native'
@@ -47,6 +48,8 @@ const mocks = vi.hoisted(() => {
   }
 
   return {
+    translate: undefined as ((key: string, params?: Record<string, unknown>) => string) | undefined,
+    locale: 'en',
     state,
     pathname: '/support',
     composerProps: null as { onOpenConversation?: () => void; onChangeValue: (value: string) => void; onSend: () => void } | null,
@@ -63,6 +66,15 @@ const mocks = vi.hoisted(() => {
     useQueryClient: vi.fn(() => queryClient),
   }
 })
+
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => {} },
+  useTranslation: () => ({
+    t: mocks.translate ?? ((key: string, params?: Record<string, unknown>) =>
+      params ? `${key}:${JSON.stringify(params)}` : key),
+    i18n: { language: mocks.locale },
+  }),
+}))
 
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: mocks.useQueryClient,
@@ -601,6 +613,8 @@ describe('mobile useChatComposer', () => {
   })
 
   beforeEach(() => {
+    mocks.translate = undefined
+    mocks.locale = 'en'
     __resetTestHostConfig()
     mocks.composerProps = null
     mocks.state.profile = undefined
@@ -1754,6 +1768,30 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
       'habitDetail.askAstra', 'habitDetail.pauseThisWeek', 'habitDetail.rename',
     ])
+  })
+
+  it.each([
+    ['en', 'rename', 'Rename', 'Rename the habit "Ler"'],
+    ['en', 'pauseThisWeek', 'Pause this week', 'Pause the habit "Ler" this week'],
+    ['pt-BR', 'rename', 'Renomear', 'Renomear o hábito "Ler"'],
+    ['pt-BR', 'pauseThisWeek', 'Pausar esta semana', 'Pausar o hábito "Ler" esta semana'],
+  ] as const)('sends the named habit detail request in %s for %s', async (locale, action, label, prompt) => {
+    mocks.locale = locale
+    await i18n.changeLanguage(locale)
+    mocks.translate = i18n.t.bind(i18n)
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = { ...makeHabitDetail(), title: 'Ler' }
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    const composer = await renderComposer({ pathname: '/habits/habit-1' })
+    const suggestion = composer.current.composerProps.suggestions.find(chip => chip.id === `habitDetail.${action}`)!
+    expect(suggestion.label).toBe(label)
+    TestRenderer.act(() => suggestion.onSelect())
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    expect(appendFormPart).toHaveBeenCalledWith('message', expect.stringContaining('Ler'))
+    expect(appendFormPart).toHaveBeenCalledWith('message', prompt)
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it('sends the habit detail seed prompt', async () => {

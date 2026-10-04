@@ -128,9 +128,25 @@ describe('composer chips', () => {
     ])
     expect(buildComposerChips(state({ surface: 'habitDetail', detailHabit: { title: 'Reading', checklistItems: [] } }))).toEqual([
       { id: 'habitDetail.askAstra', key: 'shell.composer.chips.habitDetail.askAstra', params: { title: 'Reading' }, promptKey: 'habits.detail.askAstraSeedDefault' },
-      { id: 'habitDetail.pauseThisWeek', key: 'shell.composer.chips.habitDetail.pauseThisWeek' },
-      { id: 'habitDetail.rename', key: 'shell.composer.chips.habitDetail.rename' },
+      { id: 'habitDetail.pauseThisWeek', key: 'shell.composer.chips.habitDetail.pauseThisWeek', params: { title: 'Reading' }, promptKey: 'shell.composer.prompts.habitDetail.pauseThisWeek' },
+      { id: 'habitDetail.rename', key: 'shell.composer.chips.habitDetail.rename', params: { title: 'Reading' }, promptKey: 'shell.composer.prompts.habitDetail.rename' },
     ])
+  })
+
+  it.each(['Ler', 'Read with "quotes" and accents á '.repeat(5)])('names the open habit in rename and pause requests for %s', title => {
+    const chips = buildComposerChips(state({ surface: 'habitDetail', detailHabit: { title, checklistItems: [] } }))
+    for (const action of ['rename', 'pauseThisWeek'] as const) {
+      const chip = chips.find(candidate => candidate.id === `habitDetail.${action}`)!
+      expect(chip.params?.title).toBe(title)
+      expect(chip.promptKey).toBe(`shell.composer.prompts.habitDetail.${action}`)
+      for (const locale of [en, ptBR]) {
+        const prompts: Record<string, Record<string, string>> = locale.shell.composer.prompts
+        const prompt = prompts.habitDetail![action]!
+        expect(prompt.match(/\{title\}/g)).toHaveLength(1)
+        expect(prompt.replace('{title}', chip.params!.title)).toContain(title)
+        expect(locale.shell.composer.chips.habitDetail[action]).not.toContain('{title}')
+      }
+    }
   })
 
   it('keeps the Progress goal request when a draft already exists', () => {

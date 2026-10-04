@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useEffectEvent } from 'react'
+import { startTransition, useEffect, useEffectEvent, useState } from 'react'
+import { resolveHabitCreateReturnPath } from '@orbit/shared/utils'
 
 let activeNavigationGuard: ((action: () => void) => void) | null = null
 let finishNavigation: ((action: () => void) => void) | null = null
@@ -17,36 +18,6 @@ function isCreationBaseEntry(entry: unknown, guardId: string) {
 function markCreationEntry(guardId: string, sentinel: boolean) {
   const entry: unknown = history.state
   return Object.assign({}, entry, { orbitHabitCreateGuard: guardId, orbitHabitCreateSentinel: sentinel })
-}
-
-function replaceApprovedNavigation(guardId: string) {
-  const pushState = history.pushState.bind(history)
-  const replaceState = history.replaceState.bind(history)
-  const creationPath = location.pathname + location.search
-  function restoreHistory() {
-    history.pushState = pushState
-    history.replaceState = replaceState
-  }
-  function approvedWrite(method: History['pushState'], entry: unknown, title: string, href?: string | URL | null) {
-    const destination = href == null ? null : new URL(href, location.href)
-    if (!destination || destination.pathname + destination.search === creationPath) {
-      method.call(history, entry, title, href)
-      return
-    }
-    restoreHistory()
-    function finishReplacement(event: PopStateEvent) {
-      if (!isCreationBaseEntry(history.state, guardId)) return
-      event.stopImmediatePropagation()
-      window.removeEventListener('popstate', finishReplacement, true)
-      replaceState.call(history, entry, title, href)
-    }
-    window.addEventListener('popstate', finishReplacement, true)
-    pushState.call(history, entry, title, href)
-    history.back()
-  }
-  history.pushState = (entry: unknown, title, href) => approvedWrite(pushState, entry, title, href)
-  history.replaceState = (entry: unknown, title, href) => approvedWrite(replaceState, entry, title, href)
-  return restoreHistory
 }
 
 export function completeHabitCreateNavigation(action: () => void) {
@@ -70,11 +41,13 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
   const returnToOrigin = useEffectEvent(onReturn)
   const isLeaving = useEffectEvent(() => leaving)
   const isDirty = useEffectEvent(() => dirty)
+  const [rebuildAction, setRebuildAction] = useState<(() => void) | null>(null)
   useEffect(() => {
     if (!active) return
     const creationPath = location.pathname
     const creationSearch = location.search
     const guardId = `${creationPath}${creationSearch}`
+    const returnPath = resolveHabitCreateReturnPath(new URLSearchParams(creationSearch).get('from') ?? undefined)
     if (!isCreationGuardEntry(history.state, guardId) || isCreationBaseEntry(history.state, guardId)) {
       history.replaceState(markCreationEntry(guardId, false), '', location.href)
       history.pushState(markCreationEntry(guardId, true), '', location.href)
@@ -83,8 +56,9 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
       if (isLeaving()) action()
       else requestNavigation(action)
     }
-    let restoreApprovedHistory: (() => void) | null = null
+    let completingNavigation = false
     let approvedNavigation: (() => void) | null = null
+    let rebuiltSentinel = false
     finishNavigation = (action) => {
       approvedNavigation = action
       history.back()
@@ -97,13 +71,21 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
           history.back()
           return
         }
+        if (!rebuiltSentinel) {
+          rebuiltSentinel = true
+          startTransition(() => setRebuildAction(() => () => {
+            history.pushState({ __NA: true }, '', returnPath)
+            history.back()
+          }))
+          return
+        }
         const action = approvedNavigation
         approvedNavigation = null
-        restoreApprovedHistory = replaceApprovedNavigation(guardId)
+        completingNavigation = true
         action()
         return
       }
-      if (isLeaving()) return
+      if (completingNavigation || isLeaving()) return
       if (restoring) {
         restoring = false
         requestNavigation(() => returnToOrigin())
@@ -139,7 +121,6 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
     window.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('click', handleClick, true)
     return () => {
-      restoreApprovedHistory?.()
       activeNavigationGuard = null
       finishNavigation = null
       window.removeEventListener('popstate', handlePopState)
@@ -147,4 +128,5 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
       document.removeEventListener('click', handleClick, true)
     }
   }, [active])
+  useEffect(() => { rebuildAction?.() }, [rebuildAction])
 }

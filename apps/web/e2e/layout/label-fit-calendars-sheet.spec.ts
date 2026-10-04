@@ -45,6 +45,7 @@ async function doubleSheetText(sheet: Locator) {
 }
 
 async function expectWholeText(label: Locator) {
+  await label.scrollIntoViewIfNeeded()
   await expect(label).toBeVisible()
   expect(await label.evaluate((element) => {
     const range = document.createRange()
@@ -98,6 +99,7 @@ for (const width of [320, 360, 384, 412, 600]) {
         await markRequiredLabels(calendarHeading)
         await markRequiredLabels(eventsHeading)
         await markRequiredLabels(date)
+        await expect(sheet.getByRole('checkbox', { name: calendarName, exact: true })).toBeVisible()
         await markUserText(page, [calendarName, 'Caminhar', 'Ler'])
         await expectLabelsFit(page, sheet, [calendarName, 'Caminhar', 'Ler'])
         const openName = sheet.getByRole('button', { name: calendarName, exact: true })

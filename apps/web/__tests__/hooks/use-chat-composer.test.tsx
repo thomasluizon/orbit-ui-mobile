@@ -10,6 +10,9 @@ import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitDetail, HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -17,6 +20,8 @@ beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
 afterEach(() => vi.useRealTimers())
 
 const mocks = vi.hoisted(() => ({
+  translate: undefined as ReturnType<typeof createTranslator<typeof en>> | undefined,
+  locale: 'en',
   pathname: '/support',
   searchParams: '',
   state: {
@@ -40,10 +45,11 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
-  useLocale: () => 'en',
+vi.mock('next-intl', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next-intl')>(),
+  useTranslations: () => mocks.translate ?? ((key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${JSON.stringify(params)}` : key),
+  useLocale: () => mocks.locale,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -435,6 +441,8 @@ describe('web useChatComposer streaming send', () => {
   })
 
   beforeEach(() => {
+    mocks.translate = undefined
+    mocks.locale = 'en'
     HTMLElement.prototype.scrollTo = vi.fn()
     useThrottleStore.getState().clear()
     mocks.state.profile = undefined
@@ -1717,6 +1725,28 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
       'habitDetail.askAstra', 'habitDetail.pauseThisWeek', 'habitDetail.rename',
     ])
+  })
+
+  it.each([
+    ['en', 'rename', 'Rename', 'Rename the habit "Ler"'],
+    ['en', 'pauseThisWeek', 'Pause this week', 'Pause the habit "Ler" this week'],
+    ['pt-BR', 'rename', 'Renomear', 'Renomear o hábito "Ler"'],
+    ['pt-BR', 'pauseThisWeek', 'Pausar esta semana', 'Pausar o hábito "Ler" esta semana'],
+  ] as const)('sends the named habit detail request in %s for %s', async (locale, action, label, prompt) => {
+    mocks.locale = locale
+    mocks.translate = createTranslator({ locale, messages: locale === 'en' ? en : ptBR })
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.detail = { ...makeHabitDetail(), title: 'Ler' }
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer({ pathname: '/habits/habit-1' }))
+    const suggestion = result.current.composerProps.suggestions.find(chip => chip.id === `habitDetail.${action}`)!
+    expect(suggestion.label).toBe(label)
+    act(() => suggestion.onSelect())
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody = mocks.fetch.mock.calls[0]![1].body as FormData
+    expect(requestBody.get('message')).toContain('Ler')
+    expect(requestBody.get('message')).toBe(prompt)
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
   it('sends the habit detail seed prompt', async () => {

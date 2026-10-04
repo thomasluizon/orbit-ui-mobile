@@ -67,6 +67,7 @@ export function NotificationDetailModal({
       open
       onClose={onClose}
       title={notification.title}
+      titleMode="typed"
       actions={
         <>
           {canMarkAsRead ? (

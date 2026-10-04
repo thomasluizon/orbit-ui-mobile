@@ -11,6 +11,8 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { HabitRow } from '@/components/habits/habit-row'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useUIStore } from '@/stores/ui-store'
@@ -30,6 +32,85 @@ function NestedReloadSheets() {
 }
 
 describe('Sheet', () => {
+  it('opens the complete typed title with one press and preserves the underlying sheet', async () => {
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
+    const onClose = vi.fn()
+    render(<Sheet title={title} titleMode="typed" onClose={onClose}><input aria-label="Draft" defaultValue="Keep this" /></Sheet>)
+    const trigger = screen.getByRole('button', { name: title })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Draft' }), ' edited')
+    const body = screen.getByRole('dialog', { name: title }).querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+    body.scrollTop = 120
+    await userEvent.click(trigger)
+    expect(body.scrollTop).toBe(0)
+    const dialog = screen.getByRole('dialog', { name: title })
+    expect(dialog.querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(body.scrollTop).toBe(120)
+    expect(trigger).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Keep this edited')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('keeps product titles as noninteractive headings', () => {
+    render(<Sheet title="Options" />)
+    expect(screen.getByRole('heading', { name: 'Options' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Options' })).toBeNull()
+  })
+
+  it('keeps every long habit menu action reachable at compact width and 200% text', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const title = 'Read a chapter before bed '.repeat(8).slice(0, 200)
+    expect(title).toHaveLength(200)
+    const actions = { onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(),
+      onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
+      onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }
+    const labels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    document.head.append(stylesheet)
+    const { unmount } = render(<HabitRow habit={createMockHabit({ title, isOverdue: true })} state="overdue"
+      hasSubHabits hasProAccess actions={actions} />)
+    try {
+      for (const [index, label] of labels.entries()) {
+        fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+        const dialog = await screen.findByRole('dialog', { name: title })
+        dialog.style.width = '320px'
+        dialog.style.fontSize = '200%'
+        const heading = screen.getByRole('button', { name: title })
+        const headingStyle = getComputedStyle(heading)
+        expect(headingStyle.flexGrow).toBe('1')
+        expect(Number.parseFloat(headingStyle.minWidth)).toBe(0)
+        expect(headingStyle.width).toBe('100%')
+        expect(getComputedStyle(heading.firstElementChild!).getPropertyValue('-webkit-line-clamp')).toBe('2')
+        const items = screen.getAllByRole('menuitem')
+        expect(items.map((item) => item.textContent)).toEqual(labels)
+        for (const item of items) {
+          expect(item).toBeEnabled()
+          expect(item.closest('[data-slot="sheet-body"]')).not.toBeNull()
+          item.focus()
+          expect(item).toHaveFocus()
+        }
+        await userEvent.click(heading)
+        expect(dialog.querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
+        expect(heading).toHaveAttribute('aria-expanded', 'true')
+        await userEvent.click(heading)
+        expect(heading).toHaveAttribute('aria-expanded', 'false')
+        fireEvent.click(screen.getByRole('menuitem', { name: label }))
+        await waitFor(() => expect(Object.values(actions)[index]).toHaveBeenCalledOnce())
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      }
+    } finally {
+      unmount()
+      stylesheet.remove()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('returns focus to its trigger after ordinary dismissal without a focus policy', async () => {
     const user = userEvent.setup()
     function Host() {

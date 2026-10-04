@@ -20,6 +20,9 @@ import { habitFormSchema } from '@orbit/shared/validation'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { HabitRow } from '@/components/habits/habit-row'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { measureProfileRow } from '../../support/profile-row-geometry'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 
 vi.unmock('@/components/ui/sheet')
@@ -49,7 +52,7 @@ vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
 vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }) }))
-vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => true }))
+vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => true, useProfile: () => ({ profile: null }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn(), showDiscardDialog: false }) }))
 vi.mock('@/components/ui/discard-changes-sheet', () => ({ DiscardChangesSheet: () => null }))
@@ -96,6 +99,125 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
+  it.each([1, 2])('pads the typed title press fill at font scale %i', async (fontScale) => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Sheet title="Leitura" titleMode="typed" onClose={vi.fn()} />)
+    })
+    const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+    for (const pressed of [false, true]) {
+      const style = StyleSheet.flatten(heading.props.style({ pressed }))
+      expect(style.paddingVertical).toBeGreaterThanOrEqual(8)
+      expect(style.paddingHorizontal).toBeGreaterThanOrEqual(8)
+      expect(style.minHeight).toBe(48)
+    }
+    expect(heading.props.children.props.numberOfLines).toBe(2)
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it.each(['typed', 'label'] as const)('wraps label titles and opens limited %s text with one press', async (titleMode) => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
+    function Draft() {
+      const [value, setValue] = React.useState('Keep this')
+      return <Text onPress={() => setValue('Edited draft')}>{value}</Text>
+    }
+    const onClose = vi.fn()
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Sheet title={title} titleMode={titleMode} onClose={onClose}><Draft /></Sheet>)
+    })
+    await TestRenderer.act(() => tree.root.findByType(Draft).findByType(Text).props.onPress())
+    const header = tree.root.findByType(TrueSheet).props.header
+    const heading = header.props.children[0]
+    const titleText = heading.type === Text ? heading : heading.props.children
+    expect(titleText.props.numberOfLines).toBe(titleMode === 'typed' ? 2 : undefined)
+    if (titleMode === 'label') {
+      expect(heading.props.accessibilityRole).toBe('header')
+      expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ minHeight: 48, textAlignVertical: 'center' })
+      expect(StyleSheet.flatten(header.props.style).alignItems).toBe('flex-start')
+    }
+    if (titleMode === 'typed') {
+      expect(titleText.props.ellipsizeMode).toBe('tail')
+      expect(StyleSheet.flatten(heading.props.style({ pressed: false })).minHeight).toBe(48)
+      expect(heading.props.accessibilityRole).toBe('button')
+      const scroller = tree.root.findAllByProps({ testID: 'sheet-body-scroll' }).find((node: { type: unknown }) => String(node.type) === 'ScrollView')
+      await TestRenderer.act(() => scroller.props.onScroll({ nativeEvent: { contentOffset: { y: 120 } } }))
+      await TestRenderer.act(() => heading.props.onPress())
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 0, animated: false })
+      const sheets = tree.root.findAllByType(TrueSheet)
+      expect(sheets).toHaveLength(1)
+      const fullTitle = sheets[0].findAllByType(Text).find((node: { props: { children?: string } }) => node.props.children === title)
+      expect(fullTitle.props.numberOfLines).toBeUndefined()
+      expect(fullTitle.props.selectable).toBe(true)
+      expect(tree.root.findByType(TrueSheet).props.header.props.children[0].props.accessibilityState.expanded).toBe(true)
+      await TestRenderer.act(() => tree.root.findByType(TrueSheet).props.header.props.children[0].props.onPress())
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: string } }) => node.props.children === title)).toHaveLength(0)
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 120, animated: false })
+      expect(tree.root.findByType(Draft).findByType(Text).props.children).toBe('Edited draft')
+      expect(onClose).not.toHaveBeenCalled()
+    }
+    await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('keeps every long habit menu action reachable at 320 by 915 and 200% text', async () => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const title = 'Read a chapter before bed '.repeat(8).slice(0, 200)
+    expect(title).toHaveLength(200)
+    const actions = { onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(),
+      onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
+      onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }
+    const labels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title, isOverdue: true, hasSubHabits: true })}
+        hasChildren hasProAccess actions={actions} />)
+    })
+    try {
+      for (const [index, label] of labels.entries()) {
+        await TestRenderer.act(() => tree.root.findAllByType('Pressable').find(
+          (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.actions.more',
+        ).props.onPress())
+        const nativeSheet = tree.root.findByType(TrueSheet)
+        const header = nativeSheet.props.header
+        let headerTree!: ReturnType<typeof TestRenderer.create>
+        await TestRenderer.act(() => { headerTree = TestRenderer.create(header) })
+        const measured = measureProfileRow(headerTree.toJSON(), 320, 2)
+        const headerStyle = StyleSheet.flatten(header.props.style)
+        await TestRenderer.act(() => {
+          header.props.onLayout({ nativeEvent: { layout: {
+            height: measured.height + headerStyle.paddingTop + headerStyle.paddingBottom,
+          } } })
+          headerTree.unmount()
+        })
+        const body = tree.root.findAllByType('ScrollView').find(
+          (node: { props: { testID?: string } }) => node.props.testID === 'sheet-body-scroll',
+        )
+        expect(StyleSheet.flatten(body.props.style).maxHeight).toBeGreaterThan(0)
+        const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+        expect(heading.props.children.props.numberOfLines).toBe(2)
+        expect(heading.props.children.props.ellipsizeMode).toBe('tail')
+        const items = body.findAllByType('Pressable').filter(
+          (node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'menuitem',
+        )
+        expect(items.map((item: { findAllByType: (type: string) => { props: { children?: string } }[] }) =>
+          item.findAllByType('Text')[0]!.props.children)).toEqual(labels)
+        expect(items.every((item: { props: { disabled?: boolean } }) => !item.props.disabled)).toBe(true)
+        await TestRenderer.act(() => items[index].props.onPress())
+        expect(Object.values(actions)[index]).not.toHaveBeenCalled()
+        await TestRenderer.act(() => didDismiss.complete())
+        expect(Object.values(actions)[index], label).toHaveBeenCalledOnce()
+      }
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+    }
+  })
+
   it.each([412, 840])('aligns the native sheet to the phone column at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -114,7 +236,7 @@ describe('Sheet (mobile)', () => {
       await Promise.resolve()
     })
     const scroller = tree!.root.findByProps({ testID: 'sheet-body-scroll' })
-    const content = scroller.props.children[0]
+    const content = scroller.props.children[1]
     const callerStyle = StyleSheet.flatten(content.props.style) ?? {}
     expect(callerStyle.paddingBottom ?? callerStyle.paddingVertical ?? callerStyle.padding ?? 0).toBe(0)
     expect(callerStyle.paddingHorizontal ?? callerStyle.padding ?? 0).toBe(0)
