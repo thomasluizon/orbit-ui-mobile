@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
-import { FlatList } from 'react-native'
+import { FlatList, StyleSheet } from 'react-native'
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
 
 const TestRenderer = require('react-test-renderer')
@@ -92,7 +92,7 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     tree.root.findByType('ListRow').props.onClick()
   })
 
-  expect(tree.root.findByType('BottomSheetAppTextInput')).toBeDefined()
+  expect(StyleSheet.flatten(tree.root.findByType('BottomSheetAppTextInput').props.style)).toMatchObject({ paddingHorizontal: 16, minHeight: 54 })
   const list = tree.root.findByType(FlatList)
   expect(list.props.nestedScrollEnabled).toBe(true)
   expect(list.props.keyboardShouldPersistTaps).toBe('handled')

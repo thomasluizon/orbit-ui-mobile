@@ -256,7 +256,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent py-[12px] text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
+          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent px-[8px] py-[12px] text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
         />}
 
         <ComposerControls props={props} />

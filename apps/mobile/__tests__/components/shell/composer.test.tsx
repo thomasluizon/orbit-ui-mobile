@@ -193,6 +193,21 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
 }
 
 describe('Composer (mobile)', () => {
+  it.each(['idle', 'offline', 'atLimit'] as const)('aligns the %s placeholder with the padded caret', state => {
+    const tree = renderComposer(props({ state, limitReason: 'limit sentinel' }))
+    try {
+      const input = StyleSheet.flatten(tree.root.findByType('TextInput').props.style)
+      const placeholder = StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-placeholder' }).props.style)
+      expect.soft(input.paddingHorizontal).toBe(8)
+      expect.soft(placeholder.start).toBe(8)
+      expect.soft(placeholder.end).toBe(8)
+      expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.pointerEvents).toBe('none')
+      if (state !== 'idle') {
+        expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'composer-placeholder-measure' }).props.style)).toMatchObject({ start: 8, end: 8 })
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([1, 1.3, 1.5, 2].flatMap(fontScale => [false, true].flatMap(withOpener =>
     (['idle', 'offline', 'atLimit'] as const).map(state => ({ fontScale, withOpener, state })),
   )))('keeps the placeholder whole at $fontScale text while $state with opener $withOpener', ({ fontScale, withOpener, state }) => {

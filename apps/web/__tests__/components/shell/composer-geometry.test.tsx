@@ -16,6 +16,7 @@ import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contrac
 import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { Menu } from '@/components/ui/menu'
+import { measureFieldInset } from '@/e2e/layout/field-inset-geometry'
 import { inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -155,6 +156,40 @@ describe('Composer compact geometry in Chromium', () => {
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 1352].flatMap(width => [false, true].flatMap(withOpener =>
+    ['ltr', 'rtl'].map(direction => ({ width, withOpener, direction })),
+  )))('pads the caret and placeholder at $width with opener $withOpener in $direction', async ({ width, withOpener, direction }) => {
+    const configuration = geometryProps('idle', en, withOpener)
+    if (direction === 'rtl') configuration.words = { ...configuration.words, placeholder: 'אבג' }
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root" dir="${direction}"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const field = page.locator('[data-composer-input]')
+      const placeholder = await field.evaluate(measureFieldInset)
+      expect.soft(placeholder.paddingStart).toBe(8)
+      expect.soft(placeholder.paddingEnd).toBe(8)
+      expect.soft(placeholder.inset).toBe(8)
+      expect.soft(placeholder.pillInset).toBe(4 + (withOpener ? 48 : 0) + 8)
+      const box = (await field.boundingBox())!
+      await page.mouse.click(direction === 'rtl' ? box.x + box.width - 2 : box.x + 2, box.y + box.height / 2)
+      expect(await field.evaluate(element => element === document.activeElement)).toBe(true)
+      await field.fill((direction === 'rtl' ? 'אבג ' : 'Astra ').repeat(10).trim())
+      const typed = await field.evaluate(measureFieldInset)
+      expect(typed.inset).toBe(placeholder.inset)
+      expect(typed.contentWidth).toBe(box.width - 16)
+      if (width === 320) expect(typed.height).toBeGreaterThan(placeholder.height)
+      expect(typed.height).toBeLessThanOrEqual(typed.maximumHeight)
+      expect(typed.scrollHeight).toBe(typed.height)
+      for (const control of await page.locator('[data-composer-input-row] button').all()) {
+        const bounds = (await control.boundingBox())!
+        expect(bounds.width).toBe(48)
+        expect(bounds.height).toBe(48)
+      }
+    } finally { await page.close() }
+  })
 
   it.each([en, ptBR].flatMap(messages => (['offline', 'atLimit'] as const).flatMap(scenario =>
     [{ fontScale: 2, width: 320, kept: true }, { fontScale: 1, width: 600, kept: true },
