@@ -169,19 +169,22 @@ describe('ShellWide', () => {
     delete document.documentElement.dataset.theme
   })
 
-  it('renders the account name as a profile chip with an initial well', () => {
+  it('keeps the full account name and email in one profile link with an initial well', () => {
     render(
       <ShellWide
         items={items}
         activeId="hoje"
         navLabel="Main navigation"
         account="Ada Lovelace"
+        accountEmail="ada@example.com"
       />,
     )
 
-    const account = screen.getByRole('link', { name: 'Ada Lovelace' })
+    const account = screen.getByRole('link', { name: 'Ada Lovelace ada@example.com' })
     expect(account).toHaveAttribute('href', '/profile')
-    expect(account).not.toHaveTextContent('@')
+    expect(within(account).getByText('ada@example.com')).toBeInTheDocument()
+    expect(account.querySelector('[aria-hidden="true"]')).toHaveTextContent('A')
+    expect(within(account).queryByRole('button')).not.toBeInTheDocument()
   })
 
   it('reserves the account row while its profile loads', () => {

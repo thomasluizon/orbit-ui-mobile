@@ -275,6 +275,7 @@ function DestinationShellContent({
         {...wideCreate}
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}
+        accountEmail={profile?.email}
         notifications={wide ? <NotificationBell /> : undefined}
         onPalette={() => setPaletteOpen(true)}
         paletteLabel={t('nav.search')}

@@ -5,6 +5,7 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { Composer } from '@/components/shell/composer'
 import { AppBar } from '@/components/ui/app-bar'
@@ -35,6 +36,46 @@ describe('Foldable shell geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([1100, 1440].flatMap((width) => [en, ptBR].flatMap((words) => [1, 2].map((textScale) => ({ width, words, textScale })))))
+    ('grows the sidebar account target around two lines at $width and text scale $textScale', async ({ width, words, textScale }) => {
+      const name = 'W'.repeat(60)
+      const email = `${'W'.repeat(48)}@example.com`
+      const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
+      const page = await browser.newPage({ viewport: { width, height: 900 } })
+      try {
+        const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
+        await page.setContent(`<style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
+        const account = page.getByRole('link', { name: `${name} ${email}` })
+        expect(await account.getAttribute('href')).toBe('/profile')
+        const geometry = await account.evaluate((element) => {
+          const control = element.getBoundingClientRect()
+          const fields = [...element.querySelectorAll<HTMLElement>('[data-shell-account-name], [data-shell-account-email]')].map((text) => {
+            const style = getComputedStyle(text)
+            const bounds = text.getBoundingClientRect()
+            return { lines: bounds.height / Number.parseFloat(style.lineHeight), clamp: style.webkitLineClamp, fontSize: Number.parseFloat(style.fontSize),
+              clipped: text.scrollHeight > text.clientHeight, width: bounds.width,
+              availableWidth: text.parentElement!.clientWidth, top: bounds.top, bottom: bounds.bottom }
+          })
+          return { fields, height: control.height,
+            topPadding: fields[0]!.top - control.top, bottomPadding: control.bottom - fields[1]!.bottom,
+            overflow: document.documentElement.scrollWidth > innerWidth }
+        })
+        expect(geometry.fields).toHaveLength(2)
+        expect(geometry.fields.map((field) => field.fontSize)).toEqual([14 * textScale, 12 * textScale])
+        for (const field of geometry.fields) {
+          expect(field.lines).toBeCloseTo(2, 0)
+          expect(field.clamp).toBe('2')
+          expect(field.clipped).toBe(true)
+          expect(field.width).toBeCloseTo(field.availableWidth, 0)
+        }
+        expect(geometry.fields[1]!.top).toBeGreaterThan(geometry.fields[0]!.bottom)
+        expect(geometry.height).toBeGreaterThanOrEqual(48)
+        expect(geometry.topPadding).toBeGreaterThanOrEqual(4)
+        expect(geometry.bottomPadding).toBeGreaterThanOrEqual(4)
+        expect(geometry.overflow).toBe(false)
+      } finally { await page.close() }
+    })
 
   it.each([360, 740, 1100].flatMap((width) => [false, true].map((navigationEnabled) => ({ width, navigationEnabled }))))(
     'keeps the full Create target revealable at $width with a 120px height budget and nav=$navigationEnabled', async ({ width, navigationEnabled }) => {
