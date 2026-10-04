@@ -479,7 +479,7 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryB
       ) : <>{primaryButton}{children}</>}
       {supportingMeta ? (
         <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-          style={{ flexDirection: 'row', gap: 12, paddingBottom: 8 }}>
+          style={{ flexDirection: 'row', gap: 12, paddingLeft: 8, paddingBottom: 8 }}>
           <View style={{ width: 48 }} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} expanded />
@@ -491,7 +491,7 @@ function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryB
 }
 
 function habitRowBodyLayout(isChild: boolean, largeText: boolean): ViewStyle {
-  return { paddingVertical: largeText ? 0 : (isChild ? 4 : 8), paddingLeft: 0, alignItems: largeText ? 'flex-start' : 'center' }
+  return { paddingVertical: largeText ? 0 : (isChild ? 4 : 8), paddingLeft: 8, alignItems: largeText ? 'flex-start' : 'center' }
 }
 
 function showSupportingMeta(largeText: boolean, childrenTotal: number): boolean {

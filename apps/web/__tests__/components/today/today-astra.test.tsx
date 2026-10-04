@@ -277,7 +277,7 @@ describe('web Today Astra', () => {
             }
           })
           expect(appearance).toMatchObject({
-            width: 288, paddingStart: '16px', paddingEnd: '16px', radius: '12px',
+            width: 288, paddingStart: '24px', paddingEnd: '16px', radius: '12px',
             background: appearance.expectedBackground, clamp: '2', feedbackEvents: 'none', feedbackInset: '0px', feedbackOpacity: '0', overflow: false,
           })
           expect(appearance.height).toBeGreaterThanOrEqual(48)

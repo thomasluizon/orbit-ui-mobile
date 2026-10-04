@@ -127,7 +127,7 @@ describe('Hoje header geometry', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 384].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode })))))(
+  it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode })))))(
     'shares two leading edges at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {
       document.documentElement.style.fontSize = `${16 * textScale}px`
       const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
@@ -156,7 +156,7 @@ describe('Hoje header geometry', () => {
           await document.fonts.ready
         }, textScale)
         const geometry = await page.evaluate(() => {
-          const date = document.querySelector('[data-today-date-row] [title]')!
+          const date = document.querySelector('[data-today-date-row] [title] p')!
           const sentence = document.querySelector('.today-astra-sentence')!
           const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
           const parent = rows[1]!
@@ -183,6 +183,11 @@ describe('Hoje header geometry', () => {
             }),
             contentEdges: [date, sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div'))!)].map((element) => element.getBoundingClientRect().left),
             insetEdges: rows.map((row) => row.getBoundingClientRect().left),
+            wellInsets: rows.map((row) => {
+              const body = row.querySelector('[data-habit-row-body]')!
+              const well = body.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+              return well.getBoundingClientRect().left - body.getBoundingClientRect().left
+            }),
             leafBody: rows[0]!.querySelector('[data-habit-row-body]')!.getBoundingClientRect().left,
             leafDisclosure: rows[0]!.querySelector('[data-habit-row-control="disclosure"]') !== null,
             overflow: document.documentElement.scrollWidth,
@@ -205,10 +210,11 @@ describe('Hoje header geometry', () => {
           expect(control.top).toBeLessThanOrEqual(control.firstLineCenter)
           expect(control.bottom).toBeGreaterThan(control.firstLineCenter)
         }
+        for (const inset of geometry.wellInsets) expect(inset).toBeGreaterThanOrEqual(8)
         expect(geometry.leafDisclosure).toBe(false)
         expect(geometry.leafBody).toBe(16)
         expect(geometry.insetEdges).toEqual([16, 16, 16])
-        expect(geometry.contentEdges).toEqual([76, 76, 76, 76, 76])
+        expect(geometry.contentEdges).toEqual([84, 84, 84, 84, 84])
         expect(geometry.overflow).toBeLessThanOrEqual(width)
         expect(geometry.rowHeights.every((height) => height >= 52)).toBe(true)
         if (textScale === 2) expect(geometry.rowHeights.every((height) => height > 68)).toBe(true)
