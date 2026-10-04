@@ -88,7 +88,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
       event.preventDefault(); event.stopPropagation(); back()
     }
   }
-  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.title')} className="flex min-h-0 flex-1 flex-col overflow-hidden" onKeyDown={handleKeyDown}>
+  return <Command shouldFilter={false} value={selectedValue} onValueChange={(selected) => setSelection({ first: firstValue, selected })} label={t('command.placeholder')} className="flex min-h-0 flex-1 flex-col overflow-hidden" onKeyDown={handleKeyDown}>
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
     <CommandList label={t('command.title')} aria-busy={search.busy} className="h-[min(60vh,400px)] min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-2">
       {search.isSuccess && !search.busy && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}

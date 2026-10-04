@@ -1597,6 +1597,7 @@ describe('mobile useChatComposer', () => {
     const composer = await renderComposer()
 
     expect(composer.current.composerProps.state).toBe('atLimit')
+    expect(composer.current.composerProps.words.placeholder).toBe('shell.composer.limit.placeholder')
     expect(composer.current.composerProps.onVoice).toBeUndefined()
   })
 

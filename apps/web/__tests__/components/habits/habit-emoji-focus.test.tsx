@@ -65,7 +65,18 @@ describe('habit emoji keyboard focus in Chromium', () => {
     return page
   }
 
-  it.each(placements.flatMap((placement) => [false, true].map((hover) => ({ ...placement, hover }))))(
+  it.each(placements.filter(({ resolved }) => !resolved))('has no emoji focus target without a preview in $mode', async ({ mode, resolved }) => {
+    const page = await openPlacement(mode, resolved)
+    try {
+      expect(await page.getByRole('button', { name: 'habits.form.emojiOpenPicker' }).count()).toBe(0)
+      await page.keyboard.press('Tab')
+      expect(await page.getByRole('textbox').evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+    } finally {
+      await page.close()
+    }
+  })
+
+  it.each(placements.filter(({ resolved }) => resolved).flatMap((placement) => [false, true].map((hover) => ({ ...placement, hover }))))(
     'clears 3:1 in $mode, resolved $resolved, hover $hover',
     async ({ mode, resolved, hover }) => {
       const page = await openPlacement(mode, resolved)
@@ -119,7 +130,7 @@ describe('habit emoji keyboard focus in Chromium', () => {
     },
   )
 
-  it.each(placements)('keeps a system focus outline in $mode, resolved $resolved', async ({ mode, resolved }) => {
+  it.each(placements.filter(({ resolved }) => resolved))('keeps a system focus outline in $mode, resolved $resolved', async ({ mode, resolved }) => {
     const page = await openPlacement(mode, resolved)
     try {
       await page.emulateMedia({ forcedColors: 'active' })

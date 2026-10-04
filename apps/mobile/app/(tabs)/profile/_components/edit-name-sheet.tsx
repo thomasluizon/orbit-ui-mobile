@@ -107,7 +107,6 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
         <AppTextInput
           value={name}
           onChangeText={handleNameChange}
-          placeholder={t('profile.editName.placeholder')}
           autoComplete="name"
           autoFocus
           returnKeyType="done"

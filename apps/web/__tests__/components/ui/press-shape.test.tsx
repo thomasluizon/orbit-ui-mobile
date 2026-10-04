@@ -117,7 +117,7 @@ describe('interaction fill parity in Chromium', () => {
       const declarations = Object.entries(variables).map(([key, value]) => `${key}:${value};`).join('')
       await page.setContent(`<style>${stylesheet}:root {${declarations}} button {transition:none !important}</style>${markup}`)
       await loadAppFonts(page)
-      const customReminder = page.getByPlaceholder(ptBr.habits.form.reminderCustomPlaceholder).locator('..')
+      const customReminder = page.getByRole('spinbutton', { name: ptBr.habits.form.reminderCustomLabel }).locator('..').locator('..')
       const button = customReminder.getByRole('button', { name: ptBr.common.add, exact: true })
       await button.hover()
       const geometry = await button.evaluate((element) => {

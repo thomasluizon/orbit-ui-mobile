@@ -167,17 +167,18 @@ export function ReminderSection({
                   </button>
                 ))}
                 {showCustomInput && (
-                  <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-                    <input
-                      value={customValue ?? ''}
-                      type="number"
-                      min={1}
-                      aria-label={t('habits.form.reminderCustomPlaceholder')}
-                      placeholder={t('habits.form.reminderCustomPlaceholder')}
-                      className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
-                      onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
-                    />
+                  <div className="flex flex-wrap items-end gap-2 px-3 py-2">
+                    <label className="flex flex-col gap-2 text-[14px] font-medium text-[var(--fg-2)]">
+                      {t('habits.form.reminderCustomLabel')}
+                      <input
+                        value={customValue ?? ''}
+                        type="number"
+                        min={1}
+                        className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+                        onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
+                      />
+                    </label>
                     <AppSelect
                       value={customUnit}
                       options={reminderUnitOptions}

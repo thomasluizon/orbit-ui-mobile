@@ -114,7 +114,7 @@ export function createSectionStyles(tokens: AppTokens) {
     customRow: {
       flexDirection: "row",
       flexWrap: "wrap",
-      alignItems: "center",
+      alignItems: "flex-end",
       gap: 8,
       paddingHorizontal: 8,
       paddingVertical: 8,

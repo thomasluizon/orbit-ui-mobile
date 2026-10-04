@@ -149,7 +149,7 @@ describe('CommandPalette', () => {
   it('renders the search input when the palette is open', () => {
     renderPalette()
     expect(
-      screen.getByRole('combobox', { name: 'command.title' }),
+      screen.getByRole('combobox', { name: 'command.placeholder' }),
     ).toHaveAttribute('placeholder', 'command.placeholder')
     expect(useUIStore.getState().openOverlayIds).toHaveLength(1)
   })

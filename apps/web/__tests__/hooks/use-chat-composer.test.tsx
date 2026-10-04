@@ -1394,6 +1394,7 @@ describe('web useChatComposer streaming send', () => {
     const { result } = renderHook(() => useChatComposer())
 
     expect(result.current.composerProps.state).toBe('atLimit')
+    expect(result.current.composerProps.words.placeholder).toBe('shell.composer.limit.placeholder')
     expect(result.current.composerProps.onVoice).toBeUndefined()
   })
 

@@ -16,6 +16,7 @@ interface RenderedNode {
 
 interface RenderedInput extends RenderedNode {
   props: {
+    accessibilityLabel?: string
     onChangeText: (value: string) => void
     onFocus: (event: unknown) => void
     style: readonly unknown[]
@@ -206,6 +207,7 @@ describe('HabitChecklist editable rows', () => {
     const tree = renderChecklist()
     const input = tree.root.findAllByType('TextInput').find((node) => node.props.value === '')
     if (!input) throw new Error('Expected checklist add input')
+    expect(input.props.accessibilityLabel).toBe(i18n.t('habits.form.checklistPlaceholder'))
     let row = input.parent
     while (row && StyleSheet.flatten(row.props.style as ViewStyle).minHeight !== 48) row = row.parent
     if (!row) throw new Error('Expected checklist add row')
