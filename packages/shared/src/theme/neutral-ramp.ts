@@ -121,6 +121,6 @@ export function elevatedControlHoverFill(mode: SchemeMode): string {
   return `rgb(${channels.join(',')})`
 }
 
-export function hoverTextColor(mode: SchemeMode, restingColor: string, active: boolean): string {
+export function hoverForeground(mode: SchemeMode, restingColor: string, active: boolean): string {
   return mode === 'light' && active ? neutralColors.light.fg2 : restingColor
 }

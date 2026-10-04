@@ -104,7 +104,7 @@ export function SettingsGroupRow({
       ]}
     >
       {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
-      <SettingsGroupRowText label={label} textMode={textMode} hint={hint} expanded={expanded} color={tokens.fg1} hintColor={tokens.fg3} />
+      <SettingsGroupRowText label={label} textMode={textMode} hint={hint} expanded={expanded} color={tokens.fg1} hintColor={handlePress ? tokens.fg2 : tokens.fg3} />
       {(trailing || resolvedAccessory === 'chevron') ? <View style={styles.trailingBlock}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (

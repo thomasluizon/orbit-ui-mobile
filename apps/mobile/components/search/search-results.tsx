@@ -52,9 +52,9 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
   const matches = buildSearchMatchLines(query, habit, t)
   const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) => match.text)].join(' ')
   return <Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
-    <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Text style={[styles.initial, { color: tokens.fg3 }]}>{habitInitial(habit.title)}</Text>}</View>
+    <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Text style={[styles.initial, { color: tokens.fg2 }]}>{habitInitial(habit.title)}</Text>}</View>
     <View style={styles.content}><Text numberOfLines={1} style={[styles.name, { color: tokens.fg1 }]}>{habit.title}</Text>
-      {matches.map((match) => <Text key={match.id} numberOfLines={1} style={[styles.match, { color: tokens.fg3 }]}>{match.label}{match.fragment !== null && <> <Text style={{ color: tokens.fg2 }}>{match.fragment}</Text></>}</Text>)}
+      {matches.map((match) => <Text key={match.id} numberOfLines={1} style={[styles.match, { color: currentTheme === 'light' ? tokens.fg2 : tokens.fg3 }]}>{match.label}{match.fragment !== null && <> <Text style={{ color: tokens.fg2 }}>{match.fragment}</Text></>}</Text>)}
     </View><ChevronRight size={20} color={tokens.fg3} />
   </Pressable>
 }

@@ -9,6 +9,7 @@ import {
   getTodayBoundary,
   isHabitDoneForRange,
 } from '@orbit/shared/utils'
+import { hoverForeground } from '@orbit/shared/theme'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { MenuItem } from '@orbit/shared/contracts/overlay'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -187,6 +188,7 @@ function useBodyPressFeedback(
 ) {
   const [pressed, setPressed] = useState(false)
   return {
+    pressed,
     metaColor: pressed ? tokens.fg2 : tokens.fg3,
     feedbackStyle:
       pressed
@@ -317,6 +319,7 @@ export const HabitRow = memo(function HabitRow({
 
   const handlePress = resolveBodyPressAction(isSelectMode, actions)
   const bodyPressFeedback = useBodyPressFeedback(tokens)
+  const bodyTokens = { ...tokens, statusBadText: hoverForeground(currentTheme, tokens.statusBadText, bodyPressFeedback.pressed), statusOverdueText: hoverForeground(currentTheme, tokens.statusOverdueText, bodyPressFeedback.pressed) }
   const toggleStatusAction = isDoneForRange ? actions.onUnlog : actions.onLog
   const handleToggleStatus = () => {
     if (!completionReadOnly) toggleStatusAction?.()
@@ -366,7 +369,7 @@ export const HabitRow = memo(function HabitRow({
         metaColor={bodyPressFeedback.metaColor}
         metaParts={metaParts}
         metaOnSupportingLine={supportingMeta}
-        tokens={tokens}
+        tokens={bodyTokens}
       />
     </>
   )
@@ -433,7 +436,7 @@ export const HabitRow = memo(function HabitRow({
     <View>
       <HabitRowLayout largeText={largeText} isChild={isChild} supportingMeta={supportingMeta}
         rowStyle={[rowStyle, bodyPressFeedback.feedbackStyle, style]} primaryButton={primaryButton} primaryContent={primaryContent} metaParts={metaParts}
-        metaColor={bodyPressFeedback.metaColor} tokens={tokens}>
+        metaColor={bodyPressFeedback.metaColor} tokens={bodyTokens}>
         {rowContents}
       </HabitRowLayout>
 

@@ -537,28 +537,29 @@ Every scope below is derived from those floors and the measured ratios.
 **`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
 is already defined as accent TEXT on the canvas, so 4.28 on a card is the token used outside its own
 scope, not a colour that needs changing. `--primary-text` is the accent-text token for a card, a
-field, a well, an elevated panel or a hovered surface. It clears 4.5:1 on every raised surface in
-both modes; where accent is not deliberately rationed, emphasis on a raised surface stays a weight
+field, a well or an elevated panel. Dark hover keeps this role; light hover takes `--fg-2`
+for its 4.5:1 text floor; where accent is not deliberately rationed, emphasis on a raised surface stays a weight
 step rather than a hue.
 
 **Contrast rule: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
 measured 4.26:1 on the well, 4.11:1 on hover, 4.31:1 on the widget well and 4.12:1 on the 10
 percent overdue tint, all below the 4.5 text floor. It uses constant OKLCH hue at
-`#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well, 4.73 on hover,
+`#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well,
 4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
-separation from the accent still clears derivation rule 6.
+separation from the accent still clears derivation rule 6. On light hover, overdue text takes
+`--fg-2`, since the resting role measures 4.198:1 on the stronger canvas fill.
 
 **Contrast rule: `--status-bad-text` on every surface its consumers reach.** The fill and
 graphic token `--status-bad` remains `#FB2C36` dark and `#E7000B` light. Its former duplicate text
 value missed the floor on wells, overlays and hover surfaces. The consumer sweep found text on the
 canvas, card, field, well, opaque overlay, elevated inline step, replacement hover, an elevated
-menu-item hover, and the 10.2 percent `--status-bad` warning tint inside a card. A hover child inside
-a card and a hover child inside a light well are unreachable. Card presses replace the card fill
-with `--bg-hover`, and no bad-text consumer nests a hovered control in a well.
+menu-item hover, and the 10.2 percent `--status-bad` warning tint inside a card. Card presses replace the card fill
+with `--bg-hover`. Light hovered destructive labels take `--fg-2`; their resting role measures
+4.050:1 on the canvas hover and 4.242:1 on a white hover.
 
 Dark `#FF7970` holds the original constant OKLCH hue at 25.8 and measures 4.511 on the worst real
 stack, the pressed destructive menu item over `--bg-elev`. Light `#D70009` holds hue 28.5 and is the
-first gamut-clamped byte that clears its worst real stack, 4.502 on the warning tint inside a card.
+first gamut-clamped byte that clears its resting warning stack, 4.502 on the tint inside a card.
 The darker `#CD0008` candidate was not used because it paid for the unreachable light well-child
 hover. The closest status-text hue separation is 16.3 degrees from the 44.8-degree accent; overdue
 remains farther away in both modes.
@@ -578,11 +579,12 @@ selection tint once, at the range slot, while the cell keeps its primary selecte
 Dark `#7A7A7D` measures 4.649 on canvas, 4.336 on card, 3.976 on well or overlay, 3.439 on a
 replacement hover, 3.034 on a hover child inside a card, 3.325 on selection over canvas, 3.054 on
 selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7F7F83`
-measures 3.821 on canvas, 3.988 on card or overlay, 3.499 on well, 3.376 on replacement hover,
-3.499 on a hover child inside a card, 3.011 on selection over canvas, 3.126 on selection over card,
+measures 3.821 on canvas, 3.988 on card or overlay, 3.499 on well, 2.995 on replacement hover,
+3.137 on a hover child inside a card, 3.011 on selection over canvas, 3.126 on selection over card,
 3.988 on the widget card and 3.533 on the widget well. No empty-track consumer sits on `--bg-field`
 or `--bg-elev-2`, and none combines selection with a well, so those candidate stacks are
-unreachable rather than derivation inputs. `--status-empty` resolves through the corrected token.
+unreachable rather than derivation inputs. On light canvas hover, the empty track takes
+`--fg-2`. `--status-empty` resolves through the empty-track role.
 The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2.83; light 17.36,
 9.99, 5.54, 3.99 and 3.48 for done, frozen, skip, empty and `--fg-4`.
 
@@ -594,7 +596,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
 | **0.13** | **`#28282A`** | **1.261** | **4.57** |
 | 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
 
-**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Hovered status and accent text also take `--fg-2` while retaining their resting roles. The empty track takes `--fg-3` on a light canvas hover, where `--track-empty` measures 2.995:1. Hover fills sit below text and graphics.
+**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Hovered status and accent text also take `--fg-2` while retaining their resting roles. The empty track takes `--fg-2` on a light canvas hover, where `--track-empty` measures 2.995:1. Hover fills sit below text and graphics.
 
 **Three hover stacks exist, and they measure differently. Read the paint order, not the token.**
 

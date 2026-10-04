@@ -9,14 +9,14 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>
+type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens; pressed: boolean }>
 
 /** The hover token is a translucent overlay, so it layers over the day's own fill rather than replacing it. */
 function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
   return <View pointerEvents="none" testID="day-press-fill" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} />
 }
 
-function DayCellContents({ props, outcome, size, tokens }: ContentsProps) {
+function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProps) {
   const stroke = 2
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
@@ -27,6 +27,7 @@ function DayCellContents({ props, outcome, size, tokens }: ContentsProps) {
 
   return (
     <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
+      {pressed ? <PressFill size={size} tokens={tokens} /> : null}
       {outcome === 'partial' ? (
         <Svg width={size} height={size} style={styles.arc}>
           <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.statusEmpty} strokeWidth={stroke} />
@@ -49,14 +50,15 @@ function DayCellContents({ props, outcome, size, tokens }: ContentsProps) {
   )
 }
 
-function HabitHistoryContents({ props, outcome, size, tokens }: ContentsProps) {
+function HabitHistoryContents({ props, outcome, size, tokens, pressed }: ContentsProps) {
   const missed = outcome === 'none' || outcome === 'partial'
   const dimmed = outcome === 'not-scheduled'
   let textColor = tokens.fg2
   if (outcome === 'full') textColor = tokens.bg
-  else if (missed) textColor = tokens.fg3
+  else if (missed) textColor = tokens.fg2
   return (
     <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
+      {pressed ? <PressFill size={size} tokens={tokens} /> : null}
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
       {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
     </View>
@@ -81,9 +83,10 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   ]
   const state = { ...props.accessibilityState, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
+  const contentsTokens = currentTheme === 'light' && pressed ? { ...tokens, statusEmpty: tokens.fg2 } : tokens
   const contents = props.habitHistory
-    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} />
-    : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />
+    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={contentsTokens} pressed={pressed} />
+    : <DayCellContents props={props} outcome={outcome} size={size} tokens={contentsTokens} pressed={pressed} />
   const todayRing = props.today
     ? <View pointerEvents="none" testID="day-today-ring" style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
@@ -102,7 +105,6 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
       >
         {contents}
         {todayRing}
-        {pressed ? <PressFill size={size} tokens={tokens} /> : null}
       </Pressable>
     )
   }

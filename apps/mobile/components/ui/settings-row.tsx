@@ -1,3 +1,4 @@
+import { hoverForeground } from '@orbit/shared/theme'
 import { resolveSettingsRowText } from '@orbit/shared/hooks'
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -45,7 +46,7 @@ function SettingsRowTrailing({ value, children, accessory, valueColor, mono, tok
           <Text
             style={[
               mono ? styles.valueMono : styles.value,
-              { color: valueColor ?? tokens.fg3 },
+              { color: valueColor ?? tokens.fg2 },
             ]}
             numberOfLines={1}
           >
@@ -83,13 +84,16 @@ export function SettingsRow({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { fontScale } = useWindowDimensions()
   const [expanded, setExpanded] = useState(false)
+  const [pressed, setPressed] = useState(false)
   const { expandedState, onAction: handlePress } = resolveSettingsRowText({ textMode, expanded, onAction: onPress, onToggle: () => setExpanded((current) => !current) })
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
-  const titleColor = danger ? tokens.statusBadText : tokens.fg1
+  const titleColor = danger ? hoverForeground(currentTheme, tokens.statusBadText, pressed) : tokens.fg1
 
   return (
     <Pressable
       focusOffset={-6}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       onPress={handlePress}
       disabled={!handlePress}
       accessibilityRole={handlePress ? 'button' : 'none'}
@@ -124,7 +128,7 @@ export function SettingsRow({
           {label}
         </Text>
         {desc ? (
-          <Text style={[styles.desc, { color: tokens.fg3 }]}>{desc}</Text>
+          <Text style={[styles.desc, { color: tokens.fg2 }]}>{desc}</Text>
         ) : null}
       </View>
       <SettingsRowTrailing value={value} valueColor={valueColor} accessory={accessory} mono={mono} tokens={tokens}>{children}</SettingsRowTrailing>

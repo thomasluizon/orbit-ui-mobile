@@ -13,7 +13,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
 /** A circular progress sweep over a neutral track. */
-export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressRingProps>) {
+export function ProgressRing({ value = 0, size = 64, label, trackColor }: Readonly<ProgressRingProps & { trackColor?: string }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -70,7 +70,7 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
       accessibilityValue={{ min: 0, max: 100, now: clamped }}
       testID={complete ? 'progress-ring-complete' : 'progress-ring-unfinished'}
     >
-      <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.trackEmpty} strokeWidth={strokeWidth} />
+      <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={trackColor ?? tokens.trackEmpty} strokeWidth={strokeWidth} />
       <AnimatedCircle
         ref={circle}
         opacity={circumference > 0 ? 1 : 0}

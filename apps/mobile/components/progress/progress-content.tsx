@@ -268,18 +268,19 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens, h
   )
 }
 
-function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
+function GoalIndicator({ goal, trackColor }: Readonly<{ goal: Goal; trackColor?: string }>) {
   const { t } = useTranslation()
   if (goal.status === 'Abandoned') return null
   const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
   if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
-  return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
+  return <ProgressRing value={goal.progressPercentage} size={44} label={label} trackColor={trackColor} />
 }
 
 function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, onOpen, onRegister, tokens }: Readonly<{
   goal: Goal; index: number; total: number; canReorder: boolean; isDragging: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; onRegister: (goalId: string, instance: View | null) => void; tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
+  const { currentTheme } = useAppTheme()
   const { suppressPress, ...gesture } = useGoalDrag(canReorder ? onDrag : undefined)
   const focusRef = useRef<View>(null)
   useEffect(() => {
@@ -312,14 +313,16 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost },
         isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5, zIndex: 2 } : null,
       ]}>
+      {({ pressed }) => <>
       <View style={styles.goalCopy}>
-        <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
+        <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</Text>
         <View style={styles.goalMeta}>
           {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
-          {!abandoned ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
+          {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
         </View>
       </View>
-      <GoalIndicator goal={goal} />
+      <GoalIndicator goal={goal} trackColor={currentTheme === 'light' && pressed ? tokens.fg2 : undefined} />
+      </>}
     </MotionPressable>
   )
 }

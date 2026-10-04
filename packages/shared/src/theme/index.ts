@@ -8,7 +8,7 @@ export { schemes } from './color-schemes'
 export {
   neutralColors,
   elevatedControlHoverFill,
-  hoverTextColor,
+  hoverForeground,
   statusConstants,
   selectionAlpha,
   primaryTintAlphas,

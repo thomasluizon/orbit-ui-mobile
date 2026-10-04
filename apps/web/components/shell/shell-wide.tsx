@@ -76,7 +76,7 @@ function SidebarItem({
     active
       ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]'
       : 'text-[var(--fg-3)]',
-    onSelect ? 'hover:bg-[var(--bg-hover)]' : '',
+    onSelect ? 'orbit-hover-text hover:bg-[var(--bg-hover)]' : '',
   ].join(' ')
 
   if (!onSelect) {

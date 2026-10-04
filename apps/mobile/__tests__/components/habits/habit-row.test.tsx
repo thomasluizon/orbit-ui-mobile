@@ -91,12 +91,14 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
       (node: { children: unknown[] }) => node.children.includes(parent ? 'habits.rowProgress' : '21:00'),
     )
     expect(metadata).toBeDefined()
-    function assertStateWords() {
+    function assertStateWords(pressed: boolean, layers: string[]) {
       for (const [word, color] of [['habits.overdue', tokens.statusOverdueText], ['habits.statusDot.bad', tokens.statusBadText]]) {
         const stateWord = metadata.findAllByType('Text').find(
           (node: { children: unknown[] }) => node.children.includes(word),
         )
-        expect(StyleSheet.flatten(stateWord.props.style).color).toBe(color)
+        const foreground = StyleSheet.flatten(stateWord.props.style).color
+        expect(foreground).toBe(mode === 'light' && pressed ? tokens.fg2 : color)
+        expect(contrastOnSurface(foreground, layers)).toBeGreaterThanOrEqual(4.5)
       }
     }
     for (const pressed of [false, true, false]) {
@@ -117,7 +119,7 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
         expect(StyleSheet.flatten(separator.props.style).color).toBe(pressed ? tokens.fg2 : tokens.fg3)
         expect(contrastOnSurface(StyleSheet.flatten(separator.props.style).color, layers)).toBeGreaterThanOrEqual(4.5)
       }
-      if (exceptional) assertStateWords()
+      if (exceptional) assertStateWords(pressed, layers)
     }
     TestRenderer.act(() => renderer.unmount())
   })

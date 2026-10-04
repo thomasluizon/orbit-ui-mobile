@@ -2037,3 +2037,21 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     --calendar-grid-gap: 0px;
   }
 }
+
+.light :is(.orbit-hover-text, .orbit-menu-item, .orbit-list-row-body, [data-habit-row-body]):active:not(:disabled) {
+  --status-bad-text: var(--fg-2);
+  --primary-text: var(--fg-2);
+  --status-overdue-text: var(--fg-2);
+  --fg-3: var(--fg-2);
+  --track-empty: var(--fg-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .light :is(.orbit-hover-text, .orbit-menu-item, .orbit-list-row-body, [data-habit-row-body]):hover:not(:disabled) {
+    --status-bad-text: var(--fg-2);
+    --primary-text: var(--fg-2);
+    --status-overdue-text: var(--fg-2);
+    --fg-3: var(--fg-2);
+    --track-empty: var(--fg-2);
+  }
+}

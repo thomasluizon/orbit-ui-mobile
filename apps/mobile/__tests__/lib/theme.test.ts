@@ -206,7 +206,7 @@ describe('mobile theme runtime', () => {
     expect(light.bgWell).toBe('rgba(9,9,11,0.04)')
     expect(light.bgElev).toBe('#FFFFFF')
     expect(light.bgElev2).toBe('#FFFFFF')
-    expect(light.bgHover).toBe('rgba(9,9,11,0.06)')
+    expect(light.bgHover).toBe('rgba(9,9,11,0.11)')
     expect(light.bgSunk).toBe('rgba(9,9,11,0.04)')
     expect(light.hairline).toBe('rgba(9,9,11,0.08)')
     expect(light.borderControl).toBe('rgba(9,9,11,0.08)')

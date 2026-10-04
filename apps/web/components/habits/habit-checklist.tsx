@@ -237,7 +237,7 @@ export function HabitChecklist({
         <div className="flex justify-end">
           <button
             type="button"
-            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center rounded-sm px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
+            className="inline-flex min-h-[var(--touch-min)] min-w-[var(--touch-min)] items-center justify-center orbit-hover-text rounded-sm px-2 text-[var(--status-bad-text)] transition-colors hover:bg-[var(--bg-hover)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,

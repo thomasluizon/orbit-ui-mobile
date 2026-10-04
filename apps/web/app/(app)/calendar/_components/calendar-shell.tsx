@@ -53,7 +53,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
       <button type="button" className={headerButton} aria-label={previousMonthLabel} onClick={onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
       <button type="button" className={`${headerButton} gap-1 px-3 whitespace-nowrap`} style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--fg-1)' }}
         aria-label={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId} onClick={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
-        <span>{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-3)' }}>{heading.year}</span></> : null}</span>
+        <span>{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>
         <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
       </button>
       <button type="button" className={headerButton} aria-label={nextMonthLabel} onClick={onNextMonth}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>

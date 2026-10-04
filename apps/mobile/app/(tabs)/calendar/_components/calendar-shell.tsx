@@ -120,7 +120,7 @@ function createStyles(tokens: Tokens) {
     titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgField },
     pressed: { backgroundColor: tokens.bgHover },
     title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, color: tokens.fg1 },
-    year: { color: tokens.fg3 },
+    year: { color: tokens.fg2 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
     weekLabel: { flexShrink: 1, textAlign: 'center' },
     selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },

@@ -95,7 +95,7 @@ function SettingsGroupRowContent({ icon, label, textMode, hint, trailing, resolv
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               lineHeight: 1.35,
-              color: 'var(--fg-3)',
+              color: 'var(--fg-2)',
             }}
           >
             {hint}

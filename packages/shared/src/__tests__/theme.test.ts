@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { contrastOnSurface, withAlpha } from './contrast'
 import { schemes } from '../theme/color-schemes'
 import {
+  hoverForeground,
   neutralColors,
   selectionAlpha,
   statusConstants,
@@ -132,7 +133,7 @@ const BAD_TEXT_SOURCE_SITES = [
   {
     name: 'mobile list row title',
     path: 'apps/mobile/components/ui/list-row.tsx',
-    pattern: /const titleColor = danger \? tokens\.statusBadText/,
+    pattern: /const titleColor = danger \? hoverForeground\(currentTheme, tokens\.statusBadText, /,
   },
   {
     name: 'mobile streak repair error',
@@ -142,7 +143,7 @@ const BAD_TEXT_SOURCE_SITES = [
   {
     name: 'mobile settings row title',
     path: 'apps/mobile/components/ui/settings-row.tsx',
-    pattern: /const titleColor = danger \? tokens\.statusBadText/,
+    pattern: /const titleColor = danger \? hoverForeground\(currentTheme, tokens\.statusBadText, /,
   },
 ] as const
 
@@ -567,7 +568,7 @@ describe('byte-exact mode colors', () => {
   for (const mode of ['dark', 'light'] as const) {
     for (const surface of BAD_TEXT_SURFACES[mode]) {
       it(`keeps the ${mode} bad status text at the text floor on ${surface.name}`, () => {
-        expect(contrastOnSurface(statusConstants[mode].badText, surface.layers))
+        expect(contrastOnSurface(hoverForeground(mode, statusConstants[mode].badText, surface.layers.includes(neutralColors[mode].bgHover)), surface.layers))
           .toBeGreaterThanOrEqual(4.5)
       })
     }
@@ -592,14 +593,14 @@ describe('byte-exact mode colors', () => {
       withAlpha(statusConstants.light.overdue, EXPIRY_TINT_ALPHA),
     ]],
   ] as const)('keeps light overdue text AA on the %s surface', (_surface, layers) => {
-    expect(contrastOnSurface(statusConstants.light.overdueText, layers))
+    expect(contrastOnSurface(hoverForeground('light', statusConstants.light.overdueText, layers.includes(neutralColors.light.bgHover)), layers))
       .toBeGreaterThanOrEqual(4.5)
   })
 
   for (const mode of ['dark', 'light'] as const) {
     for (const surface of EMPTY_TRACK_SURFACES[mode]) {
       it(`keeps the ${mode} empty track at the non-text floor on ${surface.name}`, () => {
-        expect(contrastOnSurface(neutralColors[mode].trackEmpty, surface.layers))
+        expect(contrastOnSurface(hoverForeground(mode, neutralColors[mode].trackEmpty, surface.layers.includes(neutralColors[mode].bgHover)), surface.layers))
           .toBeGreaterThanOrEqual(3)
       })
     }

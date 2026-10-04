@@ -1,4 +1,4 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { hoverForeground, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import {
@@ -207,6 +207,7 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { fontScale } = useWindowDimensions()
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   return items?.map((item) => {
     const disabled = item.disabled === true && !item.badge
@@ -216,6 +217,8 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
         accessibilityRole={item.checked === undefined ? "menuitem" : "checkbox"}
         accessibilityState={{ disabled, checked: item.checked }}
         disabled={disabled}
+        onPressIn={() => setActiveId(item.id)}
+        onPressOut={() => setActiveId(null)}
         onPress={() => onActivate(item.id)}
         style={({ pressed }) => [
           styles.item,
@@ -229,7 +232,7 @@ function MenuItems({ items, sheetPresentation, onActivate }: Readonly<MenuItemsP
         {item.icon ? <Icon color={item.destructive ? tokens.statusBad : tokens.fg2} name={item.icon} size={20} strokeWidth={2} /> : null}
         <Text
           numberOfLines={fontScale > 1.3 ? undefined : 1}
-          style={[styles.label, { color: item.destructive ? tokens.statusBadText : tokens.fg1 }]}
+          style={[styles.label, { color: item.destructive ? hoverForeground(currentTheme, tokens.statusBadText, activeId === item.id) : tokens.fg1 }]}
         >
           {item.label}
         </Text>

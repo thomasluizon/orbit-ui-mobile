@@ -100,7 +100,7 @@ function backgroundLayers(element: SearchTestInstance, pressed: boolean) {
 function expectMatchContrast(row: import('react-test-renderer').ReactTestInstance, label: string, hasFragment: boolean, tokens: ReturnType<typeof createTokensV2>) {
   const match = row.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children).startsWith(label))[0]!
   const matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
-  expect(matchStyle).toMatchObject({ color: tokens.fg3, fontSize: 12, fontFamily: 'GeistMono_400Regular' })
+  expect(matchStyle).toMatchObject({ color: tokens.bg === '#FAFAFA' ? tokens.fg2 : tokens.fg3, fontSize: 12, fontFamily: 'GeistMono_400Regular' })
   const fragments = match.findAll((node) => String(node.type) === 'Text' && node !== match)
   expect(fragments).toHaveLength(hasFragment ? 1 : 0)
   for (const pressed of [false, true]) {
