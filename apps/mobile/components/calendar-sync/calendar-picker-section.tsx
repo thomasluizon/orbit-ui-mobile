@@ -3,7 +3,6 @@ import { Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
-import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -35,6 +34,7 @@ export function CalendarPickerSection({
   const setSelectedCalendars = useSetSelectedCalendars()
   const [saveError, setSaveError] = useAccountScopedState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(20)
+  const [openedCalendarId, setOpenedCalendarId] = useAccountScopedState<string | null>(null)
 
   if (!enabled) return null
 
@@ -52,9 +52,7 @@ export function CalendarPickerSection({
   }
 
   return (
-    <>
-      <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
-
+    <View style={{ paddingTop: 24 }}>
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.pickerStateText, { color: tokens.statusBadText }]}>{saveError ?? ''}</Text>
 
       {isLoading ? <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} /> : null}
@@ -96,13 +94,18 @@ export function CalendarPickerSection({
 
       {!isLoading && !isError
         ? calendars?.slice(0, visibleCount).map((calendar) => (
-            <CheckRow
-              key={calendar.id}
-              label={calendar.name}
-              description={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
-              checked={calendar.isSynced}
-              onChange={(checked) => handleToggle(calendar.id, checked)}
-            />
+            <View key={calendar.id}>
+              <CheckRow
+                label={calendar.name}
+                textMode="personal"
+                onOpenLabel={() => setOpenedCalendarId(openedCalendarId === calendar.id ? null : calendar.id)}
+                labelExpanded={openedCalendarId === calendar.id}
+                description={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
+                checked={calendar.isSynced}
+                onChange={(checked) => handleToggle(calendar.id, checked)}
+              />
+              {openedCalendarId === calendar.id ? <Text style={[styles.pickerStateText, { color: tokens.fg1, paddingHorizontal: 16, paddingBottom: 12 }]}>{calendar.name}</Text> : null}
+            </View>
           ))
         : null}
 
@@ -119,7 +122,7 @@ export function CalendarPickerSection({
         </View>
       ) : null}
 
-      <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
-    </>
+      <SettingsDescription inset={false}>{t('calendar.calendars.description')}</SettingsDescription>
+    </View>
   )
 }

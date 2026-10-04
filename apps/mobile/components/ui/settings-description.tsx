@@ -5,17 +5,18 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 interface SettingsDescriptionProps {
   children: ReactNode
+  inset?: boolean
 }
 
 /** Helper text under a settings row: Geist Sans 14 fg-3, row-aligned 16px horizontal padding. */
-export function SettingsDescription({ children }: Readonly<SettingsDescriptionProps>) {
+export function SettingsDescription({ children, inset = true }: Readonly<SettingsDescriptionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, !inset && styles.flush]}>
       <Text style={[styles.text, { color: tokens.fg3 }]}>{children}</Text>
     </View>
   )
@@ -27,6 +28,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
+  flush: { paddingHorizontal: 0 },
   text: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,

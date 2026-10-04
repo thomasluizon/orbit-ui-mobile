@@ -11,6 +11,7 @@ export function CheckRow({
   label,
   textMode,
   onOpenLabel,
+  labelExpanded,
   checked,
   onChange,
   description,
@@ -23,7 +24,7 @@ export function CheckRow({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [pressed, setPressed] = useState(false)
 
-  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} onOpenLabel={onOpenLabel} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
+  if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
     <Pressable
@@ -80,10 +81,10 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.6 },
 })
 
-function PersonalCheckRow({ label, onOpenLabel, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+function PersonalCheckRow({ label, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   return (
     <View style={styles.personalRow}>
-      <Pressable onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.personalCopy, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+      <Pressable onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={({ pressed }) => [styles.personalCopy, pressed ? { backgroundColor: tokens.bgHover } : null]}>
         <Text numberOfLines={2} style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}

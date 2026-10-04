@@ -5,6 +5,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import { calendarImportTitleKey } from '@orbit/shared/utils'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { Sheet } from '@/components/ui/sheet'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 const toastError = vi.hoisted(() => vi.fn())
@@ -20,7 +24,7 @@ const clockState = vi.hoisted(() => ({ language: 'en', uses24HourClock: true }))
 vi.mock('next-intl', () => ({
   useLocale: () => clockState.language,
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}(${JSON.stringify(params)})` : key,
+    key === 'calendar.calendars.title' ? (clockState.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : params ? `${key}(${JSON.stringify(params)})` : key,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -68,21 +72,22 @@ vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toast
 
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 
-function CalendarSyncScreen() {
+function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>) {
   const [action, setAction] = useState<CalendarImportActionState | null>(null)
   const actionRef = useRef<CalendarImportActionHandle>(null)
   const t = useTranslations()
-  return <>
+  const content = <>
     <div data-testid="sheet-body"><CalendarImportContent reviewMode={pageState.reviewMode} initialEventId={pageState.initialEventId} onClose={() => {}} onGoToHabits={() => {}} actionRef={actionRef} onActionStateChange={setAction} /></div>
     {action ? <div data-testid="sheet-actions"><button disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</button></div> : null}
   </>
+  return inSheet ? <Sheet title={t(calendarImportTitleKey(pageState.reviewMode))} onClose={() => {}}>{content}</Sheet> : content
 }
 
-function renderPage() {
+function renderPage(inSheet = false) {
   const queryClient = new QueryClient()
   return render(
     <QueryClientProvider client={queryClient}>
-      <CalendarSyncScreen />
+      <CalendarSyncScreen inSheet={inSheet} />
     </QueryClientProvider>,
   )
 }
@@ -107,7 +112,7 @@ function countEventRows(): number {
 }
 
 describe('CalendarSyncPage pagination', () => {
-  afterEach(() => { vi.unstubAllGlobals() })
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
   beforeEach(() => {
     useCalendarEventsMock.mockReset()
@@ -121,6 +126,24 @@ describe('CalendarSyncPage pagination', () => {
     setAutoSyncMock.mockReset()
     clockState.language = 'en'
     clockState.uses24HourClock = true
+  })
+
+  it('shows one Calendários heading in the connected import sheet', () => {
+    clockState.language = 'pt-BR'
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: buildEvents(2) }, isLoading: false, isError: false })
+    renderPage(true)
+    expect(screen.getAllByRole('heading', { name: ptBR.calendar.calendars.title })).toHaveLength(1)
+  })
+
+  it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', (language, expected) => {
+    vi.stubEnv('TZ', 'America/Los_Angeles')
+    expect(new Date(2026, 9, 16).getTimezoneOffset()).toBeGreaterThan(0)
+    clockState.language = language
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: [{ ...buildEvents(1)[0]!, startDate: '2026-10-16' }] }, isLoading: false, isError: false })
+    renderPage(true)
+    expect(screen.getByText(expected)).toBeVisible()
+    expect(screen.queryByText('2026-10-16')).not.toBeInTheDocument()
+    vi.unstubAllEnvs()
   })
 
   it('preselects only the event opened from the day card', () => {

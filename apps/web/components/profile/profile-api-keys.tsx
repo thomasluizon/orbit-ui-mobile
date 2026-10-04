@@ -479,6 +479,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
       <ConfirmSheet
         open={revokingKey != null}
         title={revokingKey ? t('profile.apiKeys.revokeNamedQuestion', { name: revokingKey.name }) : ''}
+        titleMode="typed"
         message={t('profile.apiKeys.revokeBody')}
         cancelLabel={t('orbitMcp.cancel')}
         confirmLabel={t('orbitMcp.revoke')}

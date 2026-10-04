@@ -1,3 +1,4 @@
+import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { StyleSheet, Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
@@ -9,6 +10,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 interface ConfirmSheetProps {
   open: boolean
   title: string
+  titleMode?: SheetProps['titleMode']
   message: string
   confirmLabel: string
   cancelLabel?: string
@@ -32,6 +34,7 @@ interface ConfirmSheetProps {
 export function ConfirmSheet({
   open,
   title,
+  titleMode = 'label',
   message,
   confirmLabel,
   cancelLabel,
@@ -119,6 +122,7 @@ export function ConfirmSheet({
       open
       onBackPress={!open ? onDismissDuringClose : undefined}
       title={title}
+      titleMode={titleMode}
       onClose={() => {
         if (actionsDisabled) {
           finishControlledClose()

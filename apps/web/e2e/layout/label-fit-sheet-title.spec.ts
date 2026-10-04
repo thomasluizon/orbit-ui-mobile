@@ -25,7 +25,8 @@ async function measureTitle(sheet: Locator) {
   await sheet.evaluate(() => document.fonts.ready)
   return sheet.locator('header').evaluate((header) => {
     const heading = header.querySelector<HTMLElement>('.orbit-sheet-title')!
-    const text = heading.querySelector<HTMLElement>('.orbit-sheet-typed-title') ?? heading
+    const typedTitle = heading.querySelector<HTMLElement>('.orbit-sheet-typed-title')
+    const text = typedTitle ?? heading
     const close = header.querySelector<HTMLElement>('.orbit-sheet-close')!
     const titleBounds = heading.getBoundingClientRect()
     const closeBounds = close.getBoundingClientRect()
@@ -38,8 +39,12 @@ async function measureTitle(sheet: Locator) {
     text.parentElement!.append(probe)
     const fullHeight = probe.getBoundingClientRect().height
     probe.remove()
+    const range = document.createRange()
+    range.selectNodeContents(heading)
     return {
-      lines: text.getBoundingClientRect().height / Number.parseFloat(style.lineHeight),
+      lines: typedTitle
+        ? text.getBoundingClientRect().height / Number.parseFloat(style.lineHeight)
+        : new Set(Array.from(range.getClientRects(), (rectangle) => rectangle.top)).size,
       clamp: style.webkitLineClamp,
       truncated: fullHeight > text.getBoundingClientRect().height + 1,
       closeWidth: closeBounds.width, closeHeight: closeBounds.height,
