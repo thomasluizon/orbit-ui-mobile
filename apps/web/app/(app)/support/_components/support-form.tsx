@@ -165,7 +165,7 @@ export function SupportForm({
           {disabledReason}
         </p>
       ) : null}
-      <div className="[&_button]:w-full md:[&_button]:w-auto md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button:enabled]:hover:opacity-90 md:[&_button:enabled:active]:opacity-85">
+      <div className="[&_button]:w-full md:[&_button]:w-auto md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button:enabled]:hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))] md:[&_button:enabled:active]:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]">
         <PillButton size="md"
           disabled={disabled}
           loading={isSending}

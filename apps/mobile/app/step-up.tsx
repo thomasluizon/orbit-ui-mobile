@@ -456,7 +456,7 @@ function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () =
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.quietAction, pressed ? styles.quietPressed : null]}
+      style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}
     >
       <Text style={[styles.quietLabel, { color: tokens.fg2 }]}>{label}</Text>
     </Pressable>
@@ -515,11 +515,11 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   quietAction: {
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 12,
     minHeight: TOUCH_TARGET_MIN,
     justifyContent: 'center',
-  },
-  quietPressed: {
-    opacity: 0.75,
   },
   quietLabel: {
     fontFamily: 'Geist_400Regular',

@@ -76,14 +76,16 @@ export function StatusDot({
       accessibilityLabel={accessibilityLabel ?? state}
       accessibilityState={{ disabled }}
       style={({ pressed }) => {
-        const pressedOpacity = pressed ? 0.85 : 1
         return {
           minWidth: TOUCH_TARGET_MIN,
           minHeight: TOUCH_TARGET_MIN,
+          borderRadius: 999,
+          overflow: 'hidden',
+          backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
           transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
-          opacity: disabled ? 0.4 : pressedOpacity,
+          opacity: disabled ? 0.4 : 1,
         }
       }}
     >

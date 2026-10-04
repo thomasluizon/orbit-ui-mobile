@@ -1,3 +1,4 @@
+import { PressFill } from '@/components/ui/press-fill'
 import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -542,13 +543,14 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                       style={({ pressed }) => [
                         styles.quietAction,
                         chipTint,
-                        pressed && styles.quietActionDim,
+                        pressed && { transform: [{ scale: 0.96 }] },
                       ]}
-                    >
+                    >{({ pressed }) => <>
+                      <PressFill pressed={pressed} color={tokens.bgHoverOpaque} />
                       <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
                         {t('calendar.showMore')}
                       </Text>
-                    </Pressable>
+                    </>}</Pressable>
                     <Text style={[styles.showingCountText, { color: tokens.fg3 }]}>
                       {t('calendar.showingCount', {
                         shown: Math.min(visibleCount, events.length),

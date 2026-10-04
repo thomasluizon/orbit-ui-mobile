@@ -74,7 +74,7 @@ export function StatusDot({
       disabled={disabled}
       aria-disabled={disabled}
       aria-label={ariaLabel ?? state}
-      className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center transition-transform duration-[var(--status-dot-press-duration)] enabled:active:scale-[var(--status-dot-press-scale)] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      className={`group appearance-none border-0 bg-transparent rounded-full overflow-hidden enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center transition-[background-color,transform] duration-[var(--status-dot-press-duration)] enabled:active:scale-[var(--status-dot-press-scale)] ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
       style={{
         padding: hitPadding,
         opacity: disabled ? 0.4 : 1,
@@ -83,7 +83,7 @@ export function StatusDot({
       } as CSSProperties}
     >
       <span
-        className={`block rounded-full transition-opacity duration-150 ${disabled ? '' : 'group-hover:opacity-80 group-active:opacity-70'}`}
+        className="block rounded-full"
         style={{
           width: size,
           height: size,

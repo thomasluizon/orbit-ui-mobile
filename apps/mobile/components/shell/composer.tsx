@@ -369,7 +369,7 @@ function ComposerError({ props, tokens }: Readonly<{ props: ComposerProps; token
     {props.errorMessage ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive"
       style={[styles.limitReason, { color: tokens.statusBadText }]}>{props.errorMessage}</Text> : null}
     {props.errorRecovery ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.errorRecovery.label} onPress={props.errorRecovery.onSelect}
-      style={({ pressed }) => [styles.retry, pressed ? styles.retryPressed : null]}>
+      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
       <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.errorRecovery.label}</Text>
     </InsetFocusPressable> : null}
   </View>
@@ -381,7 +381,7 @@ function RetryControl({ props, tokens }: Readonly<{ props: ComposerProps; tokens
     <InsetFocusPressable
       accessibilityRole="button"
       onPress={props.onRetry}
-      style={({ pressed }) => [styles.retry, pressed ? styles.retryPressed : null]}
+      style={({ pressed }) => [styles.retry, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}
     >
       <RefreshCw size={16} strokeWidth={2} color={tokens.fg2} />
       <Text style={[styles.retryText, { color: tokens.fg2 }]}>{props.words.retry}</Text>
@@ -618,14 +618,14 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   retry: {
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 12,
     minHeight: 48,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  retryPressed: {
-    opacity: 0.7,
   },
   retryText: {
     fontFamily: 'Geist_500Medium',

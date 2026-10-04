@@ -13,7 +13,7 @@ const EXPIRY_ACTION_STYLE = {
   fontSize: 14,
   fontWeight: 500,
   color: 'var(--fg-1)',
-  padding: '0 4px',
+  padding: '0 8px',
   textDecoration: 'underline',
   textUnderlineOffset: 3,
 } as const
@@ -63,7 +63,7 @@ export function ExpiryWarning() {
         </span>
         <button
           type="button"
-          className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
+          className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer rounded-full overflow-hidden transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]"
           onClick={handleSignIn}
           style={EXPIRY_ACTION_STYLE}
         >

@@ -5,8 +5,9 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { neutralColors } from '@orbit/shared/theme'
-import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { ShellWide } from '@/components/shell/shell-wide'
+import { StatusDot } from '@/components/ui/status-dot'
 import { HabitLogButton } from '@/components/habits/habit-log-button'
 import { DateField } from '@/components/ui/date-field'
 import { DayCell } from '@/components/dates/day-cell'
@@ -48,6 +49,41 @@ describe('rendered light hover contrast', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['light', 'dark'] as const)('keeps the status dot paint stack visible in %s', async (mode) => {
+    const { container, unmount } = render(<StatusDot state="empty" size={30} ariaLabel="Log habit" onToggle={() => {}} />)
+    const page = await browser.newPage({ viewport: { width: 600, height: 900 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)"><div style="background:var(--bg-card)">${container.innerHTML}</div></body></html>`)
+      const button = page.getByRole('button', { name: 'Log habit' })
+      const measure = () => button.evaluate((control) => {
+        const dot = control.querySelector('span')!
+        const parent = getComputedStyle(control)
+        const graphic = getComputedStyle(dot)
+        return { fill: parent.backgroundColor, opacity: Number(parent.opacity), graphicOpacity: Number(graphic.opacity), color: graphic.boxShadow.match(/rgba?\([^)]*\)/)![0] }
+      })
+      const resting = await measure()
+      expect(controlContrast(resting.color, resting.fill, [neutralColors[mode].bg, neutralColors[mode].bgCard], resting.opacity, resting.graphicOpacity).graphic).toBeGreaterThanOrEqual(3)
+      const bounds = await button.boundingBox()
+      expect(bounds!.width).toBeGreaterThanOrEqual(48)
+      expect(bounds!.height).toBeGreaterThanOrEqual(48)
+      await button.hover()
+      await page.waitForTimeout(300)
+      for (const pressed of [false, true]) {
+        if (pressed) { await page.mouse.down(); await page.waitForTimeout(300) }
+        const painted = await measure()
+        const measured = controlContrast(painted.color, painted.fill, [neutralColors[mode].bg, neutralColors[mode].bgCard], painted.opacity, painted.graphicOpacity)
+        expect(painted.color).toBe(resting.color)
+        expect(measured.graphic).toBeGreaterThanOrEqual(3)
+        expect(measured.step).toBeGreaterThanOrEqual(1.25)
+      }
+      await page.mouse.up()
+      await page.mouse.move(0, 0)
+      await page.waitForTimeout(300)
+      expect(await measure()).toEqual(resting)
+    } finally { await page.close(); unmount() }
+  })
 
   for (const width of [600, 1352]) {
     for (const progress of [undefined, 0]) {

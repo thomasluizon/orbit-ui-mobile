@@ -136,7 +136,7 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
   }
   return (
     // eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Detail line 176 controls this label under D42.
-    <Pressable accessibilityRole="button" accessibilityLabel={t('habits.detail.askAstra')} onPress={openConversation} style={({ pressed }) => [styles.astraRow, { opacity: pressed ? 0.8 : 1 }]}><View style={styles.astraGlyph} accessible={false}><AstraGlyph size={20} color={tokens.fg1} /></View><Text numberOfLines={1} style={[styles.astraLabel, { color: tokens.fg1 }]}>{t('habits.detail.askAstra')}</Text><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={t('habits.detail.askAstra')} onPress={openConversation} style={({ pressed }) => [styles.astraRow, pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }]}><View style={styles.astraGlyph} accessible={false}><AstraGlyph size={20} color={tokens.fg1} /></View><Text numberOfLines={1} style={[styles.astraLabel, { color: tokens.fg1 }]}>{t('habits.detail.askAstra')}</Text><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></Pressable>
   )
 }
 
@@ -610,7 +610,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 }
 
 const styles = StyleSheet.create({
-  astraRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, marginHorizontal: -16 },
+  astraRow: { borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, marginHorizontal: -16 },
   astraGlyph: { width: 28, alignItems: 'center' },
   astraLabel: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 17 },
   reminders: { gap: 4 },

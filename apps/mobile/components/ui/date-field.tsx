@@ -1,3 +1,4 @@
+import { PressFill } from '@/components/ui/press-fill'
 import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback } from 'react'
 import {
@@ -171,7 +172,7 @@ function DatePickerBody({
                 key={day.toISOString()}
                 style={({ pressed }) => [
                   styles.dayTarget,
-                  pressed ? { opacity: 0.7 } : null,
+                  pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
                 ]}
                 onPress={() => onSelectDay(day)}
                 accessibilityRole="button"
@@ -181,7 +182,7 @@ function DatePickerBody({
                   day: 'numeric',
                   year: 'numeric',
                 })}
-              >
+              >{({ pressed }) =>
                 <View
                   style={[
                     styles.dayCell,
@@ -192,14 +193,14 @@ function DatePickerBody({
                   <Text
                     style={[
                       styles.dayText,
-                      !isCurrentMonth && styles.dayTextOutside,
+                      !isCurrentMonth && { color: pressed ? tokens.fg2 : tokens.fg3 },
                       isSelected && styles.dayTextSelected,
                     ]}
                   >
                     {format(day, 'd')}
                   </Text>
                 </View>
-              </Pressable>
+              }</Pressable>
             )
           })}
         </View>
@@ -311,7 +312,7 @@ export function DateField({
       <Pressable
         style={({ pressed }) => [
           styles.trigger,
-          pressed ? { opacity: 0.7 } : null,
+          pressed ? { transform: [{ scale: 0.96 }] } : null,
         ]}
         onPress={openPicker}
         accessibilityLabel={
@@ -320,18 +321,19 @@ export function DateField({
             : t('common.selectDate'))
         }
         accessibilityRole="button"
-      >
+      >{({ pressed }) => <>
+        <PressFill pressed={pressed} color={tokens.bgHoverOpaque} />
         <Text
           style={[
             styles.triggerText,
-            !displayValue && styles.triggerPlaceholder,
+            !displayValue && { color: pressed ? tokens.fg2 : tokens.fg3 },
           ]}
           numberOfLines={1}
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
         <Calendar size={20} strokeWidth={1.8} color={tokens.fg3} />
-      </Pressable>
+      </>}</Pressable>
 
       {isOpen ? (
         <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * DAY_TARGET_SIZE} virtualizedBody={pickerMode === 'years'}>
@@ -372,6 +374,7 @@ const DAY_TARGET_SIZE = MONTH_GRID_TARGET_MIN
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     trigger: {
+      overflow: 'hidden',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -389,9 +392,6 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       marginRight: 8,
-    },
-    triggerPlaceholder: {
-      color: tokens.fg3,
     },
     monthNav: {
       flexDirection: 'row',
@@ -450,6 +450,7 @@ function createStyles(tokens: AppTokens) {
       textAlign: 'center',
     },
     dayTarget: {
+      overflow: 'hidden',
       width: `${100 / 7}%`,
       minHeight: DAY_TARGET_SIZE,
       borderRadius: radius.full,
@@ -474,9 +475,6 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
       fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
-    },
-    dayTextOutside: {
-      color: tokens.fg3,
     },
     dayTextSelected: {
       color: tokens.fgOnPrimary,

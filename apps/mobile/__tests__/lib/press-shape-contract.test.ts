@@ -316,6 +316,42 @@ function isPressFill(part: StylePart): boolean {
   return hasFill(fill) && (part.pressed || /press|hover/i.test(part.name) || !!fill && /\bpressed\b/.test(fill.getText()))
 }
 
+function pressOpacity(expression: ts.Expression, source: ParsedSource, seen = new Set<ts.Node>()): number | undefined {
+  if (seen.has(expression)) return undefined
+  seen.add(expression)
+  if (ts.isNumericLiteral(expression)) return Number(expression.text)
+  if (ts.isParenthesizedExpression(expression)) return pressOpacity(expression.expression, source, seen)
+  if (ts.isConditionalExpression(expression)) {
+    const condition = expression.condition.getText()
+    const branch = /disabled/i.test(condition) ? expression.whenFalse : condition === '!pressed' ? expression.whenFalse : expression.whenTrue
+    return pressOpacity(branch, source, seen)
+  }
+  if (ts.isIdentifier(expression)) {
+    const binding = lexicalBinding(expression, expression.text, source)
+    if (binding && ts.isExpression(binding)) return pressOpacity(binding, source, seen)
+  }
+  return undefined
+}
+
+function dependsOnPress(expression: ts.Node, source: ParsedSource, seen = new Set<ts.Node>()): boolean {
+  if (seen.has(expression)) return false
+  seen.add(expression)
+  if (/\bpressed\b/.test(expression.getText())) return true
+  if (ts.isIdentifier(expression)) {
+    const binding = lexicalBinding(expression, expression.text, source)
+    return !!binding && dependsOnPress(binding, source, seen)
+  }
+  return expression.getChildren().some((child) => dependsOnPress(child, source, seen))
+}
+
+function dimsPressedContent(parts: StyleVariant): boolean {
+  const owner = [...parts].reverse().find((part) => part.properties.has('opacity'))
+  const opacity = owner?.properties.get('opacity')
+  if (!owner || !opacity || !(owner.pressed || /press|hover/i.test(owner.name) || dependsOnPress(opacity, owner.source))) return false
+  const value = pressOpacity(opacity, owner.source)
+  return value !== undefined && value < 1
+}
+
 function unclippedPressStyles(files: ScannedSource[]): string[] {
   const sources = new Map(files.map((file) => [file.path, parseSource(file)]))
   const used = new Set<ts.ObjectLiteralExpression>()
@@ -326,7 +362,7 @@ function unclippedPressStyles(files: ScannedSource[]): string[] {
       const variants = resolveStyles(callback, source, available)
       for (const parts of variants) {
         parts.forEach((part) => used.add(part.object))
-        if (parts.some(isPressFill) && !clipped(parts)) {
+        if (dimsPressedContent(parts) || parts.some(isPressFill) && !clipped(parts)) {
           failures.add(location(source, callback, 'inline'))
         }
       }
@@ -350,6 +386,29 @@ function unconsumedPressStyles(sources: Map<string, ParsedSource>, used: Set<ts.
 }
 
 describe('mobile press shapes', () => {
+  it.each([
+    `{ opacity: pressed ? 0.85 : 1 }`,
+    `{ opacity: disabled ? 0.4 : pressed ? 0.85 : 1 }`,
+    `pressed && { opacity: 0.7 }`,
+    `styles.pressed`,
+  ])('rejects enabled content dimming: %s', (body) => {
+    const contents = `const styles = StyleSheet.create({ pressed: { opacity: 0.8 } }); <Pressable style={({ pressed }) => (${body})} />`
+    expect(unclippedPressStyles([{ path: 'fixtures/control.tsx', contents }])).toEqual(['fixtures/control.tsx:1 inline'])
+  })
+
+  it('resolves a local pressed opacity binding', () => {
+    const contents = `<Pressable style={({ pressed }) => { const feedback = pressed ? 0.85 : 1; return { opacity: disabled ? 0.4 : feedback }; }} />`
+    expect(unclippedPressStyles([{ path: 'fixtures/control.tsx', contents }])).toEqual(['fixtures/control.tsx:1 inline'])
+  })
+
+  it.each([
+    `{ opacity: disabled ? 0.4 : 1 }`,
+    `[disabled && { opacity: 0.4 }, pressed && { transform: [{ scale: 0.96 }] }]`,
+    `{ opacity: pressed ? 1 : 0 }`,
+  ])('keeps disabled dimming and increasing fill opacity: %s', (body) => {
+    expect(unclippedPressStyles([{ path: 'fixtures/control.tsx', contents: `<Pressable style={({ pressed }) => (${body})} />` }])).toEqual([])
+  })
+
   it.each([
     `StyleSheet.create({ row: {} })`,
     `useMemo(() => createSquareStyles(), [])`,
@@ -496,9 +555,9 @@ const variantStyle = (pressed) => ({ backgroundColor: pressed ? tokens.bgCard : 
     expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual(['fixtures/press-shapes.tsx:1 inline'])
   })
 
-  it('ignores an unchanged fill with opacity-only press feedback', () => {
+  it('rejects an unchanged fill with opacity-only press feedback', () => {
     const contents = `<Pressable style={({ pressed }) => [{ backgroundColor: tokens.primary }, pressed ? { opacity: 0.7 } : null]} />`
-    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual([])
+    expect(unclippedPressStyles([{ path: 'fixtures/press-shapes.tsx', contents }])).toEqual(['fixtures/press-shapes.tsx:1 inline'])
   })
 
   it('rejects a press fill in the false branch of a pressed comparison', () => {

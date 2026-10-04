@@ -37,7 +37,7 @@ export function EditGoalDeadlineField({
             <Pressable
               style={({ pressed }) => [
                 styles.removeDeadlineButton,
-                pressed && { opacity: 0.7 },
+                pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
               ]}
               onPress={() => onChangeDeadline('')}
               accessibilityRole="button"
@@ -56,7 +56,7 @@ export function EditGoalDeadlineField({
         <Pressable
           style={({ pressed }) => [
             styles.addDeadlineButton,
-            pressed && { opacity: 0.7 },
+            pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
           ]}
           onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
           hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}

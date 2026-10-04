@@ -240,7 +240,7 @@ function ChecklistAddRow({
         style={({ pressed }) => [
           styles.addItemButton,
           (disabled || !value.trim()) && styles.addItemButtonDisabled,
-          pressed && !!value.trim() ? { opacity: 0.7 } : null,
+          pressed && !disabled && !!value.trim() ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: 0.96 }] } : null,
         ]}
         disabled={disabled || !value.trim()}
         onPress={onAdd}
@@ -607,6 +607,7 @@ function createStyles(tokens: AppTokens) {
     borderRadius: 12,
   },
   addItemButton: {
+    overflow: 'hidden',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,

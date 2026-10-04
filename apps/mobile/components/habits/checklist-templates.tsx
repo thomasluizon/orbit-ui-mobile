@@ -142,7 +142,7 @@ export function ChecklistTemplates({
             style={({ pressed }) => [
               styles.saveButton,
               (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
-              pressed ? { opacity: 0.8 } : null,
+              pressed ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: 0.96 }] } : null,
             ]}
             onPress={handleSave}
             disabled={!templateName.trim() || createTemplate.isPending}
@@ -155,7 +155,7 @@ export function ChecklistTemplates({
           <Pressable
             style={({ pressed }) => [
               styles.closeButton,
-              pressed ? { opacity: 0.8 } : null,
+              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
             ]}
             onPress={() => {
               setTemplateName('')
@@ -216,6 +216,7 @@ function createStyles(tokens: AppTokens) {
       fontSize: 14,
     },
     saveButton: {
+      overflow: 'hidden',
       minHeight: TOUCH_TARGET_MIN,
       borderRadius: 999,
       backgroundColor: tokens.primary,
@@ -232,6 +233,8 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fgOnPrimary,
     },
     closeButton: {
+      borderRadius: 999,
+      overflow: 'hidden',
       width: TOUCH_TARGET_MIN,
       height: TOUCH_TARGET_MIN,
       alignItems: 'center',
