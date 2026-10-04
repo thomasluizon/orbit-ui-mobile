@@ -855,10 +855,11 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     }
 
     if (atMessageLimit) {
+      const limitWords = { ...words, placeholder: t("shell.composer.limit.placeholder") };
       const limitReason = t("shell.composer.limit.reason", { allowance: aiMessagesLimit });
       return speechSupported
-        ? { ...common, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
-        : { ...common, state: "atLimit", limitReason };
+        ? { ...common, words: limitWords, state: "atLimit", limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, words: limitWords, state: "atLimit", limitReason };
     }
 
     const state: "idle" | "sending" = isSending ? "sending" : "idle";

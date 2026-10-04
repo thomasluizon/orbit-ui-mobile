@@ -33,7 +33,7 @@ function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpen
     ...(state === 'offline' ? { limitReason: messages.shell.composer.offline.reason } : {}),
     ...(state === 'atLimit' ? { limitReason: messages.shell.composer.limit.reason } : {}),
     value: scenario === 'typing' ? 'First\nSecond\nThird' : scenario === 'longText' ? 'Long message\n'.repeat(12) : '',
-    suggestions: [], words: { ...messages.shell.composer, ...(state === 'offline' ? { placeholder: messages.shell.composer.offline.placeholder } : {}) },
+    suggestions: [], words: { ...messages.shell.composer, ...(state === 'offline' ? { placeholder: messages.shell.composer.offline.placeholder } : state === 'atLimit' ? { placeholder: messages.shell.composer.limit.placeholder } : {}) },
     onChangeValue: vi.fn(), onSend: vi.fn(),
     onVoice: vi.fn(), voiceWords: messages.shell.composer.voice,
     onAttachFile: vi.fn(), onAttachImage: vi.fn(),
@@ -68,7 +68,9 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   expect(new Set(measured.controls.map((control) => control.top)).size, evidence).toBe(1)
   if (measured.input) {
     expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136)
-    expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.width)
+    if (fontScale === 1 || scenario === 'offline' || scenario === 'atLimit') {
+      expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.width)
+    }
     if (scenario === 'longText') {
       expect(measured.input.height, evidence).toBe(measured.input.maximumHeight)
       expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
@@ -120,6 +122,13 @@ describe('Composer compact geometry in Chromium', () => {
         const props = JSON.parse(document.getElementById('configuration').textContent);
         createRoot(document.getElementById('root')).render(React.createElement(Composer, {
           ...props, onChangeValue: () => {}, onSend: () => {},
+          onOpenConversation: props.conversationLabel ? () => {} : undefined,
+          onAttachFile: props.attachWords ? () => {} : undefined,
+          onAttachImage: props.attachWords ? () => {} : undefined,
+          onAttachRemove: () => {},
+          onVoice: props.voiceWords ? () => {} : undefined,
+          attachWords: props.attachWords ? { ...props.attachWords,
+            remove: name => props.attachmentRemoveTemplate.replace('{name}', name) } : undefined,
           suggestions: props.suggestions.map(chip => ({ ...chip, onSelect: () => {},
             icon: React.createElement('svg', { width: 20, height: 20, 'aria-hidden': true }) }))
         }));`, resolveDir: process.cwd(), loader: 'tsx' },
@@ -138,6 +147,35 @@ describe('Composer compact geometry in Chromium', () => {
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([en, ptBR].flatMap(messages => ['idle', 'offline', 'atLimit'].map(state => ({ messages, state }))))(
+    'shows a whole state placeholder or omits it as the pill resizes: $state', async ({ messages, state }) => {
+      const configuration = geometryProps(state as GeometryScenario, messages, true)
+      const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+        await page.addScriptTag({ content: composerScript })
+        await loadAppFonts(page)
+        const field = page.locator('[data-composer-input]')
+        for (const width of [320, 360, 384, 412, 600, 320]) {
+          await page.setViewportSize({ width, height: 740 })
+          await vi.waitFor(async () => {
+            const measured = await field.evaluate(element => {
+              const input = element as HTMLTextAreaElement
+              const style = getComputedStyle(input)
+              const context = document.createElement('canvas').getContext('2d')!
+              context.font = style.font
+              context.letterSpacing = style.letterSpacing
+              return { placeholder: input.placeholder, textWidth: context.measureText(input.placeholder).width,
+                availableWidth: input.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd) }
+            })
+            expect(measured.textWidth, JSON.stringify({ width, state, measured })).toBeLessThanOrEqual(measured.availableWidth)
+            if (state === 'idle' || width === 600) expect(measured.placeholder).toBe(configuration.words.placeholder)
+          })
+        }
+      } finally { await page.close() }
+    }, 30_000,
+  )
 
   it.each([en, ptBR])('reserves a 16 to 32 pixel peek for live Today chips at 320 with doubled text', async (messages) => {
     const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0,
@@ -392,11 +430,10 @@ describe('Composer compact geometry in Chromium', () => {
     try {
       for (const withOpener of [true, false]) for (const scenario of ['idle', 'typing', 'longText', 'sending', 'recording', 'transcribing', 'tray1', 'tray2', 'tray3', 'atLimit', 'offline', 'retry'] as const) {
         const props = geometryProps(scenario, messages, withOpener)
-        const view = render(<Composer {...props} />)
-        const markup = view.container.innerHTML
-        view.unmount()
-        await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style>${markup}`)
+        await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ ...props, attachmentRemoveTemplate: messages.shell.composer.attach.remove })}</script>`)
+        await page.addScriptTag({ content: composerScript })
         await loadAppFonts(page)
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
         const measured = await page.evaluate(() => {
           const pill = document.querySelector<HTMLElement>('[data-composer-input-row]')!
           const bounds = pill.getBoundingClientRect()

@@ -31,7 +31,7 @@
     },
     "homeScreen": {
       "title": "Tela inicial",
-      "showGeneral": "Hábitos sem dia certo no Hoje",
+      "showGeneral": "Sem dia certo",
       "showGeneralDesc": "Os hábitos sem programação aparecem na lista de hoje."
     },
     "clock": {
@@ -147,7 +147,6 @@
     "previousPage": "Página anterior",
     "next": "Próximo",
     "nextPage": "Próxima página",
-    "codePlaceholder": "123456",
     "upgrade": "Fazer upgrade",
     "proBadge": "Pro",
     "locked": "Bloqueado",
@@ -214,7 +213,7 @@
     "closeRail": "Fechar painel",
     "openPalette": "Abrir paleta de comandos",
     "composer": {
-      "placeholder": "Astra",
+      "placeholder": "Peça à Astra",
       "send": "Enviar",
       "suggestionsLabel": "Sugestões",
       "retry": "Tentar de novo",
@@ -231,13 +230,14 @@
         "image": "Foto"
       },
       "limit": {
+        "placeholder": "Sem mensagens hoje",
         "reason": "A cota de {allowance} mensagens para a Astra de hoje foi usada. Listas, registro de hábitos e entrada por voz continuam funcionando sem usar a Astra."
       },
       "busy": {
         "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
       },
       "offline": {
-        "placeholder": "Offline",
+        "placeholder": "Sem conexão",
         "reason": "Sem conexão. A Astra volta quando a conexão voltar."
       },
       "chips": {
@@ -524,7 +524,6 @@
     "viewAll": "Todos",
     "sectionLabel": "Hábitos",
     "frequencyFilter": "Filtrar por frequência",
-    "searchPlaceholder": "Buscar hábitos...",
     "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
     "showCompletedMenu": "Mostrar feitos",
@@ -638,7 +637,6 @@
       "aiSuggestEmpty": "Sem sugestão para esse. Adicione os detalhes você mesmo.",
       "aiSuggestLimitReached": "Você atingiu o limite de mensagens de IA de hoje.",
       "title": "Título",
-      "titlePlaceholder": "ex. Corrida matinal",
       "newHabit": "Novo hábito",
       "fromConversation": "Veio da sua conversa com a Astra.",
       "createWhy": "Escreva o que você quer acompanhar.",
@@ -692,12 +690,11 @@
       "startDate": "Início",
       "startDateReason": "A data de início é o dia em que você cria o hábito e não muda depois.",
       "description": "Descrição",
-      "descriptionPlaceholder": "Descrição opcional",
       "emoji": "Emoji",
       "emojiDescription": "Escolha um emoji para esse hábito",
       "emojiOpenPicker": "Escolher emoji",
       "emojiPickerTitle": "Escolha um emoji",
-      "emojiSearchPlaceholder": "Buscar emojis...",
+      "emojiSearchPlaceholder": "Buscar emoji",
       "emojiClearSearch": "Limpar busca",
       "emojiCategories": "Categorias de emoji",
       "emojiPickerEmpty": "Nenhum emoji encontrado",
@@ -756,8 +753,8 @@
       "reminderDays": "dias antes",
       "reminderAdd": "Adicionar lembrete",
       "reminderAddTime": "Adicionar horário",
+      "reminderCustomLabel": "Outro intervalo",
       "reminderCustom": "Personalizado...",
-      "reminderCustomPlaceholder": "Valor",
       "reminderUnitMin": "minutos",
       "reminderUnitHours": "horas",
       "reminderUnitDays": "dias",
@@ -805,7 +802,7 @@
       "slipAlertDescription": "A IA manda mensagens de incentivo antes dos seus horários de deslize",
       "editDescription": "Atualize os detalhes do hábito",
       "checklist": "Checklist",
-      "checklistPlaceholder": "Item",
+      "checklistPlaceholder": "Adicionar item",
       "templates": "Modelos",
       "useTemplate": "Usar modelo",
       "noTemplates": "Nenhum modelo salvo",
@@ -934,7 +931,6 @@
     },
     "breakdown": {
       "breakInto": "Dividir {name} em:",
-      "habitNamePlaceholder": "Nome do hábito...",
       "addHabit": "Adicionar hábito",
       "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
       "createdSuccess": "nenhum hábito criado | {n} hábito criado | {n} hábitos criados",
@@ -1211,7 +1207,6 @@
     "empty": {
       "title": "Fale com a Astra"
     },
-    "placeholder": "Pergunte à Astra",
     "copy": "Copiar",
     "copied": "Copiado",
     "attachImage": "Anexar imagem",
@@ -1808,7 +1803,7 @@
       "pushDeviceLimit": "Desligue as notificações em outro aparelho para usar este."
     },
     "allowance": {
-      "title": "Mensagens de hoje",
+      "title": "Mensagens hoje",
       "usage": "{used} de {limit} usadas",
       "spent": "As mensagens de hoje foram usadas. A sua lista continua funcionando sem elas.",
       "plan": "Plano",
@@ -1857,7 +1852,6 @@
     "editName": {
       "title": "Editar nome",
       "label": "Nome",
-      "placeholder": "Seu nome",
       "required": "Digite um nome.",
       "tooLong": "Use no máximo 50 caracteres.",
       "errorGeneric": "Algo deu errado. Tente de novo."
@@ -1868,10 +1862,10 @@
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
-      "title": "Resumo do dia pela Astra"
+      "title": "Resumo diário"
     },
     "proactiveAstra": {
-      "title": "Astra avisa quando algo escapa"
+      "title": "Check-ins"
     },
     "marketingEmails": {
       "title": "Email sobre o produto",
@@ -3258,7 +3252,6 @@
     "revealHeading": "Chave de API criada",
     "noKeys": "Nenhuma chave de API ainda",
     "keyName": "Nome da chave",
-    "keyNamePlaceholder": "ex: Claude Desktop",
     "keyNameRequired": "Dê um nome à chave",
     "keyNameMaxLength": "O nome da chave pode ter no máximo 50 caracteres",
     "created": "Criada em",

@@ -35,6 +35,7 @@ export function HabitUnderstanding({
   labels,
 }: Readonly<HabitUnderstandingWithDisabledEmojiProps>) {
   const hasValue = value.trim().length > 0
+  const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   return (
@@ -76,31 +77,22 @@ export function HabitUnderstanding({
         ) : null}
       </div>
 
-      <Proposed inset proposed={proposed && sentence !== null} scope="block" label={labels.proposed}>
-        <section
-          aria-label={sentence !== null ? labels.understood : undefined}
-          className={sentence !== null ? "flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" : "flex flex-col"}
-          style={{ gap: 16 }}
-        >
-          <div className="flex items-center" style={{ gap: 12 }}>
-            <HabitEmojiSelector
-              selectedEmoji={emoji}
-              onSelect={onEmojiSelect}
-              isDisabled={isSuggestionDisabled}
-              wellSize={46}
-            />
-            {sentence !== null ? <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span> : null}
-          </div>
-
-          {sentence !== null ? (
-            <>
-              <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">{sentence}</p>
-
-              <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
-            </>
-          ) : null}
-        </section>
-      </Proposed>
+      {showPreview ? (
+        <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
+          <section aria-label={labels.understood} className="flex flex-col rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ gap: 16 }}>
+            <div className="flex items-center" style={{ gap: 12 }}>
+              <HabitEmojiSelector
+                selectedEmoji={emoji}
+                wellSize={46}
+                onSelect={onEmojiSelect}
+              />
+              <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
+            </div>
+            <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">{sentence}</p>
+            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} />
+          </section>
+        </Proposed>
+      ) : null}
       {hasValue && sentence === null ? (
         <div className="flex flex-col" style={{ gap: 16 }}>
           <p className="rounded-[12px] bg-[var(--bg-well)] p-3 text-sm leading-[1.55] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)]">{labels.unresolved}</p>

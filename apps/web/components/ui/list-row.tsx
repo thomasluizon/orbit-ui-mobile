@@ -42,9 +42,9 @@ function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebLis
   return { gap: 4, ...(compact && hasTrailing ? { paddingBlock: 4 } : {}), ...(wrapTitle && hasTrailing ? { minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' } : {}), ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' } : {}) }
 }
 
-function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact'>>) {
+function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description, value, readOnly }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly'>>) {
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
-  return <span className="flex min-w-0 flex-1 flex-col" style={textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing)}>
+  return <span className="flex min-w-0 flex-1 flex-col" style={{ ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
     <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 break-all' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</span>
     {description ? <span className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.75rem' : 14, lineHeight: 1.4 }}>{description}</span> : null}
   </span>
@@ -73,7 +73,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
           {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
         </span>
       ) : null}
-      {wrapValue || textMode === 'label' ? <span className="flex min-w-0 flex-1 flex-wrap items-center" style={{ gap: 12, ...(textMode === 'label' ? { alignItems: 'flex-start' } : {}) }}>{<RowText {...props} />}{rowValue}{textMode === 'label' ? rowTrailing : null}</span> : <>{<RowText {...props} />}{rowValue}</>}
+      {wrapValue || textMode === 'label' ? <span className={`flex min-w-0 flex-1 items-center ${props.readOnly && textMode === 'label' && trailing && !props.value ? '' : 'flex-wrap'}`} style={{ gap: 12, ...(textMode === 'label' ? { alignItems: 'flex-start' } : {}) }}>{<RowText {...props} />}{rowValue}{textMode === 'label' ? rowTrailing : null}</span> : <>{<RowText {...props} />}{rowValue}</>}
       {textMode !== 'label' ? rowTrailing : null}
     </>
   )

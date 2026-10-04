@@ -1192,11 +1192,11 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderAdd' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.reminderCustom' }))
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), { target: { value: '0' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
     expect(mocks.update).toHaveBeenCalledTimes(2)
     expect(mocks.showError).toHaveBeenCalledWith('habits.form.invalidRelativeReminder')
-    fireEvent.change(screen.getByPlaceholderText('habits.form.reminderCustomPlaceholder'), { target: { value: '45' } })
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.reminderCustomLabel' }), { target: { value: '45' } })
     expect(screen.getByRole('button', { name: 'common.add' })).toHaveAttribute('data-variant', 'ghost')
     fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
     await act(async () => Promise.resolve())

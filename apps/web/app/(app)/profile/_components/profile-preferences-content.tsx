@@ -53,15 +53,15 @@ function buildPreferenceRows(
   )
 
   return [
-    <ListRow key="timezone" compact chevron={false} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
+    <ListRow key="timezone" compact textMode="label" chevron={false} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 99 controls this label under D42. */
-    <ListRow key="week-start" compact chevron={false} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
-    <ListRow key="clock" compact chevron={false} title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
-    <ListRow key="language" compact chevron={false} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
+    <ListRow key="week-start" compact textMode="label" chevron={false} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ListRow key="clock" compact textMode="label" chevron={false} title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
+    <ListRow key="language" compact textMode="label" chevron={false} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
     <ProfileValueRow key="theme" label={t('profile.settingsRows.theme')} control={themeChoice} />,
     <div key="show-general" className="flex flex-col px-4 py-3" style={{ gap: 4 }}>
-      <div className="flex items-center gap-3">
-        <p className="min-w-0 flex-1 text-[17px] text-[var(--fg-1)]">{t('settings.homeScreen.showGeneral')}</p>
+      <div className="flex items-start gap-3">
+        <p className="flex min-h-12 min-w-0 flex-1 items-center text-[17px] text-[var(--fg-1)]">{t('settings.homeScreen.showGeneral')}</p>
         <Switch checked={controls.showGeneralOnToday} onChange={controls.toggleShowGeneral} label={t('settings.homeScreen.showGeneral')} />
       </div>
       <p className="text-sm text-[var(--fg-3)]">{t('settings.homeScreen.showGeneralDesc')}</p>
