@@ -3,6 +3,9 @@ import { API } from '@orbit/shared/api'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { setLayoutProfileSession } from './profile-session'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
@@ -32,6 +35,12 @@ for (const locale of ['pt-BR', 'en'] as const) {
     test.describe(`habit create return in ${locale} at ${width}px`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
 
+      test.beforeEach(async ({ context }) => {
+        const profile = profileSchema.parse({ ...profileFixture, language: locale })
+        await setLayoutProfileSession(context, profile)
+        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+      })
+
       for (const entry of ['direct', 'from Today'] as const) {
         test(`returns to Today after creating from ${entry}`, async ({ page, context }, testInfo) => {
           const title = `Walk ${locale} ${width}`
@@ -51,7 +60,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
               await page.goto('/habits/new?from=%2F')
             } else {
               await page.goto('/')
-              await page.getByRole('button', { name: messages.nav.createHabit, exact: true }).click()
+              await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
               await expect(page).toHaveURL(/\/habits\/new\?/)
             }
             const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
@@ -72,7 +81,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
 
       test('preserves a dirty draft on browser Back until discard is confirmed', async ({ page }) => {
         await page.goto('/')
-        await page.getByRole('button', { name: messages.nav.createHabit, exact: true }).click()
+        await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
         const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
         await field.fill('Keep this draft')
         await page.evaluate(() => history.back())

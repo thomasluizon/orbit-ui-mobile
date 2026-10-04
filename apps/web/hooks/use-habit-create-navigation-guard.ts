@@ -46,7 +46,6 @@ function replaceApprovedNavigation(guardId: string) {
   }
   history.pushState = (entry: unknown, title, href) => approvedWrite(pushState, entry, title, href)
   history.replaceState = (entry: unknown, title, href) => approvedWrite(replaceState, entry, title, href)
-  return restoreHistory
 }
 
 export function completeHabitCreateNavigation(action: () => void) {
@@ -83,7 +82,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
       if (isLeaving()) action()
       else requestNavigation(action)
     }
-    let restoreApprovedHistory: (() => void) | null = null
+    let completingNavigation = false
     let approvedNavigation: (() => void) | null = null
     finishNavigation = (action) => {
       approvedNavigation = action
@@ -100,11 +99,12 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         }
         const action = approvedNavigation
         approvedNavigation = null
-        restoreApprovedHistory = replaceApprovedNavigation(guardId)
+        completingNavigation = true
+        replaceApprovedNavigation(guardId)
         action()
         return
       }
-      if (restoreApprovedHistory || isLeaving()) return
+      if (completingNavigation || isLeaving()) return
       if (restoring) {
         event.stopImmediatePropagation()
         restoring = false
@@ -142,7 +142,6 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
     window.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('click', handleClick, true)
     return () => {
-      restoreApprovedHistory?.()
       activeNavigationGuard = null
       finishNavigation = null
       window.removeEventListener('popstate', handlePopState, true)

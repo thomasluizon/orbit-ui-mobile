@@ -1,5 +1,6 @@
+import { patchNextAppRouterHistory } from '@/__tests__/support/next-app-router-history'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -282,7 +283,10 @@ async function traverseHistory(direction: 'back' | 'forward') {
 
 
 describe('CreateHabitModal', () => {
+  let nextHistory: ReturnType<typeof patchNextAppRouterHistory>
+  afterEach(() => nextHistory.restore())
   beforeEach(() => {
+    nextHistory = patchNextAppRouterHistory()
     vi.stubGlobal('Notification', { permission: 'default' })
     Object.defineProperty(globalThis.navigator, 'onLine', { value: true, configurable: true })
     vi.clearAllMocks()

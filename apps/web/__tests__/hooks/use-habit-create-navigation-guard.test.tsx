@@ -1,9 +1,15 @@
+import { patchNextAppRouterHistory } from '@/__tests__/support/next-app-router-history'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   completeHabitCreateNavigation,
   useHabitCreateNavigationGuard,
 } from '@/hooks/use-habit-create-navigation-guard'
+
+let nextHistory: ReturnType<typeof patchNextAppRouterHistory>
+
+beforeEach(() => { nextHistory = patchNextAppRouterHistory() })
+afterEach(() => nextHistory.restore())
 
 function mountGuard() {
   return renderHook(() => useHabitCreateNavigationGuard({
@@ -35,9 +41,12 @@ describe('habit creation history exits', () => {
     expect(history.length).toBe(1)
     history.replaceState(null, '', '/habits/new?from=/search')
     const guard = mountGuard()
-    act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/search')))
-    await waitFor(() => expect(location.pathname).toBe('/search'))
+    const destination = vi.fn()
+    act(() => completeHabitCreateNavigation(destination))
+    await waitFor(() => expect(destination).toHaveBeenCalledOnce())
     guard.unmount()
+    history.replaceState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: ['search', {}], renderedSearch: '' } }, '', '/search')
+    await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/search'))
     await forwardTo('/search')
   })
 
@@ -54,15 +63,15 @@ describe('habit creation history exits', () => {
     window.addEventListener('popstate', restoreRoute)
     const guard = mountGuard()
     try {
-      expect(history.state).toEqual({ orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: true })
+      expect(history.state).toMatchObject({ orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: true })
       act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/')))
       await waitFor(() => expect(location.pathname).toBe('/'))
       expect(routerRestores).toEqual([])
-      expect(traversalStates).toEqual([
+      expect(traversalStates).toMatchObject([
         { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
         { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
       ])
-      expect(history.state).toBeNull()
+      expect(history.state).toMatchObject({ __NA: true })
     } finally {
       guard.unmount()
       window.removeEventListener('popstate', recordTraversal, true)
@@ -82,7 +91,7 @@ describe('habit creation history exits', () => {
     await forwardTo('/calendar')
   })
 
-  it('replaces the discarded entry when a pushed destination commits asynchronously', async () => {
+  it.each(['pushState', 'replaceState'] as const)('replaces the discarded entry when Next %s commits after the create screen unmounts', async (method) => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')
     const guard = mountGuard()
@@ -90,11 +99,16 @@ describe('habit creation history exits', () => {
     act(() => completeHabitCreateNavigation(destination))
     await waitFor(() => expect(destination).toHaveBeenCalledOnce())
     history.replaceState(history.state, '', location.href)
-    await act(async () => await new Promise<void>((resolve) => {
-      window.addEventListener('popstate', () => resolve(), { once: true, capture: true })
-      history.pushState(null, '', '/calendar')
-      guard.unmount()
-    }))
+    nextHistory.writes.pushState.mockClear()
+    nextHistory.writes.replaceState.mockClear()
+    const routerRestore = vi.fn()
+    window.addEventListener('popstate', routerRestore)
+    guard.unmount()
+    history[method]({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: ['calendar', {}], renderedSearch: '' } }, '', '/calendar')
+    await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/calendar'))
+    expect(nextHistory.writes.pushState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/calendar')
+    expect(routerRestore).not.toHaveBeenCalled()
+    window.removeEventListener('popstate', routerRestore)
     await backTo('/search')
     history.pushState(null, '', '/progress')
     await backTo('/search')
