@@ -226,5 +226,5 @@ it('focuses the mapped goal field while retaining general failures in a mixed re
   fireEvent.submit(unit.closest('form')!)
   await waitFor(() => expect(unit).toHaveAccessibleDescription('Server unit failure'))
   expect(unit).toHaveFocus()
-  expect(mockShowError).toHaveBeenCalled()
+  expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Server linked habit failure'))
 })

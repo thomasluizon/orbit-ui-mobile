@@ -496,6 +496,7 @@ export function getFriendlyErrorMessage(
   fallbackKey: string,
   context: FriendlyErrorContext = 'generic',
 ): string {
-  if (extractBackendFieldErrors(err)) return extractBackendError(err) ?? translate(fallbackKey)
+  const fieldErrors = extractBackendFieldErrors(err)
+  if (fieldErrors) return Object.values(fieldErrors).flat().join('\n') || translate(fallbackKey)
   return translate(getFriendlyErrorKey(err, fallbackKey, context))
 }

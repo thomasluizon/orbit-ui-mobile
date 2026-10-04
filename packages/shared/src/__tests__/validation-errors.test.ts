@@ -30,7 +30,7 @@ describe('validation response parsing', () => {
   })
   it('preserves dynamic server copy instead of a client translation', () => {
     const error = createApiClientError(400, verificationValidationResponses.en, 'Fallback')
-    expect(getFriendlyErrorMessage(error, () => 'Wrong replacement', 'fallback', 'auth')).toBe(verificationValidationResponses.en.errors.Code[0])
+    expect(getFriendlyErrorMessage(error, () => 'Wrong replacement', 'fallback', 'auth')).toBe(verificationValidationResponses.en.errors.Code.join('\n'))
   })
 
   it('retains multiple fields and leaves unknown codes intact', () => {
@@ -50,4 +50,9 @@ describe('validation response parsing', () => {
     const { errorDetails: _details, ...legacy } = verificationValidationResponses.en
     expect(validationFailureSchema.parse(legacy)).toEqual(legacy)
   })
+})
+
+it('keeps every field and failure in order on the general validation path', () => {
+  const error = createApiClientError(400, { errors: { Description: ['First description failure', 'Second description failure'], Emoji: ['Server emoji failure'] } }, 'Fallback')
+  expect(getFriendlyErrorMessage(error, () => 'Wrong replacement', 'fallback', 'habit')).toBe('First description failure\nSecond description failure\nServer emoji failure')
 })
