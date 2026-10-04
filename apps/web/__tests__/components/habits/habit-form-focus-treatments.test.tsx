@@ -175,7 +175,7 @@ describe('habit form focus treatments', () => {
     fireEvent.click(screen.getByText('habits.form.reminderAdd'))
     fireEvent.click(screen.getByText('habits.form.reminderCustom'))
 
-    const input = screen.getByLabelText('habits.form.reminderCustomPlaceholder')
+    const input = screen.getByLabelText('habits.form.reminderCustomLabel')
     expect(input).toHaveClass('focus-visible:outline-none')
     expect(input).toHaveClass('focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]')
   })

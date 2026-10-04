@@ -42,6 +42,14 @@ if (typeof SVGElement !== 'undefined') {
   })
 }
 
+if (typeof document !== 'undefined' && !('fonts' in document)) {
+  const fontFaceSet = new EventTarget()
+  Object.defineProperty(document, 'fonts', {
+    configurable: true,
+    value: Object.assign(fontFaceSet, { ready: Promise.resolve(fontFaceSet) }),
+  })
+}
+
 if (typeof window !== 'undefined') {
   vi.stubGlobal('ResizeObserver', class {
     observe() {}

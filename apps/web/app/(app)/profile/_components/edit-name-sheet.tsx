@@ -94,7 +94,6 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
           label={t('profile.editName.label')}
           value={name}
           onChange={handleNameChange}
-          placeholder={t('profile.editName.placeholder')}
           autoComplete="name"
           autoFocus
           onSubmit={handleSave}

@@ -44,13 +44,18 @@ function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRo
   return [styles.textBlock, compact && hasTrailing ? styles.controlRowText : null, wrapTitle && hasTrailing ? styles.wrappedControlText : null, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]
 }
 
-function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact'> & { titleColor: string; valueColor: string }>) {
-  const text = <View style={getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing)}>
+function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNode, value: ListRowProps['value'], readOnly: ListRowProps['readOnly']) {
+  return readOnly === true && textMode === 'label' && Boolean(trailing) && !value
+}
+
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, readOnly, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly'> & { titleColor: string; valueColor: string }>) {
+  const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
+  const text = <View style={[getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), keepsControlInline ? styles.labelControlText : null]}>
     <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Text>
     {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
   </View>
   const rowValue = value ? <RowValue value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} /> : null
-  return wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
+  return wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -121,6 +126,8 @@ const styles = StyleSheet.create({
   textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   labelContent: { minHeight: 24, alignItems: 'flex-start' },
+  labelControlContent: { flexWrap: 'nowrap' },
+  labelControlText: { flexBasis: 0, flexShrink: 1 },
   labelTextBlock: { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' },
   wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },

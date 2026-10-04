@@ -225,6 +225,8 @@ describe("ReminderSection", () => {
     });
     press(tree, custom);
     const input = tree.root.findAll((node) => node.type === "TextInput")[0]!;
+    expect(input.props.accessibilityLabel).toBe("habits.form.reminderCustomLabel");
+    expect(input.props.placeholder).toBeUndefined();
     TestRenderer.act(() => {
       (input.props as { onChangeText: (value: string) => void }).onChangeText(
         "2",

@@ -8,7 +8,7 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
-import type { HabitFormHelpers } from '@/hooks/use-habit-form'
+import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
 const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
@@ -39,7 +39,10 @@ function translateTestValue(key: string, values?: Record<string, unknown>): stri
   )
 }
 
-vi.mock('react-hook-form', () => ({ useController: () => ({ field: { ref: vi.fn() } }) }))
+vi.mock('react-hook-form', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-hook-form')>(),
+  useController: () => ({ field: { ref: vi.fn() } }),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => translateTestValue,
@@ -131,15 +134,15 @@ function renderForm(
   onResolveSubHabitProposalReady?: (resolve: () => void) => void,
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  const buildForm = () => (
+  const buildForm = (isSuggesting = false) => (
     <QueryClientProvider client={queryClient}>
-      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady}>
+      <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} onSuggestSetup={onSuggestSetup} isSuggesting={isSuggesting} defaultExpanded={defaultExpanded} readPhraseLocally={readPhraseLocally} lockedGeneral={lockedGeneral} onResolveSubHabitProposalReady={onResolveSubHabitProposalReady}>
         <div>sub-habit-editor</div>
       </HabitFormFields>
     </QueryClientProvider>
   )
   const view = render(buildForm())
-  return { ...view, rerenderForm: () => view.rerender(buildForm()) }
+  return { ...view, rerenderForm: (isSuggesting = false) => view.rerender(buildForm(isSuggesting)) }
 }
 
 describe('HabitFormFields', () => {
@@ -163,11 +166,10 @@ describe('HabitFormFields', () => {
     expect(corrections.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it.each([false, true])('allows emoji selection and clearing with no sentence, schedule locked: %s', async (lockedGeneral) => {
-    const formHelpers = createFormHelpers({ title: 'Run' })
-    const view = renderForm(formHelpers, undefined, false, true, lockedGeneral)
-    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
-    expect(screen.getAllByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveLength(1)
+  it.each([false, true])('selects and clears an emoji inside the preview, schedule locked: %s', async (lockedGeneral) => {
+    const formHelpers = createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 })
+    const view = renderForm(formHelpers, undefined, false, false, lockedGeneral)
+    expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
     fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
     await waitFor(() => expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true }))
@@ -178,19 +180,57 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
   })
 
-  it('keeps an inferred emoji available after cadence and time are removed', async () => {
-    const formHelpers = createFormHelpers({ title: 'Run', emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '08:00' })
-    const view = renderForm(formHelpers)
-    expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument()
-    formHelpers.testValues.frequencyUnit = null
-    formHelpers.testValues.dueTime = ''
-    view.rerenderForm()
+  it.each(['', '   '])('hides the preview and emoji well for an empty phrase %j even with a saved schedule', (title) => {
+    renderForm(createFormHelpers({ title, emoji: '🏃', frequencyUnit: 'Day', frequencyQuantity: 1 }))
     expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
-    expect(screen.getAllByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveLength(1)
-    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🏃')
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+  })
+
+  it('hides the preview and emoji well while Astra reads a phrase with an existing schedule', () => {
+    const view = renderForm(createFormHelpers({ title: 'Run every day', frequencyUnit: 'Day', frequencyQuantity: 1 }))
+    view.rerenderForm(true)
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+  })
+
+  it('shows no emoji well in a fresh empty form', () => {
+    renderForm()
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+  })
+
+  it('keeps a chosen emoji through clearing, parsing and losing the understood schedule', async () => {
+    let formHelpers!: HabitFormHelpers
+    function CreateFormHarness({ isSuggesting = false }: { isSuggesting?: boolean }) {
+      formHelpers = useHabitForm()
+      return <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} isSuggesting={isSuggesting} readPhraseLocally />
+    }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const buildForm = (isSuggesting = false) => <QueryClientProvider client={queryClient}><CreateFormHarness isSuggesting={isSuggesting} /></QueryClientProvider>
+    const view = render(buildForm())
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    await waitFor(() => expect(screen.getByRole('region', { name: 'habits.form.understood' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+    fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🌱' }))
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🌱')
+
+    const expectHidden = () => {
+      expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+      expect(formHelpers.form.getValues('emoji')).toBe('🌱')
+    }
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
+    expectHidden()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Run every day' } })
+    view.rerender(buildForm(true))
+    expectHidden()
+    view.rerender(buildForm())
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🌱')
+
+    act(() => formHelpers.form.setValue('frequencyUnit', null))
+    expectHidden()
+    act(() => formHelpers.form.setValue('frequencyUnit', 'Day'))
+    expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🌱')
   })
 
   it('uses a bare compact details row', () => {

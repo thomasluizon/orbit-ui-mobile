@@ -6,8 +6,6 @@ on:
   # cannot be reclassified, so the setting must be updated before that first analysis.
   push:
     branches: [main, redesign/main]
-  pull_request:
-    branches: [main, redesign/main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

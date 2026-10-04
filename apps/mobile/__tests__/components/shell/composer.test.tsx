@@ -331,9 +331,13 @@ describe('Composer (mobile)', () => {
     const config = Yoga.Config.create()
     config.setErrata(Yoga.ERRATA_ALL)
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+    const statePlaceholders: Readonly<Record<string, string>> = {
+      offline: locale.shell.composer.offline.placeholder,
+      atLimit: locale.shell.composer.limit.placeholder,
+    }
     const tree = renderComposer(props({
       state, ...(state === 'offline' || state === 'atLimit' ? { limitReason: 'persistent reason' } : {}),
-      suggestions: [], words: { ...locale.shell.composer, ...(state === 'offline' ? { placeholder: locale.shell.composer.offline.placeholder } : {}) },
+      suggestions: [], words: { ...locale.shell.composer, placeholder: statePlaceholders[state] ?? locale.shell.composer.placeholder },
       onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords,
       ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}),
     }))
@@ -734,8 +738,8 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.placeholder, 'Astra'],
-    ['en', en.shell.composer.placeholder, 'Astra'],
+    ['pt-BR', ptBR.shell.composer.placeholder, 'Peça à Astra'],
+    ['en', en.shell.composer.placeholder, 'Ask Astra'],
   ])('shows the %s composer placeholder', async (_locale, placeholder, expected) => {
     const tree = await renderComposer(props({ words: { ...words, placeholder } }))
     expect(placeholder).toBe(expected)
@@ -744,13 +748,26 @@ describe('Composer (mobile)', () => {
   })
 
   it.each([
-    ['pt-BR', ptBR.shell.composer.offline, 'Offline', 'Sem conexão. A Astra volta quando a conexão voltar.'],
-    ['en', en.shell.composer.offline, 'Offline', 'No connection. Astra comes back when the connection does.'],
+    ['pt-BR', ptBR.shell.composer.offline, 'Sem conexão', 'Sem conexão. A Astra volta quando a conexão voltar.'],
+    ['en', en.shell.composer.offline, 'No connection', 'No connection. Astra comes back when the connection does.'],
   ])('shows the %s offline composer copy', async (_locale, offline, placeholder, reason) => {
     const tree = await renderComposer(props({ state: 'offline', words: { ...words, placeholder: offline.placeholder, inputLabel: 'Ask Astra for something' }, limitReason: offline.reason }))
     expect(byLabel(tree.root, 'Ask Astra for something')[0]).toBeDefined()
     expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.children).toBe(placeholder)
     expect(textValues(tree.root)).toContain(reason)
+  })
+
+  it.each([en, ptBR])('shows the daily limit words and omits them when native text wraps', (catalog) => {
+    const placeholder = catalog.shell.composer.limit.placeholder
+    const tree = renderComposer(props({ state: 'atLimit', words: { ...catalog.shell.composer, placeholder }, limitReason: catalog.shell.composer.limit.reason }))
+    expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.children).toBe(placeholder)
+    const measure = tree.root.findByProps({ testID: 'composer-placeholder-measure' })
+    const line = { x: 0, y: 0, width: 136, height: 24, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: placeholder }
+    TestRenderer.act(() => measure.props.onTextLayout({ nativeEvent: { lines: [line, { ...line, y: 24 }] } }))
+    expect(tree.root.findAllByProps({ testID: 'composer-placeholder' })).toHaveLength(0)
+    expect(textValues(tree.root)).toContain(catalog.shell.composer.limit.reason)
+    TestRenderer.act(() => measure.props.onTextLayout({ nativeEvent: { lines: [line] } }))
+    expect(tree.root.findByProps({ testID: 'composer-placeholder' }).props.children).toBe(placeholder)
   })
 
   it.each(['idle', 'sending', 'recording', 'transcribing', 'atLimit'] as const)(

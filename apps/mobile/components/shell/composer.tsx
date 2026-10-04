@@ -235,6 +235,9 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
 }>) {
   const { fontScale } = useWindowDimensions()
   const [contentHeight, setContentHeight] = useState(48)
+  const [placeholderLayout, setPlaceholderLayout] = useState<{ text: string; fontScale: number; fits: boolean } | null>(null)
+  const measurePlaceholder = props.state === 'offline' || props.state === 'atLimit'
+  const placeholderFits = !measurePlaceholder || placeholderLayout?.text !== props.words.placeholder || placeholderLayout.fontScale !== fontScale || placeholderLayout.fits
   const minimumHeight = 24 * fontScale + 24
   const maximumHeight = 5 * 24 * fontScale + 24
   const inputDisabled = props.state !== 'idle'
@@ -265,7 +268,15 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
           }}
           style={[styles.input, { color: tokens.fg1, height: Math.min(maximumHeight, Math.max(minimumHeight, contentHeight)) }]}
         />
-        {props.value.length === 0 ? <Text
+        {props.value.length === 0 && measurePlaceholder ? <Text
+          testID="composer-placeholder-measure"
+          pointerEvents="none"
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          onTextLayout={event => setPlaceholderLayout({ text: props.words.placeholder, fontScale, fits: event.nativeEvent.lines.length <= 1 })}
+          style={[styles.placeholder, { opacity: 0 }]}
+        >{props.words.placeholder}</Text> : null}
+        {props.value.length === 0 && placeholderFits ? <Text
           testID="composer-placeholder"
           pointerEvents="none"
           accessible={false}
