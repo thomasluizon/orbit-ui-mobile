@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+import type { TextInput } from 'react-native'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { View, Text, } from "react-native";
 import { X } from "@/components/ui/icons";
@@ -6,6 +8,8 @@ import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-i
 import { type AppTokens, createStyles } from "./styles";
 
 interface TagEditorRowProps {
+  error?: string
+  focusRequest?: number
   value: string;
   placeholder?: string;
   inputAriaLabel: string;
@@ -21,6 +25,8 @@ interface TagEditorRowProps {
 
 export function TagEditorRow({
   value,
+  error,
+  focusRequest,
   placeholder,
   inputAriaLabel,
   actionLabel,
@@ -32,9 +38,14 @@ export function TagEditorRow({
   styles,
   tokens,
 }: Readonly<TagEditorRowProps>) {
+  const inputRef = useRef<TextInput>(null)
+  useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
   return (
+    <View style={{ gap: 8 }}>
     <View style={styles.tagFormRow}>
       <BottomSheetAppTextInput
+        ref={inputRef}
+        accessibilityHint={error}
         value={value}
         placeholder={placeholder}
         maxLength={MAX_TAG_NAME_LENGTH}
@@ -72,6 +83,8 @@ export function TagEditorRow({
       >
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
+    </View>
+    {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{error}</Text> : null}
     </View>
   );
 }

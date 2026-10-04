@@ -1,7 +1,10 @@
+import { useEffect, useRef, useId } from 'react'
 import { X } from '@/components/ui/icons'
 import { MAX_TAG_NAME_LENGTH } from '@orbit/shared/validation'
 
 interface TagEditorRowProps {
+  error?: string
+  focusRequest?: number
   value: string
   placeholder?: string
   inputAriaLabel: string
@@ -15,6 +18,8 @@ interface TagEditorRowProps {
 
 export function TagEditorRow({
   value,
+  error,
+  focusRequest,
   placeholder,
   inputAriaLabel,
   actionLabel,
@@ -24,16 +29,23 @@ export function TagEditorRow({
   onCommit,
   onCancel,
 }: Readonly<TagEditorRowProps>) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
+  const errorId = useId()
   return (
+    <div className="flex min-w-0 flex-col gap-2">
     <div className="flex items-center gap-2">
       <input
+        ref={inputRef}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
         value={value}
         type="text"
         aria-label={inputAriaLabel}
         placeholder={placeholder}
         maxLength={MAX_TAG_NAME_LENGTH}
         disabled={disabled}
-        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-[14px] shadow-[inset_0_0_0_1px_var(--hairline)] border-0 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-base sm:text-sm shadow-[inset_0_0_0_1px_var(--hairline)] border-0 focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -65,6 +77,8 @@ export function TagEditorRow({
       >
         <X size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
+    </div>
+    {error ? <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
     </div>
   )
 }

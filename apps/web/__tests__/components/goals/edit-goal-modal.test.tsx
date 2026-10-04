@@ -211,6 +211,7 @@ it('places legacy server validation beside each edited goal field and clears onl
   fireEvent.submit(title.closest('form')!)
   await waitFor(() => expect(title).toHaveAccessibleDescription('Server title failure'))
   expect(unit).toHaveAccessibleDescription('Server unit failure')
+  expect(screen.getByText('Server unit failure').style.color).toBe('var(--status-bad-text)')
   expect(title).toHaveFocus()
   expect(mockShowError).not.toHaveBeenCalled()
   fireEvent.change(title, { target: { value: 'Updated title' } })

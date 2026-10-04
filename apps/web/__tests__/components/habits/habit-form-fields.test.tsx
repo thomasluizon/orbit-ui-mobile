@@ -9,8 +9,9 @@ import { buildHabitFormPatchFromSuggestion } from '@orbit/shared/utils'
 import { applySuggestionSchedule } from '@/components/habits/create-habit-modal/apply-suggestion'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
-import type { TagSelectionState } from '@/hooks/use-tag-selection'
+import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 
+const tagMutations = vi.hoisted(() => ({ create: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en', realReminders: false }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const mockRouterPush = vi.hoisted(() => vi.fn())
@@ -61,7 +62,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
   useTags: () => ({ tags: [] }),
-  useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
@@ -681,4 +682,40 @@ describe('cadence correction transitions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.repeatMore' }))
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('intervalWeeks', 2, { shouldDirty: true })
   })
+})
+
+
+it('reveals the same description failure again after details were collapsed', () => {
+  const helpers = createFormHelpers()
+  helpers.backendFieldErrors = { description: 'Server description failure' }
+  helpers.backendFocusField = 'description'
+  helpers.backendFocusRequest = 1
+  const view = renderForm(helpers)
+  expect(screen.getByLabelText('habits.form.description').closest('[data-open]')).toHaveAttribute('data-open', 'true')
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreDetails' }))
+  helpers.backendFocusRequest = 2
+  view.rerenderForm()
+  expect(screen.getByLabelText('habits.form.description').closest('[data-open]')).toHaveAttribute('data-open', 'true')
+})
+
+
+it('keeps rejected tag Name validation beside its input in the owning habit editor', async () => {
+  tagMutations.create.mockRejectedValue({ errors: { Name: ['Tag must have at most 50 characters'] } })
+  const helpers = createFormHelpers()
+  function OwningForm() {
+    const tags = useTagSelection()
+    return <HabitFormFields formHelpers={helpers} tags={tags} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+  }
+  render(<OwningForm />)
+  fireEvent.click(screen.getByRole('button', { name: /^habits.form.tags/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
+  const input = screen.getByRole('textbox', { name: 'habits.form.tagName' })
+  fireEvent.change(input, { target: { value: 'Health' } })
+  fireEvent.click(screen.getByRole('button', { name: 'common.add' }))
+  await waitFor(() => expect(input).toHaveAccessibleDescription('Tag must have at most 50 characters'))
+  expect(input).toHaveAttribute('aria-invalid', 'true')
+  expect(input).toHaveFocus()
+  expect(input).toHaveValue('Health')
+  fireEvent.change(input, { target: { value: 'Updated' } })
+  expect(input).not.toHaveAttribute('aria-invalid')
 })

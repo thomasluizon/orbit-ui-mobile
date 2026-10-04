@@ -19,6 +19,7 @@ interface SupportFormProps {
   appVersion: string | null
   messageMaxLength: number
   messageOverLimitHint: string | null
+  validationMessage?: string | null
   error: string | null
   subjectError: string | null
   messageError: string | null
@@ -43,6 +44,7 @@ export function SupportForm({
   messageMaxLength,
   messageOverLimitHint,
   error,
+  validationMessage,
   subjectError,
   messageError,
   isSending,
@@ -82,7 +84,7 @@ export function SupportForm({
             {t('profile.support.failureTitle')}
           </p>
           <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
-            {t('profile.support.failureBody')}
+            {validationMessage ?? t('profile.support.failureBody')}
           </p>
         </div>
       ) : null}

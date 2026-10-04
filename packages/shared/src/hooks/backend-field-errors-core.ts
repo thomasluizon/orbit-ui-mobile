@@ -32,3 +32,9 @@ export function resolveBackendFormFieldMessage(backendMessage: string | undefine
 export function backendFormFieldFocusRequest(field: string, focusedField: string | undefined, request: number): number | undefined {
   return focusedField === field ? request : undefined
 }
+
+export function unmappedBackendFormError(error: unknown, names: readonly string[]): string | undefined {
+  const mappedNames = names.map((name) => name.toLowerCase())
+  const messages = Object.entries(extractBackendFieldErrors(error) ?? {}).filter(([field]) => !mappedNames.includes(field.toLowerCase())).flatMap(([, messages]) => messages)
+  return messages.length ? messages.join('\n') : undefined
+}

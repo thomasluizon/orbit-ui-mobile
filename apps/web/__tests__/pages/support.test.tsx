@@ -419,6 +419,17 @@ describe('SupportPage', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/about')
   })
 
+  it('keeps mixed field and general server validation visible without losing the draft', async () => {
+    mockSendSupportMessage.mockRejectedValue({ errors: { Message: ['Message exceeds 123 characters'], Email: ['Server email failure'] } })
+    render(<SupportPage />)
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
+    fireEvent.change(messageField(), { target: { value: 'Message body' } })
+    fireEvent.click(sendButton())
+    await waitFor(() => expect(messageField()).toHaveAccessibleDescription('Message exceeds 123 characters'))
+    expect(screen.getByText('Server email failure')).toBeInTheDocument()
+    expect(messageField()).toHaveValue('Message body')
+  })
+
   it('surfaces a friendly error when the send fails and stays on the form', async () => {
     mockSendSupportMessage.mockRejectedValue(new Error('boom'))
     render(<SupportPage />)

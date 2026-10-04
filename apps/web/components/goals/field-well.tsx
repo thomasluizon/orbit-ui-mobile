@@ -71,7 +71,7 @@ export function FieldWell({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            color: 'var(--status-overdue-text)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {error}

@@ -1,4 +1,5 @@
-import { getBackendFieldError } from '@orbit/shared/utils'
+import { unmappedBackendFormError } from '@orbit/shared/hooks'
+import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   AccessibilityInfo,
@@ -87,6 +88,7 @@ interface SupportFormProps {
   appVersion: string | null
   messageMaxLength: number
   messageOverLimitHint: string | null
+  validationMessage?: string | null
   error: string | null
   subjectError: string | null
   messageError: string | null
@@ -112,6 +114,7 @@ function SupportForm({
   messageMaxLength,
   messageOverLimitHint,
   error,
+  validationMessage,
   subjectError,
   messageError,
   canSend,
@@ -133,13 +136,14 @@ function SupportForm({
       {error ? (
         <View
           accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
           style={[styles.failureBlock, { backgroundColor: tokens.bgWell }]}
         >
           <Text style={[styles.failureTitle, { color: tokens.fg1 }]}>
             {t('profile.support.failureTitle')}
           </Text>
           <Text style={[styles.failureBody, { color: tokens.fg2 }]}>
-            {t('profile.support.failureBody')}
+            {validationMessage ?? t('profile.support.failureBody')}
           </Text>
         </View>
       ) : null}
@@ -247,6 +251,7 @@ export default function SupportScreen() {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [validationMessage, setValidationMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
@@ -320,6 +325,7 @@ export default function SupportScreen() {
 
     setSending(true)
     setError(null)
+    setValidationMessage(null)
     setSuccess(false)
 
     try {
@@ -341,11 +347,14 @@ export default function SupportScreen() {
     } catch (err: unknown) {
       const subjectFailure = getBackendFieldError(err, 'Subject')
       const messageFailure = getBackendFieldError(err, 'Message')
-      if (subjectFailure || messageFailure) {
+      if (extractBackendFieldErrors(err)) {
+        const generalFailure = unmappedBackendFormError(err, ['Subject', 'Message'])
+        setError(generalFailure ?? null)
+        setValidationMessage(generalFailure ?? null)
         setSubjectError(subjectFailure ?? null)
         setMessageError(messageFailure ?? null)
         if (subjectFailure) setSubjectFocusRequest((request) => request + 1)
-        else setMessageFocusRequest((request) => request + 1)
+        else if (messageFailure) setMessageFocusRequest((request) => request + 1)
         return
       }
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
@@ -395,6 +404,7 @@ export default function SupportScreen() {
             messageMaxLength={messageMaxLength}
             messageOverLimitHint={messageOverLimitHint}
             error={error}
+            validationMessage={validationMessage}
             subjectError={subjectError}
             messageError={messageError}
             canSend={canSend}
