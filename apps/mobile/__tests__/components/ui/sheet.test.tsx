@@ -21,8 +21,12 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { HabitRow } from '@/components/habits/habit-row'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { apiKeySchema } from '@orbit/shared/types/api-key'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { measureProfileRow } from '../../support/profile-row-geometry'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 
 vi.unmock('@/components/ui/sheet')
@@ -98,6 +102,24 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
+const namedKey = apiKeySchema.parse({
+  id: 'long-key', name: 'Personal integration '.repeat(10).slice(0, 200), keyPrefix: 'orbit_sk_prefix',
+  scopes: [], isReadOnly: false, expiresAtUtc: null, createdAtUtc: '2026-10-01T00:00:00Z',
+  lastUsedAtUtc: null, isRevoked: false,
+})
+const keyActions = vi.hoisted(() => ({ revoke: vi.fn() }))
+vi.mock('@/app/advanced-api-keys', () => ({
+  useApiKeyManagement: () => {
+    const [revokingKeyId, setRevokingKeyId] = React.useState<string | null>(null)
+    return {
+      apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() }, apiKeys: [namedKey],
+      canCreateKey: true, createGrantAvailable: true, createKeyError: null,
+      clearCreateKeyError: vi.fn(), clearRevokeKeyError: vi.fn(), revokingKeyId, setRevokingKeyId,
+      revokeKeyMutation: { mutate: keyActions.revoke, isPending: false }, handleCreateKey: vi.fn(),
+    }
+  },
+}))
+
 describe('Sheet (mobile)', () => {
   it.each([1, 2])('pads the typed title press fill at font scale %i', async (fontScale) => {
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale })
@@ -161,6 +183,35 @@ describe('Sheet (mobile)', () => {
       expect(onClose).not.toHaveBeenCalled()
     }
     await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('discloses a long personal API key name in the real revoke confirmation', async () => {
+    keyActions.revoke.mockClear()
+    const queryClient = new QueryClient()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked /></QueryClientProvider>) })
+    try {
+      const revoke = tree.root.findAllByType('Pressable').find(
+        (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel?.startsWith('profile.apiKeys.revokeNamed'),
+      )
+      await TestRenderer.act(() => revoke.props.onPress())
+      const title = tree.root.findByType(ConfirmSheet).props.title
+      expect(title).toContain(namedKey.name)
+      const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+      expect(heading.props.accessibilityRole).toBe('button')
+      expect(heading.props.children.props.numberOfLines).toBe(2)
+      await TestRenderer.act(() => heading.props.onPress())
+      expect(tree.root.findAllByType('Text').some(
+        (node: { props: { children?: string; selectable?: boolean } }) => node.props.selectable && node.props.children === title,
+      )).toBe(true)
+      const confirm = tree.root.findAllByType(PillButton).find(
+        (node: { props: { children?: string } }) => node.props.children === 'orbitMcp.revoke',
+      )
+      await TestRenderer.act(() => confirm.props.onClick())
+      expect(keyActions.revoke).not.toHaveBeenCalled()
+      await TestRenderer.act(() => didDismiss.complete())
+      expect(keyActions.revoke).toHaveBeenCalledExactlyOnceWith(namedKey.id)
+    } finally { await TestRenderer.act(() => tree.unmount()); queryClient.clear() }
   })
 
   it('keeps every long habit menu action reachable at 320 by 915 and 200% text', async () => {
