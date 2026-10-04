@@ -1,10 +1,14 @@
+import React from 'react'
+import { LoginContent } from '@/app/(auth)/login/login-content'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, renderHook, waitFor } from '@testing-library/react'
 
 import { useLoginFlow } from '@/app/(auth)/login/use-login-flow'
 
 const mocks = vi.hoisted(() => ({
   search: '',
+  language: 'en',
+  translate: (key: string) => key,
   isOnline: true,
   setAuth: vi.fn(),
   showError: vi.fn(),
@@ -16,13 +20,13 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => 'en',
+  useTranslations: () => mocks.translate,
+  useLocale: () => mocks.language,
 }))
 
-vi.mock('motion/react', () => ({ useReducedMotion: () => false }))
+vi.mock('motion/react', () => ({ useReducedMotion: () => true, AnimatePresence: ({ children }: { children: React.ReactNode }) => children, motion: { div: ({ children }: { children: React.ReactNode }) => React.createElement('div', {}, children) } }))
 
-vi.mock('@orbit/shared/theme', () => ({ resolveMotionPreset: () => ({}) }))
+vi.mock('@orbit/shared/theme', async (original) => ({ ...await original<typeof import('@orbit/shared/theme')>(), resolveMotionPreset: () => ({ reducedMotionEnabled: true }) }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
@@ -122,6 +126,8 @@ function typeCode(result: { current: ReturnType<typeof useLoginFlow> }, code: st
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
   vi.clearAllMocks()
+  mocks.language = 'en'
+  mocks.translate = (key: string) => key
   mocks.search = ''
   mocks.isOnline = true
   setNavigatorOnline(true)
@@ -539,4 +545,52 @@ describe('auth state recovery', () => {
     await act(async () => result.current.verifyCode('123456'))
     expect(mocks.setAuth).toHaveBeenCalledTimes(1)
   })
+})
+
+
+describe('field validation responses', () => {
+  it.each(['en', 'pt-BR'] as const)('retains %s server copy and paired codes', async (language) => {
+    const { verificationValidationResponses } = await import('@orbit/shared/test-support/validation-fixtures')
+    const payload = verificationValidationResponses[language]
+    wireAuthNetwork({ body: payload, status: 400 })
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(() => result.current.verifyCode('123456'))
+    expect(result.current).toMatchObject({ codeFieldError: payload.errors.Code.join('\n'), validationErrorDetails: payload.errorDetails, codeFailure: null })
+  })
+
+  it('makes the format code available when five digits are submitted', async () => {
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(() => result.current.verifyCode('12345'))
+    expect(result.current).toMatchObject({ errorMessage: 'auth.errors.codeFormat', validationCode: 'VALIDATION_VERIFICATION_CODE_FORMAT', codeFailure: null })
+  })
+
+  it('shows legacy email validation beside the email field', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ errors: { Email: ['Legacy email failure'] } }, 400))
+    const { result } = renderHook(() => useLoginFlow())
+    act(() => result.current.setEmail('user@test.com'))
+    await act(() => result.current.sendCode())
+    expect(result.current).toMatchObject({ emailFieldError: 'Legacy email failure' })
+  })
+})
+
+
+it.each(['en', 'pt-BR'] as const)('shows the five-digit format error in the mounted %s login form', async (language) => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import(`@orbit/shared/i18n/${language}.json`)).default
+  const translate = createTranslator({ locale: language, messages })
+  mocks.language = language
+  mocks.translate = translate
+  render(React.createElement(LoginContent))
+  fireEvent.change(screen.getByRole('textbox', { name: translate('auth.email') }), { target: { value: 'user@test.com' } })
+  fireEvent.click(screen.getByRole('button', { name: translate('auth.sendCode') }))
+  const code = await screen.findByRole('textbox', { name: translate('auth.verificationCode') })
+  fireEvent.change(code, { target: { value: '12345' } })
+  fireEvent.blur(code)
+  expect(code).toHaveAttribute('aria-invalid', 'true')
+  expect(document.getElementById(code.getAttribute('aria-describedby') ?? '')).toHaveTextContent(translate('auth.errors.codeFormat'))
+  expect(screen.getByRole('button', { name: translate('auth.verify') })).toBeDisabled()
+  fireEvent.change(code, { target: { value: '1234' } })
+  expect(code).not.toHaveAttribute('aria-invalid')
 })

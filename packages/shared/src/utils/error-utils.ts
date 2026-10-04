@@ -347,7 +347,7 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   HABIT_NOT_OWNED: 'errors.api.noPermission',
   INVALID_SESSION: 'errors.api.sessionExpired',
   INVALID_VERIFICATION_CODE: 'auth.errors.invalidCode',
-  VALIDATION_VERIFICATION_CODE_FORMAT: 'auth.errors.invalidRequest',
+  VALIDATION_VERIFICATION_CODE_FORMAT: 'auth.errors.codeFormat',
   CODE_EXPIRED: 'auth.errors.codeExpired',
   ALREADY_LOGGED: 'habits.errors.alreadyLogged',
   MAX_DEPTH_REACHED: 'habits.errors.maxDepthReached',

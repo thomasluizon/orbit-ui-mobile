@@ -20,6 +20,9 @@ interface CodeStepProps {
   resendCountdown: number
   lockCountdown: number
   codeFailure: LoginCodeFailure
+  fieldError?: string
+  onCodeBlur?: () => void
+  codeFocusRequest?: number
   errorSignal: string | null
   successMessage: string | null
   isOnline: boolean
@@ -34,7 +37,7 @@ interface CodeStepProps {
 }
 
 export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isResending, canResend, resendCountdown,
-  lockCountdown, codeFailure, errorSignal, successMessage, isOnline, onVerifyCode, onResendCode,
+  lockCountdown, codeFailure, fieldError: backendFieldError, onCodeBlur, codeFocusRequest, errorSignal, successMessage, isOnline, onVerifyCode, onResendCode,
   onBackToEmail, canSubmitTurnstile, turnstileWidget, tokens, styles, t }: Readonly<CodeStepProps>) {
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onBackToEmail(); return true })
@@ -45,7 +48,7 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
   const locked = codeFailure === 'locked'
   const waiting = locked && lockCountdown > 0
   const expired = codeFailure === 'expired'
-  const fieldError = isOnline && !locked ? errorSignal ?? undefined : undefined
+  const fieldError = isOnline && !locked ? backendFieldError ?? errorSignal ?? undefined : undefined
   useEffect(() => {
     shake.setValue(0)
     if (!fieldError || reduced) return
@@ -66,7 +69,7 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isRese
       </View>
     </View>
     <Animated.View style={{ transform: [{ translateX: shake }] }}>
-      <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange}
+      <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest}
         error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
         disabled={isSubmitting || expired || waiting} />
     </Animated.View>

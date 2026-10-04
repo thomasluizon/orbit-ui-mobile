@@ -1,3 +1,4 @@
+import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError, getErrorMessage } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -72,8 +73,10 @@ export function useLoginFlow(isAuthCallback = false) {
     && googleSession.returnUrlAttemptId === dismissedGoogleAttemptId
     && googleSession.callbackUrl === null
   const errorKey = dismissedGoogleAttemptCurrent ? 'auth.errors.googleError' : loginErrorKey
+  const [validationError, setValidationError] = useState<unknown>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
+  const [codeFocusRequest, setCodeFocusRequest] = useState(0)
   const [codeFailure, setCodeFailure] = useState<LoginCodeFailure>(null)
   const [lockCountdown, setLockCountdown] = useState(0)
   const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
@@ -127,6 +130,7 @@ export function useLoginFlow(isAuthCallback = false) {
   }, [codeFailure, email])
 
   function setErrorKey(key: string | null) {
+    setValidationError(null)
     setDismissedGoogleAttemptId(null)
     setLoginErrorKey(key)
   }
@@ -163,7 +167,7 @@ export function useLoginFlow(isAuthCallback = false) {
       setStep('code')
       setSuccessMessage(t('auth.codeSent'))
       entry.startResendCountdown()
-    } catch (error: unknown) { setErrorKey(resolveErrorKey(error, 'send')) }
+    } catch (error: unknown) { if (!reportValidationFailure(error)) setErrorKey(resolveErrorKey(error, 'send')) }
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
@@ -188,7 +192,21 @@ export function useLoginFlow(isAuthCallback = false) {
     router.replace(returnUrl)
   }
 
+  function reportValidationFailure(error: unknown): boolean {
+    if (!extractBackendFieldErrors(error)) return false
+    setErrorKey(null)
+    setValidationError(error)
+    if (getBackendFieldError(error, 'Code')) setCodeFocusRequest((request) => request + 1)
+    if (getBackendFieldError(error, 'Email')) {
+      setStep('email')
+      setEmailFocusRequest((request) => request + 1)
+    }
+    return true
+  }
+
   function reportVerificationFailure(error: unknown) {
+    if (reportValidationFailure(error)) return
+
     const key = resolveErrorKey(error)
     const address = email.trim().toLowerCase()
     const next = recordLoginFailure(key, attempts.current.get(address), Date.now())
@@ -200,7 +218,12 @@ export function useLoginFlow(isAuthCallback = false) {
 
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? entry.codeDigits.join('')
-    if (busy.current || !isOnline || code.length !== 6 || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    if (busy.current || !isOnline || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    if (!isValidVerificationCode(code)) {
+      setErrorKey('auth.errors.codeFormat')
+      setCodeFocusRequest((request) => request + 1)
+      return
+    }
     const protection = takeTurnstileToken()
     if (!protection) return
     const returnUrlAttempt = getOrCreateReturnUrlAttempt(
@@ -231,6 +254,7 @@ export function useLoginFlow(isAuthCallback = false) {
   }
 
   function onCodeChange(value: string) {
+    setErrorKey(null)
     if (pendingAutoCode.current !== value) pendingAutoCode.current = null
     entry.onCodeChange(value)
   }
@@ -251,7 +275,7 @@ export function useLoginFlow(isAuthCallback = false) {
       setCodeFailure(null)
       setSuccessMessage(t('auth.codeResent'))
       entry.startResendCountdown()
-    } catch (error: unknown) { setErrorKey(resolveErrorKey(error, 'send')) }
+    } catch (error: unknown) { if (!reportValidationFailure(error)) setErrorKey(resolveErrorKey(error, 'send')) }
     finally { busy.current = false; setIsSubmitting(false); setIsResending(false) }
   }
 
@@ -295,7 +319,13 @@ export function useLoginFlow(isAuthCallback = false) {
   function openTerms() { router.push('/about') }
 
   return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
-    errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
+    emailFieldError: getBackendFieldError(validationError, 'Email'),
+    codeFieldError: getBackendFieldError(validationError, 'Code'),
+    codeFocusRequest,
+    validationErrorDetails: extractBackendErrorDetails(validationError),
+    validationCode: extractBackendErrorCode(validationError) ?? (errorKey === 'auth.errors.codeFormat' ? 'VALIDATION_VERIFICATION_CODE_FORMAT' : undefined),
+    onCodeBlur: () => { if (entry.codeDigits.join('').length > 0 && !isValidVerificationCode(entry.codeDigits.join(''))) setErrorKey('auth.errors.codeFormat') },
+    errorMessage: errorKey ? t(errorKey) : validationError && !getBackendFieldError(validationError, step === 'email' ? 'Email' : 'Code') ? getErrorMessage(validationError, '') : null, successMessage, showReferralBanner, fromOnboarding,
     plannedHabitCount, isOnline, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,
     canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),
     canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline && (!turnstileSiteKey || Boolean(turnstileToken)),

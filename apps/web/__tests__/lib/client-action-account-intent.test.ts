@@ -165,3 +165,12 @@ describe('client account intent', () => {
     expect(useAppToastStore.getState().currentToast).toBeNull()
   })
 })
+
+
+it('preserves validation fields and paired codes through the action boundary', async () => {
+  const { verificationValidationResponses } = await import('@orbit/shared/test-support/validation-fixtures')
+  const payload = verificationValidationResponses['pt-BR']
+  const result = await wrapServerAction(async () => { throw createApiClientError(400, payload, 'Fallback') })
+  expect(result).toMatchObject({ ok: false, fieldErrors: payload.errors, errorDetails: payload.errorDetails })
+  await expect(runServerAction(Promise.resolve(result))).rejects.toMatchObject({ fieldErrors: payload.errors, errorDetails: payload.errorDetails })
+})

@@ -49,6 +49,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
           {flow.step === 'email' ? <EmailStep email={flow.email} onEmailChange={(email) => { setCallbackDismissed(true); flow.setEmail(email) }}
             isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || googlePending}
             errorKey={googleFailed ? 'auth.errors.googleError' : flow.errorKey}
+            fieldError={flow.emailFieldError}
             errorMessage={googleFailed ? t('auth.errors.googleError') : flow.errorMessage}
             isOnline={flow.isOnline} t={t} emailFocusRequest={flow.emailFocusRequest}
             canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
@@ -57,7 +58,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
             sendCodeLabel={flow.fromOnboarding ? t('auth.onboarding.continue') : undefined} />
             : <CodeStep email={flow.email} codeDigits={flow.codeDigits} isSubmitting={flow.isSubmitting} isResending={flow.isResending}
               canResend={flow.canResend} resendCountdown={flow.resendCountdown} codeFailure={flow.codeFailure}
-              lockCountdown={flow.lockCountdown} errorSignal={flow.errorMessage} successMessage={flow.successMessage}
+              lockCountdown={flow.lockCountdown} fieldError={flow.codeFieldError} errorSignal={flow.errorMessage} onCodeBlur={flow.onCodeBlur} codeFocusRequest={flow.codeFocusRequest} successMessage={flow.successMessage}
               isOnline={flow.isOnline} onCodeChange={flow.onCodeChange} onBackToEmail={flow.backToEmail} t={t}
               canSubmitTurnstile={canSubmitTurnstile} turnstileWidget={turnstileWidget}
               onVerifyCode={() => void flow.verifyCode()} onResendCode={() => void flow.resendCode()} />}

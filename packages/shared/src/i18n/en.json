@@ -468,6 +468,7 @@
     "legalConsent": "By continuing, you agree to the <terms>Terms</terms> and the <privacy>Privacy policy</privacy>.",
     "errors": {
       "invalidEmail": "Use a complete email, like name@example.com",
+      "codeFormat": "Code must be a 6-digit number",
       "invalidCode": "That code does not match. Check the 6 digits and enter it again.",
       "codeExpired": "This code expired. It lasts 5 minutes, so ask for another.",
       "tooManyAttempts": "After 3 attempts, verification is locked for 15 minutes. Ask for a new code when the time has passed.",

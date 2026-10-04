@@ -49,7 +49,7 @@ describe('auth login helpers', () => {
     expect(getAuthLoginErrorKeyByCode('RATE_LIMITED')).toBe('auth.errors.sendFailed')
     expect(getAuthLoginErrorKeyByCode('INVALID_EMAIL')).toBe('auth.errors.invalidEmail')
     expect(getAuthLoginErrorKeyByCode('UNKNOWN_CODE')).toBeUndefined()
-    expect(getAuthLoginErrorKeyByCode('VALIDATION_VERIFICATION_CODE_FORMAT')).toBe('auth.errors.invalidRequest')
+    expect(getAuthLoginErrorKeyByCode('VALIDATION_VERIFICATION_CODE_FORMAT')).toBe('auth.errors.codeFormat')
     expect(Object.keys(AUTH_BACKEND_ERROR_CODE_MAP)).toHaveLength(7)
   })
 })

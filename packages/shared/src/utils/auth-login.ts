@@ -10,7 +10,7 @@ export const AUTH_BACKEND_ERROR_CODE_MAP: Record<string, string> = {
   TOO_MANY_ATTEMPTS: 'auth.errors.tooManyAttempts',
   INVALID_VERIFICATION_CODE: 'auth.errors.invalidCode',
   INVALID_EMAIL: 'auth.errors.invalidEmail',
-  VALIDATION_VERIFICATION_CODE_FORMAT: 'auth.errors.invalidRequest',
+  VALIDATION_VERIFICATION_CODE_FORMAT: 'auth.errors.codeFormat',
 }
 
 export const AUTH_BACKEND_ERROR_MAP: Record<string, string> = {

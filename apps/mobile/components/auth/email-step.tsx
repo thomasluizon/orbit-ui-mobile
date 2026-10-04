@@ -16,6 +16,7 @@ interface EmailStepProps {
   isOnline: boolean
   canSubmitTurnstile: boolean
   turnstileWidget: ReactNode
+  fieldError?: string
   errorKey: string | null
   errorMessage: string | null
   onSendCode: () => void
@@ -29,9 +30,9 @@ interface EmailStepProps {
 }
 
 export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isOnline, errorKey,
-  errorMessage, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onOpenTerms, onOpenPrivacy, tokens, styles, t,
+  errorMessage, fieldError: backendFieldError, canSubmitTurnstile, turnstileWidget, onSendCode, onSignInWithGoogle, onOpenTerms, onOpenPrivacy, tokens, styles, t,
   sendCodeLabel }: Readonly<EmailStepProps>) {
-  const fieldError = isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
+  const fieldError = isOnline && backendFieldError ? backendFieldError : isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
   const googleError = isOnline && errorKey === 'auth.errors.googleError' ? errorMessage : null
   const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
   return <View style={styles.step}>
