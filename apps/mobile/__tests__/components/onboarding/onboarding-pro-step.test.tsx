@@ -25,6 +25,7 @@ function translate(key: string, parameters?: Record<string, unknown>): string {
   for (const [name, parameter] of Object.entries(parameters ?? {})) message = message.replaceAll(`{${name}}`, String(parameter))
   return message
 }
+vi.mock('@/lib/i18n', () => ({ i18n: { language: 'en' } }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translate, i18n: { language: mocks.locale } }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile, refetch: mocks.refetch }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
