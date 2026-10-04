@@ -85,7 +85,7 @@ export function HabitListEmptyState({
 
   return (
     <View style={styles.container}>
-      <OrbitMark size={104} />
+      <OrbitMark size={96} />
       <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {hasDistinctDescription ? (
         <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Geist_500Medium',
-    fontSize: 22,
+    fontSize: 20,
     textAlign: 'center',
   },
   description: {

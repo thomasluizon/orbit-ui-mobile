@@ -58,11 +58,11 @@ export function HabitListEmptyState({
       className="flex flex-col items-center justify-center text-center"
       style={{ padding: '64px 32px', gap: 16 }}
     >
-      <OrbitMark size={104} />
+      <OrbitMark size={96} />
       <div
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: 500,
           color: 'var(--fg-1)',
           textWrap: 'balance',

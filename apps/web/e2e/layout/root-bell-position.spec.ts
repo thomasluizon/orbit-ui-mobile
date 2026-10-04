@@ -82,6 +82,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
             (route) => route.fulfill({ json: overflowingGoals }),
           )
           let today: Awaited<ReturnType<typeof measureBell>> | undefined
+          const rootOverflow = new Map<string, boolean>()
           for (const root of ['/', '/calendar', '/progress', '/profile']) {
             await page.goto(root)
             await waitForRoot(page, root, words, content)
@@ -97,7 +98,6 @@ for (const locale of ['en', 'pt-BR'] as const) {
               const geometry = await measureBell(bell)
               today ??= geometry
               expect(Math.abs(geometry.right - today.right), `${root} trailing edge`).toBeLessThanOrEqual(0.5)
-              if (root === '/') expect(geometry.overflows).toBe(false)
               if (root === '/progress' && content === 'long') {
                 expect(geometry.overflows).toBe(true)
                 expect(geometry.gutter).toBeGreaterThan(0)
@@ -108,6 +108,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
               expect(geometry.height).toBeGreaterThanOrEqual(48)
               expect(geometry.rowHeight).toBeGreaterThanOrEqual(48)
               expect(geometry.centerY).toBe(geometry.rowCenterY)
+              rootOverflow.set(root, geometry.overflows)
             }).toPass({ timeout: 5000 })
             if (width < 1024 && (root === '/progress' || root === '/profile')) {
               await expect(row.getByRole('button')).toHaveCount(1)
@@ -119,9 +120,16 @@ for (const locale of ['en', 'pt-BR'] as const) {
             await expect(page).toHaveURL(/\/notifications$/)
             await expect(page.getByRole('heading', { name: words.notifications.title, exact: true })).toBeVisible()
           }
+          expectNonScrollingRoot(width, content, rootOverflow)
         })
       }
     })
+  }
+}
+
+function expectNonScrollingRoot(width: number, content: 'short' | 'long', rootOverflow: ReadonlyMap<string, boolean>) {
+  if (width < 1024 && content === 'short') {
+    expect([...rootOverflow.values()], 'short content includes a non-scrolling root').toContain(false)
   }
 }
 

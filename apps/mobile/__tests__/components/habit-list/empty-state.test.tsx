@@ -1,6 +1,10 @@
 import React from 'react'
+import { StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { expectPressFill } from '@/__tests__/support/press-feedback'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import {
   HabitListEmptyState,
@@ -56,6 +60,19 @@ function pressableWithLabel(tree: TestTree, label: string): TestNode | undefined
 }
 
 describe('HabitListEmptyState', () => {
+  it.each([en, ptBR])('uses the shared empty-state mark and title sizes without clipping large text', (words) => {
+    const title = words.habits.emptyState
+    const tree = render(<HabitListEmptyState title={title} description="" />)
+    const label = tree.root.findAllByType('Text').find((node) => node.props.children === title)!
+    const style = StyleSheet.flatten(label.props.style as StyleProp<TextStyle>)
+    expect.soft(style.fontSize).toBe(20)
+    expect(style.fontFamily).toBe('Geist_500Medium')
+    expect(label.props.numberOfLines).toBeUndefined()
+    expect(label.props.ellipsizeMode).toBeUndefined()
+    expect(label.props.allowFontScaling).not.toBe(false)
+    expect.soft(tree.root.findAllByType(OrbitMark)[0]!.props.size).toBe(96)
+  })
+
   it('renders the title and a distinct description', () => {
     const tree = render(
       <HabitListEmptyState title="No habits yet" description="Add one to begin" />,
