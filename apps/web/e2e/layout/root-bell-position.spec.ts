@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { emptyGoalsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { measureScrollbarGutter } from './scrollbar-geometry'
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
@@ -34,12 +35,13 @@ async function waitForRoot(page: Page, root: string, words: typeof en | typeof p
 }
 
 async function measureBell(bell: Locator) {
-  return bell.evaluate((element) => {
+  const gutter = await bell.locator('xpath=ancestor::*[@data-shell-column]')
+    .locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
+  return bell.evaluate((element, gutter) => {
     const bounds = element.getBoundingClientRect()
     const row = element.parentElement!.getBoundingClientRect()
     const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
     const scroller = element.closest('[data-shell-column]')!.querySelector<HTMLElement>('[data-shell-scroller]')!
-    const gutter = scroller.offsetWidth - scroller.clientWidth
     return {
       right: bounds.right,
       centerY: bounds.top + bounds.height / 2,
@@ -51,7 +53,7 @@ async function measureBell(bell: Locator) {
       gutter,
       overflows: scroller.scrollHeight > scroller.clientHeight,
     }
-  })
+  }, gutter)
 }
 
 test.beforeEach(async ({ context }) => {

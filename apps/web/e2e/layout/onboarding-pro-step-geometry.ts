@@ -15,8 +15,9 @@ export function measureOnboardingProStep(root: HTMLElement) {
     return lines.size > 1
   }).map((element) => element.textContent.trim())
   const column = root.parentElement!.parentElement!.getBoundingClientRect()
-  const main = root.closest('main')!.getBoundingClientRect()
-  const horizontalOffset = Math.abs(column.x + column.width / 2 - main.x - main.width / 2)
+  const main = root.closest('main')!
+  const clientCenter = main.getBoundingClientRect().left + main.clientLeft + main.clientWidth / 2
+  const horizontalOffset = Math.abs(column.x + column.width / 2 - clientCenter)
   const tiers = Array.from(root.querySelectorAll<HTMLElement>('[data-tier][data-tier-content]')).filter(visible).map((card) => {
     const bounds = card.getBoundingClientRect()
     const action = card.querySelector('button')!

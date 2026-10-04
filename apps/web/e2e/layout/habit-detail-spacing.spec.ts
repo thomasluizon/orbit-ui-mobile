@@ -6,6 +6,7 @@ import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitSche
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { measureScrollbarGutter } from './scrollbar-geometry'
 
 const habitId = 'habit-1'
 const metrics = habitMetricsSchema.parse({
@@ -119,7 +120,8 @@ for (const width of [412, 1280]) {
               emptyLiveRegion: headerSlot.querySelector('[role="status"][aria-live="polite"]')?.textContent === '',
             }
           })
-          expect(geometry.contentWidth).toBe(width === 412 ? 380 : 620)
+          const gutter = await column.locator('xpath=ancestor::*[@data-shell-scroller]').evaluate(measureScrollbarGutter)
+          expect(geometry.contentWidth).toBe(width === 412 ? width - 32 - gutter : 620)
           expect(geometry.headerInset).toBe(geometry.columnInset)
           expect(geometry.wellWidth).toBe(76)
           expect(geometry.wellHeight).toBe(76)
