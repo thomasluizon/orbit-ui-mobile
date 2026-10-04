@@ -15,7 +15,7 @@ export default function PublicLayout({
 
   return (
     <FlowShell mode={legalDocument ? 'document' : 'card'}>
-      <div className="min-h-full bg-[var(--bg)] pt-[var(--safe-top)] text-[var(--fg-1)]">
+      <div className="min-h-full bg-[var(--bg)] text-[var(--fg-1)]">
         <RouteTransitionShell className={legalDocument ? undefined : 'px-[var(--app-px)]'}>
           {children}
         </RouteTransitionShell>
