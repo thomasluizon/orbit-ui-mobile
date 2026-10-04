@@ -10,6 +10,7 @@ import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
 import { renderSettingsRowMarkup } from './settings-row-markup'
 import { loadAppFonts } from '../../__tests__/support/app-fonts'
+import { resolveWebThemeVariables } from '../../lib/theme-dom'
 
 async function doubleTextSize(page: Page) {
   await page.addStyleTag({ content: 'html { font-size: 32px !important; }' })
@@ -17,6 +18,12 @@ async function doubleTextSize(page: Page) {
 }
 
 let stylesheet: string
+const themeTokens = `:root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([property, value]) => `${property}: ${value};`).join(' ')} }`
+
+function settingsPage(markup: string, extraCss = '') {
+  return `<!doctype html><html class="dark"><head><meta charset="utf-8"><style>${stylesheet}${themeTokens}${extraCss}</style></head><body>${markup}</body></html>`
+}
+
 test.beforeAll(async () => {
   const source = resolve('app/globals.css')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
@@ -31,7 +38,7 @@ for (const width of [320, 360, 384, 412]) {
         const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana'
         const labels = [words.profile.analytics.title, words.profile.marketingEmails.title, words.trial.expired.calendarSync] as const
         const markup = renderSettingsRowMarkup([...labels, words.trial.expired.proactiveAstra], habitName)
-        await page.setContent(`<style>${stylesheet}</style>${markup}`)
+        await page.setContent(settingsPage(markup))
         await loadAppFonts(page)
         for (const label of [...labels, words.trial.expired.proactiveAstra]) {
           await markRequiredLabels(page.getByText(label, { exact: true }))
@@ -106,7 +113,7 @@ for (const width of [320, 360, 384, 412]) {
       test('renders every product label line when the root text size doubles', async ({ page }) => {
         const label = `${words.trial.expired.calendarSync} ${words.trial.expired.proactiveAstra} ${words.trial.expired.calendarSync}`
         const markup = renderSettingsRowMarkup([label])
-        await page.setContent(`<style>${stylesheet}html{font-size:32px}</style>${markup}`)
+        await page.setContent(settingsPage(markup, 'html{font-size:32px}'))
         await loadAppFonts(page)
         for (const rowLabel of await page.getByText(label, { exact: true }).all()) {
           const geometry = await rowLabel.evaluate((element) => {

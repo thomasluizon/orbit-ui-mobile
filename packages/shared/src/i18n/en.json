@@ -2236,7 +2236,7 @@
     "proBadge": "Trial",
     "expired": {
       "eyebrow": "Trial ended",
-      "heading": "Your Pro trial has ended",
+      "heading": "Your Pro trial ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
       "astraCeiling": "50 Astra messages per day",
