@@ -47,6 +47,7 @@ export function HabitUnderstanding({
   const formStyles = useMemo(() => createFormStyles(tokens), [tokens])
   const [focused, setFocused] = useState(false)
   const hasValue = value.trim().length > 0
+  const showPreview = hasValue && !isSuggestionDisabled && Boolean(sentence)
   const segments = useMemo(() => segmentHabitPhrase(value, consumed), [consumed, value])
 
   return (
@@ -85,29 +86,24 @@ export function HabitUnderstanding({
         ) : null}
       </View>
 
-      <Proposed inset proposed={proposed && sentence !== null} scope="block" label={labels.proposed}>
-        <View accessibilityLabel={sentence !== null ? labels.understood : undefined} style={sentence !== null ? styles.preview : undefined}>
-          <View style={styles.previewHeader}>
-            <HabitEmojiSelector
-              selectedEmoji={emoji}
-              tokens={tokens}
-              styles={formStyles}
-              wellSize={46}
-              onSelect={onEmojiSelect}
-              isDisabled={isSuggestionDisabled}
-            />
-            {sentence !== null ? <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text> : null}
+      {showPreview ? (
+        <Proposed inset proposed={proposed} scope="block" label={labels.proposed}>
+          <View accessibilityLabel={labels.understood} style={styles.preview}>
+            <View style={styles.previewHeader}>
+              <HabitEmojiSelector
+                selectedEmoji={emoji}
+                tokens={tokens}
+                styles={formStyles}
+                wellSize={46}
+                onSelect={onEmojiSelect}
+              />
+              <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
+            </View>
+            <Text style={styles.sentence}>{sentence}</Text>
+            <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
           </View>
-
-          {sentence !== null ? (
-            <>
-              <Text style={styles.sentence}>{sentence}</Text>
-
-              <ScheduleCorrections days={days} daily={daily} dayOptions={dayOptions} quantity={quantity} showCount={mode === 'flexible'} scheduleLocked={scheduleLocked} onToggleDay={onToggleDay} onQuantityChange={onQuantityChange} labels={labels} tokens={tokens} styles={styles} />
-            </>
-          ) : null}
-        </View>
-      </Proposed>
+        </Proposed>
+      ) : null}
       {hasValue && sentence === null ? (
         <View style={{ gap: 16 }}>
           <Text style={{ borderRadius: 12, backgroundColor: tokens.bgWell, color: tokens.fg2, padding: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 }}>{labels.unresolved}</Text>

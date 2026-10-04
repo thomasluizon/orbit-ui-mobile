@@ -46,8 +46,17 @@ describe('HabitEmojiSelector', () => {
     mockCloseSheet.mockClear()
   })
 
-  it.each([false, true])('selects, changes, and clears through the form, resolved %s', async (resolved) => {
-    render(<UnderstandingWithEmoji resolved={resolved} />)
+  it('offers no emoji picker without an understood preview', async () => {
+    render(<UnderstandingWithEmoji resolved={false} />)
+    expect(screen.queryByRole('button', { name: 'habits.form.emojiOpenPicker' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'habits.form.understood' })).toBeNull()
+    const user = userEvent.setup()
+    await user.tab()
+    expect(screen.getByRole('textbox')).toHaveFocus()
+  })
+
+  it('selects, changes, and clears through the understood preview', async () => {
+    render(<UnderstandingWithEmoji resolved />)
     const user = userEvent.setup()
     const well = screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })
 

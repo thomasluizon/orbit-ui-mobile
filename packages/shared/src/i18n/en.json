@@ -31,7 +31,7 @@
     },
     "homeScreen": {
       "title": "Home Screen",
-      "showGeneral": "Anytime habits on Today",
+      "showGeneral": "Anytime habits",
       "showGeneralDesc": "Habits with no schedule show in the Today list."
     },
     "clock": {
@@ -147,7 +147,6 @@
     "previousPage": "Previous page",
     "next": "Next",
     "nextPage": "Next page",
-    "codePlaceholder": "123456",
     "upgrade": "Upgrade",
     "proBadge": "Pro",
     "locked": "Locked",
@@ -214,7 +213,7 @@
     "closeRail": "Close panel",
     "openPalette": "Open command palette",
     "composer": {
-      "placeholder": "Astra",
+      "placeholder": "Ask Astra",
       "send": "Send",
       "suggestionsLabel": "Suggestions",
       "retry": "Try again",
@@ -231,13 +230,14 @@
         "image": "Photo"
       },
       "limit": {
+        "placeholder": "No messages today",
         "reason": "Today's allowance of {allowance} Astra messages is used. Lists, habit logging, and voice input still work without using Astra."
       },
       "busy": {
         "reason": "Astra is still answering. Wait for this response before sending another message."
       },
       "offline": {
-        "placeholder": "Offline",
+        "placeholder": "No connection",
         "reason": "No connection. Astra comes back when the connection does."
       },
       "chips": {
@@ -524,7 +524,6 @@
     "viewAll": "All",
     "sectionLabel": "Habits",
     "frequencyFilter": "Filter by frequency",
-    "searchPlaceholder": "Search habits...",
     "closeSearch": "Close search",
     "showCompleted": "Show completed",
     "showCompletedMenu": "Show done",
@@ -638,7 +637,6 @@
       "aiSuggestEmpty": "No suggestion for this one. Add the details yourself.",
       "aiSuggestLimitReached": "You've reached today's AI message limit.",
       "title": "Title",
-      "titlePlaceholder": "e.g. Morning run",
       "newHabit": "New habit",
       "fromConversation": "Came from your conversation with Astra.",
       "createWhy": "Write what you want to keep up.",
@@ -692,12 +690,11 @@
       "startDate": "Start",
       "startDateReason": "The start date is the day you create the habit and does not change after that.",
       "description": "Description",
-      "descriptionPlaceholder": "Optional description",
       "emoji": "Emoji",
       "emojiDescription": "Choose a visual cue for this habit",
       "emojiOpenPicker": "Choose emoji",
       "emojiPickerTitle": "Choose an emoji",
-      "emojiSearchPlaceholder": "Search emojis...",
+      "emojiSearchPlaceholder": "Search emoji",
       "emojiClearSearch": "Clear search",
       "emojiCategories": "Emoji categories",
       "emojiPickerEmpty": "No emojis found",
@@ -756,8 +753,8 @@
       "reminderDays": "days before",
       "reminderAdd": "Add reminder",
       "reminderAddTime": "Add time",
+      "reminderCustomLabel": "Another interval",
       "reminderCustom": "Custom...",
-      "reminderCustomPlaceholder": "Value",
       "reminderUnitMin": "minutes",
       "reminderUnitHours": "hours",
       "reminderUnitDays": "days",
@@ -805,7 +802,7 @@
       "slipAlertDescription": "AI sends motivational nudges before your usual slip times",
       "editDescription": "Update habit details",
       "checklist": "Checklist",
-      "checklistPlaceholder": "Item",
+      "checklistPlaceholder": "Add an item",
       "templates": "Templates",
       "useTemplate": "Use template",
       "noTemplates": "No saved templates",
@@ -934,7 +931,6 @@
     },
     "breakdown": {
       "breakInto": "Break down {name} into:",
-      "habitNamePlaceholder": "Habit name...",
       "addHabit": "Add habit",
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
@@ -1211,7 +1207,6 @@
     "empty": {
       "title": "Talk to Astra about your routine"
     },
-    "placeholder": "Ask Astra",
     "copy": "Copy",
     "copied": "Copied",
     "attachImage": "Attach image",
@@ -1857,7 +1852,6 @@
     "editName": {
       "title": "Edit name",
       "label": "Name",
-      "placeholder": "Your name",
       "required": "Enter a name.",
       "tooLong": "Keep it under 50 characters.",
       "errorGeneric": "Something went wrong. Please try again."
@@ -3258,7 +3252,6 @@
     "revealHeading": "API Key Created",
     "noKeys": "No API keys yet",
     "keyName": "Key Name",
-    "keyNamePlaceholder": "e.g. Claude Desktop",
     "keyNameRequired": "Key name is required",
     "keyNameMaxLength": "Key name must be 50 characters or less",
     "created": "Created",
