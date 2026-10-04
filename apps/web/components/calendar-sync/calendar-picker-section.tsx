@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -42,8 +41,6 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
 
   return (
     <>
-      <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
-
       <p role="alert" className="m-0 text-sm text-[var(--status-bad-text)]">{saveError ?? ''}</p>
 
       {isLoading && <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} />}
@@ -51,7 +48,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
       {isError && (
         <div
           className="flex items-center"
-          style={{ gap: 8, padding: '4px 16px 0' }}
+          style={{ gap: 8, paddingTop: 4 }}
           role="alert"
         >
           <span
@@ -76,7 +73,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-3)',
-            padding: '4px 16px 0',
+            paddingTop: 4,
           }}
         >
           {t('calendar.calendars.empty')}
@@ -96,7 +93,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
         ))}
 
       {!isLoading && !isError && calendars && calendars.length > 20 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
             {t('calendar.showingCount', { shown: Math.min(visibleCount, calendars.length), total: calendars.length })}
           </span>
@@ -108,7 +105,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
         </div>
       ) : null}
 
-      <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
+      <SettingsDescription inset={false}>{t('calendar.calendars.description')}</SettingsDescription>
     </>
   )
 }

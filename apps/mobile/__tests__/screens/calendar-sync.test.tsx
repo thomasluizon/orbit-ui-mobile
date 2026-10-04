@@ -1,9 +1,12 @@
 import React from "react";
 import { StyleSheet, type ViewStyle } from 'react-native';
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
 import { ApiClientError } from "@orbit/shared";
-import type { CalendarSyncEvent } from "@orbit/shared/utils";
+import { calendarImportTitleKey, type CalendarSyncEvent } from "@orbit/shared/utils";
+import en from "@orbit/shared/i18n/en.json";
+import ptBR from "@orbit/shared/i18n/pt-BR.json";
+import { Sheet } from "@/components/ui/sheet";
 import { calendarKeys } from '@orbit/shared/query';
 import { Link as LinkIcon } from '@/components/ui/icons';
 import { advanceAccountGeneration } from '@/lib/session-epoch';
@@ -13,15 +16,24 @@ import AuthCallbackScreen from '@/app/auth-callback';
 import { clearPendingGoogleAuthSession } from '@/lib/google-auth-callback';
 import { PillButton } from '@/components/ui/pill-button';
 import { useTranslation } from 'react-i18next';
-function CalendarSyncScreen() {
+function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>) {
   const [action, setAction] = React.useState<CalendarImportActionState | null>(null);
   const actionRef = React.useRef<CalendarImportActionHandle>(null);
   const { t } = useTranslation();
-  return <>
+  const content = <>
     <CalendarImportContent reviewMode={'mode' in mocks.searchParams && mocks.searchParams.mode === "review"} initialEventId={mocks.initialEventId} onClose={() => {}} onGoToHabits={mocks.goToHabits} actionRef={actionRef} onActionStateChange={setAction} />
     {action ? <PillButton disabled={action.disabled} onClick={() => actionRef.current?.importSelected()}>{t('calendar.importButton', { count: action.count })}</PillButton> : null}
   </>;
+  return inSheet ? <Sheet title={t(calendarImportTitleKey(false))} onClose={() => {}}>{content}</Sheet> : content;
 }
+
+vi.mock('@lodev09/react-native-true-sheet', () => ({
+  TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
+    present = vi.fn(async () => {});
+    dismiss = vi.fn(async () => {});
+    render() { return <>{this.props.header}{this.props.children}{this.props.footer}</>; }
+  },
+}));
 
 const TestRenderer = require("react-test-renderer");
 
@@ -107,7 +119,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: mocks.language },
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}(${JSON.stringify(params)})` : key,
+      key === 'calendar.calendars.title' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : params ? `${key}(${JSON.stringify(params)})` : key,
   }),
 }));
 
@@ -251,9 +263,7 @@ vi.mock("@/components/ui/app-bar", () => ({
   AppBar: () => null,
 }));
 
-vi.mock("@/components/ui/section-label", () => ({
-  SectionLabel: ({ children }: { children?: unknown }) => React.createElement("SectionLabel", null, children as never),
-}));
+
 
 vi.mock("@/components/ui/settings-row", () => ({
   SettingsRow: ({ label, ...props }: React.ComponentProps<typeof import("@/components/ui/settings-row")["SettingsRow"]>) =>
@@ -291,6 +301,7 @@ vi.mock("react-native", async (importOriginal) => {
 });
 
 describe("CalendarSyncScreen", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.profile = createMockProfile({ hasProAccess: true });
@@ -316,6 +327,26 @@ describe("CalendarSyncScreen", () => {
     mocks.isRunPending = false;
   });
 
+
+  it('shows one Calendários heading in the connected import sheet', async () => {
+    mocks.language = 'pt-BR';
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(2) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
+  });
+
+  it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', async (language, expected) => {
+    vi.stubEnv('TZ', 'America/Los_Angeles');
+    expect(new Date(2026, 9, 16).getTimezoneOffset()).toBeGreaterThan(0);
+    mocks.language = language;
+    mocks.eventsQuery.data = { status: 'connected', events: [{ ...buildEvents(1)[0]!, startDate: '2026-10-16' }] };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === '2026-10-16')).toHaveLength(0);
+    vi.unstubAllEnvs();
+  });
 
   it('preselects only the event opened from the day card', async () => {
     mocks.initialEventId = 'ev-1';

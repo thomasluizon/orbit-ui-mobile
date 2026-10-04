@@ -328,7 +328,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
       )}
 
       {step === 'offline' && (
-        <div className="px-4 pt-6">
+        <div className="pt-6">
           <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} />
         </div>
       )}
@@ -345,7 +345,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           >
             <LinkIcon className="size-7 text-[var(--fg-1)]" strokeWidth={1.8} />
           </div>
-          <div className="text-center px-6">
+          <div className="text-center">
             <h2
               style={{
                 fontFamily: 'var(--font-sans)',
@@ -397,9 +397,9 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             <>
               <div data-testid="section-heading-row" className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <SectionLabel>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
+                  <SectionLabel inset={false}>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
                 </div>
-                <div className="flex shrink-0 items-center pt-6 pr-4 pb-3">
+                <div className="flex shrink-0 items-center pt-6 pb-3">
                   <SelectAllToggle
                     allSelected={allSelected}
                     onToggle={toggleAll}
@@ -430,7 +430,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               {events.length > visibleCount && (
                 <div
                   className="flex flex-col items-center"
-                  style={{ gap: 8, padding: '12px 16px 0' }}
+                  style={{ gap: 8, paddingTop: 12 }}
                 >
                   <button
                     type="button"
@@ -459,7 +459,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 </div>
               )}
 
-              <div role="status" style={{ padding: !isOnline ? '16px 16px 0' : undefined }}>
+              <div role="status" style={{ paddingTop: !isOnline ? 16 : undefined }}>
                 {!isOnline ? <OfflineRefusal icon="calendar" title={t('offline.calendar.title')} reason={t('offline.calendar.reason')} /> : null}
               </div>
             </>
@@ -485,7 +485,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           >
             <Check className="size-8 text-[var(--fg-1)]" strokeWidth={2.2} />
           </div>
-          <div className="text-center px-6">
+          <div className="text-center">
             <h2
               style={{
                 fontFamily: 'var(--font-sans)',
@@ -532,7 +532,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           >
             <AlertTriangle className="size-8 text-[var(--status-bad)]" strokeWidth={1.8} />
           </div>
-          <div className="text-center px-6">
+          <div className="text-center">
             <h2
               style={{
                 fontFamily: 'var(--font-sans)',

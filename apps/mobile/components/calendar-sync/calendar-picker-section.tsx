@@ -3,7 +3,6 @@ import { Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
-import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -53,8 +52,6 @@ export function CalendarPickerSection({
 
   return (
     <>
-      <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
-
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.pickerStateText, { color: tokens.statusBadText }]}>{saveError ?? ''}</Text>
 
       {isLoading ? <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} /> : null}
@@ -119,7 +116,7 @@ export function CalendarPickerSection({
         </View>
       ) : null}
 
-      <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
+      <SettingsDescription inset={false}>{t('calendar.calendars.description')}</SettingsDescription>
     </>
   )
 }
