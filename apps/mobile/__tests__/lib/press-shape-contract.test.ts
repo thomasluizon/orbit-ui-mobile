@@ -316,16 +316,37 @@ function isPressFill(part: StylePart): boolean {
   return hasFill(fill) && (part.pressed || /press|hover/i.test(part.name) || !!fill && /\bpressed\b/.test(fill.getText()))
 }
 
+function logicalPressCondition(expression: ts.BinaryExpression): boolean | undefined {
+  const values = [enabledPressCondition(expression.left), enabledPressCondition(expression.right)]
+  if (expression.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    return values.includes(false) ? false : values.every((value) => value === true) ? true : undefined
+  }
+  if (expression.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
+    return values.includes(true) ? true : values.every((value) => value === false) ? false : undefined
+  }
+  return undefined
+}
+
+function enabledPressCondition(expression: ts.Expression): boolean | undefined {
+  if (ts.isParenthesizedExpression(expression)) return enabledPressCondition(expression.expression)
+  if (ts.isPrefixUnaryExpression(expression) && expression.operator === ts.SyntaxKind.ExclamationToken) {
+    const value = enabledPressCondition(expression.operand)
+    return value === undefined ? undefined : !value
+  }
+  if (ts.isBinaryExpression(expression)) return logicalPressCondition(expression)
+  const name = expression.getText()
+  if (name === 'pressed' || name.endsWith('.pressed')) return true
+  if (/disabled/i.test(name)) return false
+  return undefined
+}
+
 function pressOpacity(expression: ts.Expression, source: ParsedSource, seen = new Set<ts.Node>()): number | undefined {
   if (seen.has(expression)) return undefined
   seen.add(expression)
   if (ts.isNumericLiteral(expression)) return Number(expression.text)
   if (ts.isParenthesizedExpression(expression)) return pressOpacity(expression.expression, source, seen)
   if (ts.isConditionalExpression(expression)) {
-    const condition = expression.condition.getText()
-    const enabledBranch = /^!/.test(condition) ? expression.whenTrue : expression.whenFalse
-    const pressedBranch = condition === '!pressed' ? expression.whenFalse : expression.whenTrue
-    const branch = /disabled/i.test(condition) ? enabledBranch : pressedBranch
+    const branch = enabledPressCondition(expression.condition) === false ? expression.whenFalse : expression.whenTrue
     return pressOpacity(branch, source, seen)
   }
   if (ts.isIdentifier(expression)) {
@@ -392,6 +413,8 @@ describe('mobile press shapes', () => {
     `{ opacity: pressed ? 0.85 : 1 }`,
     `{ opacity: disabled ? 0.4 : pressed ? 0.85 : 1 }`,
     `{ opacity: !disabled ? pressed ? 0.85 : 1 : 0.4 }`,
+    `{ opacity: pressed && !disabled ? 0.85 : 1 }`,
+    `{ opacity: disabled || !pressed ? 1 : 0.85 }`,
     `pressed && { opacity: 0.7 }`,
     `styles.pressed`,
   ])('rejects enabled content dimming: %s', (body) => {
@@ -406,6 +429,7 @@ describe('mobile press shapes', () => {
 
   it.each([
     `{ opacity: disabled ? 0.4 : 1 }`,
+    `{ opacity: pressed && disabled ? 0.4 : 1 }`,
     `[disabled && { opacity: 0.4 }, pressed && { transform: [{ scale: 0.96 }] }]`,
     `{ opacity: pressed ? 1 : 0 }`,
   ])('keeps disabled dimming and increasing fill opacity: %s', (body) => {
