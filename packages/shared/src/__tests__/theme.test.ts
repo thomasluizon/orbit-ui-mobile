@@ -422,6 +422,8 @@ const EMPTY_TRACK_SURFACES = {
     { name: 'well', layers: [neutralColors.light.bg, neutralColors.light.bgWell] },
     { name: 'card replacement hover', layers: [neutralColors.light.bg, neutralColors.light.bgHover] },
     { name: 'card child hover', layers: [neutralColors.light.bg, neutralColors.light.bgCard, neutralColors.light.bgHover] },
+    { name: 'widget card', layers: ['#FFFFFF'] },
+    { name: 'widget well', layers: ['#F1F1F2'] },
     {
       name: 'canvas selection',
       layers: [
@@ -548,7 +550,7 @@ describe('byte-exact mode colors', () => {
       fg2: '#424247',
       fg3: '#68686D',
       fg4: '#89898D',
-      trackEmpty: '#7F7F83',
+      trackEmpty: '#7E7E82',
       scrim: 'rgba(0,0,0,0.55)',
     })
   })
@@ -600,7 +602,7 @@ describe('byte-exact mode colors', () => {
   for (const mode of ['dark', 'light'] as const) {
     for (const surface of EMPTY_TRACK_SURFACES[mode]) {
       it(`keeps the ${mode} empty track at the non-text floor on ${surface.name}`, () => {
-        expect(contrastOnSurface(hoverForeground(mode, neutralColors[mode].trackEmpty, surface.layers.includes(neutralColors[mode].bgHover)), surface.layers))
+        expect(contrastOnSurface(neutralColors[mode].trackEmpty, surface.layers))
           .toBeGreaterThanOrEqual(3)
       })
     }

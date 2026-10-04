@@ -1,4 +1,3 @@
-import { hoverForeground } from '@orbit/shared/theme'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -269,19 +268,18 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens, h
   )
 }
 
-function GoalIndicator({ goal, trackColor }: Readonly<{ goal: Goal; trackColor?: string }>) {
+function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   const { t } = useTranslation()
   if (goal.status === 'Abandoned') return null
   const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
   if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
-  return <ProgressRing value={goal.progressPercentage} size={44} label={label} trackColor={trackColor} />
+  return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
 function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, onOpen, onRegister, tokens }: Readonly<{
   goal: Goal; index: number; total: number; canReorder: boolean; isDragging: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; onRegister: (goalId: string, instance: View | null) => void; tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
-  const { currentTheme } = useAppTheme()
   const { suppressPress, ...gesture } = useGoalDrag(canReorder ? onDrag : undefined)
   const focusRef = useRef<View>(null)
   useEffect(() => {
@@ -314,7 +312,6 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost },
         isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5, zIndex: 2 } : null,
       ]}>
-      {({ pressed }) => <>
       <View style={styles.goalCopy}>
         <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</Text>
         <View style={styles.goalMeta}>
@@ -322,8 +319,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
           {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
         </View>
       </View>
-      <GoalIndicator goal={goal} trackColor={hoverForeground(currentTheme, tokens.trackEmpty, pressed)} />
-      </>}
+      <GoalIndicator goal={goal} />
     </MotionPressable>
   )
 }

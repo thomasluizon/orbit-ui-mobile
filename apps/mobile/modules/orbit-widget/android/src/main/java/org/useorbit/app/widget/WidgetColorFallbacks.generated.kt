@@ -27,6 +27,6 @@ internal object WidgetColorFallbacks {
         "borderMuted" to "#E6E6E8", // WHY: --hairline flattened over --bg-card.
         "overdue" to "#886100", // WHY: --status-overdue.
         "streakText" to "#B64900", // WHY: --primary-text.
-        "statusEmpty" to "#7F7F83", // WHY: --track-empty.
+        "statusEmpty" to "#7E7E82", // WHY: --track-empty.
     )
 }

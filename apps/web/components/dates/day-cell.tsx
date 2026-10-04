@@ -119,7 +119,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
         {...commonProps}
         type="button"
         onClick={props.onPress}
-        className="orbit-hover-text group relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 cursor-pointer transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        className="group relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 cursor-pointer transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >
         <PressFill />
         {contents}

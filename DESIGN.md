@@ -485,7 +485,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
---track-empty    #7F7F83   /* empty UI track. 3.01:1 on selection over the canvas */
+--track-empty    #7E7E82   /* empty UI track. 3.036:1 on canvas hover */
 --primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
 --primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
 --primary-text   #B64900   /* accent text on raised surfaces. 4.51:1 on the worst surface */
@@ -525,7 +525,7 @@ Every scope below is derived from those floors and the measured ratios.
 | dark `--fg-4` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |
 | light `--fg-4` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.617 | - | 3.485 | 3.087 |
 | dark `--track-empty` | graphic | graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 | 4.336 | 3.933 |
-| light `--track-empty` | graphic | graphic: canvas, card, well, widget card, widget well | 3.821 | 3.988 | - | 3.499 | - | 2.995 | - | 3.988 | 3.533 |
+| light `--track-empty` | graphic | graphic: canvas, card, well, hover, widget card, widget well | 3.874 | 4.043 | - | 3.548 | - | 3.036 | - | 4.043 | 3.582 |
 | dark `--primary-soft` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |
 | light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.545 | - | 4.721 | 4.182 |
 | dark `--primary-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.098 | 5.688 | 5.487 | 5.215 | 4.630 | 4.510 | 5.215 | 5.688 | 5.159 |
@@ -578,15 +578,17 @@ selection tint once, at the range slot, while the cell keeps its primary selecte
 
 Dark `#7A7A7D` measures 4.649 on canvas, 4.336 on card, 3.976 on well or overlay, 3.439 on a
 replacement hover, 3.034 on a hover child inside a card, 3.325 on selection over canvas, 3.054 on
-selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7F7F83`
-measures 3.821 on canvas, 3.988 on card or overlay, 3.499 on well, 2.995 on replacement hover,
-3.137 on a hover child inside a card, 3.011 on selection over canvas, 3.126 on selection over card,
-3.988 on the widget card and 3.533 on the widget well. No empty-track consumer sits on `--bg-field`
+selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7E7E82`
+measures 3.874 on canvas, 4.043 on card or overlay, 3.548 on well, 3.036 on replacement hover,
+3.180 on a hover child inside a card, 3.052 on selection over canvas, 3.169 on selection over card,
+4.043 on the widget card and 3.582 on the widget well. It is the first rounded byte along the
+constant OKLCH hue and chroma of `#7F7F83` that clears the stronger light canvas hover.
+No empty-track consumer sits on `--bg-field`
 or `--bg-elev-2`, and none combines selection with a well, so those candidate stacks are
-unreachable rather than derivation inputs. On light canvas hover, the empty track takes
-`--fg-2`. `--status-empty` resolves through the empty-track role.
+unreachable rather than derivation inputs. `--status-empty` resolves through the empty-track role
+at rest and under hover.
 The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2.83; light 17.36,
-9.99, 5.54, 3.99 and 3.48 for done, frozen, skip, empty and `--fg-4`.
+9.99, 5.54, 4.04 and 3.48 for done, frozen, skip, empty and `--fg-4`.
 
 **Contrast rule: `--fg-3` on a hovered surface, dark.** `--bg-hover` uses alpha 0.13. The text floor and hover-step floor bound it from opposite sides:
 
@@ -596,7 +598,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
 | **0.13** | **`#28282A`** | **1.261** | **4.57** |
 | 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
 
-**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Hovered status and accent text also take `--fg-2` while retaining their resting roles. The empty track takes `--fg-2` on a light canvas hover, where `--track-empty` measures 2.995:1. Hover fills sit below text and graphics.
+**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Hovered status and accent text also take `--fg-2` while retaining their resting roles. Hover fills sit below text and graphics.
 
 **Three hover stacks exist, and they measure differently. Read the paint order, not the token.**
 

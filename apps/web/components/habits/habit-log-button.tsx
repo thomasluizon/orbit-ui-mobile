@@ -25,7 +25,7 @@ export function HabitLogButton({ label, logged, completed = logged, onPress, pro
       aria-disabled={disabled && disabledReason ? true : undefined}
       aria-describedby={disabled && disabledReason ? reasonId : undefined}
       title={disabled ? disabledReason : undefined}
-      className={`orbit-hover-text flex h-[var(--touch-min)] w-[var(--touch-min)] shrink-0 items-center justify-center rounded-full border-0 bg-transparent transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)]'}`}
+      className={`flex h-[var(--touch-min)] w-[var(--touch-min)] shrink-0 items-center justify-center rounded-full border-0 bg-transparent transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)]'}`}
     >
       <span aria-hidden="true" className="grid place-items-center">
         {progress === undefined || completed ? (

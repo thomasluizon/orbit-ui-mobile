@@ -14,10 +14,9 @@ export function StatusRing({
   status = 'empty',
   size = 30,
   label,
-  trackColor,
 }: Readonly<StatusRingProps>) {
   const done = status === 'done'
-  const color = status === 'empty' && trackColor ? trackColor : STATUS_COLOR[status].graphic
+  const color = STATUS_COLOR[status].graphic
   const checkSize = Math.round(size * 0.57)
 
   return (

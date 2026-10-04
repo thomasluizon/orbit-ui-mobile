@@ -62,7 +62,7 @@ const PALETTES = {
     fg2: ['#424247', '--fg-2'],
     fg3: ['#68686D', '--fg-3'],
     fg4: ['#89898D', '--fg-4'],
-    trackEmpty: ['#7F7F83', '--track-empty'],
+    trackEmpty: ['#7E7E82', '--track-empty'],
     primaryText: ['#B64900', '--primary-text'],
     overdue: ['#886100', '--status-overdue'],
   },

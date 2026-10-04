@@ -1,4 +1,4 @@
-import { hoverForeground, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
@@ -83,10 +83,9 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   ]
   const state = { ...props.accessibilityState, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
-  const contentsTokens = { ...tokens, statusEmpty: hoverForeground(currentTheme, tokens.statusEmpty, pressed) }
   const contents = props.habitHistory
-    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={contentsTokens} pressed={pressed} />
-    : <DayCellContents props={props} outcome={outcome} size={size} tokens={contentsTokens} pressed={pressed} />
+    ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} pressed={pressed} />
+    : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} pressed={pressed} />
   const todayRing = props.today
     ? <View pointerEvents="none" testID="day-today-ring" style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null

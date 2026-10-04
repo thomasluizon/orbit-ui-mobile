@@ -47,18 +47,34 @@ describe('rendered light hover contrast', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   for (const width of [600, 1352]) {
-    it('keeps the habit logging track visible at ' + width, async () => {
-      const { container, unmount } = render(<HabitLogButton label="Log habit" logged={false} progress={0} onPress={() => {}} />)
-      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
-      try {
-        const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
-        await page.locator('button').hover()
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('button')!).backgroundColor === 'rgba(9, 9, 11, 0.11)')
-        const stroke = await page.locator('circle').first().evaluate((node) => getComputedStyle(node).stroke)
-        expect(contrastOnSurface(stroke, [neutralColors.light.bg, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
-      } finally { await page.close(); unmount() }
-    })
+    for (const progress of [undefined, 0]) {
+      it(`keeps the habit logging track neutral at ${width} with progress ${progress}`, async () => {
+        const { container, unmount } = render(<HabitLogButton label="Log habit" logged={false} progress={progress} onPress={() => {}} />)
+        const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+        try {
+          const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+          await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+          const track = progress === undefined ? page.locator('[data-status="empty"]') : page.locator('circle').first()
+          const resting = await track.evaluate((node) => {
+            const style = getComputedStyle(node)
+            return node.tagName === 'circle' ? style.stroke : style.boxShadow.match(/rgba?\([^)]*\)/)![0]
+          })
+          for (const surface of [neutralColors.light.bg, neutralColors.light.bgCard]) {
+            expect(contrastOnSurface(resting, [surface])).toBeGreaterThanOrEqual(3)
+          }
+          await page.locator('button').hover()
+          await page.waitForFunction(() => getComputedStyle(document.querySelector('button')!).backgroundColor === 'rgba(9, 9, 11, 0.11)')
+          const hovered = await track.evaluate((node) => {
+            const style = getComputedStyle(node)
+            return node.tagName === 'circle' ? style.stroke : style.boxShadow.match(/rgba?\([^)]*\)/)![0]
+          })
+          expect(hovered).toBe(resting)
+          for (const surface of [neutralColors.light.bg, neutralColors.light.bgCard]) {
+            expect(contrastOnSurface(hovered, [surface, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
+          }
+        } finally { await page.close(); unmount() }
+      })
+    }
 
     if (width === 1352) it('keeps the sidebar account email readable', async () => {
       const { container, unmount } = render(<ShellWide items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
@@ -95,10 +111,15 @@ describe('rendered light hover contrast', () => {
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
         await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+        const resting = await page.locator('circle').first().evaluate((node) => getComputedStyle(node).stroke)
         await page.locator('button').hover()
         await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-press-fill]')!).opacity === '1')
         const stroke = await page.locator('circle').first().evaluate((node) => getComputedStyle(node).stroke)
-        expect(contrastOnSurface(stroke, [neutralColors.light.bg, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
+        expect(stroke).toBe(resting)
+        for (const surface of [neutralColors.light.bg, neutralColors.light.bgCard]) {
+          expect(contrastOnSurface(stroke, [surface])).toBeGreaterThanOrEqual(3)
+          expect(contrastOnSurface(stroke, [surface, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
+        }
       } finally { await page.close(); unmount() }
     })
 

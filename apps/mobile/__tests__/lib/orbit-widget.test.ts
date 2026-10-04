@@ -74,7 +74,7 @@ describe('toWidgetColors', () => {
       borderMuted: '#E6E6E8',
       overdue: '#886100',
       streakText: '#B64900',
-      statusEmpty: '#7F7F83',
+      statusEmpty: '#7E7E82',
     })
   })
 

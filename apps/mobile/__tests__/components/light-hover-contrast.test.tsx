@@ -6,6 +6,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { neutralColors } from '@orbit/shared/theme'
 import { HabitLogButton } from '@/components/habits/habit-log-button'
+import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -38,16 +39,30 @@ function pressedFill(control: ReactTestInstance): string {
 }
 
 describe('light hover text on Android', () => {
-  it.each([undefined, 0])('keeps an empty habit track visible with progress %s', async (progress) => {
+  it.each([
+    { name: 'empty habit', element: <HabitLogButton label="Log habit" logged={false} onPress={() => {}} /> },
+    { name: 'habit progress', element: <HabitLogButton label="Log habit" logged={false} progress={0} onPress={() => {}} /> },
+    { name: 'partial day', element: <DayCell day={16} done={1} scheduled={2} words={{ none: 'Empty', partial: 'Partial', full: 'Done', notScheduled: 'Not scheduled', of: 'of', today: 'Today', readOnly: 'Read only' }} loggable onPress={() => {}} /> },
+  ])('keeps the $name track neutral at rest and on press', async ({ element }) => {
     let tree!: ReactTestRenderer
-    await act(() => { tree = create(<HabitLogButton label="Log habit" logged={false} progress={progress} onPress={() => {}} />) })
-    try {
-      const control = tree.root.findAll((node) => String(node.type) === 'Pressable')[0]!
-      await act(() => { (control.props.onPressIn as (() => void) | undefined)?.() })
+    await act(() => { tree = create(element) })
+    const trackColor = () => {
       const circle = tree.root.findAll((node) => String(node.type) === 'Circle')[0]
       const ring = tree.root.findAll((node) => node.props.testID === 'status-ring')[0]
-      const color = circle ? String(circle.props.stroke) : String(StyleSheet.flatten(ring!.props.style as StyleProp<ViewStyle>).borderColor)
-      expect(contrastOnSurface(color, [neutralColors.light.bg, pressedFill(control)])).toBeGreaterThanOrEqual(3)
+      return circle ? String(circle.props.stroke) : String(StyleSheet.flatten(ring!.props.style as StyleProp<ViewStyle>).borderColor)
+    }
+    try {
+      const resting = trackColor()
+      expect(resting).toBe(neutralColors.light.trackEmpty)
+      const control = tree.root.findAll((node) => String(node.type) === 'Pressable')[0]!
+      await act(() => { (control.props.onPressIn as (() => void) | undefined)?.() })
+      expect(trackColor()).toBe(resting)
+      for (const surface of [neutralColors.light.bg, neutralColors.light.bgCard]) {
+        expect(contrastOnSurface(trackColor(), [surface])).toBeGreaterThanOrEqual(3)
+        expect(contrastOnSurface(trackColor(), [surface, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
+      }
+      await act(() => { (control.props.onPressOut as (() => void) | undefined)?.() })
+      expect(trackColor()).toBe(resting)
     } finally { await act(() => { tree.update(<></>) }) }
   })
 

@@ -42,7 +42,7 @@ export const widgetColorPalette = {
     /** WHY: --fg-4. */
     fg4: '#89898D',
     /** WHY: --track-empty. */
-    trackEmpty: '#7F7F83',
+    trackEmpty: '#7E7E82',
     /** WHY: --primary-text. */
     primaryText: '#B64900',
     /** WHY: --status-overdue. */

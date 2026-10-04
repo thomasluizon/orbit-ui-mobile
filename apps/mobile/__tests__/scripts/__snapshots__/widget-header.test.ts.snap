@@ -110,7 +110,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="116" fill="#1A1A1D" font-size="15">Caminhada</text>
 <text x="42" y="132" fill="#886100" font-size="12" letter-spacing="0.22">18:00</text>
 <rect x="0.5" y="144.5" width="335" height="47" rx="16" fill="#F1F1F2" stroke="#E6E6E8" stroke-width="1"/>
-<circle cx="22" cy="168" r="8.5" fill="none" stroke="#7F7F83" stroke-width="1.5"/>
+<circle cx="22" cy="168" r="8.5" fill="none" stroke="#7E7E82" stroke-width="1.5"/>
 <text x="42" y="164" fill="#1A1A1D" font-size="15">Rotina da casa</text>
 <text x="42" y="180" fill="#68686D" font-size="12" letter-spacing="0.22">09:00</text>
 <rect x="210" y="153" width="34" height="18" rx="8" fill="#F1F1F2"/>
@@ -150,7 +150,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="116" fill="#1A1A1D" font-size="15">Walk</text>
 <text x="42" y="132" fill="#886100" font-size="12" letter-spacing="0.22">18:00</text>
 <rect x="0.5" y="144.5" width="335" height="47" rx="16" fill="#F1F1F2" stroke="#E6E6E8" stroke-width="1"/>
-<circle cx="22" cy="168" r="8.5" fill="none" stroke="#7F7F83" stroke-width="1.5"/>
+<circle cx="22" cy="168" r="8.5" fill="none" stroke="#7E7E82" stroke-width="1.5"/>
 <text x="42" y="164" fill="#1A1A1D" font-size="15">House routine</text>
 <text x="42" y="180" fill="#68686D" font-size="12" letter-spacing="0.22">09:00</text>
 <rect x="210" y="153" width="34" height="18" rx="8" fill="#F1F1F2"/>
