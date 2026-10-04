@@ -1,7 +1,7 @@
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/en.json'
-import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
 import { recapResponseSchema } from '@orbit/shared/types/gamification'
@@ -11,14 +11,17 @@ import { LAYOUT_ORIGIN } from '../support/env'
 
 test.use({ appLocale: 'en' })
 
-for (const width of [320, 412, 600]) {
-  for (const top of [0, 24, 48]) {
-    const bottom = top === 0 ? 0 : 34
+for (const width of [320, 412, 600, 844]) {
+  const height = width === 844 ? 390 : 915
+  const left = width === 844 ? 44 : 0
+  const right = left
+  for (const top of width === 844 ? [0] : [0, 24, 48]) {
+    const bottom = width === 844 ? 21 : top === 0 ? 0 : 34
     test.describe(`full-screen safe area at ${width}px with top ${top}px`, () => {
-      test.use({ viewport: { width, height: 915 } })
+      test.use({ viewport: { width, height } })
       test.beforeEach(async ({ page }) => {
         const session = await page.context().newCDPSession(page)
-        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom } })
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom, left, right } })
       })
 
       async function expectSafeTop(header: Locator) {
@@ -26,6 +29,8 @@ for (const width of [320, 412, 600]) {
         const box = await header.boundingBox()
         expect(box).not.toBeNull()
         expect(box!.y).toBeGreaterThanOrEqual(top)
+        expect(box!.x).toBeGreaterThanOrEqual(left)
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width - right)
       }
 
       for (const entry of ['Hoje', 'habit detail'] as const) {
@@ -54,7 +59,7 @@ for (const width of [320, 412, 600]) {
           await expectSafeTop(conversation.getByRole('button', { name: messages.common.closeConversation }))
           const composer = await conversation.locator('[data-composer-root]').boundingBox()
           expect(composer).not.toBeNull()
-          expect(915 - composer!.y - composer!.height).toBeGreaterThanOrEqual(bottom)
+          expect(height - composer!.y - composer!.height).toBeGreaterThanOrEqual(bottom)
         })
       }
 
@@ -69,7 +74,7 @@ for (const width of [320, 412, 600]) {
         const actions = popup.locator('[data-shell-bottom] button')
         for (const action of await actions.all()) {
           const box = (await action.boundingBox())!
-          expect(box.y + box.height).toBeLessThanOrEqual(915 - bottom)
+          expect(box.y + box.height).toBeLessThanOrEqual(height - bottom)
         }
         const geometry = await popup.evaluate((element) => {
           const shell = element.querySelector('[data-shell="wide"]')!
@@ -77,21 +82,66 @@ for (const width of [320, 412, 600]) {
           return { shellTop: shell.getBoundingClientRect().top, shellBottom: shell.getBoundingClientRect().bottom, actionsBottom: actions.getBoundingClientRect().bottom }
         })
         expect(geometry.shellTop).toBe(top)
-        expect(geometry.shellBottom).toBe(915)
-        expect(geometry.actionsBottom).toBeLessThanOrEqual(915)
+        expect(geometry.shellBottom).toBe(height)
+        expect(geometry.actionsBottom).toBeLessThanOrEqual(height)
       })
 
       test('the Wrapped player keeps the header below the inset', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('week')}`, (route) => route.fulfill({ json: recapResponseSchema.parse(createMockRecap()) }))
         await page.goto('/wrapped')
+        const back = page.getByRole('button', { name: messages.common.backToProfile, exact: true })
+        await expectSafeTop(back)
+        expect((await back.boundingBox())!.y).toBe(top + 4)
         await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
         await expectSafeTop(page.getByTestId('wrapped-header'))
         const header = await page.getByTestId('wrapped-header').boundingBox()
         expect(header!.y).toBe(top)
         await expectSafeTop(page.getByRole('button', { name: messages.wrapped.close }))
         const pager = (await page.getByTestId('wrapped-pager').boundingBox())!
-        expect(pager.y + pager.height).toBeLessThanOrEqual(915 - bottom)
+        expect(pager.y + pager.height).toBeLessThanOrEqual(height - bottom)
+        await page.getByRole('button', { name: messages.wrapped.close, exact: true }).click()
+        await page.evaluate(() => window.scrollTo(0, 0))
+        await expectSafeTop(back)
+        expect((await back.boundingBox())!.y).toBe(top + 4)
       })
+
+      for (const state of ['loading', 'failed', 'empty'] as const) {
+        test(`the Wrapped ${state} cover protects Back before Start and after closing the player`, async ({ page, context }) => {
+          const readyRecap = recapResponseSchema.parse(createMockRecap())
+          const emptyRecap = recapResponseSchema.parse(createMockRecap({
+            metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }), goalCompletions: 0,
+          }))
+          let releaseLoading!: () => void
+          const loading = new Promise<void>((resolve) => { releaseLoading = resolve })
+          await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('week')}`, (route) => route.fulfill({ json: readyRecap }))
+          await context.route(`${LAYOUT_ORIGIN}${buildRecapRequestUrl('month')}`, async (route) => {
+            if (state === 'loading') await loading
+            await route.fulfill(state === 'failed' ? { status: 500, json: { message: 'Recap unavailable' } }
+              : { json: state === 'empty' ? emptyRecap : readyRecap })
+          })
+          try {
+            await page.goto('/wrapped?period=month')
+            const cover = page.locator(`main [data-state="${state}"]`)
+            const back = page.getByRole('button', { name: messages.common.backToProfile, exact: true })
+            await expect(cover).toBeVisible()
+            await expectSafeTop(back)
+            expect((await back.boundingBox())!.y).toBe(top + 4)
+            await page.getByRole('button', { name: messages.wrapped.periods.week, exact: true }).click()
+            await page.getByRole('button', { name: messages.wrapped.start, exact: true }).click()
+            expect((await page.getByTestId('wrapped-header').boundingBox())!.y).toBe(top)
+            await page.getByRole('button', { name: messages.wrapped.close, exact: true }).click()
+            await page.evaluate(() => window.scrollTo(0, 0))
+            await expectSafeTop(back)
+            expect((await back.boundingBox())!.y).toBe(top + 4)
+            await page.getByRole('button', { name: messages.wrapped.periods.month, exact: true }).click()
+            await expect(cover).toBeVisible()
+            await expectSafeTop(back)
+            expect((await back.boundingBox())!.y).toBe(top + 4)
+          } finally {
+            releaseLoading()
+          }
+        })
+      }
 
       test('the command palette starts at the larger of its base offset and the inset', async ({ page }) => {
         await page.goto('/')
@@ -103,10 +153,11 @@ for (const width of [320, 412, 600]) {
         const palette = page.getByRole('dialog', { name: messages.command.title })
         await expectSafeTop(palette)
         const box = await palette.boundingBox()
-        expect(box!.y).toBe(Math.max(16, top))
-        expect(box!.y + box!.height).toBeLessThanOrEqual(915 - bottom)
+        const baseOffset = width >= 640 ? 96 : 16
+        expect(box!.y).toBe(Math.max(baseOffset, top))
+        expect(box!.y + box!.height).toBeLessThanOrEqual(height - bottom)
         const maximum = await palette.evaluate((element) => Number.parseFloat(getComputedStyle(element).maxHeight))
-        expect(maximum).toBe(915 - Math.max(16, top) - Math.max(16, bottom))
+        expect(maximum).toBe(height - Math.max(baseOffset, top) - Math.max(16, bottom))
       })
     })
   }

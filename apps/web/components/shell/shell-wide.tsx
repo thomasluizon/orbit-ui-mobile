@@ -311,7 +311,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
     <div
       ref={shellRef}
       data-shell="wide"
-      className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] text-[var(--fg-1)]"
+      className="flex h-dvh min-h-dvh overflow-hidden bg-[var(--bg)] pl-[var(--safe-left)] pr-[var(--safe-right)] text-[var(--fg-1)]"
       onFocusCapture={(event) => {
         if (!conversationOpen && event.target instanceof HTMLElement) {
           returnFocusTriggerRef.current = getConversationReturnTarget(event.target)
@@ -353,7 +353,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
           tabIndex={-1}
           data-shell-conversation="overlay"
           style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
-          className="z-modal fixed inset-0 mx-auto overflow-y-auto bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+          className="z-modal fixed top-0 bottom-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-y-auto bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         >
           {props.conversation}
         </div>

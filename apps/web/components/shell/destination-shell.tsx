@@ -262,7 +262,7 @@ function DestinationShellContent({
     <>
       <a
         href="#orbit-main"
-        className="z-tooltip fixed left-4 top-[max(16px,var(--safe-top))] -translate-y-24 rounded-[8px] bg-[var(--fg-1)] px-4 py-3 text-[var(--bg)] focus:translate-y-0"
+        className="z-tooltip fixed left-[max(16px,var(--safe-left))] right-[max(16px,var(--safe-right))] w-fit top-[max(16px,var(--safe-top))] -translate-y-24 rounded-[8px] bg-[var(--fg-1)] px-4 py-3 text-[var(--bg)] focus:translate-y-0"
       >
         {t('common.skipToContent')}
       </a>

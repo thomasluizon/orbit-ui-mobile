@@ -37,8 +37,13 @@ describe('Foldable shell geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 412, 600].flatMap((width) => [0, 24].map((top) => ({ width, top, bottom: top ? 34 : 0 }))))(
-    'keeps compact shell chrome inside insets at $width with top $top', async ({ width, top, bottom }) => {
+  it.each([
+    ...[320, 412, 600].flatMap((width) => [0, 24].map((top) => ({ width, top, bottom: top ? 34 : 0, left: 0, right: 0 }))),
+    { width: 412, top: 0, bottom: 21, left: 44, right: 44 },
+    { width: 844, top: 0, bottom: 21, left: 44, right: 44 },
+    { width: 844, top: 0, bottom: 0, left: 0, right: 0 },
+  ])(
+    'keeps compact shell chrome inside insets at $width with top $top', async ({ width, top, bottom, left, right }) => {
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
         header={<button type="button" style={{ minHeight: 48 }}>Header</button>}
         composer={<button type="button" style={{ minHeight: 56 }}>Composer</button>}
@@ -52,12 +57,12 @@ describe('Foldable shell geometry', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         const session = await page.context().newCDPSession(page)
-        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom } })
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom, left, right } })
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.evaluate(() => {
           const shell = document.querySelector('[data-shell="wide"]')!.getBoundingClientRect()
           const controls = [...document.querySelectorAll('[data-shell-header] button, [data-shell-pinned-slot] button, [data-shell-tab-bar] button, [data-shell-fab] button, [data-shell-scroll-to-top] button, [data-shell-notice] [data-kind]')]
-            .map((element) => ({ label: element.textContent, top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom }))
+            .map((element) => ({ label: element.textContent, top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom, left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right }))
           return { top: shell.top, bottom: shell.bottom, controls }
         })
         expect(geometry.top).toBe(0)
@@ -65,6 +70,8 @@ describe('Foldable shell geometry', () => {
         expect(geometry.controls).toHaveLength(6)
         expect(geometry.controls[0]!.top).toBe(top)
         for (const control of geometry.controls) {
+          expect(control.left, control.label).toBeGreaterThanOrEqual(left)
+          expect(control.right, control.label).toBeLessThanOrEqual(width - right)
           expect(control.top, control.label).toBeGreaterThanOrEqual(top)
           expect(control.bottom, control.label).toBeLessThanOrEqual(915 - bottom)
         }

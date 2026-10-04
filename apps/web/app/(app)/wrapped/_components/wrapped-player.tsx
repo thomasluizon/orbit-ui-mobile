@@ -103,7 +103,7 @@ export function WrappedPlayer({
       role="dialog"
       aria-modal="true"
       aria-label={t('wrapped.title')}
-      className="fixed inset-0 z-modal flex flex-col overflow-hidden pt-[var(--safe-top)] pb-[var(--safe-bottom)]"
+      className="fixed inset-0 z-modal flex flex-col overflow-hidden pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]"
       style={{ background: 'var(--bg)' }}
     >
       <div data-testid="wrapped-frame" className="mx-auto flex min-h-0 w-full max-w-[900px] flex-1 flex-col">

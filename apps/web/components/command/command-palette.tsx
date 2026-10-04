@@ -103,7 +103,7 @@ export function CommandPalette({ navItems, onCreateHabit }: Readonly<CommandPale
   const overlay = paletteOpen ? (
     <div
       ref={registerPortal}
-      className="z-modal fixed inset-0 flex items-start justify-center px-4 pt-[max(16px,var(--safe-top))] sm:pt-[max(96px,var(--safe-top))]"
+      className="z-modal fixed inset-0 flex items-start justify-center pl-[max(16px,var(--safe-left))] pr-[max(16px,var(--safe-right))] pt-[max(16px,var(--safe-top))] sm:pt-[max(96px,var(--safe-top))]"
     >
       <button
         type="button"

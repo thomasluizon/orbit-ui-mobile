@@ -20,7 +20,7 @@ export function AppToastHost({ placement = 'slot', modalId }: Readonly<{ placeme
 
   if (placement !== 'page') return <Toast key={currentToast.id} {...hostedToast} outlined={placement === 'modal'} />
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-toast mx-auto w-full max-w-[440px] px-4 pb-[var(--safe-bottom)] [&>*]:pointer-events-auto" data-toast-page-host="">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-toast mx-auto w-full max-w-[440px] pl-[max(16px,var(--safe-left))] pr-[max(16px,var(--safe-right))] pb-[var(--safe-bottom)] [&>*]:pointer-events-auto" data-toast-page-host="">
       <Toast key={currentToast.id} {...hostedToast} />
     </div>
   )
