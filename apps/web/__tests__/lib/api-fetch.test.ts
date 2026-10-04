@@ -1,3 +1,4 @@
+import en from '@orbit/shared/i18n/en.json'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { z } from 'zod'
 
@@ -268,11 +269,11 @@ describe('apiFetch', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 400,
-      json: () => Promise.resolve({ error: 'Title is required' }),
+      json: () => Promise.resolve({ error: en.habits.form.titleRequired }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(toastError).toHaveBeenCalledWith('Validation error: Title is required')
+    expect(toastError).toHaveBeenCalledWith(`Validation error: ${en.habits.form.titleRequired}`)
   })
 
   it('shows not found toast on 404', async () => {

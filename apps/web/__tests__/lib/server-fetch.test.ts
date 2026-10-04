@@ -1,3 +1,4 @@
+import en from '@orbit/shared/i18n/en.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
@@ -40,7 +41,7 @@ describe('createHabit action error boundary', () => {
   })
 
   it.each([
-    [400, 'VALIDATION_ERROR', 'Title must be 200 characters or fewer'],
+    [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong],
     [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!'],
     [429, 'RATE_LIMITED', 'Rate limited'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed'],
