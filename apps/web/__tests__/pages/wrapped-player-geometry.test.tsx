@@ -66,9 +66,10 @@ const VIEWPORTS = [
   { width: 412, height: 800 },
   { width: 1440, height: 900 },
 ].flatMap((viewport) => [
-  { ...viewport, locale: 'en', toast: false },
-  { ...viewport, locale: 'en', toast: true },
-  { ...viewport, locale: 'pt-BR', toast: true },
+  { ...viewport, locale: 'en', toast: false, safeArea: false },
+  { ...viewport, locale: 'en', toast: true, safeArea: false },
+  { ...viewport, locale: 'pt-BR', toast: true, safeArea: false },
+  ...([320, 412, 500].includes(viewport.width) ? [{ ...viewport, locale: 'pt-BR', toast: true, safeArea: true }] : []),
 ])
 
 describe('WrappedPage player reload banner geometry in Chromium', () => {
@@ -99,9 +100,11 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     wrapped.slides = buildWrappedSlides(wrapped.recap)
   })
 
-  async function measureSlide(viewport: { width: number; height: number }, markup: string) {
+  async function measureSlide(viewport: { width: number; height: number }, markup: string, safeArea = false) {
     const page = await browser.newPage({ viewport })
     try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: safeArea ? 24 : 0, bottom: safeArea ? 34 : 0 } })
       await page.setContent(`<style>${stylesheet}</style>${markup}`)
       await loadAppFonts(page)
       return await page.evaluate(() => {
@@ -149,7 +152,7 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     }
   }
 
-  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast', async ({ locale, toast, ...viewport }) => {
+  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast', async ({ locale, toast, safeArea = false, ...viewport }) => {
     const messages = locale === 'en' ? en : pt
     useVersionGateStore.getState().requireReload('appUpdated')
     if (toast) {
@@ -165,18 +168,18 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] [role="status"]')).toHaveLength(toast ? 2 : 1)
 
     for (const slide of wrapped.slides as { id: string }[]) {
-      const measured = await measureSlide(viewport, container.innerHTML)
+      const measured = await measureSlide(viewport, container.innerHTML, safeArea)
 
-      expect({ slide: slide.id, pagerBottom: measured.pagerBottom <= viewport.height })
+      expect({ slide: slide.id, pagerBottom: measured.pagerBottom <= viewport.height - (safeArea ? 34 : 0) })
         .toEqual({ slide: slide.id, pagerBottom: true })
       expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
       expect(measured.unavailableValueOverflow).toBe(0)
       expect(measured.undersizedControls, `slide ${slide.id} control targets`).toEqual([])
-      expect(measured.closeTop).toBeGreaterThanOrEqual(0)
+      expect(measured.closeTop).toBeGreaterThanOrEqual(safeArea ? 24 : 0)
       expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
       expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
       expect(measured.closeBottomAtEnd).toBeLessThanOrEqual(viewport.height)
-      expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height)
+      expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height - (safeArea ? 34 : 0))
       expect(measured.bannerInset).toEqual({ left: 0, right: 0 })
       expect(measured.noticeTop).toBeGreaterThanOrEqual(0)
       expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
@@ -36,6 +36,41 @@ describe('Foldable shell geometry', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 600].flatMap((width) => [0, 24].map((top) => ({ width, top, bottom: top ? 34 : 0 }))))(
+    'keeps compact shell chrome inside insets at $width with top $top', async ({ width, top, bottom }) => {
+      const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
+        header={<button type="button" style={{ minHeight: 48 }}>Header</button>}
+        composer={<button type="button" style={{ minHeight: 56 }}>Composer</button>}
+        tabBar={<nav style={{ minHeight: 80 }}><button type="button" style={{ minHeight: 48 }}>Today</button></nav>}
+        notice={<Toast kind="neutral" message="Habit saved" />}
+        fab={<button type="button" style={{ width: 48, height: 48 }}>Create</button>}
+        scrollToTop={<button type="button" style={{ minHeight: 48 }}>Top</button>}>
+        <div style={{ height: 1600 }}>Habits</div>
+      </ShellWide>)
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const session = await page.context().newCDPSession(page)
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom } })
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const shell = document.querySelector('[data-shell="wide"]')!.getBoundingClientRect()
+          const controls = [...document.querySelectorAll('[data-shell-header] button, [data-shell-pinned-slot] button, [data-shell-tab-bar] button, [data-shell-fab] button, [data-shell-scroll-to-top] button, [data-shell-notice] [data-kind]')]
+            .map((element) => ({ label: element.textContent, top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom }))
+          return { top: shell.top, bottom: shell.bottom, controls }
+        })
+        expect(geometry.top).toBe(0)
+        expect(geometry.bottom).toBe(915)
+        expect(geometry.controls).toHaveLength(6)
+        expect(geometry.controls[0]!.top).toBe(top)
+        for (const control of geometry.controls) {
+          expect(control.top, control.label).toBeGreaterThanOrEqual(top)
+          expect(control.bottom, control.label).toBeLessThanOrEqual(915 - bottom)
+        }
+      } finally { await page.close() }
+    },
+  )
 
   it.each([1100, 1440].flatMap((width) => [en, ptBR].flatMap((words) => [1, 2].map((textScale) => ({ width, words, textScale })))))
     ('grows the sidebar account target around two lines at $width and text scale $textScale', async ({ width, words, textScale }) => {
