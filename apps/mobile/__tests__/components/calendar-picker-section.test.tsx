@@ -116,11 +116,24 @@ describe('mobile CalendarPickerSection', () => {
       buildCalendar({ id: `cal-${index}`, name: `Calendar ${index}` }))
     const tree = render(true)
     expect(checkboxes(tree)).toHaveLength(20)
-    const showMore = tree.root.findAll((node) => node.props.accessibilityRole === 'button'
-      && typeof node.props.onPress === 'function')[0]
+    const showMore = tree.root.findAll((node) => node.props.children === 'calendar.showMore'
+      && typeof node.props.onClick === 'function')[0]
     expect(showMore).toBeDefined()
-    TestRenderer.act(() => { (showMore!.props.onPress as () => void)() })
+    TestRenderer.act(() => { (showMore!.props.onClick as () => void)() })
     expect(checkboxes(tree)).toHaveLength(21)
+  })
+
+  it('opens the full Google calendar name without changing selection', () => {
+    const name = ('Calendário dos compromissos de toda a família ' + 'encontros '.repeat(12)).trim()
+    mocks.calendars = [buildCalendar({ name })]
+    const tree = render(true)
+    const title = tree.root.findAll((node) => node.type === 'Text' && node.props.children === name)[0]!
+    expect(title.props.numberOfLines).toBe(2)
+    const open = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === name)[0]!
+    TestRenderer.act(() => { (open.props.onPress as () => void)() })
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === name && node.props.numberOfLines === undefined)).toHaveLength(1)
+    expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+    expect(mocks.mutate).not.toHaveBeenCalled()
   })
 
   it('persists the flipped synced value on toggle', () => {

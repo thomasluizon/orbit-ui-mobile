@@ -3,6 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
+import { Sheet } from '@/components/ui/sheet'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -34,6 +35,7 @@ export function CalendarPickerSection({
   const setSelectedCalendars = useSetSelectedCalendars()
   const [saveError, setSaveError] = useAccountScopedState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(20)
+  const [openedCalendarName, setOpenedCalendarName] = useAccountScopedState<string | null>(null)
 
   if (!enabled) return null
 
@@ -51,7 +53,7 @@ export function CalendarPickerSection({
   }
 
   return (
-    <>
+    <View style={{ paddingTop: 24 }}>
       <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.pickerStateText, { color: tokens.statusBadText }]}>{saveError ?? ''}</Text>
 
       {isLoading ? <Skeleton variant="settings" rows={2} label={t('calendar.calendars.loading')} /> : null}
@@ -96,6 +98,8 @@ export function CalendarPickerSection({
             <CheckRow
               key={calendar.id}
               label={calendar.name}
+              textMode="personal"
+              onOpenLabel={() => setOpenedCalendarName(calendar.name)}
               description={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
               checked={calendar.isSynced}
               onChange={(checked) => handleToggle(calendar.id, checked)}
@@ -116,7 +120,11 @@ export function CalendarPickerSection({
         </View>
       ) : null}
 
+      {openedCalendarName ? <Sheet accessibleTitle={openedCalendarName} onClose={() => setOpenedCalendarName(null)}>
+        <Text style={[styles.pickerStateText, { color: tokens.fg1 }]}>{openedCalendarName}</Text>
+      </Sheet> : null}
+
       <SettingsDescription inset={false}>{t('calendar.calendars.description')}</SettingsDescription>
-    </>
+    </View>
   )
 }

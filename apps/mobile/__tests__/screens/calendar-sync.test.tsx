@@ -27,6 +27,8 @@ function CalendarSyncScreen({ inSheet = false }: Readonly<{ inSheet?: boolean }>
   return inSheet ? <Sheet title={t(calendarImportTitleKey(false))} onClose={() => {}}>{content}</Sheet> : content;
 }
 
+vi.unmock('@/components/ui/sheet')
+
 vi.mock('@lodev09/react-native-true-sheet', () => ({
   TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
     present = vi.fn(async () => {});
@@ -334,6 +336,7 @@ describe("CalendarSyncScreen", () => {
     let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
   });
 
   it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', async (language, expected) => {

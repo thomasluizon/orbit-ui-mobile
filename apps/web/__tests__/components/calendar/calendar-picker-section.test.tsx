@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
 import { ApiClientError } from '@orbit/shared/utils/error-utils'
 const toastError = vi.hoisted(() => vi.fn())
@@ -76,6 +76,17 @@ describe('CalendarPickerSection', () => {
     expect(screen.getByText('calendar.showingCount:{"shown":20,"total":21}')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'calendar.showMore' }))
     expect(screen.getAllByRole('checkbox')).toHaveLength(21)
+  })
+
+  it('opens the full Google calendar name without changing selection', () => {
+    const name = ('Calendário dos compromissos de toda a família ' + 'encontros '.repeat(12)).trim()
+    useCalendarsMock.mockReturnValue({ data: [buildCalendar({ name })], isLoading: false, isError: false })
+    render(<CalendarPickerSection enabled />)
+    fireEvent.click(screen.getByRole('button', { name }))
+    const fullName = screen.getByRole('dialog', { name })
+    expect(within(fullName).getByText(name, { selector: 'p' })).toBeVisible()
+    expect(screen.getByRole('checkbox', { name, hidden: true })).toHaveAttribute('aria-checked', 'true')
+    expect(mutateAsync).not.toHaveBeenCalled()
   })
 
   it('persists the flipped synced value on toggle', () => {

@@ -142,7 +142,7 @@ export function Sheet({
 
   const header = title || accessibleTitle || headerAccessory || onClose || onAttemptDismiss ? (
     <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
-      {title ? <Text accessibilityLabel={accessibleTitle} numberOfLines={1} style={styles.title}>{title}</Text> : (
+      {title ? <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} numberOfLines={1} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
       {headerAccessory}

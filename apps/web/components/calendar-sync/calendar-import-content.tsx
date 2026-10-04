@@ -395,11 +395,11 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             />
           ) : (
             <>
-              <div data-testid="section-heading-row" className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
+              <div data-testid="section-heading-row" className="flex flex-col">
+                <div className="min-w-0">
                   <SectionLabel inset={false}>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
                 </div>
-                <div className="flex shrink-0 items-center pt-6 pb-3">
+                <div className="flex self-end items-center pb-3">
                   <SelectAllToggle
                     allSelected={allSelected}
                     onToggle={toggleAll}
