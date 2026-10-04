@@ -81,13 +81,17 @@ describe('ChatEmptyState copy (mobile)', () => {
     const tree = await renderEmptyState('pt-BR', [walkWithSubHabits, houseRoutine])
 
     expect(renderedText(tree)).toEqual(expect.arrayContaining([
-      'Fale com a Astra sobre a sua rotina',
+      'Fale com a Astra',
       'Algumas coisas que dá para pedir',
     ]))
+    for (const node of tree.root.findAll((node: any) => node.type === 'Text' && suggestionLabels(tree).includes(node.props.children))) {
+      expect(node.props.numberOfLines).toBeUndefined()
+      expect(node.props.ellipsizeMode).toBeUndefined()
+    }
     expect(suggestionLabels(tree)).toEqual([
-      'Registrar "Caminhar"',
+      'Registrar hábito',
       'Como foi a semana',
-      'Dividir "Rotina da casa"',
+      'Dividir hábito',
       'Como estão as metas',
     ])
   })
@@ -96,13 +100,13 @@ describe('ChatEmptyState copy (mobile)', () => {
     const tree = await renderEmptyState('en', [walkWithSubHabits, houseRoutine])
 
     expect(renderedText(tree)).toEqual(expect.arrayContaining([
-      'Talk to Astra about your routine',
+      'Talk to Astra',
       'Some things you can ask',
     ]))
     expect(suggestionLabels(tree)).toEqual([
-      'Log "Caminhar"',
+      'Log a habit',
       'How the week went',
-      'Split "Rotina da casa"',
+      'Split a habit',
       'How are my goals',
     ])
   })
@@ -112,14 +116,20 @@ describe('ChatEmptyState copy (mobile)', () => {
     ['pt-BR', 'Rotina da casa', 'Registrar "Rotina da casa"', 'Dividir "Rotina da casa"'],
     ['en', 'Meditate', 'Log "Meditate"', 'Split "Meditate"'],
     ['en', 'House routine', 'Log "House routine"', 'Split "House routine"'],
+    ...(['pt-BR', 'en'] as const).map(locale => {
+      const title = 'Caminhar com acentos e muitos detalhes '.repeat(5)
+      return [locale, title, `${locale === 'pt-BR' ? 'Registrar' : 'Log'} "${title}"`, `${locale === 'pt-BR' ? 'Dividir' : 'Split'} "${title}"`] as const
+    }),
   ] as const)('sends the quoted %s suggestion for %s', async (locale, title, logLabel, splitLabel) => {
     const onSelectSuggestion = vi.fn()
     const habit = makeHabitScheduleItem({ title, children: [], hasSubHabits: false })
     const tree = await renderEmptyState(locale, [habit], onSelectSuggestion)
 
-    expect(suggestionLabels(tree)).toEqual(expect.arrayContaining([logLabel, splitLabel]))
-    expect(renderedText(tree)).toEqual(expect.arrayContaining([logLabel, splitLabel]))
-    for (const label of [logLabel, splitLabel]) {
+    const expectedLabels = locale === 'pt-BR' ? ['Registrar hábito', 'Dividir hábito'] : ['Log a habit', 'Split a habit']
+    expect(suggestionLabels(tree)).toEqual(expect.arrayContaining(expectedLabels))
+    expect(renderedText(tree)).toEqual(expect.arrayContaining(expectedLabels))
+    const labels = locale === 'pt-BR' ? ['Registrar hábito', 'Dividir hábito'] : ['Log a habit', 'Split a habit']
+    for (const label of labels) {
       TestRenderer.act(() => {
         tree.root.findAllByProps({ accessibilityLabel: label }).at(-1).props.onPress()
       })

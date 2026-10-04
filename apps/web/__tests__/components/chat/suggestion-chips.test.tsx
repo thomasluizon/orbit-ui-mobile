@@ -11,9 +11,9 @@ import { SuggestionChips } from '@/components/chat/suggestion-chips'
 
 function suggestionsNaming(habit: string): AstraSuggestion[] {
   return [
-    { id: 'logHabit', key: 'chat.suggestion.logHabit', params: { habit } },
+    { id: 'logHabit', key: 'chat.suggestion.logHabit', promptKey: 'chat.prompts.logHabit', params: { habit } },
     { id: 'week', key: 'chat.suggestion.week' },
-    { id: 'splitHabit', key: 'chat.suggestion.splitHabit', params: { habit } },
+    { id: 'splitHabit', key: 'chat.suggestion.splitHabit', promptKey: 'chat.prompts.splitHabit', params: { habit } },
     { id: 'goals', key: 'chat.suggestion.goals' },
   ]
 }
@@ -25,31 +25,31 @@ describe('SuggestionChips', () => {
     render(<SuggestionChips suggestions={suggestionsNaming('Caminhar')} onSelect={vi.fn()} />)
 
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'chat.suggestion.logHabit:Caminhar',
+      'chat.suggestion.logHabit',
       'chat.suggestion.week',
-      'chat.suggestion.splitHabit:Caminhar',
+      'chat.suggestion.splitHabit',
       'chat.suggestion.goals',
     ])
   })
 
-  it('sends the shown text when a suggestion is pressed', () => {
+  it('sends the complete intent when a generic suggestion is pressed', () => {
     const onSelect = vi.fn()
     render(<SuggestionChips suggestions={suggestionsNaming('Caminhar')} onSelect={onSelect} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'chat.suggestion.logHabit:Caminhar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'chat.suggestion.logHabit' }))
 
-    expect(onSelect).toHaveBeenCalledWith('chat.suggestion.logHabit:Caminhar')
+    expect(onSelect).toHaveBeenCalledWith('chat.prompts.logHabit:Caminhar')
   })
 
   it('keeps focus on a suggestion whose habit changes under it', () => {
     const { rerender } = render(<SuggestionChips suggestions={suggestionsNaming('Caminhar')} onSelect={vi.fn()} />)
-    const logSuggestion = screen.getByRole('button', { name: 'chat.suggestion.logHabit:Caminhar' })
+    const logSuggestion = screen.getByRole('button', { name: 'chat.suggestion.logHabit' })
     logSuggestion.focus()
 
     rerender(<SuggestionChips suggestions={suggestionsNaming('Ler')} onSelect={vi.fn()} />)
 
     expect(document.activeElement).toBe(logSuggestion)
-    expect(logSuggestion).toHaveTextContent('chat.suggestion.logHabit:Ler')
+    expect(logSuggestion).toHaveTextContent('chat.suggestion.logHabit')
   })
 
   it('puts a requested contextual action ahead of the suggestions', () => {

@@ -160,16 +160,16 @@ describe('ChatEmptyState (mobile)', () => {
     expect(rendered).toContain('aiDisclosure.notMedicalAdvice')
   })
 
-  it('names the account habits in the drawn order', () => {
+  it('offers generic labels for the account habits in the drawn order', () => {
     const { tree } = renderEmptyState([
       makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 }),
       makeTopLevelItem({ id: 'house', title: 'Rotina da casa', position: 1, isLoggedInRange: true }),
     ])
 
     expect(suggestionLabels(tree)).toEqual([
-      'chat.suggestion.logHabit:Caminhar',
+      'chat.suggestion.logHabit',
       'chat.suggestion.week',
-      'chat.suggestion.splitHabit:Caminhar',
+      'chat.suggestion.splitHabit',
       'chat.suggestion.goals',
     ])
   })
@@ -194,9 +194,9 @@ describe('ChatEmptyState (mobile)', () => {
     })
 
     expect(suggestionLabels(tree)).toEqual([
-      'chat.suggestion.logHabit:Caminhar',
+      'chat.suggestion.logHabit',
       'chat.suggestion.week',
-      'chat.suggestion.splitHabit:Caminhar',
+      'chat.suggestion.splitHabit',
       'chat.suggestion.goals',
     ])
   })
@@ -213,7 +213,7 @@ describe('ChatEmptyState (mobile)', () => {
     expect(onSelect).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps a long habit title on one line inside its suggestion', () => {
+  it('keeps long habit titles out of app labels without ellipsis', () => {
     const { tree } = renderEmptyState([
       makeTopLevelItem({ id: 'long', title: 'Arrumar a casa inteira antes do almoço de domingo', position: 0 }),
     ])
@@ -222,7 +222,7 @@ describe('ChatEmptyState (mobile)', () => {
       .findAll((node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'button')
       .flatMap((button: any) => button.findAll((node: any) => node.type === 'Text'))
     expect(labels).toHaveLength(4)
-    for (const label of labels) expect(label.props.numberOfLines).toBe(1)
+    for (const label of labels) expect(label.props.numberOfLines).toBeUndefined()
   })
 
   it('leaves out both habit suggestions when the account has no habits', () => {
@@ -251,18 +251,18 @@ describe('ChatEmptyState (mobile)', () => {
     }
   })
 
-  it('sends the shown text when a suggestion is pressed', () => {
+  it('sends the complete intent when a suggestion is pressed', () => {
     const { tree, onSelectSuggestion } = renderEmptyState([
       makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 }),
     ])
 
     const chip = tree.root.findAll((node: any) =>
-      node.props?.accessibilityLabel === 'chat.suggestion.logHabit:Caminhar' && node.props?.onPress,
+      node.props?.accessibilityLabel === 'chat.suggestion.logHabit' && node.props?.onPress,
     )[0]
     TestRenderer.act(() => {
       chip.props.onPress()
     })
 
-    expect(onSelectSuggestion).toHaveBeenCalledWith('chat.suggestion.logHabit:Caminhar')
+    expect(onSelectSuggestion).toHaveBeenCalledWith('chat.prompts.logHabit:Caminhar')
   })
 })

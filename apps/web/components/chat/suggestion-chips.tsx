@@ -13,11 +13,11 @@ interface SuggestionChipsProps {
 }
 
 function SuggestionLabel({ text }: Readonly<{ text: string }>) {
-  return <span className="truncate">{text}</span>
+  return <span className="min-w-0">{text}</span>
 }
 
 /** The drawn openers for an empty thread, in the order given, each kept to one line.
- *  A press sends the label the person read. */
+ *  A press sends the complete request for the selected habit. */
 export function SuggestionChips({ suggestions, onSelect, contextualAction }: Readonly<SuggestionChipsProps>) {
   const t = useTranslations()
 
@@ -29,9 +29,9 @@ export function SuggestionChips({ suggestions, onSelect, contextualAction }: Rea
         </button>
       ) : null}
       {suggestions.map((suggestion) => {
-        const label = t(suggestion.key, suggestion.params)
+        const label = t(suggestion.key)
         return (
-          <button type="button" key={suggestion.id} className={SUGGESTION_CLASS} onClick={() => onSelect(label)}>
+          <button type="button" key={suggestion.id} className={SUGGESTION_CLASS} onClick={() => onSelect(t(suggestion.promptKey ?? suggestion.key, suggestion.params))}>
             <SuggestionLabel text={label} />
           </button>
         )

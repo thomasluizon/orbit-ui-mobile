@@ -5,6 +5,7 @@ import { hasHabitScheduleOnDate } from './habits'
 export type AstraSuggestion = {
   id: 'logHabit' | 'week' | 'splitHabit' | 'goals'
   key: string
+  promptKey?: string
   params?: { habit: string }
 }
 
@@ -36,9 +37,9 @@ export function selectAstraSuggestions(
   )
 
   return [
-    ...(logHabit ? [{ id: 'logHabit' as const, key: 'chat.suggestion.logHabit', params: { habit: logHabit.title } }] : []),
+    ...(logHabit ? [{ id: 'logHabit' as const, key: 'chat.suggestion.logHabit', promptKey: 'chat.prompts.logHabit', params: { habit: logHabit.title } }] : []),
     { id: 'week', key: 'chat.suggestion.week' },
-    ...(splitHabit ? [{ id: 'splitHabit' as const, key: 'chat.suggestion.splitHabit', params: { habit: splitHabit.title } }] : []),
+    ...(splitHabit ? [{ id: 'splitHabit' as const, key: 'chat.suggestion.splitHabit', promptKey: 'chat.prompts.splitHabit', params: { habit: splitHabit.title } }] : []),
     { id: 'goals', key: 'chat.suggestion.goals' },
   ]
 }
