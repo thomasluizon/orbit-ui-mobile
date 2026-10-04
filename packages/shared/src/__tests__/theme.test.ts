@@ -536,7 +536,7 @@ describe('byte-exact mode colors', () => {
       bgWell: 'rgba(9,9,11,0.04)',
       bgElev: '#FFFFFF',
       bgElev2: '#FFFFFF',
-      bgHover: 'rgba(9,9,11,0.06)',
+      bgHover: 'rgba(9,9,11,0.11)',
       bgHoverOpaque: 'rgba(9,9,11,0.11)',
       bgSunk: 'rgba(9,9,11,0.04)',
       hairline: 'rgba(9,9,11,0.08)',
@@ -784,6 +784,14 @@ describe('type roles', () => {
   })
 })
 
+
+describe('transparent light hover role', () => {
+  it.each(['bg', 'bgCard', 'bgField', 'bgElev'] as const)('clears the step over %s', (surface) => {
+    const neutral = neutralColors.light
+    expect(contrastOnSurface(neutral[surface], [neutral[surface], neutral.bgHover]))
+      .toBeGreaterThanOrEqual(1.25)
+  })
+})
 
 describe('opaque control hover role', () => {
   it.each(['dark', 'light'] as const)('clears the hover and foreground floors over elevation in %s', (mode) => {

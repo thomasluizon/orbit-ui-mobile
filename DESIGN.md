@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including the native mobile rule, disclosure, label and typed-text handling, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -473,7 +473,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg #FAFAFA · --bg-card #FFFFFF (opaque white cards) · --bg-elev #FFFFFF · --bg-elev-2 #FFFFFF
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
---bg-hover rgba(9,9,11,0.06)
+--bg-hover rgba(9,9,11,0.11) /* #E4E4E4 over white, 1.271:1 step; #DFDFE0 over canvas, 1.276:1 step */
 --bg-hover-opaque rgba(9,9,11,0.11) /* overlay on an opaque control -> #E4E4E4 over white. 1.271:1 step */
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
@@ -517,21 +517,21 @@ Every scope below is derived from those floors and the measured ratios.
 | on | role | scope | canvas | card | field | well | elev-2 | hover | overlay | widget card | widget well |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | dark `--fg-1` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 18.112 | 16.893 | 16.298 | 15.490 | 13.751 | 13.395 | 15.490 | 16.893 | 15.321 |
-| light `--fg-1` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 16.636 | 17.364 | - | 15.236 | - | 14.698 | - | 17.364 | 15.383 |
+| light `--fg-1` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 16.636 | 17.364 | - | 15.236 | - | 13.038 | - | 17.364 | 15.383 |
 | dark `--fg-2` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 12.042 | 11.231 | 10.835 | 10.298 | 9.142 | 8.906 | 10.298 | 11.231 | 10.186 |
-| light `--fg-2` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 9.572 | 9.991 | - | 8.767 | - | 8.457 | - | 9.991 | 8.851 |
+| light `--fg-2` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 9.572 | 9.991 | - | 8.767 | - | 7.502 | - | 9.991 | 8.851 |
 | dark `--fg-3` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.175 | 5.760 | 5.557 | 5.281 | 4.688 | 4.567 | 5.281 | 5.760 | 5.224 |
-| light `--fg-3` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.691 | - | 5.542 | 4.909 |
+| light `--fg-3` | text + graphic | text: canvas, card, well, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.161 | - | 5.542 | 4.909 |
 | dark `--fg-4` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |
-| light `--fg-4` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.950 | - | 3.485 | 3.087 |
+| light `--fg-4` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.617 | - | 3.485 | 3.087 |
 | dark `--track-empty` | graphic | graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 | 4.336 | 3.933 |
-| light `--track-empty` | graphic | graphic: canvas, card, well, hover, widget card, widget well | 3.821 | 3.988 | - | 3.499 | - | 3.376 | - | 3.988 | 3.533 |
+| light `--track-empty` | graphic | graphic: canvas, card, well, widget card, widget well | 3.821 | 3.988 | - | 3.499 | - | 2.995 | - | 3.988 | 3.533 |
 | dark `--primary-soft` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |
-| light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.996 | - | 4.721 | 4.182 |
+| light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.545 | - | 4.721 | 4.182 |
 | dark `--primary-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.098 | 5.688 | 5.487 | 5.215 | 4.630 | 4.510 | 5.215 | 5.688 | 5.159 |
-| light `--primary-text` | text | text: canvas, card, well, hover, widget card, widget well | 5.104 | 5.327 | - | 4.675 | - | 4.509 | - | 5.327 | 4.720 |
+| light `--primary-text` | text | text: canvas, card, well, widget card, widget well | 5.104 | 5.327 | - | 4.675 | - | 4.000 | - | 5.327 | 4.720 |
 | dark `--status-bad-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |
-| light `--status-bad-text` | text | text: canvas, card, well, hover, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.566 | - | 5.394 | 4.779 |
+| light `--status-bad-text` | text | text: canvas, card, well, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.050 | - | 5.394 | 4.779 |
 <!-- surface-scope:end -->
 
 **`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
@@ -593,6 +593,8 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
 | 0.14 | `#2B2B2C` | 1.312 | **4.39**, under the 4.5 text floor |
 | **0.13** | **`#28282A`** | **1.261** | **4.57** |
 | 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
+
+**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Hovered status and accent text also take `--fg-2` while retaining their resting roles. The empty track takes `--fg-3` on a light canvas hover, where `--track-empty` measures 2.995:1. Hover fills sit below text and graphics.
 
 **Three hover stacks exist, and they measure differently. Read the paint order, not the token.**
 

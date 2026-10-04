@@ -52,7 +52,7 @@ export const neutralColors: Record<SchemeMode, NeutralColors> = {
     bgWell: 'rgba(9,9,11,0.04)',
     bgElev: '#FFFFFF',
     bgElev2: '#FFFFFF',
-    bgHover: 'rgba(9,9,11,0.06)',
+    bgHover: 'rgba(9,9,11,0.11)',
     bgHoverOpaque: 'rgba(9,9,11,0.11)',
     bgSunk: 'rgba(9,9,11,0.04)',
     hairline: 'rgba(9,9,11,0.08)',
@@ -119,4 +119,8 @@ export function elevatedControlHoverFill(mode: SchemeMode): string {
     return Math.round(below * (1 - alpha) + overlay[index]! * alpha)
   })
   return `rgb(${channels.join(',')})`
+}
+
+export function hoverTextColor(mode: SchemeMode, restingColor: string, active: boolean): string {
+  return mode === 'light' && active ? neutralColors.light.fg2 : restingColor
 }
