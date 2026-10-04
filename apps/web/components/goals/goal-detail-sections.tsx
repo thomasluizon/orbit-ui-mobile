@@ -82,7 +82,7 @@ export function GoalProgressHistorySection({
                 </span>
               </div>
               {entry.note && (
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-2)', overflowWrap: 'anywhere' }}>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)', overflowWrap: 'anywhere' }}>
                   {entry.note}
                 </div>
               )}
@@ -97,7 +97,7 @@ export function GoalProgressHistorySection({
             className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 500,
               minHeight: TOUCH_TARGET_MIN,
               padding: 0,

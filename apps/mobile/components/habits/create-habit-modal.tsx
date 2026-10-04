@@ -658,7 +658,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     addSubHabitText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
   })

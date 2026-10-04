@@ -214,7 +214,7 @@ function ListBlock({
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 lineHeight: 1.4,
                 color: 'var(--fg-2)',
               }}
@@ -269,7 +269,7 @@ function FreshStartActions({
           style={{
             width: '100%',
             fontFamily: 'var(--font-sans)',
-            fontSize: 13,
+            fontSize: 14,
             color: 'var(--status-bad-text)',
             textAlign: 'center',
           }}

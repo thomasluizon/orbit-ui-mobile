@@ -150,9 +150,9 @@ function previewSvg(
     const extra = index === 2
       ? `<rect x="210" y="${rowTop + 9}" width="34" height="18" rx="8" fill="${well}"/>` +
         `<text x="227" y="${rowTop + 22}" text-anchor="middle" fill="${fg2}" ` +
-        'font-size="11">2/3</text>' +
+        'font-size="12">2/3</text>' +
         `<text x="324" y="${rowTop + 28}" text-anchor="end" fill="${fg3}" ` +
-        `font-size="11">${escaped(deeper)}</text>`
+        `font-size="12">${escaped(deeper)}</text>`
       : ''
     return rowBackground + statusMark(row.status, centerY, colors) +
       `<text x="42" y="${rowTop + 20}" fill="${titleColor}" font-size="15">` +
@@ -171,10 +171,10 @@ function previewSvg(
     `stroke="${hairline}" stroke-width="1"/>` +
     `<text x="12" y="18" fill="${fg3}" font-size="13" font-weight="500" ` +
     `letter-spacing="0.52">${escaped(today)}</text>` +
-    `<text x="12" y="35" fill="${fg3}" font-size="11">${escaped(subtitle)}</text>` +
+    `<text x="12" y="35" fill="${fg3}" font-size="12">${escaped(subtitle)}</text>` +
     `<text x="250" y="28" text-anchor="end" fill="${streak}" font-size="15" ` +
     `font-weight="500">${fixture.streak}</text>` +
-    `<text x="253" y="28" fill="${fg3}" font-size="11">${escaped(streakUnit)}</text>` +
+    `<text x="253" y="28" fill="${fg3}" font-size="12">${escaped(streakUnit)}</text>` +
     `<path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" ` +
     `fill="${fg3}" transform="translate(-3 -1) scale(.82) translate(72 4)"/>` +
     `<rect y="47" width="336" height="1" fill="${hairline}"/>${rows}</g></svg>`

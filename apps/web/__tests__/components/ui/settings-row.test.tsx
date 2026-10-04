@@ -5,6 +5,19 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 
 describe('SettingsRow', () => {
+  it.each([
+    { mono: true, fontSize: 12, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' },
+    { mono: false, fontSize: 14, fontFamily: 'var(--font-sans)', fontVariantNumeric: 'normal' },
+  ])('renders a value with mono=$mono at $fontSize', ({ mono, fontSize, fontFamily, fontVariantNumeric }) => {
+    render(<SettingsRow label="Usage" value="42" mono={mono} accessory="none" />)
+
+    expect(screen.getByText('42').parentElement).toHaveStyle({
+      fontSize: `${fontSize}px`,
+      fontFamily,
+      fontVariantNumeric,
+    })
+  })
+
   it('draws the canonical ListRow leading icon geometry', () => {
     const { container } = render(
       <SettingsRow label="Account" icon={Home} accessory="none" />,

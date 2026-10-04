@@ -105,7 +105,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     wordmark: {
       fontFamily: 'SpaceGrotesk_600SemiBold',
-      fontSize: 18,
+      fontSize: 20,
       letterSpacing: -0.18,
       color: tokens.fg1,
     },
@@ -119,7 +119,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     streakNumber: {
       marginTop: 8,
       fontFamily: 'SpaceGrotesk_600SemiBold',
-      fontSize: 56,
+      fontSize: 60,
       lineHeight: 60,
       letterSpacing: -1.5,
       fontVariant: ['tabular-nums'],
@@ -138,7 +138,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       marginTop: 12,
     },
     achievementEmoji: {
-      fontSize: 48,
+      fontSize: 44,
     },
     achievementText: {
       flex: 1,
@@ -182,7 +182,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     scanText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 12,
+      fontSize: 14,
       color: tokens.fg1,
     },
     shortLink: {

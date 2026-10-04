@@ -212,8 +212,8 @@ function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     moveDialogDescription: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 16,
+      lineHeight: 24.8,
       color: tokens.fg2,
       marginBottom: 16,
     },

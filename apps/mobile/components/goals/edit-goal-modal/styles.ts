@@ -61,7 +61,7 @@ export function createStyles(tokens: EditGoalTokens) {
     },
     warningText: {
       fontFamily: 'Geist_400Regular',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.statusOverdueText,
       marginTop: 8,
     },
@@ -75,7 +75,7 @@ export function createStyles(tokens: EditGoalTokens) {
     },
     addDeadlineText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg1,
     },
   })

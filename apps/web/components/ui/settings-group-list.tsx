@@ -10,7 +10,7 @@ export function SettingsGroup({ items }: Readonly<SettingsGroupProps>) {
         const content = (
           <>
             <span className="min-w-0 flex-1" style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16 }}>{item.label}</span>
-            {item.value ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{item.value}</span> : null}
+            {item.value ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{item.value}</span> : null}
             {item.trailing}
             {item.onClick ? <ChevronRight size={24} color="var(--fg-3)" strokeWidth={1.8} /> : null}
           </>

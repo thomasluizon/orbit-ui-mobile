@@ -140,8 +140,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 18,
-    lineHeight: 22.5,
+    fontSize: 17,
+    lineHeight: 22.95,
   },
   desc: {
     fontFamily: 'Geist_400Regular',
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   },
   valueMono: {
     fontFamily: 'GeistMono_400Regular',
-    fontSize: 13,
+    fontSize: 12,
     fontVariant: ['tabular-nums'],
     maxWidth: 220,
   },

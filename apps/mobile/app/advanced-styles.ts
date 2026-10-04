@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
   },
   widgetHeading: {
     fontFamily: 'Geist_500Medium',
-    fontSize: 15,
+    fontSize: 16,
   },
   widgetList: { gap: 12 },
   widgetStepRow: {

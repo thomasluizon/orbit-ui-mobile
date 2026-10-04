@@ -60,7 +60,7 @@ export function MilestoneShareCard({
         <div style={{ position: 'relative', padding: 24, background: 'var(--bg-card)' }}>
           <div className="flex items-center" style={{ gap: 8 }}>
             <OrbitMark size={24} accent />
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em' }}>
               Orbit
             </span>
           </div>
@@ -72,7 +72,7 @@ export function MilestoneShareCard({
           {variant.kind === 'streak' ? (
             <>
               <p
-                style={{ marginTop: 8, fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
+                style={{ marginTop: 8, fontFamily: 'var(--font-display)', fontSize: 60, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
               >
                 {variant.streak} 🔥
               </p>
@@ -82,7 +82,7 @@ export function MilestoneShareCard({
             </>
           ) : (
             <div className="flex items-center" style={{ gap: 16, marginTop: 12 }}>
-              <span aria-hidden="true" style={{ fontSize: 48, lineHeight: 1 }}>
+              <span aria-hidden="true" style={{ fontSize: 44, lineHeight: 1 }}>
                 {achievementEmoji(variant.iconKey)}
               </span>
               <div style={{ minWidth: 0 }}>
@@ -106,7 +106,7 @@ export function MilestoneShareCard({
               <ShareCardQr value={referralUrl} size={56} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-1)' }}>{t('shareCard.scanToJoin')}</p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}>{t('shareCard.scanToJoin')}</p>
               <p
                 className="truncate"
                 style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.02em', color: 'var(--fg-3)' }}

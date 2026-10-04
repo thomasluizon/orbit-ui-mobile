@@ -54,7 +54,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       ) : (
         <span
           aria-hidden="true"
-          style={{ fontSize: 15, lineHeight: 1, opacity: dormant ? 0.45 : 1 }}
+          style={{ fontSize: 16, lineHeight: 1, opacity: dormant ? 0.45 : 1 }}
         >
           🔥
         </span>

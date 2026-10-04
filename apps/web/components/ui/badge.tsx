@@ -11,7 +11,7 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
         boxShadow: variant === 'outline' ? 'inset 0 0 0 1px var(--hairline-strong)' : undefined,
         color: variant === 'solid' ? 'var(--fg-1)' : 'var(--fg-2)',
         fontFamily: 'var(--font-mono)',
-        fontSize: 10.5,
+        fontSize: 12,
         fontWeight: 500,
         letterSpacing: '0.06em',
         padding: '4px 8px',

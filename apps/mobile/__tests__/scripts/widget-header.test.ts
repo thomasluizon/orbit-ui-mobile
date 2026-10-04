@@ -265,7 +265,7 @@ describe('Android widget header', () => {
       'android:ellipsize': 'end',
       'android:maxLines': '1',
       'android:textColor': '@color/widget_fg_3',
-      'android:textSize': '11sp',
+      'android:textSize': '12sp',
     })
     expect(views.get('widget_streak_group')).toMatchObject({
       'android:visibility': 'gone',

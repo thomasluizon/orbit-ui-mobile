@@ -170,7 +170,7 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
           {t('orbitMcp.keyCreatedWarning')}
         </p>
         <div className="flex items-center rounded-[12px] bg-[var(--bg-field)]" style={{ gap: 8, padding: 16, boxShadow: 'inset 0 0 0 1px var(--border-control)' }}>
-          <code className="min-w-0 flex-1 break-all font-mono text-[13px] text-[var(--fg-2)]">{key}</code>
+          <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[var(--fg-2)]">{key}</code>
           <PillButton size="sm" variant="ghost" onClick={() => void copyKey()}>
             {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
           </PillButton>
@@ -449,7 +449,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
           <div className="flex flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 4, padding: 16 }}>
             <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
             <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)]">{t('profile.apiKeys.mcpLine')}</p>
-            <p className="break-all font-mono text-[13px] text-[var(--fg-2)]">{getMcpEndpointUrl(accountEventApiBase())}</p>
+            <p className="break-all font-mono text-[12px] text-[var(--fg-2)]">{getMcpEndpointUrl(accountEventApiBase())}</p>
           </div>
         </>
       </ApiKeyAccessContent>

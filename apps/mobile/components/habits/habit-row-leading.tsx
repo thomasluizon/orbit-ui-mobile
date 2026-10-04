@@ -41,7 +41,7 @@ export function HabitRowLeading({
           ) : (
             <Text
               style={{
-                fontSize: emojiSize - 4,
+                fontSize: emojiSize === 16 ? 12 : 17,
                 lineHeight: emojiSize + 2,
                 color: tokens.fg3,
                 fontFamily: 'Geist_500Medium',

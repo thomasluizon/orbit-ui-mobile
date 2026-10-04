@@ -107,7 +107,7 @@ export function DeleteAccountModal({
                 style={{
                   width: '100%',
                   color: 'var(--status-bad-text)',
-                  fontSize: 13,
+                  fontSize: 14,
                   textAlign: 'center',
                 }}
               >

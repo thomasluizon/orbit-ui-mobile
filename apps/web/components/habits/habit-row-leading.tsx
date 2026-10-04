@@ -26,7 +26,7 @@ export function HabitRowLeading({
           height: wellSize,
           borderRadius: wellRadius,
           background: 'var(--bg-well)',
-          fontSize: emoji ? emojiSize : emojiSize - 4,
+          fontSize: emoji ? emojiSize : emojiSize === 16 ? 12 : 17,
           lineHeight: 1,
           ...(emoji
             ? {}

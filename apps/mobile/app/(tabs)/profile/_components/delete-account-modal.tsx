@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
   error: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
   },
 })

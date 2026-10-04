@@ -55,7 +55,7 @@ describe('Badge', () => {
     render(<Badge>typography</Badge>)
     expect(screen.getByText('typography')).toHaveStyle({
       fontFamily: 'var(--font-mono)',
-      fontSize: '10.5px',
+      fontSize: '12px',
       fontWeight: '500',
       letterSpacing: '0.06em',
       textBox: 'trim-both cap alphabetic',

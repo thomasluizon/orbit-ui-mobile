@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
   stackedTiles: { flexDirection: 'column' },
   tileGrid: { flexDirection: 'row', gap: 8 },
   metric: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
-  metricValue: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 24, lineHeight: 29, fontVariant: ['tabular-nums'] },
+  metricValue: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 28.6, fontVariant: ['tabular-nums'] },
   metricLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16, width: '100%', textAlign: 'center' },
   headerMetadata: { paddingTop: 12 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

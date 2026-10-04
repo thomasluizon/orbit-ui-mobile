@@ -62,7 +62,7 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     hintText: {
       fontFamily: "Geist_400Regular",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg3,
     },
     addButton: {
@@ -82,7 +82,7 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     addButtonText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
     dropdown: {
@@ -198,7 +198,7 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     whenButtonText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg3,
     },
     whenButtonTextActive: {
@@ -271,18 +271,18 @@ export function createStyles(tokens: AppTokens) {
     },
     fieldError: {
       fontFamily: "Geist_400Regular",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.statusBadText,
       marginTop: 4,
     },
     hintText: {
       fontFamily: "Geist_400Regular",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg3,
     },
     flexibleHint: {
       fontFamily: "Geist_400Regular",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg3,
     },
     titleRow: {
@@ -351,7 +351,7 @@ export function createStyles(tokens: AppTokens) {
     },
     emojiRemoveButtonText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
     emojiCategoryTabs: {
@@ -378,7 +378,7 @@ export function createStyles(tokens: AppTokens) {
     },
     emojiCategoryTabText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
     emojiCategoryTabTextActive: {
@@ -497,9 +497,9 @@ export function createStyles(tokens: AppTokens) {
     },
     frequencyCardDesc: {
       fontFamily: "Geist_400Regular",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg3,
-      lineHeight: 19,
+      lineHeight: 19.6,
     },
     frequencyCardExample: {
       fontFamily: "Geist_400Regular",
@@ -575,7 +575,7 @@ export function createStyles(tokens: AppTokens) {
     },
     newTagButtonText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
     aiChip: {
@@ -591,7 +591,7 @@ export function createStyles(tokens: AppTokens) {
     },
     aiChipText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg1,
     },
     tagEditSection: {
@@ -634,7 +634,7 @@ export function createStyles(tokens: AppTokens) {
     },
     tagFormSaveText: {
       fontFamily: "Geist_500Medium",
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fgOnPrimary,
     },
     tagFormCancel: {

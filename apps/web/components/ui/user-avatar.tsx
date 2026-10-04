@@ -27,7 +27,7 @@ export function UserAvatar({ name, size = 44, className, style }: Readonly<UserA
         color: 'var(--fg-1)',
         fontFamily: 'var(--font-sans)',
         fontWeight: 600,
-        fontSize: Math.round(size * 0.4),
+        fontSize: size <= 32 ? 12 : size <= 44 ? 17 : size <= 56 ? 20 : 28,
         lineHeight: 1,
         ...style,
       }}

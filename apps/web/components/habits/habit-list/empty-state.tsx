@@ -12,7 +12,7 @@ import { OfflineRefusal } from '@/components/ui/offline-refusal'
 
 const SECONDARY_ACTION_STYLE = {
   fontFamily: 'var(--font-sans)',
-  fontSize: 13,
+  fontSize: 14,
   fontWeight: 500,
   minHeight: TOUCH_TARGET_MIN,
   minWidth: TOUCH_TARGET_MIN,
@@ -74,7 +74,7 @@ export function HabitListEmptyState({
         <div
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 15,
+            fontSize: 16,
             color: 'var(--fg-2)',
             maxWidth: 300,
             lineHeight: 1.5,

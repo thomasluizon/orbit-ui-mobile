@@ -205,7 +205,7 @@ function createStyles(tokens: AppTokensV2) {
     text: {
       flex: 1,
       fontFamily: 'Geist_400Regular',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg2,
     },
     urgent: {
@@ -227,7 +227,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     actionText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fg1,
       textDecorationLine: 'underline',
     },

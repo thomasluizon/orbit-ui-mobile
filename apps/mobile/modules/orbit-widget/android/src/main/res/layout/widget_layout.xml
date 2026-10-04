@@ -58,7 +58,7 @@
                     android:fontFamily="sans-serif"
                     android:maxLines="1"
                     android:textColor="@color/widget_fg_3"
-                    android:textSize="11sp" />
+                    android:textSize="12sp" />
             </LinearLayout>
 
             <LinearLayout
@@ -95,7 +95,7 @@
                         android:fontFamily="sans-serif"
                         android:text="@string/widget_streak_unit"
                         android:textColor="@color/widget_fg_3"
-                        android:textSize="11sp" />
+                        android:textSize="12sp" />
                 </LinearLayout>
 
                 <!-- Refresh button -->

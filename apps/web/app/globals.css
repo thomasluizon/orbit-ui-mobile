@@ -1382,7 +1382,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: var(--bg-elev);
   color: var(--fg-2);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   min-height: var(--touch-min);
   padding: 9px 16px;

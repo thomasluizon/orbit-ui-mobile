@@ -15,7 +15,7 @@ function textWidth(label: string, style: TextStyle, scale: number): number {
   const cacheKey = `${style.fontFamily}:${size}:${label}`
   const cached = widths.get(cacheKey)
   if (cached !== undefined) return cached
-  const mono = style.fontFamily === 'GeistMono_400Regular'
+  const mono = style.fontFamily?.startsWith('GeistMono_')
   const family = mono ? 'Geist Mono' : 'Geist'
   const file = mono ? require.resolve('@expo-google-fonts/geist-mono/400Regular/GeistMono_400Regular.ttf') : require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf')
   const escaped = label.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')

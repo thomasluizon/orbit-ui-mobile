@@ -85,7 +85,7 @@ export function CalendarSyncEventRow({
             className="block [overflow-wrap:anywhere]"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
+              fontSize: 17,
               fontWeight: 500,
               color: importIssue ? 'var(--fg-3)' : 'var(--fg-1)',
             }}
@@ -161,7 +161,7 @@ export function CalendarSyncEventRow({
               className="block whitespace-pre-line [overflow-wrap:anywhere]"
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--fg-2)',
                 marginTop: 4,
               }}
@@ -175,7 +175,7 @@ export function CalendarSyncEventRow({
               className="block"
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--status-bad-text)',
                 marginTop: 4,
               }}

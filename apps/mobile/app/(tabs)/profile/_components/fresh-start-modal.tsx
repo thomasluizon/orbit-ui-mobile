@@ -357,8 +357,8 @@ const styles = StyleSheet.create({
   },
   boxItemText: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 19.6,
     flex: 1,
   },
 
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   errorTextSmall: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
   },
 })

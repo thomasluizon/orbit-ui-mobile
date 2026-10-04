@@ -85,9 +85,9 @@ export function SettingsGroupRow({
             className="min-w-0 overflow-hidden line-clamp-2"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: 400,
-              lineHeight: 1.25,
+              lineHeight: 1.35,
               color: 'var(--fg-1)',
               overflowWrap: 'anywhere',
             }}

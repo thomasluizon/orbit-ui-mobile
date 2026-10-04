@@ -228,7 +228,7 @@ function createStyles(tokens: AppTokens) {
     },
     saveButtonText: {
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 14,
       color: tokens.fgOnPrimary,
     },
     closeButton: {

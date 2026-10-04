@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Geist_500Medium',
-    fontSize: 13,
+    fontSize: 14,
   },
   periodLabel: {
     fontSize: typeRoles.secondary.size,

@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
   },
   description: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 15,
-    lineHeight: 22.5,
+    fontSize: 16,
+    lineHeight: 24.8,
     textAlign: 'center',
     maxWidth: 300,
   },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   linkActionText: {
     fontFamily: 'Geist_500Medium',
-    fontSize: 13,
+    fontSize: 14,
     textDecorationLine: 'underline',
   },
 })

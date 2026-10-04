@@ -424,12 +424,12 @@ function createStyles(tokens: AppTokens) {
     monthLabel: {
       color: tokens.fg1,
       fontFamily: 'Geist_500Medium',
-      fontSize: 13,
+      fontSize: 12,
     },
     yearLabel: {
       color: tokens.fg1,
       fontFamily: 'GeistMono_500Medium',
-      fontSize: 13,
+      fontSize: 12,
       fontVariant: ['tabular-nums'],
       paddingHorizontal: 4,
       paddingVertical: 0,

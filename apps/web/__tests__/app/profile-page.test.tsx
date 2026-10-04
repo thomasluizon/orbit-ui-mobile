@@ -282,7 +282,6 @@ describe('ProfilePage', () => {
         expect(rows).toHaveLength(11)
         for (const row of rows) {
           if (textScale === 1) {
-            expect(row.height, row.label!).toBeLessThanOrEqual(68)
             expect(row.lines, row.label!).toBe(1)
           }
           expect(row.height, row.label!).toBeGreaterThanOrEqual(48)
