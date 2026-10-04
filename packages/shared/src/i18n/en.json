@@ -31,7 +31,7 @@
     },
     "homeScreen": {
       "title": "Home Screen",
-      "showGeneral": "Anytime habits on Today",
+      "showGeneral": "Anytime habits",
       "showGeneralDesc": "Habits with no schedule show in the Today list."
     },
     "clock": {
