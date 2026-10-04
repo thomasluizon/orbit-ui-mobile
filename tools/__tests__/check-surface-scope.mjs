@@ -1,6 +1,10 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
+import { contrastOnSurface } from "../../packages/shared/src/__tests__/contrast.ts"
+import { neutralColors } from "../../packages/shared/src/theme/neutral-ramp.ts"
+import { widgetColorPalette } from "../../apps/mobile/lib/widget-colors.generated.ts"
+
 import { T, check, root, toolPath } from "./_harness.mjs"
 
 const undeclaredRows = `| dark \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |
@@ -67,6 +71,22 @@ function stageProducerRepository(label, paths, violation) {
   return repository
 }
 
+function stageUnsafeEmptyTrack(repository) {
+  const themePath = join(repository, "packages/shared/src/theme/neutral-ramp.ts")
+  writeFileSync(themePath, readFileSync(themePath, "utf8").replace("trackEmpty: '#7E7E82'", "trackEmpty: '#7F7F83'"))
+  const neutral = neutralColors.light
+  const layers = new Map([
+    ["canvas", [neutral.bg]], ["card", [neutral.bg, neutral.bgCard]], ["well", [neutral.bg, neutral.bgWell]],
+    ["hover", [neutral.bg, neutral.bgHover]], ["widget card", [widgetColorPalette.light.card]], ["widget well", [widgetColorPalette.light.well]],
+  ])
+  const ratios = new Map([...layers].map(([surface, stack]) => [surface, contrastOnSurface("#7F7F83", stack)]))
+  const scope = [...ratios].filter(([, ratio]) => ratio >= 3).map(([surface]) => surface).join(", ")
+  const columns = ["canvas", "card", null, "well", null, "hover", null, "widget card", "widget well"].map((surface) => surface ? ratios.get(surface).toFixed(3) : "-").join(" | ")
+  const row = `| light \`--track-empty\` | graphic | graphic: ${scope} | ${columns} |`
+  const designPath = join(repository, "DESIGN.md")
+  writeFileSync(designPath, readFileSync(designPath, "utf8").replace(/^\| light `--track-empty`.*$/m, row))
+}
+
 export const cases = () => {
   const scopedCases = [
     ["promoted-text", `<button className="orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>`, 0],
@@ -78,6 +98,21 @@ export const cases = () => {
   for (const [label, web, status] of scopedCases) {
     const repository = stageRepository(label, { web })
     check("check-surface-scope.mjs", `resolves paint ancestry and scoped foreground: ${label}`, ["--root", repository], { status })
+  }
+  for (const [label, paths] of [
+    ["partial-day", ["apps/web/components/dates/day-cell.tsx"]],
+    ["habit-logging", ["apps/web/components/habits/habit-log-button.tsx", "apps/web/components/ui/progress-ring.tsx", "apps/web/components/ui/status-ring.tsx"]],
+  ]) {
+    for (const promoted of [true, false]) {
+      const repository = stageProducerRepository(`unsafe-${label}-${promoted}`, paths)
+      stageUnsafeEmptyTrack(repository)
+      const cssPath = join(repository, "apps/web/app/globals.css")
+      if (promoted) writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n.light button:hover { --track-empty: var(--fg-3); --status-empty: var(--track-empty); }")
+      check("check-surface-scope.mjs", `measures the real ${label} canvas hover with promotion ${promoted}`, ["--root", repository], {
+        status: promoted ? 0 : 1,
+        ...(promoted ? {} : { stderr: /--track-empty on hover, light ratio 2\.995, GRAPHIC floor 3\.00/ }),
+      })
+    }
   }
   const producerCases = [
     { label: "partial-day", paths: ["apps/web/components/dates/day-cell.tsx"], path: "apps/web/components/dates/day-cell.tsx", before: 'stroke="var(--status-empty)"', after: 'stroke="var(--fg-4)"' },

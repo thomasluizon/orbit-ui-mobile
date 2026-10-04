@@ -344,6 +344,8 @@ function matchedSurface(text, match, state) {
   return SURFACE_TOKENS.get(match.token)
 }
 
+const conditionSources = new Map()
+
 function createConditionKey(checker) {
   const symbols = new Map()
   const keys = new WeakMap()
@@ -366,6 +368,7 @@ function createConditionKey(checker) {
     visit(expression)
     const key = unresolved ? expression : JSON.stringify([expression.getText(), bindings])
     keys.set(expression, key)
+    conditionSources.set(key, expression.getSourceFile().fileName)
     return key
   }
 }
@@ -704,17 +707,25 @@ function styleMemberSurfaces(reference, sourceFile, state) {
 
 const surfaceConditionIds = new Map()
 const openingSurfaceCache = new WeakMap()
+const surfaceStateKeys = new WeakMap()
 
-function surfaceStateKey(state) {
-  const assignments = (state?.assignments ?? []).map((values) => [...values].map(([condition, value]) => {
+function surfaceStateKey(state, sourceFile) {
+  if (!state) return "unrestricted"
+  const source = sourceFile?.fileName ?? ""
+  const cached = surfaceStateKeys.get(state) ?? new Map()
+  if (cached.has(source)) return cached.get(source)
+  const assignments = (state?.assignments ?? []).map((values) => [...values].filter(([condition]) => !source || conditionSources.get(condition) === source).map(([condition, value]) => {
     if (!surfaceConditionIds.has(condition)) surfaceConditionIds.set(condition, surfaceConditionIds.size)
     return [surfaceConditionIds.get(condition), value]
   }).sort(([left], [right]) => left - right))
-  return JSON.stringify([state?.interaction, state?.mode, Boolean(state?.cssRules), assignments])
+  const key = JSON.stringify([state.interaction, state.mode, Boolean(state.cssRules), assignments])
+  cached.set(source, key)
+  surfaceStateKeys.set(state, cached)
+  return key
 }
 
 function openingSurfaces(opening, sourceFile, state) {
-  const key = surfaceStateKey(state)
+  const key = surfaceStateKey(state, sourceFile)
   const cached = openingSurfaceCache.get(opening) ?? new Map()
   if (cached.has(key)) return cached.get(key)
   const surfaces = measureOpeningSurfaces(opening, sourceFile, state)
@@ -925,7 +936,7 @@ function matchesCompound(selector, opening, syntax, state) {
 const selectorMatchCache = new WeakMap()
 
 function selectorMatches(selector, opening, syntax, state) {
-  const key = `${surfaceStateKey(state)}:${selector}`
+  const key = `${surfaceStateKey(state, syntax)}:${selector}`
   const cached = selectorMatchCache.get(opening) ?? new Map()
   if (cached.has(key)) return cached.get(key)
   const matched = matchesSelectorAncestry(selector, opening, syntax, state)
@@ -1141,13 +1152,13 @@ function localPaintSites(node, syntax, seen = new Set(), importedSites = new Map
 function importedForegroundSites(syntaxes) {
   const result = new Map()
   for (const syntax of syntaxes) {
+    const bindings = syntax.statements.flatMap((statement) => ts.isImportDeclaration(statement)
+      && statement.importClause?.namedBindings && ts.isNamedImports(statement.importClause.namedBindings)
+      ? [...statement.importClause.namedBindings.elements] : [])
     const visit = (node) => {
       if (ts.isIdentifier(node) && !(ts.isImportSpecifier(node.parent))
         && !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node)
         && !(ts.isJsxAttribute(node.parent) && node.parent.name === node)) {
-        const bindings = syntax.statements.flatMap((statement) => ts.isImportDeclaration(statement)
-          && statement.importClause?.namedBindings && ts.isNamedImports(statement.importClause.namedBindings)
-          ? [...statement.importClause.namedBindings.elements] : [])
         if (bindings.some((binding) => binding.name.text === node.text)) {
           const target = calledComponent({ tagName: node }, syntax, syntaxes)
           if (target) {
