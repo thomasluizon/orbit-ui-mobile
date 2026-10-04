@@ -10,13 +10,11 @@ Read `.claude/specs/orbit-prod-release.md` before anything else, then, through t
 
 The owner found the redesign crowded and desktop-like on his phone. His answers are binding rules in the spec's standing rule on native mobile feel and in each mobile review ticket's "Owner answers and research reconciliation" section. The spec's Batch R section "The owner's mobile review on his phone" lists the tickets, and `## Current state` holds every open pull request's exact state, root cause and next step. This outranks everything below except merging pull requests that are already approved on a green head.
 
-1. Drive the six open pull requests to merge, each on the bar (green checks at the exact head, a Pullfrog approval of that head submitted after its push, zero unresolved threads; read every check, because Pullfrog approves red heads). Before each merge run `d115.sh`, then `d115-check.sh` when the base's newer commits share none of its files, otherwise a full combined check (`full-mc.sh`; the i18n JSON files count as shared). Copy every SHA you pass to `--match-head-commit` from this run's output. Close each ticket with `complete-ticket.mjs` and record the merge with `mark-merged.mjs`.
-   - `ui#1563` (`#1192`, `a44e500c`): APPROVED, proofs in the body; waiter, then the merge bar.
-   - `ui#1567` (`#1201`, `6b8fd157`): APPROVED, green; read the `test-tools` and `test-hooks` lines of `check-r1567/summary.txt` (rerun `check-1567.sh` if absent), then merge.
-   - `ui#1568` (`#1193`, `716fe0d1`): APPROVED, copy approval posted; waiter, merge bar.
-   - `ui#1569` (`#1190`, `27668983`): CONFLICTING on the mobile `sheet.tsx`; send the base-merge order the spec's Current state describes, with the pt-BR 320 user-text red folded in after a quiet rerun and, if still red, one diagnosis subagent.
-   - `ui#1570` (`#1187`, `2d014719`): spec proven (9 of 9 on the merge tree, 8 red on `mc-duo`); diff read, proof lines into the body, waiter, full combined check (shares `globals.css` with `ui#1569`).
-   - `ui#1571` (`#1197`, `2c82cd9d`): delivery, diff and worker log read owed, then the red proof of its `habit-create-return.spec.ts` cases on `mc-duo` and a head build, waiter, merge bar.
+1. Drive the four open pull requests to merge, each on the bar (green checks at the exact head, a Pullfrog approval of that head submitted after its push, zero unresolved threads; read every check, because Pullfrog approves red heads). Before each merge run `d115.sh`, then `d115-check.sh` when the base's newer commits share none of its files, otherwise a full combined check (`full-mc.sh`; the i18n JSON files count as shared). Copy every SHA you pass to `--match-head-commit` from this run's output. Close each ticket with `complete-ticket.mjs` and record the merge with `mark-merged.mjs`. Exact states and next steps are in the spec's `## Current state`.
+   - `ui#1571` (`#1197`): push the proven unpushed batch `ea22a2f6` once the full local layout run on `mc-1571` (`layout-r1571b.log`) reads green (rerun `layout-only.sh` if absent), post `body-1571-m1.md` with the orchestrator proof lines added (4 of 4 green on the build, 4 of 4 red on `mc-duo`), waiter, merge bar.
+   - `ui#1569` (`#1190`): read the worker log `#1190-41239-1791122840405.log` (in `orbit-workers` under the OS temp directory), diff read of the unpushed `8dab76ae` and `9c5e4816`, head build, calendars-sheet spec green on it and red on `mc-duo`, full local layout run, push, merge the report into the body, answer and resolve Pullfrog's P2 thread, waiter, merge bar.
+   - `ui#1570` (`#1187`): APPROVED; post `body-1570-m1.md` once CI's layout rerun (run 37206629464) is green, then merge on the green check-b result (`0b100228` plus `ui#1563` plus `ui#1570`, layout 1128 of 1128) if the base has not moved onto its files. File the `habit-create-return.spec.ts:111` direct-open Back race at its root.
+   - `ui#1563` (`#1192`): CI layout fails all four `root-bell-position.spec.ts` pt-BR 320 cases on Linux (Hoje measured as overflowing); diagnose through one background subagent with the `layout-diagnostics` artifact, send a review batch with the fix, prove it, push. File the `label-fit-orbit-pro.spec.ts` pt-BR 360 double-tier race at its root.
 2. Launch `#1186` after `ui#1563` merges. Create each worktree with `new-ticket-wt.sh`, compose with `compose-label.sh`, append `note-mobile-renderer.md`, then `prep-launch.sh <n> <worktree name>`. Mobile tests render with `react-test-renderer`; never name the RN Testing Library in an order.
 3. Release `redesign/main` web and landing to staging after this batch's merges and ship Orbit Staging 1.3.65 (124); release again after each later batch.
 4. Repeat the rendered sweep after this batch (`#1151`) through one background subagent with `probe.js` that returns findings only; verify every finding against the tree before filing (one ticket per root cause); cover the back-to-top threshold and light mode at 840 and 1100.
@@ -27,31 +25,27 @@ The owner found the redesign crowded and desktop-like on his phone. His answers 
 
 | item | disposition |
 |---|---|
-| `ui#1563` (`#1192`) `a44e500c` APPROVED | waiter, merge bar; `#1186` waits |
-| `ui#1567` (`#1201`) `6b8fd157` APPROVED | read `check-r1567` harness lines, merge |
-| `ui#1568` (`#1193`) `716fe0d1` APPROVED | waiter, merge bar |
-| `ui#1569` (`#1190`) `27668983` CONFLICTING | base-merge order with the pt-BR red folded in |
-| `ui#1570` (`#1187`) `2d014719` | proofs done; body, waiter, full combined check |
-| `ui#1571` (`#1197`) `2c82cd9d` | delivery read, red proof, waiter, merge bar |
+| `ui#1571` (`#1197`) pushed `2c82cd9d` APPROVED, unpushed `ea22a2f6` proven | full layout log, push, body, waiter, merge |
+| `ui#1569` (`#1190`) pushed `27668983` CONFLICTING, unpushed `8dab76ae` and `9c5e4816` | report and diff read, proofs, push, thread, waiter, merge |
+| `ui#1570` (`#1187`) `2d014719` APPROVED | CI layout rerun, body, merge on check-b; file the Back race |
+| `ui#1563` (`#1192`) `a44e500c` APPROVED, CI layout red on Linux | diagnose, review batch, prove, push; file the Pro double-tier race |
 | `#1186` | not started; after `ui#1563` |
 | `#1151` | repeat sweep after this batch (priority 4) |
-| Merged this session | `ui#1564` (`e529b56d`, `#1184` closed), `ui#1555` (`79824162`, `#1196` closed) on one combined check (layout 1100 of 1100, tree equal to the merged tree); `ui#1566` (`c747d7d2`, `#1200` closed) under D115 |
-| Filed this session | none |
-| `#746` | no carry needed: `orbit-api` `redesign/main` carries `main` through `b8abb762` |
-| Staging release | API `a306721a`, web `bea02437`, landing `aa65bd72`, Orbit Staging 1.3.64 (123); web and landing release and 1.3.65 (124) owed after this batch |
+| Merged this session | `ui#1567` (`9e5d1044`, `#1201` closed), `ui#1568` (`0b100228`, `#1193` closed), on one combined check (check-a) |
+| Filed this session | none; two races owed (above) |
+| Staging release | API `a306721a`, web `bea02437`, landing `aa65bd72`, Orbit Staging 1.3.64 (123); release and 1.3.65 (124) owed after this batch |
 | Production | API `822f3038`, web `b84bdc9e`, landing `ebbebb2a`, Android 1.3.57 (116) open |
 | Open pull requests in `orbit-api` and `orbit-landing-page` | none |
 | Stashes | none in the three repositories |
 | Uncommitted work | none in any ticket worktree; the main checkout carries only this handoff |
-| Unpushed commits | none |
+| Unpushed commits | `ea22a2f6` on `fix/ticket-1197-discard-confirm-back`; `8dab76ae` and `9c5e4816` on `fix/ticket-1190-calendars-sheet-inset` (both proven or owed above, never discard) |
 | Branches with no pull request | none |
-| Detached HEADs | scratch worktrees under this session's scratchpad: `base` (`cda68fc8`, web build), `mc-duo` (`e8710026`, tree of `79824162`, web build: the unfixed base), `mc-1569` (`1ddefdca` web proof tree), `mc-1570` (`99a812cc` merge tree, web build), `mc-1563`, `mc-1566`, `mc-r1566`, `mc-r1567`; nothing unique. Move `base`, `mc-duo`, `mc-1569` and `mc-1570` into the new scratchpad with `git worktree move` and link each old path to its new one (`ln -s`, a Next build records its absolute path); `rm -rf` the rest by literal path, then `git worktree prune` |
-| Stale worktrees | `ticket-1184-*`, `ticket-1196-*` and `ticket-1200-*` already torn down |
-| Running workers | none (`#1193`, `#1190`, `#1187` and `#1197` finished and opened their pull requests) |
-| Waiters and local checks | waiters for `ui#1563`, `ui#1568` and `ui#1570`, the `check-1567.sh` harness steps and `chain-e.sh`'s red run die with this session: read each log, rerun what is absent |
-| Ignored files | this session's scratchpad: `sleep-decisions.md` (copy unmodified as `prev-sleep-decisions-3333e635.md`), the older `prev-sleep-decisions-*.md`, notes (`note-1187.md`, `note-1190.md`, `note-1197.md`, `note-mobile-renderer.md` and the rest), bodies (`body-1563-m2.md`, `body-1566-m2.md` and the rest), orders, proof logs (`hs-*.log`, `red-*.log`, `layout-*.log`, `hb-*.log`, `check-*/`), `probe.js`, `sweep-drafts/`, `prfiles/`, and the helpers (`carry.sh`, `chain-e.sh`, `chain-f.sh`, `check-1567.sh`, `gated-launch.sh`, `prep-launch.sh`, `compose.sh`, `compose-label.sh`, `extract-report.sh`, `mark-merged.mjs`, `head-build.sh`, `head-spec.sh`, `quiet-spec.sh`, `red-local.sh`, `layout-only.sh`, `d115.sh`, `d115-check.sh`, `mc-prep.sh`, `mc-check.sh`, `full-mc.sh`, `wait-loop.sh`, `new-ticket-wt.sh`, `prep-npm.sh`, `newcov-br.mjs`, `reconcile.mjs` and the rest); copy them with `carry.sh` (set its two session ids, the `prev-sleep-decisions` suffix, and add `check-duo check-trio check-r1567` to its directory list; the script copies itself, so edit the copy after it runs) and `chmod +x` the scripts |
+| Detached HEADs | scratch worktrees under this session's scratchpad: `base` (`cda68fc8`), `mc-duo` (`e8710026`, unfixed base build), `mc-1569` (`1ddefdca`), `mc-1570` (`99a812cc`), `mc-1571` (`ea22a2f6` build), `mc-a`, `mc-b` (`62bec751`); nothing unique. Move `base`, `mc-duo` and `mc-1571` into the new scratchpad with `git worktree move` and link each old path to the new one (`ln -s`); `rm -rf` the rest by literal path, then `git worktree prune` |
+| Running workers | none (the drain finished) |
+| Waiters and local checks | the `w1` waiter ended on CEILING; `chain-h.sh`'s full layout run on `mc-1571` dies with this session: read `layout-r1571b.log`, rerun if absent |
+| Ignored files | this session's scratchpad: `sleep-decisions.md` (copy unmodified as `prev-sleep-decisions-cca602b5.md`), the older `prev-sleep-decisions-*.md`, notes, orders, bodies (`body-1570-m1.md`, `body-1571-m1.md`), reports (`report-1197-rb1-full.md`), proof logs, `ci-1563-diag/`, and the helpers. Copy them with a fresh copy of `carry.sh` saved under a name the old scratchpad does not hold (for example `carry-next.sh`, because the loop copies every file and overwrote a running `carry-run.sh` mid-run), set its two session ids and the `prev-sleep-decisions` suffix, add `check-a check-b check-duo check-trio check-r1567 ci-1563-diag` to its directory list, run it, then `chmod +x` the scripts |
 | Throwaway AVD | `Orbit_Repro_Throwaway` still exists; delete it once no repro needs it |
-| Session chain | open; this session is its fifteenth relay entry |
+| Session chain | open; this session is its sixteenth relay entry |
 | Owner questions | none |
 
 Workers launched by a session die when it ends: read each worktree before relaunching.
@@ -90,17 +84,18 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's mobile review (the sweep's `#1186` to `#1197` merged and closed on both platforms, `DESIGN.md` corrected), a staging release and the next internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 135 open tickets, 135 placed, 0 unplaced, 0 placed twice (`#1184`, `#1196` and `#1200` closed this relay, none filed); each ticket has one placement line (other mentions are dependency notes or done lists).
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's mobile review (the sweep's `#1186` to `#1197` merged and closed on both platforms, `DESIGN.md` corrected), a staging release and the next internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 133 open tickets, 133 placed, 0 unplaced, 0 placed twice (`#1201` and `#1193` closed this relay, none filed); each ticket has one placement line (other mentions are dependency notes or done lists).
 
 ## Previous prompt, disposition
 
 - Opening reading list, Entry point, Sleep section, the authorization paragraph, Then 1 to 4, Goal and owner instructions 1 to 12: carried (all brain notes, `DESIGN.md`, `BRAND.md` and the canvas README were read this relay).
-- Priority 1, `ui#1564` and `ui#1555`: done: merged `e529b56d` and `79824162` on the rerun combined check `duo` (layout 1100 of 1100, tree equal to the merged tree); `#1184` and `#1196` closed.
-- Priority 1, `ui#1566`: done: body rewritten for both platforms, `parity:exempt` removed, pushed `f1e5b92c`, APPROVED, merged `c747d7d2` under D115; `#1200` closed.
-- Priority 1, `ui#1563`: done up to the push: full layout 1008 of 1008, proofs in the body, thread resolved, pushed `a44e500c`, APPROVED; the merge bar is carried.
-- Priority 1, `ui#1567`: done up to the merge: delivery read passed, APPROVED, combined check green; the harness lines and the merge are carried.
-- Priority 2: done: `#1193` (`ui#1568`), `#1190` (`ui#1569`), `#1187` (`ui#1570`) and `#1197` (`ui#1571`) launched and delivered; `#1186` carried.
-- Priorities 3 to 6: carried.
+- Priority 1, `ui#1567`: done: harness lines read on check-a (test-tools 3,263 assertions, test-hooks OK), merged `9e5d1044`; `#1201` closed.
+- Priority 1, `ui#1568`: done: merged `0b100228` on check-a; `#1193` closed.
+- Priority 1, `ui#1569`: base-merge order sent with the pt-BR 320 red diagnosed (a spec race, two inserted lines, 30 of 30 green) and Pullfrog's P2 folded in; the delivered commits are carried unpushed.
+- Priority 1, `ui#1570`: body drafted; check-b green; CI layout rerun carried.
+- Priority 1, `ui#1571`: delivery and diff read done; review batch `ea22a2f6` delivered and proven; push carried.
+- Priority 1, `ui#1563`: carried with a new CI red (Linux root-bell pt-BR 320).
+- Priorities 2 to 6: carried.
 - In flight, scratch worktrees and stale worktrees: superseded by this prompt's In flight table.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
