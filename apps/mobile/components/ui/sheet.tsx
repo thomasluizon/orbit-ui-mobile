@@ -294,7 +294,7 @@ function createStyles(tokens: Tokens) {
       minHeight: 48,
       justifyContent: 'center',
       paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingVertical: 8,
       borderRadius: 12,
       overflow: 'hidden',
     },

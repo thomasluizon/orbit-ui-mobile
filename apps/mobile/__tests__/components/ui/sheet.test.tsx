@@ -96,6 +96,23 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
+  it.each([1, 2])('pads the typed title press fill at font scale %i', async (fontScale) => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Sheet title="Leitura" titleMode="typed" onClose={vi.fn()} />)
+    })
+    const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+    for (const pressed of [false, true]) {
+      const style = StyleSheet.flatten(heading.props.style({ pressed }))
+      expect(style.paddingVertical).toBeGreaterThanOrEqual(8)
+      expect(style.paddingHorizontal).toBeGreaterThanOrEqual(8)
+      expect(style.minHeight).toBe(48)
+    }
+    expect(heading.props.children.props.numberOfLines).toBe(2)
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   it.each(['typed', 'label'] as const)('limits a %s title and opens typed text with one press', async (titleMode) => {
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'

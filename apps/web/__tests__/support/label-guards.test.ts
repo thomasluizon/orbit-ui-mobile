@@ -3,6 +3,7 @@ import { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { Socket } from 'node:net'
 import { cloneElement, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { act, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -18,6 +19,8 @@ import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profil
 import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
+import { Sheet } from '@/components/ui/sheet'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitRowContent } from '@/components/habits/habit-row-content'
 import { EventRow } from '@/components/dates/event-row'
@@ -103,6 +106,41 @@ describe('label and interaction fill guards in Chromium', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    it.each([320, 600].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(
+      `keeps typed sheet title interaction fills padded at $width px and text scale $textScale in ${locale}`,
+      async ({ width, textScale }) => {
+        const title = locale === 'pt-BR' ? 'Leitura' : 'Reading'
+        const sheet = render(cloneElement(createElement(NextIntlClientProvider),
+          { locale, messages: words, timeZone: 'UTC' },
+          createElement(Sheet, { title, titleMode: 'typed', onClose: () => {} }),
+        ))
+        const page = await browser.newPage({ viewport: { width, height: 915 } })
+        try {
+          await act(async () => {})
+          const variables = Object.entries(resolveWebThemeVariables('orange', 'dark'))
+            .map(([name, value]) => `${name}: ${value};`).join(' ')
+          await page.setContent(`<!doctype html><style>${stylesheet}
+            :root { ${variables} font-size: ${16 * textScale}px; }
+          </style>${sheet.baseElement.innerHTML}`)
+          await loadAppFonts(page)
+          await page.evaluate(() => {
+            for (const animation of document.getAnimations()) animation.finish()
+          })
+          const trigger = page.getByRole('button', { name: title })
+          await expectInteractionFill(trigger)
+          const bounds = await trigger.boundingBox()
+          const closeBounds = await page.getByRole('button', { name: words.common.close }).boundingBox()
+          expect(bounds!.height).toBeGreaterThanOrEqual(48)
+          expect(closeBounds!.width).toBe(48)
+          expect(closeBounds!.height).toBeGreaterThanOrEqual(48)
+          expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(closeBounds!.x)
+        } finally {
+          await page.close()
+          sheet.unmount()
+        }
+      },
+    )
+
     it.each([
       { name: 'fitting', clipped: false },
       { name: 'clipped', clipped: true },
