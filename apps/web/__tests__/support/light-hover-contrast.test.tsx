@@ -52,11 +52,12 @@ describe('rendered light hover contrast', () => {
 
   it.each(['light', 'dark'].flatMap((mode) => ['hover', 'press'].map((phase) => ({ mode: mode as 'light' | 'dark', phase }))))('keeps the status dot $phase paint stack visible in $mode', async ({ mode, phase }) => {
     const { container, unmount } = render(<StatusDot state="empty" size={30} ariaLabel="Log habit" onToggle={() => {}} />)
-    const page = await browser.newPage({ viewport: { width: 600, height: 900 }, reducedMotion: 'reduce' })
+    const page = await browser.newPage({ viewport: { width: 600, height: 900 }, reducedMotion: 'reduce', hasTouch: phase === 'press' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)"><div style="background:var(--bg-card)">${container.innerHTML}</div></body></html>`)
       const button = page.getByRole('button', { name: 'Log habit' })
+      expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(phase === 'hover')
       const measure = () => button.evaluate((control) => {
         const dot = control.querySelector('span')!
         const parent = getComputedStyle(control)
