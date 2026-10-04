@@ -6,9 +6,10 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
+import { measureFieldInset } from './field-inset-geometry'
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
-  for (const width of [1024, 1352] as const) {
+  for (const width of [412, 1024, 1352] as const) {
     test.describe(`${locale} Astra panel composer at ${width}px`, () => {
       test.use({ viewport: { width, height: 915 } })
 
@@ -19,11 +20,16 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.goto('/')
         await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
 
-        const panel = page.locator('[data-shell-conversation="panel"]')
+        const panel = page.locator(`[data-shell-conversation="${width < 1024 ? 'overlay' : 'panel'}"]`)
         await expect(panel).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         const field = panel.locator('[data-composer-input]')
         await expect(field).toHaveAttribute('placeholder', messages.shell.composer.placeholder)
+
+        const inset = await field.evaluate(measureFieldInset)
+        expect(inset.paddingStart).toBe(8)
+        expect(inset.paddingEnd).toBe(8)
+        expect(inset.pillInset).toBeCloseTo(12, 1)
 
         const empty = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
@@ -127,7 +133,11 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const empty = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
           const style = getComputedStyle(input)
+          const context = document.createElement('canvas').getContext('2d')!
+          context.font = style.font
+          context.letterSpacing = style.letterSpacing
           return {
+            placeholderWidth: context.measureText(input.placeholder).width,
             pillHeight: input.parentElement!.getBoundingClientRect().height,
             controls: [...input.parentElement!.querySelectorAll('button')].map((button) => ({ top: button.getBoundingClientRect().top, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height })),
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
@@ -140,7 +150,11 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(empty.controls).toHaveLength(3)
         expect(new Set(empty.controls.map((control) => control.top)).size).toBe(1)
         for (const control of empty.controls) { expect(control.width).toBe(48); expect(control.height).toBe(48) }
-        expect(empty.contentWidth).toBeGreaterThanOrEqual(136)
+        expect(empty.contentWidth).toBeGreaterThanOrEqual(empty.placeholderWidth)
+        const inset = await field.evaluate(measureFieldInset)
+        expect(inset.paddingStart).toBe(8)
+        expect(inset.paddingEnd).toBe(8)
+        expect(inset.pillInset).toBeCloseTo(60, 1)
         expect(empty.scrollHeight).toBe(empty.clientHeight)
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
@@ -156,7 +170,12 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             right: input.getBoundingClientRect().right,
           }
         })
-        expect(typed.contentWidth).toBeGreaterThanOrEqual(136)
+        expect(typed.contentWidth).toBe(empty.contentWidth)
+        const wrapped = await field.evaluate(measureFieldInset)
+        if (width === 320) expect(wrapped.height).toBeGreaterThan(empty.clientHeight)
+        expect(wrapped.height).toBeLessThanOrEqual(5 * wrapped.lineHeight + 24)
+        expect(wrapped.scrollHeight).toBe(wrapped.height)
+        expect(wrapped.pillInset).toBeCloseTo(60, 1)
         expect(typed.whiteSpace).toBe('pre-wrap')
         expect(typed.wordBreak).toBe('normal')
         expect(typed.left).toBeGreaterThanOrEqual(0)

@@ -50,7 +50,7 @@ function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpen
 interface PillGeometry {
   pill: { left: number; right: number; height: number }
   documentWidth: number
-  input: { width: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
+  input: { width: number; contentWidth: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
   controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[]
 }
 
@@ -70,13 +70,13 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   if (measured.input) {
     expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136)
     if (fontScale === 1) {
-      expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.width)
+      expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.contentWidth)
     }
     if (scenario === 'longText') {
       expect(measured.input.height, evidence).toBe(measured.input.maximumHeight)
       expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
     } else if (scenario !== 'typing') {
-      if (measured.input.placeholderWidth > measured.input.width) expect(measured.pill.height, evidence).toBeGreaterThan(24 * fontScale + 32)
+      if (measured.input.placeholderWidth > measured.input.contentWidth) expect(measured.pill.height, evidence).toBeGreaterThan(24 * fontScale + 32)
       else expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
       expect(measured.input.scrollHeight, evidence).toBeLessThanOrEqual(measured.input.height)
     }
@@ -632,6 +632,7 @@ describe('Composer compact geometry in Chromium', () => {
             pill: { left: bounds.left, right: bounds.right, height: bounds.height },
             documentWidth: document.documentElement.scrollWidth,
             input: input ? { width: input.clientWidth, height: input.clientHeight, scrollHeight: input.scrollHeight,
+              contentWidth: input.clientWidth - parseFloat(getComputedStyle(input).paddingInlineStart) - parseFloat(getComputedStyle(input).paddingInlineEnd),
               maximumHeight: parseFloat(getComputedStyle(input).maxHeight), placeholderWidth: canvas.measureText(input.placeholder).width } : null,
             controls: [...pill.querySelectorAll('button')].map((button) => {
               const rectangle = button.getBoundingClientRect()
