@@ -4,7 +4,7 @@ Read `.claude/specs/orbit-prod-release.md` before anything else, then, through t
 
 ## Entry point
 
-`/sleep` is the only entry point. It enters `/orchestrate --sleep` itself; do not start `/orchestrate` separately. This is a context relay successor: `/sleep` adopts the predecessor's run with `adoptRelayRun`, keeps the admitted queue and ledger the run record carries, and starts its first wakeup with `run-status.mjs`.
+`/sleep` is the only entry point. It enters `/orchestrate --sleep` itself; do not start `/orchestrate` separately. This follows an owner handoff, not a relay nomination: `adoptRelayRun` returns false, so `/sleep` writes its own run state with `sleep: true`, keeps the admitted `remaining` queue, `pullRequests` and `readinessLedger` the run record carries, and starts its first wakeup with `run-status.mjs`.
 
 ## Priority: the owner's mobile review on Android and web
 
@@ -40,10 +40,10 @@ The owner found the redesign crowded and desktop-like on his phone. His answers 
 | Branches with no pull request | none new (old worktrees are in the spec's Worktrees paragraph); `ticket-1202-direct-open-back-reload` is merged: tear it down |
 | Detached HEADs | scratch worktrees under this session's scratchpad: `base` (`002da3bf`, web build), `mc-1203` (`3c90a7ee`, web build), `mc-1572m` (`ebf20cac`, a scratch merge, nothing unique). Move `base` and `mc-1203` into the new scratchpad with `git worktree move` and link each old path to the new one (`ln -s`); `rm -rf` `mc-1572m` by literal path, then `git worktree prune` |
 | Running workers | none (the drain finished) |
-| Waiters and local checks | `w1569` dies with this session; restart it and start one for `ui#1573` (`wait-loop.sh` with `--require-check pullfrog-approval`) |
+| Waiters and local checks | none live (`w1569` was stopped); start one for `ui#1569` and one for `ui#1573` (`wait-loop.sh` with `--require-check pullfrog-approval`) |
 | Ignored files | this session's scratchpad: `sleep-decisions.md` (copy unmodified as `prev-sleep-decisions-69aaa24c.md`), the older `prev-sleep-decisions-*.md`, notes, orders, reports (`report-1186-rb1.md`, `report-1203-rb1.md`), bodies, `review.sh`, `linuxprobe/` and the helpers. Copy them with a fresh copy of `carry-next4.sh` saved under a name the old scratchpad does not hold (for example `carry-next5.sh`), set its two session ids and the `prev-sleep-decisions` suffix, run it with `bash`, then `chmod +x` the scripts and fix any absolute old-session path inside `linuxprobe/*.py` and `linuxprobe/*.sh` |
 | Throwaway AVD | none |
-| Session chain | open; this session is its nineteenth relay entry |
+| Session chain | closed by this owner handoff; the next session starts a new chain |
 | Owner questions | none |
 
 Workers launched by a session die when it ends: read each worktree before relaunching.
