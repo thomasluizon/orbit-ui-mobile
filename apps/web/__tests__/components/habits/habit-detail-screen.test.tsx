@@ -26,6 +26,7 @@ import { RouteContext } from '@/components/navigation/route-context'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/habits/habit-1',
@@ -305,10 +306,38 @@ describe('HabitDetailScreen', () => {
     expect(headings[0]).toHaveTextContent(mocks.detail!.title)
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
+    expect(headings[0]).not.toHaveFocus()
     expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
+  })
+
+  it.each([false, true])('leaves focus on the document after a direct load with delayed data=%s', async (delayed) => {
+    mocks.detailLoading = delayed
+    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(document.body).toHaveFocus()
+    mocks.detailLoading = false
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).not.toHaveFocus()
+    expect(document.body).toHaveFocus()
+  })
+
+  it.each([false, true])('focuses the habit title after client navigation with delayed data=%s', async (delayed) => {
+    mocks.pathname = '/'
+    const view = render(<RouteContext><DestinationShell onCreate={() => {}}><h1>Today</h1><button type="button">Open habit</button></DestinationShell></RouteContext>)
+    screen.getByRole('button', { name: 'Open habit' }).focus()
+    mocks.pathname = '/habits/habit-1'
+    mocks.detailLoading = delayed
+    view.rerender(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" fromToday /></DestinationShell></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    mocks.detailLoading = false
+    view.rerender(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" fromToday /></DestinationShell></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
   beforeEach(() => {
     mocks.pathname = '/habits/habit-1'
@@ -668,12 +697,12 @@ describe('HabitDetailScreen', () => {
 
   it('moves focus from the fallback heading to the habit heading when data arrives', () => {
     mocks.detailLoading = true
-    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    const view = render(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell></RouteContext>)
     const fallback = screen.getByRole('heading', { level: 1 })
     expect(document.title).toBe('habits.detail.screenTitle · Orbit')
     fallback.focus()
     mocks.detailLoading = false
-    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    view.rerender(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell></RouteContext>)
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
@@ -1852,6 +1881,34 @@ describe('HabitDetailScreen', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([
+      [320, 'dark'], [412, 'dark'], [1280, 'dark'],
+      [320, 'light'], [412, 'light'], [1280, 'light'],
+    ] as const)('keeps the focused title indicator inside its bounds at %ipx in %s mode', async (width, mode) => {
+      vi.useRealTimers()
+      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
+        await page.setContent(`<style>${stylesheet}:root { ${variables} } body { background: var(--bg); }</style>${container.innerHTML}`)
+        const title = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
+        await page.keyboard.press('Tab')
+        await title.focus()
+        const indicator = await title.evaluate((element) => {
+          const style = getComputedStyle(element)
+          const bounds = element.getBoundingClientRect()
+          const summary = element.nextElementSibling!.getBoundingClientRect()
+          const outerEdge = parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth)
+          return {
+            visible: element.matches(':focus-visible') && style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) >= 2,
+            contained: outerEdge <= 0,
+            clearOfSummary: bounds.bottom + outerEdge < summary.top,
+          }
+        })
+        expect(indicator).toEqual({ visible: true, contained: true, clearOfSummary: true })
+      } finally { await page.close() }
+    })
 
     it.each([
       [412, 'leaf'],
