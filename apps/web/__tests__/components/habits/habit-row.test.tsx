@@ -90,7 +90,7 @@ describe('HabitRow overflow menus', () => {
     expect(screen.queryByRole('menuitem', { name: 'habits.actions.openSubHabits' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: 'common.select' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'habits.actions.addSubHabit' })).not.toHaveTextContent('Pro')
-    expect(screen.getByText('Read', { selector: '.orbit-sheet-title' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Read' })).toBeInTheDocument()
   })
 
   it('removes the menu while selecting rows', () => {
