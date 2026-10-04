@@ -50,7 +50,7 @@ describe('rendered light hover contrast', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(['light', 'dark'] as const)('keeps the status dot paint stack visible in %s', async (mode) => {
+  it.each(['light', 'dark'].flatMap((mode) => ['hover', 'press'].map((phase) => ({ mode: mode as 'light' | 'dark', phase }))))('keeps the status dot $phase paint stack visible in $mode', async ({ mode, phase }) => {
     const { container, unmount } = render(<StatusDot state="empty" size={30} ariaLabel="Log habit" onToggle={() => {}} />)
     const page = await browser.newPage({ viewport: { width: 600, height: 900 }, reducedMotion: 'reduce' })
     try {
@@ -70,8 +70,8 @@ describe('rendered light hover contrast', () => {
       expect(bounds!.height).toBeGreaterThanOrEqual(48)
       await button.hover()
       await page.waitForTimeout(300)
-      for (const pressed of [false, true]) {
-        if (pressed) { await page.mouse.down(); await page.waitForTimeout(300) }
+      if (phase === 'press') { await page.mouse.down(); await page.waitForTimeout(300) }
+      {
         const painted = await measure()
         const measured = controlContrast(painted.color, painted.fill, [neutralColors[mode].bg, neutralColors[mode].bgCard], painted.opacity, painted.graphicOpacity)
         expect(painted.color).toBe(resting.color)

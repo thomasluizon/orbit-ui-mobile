@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useMemo, useState } from 'react'
@@ -53,6 +54,7 @@ export function ChecklistTemplates({
   items,
   onLoad,
 }: Readonly<ChecklistTemplatesProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -142,7 +144,7 @@ export function ChecklistTemplates({
             style={({ pressed }) => [
               styles.saveButton,
               (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
-              pressed ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: 0.96 }] } : null,
+              pressed ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
             ]}
             onPress={handleSave}
             disabled={!templateName.trim() || createTemplate.isPending}
@@ -155,7 +157,7 @@ export function ChecklistTemplates({
           <Pressable
             style={({ pressed }) => [
               styles.closeButton,
-              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
+              pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
             ]}
             onPress={() => {
               setTemplateName('')

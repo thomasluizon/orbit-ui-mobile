@@ -56,7 +56,7 @@ describe('completion control paint stack', () => {
             const parent = style(props().style)
             const trackStyle = style(track().props.style)
             expect(trackStyle.borderColor).toBe(color)
-            for (const surface of [tokens.bg, tokens.bgCard]) {
+            for (const surface of [tokens.bgCard, tokens.bg]) {
               const measured = controlContrast(color, parent.backgroundColor === 'transparent' || !parent.backgroundColor ? 'rgba(0,0,0,0)' : String(parent.backgroundColor), [tokens.bg, surface], Number(parent.opacity ?? 1), Number(trackStyle.opacity ?? 1))
               expect(measured.graphic).toBeGreaterThanOrEqual(3)
               if (pressed) expect(measured.step).toBeGreaterThanOrEqual(1.25)

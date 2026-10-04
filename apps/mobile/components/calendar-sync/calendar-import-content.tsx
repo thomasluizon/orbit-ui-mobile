@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { PressFill } from '@/components/ui/press-fill'
 import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
 
@@ -92,6 +93,7 @@ interface ImportResult {
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const router = useRouter()
   const isReviewMode = reviewMode
   const { t, i18n } = useTranslation()
@@ -543,7 +545,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                       style={({ pressed }) => [
                         styles.quietAction,
                         chipTint,
-                        pressed && { transform: [{ scale: 0.96 }] },
+                        pressed && { transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
                       ]}
                     >{({ pressed }) => <>
                       <PressFill pressed={pressed} color={tokens.bgHoverOpaque} />

@@ -3,6 +3,7 @@ import { Pressable, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
@@ -17,6 +18,7 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
 ) {
   const [pressed, setPressed] = useState(false)
   const [focused, setFocused] = useState(false)
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
 
@@ -32,8 +34,8 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
         typeof style === 'function' ? style({ pressed }) : style,
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {
-          transform: [{ scale: pressed || active ? 0.96 : 1 }],
-          transition: 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 240ms cubic-bezier(0.2, 0, 0, 1)',
+          transform: [{ scale: !prefersReducedMotion && (pressed || active) ? 0.96 : 1 }],
+          transition: prefersReducedMotion ? 'none' : 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 240ms cubic-bezier(0.2, 0, 0, 1)',
         },
       ]}
     >

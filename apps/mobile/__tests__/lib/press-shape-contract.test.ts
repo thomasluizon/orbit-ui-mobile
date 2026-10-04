@@ -323,7 +323,9 @@ function pressOpacity(expression: ts.Expression, source: ParsedSource, seen = ne
   if (ts.isParenthesizedExpression(expression)) return pressOpacity(expression.expression, source, seen)
   if (ts.isConditionalExpression(expression)) {
     const condition = expression.condition.getText()
-    const branch = /disabled/i.test(condition) ? expression.whenFalse : condition === '!pressed' ? expression.whenFalse : expression.whenTrue
+    const enabledBranch = /^!/.test(condition) ? expression.whenTrue : expression.whenFalse
+    const pressedBranch = condition === '!pressed' ? expression.whenFalse : expression.whenTrue
+    const branch = /disabled/i.test(condition) ? enabledBranch : pressedBranch
     return pressOpacity(branch, source, seen)
   }
   if (ts.isIdentifier(expression)) {
@@ -389,6 +391,7 @@ describe('mobile press shapes', () => {
   it.each([
     `{ opacity: pressed ? 0.85 : 1 }`,
     `{ opacity: disabled ? 0.4 : pressed ? 0.85 : 1 }`,
+    `{ opacity: !disabled ? pressed ? 0.85 : 1 : 0.4 }`,
     `pressed && { opacity: 0.7 }`,
     `styles.pressed`,
   ])('rejects enabled content dimming: %s', (body) => {

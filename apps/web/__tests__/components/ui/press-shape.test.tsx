@@ -206,7 +206,7 @@ describe('interaction fill parity in Chromium', () => {
 
 function dimmingClasses(contents: string): string[] {
   return [...contents.matchAll(/[\w:[\]&()/.-]*(?:hover|active)[\w:[\]&()/.-]*:opacity-(\d+(?:\.\d+)?|\[[\d.]+\])/g)]
-    .filter(([className, value]) => !className.includes('disabled') && (value!.startsWith('[') ? Number(value!.slice(1, -1)) < 1 : Number(value) < 100))
+    .filter(([className, value]) => !className.replaceAll('not-disabled', 'enabled').replaceAll('not(:disabled)', 'enabled').includes('disabled') && (value!.startsWith('[') ? Number(value!.slice(1, -1)) < 1 : Number(value) < 100))
     .map(([className]) => className)
 }
 
@@ -218,7 +218,7 @@ function controlSources(directory: string): string[] {
 }
 
 describe('enabled web control feedback', () => {
-  it.each(['hover:opacity-80', 'enabled:active:opacity-85', 'group-hover:opacity-80', 'group-active:opacity-70', 'md:[&_button:enabled:active]:opacity-85', 'hover:opacity-[0.8]'])('rejects content dimming in %s', (className) => {
+  it.each(['hover:opacity-80', 'enabled:active:opacity-85', 'group-hover:opacity-80', 'group-active:opacity-70', 'md:[&_button:enabled:active]:opacity-85', 'hover:opacity-[0.8]', 'not-disabled:hover:opacity-80', '[&:not(:disabled):hover]:opacity-80'])('rejects content dimming in %s', (className) => {
     expect(dimmingClasses(className)).toEqual([className])
   })
 
@@ -232,7 +232,7 @@ describe('enabled web control feedback', () => {
     expect(failures).toEqual([])
     const failuresInCss: string[] = []
     postcss.parse(readFileSync(resolve('app/globals.css'), 'utf8')).walkRules((rule) => {
-      if (!/:(hover|active)\b/.test(rule.selector) || /:disabled/.test(rule.selector)) return
+      if (!/:(hover|active)\b/.test(rule.selector) || /:disabled/.test(rule.selector.replaceAll(':not(:disabled)', ':enabled'))) return
       rule.walkDecls('opacity', (declaration) => { if (Number(declaration.value) < 1) failuresInCss.push(`${rule.selector}: ${declaration.value}`) })
     })
     expect(failuresInCss).toEqual([])

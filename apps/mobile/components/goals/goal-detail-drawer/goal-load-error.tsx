@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { createStyles } from './styles'
@@ -12,6 +13,7 @@ interface GoalLoadErrorProps {
 /** Detail-fetch failure notice with a retry affordance; the drawer keeps
  *  rendering the cached list data underneath. */
 export function GoalLoadError({ onRetry, styles }: Readonly<GoalLoadErrorProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
 
   return (
@@ -23,7 +25,7 @@ export function GoalLoadError({ onRetry, styles }: Readonly<GoalLoadErrorProps>)
         accessibilityLabel={t('common.retry')}
         style={({ pressed }) => [
           styles.retryButton,
-          pressed ? styles.retryButtonPressed : null,
+          pressed ? [styles.retryButtonPressed, !prefersReducedMotion && { transform: [{ scale: 0.96 }] }] : null,
         ]}
       >
         <Text style={styles.retryText}>{t('common.retry')}</Text>

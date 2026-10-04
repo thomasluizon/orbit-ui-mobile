@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native'
@@ -125,6 +126,7 @@ function ReminderReadout({ habit, tokens }: Readonly<{ habit: NormalizedHabit; t
 }
 
 function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; tokens: ReturnType<typeof createTokensV2> }>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   const openConversation = () => {
     prepareChatRequest(useChatStore.getState(), {
@@ -136,7 +138,7 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
   }
   return (
     // eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Detail line 176 controls this label under D42.
-    <Pressable accessibilityRole="button" accessibilityLabel={t('habits.detail.askAstra')} onPress={openConversation} style={({ pressed }) => [styles.astraRow, pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }]}><View style={styles.astraGlyph} accessible={false}><AstraGlyph size={20} color={tokens.fg1} /></View><Text numberOfLines={1} style={[styles.astraLabel, { color: tokens.fg1 }]}>{t('habits.detail.askAstra')}</Text><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={t('habits.detail.askAstra')} onPress={openConversation} style={({ pressed }) => [styles.astraRow, pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] }]}><View style={styles.astraGlyph} accessible={false}><AstraGlyph size={20} color={tokens.fg1} /></View><Text numberOfLines={1} style={[styles.astraLabel, { color: tokens.fg1 }]}>{t('habits.detail.askAstra')}</Text><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></Pressable>
   )
 }
 

@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { PressFill } from '@/components/ui/press-fill'
 import { TOUCH_TARGET_MIN, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useMemo, useCallback } from 'react'
@@ -139,6 +140,7 @@ function DatePickerBody({
   tokens,
   styles,
 }: Readonly<DatePickerBodyProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   if (pickerMode === 'years') {
     return (
       <YearPicker
@@ -172,7 +174,7 @@ function DatePickerBody({
                 key={day.toISOString()}
                 style={({ pressed }) => [
                   styles.dayTarget,
-                  pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null,
+                  pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
                 ]}
                 onPress={() => onSelectDay(day)}
                 accessibilityRole="button"
@@ -215,6 +217,7 @@ export function DateField({
   placeholder,
   label,
 }: Readonly<DateFieldProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -312,7 +315,7 @@ export function DateField({
       <Pressable
         style={({ pressed }) => [
           styles.trigger,
-          pressed ? { transform: [{ scale: 0.96 }] } : null,
+          pressed ? { transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
         ]}
         onPress={openPicker}
         accessibilityLabel={

@@ -63,7 +63,7 @@ export function ExpiryWarning() {
         </span>
         <button
           type="button"
-          className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer rounded-full overflow-hidden transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]"
+          className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer rounded-full overflow-hidden transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96]"
           onClick={handleSignIn}
           style={EXPIRY_ACTION_STYLE}
         >

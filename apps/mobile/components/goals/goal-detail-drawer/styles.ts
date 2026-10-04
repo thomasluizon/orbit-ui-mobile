@@ -17,7 +17,6 @@ export function createStyles(tokens: AppTokens) {
     },
     retryButtonPressed: {
       backgroundColor: tokens.bgHover,
-      transform: [{ scale: 0.96 }],
     },
     retryText: {
       fontFamily: 'Geist_500Medium',

@@ -70,7 +70,7 @@ export function CheckCircle({
           justifyContent: 'center',
           backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
           opacity: disabled ? 0.4 : 1,
-          transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
+          transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
         }
       }}
     >

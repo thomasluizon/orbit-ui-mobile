@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Pressable, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
@@ -32,6 +33,7 @@ export function StatusDot({
   accessibilityLabel,
   disabled = false,
 }: Readonly<StatusDotProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isFilled = state === 'done' || state === 'skip' || state === 'frozen'
@@ -84,7 +86,7 @@ export function StatusDot({
           backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
-          transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
+          transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
           opacity: disabled ? 0.4 : 1,
         }
       }}

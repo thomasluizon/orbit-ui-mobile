@@ -25,7 +25,7 @@ describe('StatusDot', () => {
     expect(button).toHaveStyle('--status-dot-press-scale: 0.96')
     expect(button).toHaveStyle('--status-dot-press-duration: 150ms')
     expect(button).toHaveClass(
-      'enabled:active:scale-[var(--status-dot-press-scale)]',
+      'motion-safe:enabled:active:scale-[var(--status-dot-press-scale)]',
     )
   })
 
