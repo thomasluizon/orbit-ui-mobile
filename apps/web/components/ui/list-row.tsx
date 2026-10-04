@@ -30,7 +30,7 @@ function getActionStyle(compact: boolean, inset: boolean, compactForm: boolean, 
 }
 
 function descriptionClass(textMode: WebListRowProps['textMode'], wrapTitle: WebListRowProps['wrapTitle']) {
-  if (textMode === 'personal') return 'line-clamp-2 break-all'
+  if (textMode === 'personal') return 'line-clamp-2 wrap-anywhere'
   return wrapTitle ? 'break-words' : undefined
 }
 
@@ -45,7 +45,7 @@ function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebLis
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description, value, readOnly }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly'>>) {
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return <span className="flex min-w-0 flex-1 flex-col" style={{ ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
-    <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 break-all' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</span>
+    <span data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? 'line-clamp-2 wrap-anywhere' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</span>
     {description ? <span className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.75rem' : 14, lineHeight: 1.4 }}>{description}</span> : null}
   </span>
 }

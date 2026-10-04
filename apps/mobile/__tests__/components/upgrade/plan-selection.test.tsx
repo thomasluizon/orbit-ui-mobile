@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { Easing, ReduceMotion } from 'react-native-reanimated'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -148,6 +149,31 @@ describe('PlanSelection (mobile)', () => {
     motionMocks.fadeInDuration.mockClear()
     motionMocks.fadeOutDuration.mockClear()
     vi.mocked(Easing.bezier).mockClear()
+  })
+
+  it.each([
+    { plans, isLoading: false, isError: false },
+    { plans: null, isLoading: true, isError: false },
+    { plans: null, isLoading: false, isError: true },
+  ])('stretches equal period segments across the content column in every plan state: %j', (state) => {
+    const tree = renderSelection('yearly', state)
+    const group = tree.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.accessibilityRole === 'radiogroup',
+    )[0]
+    expect(StyleSheet.flatten(group.props.style)).toEqual(expect.objectContaining({
+      alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 0,
+    }))
+    const segments = tree.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'Pressable' && node.props.accessibilityRole === 'radio',
+    )
+    expect(segments).toHaveLength(2)
+    for (const segment of segments) {
+      expect(StyleSheet.flatten(segment.props.style)).toEqual(expect.objectContaining({
+        width: '50%', minHeight: 48,
+      }))
+    }
   })
 
   it('leads with annual and gives it the only filled action', () => {

@@ -13,7 +13,7 @@ import { CalendarLegend } from './calendar-shell'
 export function CalendarOptions({ tokens, onGoogleCalendar }: Readonly<{ tokens: AppTokensV2; onGoogleCalendar?: () => void }>) {
   const { t } = useTranslation()
   const styles = StyleSheet.create({
-    iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.bgField },
+    iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
     pressed: { backgroundColor: tokens.bgHover },
   })
   const menu = useAnchoredMenu()

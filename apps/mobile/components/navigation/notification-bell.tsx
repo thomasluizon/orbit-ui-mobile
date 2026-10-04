@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -21,6 +22,8 @@ export function NotificationBell() {
 }
 
 export function NotificationBellDisplay({ count, onPress }: { count: number; onPress?: () => void }) {
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -35,7 +38,9 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
   </View> : null
   return onPress ? <View style={styles.bellDisplay}>
       <Pressable accessibilityRole="button" accessibilityLabel={label}
-        style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}
+        onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        style={({ pressed }) => [styles.bellButton, (pressed || hovered || focused) && { backgroundColor: tokens.bgHover }]}
         onPress={onPress}>{glyph}</Pressable>
       {marker}
     </View>
