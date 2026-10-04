@@ -1401,7 +1401,7 @@ describe('HabitDetailScreen', () => {
 
     TestRenderer.act(() => press('habits.form.reminderAdd'))
     TestRenderer.act(() => press('habits.form.reminderCustom'))
-    const custom = () => tree.root.findByProps({ placeholder: 'habits.form.reminderCustomPlaceholder' })
+    const custom = () => tree.root.findByProps({ accessibilityLabel: 'habits.form.reminderCustomLabel' })
     TestRenderer.act(() => custom().props.onChangeText('0'))
     TestRenderer.act(() => tree.root.findByProps({ label: 'common.add' }).props.onClick())
     expect(mocks.update).toHaveBeenCalledTimes(2)

@@ -1263,7 +1263,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 
 ### Forms
 
-- **A placeholder is never a field's only label.** Every input carries a visible, persistent label; the placeholder carries the format example. Label and control share one hit target.
+- **A placeholder is never a field's only label.** Every input carries a visible, persistent label; the placeholder carries the format example. Label and control share one hit target. The drawings sanction three fields without a visible label: the composer, search fields and inline add rows. Each carries a placeholder that says what to do and an accessible name with the same words. Disabled composer states carry their reason above the pill and omit a state placeholder when it does not fit the text slot.
 - **Style a native input's placeholder with `::placeholder`.** Never simulate one with a positioned span.
 - **A field's error is linked with `aria-describedby`, the field carries `aria-invalid`, and required state is announced.** Errors render inline beside the field with an icon or text, never a red border alone. On submit, focus the first invalid field.
 - **Accept free text and validate after.** Never block typing or filter characters as the user types. Trim before validating.

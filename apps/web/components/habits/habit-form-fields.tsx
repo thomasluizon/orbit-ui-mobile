@@ -534,7 +534,6 @@ export function HabitFormFields({
                 label={t('habits.form.description')}
                 value={description}
                 onChange={(value) => setValue('description', value, { shouldDirty: true })}
-                placeholder={t('habits.form.descriptionPlaceholder')}
                 multiline
                 rows={3}
                 maxLength={10000}

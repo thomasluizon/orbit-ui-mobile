@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -64,6 +65,49 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         }
       })
     })
+  }
+}
+
+for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
+  for (const width of [320, 360, 384, 412, 600] as const) {
+    for (const state of ['idle', 'offline', 'atLimit'] as const) {
+      test(`${locale} compact ${state} placeholder fits or is absent at ${width}px`, async ({ page, context }) => {
+        await page.setViewportSize({ width, height: 915 })
+        await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+        const profile = profileSchema.parse({ ...profileFixture, language: locale,
+          aiMessagesUsed: state === 'atLimit' ? profileFixture.aiMessagesLimit : 0 })
+        await setLayoutProfileSession(context, profile)
+        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, route => route.fulfill({ json: profile }))
+        await page.goto('/')
+        const composer = page.locator('[data-shell-bottom] [data-composer-root]')
+        await expect(composer).toHaveAttribute('data-state', state === 'offline' ? 'idle' : state)
+        if (state === 'offline') await context.setOffline(true)
+        await expect(composer).toHaveAttribute('data-state', state)
+        await page.evaluate(() => document.fonts.ready)
+        const field = composer.locator('[data-composer-input]')
+        const expected = state === 'offline' ? messages.shell.composer.offline.placeholder
+          : state === 'atLimit' ? messages.shell.composer.limit.placeholder : messages.shell.composer.placeholder
+        await expect.poll(async () => {
+          const value = await field.getAttribute('placeholder')
+          return value === expected || (state !== 'idle' && value === '')
+        }).toBe(true)
+        const measurement = await field.evaluate(element => {
+          const input = element as HTMLTextAreaElement
+          const style = getComputedStyle(input)
+          const context = document.createElement('canvas').getContext('2d')!
+          context.font = style.font
+          context.letterSpacing = style.letterSpacing
+          return { textWidth: context.measureText(input.placeholder).width,
+            contentWidth: input.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd) }
+        })
+        expect(measurement.textWidth).toBeLessThanOrEqual(measurement.contentWidth)
+        if (state !== 'idle') {
+          await expect(field).toBeDisabled()
+          await expect(composer).toContainText(state === 'offline' ? messages.shell.composer.offline.reason
+            : messages.shell.composer.limit.reason.replace('{allowance}', String(profile.aiMessagesLimit)))
+        }
+      })
+    }
   }
 }
 

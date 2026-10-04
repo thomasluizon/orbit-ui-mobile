@@ -134,9 +134,28 @@ describe('shared i18n exports', () => {
   })
 })
 
+function isInstructionOrFormatExample(value: string): boolean {
+  return value.trim().split(/\s+/).length >= 2
+    || /\d|^HH:MM$|^(?:e\.g\.|ex[.:])|^\S+@\S+\.\S+$/.test(value)
+    || value === 'ORBIT'
+}
+
 describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
+
+  it.each([['en', enFlat], ['pt-BR', ptFlat]])('uses instructions or format examples for every %s placeholder', (_locale, catalog) => {
+    const violations = [...catalog].filter(([key, value]) => /placeholder$/i.test(key) && !isInstructionOrFormatExample(value))
+    expect(violations).toEqual([])
+  })
+
+  it('rejects a bare assistant name as a placeholder', () => {
+    expect(isInstructionOrFormatExample('Astra')).toBe(false)
+  })
+
+  it.each([en, ptBR])('keeps the idle composer words in its accessible name', (catalog) => {
+    expect(catalog.shell.composer.inputLabel).toBe(catalog.shell.composer.placeholder)
+  })
 
   it('keeps internal habit type names out of rendered copy', () => {
     const otherMeanings = new Set([
