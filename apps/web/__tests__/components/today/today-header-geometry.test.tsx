@@ -105,9 +105,16 @@ describe('Hoje header geometry', () => {
           await page.mouse.move(width - 1, 914)
           await expect.poll(async () => (await measure()).background).toBe(fill)
           await page.mouse.up()
-          await control.focus()
-          await page.keyboard.press('Shift+Tab')
+          await control.evaluate((element) => {
+            const start = document.createElement('span')
+            start.tabIndex = 0
+            start.style.position = 'absolute'
+            element.before(start)
+            start.focus()
+          })
           await page.keyboard.press('Tab')
+          expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
+          await control.evaluate((element) => element.previousElementSibling?.remove())
           if ((await control.getAttribute('aria-label'))?.startsWith(messages.notifications.bell)) {
             await expect.poll(async () => (await measure()).background).toBe(fill)
             expect(await control.evaluate((element) => Number.parseFloat(getComputedStyle(element).outlineWidth))).toBeGreaterThanOrEqual(2)
