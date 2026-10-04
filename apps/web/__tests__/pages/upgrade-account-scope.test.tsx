@@ -404,12 +404,10 @@ describe('UpgradePage across an account change', () => {
     fireEvent.click(checkoutButton())
 
     await waitFor(() => expect(vi.mocked(globalThis.fetch)).toHaveBeenCalled())
-    expect(vi.mocked(globalThis.fetch).mock.calls[0]?.[1]).toMatchObject({
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Orbit-Held-Account-Id': 'user-1',
-      },
-    })
+    const headers = new Headers(vi.mocked(globalThis.fetch).mock.calls[0]?.[1]?.headers)
+    expect(headers.get('Content-Type')).toBe('application/json')
+    expect(headers.get('X-Orbit-Held-Account-Id')).toBe('user-1')
+    expect(headers.get('Accept-Language')).toBe('en')
   })
 
   it('never shows the next account a failure from the previous account checkout', async () => {

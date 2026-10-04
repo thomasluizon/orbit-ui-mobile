@@ -1,3 +1,4 @@
+vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
 import { createApiClientError } from '@orbit/shared'
@@ -68,7 +69,7 @@ describe('sign-out through the real notifications action wrapper', () => {
     await settleWithin(signedOut)
     expect(await settleWithin(followingCookieOperation)).toBe('cookies available')
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
-    expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
     expect(subscription.unsubscribe).toHaveBeenCalledOnce()
   })
 

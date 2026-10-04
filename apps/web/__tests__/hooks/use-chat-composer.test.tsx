@@ -482,9 +482,7 @@ describe('web useChatComposer streaming send', () => {
 
     await act(async () => { await result.current.sendMessage('hello') })
 
-    expect(mocks.fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
-      'X-Orbit-Held-Account-Id': 'account-a',
-    })
+    expect(new Headers(mocks.fetch.mock.calls[0]?.[1]?.headers).get('X-Orbit-Held-Account-Id')).toBe('account-a')
   })
 
   it('finishes a held write without appending another message', async () => {
@@ -1053,10 +1051,10 @@ describe('web useChatComposer streaming send', () => {
 
   it('submits a pasted image with nonblank text through the rendered composer', async () => {
     const pastedImage = new File(['image'], 'pasted.jpg', { type: 'image/jpeg' })
-    vi.stubGlobal('URL', {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:pasted-image'),
       revokeObjectURL: vi.fn(),
-    })
+    }))
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
 
     function ComposerHarness() {
@@ -1166,10 +1164,10 @@ describe('web useChatComposer streaming send', () => {
   })
 
   it('removes text-file and image attachments independently by id', async () => {
-    vi.stubGlobal('URL', {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:selected-image'),
       revokeObjectURL: vi.fn(),
-    })
+    }))
     const textAttachment = textFile('notes.txt', 'Walk')
     const image = new File(['image'], 'walk.png', { type: 'image/png' })
     const { result } = renderHook(() => useChatComposer())
@@ -1193,10 +1191,10 @@ describe('web useChatComposer streaming send', () => {
   })
 
   it('allows a file-only send and blocks an image-only send', async () => {
-    vi.stubGlobal('URL', {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:selected-image'),
       revokeObjectURL: vi.fn(),
-    })
+    }))
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
     const { result } = renderHook(() => useChatComposer())
 

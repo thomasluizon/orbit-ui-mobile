@@ -124,7 +124,7 @@ describe('Google code callback', () => {
     fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
     render(<AuthCallbackPage />)
     if (query.includes('state=')) {
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code?state=oauth-state', { method: 'DELETE' })
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google/code?state=oauth-state', { method: 'DELETE', headers: expect.any(Headers) })
     } else {
       expect(fetchMock).not.toHaveBeenCalled()
     }

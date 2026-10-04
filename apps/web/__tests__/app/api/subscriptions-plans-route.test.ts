@@ -61,7 +61,7 @@ describe('subscriptions plans route', () => {
           'X-Forwarded-For': '177.10.20.30',
           'X-Real-IP': '198.51.100.5',
           'CloudFront-Viewer-Country': 'BR',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Accept-Language': 'pt-BR',
           'X-Orbit-Time-Zone': 'America/Sao_Paulo',
         },
       }),

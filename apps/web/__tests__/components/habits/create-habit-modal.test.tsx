@@ -113,6 +113,7 @@ vi.mock('@/hooks/use-habit-suggestion', () => ({
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    reportBackendErrors: vi.fn(() => false),
     form: {
       reset: mockFormReset,
       setValue: mockFormSetValue,

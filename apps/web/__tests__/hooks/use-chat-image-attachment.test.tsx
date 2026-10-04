@@ -62,10 +62,10 @@ describe('useChatImageAttachment', () => {
   beforeEach(() => {
     sessionFetch.mockReset()
     vi.stubGlobal('fetch', sessionFetch)
-    vi.stubGlobal('URL', {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-1'),
       revokeObjectURL: vi.fn(),
-    })
+    }))
   })
 
   afterEach(() => {
@@ -129,10 +129,10 @@ describe('useChatImageAttachment', () => {
 
   it('revokes the preview URL when the image is removed', () => {
     const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-2'),
       revokeObjectURL,
-    })
+    }))
     const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
 
     act(() => {
@@ -168,10 +168,10 @@ describe('useChatImageAttachment', () => {
 
   it('keeps the image when the same account recovers from a rejected refresh', async () => {
     const revokeObjectURL = vi.fn()
-    vi.stubGlobal('URL', {
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
       createObjectURL: vi.fn(() => 'blob:preview-3'),
       revokeObjectURL,
-    })
+    }))
     signInAs('user-1')
     const { result } = renderHook(() => useChatImageAttachment(vi.fn()))
     act(() => {

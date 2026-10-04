@@ -111,9 +111,7 @@ describe('useSpeechToText', () => {
       await act(async () => { result.current.stopRecording() })
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-      expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
-        'X-Orbit-Held-Account-Id': 'account-a',
-      })
+      expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get('X-Orbit-Held-Account-Id')).toBe('account-a')
     })
 
     it('does not send a recording after the account changes', async () => {
