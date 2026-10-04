@@ -68,6 +68,7 @@ function TodayDayTransition({
   return (
     <m.div
       data-today-day-transition=""
+      className="flex min-w-0 flex-col gap-6"
       style={{ opacity, y: translateY }}
     >
       {children}
@@ -90,12 +91,14 @@ export function TodayPageClient({
   if (!profile) {
     return isError
       ? <><h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
-      : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-4 p-4">
+      : <div role="status" aria-busy="true" aria-label={t('profile.loading')} className="mx-auto flex w-full max-w-[740px] flex-col gap-6 p-4">
           <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
           <Skeleton variant="settings" grouped />
-          <Skeleton variant="habit-row" grouped />
-          <Skeleton variant="habit-row" grouped />
-          <Skeleton variant="habit-row" grouped />
+          <div className="flex min-w-0 flex-col gap-4">
+            <Skeleton variant="habit-row" grouped />
+            <Skeleton variant="habit-row" grouped />
+            <Skeleton variant="habit-row" grouped />
+          </div>
         </div>
   }
   return <TodayPageContent initialToday={initialToday} initialHabits={initialHabits} preloadedProfile={preloadedProfile} />

@@ -56,9 +56,11 @@ export default function TodayScreen() {
       ? <><ScreenReaderHeading title={t('nav.today')} /><ErrorState message={t('common.error')} action={<PillButton variant="secondary" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /></>
       : <><ScreenReaderHeading title={t('nav.today')} /><View style={[styles.screen, styles.profileLoading]} accessible accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} accessibilityState={{ busy: true }}>
           <Skeleton variant="settings" grouped />
-          <Skeleton variant="habit-row" grouped />
-          <Skeleton variant="habit-row" grouped />
-          <Skeleton variant="habit-row" grouped />
+          <View style={styles.profileLoadingHabits}>
+            <Skeleton variant="habit-row" grouped />
+            <Skeleton variant="habit-row" grouped />
+            <Skeleton variant="habit-row" grouped />
+          </View>
         </View></>
   }
   return <TodayScreenContent />
@@ -314,7 +316,8 @@ function TodayScreenContent() {
 
 const styles = StyleSheet.create({
   screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
-  profileLoading: { gap: 16, padding: 16 },
+  profileLoading: { gap: 24, padding: 16 },
+  profileLoadingHabits: { gap: 16 },
   listBand: { flex: 1 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },
