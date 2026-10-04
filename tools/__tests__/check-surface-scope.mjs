@@ -3,7 +3,8 @@ import { dirname, join } from "node:path"
 
 import { T, check, root, toolPath } from "./_harness.mjs"
 
-const declarations = `# Design\n\n<!-- surface-scope:start -->\n| on | role | scope | canvas | card | field | well | elev-2 | hover | overlay | widget card | widget well |\n|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n| dark \`--fg-3\` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.175 | 5.760 | 5.557 | 5.281 | 4.688 | 4.567 | 5.281 | 5.760 | 5.224 |\n| light \`--fg-3\` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.691 | - | 5.542 | 4.909 |\n| dark \`--fg-4\` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |\n| light \`--fg-4\` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.950 | - | 3.485 | 3.087 |\n| dark \`--primary-soft\` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |\n| light \`--primary-soft\` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.996 | - | 4.721 | 4.182 |\n| dark \`--status-bad-text\` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |\n| light \`--status-bad-text\` | text | text: canvas, card, well, hover, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.566 | - | 5.394 | 4.779 |\n| dark \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |\n| light \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |\n<!-- surface-scope:end -->\n`
+const undeclaredRows = `| dark \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |
+| light \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |`
 
 /** Gives a motion paragraph opening tag one style attribute whose last member, and so its effective colour, is `color`. */
 function withParagraphColor(openingTag, color) {
@@ -32,6 +33,7 @@ function stageRepository(label, { web = "", mobile = "" }) {
     "packages/shared/src/theme/color-schemes.ts",
     "packages/shared/src/theme/types.ts",
     "apps/mobile/scripts/generate-widget-colors.ts",
+
   ]) {
     const target = join(repository, path)
     mkdirSync(dirname(target), { recursive: true })
@@ -39,9 +41,10 @@ function stageRepository(label, { web = "", mobile = "" }) {
   }
   mkdirSync(join(repository, "apps/web"), { recursive: true })
   mkdirSync(join(repository, "apps/mobile"), { recursive: true })
-  const raisedTextDeclarations = readFileSync(join(actualRoot, "DESIGN.md"), "utf8").split(/\r?\n/)
-    .filter((line) => /^\|\s*(?:dark|light)\s+`--primary-text`/.test(line)).join("\n")
-  writeFileSync(join(repository, "DESIGN.md"), declarations.replace("<!-- surface-scope:end -->", `${raisedTextDeclarations}\n<!-- surface-scope:end -->`))
+  const design = readFileSync(join(actualRoot, "DESIGN.md"), "utf8")
+  writeFileSync(join(repository, "DESIGN.md"), design.replace("<!-- surface-scope:end -->", `${undeclaredRows}\n<!-- surface-scope:end -->`))
+  mkdirSync(join(repository, "apps/web/app"), { recursive: true })
+  cpSync(join(actualRoot, "apps/web/app/globals.css"), join(repository, "apps/web/app/globals.css"))
   writeFileSync(join(repository, "apps/web/example.tsx"), web)
   writeFileSync(join(repository, "apps/mobile/example.tsx"), mobile)
   return repository
@@ -50,7 +53,7 @@ function stageRepository(label, { web = "", mobile = "" }) {
 function stageProducerRepository(label, paths, violation) {
   const repository = stageRepository(label, {})
   const actualRoot = join(dirname(toolPath("check-surface-scope.mjs")), "..")
-  for (const path of paths) {
+  for (const path of [...paths, ...(paths.some((path) => path.startsWith("apps/mobile/")) ? ["apps/mobile/lib/theme.ts"] : [])]) {
     const target = join(repository, path)
     mkdirSync(dirname(target), { recursive: true })
     const source = readFileSync(join(actualRoot, path), "utf8")
@@ -65,10 +68,27 @@ function stageProducerRepository(label, paths, violation) {
 }
 
 export const cases = () => {
+  const scopedCases = [
+    ["promoted-text", `<button className="orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>`, 0],
+    ["unpromoted-text", `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>`, 1],
+    ["sibling-chart", `export function Chart(){return <span className="text-[var(--fg-3)]">Axis</span>} export function Screen(){const content = <><button className="hover:bg-[var(--bg-hover)]">Control</button><Chart /></>; return <div className="bg-[var(--bg)]">{content}</div>}`, 0],
+    ["optional-track", `export function Ring({ trackColor }){return <svg><circle stroke={trackColor ?? 'var(--fg-4)'} /></svg>} export function Screen(){return <button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Ring trackColor="var(--fg-3)" /></button>}`, 0],
+    ["unpromoted-track", `export function Ring({ trackColor }){return <svg><circle stroke={trackColor ?? 'var(--fg-4)'} /></svg>} export function Screen(){return <button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Ring /></button>}`, 1],
+  ]
+  for (const [label, web, status] of scopedCases) {
+    const repository = stageRepository(label, { web })
+    check("check-surface-scope.mjs", `resolves paint ancestry and scoped foreground: ${label}`, ["--root", repository], { status })
+  }
+  const promoted = stageRepository("removed-promotion", { web: scopedCases[0][1] })
+  const cssPath = join(promoted, "apps/web/app/globals.css")
+  writeFileSync(cssPath, readFileSync(cssPath, "utf8").replaceAll("--fg-3: var(--fg-2);", ""))
+  check("check-surface-scope.mjs", "rejects text when its shipped CSS promotion is removed", ["--root", promoted], {
+    status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
+  })
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: " group-hover:text-[var(--primary-text)]", after: "" },
     { path: "apps/web/components/shell/shell-wide.tsx", before: " hover:text-[var(--primary-text)]", after: "" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3", after: "active ? tokens.primarySoft : tokens.fg3" },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)", after: "active ? tokens.primarySoft : tokens.fg3" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
@@ -100,7 +120,7 @@ export const cases = () => {
     ["bad-hover-override", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-text)] hover:text-[var(--primary-soft)]">Item</button>` }, 1],
     ["reversed-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primarySoft : tokens.primaryText }}>Item</Text>}</Pressable></View>` }, 1],
     ["direct-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primaryText : tokens.primarySoft }}>Item</Text>}</Pressable></View>` }, 0],
-    ["native-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3 }}>Item</Text></Pressable></View>` }, 0],
+    ["native-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id) }}>Item</Text></Pressable></View>` }, 0],
     ["native-unpaired-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? tokens.primarySoft : tokens.fg3 }}>Item</Text></Pressable></View>` }, 1],
     ["native-wrong-hover-owner", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === other.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hoveredId === item.id ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 1],
     ["native-reversed-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hovered && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hovered ? tokens.primarySoft : tokens.primaryText }}>Item</Text></Pressable></View>` }, 1],
@@ -142,7 +162,7 @@ export const cases = () => {
     })
     if (status === 1) {
       T(`independent hover bindings report both contrast violations: ${label}`,
-        /--primary-soft on hover, light ratio 3\.996, TEXT floor 4\.50/.test(result.stderr), result.stderr)
+        /--primary-soft on hover, light ratio 3\.545, TEXT floor 4\.50/.test(result.stderr), result.stderr)
     }
   }
   for (const [label, parameter, status] of [

@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, extname, relative, resolve } from "node:path"
 import { pathToFileURL, fileURLToPath } from "node:url"
 import ts from "typescript"
+import postcss from "postcss"
 
 const USAGE = `usage: check-surface-scope.mjs [--root <repository>]
 
@@ -236,7 +237,7 @@ function canonicalToken(name) {
 function tokenMatches(source) {
   const matches = []
   for (const match of source.matchAll(/var\((--[\w-]+)\)|\btokens\.([A-Za-z]\w*)/g)) {
-    matches.push({ index: match.index, token: canonicalToken(match[1] ?? mobileTokenName(match[2])) })
+    matches.push({ index: match.index, rawToken: match[1] ?? mobileTokenName(match[2]), token: canonicalToken(match[1] ?? mobileTokenName(match[2])) })
   }
   return matches
 }
@@ -284,13 +285,13 @@ function classifiedRole(node, source, matchIndex, graphicTags) {
   const attribute = ancestor(node, ts.isJsxAttribute)
   if (attribute) {
     const name = propertyName(attribute.name).toLowerCase()
-    if (/^(?:background|backgroundcolor|bordercolor|fill|stroke)$/.test(name)) return "graphic"
+    if (/^(?:background|backgroundcolor|bordercolor|fill|stroke|trackcolor)$/.test(name)) return "graphic"
     if (name === "color") return /(?:Icon|Ring)$/.test(tag) ? "graphic" : "text"
   }
   const property = ancestor(node, ts.isPropertyAssignment)
   if (property) {
     const name = propertyName(property.name).toLowerCase()
-    if (/(?:graphic|icon|ring|border|background|fill|stroke)/.test(name)) return "graphic"
+    if (/(?:graphic|icon|ring|border|background|fill|stroke|boxshadow)/.test(name)) return "graphic"
     if (/(?:text|title|label|copy|caption|error)/.test(name)) return "text"
     if (name === "color") {
       const opening = openingElement(property)
@@ -648,7 +649,27 @@ function openingSurfaces(opening, sourceFile, state) {
       for (const surface of localExpressionSurfaces(attribute.initializer.expression, sourceFile, state)) surfaces.add(surface)
     }
   }
+  for (const rule of state?.cssRules ?? []) {
+    if (rule.mode && rule.mode !== state.mode) continue
+    if (selectorMatches(rule.selector, opening, sourceFile, state)) {
+      for (const [name, value] of rule.properties) {
+        if (/^background(?:-color)?$/.test(name)) {
+          for (const match of tokenMatches(value)) {
+            const surface = SURFACE_TOKENS.get(match.token)
+            if (surface) surfaces.add(surface)
+          }
+        }
+      }
+    }
+  }
   return [...surfaces]
+}
+
+function containsJsx(node) {
+  if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) return true
+  let found = false
+  ts.forEachChild(node, (child) => { if (containsJsx(child)) found = true })
+  return found
 }
 
 function contextSurfaces(node, sourceFile, contentSurfaces = new Map(), state) {
@@ -660,7 +681,7 @@ function contextSurfaces(node, sourceFile, contentSurfaces = new Map(), state) {
       if (!ts.isPropertyAssignment(property) || !/^background(?:Color)?$/i.test(propertyName(property.name))) continue
       for (const surface of expressionSurfaces(property.initializer, sourceFile, state)) surfaces.add(surface)
     }
-  } else if (variable?.initializer) {
+  } else if (variable?.initializer && !containsJsx(variable.initializer)) {
     for (const surface of expressionSurfaces(variable.initializer, sourceFile, state)) surfaces.add(surface)
   }
   const openings = new Set()
@@ -742,37 +763,250 @@ function componentContentSurfaces(syntaxes, state) {
   return result
 }
 
-function componentSurfaces(syntaxes, contentSurfaces, state) {
-  const calls = []
+function readCssRules(repositoryRoot) {
+  const path = resolve(repositoryRoot, "apps/web/app/globals.css")
+  if (!existsSync(path)) return []
+  const rules = []
+  postcss.parse(readFileSync(path, "utf8")).walkRules((rule) => {
+    const properties = new Map()
+    rule.walkDecls((declaration) => { properties.set(declaration.prop, declaration.value) })
+    if (![...properties.keys()].some((name) => name.startsWith("--") || /^background(?:-color)?$/.test(name))) return
+    const expanded = rule.selector.replace(/:is\(([^()]*)\)/g, (_, choices) => `{${choices}}`)
+    const alternatives = expanded.match(/\{([^}]+)\}/)
+    const selectors = alternatives
+      ? alternatives[1].split(",").map((choice) => expanded.replace(alternatives[0], choice.trim()))
+      : expanded.split(",")
+    for (let selector of selectors) {
+      selector = selector.trim()
+      const mode = selector.startsWith(".light ") ? "light" : selector.startsWith(".dark ") ? "dark" : undefined
+      if (mode) selector = selector.slice(mode.length + 2)
+      rules.push({ selector, properties, mode })
+    }
+  })
+  return rules
+}
+
+const attributeTextCache = new WeakMap()
+
+function attributeText(opening, name, syntax) {
+  const cached = attributeTextCache.get(opening) ?? new Map()
+  if (cached.has(name)) return cached.get(name)
+  const value = readAttributeText(opening, name, syntax)
+  cached.set(name, value)
+  attributeTextCache.set(opening, cached)
+  return value
+}
+
+function readAttributeText(opening, name, syntax) {
+  const attribute = opening.attributes.properties.find((property) => ts.isJsxAttribute(property) && propertyName(property.name) === name)
+  if (!attribute) return undefined
+  if (!attribute.initializer) return ""
+  if (ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
+    const expression = attribute.initializer.expression
+    if (ts.isIdentifier(expression)) {
+      const declaration = visibleDeclaration(expression, syntax, expression.text)
+      if (declaration) return declaration.initializer.getText(syntax)
+    }
+  }
+  return attribute.initializer.getText(syntax).replace(/^["']|["']$/g, "")
+}
+
+function matchesCompound(selector, opening, syntax, state) {
+  if (/::|:root|:has\(/.test(selector)) return false
+  if (selector.includes(":hover") && state.interaction !== "hover") return false
+  if (selector.includes(":active") && state.interaction !== "pressed") return false
+  if (/:focus|:checked|:disabled(?!\))/.test(selector)) return false
+  if (/:not\(:disabled\)|:enabled/.test(selector) && attributeText(opening, "disabled", syntax) === "") return false
+  selector = selector.replace(/:not\(\[[^\]]+\]\)/g, (condition) => {
+    const match = condition.match(/\[([^=\]]+)(?:=["']?([^"'\]]+)["']?)?\]/)
+    return attributeText(opening, match[1], syntax) === match[2] ? "#never-matches" : ""
+  }).replace(/:not\([^()]*\)/g, "").replace(/:[\w-]+(?:\([^()]*\))?/g, "")
+  const tag = selector.match(/^[\w-]+/)?.[0]
+  if (tag && tag !== jsxTag(opening)) return false
+  if (selector.includes("#")) return false
+  const classes = attributeText(opening, "className", syntax) ?? ""
+  for (const match of selector.matchAll(/\.([\w-]+)/g)) {
+    if (!new RegExp(`(?:^|[\\s"'\x60])${match[1]}(?:$|[\\s"'\x60])`).test(classes)) return false
+  }
+  for (const match of selector.matchAll(/\[([^=\]~]+)(?:=["']?([^"'\]]+)["']?)?\]/g)) {
+    const value = attributeText(opening, match[1], syntax)
+    if (value === undefined || (match[2] !== undefined && value !== match[2])) return false
+  }
+  return selector !== ""
+}
+
+const selectorMatchCache = new WeakMap()
+
+function selectorMatches(selector, opening, syntax, state) {
+  const key = `${state.interaction}:${selector}`
+  const cached = selectorMatchCache.get(opening) ?? new Map()
+  if (cached.has(key)) return cached.get(key)
+  const matched = matchesSelectorAncestry(selector, opening, syntax, state)
+  cached.set(key, matched)
+  selectorMatchCache.set(opening, cached)
+  return matched
+}
+
+function matchesSelectorAncestry(selector, opening, syntax, state) {
+  const compounds = selector.split(/\s+(?![^[]*\])/)
+  if (!matchesCompound(compounds.pop(), opening, syntax, state)) return false
+  let parent = opening.parent
+  while (compounds.length > 0) {
+    const compound = compounds.pop()
+    if (compound === ">" || compound === "+" || compound === "~") return false
+    let matched = false
+    for (; parent; parent = parent.parent) {
+      if (ts.isJsxElement(parent) && parent.openingElement !== opening
+        && matchesCompound(compound, parent.openingElement, syntax, state)) {
+        matched = true
+        parent = parent.parent
+        break
+      }
+    }
+    if (!matched) return false
+  }
+  return true
+}
+
+function paintOpenings(node) {
+  const result = []
+  for (let current = node; current; current = current.parent) {
+    const opening = ts.isJsxElement(current) ? current.openingElement
+      : ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current) ? current : undefined
+    if (opening && !result.includes(opening)) result.push(opening)
+  }
+  return result.reverse()
+}
+
+function scopedForeground(token, openings, state) {
+  const properties = new Map()
+  for (const opening of openings) {
+    const local = new Map()
+    for (const rule of state.cssRules) {
+      if (rule.mode && rule.mode !== state.mode) continue
+      if (!selectorMatches(rule.selector, opening, opening.getSourceFile(), state)) continue
+      for (const [name, value] of rule.properties) if (name.startsWith("--")) local.set(name, value)
+    }
+    const resolveValue = (value, seen = new Set()) => {
+      const alias = value.match(/^var\((--[\w-]+)\)$/)?.[1]
+      if (!alias || seen.has(alias)) return value
+      const next = local.get(alias) ?? properties.get(alias)
+      return next ? resolveValue(next, new Set([...seen, alias])) : value
+    }
+    for (const [name, value] of local) properties.set(name, resolveValue(value, new Set([name])))
+  }
+  const value = properties.get(token)
+  return canonicalToken(value?.match(/^var\((--[\w-]+)\)$/)?.[1] ?? token)
+}
+
+function componentIdentity(syntax, name) {
+  return `${syntax.fileName}:${name}`
+}
+
+function calledComponent(opening, syntax, syntaxes) {
+  const tag = jsxTag(opening)
+  for (const statement of syntax.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue
+    const bindings = statement.importClause?.namedBindings
+    const named = bindings && ts.isNamedImports(bindings) ? bindings.elements.find((element) => element.name.text === tag) : undefined
+    const defaultImport = statement.importClause?.name?.text === tag
+    if (!named && !defaultImport) continue
+    const specifier = statement.moduleSpecifier.text
+    const appRoot = syntax.fileName.slice(0, syntax.fileName.indexOf("/apps/") + 6) + (syntax.fileName.includes("/apps/mobile/") ? "mobile" : "web")
+    const path = specifier.startsWith("@/") ? resolve(appRoot, specifier.slice(2))
+      : specifier.startsWith(".") ? resolve(dirname(syntax.fileName), specifier) : undefined
+    if (!path) return undefined
+    const target = syntaxes.find((candidate) => [path + ".tsx", path + ".ts", resolve(path, "index.tsx"), resolve(path, "index.ts")].includes(candidate.fileName))
+    if (target) {
+      const name = named ? propertyName(named.propertyName ?? named.name) : exportedFunctions(target)[0]
+      return componentIdentity(target, name)
+    }
+    return undefined
+  }
+  return componentIdentity(syntax, tag)
+}
+
+function renderCalls(syntaxes) {
+  const result = new Map()
   for (const syntax of syntaxes) {
     const visit = (node) => {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
-        const tag = jsxTag(node)
-        if (/^[A-Z]/.test(tag)) {
-          calls.push({ tag, owner: owningFunctionName(node), surfaces: contextSurfaces(node, syntax, contentSurfaces, state) })
+        const target = calledComponent(node, syntax, syntaxes)
+        if (target) {
+          const calls = result.get(target) ?? []
+          calls.push(node)
+          result.set(target, calls)
         }
       }
       ts.forEachChild(node, visit)
     }
     visit(syntax)
   }
-  const result = new Map()
-  let changed = true
-  while (changed) {
-    changed = false
-    for (const call of calls) {
-      const values = result.get(call.tag) ?? new Set()
-      const inherited = call.surfaces.length > 0 ? call.surfaces : [...(result.get(call.owner) ?? [])]
-      for (const surface of inherited) {
-        if (!values.has(surface)) {
-          values.add(surface)
-          changed = true
-        }
-      }
-      result.set(call.tag, values)
+  return result
+}
+
+const paintContextCache = new WeakMap()
+
+function inheritedPaintContexts(node, state, calls, seen = new Set()) {
+  const syntax = node.getSourceFile()
+  const owner = owningFunctionName(node)
+  const identity = owner && componentIdentity(syntax, owner)
+  if (!identity || seen.has(identity)) return [{ openings: [], call: undefined }]
+  const cached = paintContextCache.get(calls) ?? new Map()
+  if (cached.has(identity)) return cached.get(identity)
+  paintContextCache.set(calls, cached)
+  const callers = calls.get(identity) ?? []
+  if (callers.length === 0) return [{ openings: [], call: undefined }]
+  const contexts = callers.flatMap((call) => inheritedPaintContexts(call, state, calls, new Set([...seen, identity]))
+    .map((context) => ({ openings: [...context.openings, ...paintOpenings(call)], call })))
+  cached.set(identity, contexts)
+  return contexts
+}
+
+function localPaintSites(node, syntax, seen = new Set()) {
+  if (openingElement(node)) return [node]
+  const variable = ancestor(node, ts.isVariableDeclaration)
+  if (!variable || seen.has(variable)) return [node]
+  const name = propertyName(variable.name)
+  const sites = []
+  const visit = (current) => {
+    if (ts.isIdentifier(current) && current.text === name && current !== variable.name
+      && !(ts.isJsxAttribute(current.parent) && current.parent.name === current)
+      && !(ts.isPropertyAccessExpression(current.parent) && current.parent.name === current)
+      && visibleDeclaration(current, syntax, name) === variable) {
+      sites.push(...localPaintSites(current, syntax, new Set([...seen, variable])))
+    }
+    ts.forEachChild(current, visit)
+  }
+  visit(enclosingFunction(variable) ?? syntax)
+  return sites.length > 0 ? sites : [node]
+}
+
+function optionalForeground(node, context) {
+  const binary = ancestor(node, (current) => ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  if (!binary || !ts.isIdentifier(binary.left) || !context.call) return undefined
+  return attributeText(context.call, binary.left.text, context.call.getSourceFile())
+}
+
+function promotedNativeForeground(node, token, state) {
+  if (state.mode !== "light" || token !== "--fg-3") return token
+  const call = ancestor(node, ts.isCallExpression)
+  if (!call || call.expression.getText() !== "hoverForeground") return token
+  const active = call.arguments[2]
+  if (!active) return token
+  const syntax = node.getSourceFile()
+  const hoverAssignments = []
+  for (const opening of paintOpenings(node)) {
+    for (const match of tokenMatches(opening.getText(syntax))) {
+      if (match.token !== "--bg-hover") continue
+      const backgroundNode = nodeAt(syntax, opening.getStart(syntax) + match.index)
+      hoverAssignments.push(...branchAssignments(backgroundNode, state))
     }
   }
-  return result
+  if (hoverAssignments.length === 0) return token
+  const enabled = hoverAssignments.flatMap((values) => booleanAssignments(active, true, state, values))
+  const disabled = hoverAssignments.flatMap((values) => booleanAssignments(active, false, state, values))
+  return enabled.length > 0 && disabled.length === 0 ? "--fg-2" : token
 }
 
 function inspectSources(repositoryRoot, declarations) {
@@ -780,10 +1014,14 @@ function inspectSources(repositoryRoot, declarations) {
   const program = ts.createProgram(files, { noLib: true, noResolve: true, target: ts.ScriptTarget.Latest, jsx: ts.JsxEmit.Preserve })
   const conditionKey = createConditionKey(program.getTypeChecker())
   const syntaxes = files.map((file) => program.getSourceFile(file))
-  const stateSurfaces = new Map(["rest", "hover", "pressed"].map((state) => {
-    const interactionState = { interaction: state, conditionKey }
-    const contentSurfaces = componentContentSurfaces(syntaxes, interactionState)
-    return [state, { contentSurfaces, callSurfaces: componentSurfaces(syntaxes, contentSurfaces, interactionState) }]
+  const cssRules = readCssRules(repositoryRoot)
+  const calls = renderCalls(syntaxes)
+  const canvasPainted = cssRules.some((rule) => rule.selector === ":root" && rule.properties.get("background-color") === "var(--bg)")
+  const nativeThemePath = resolve(repositoryRoot, "apps/mobile/lib/theme.ts")
+  const nativeCanvasPainted = existsSync(nativeThemePath) && /screen:\s*\{\s*backgroundColor:\s*appTokens.bg/.test(readFileSync(nativeThemePath, "utf8"))
+  const stateSurfaces = new Map(["rest", "hover", "pressed"].map((interaction) => {
+    const state = { interaction, conditionKey }
+    return [interaction, componentContentSurfaces(syntaxes, state)]
   }))
   const usages = []
   const undeclared = []
@@ -808,23 +1046,31 @@ function inspectSources(repositoryRoot, declarations) {
       for (const interaction of states) {
         const assignments = branchAssignments(node, { interaction, conditionKey })
         if (assignments.length === 0) continue
-        const state = { interaction, assignments, conditionKey }
-        const { contentSurfaces, callSurfaces } = stateSurfaces.get(interaction)
-        const ownSurfaces = contextSurfaces(node, syntax, contentSurfaces, state)
-        const owner = owningFunctionName(node)
-        const variable = ancestor(node, ts.isVariableDeclaration)
-        const componentLevelRole = !owner && variable && /^[A-Z\d_]+$/.test(propertyName(variable.name))
-        const inherited = ownSurfaces.length > 0
-          ? ownSurfaces
-          : owner
-            ? [...(callSurfaces.get(owner) ?? [])]
-          : componentLevelRole
-            ? [...new Set(exported.flatMap((name) => [...(callSurfaces.get(name) ?? [])]))]
-            : []
-        for (const role of roles) {
-          usages.push({ path, line, token: match.token, role, surfaces: inherited })
-          if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
-            usages.push({ path, line, token: match.token, role: "graphic", surfaces: inherited })
+        for (const mode of ["dark", "light"]) {
+          const state = { interaction, assignments, conditionKey, mode, cssRules: path.startsWith("apps/web/") ? cssRules : [] }
+          const contentSurfaces = stateSurfaces.get(interaction)
+          const contexts = localPaintSites(node, syntax).flatMap((site) => inheritedPaintContexts(site, state, calls).map((context) => ({ ...context, site })))
+          for (const context of contexts) {
+            const openings = [...context.openings, ...paintOpenings(context.site)]
+            const selectedMember = localObjectMemberPath(node, syntax)
+            const ownsBackground = selectedMember && selectedMember.object.properties.some((property) => ts.isPropertyAssignment(property) && /^background(?:Color)?$/.test(propertyName(property.name)))
+            const surfaces = new Set(contextSurfaces(ownsBackground ? node : context.site, syntax, contentSurfaces, state))
+            for (const opening of ownsBackground ? [] : openings) {
+              for (const surface of openingSurfaces(opening, opening.getSourceFile(), state)) surfaces.add(surface)
+              for (const surface of contentSurfaces.get(jsxTag(opening)) ?? []) surfaces.add(surface)
+            }
+            if (surfaces.size === 0 && (path.startsWith("apps/web/") ? canvasPainted : nativeCanvasPainted)) surfaces.add("canvas")
+            const supplied = optionalForeground(node, context)
+            const suppliedToken = supplied && tokenMatches(supplied)[0]?.rawToken
+            const rawToken = suppliedToken ?? match.rawToken
+            const effective = path.startsWith("apps/web/") ? scopedForeground(rawToken, openings, state)
+              : promotedNativeForeground(node, match.token, state)
+            for (const role of roles) {
+              usages.push({ path, line, token: match.token, effective, role, mode, surfaces: [...surfaces] })
+              if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
+                usages.push({ path, line, token: match.token, effective, role: "graphic", mode, surfaces: [...surfaces] })
+              }
+            }
           }
         }
       }
@@ -859,8 +1105,8 @@ try {
       continue
     }
     for (const surface of usage.surfaces) {
-      for (const mode of ["dark", "light"]) {
-        const ratio = themes[mode].get(usage.token)?.get(surface)
+      for (const mode of [usage.mode]) {
+        const ratio = themes[mode].get(usage.effective)?.get(surface)
         if (ratio !== undefined && ratio < FLOORS[usage.role]) {
           violations.push(`${usage.path}:${usage.line}: ${usage.token} on ${surface}, ${mode} ratio ${ratio.toFixed(3)}, ${usage.role.toUpperCase()} floor ${FLOORS[usage.role].toFixed(2)}`)
         }
