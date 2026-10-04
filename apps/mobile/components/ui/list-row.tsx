@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
@@ -28,7 +29,6 @@ function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolea
 }
 
 function titleLineLimit(textMode: ListRowProps['textMode'], wrapTitle: ListRowProps['wrapTitle']) {
-  if (textMode === 'personal') return 2
   return textMode === 'label' || wrapTitle ? undefined : 1
 }
 
@@ -49,10 +49,12 @@ function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNod
 }
 
 function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, readOnly, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly'> & { titleColor: string; valueColor: string }>) {
+  const Title = textMode === 'personal' ? PersonalText : Text
+  const Description = textMode === 'personal' ? PersonalText : Text
   const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), keepsControlInline ? styles.labelControlText : null]}>
-    <Text numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Text>
-    {description ? <Text numberOfLines={textMode === 'personal' ? 2 : undefined} style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Text> : null}
+    <Title numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Title>
+    {description ? <Description ellipsizeMode="tail" style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = value ? <RowValue value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} /> : null
   return wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
