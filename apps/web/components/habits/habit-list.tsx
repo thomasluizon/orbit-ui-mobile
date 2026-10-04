@@ -76,6 +76,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { createDragAccessibility } from '@/components/ui/drag-accessibility'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -1381,6 +1382,7 @@ export function HabitList({
       return (
         <DndContext
           id={dndContextId}
+          accessibility={createDragAccessibility(t, (id) => habitsById.get(String(id))?.title)}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}

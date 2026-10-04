@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
 import React from 'react'
+import { createTranslator } from 'next-intl'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import userEvent from '@testing-library/user-event'
 import { renderToString } from 'react-dom/server'
 import postcss from 'postcss'
@@ -27,6 +29,7 @@ afterEach(() => vi.useRealTimers())
 const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
+const dragLocale = vi.hoisted(() => ({ portuguese: false }))
 const accountDate = vi.hoisted(() => ({ timeZone: undefined as string | undefined }))
 const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 
@@ -103,10 +106,12 @@ const mockDrillState = {
 }
 let capturedDrillOptions: HabitVisibilityOptions | undefined
 
-vi.mock('next-intl', async () => {
+vi.mock('next-intl', async (importOriginal) => {
   const { default: messages } = await import('@orbit/shared/i18n/en.json')
   return {
+  ...(await importOriginal<typeof import('next-intl')>()),
   useTranslations: () => {
+    if (dragLocale.portuguese) return createTranslator({ locale: 'pt-BR', messages: ptBR })
     const t = (key: string, params?: Record<string, unknown>) => {
       if (key === 'habits.deleteListConfirmMessage') {
         return messages.habits.deleteListConfirmMessage
@@ -120,7 +125,7 @@ vi.mock('next-intl', async () => {
     }
     return t
   },
-  useLocale: () => 'en',
+  useLocale: () => dragLocale.portuguese ? 'pt-BR' : 'en',
   }
 })
 
@@ -348,8 +353,11 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
 
   return {
     ...actual,
-    useSensor: () => ({}),
-    useSensors: () => [],
+    useSensor: actual.useSensor,
+    useSensors: (...sensors: Parameters<typeof actual.useSensors>) => {
+      const registered = actual.useSensors(...sensors)
+      return dragLocale.portuguese ? registered : []
+    },
   }
 })
 
@@ -398,7 +406,7 @@ function createHabitListTree(queryClient: QueryClient) {
 
 function getSortableDescriptions(container: HTMLElement): string[] {
   return Array.from(
-    container.querySelectorAll<HTMLElement>('[aria-roledescription="sortable"]'),
+    container.querySelectorAll<HTMLElement>('[aria-roledescription="dragAndDrop.roleDescription"]'),
   ).map((row) => row.getAttribute('aria-describedby') ?? '')
 }
 
@@ -422,6 +430,40 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  function renderPortugueseDragList() {
+    dragLocale.portuguese = true
+    const habit = createMockHabit({ title: 'Ler um livro', scheduledDates: [TODAY] })
+    mockHabitsData.habitsById = new Map([[habit.id, habit]])
+    mockHabitsData.topLevelHabits = [habit]
+    return renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+  }
+
+  it('localizes the habit drag instructions in Portuguese', () => {
+    const { container } = renderPortugueseDragList()
+    const sortable = container.querySelector('[aria-roledescription]')!
+    const instructions = document.getElementById(sortable.getAttribute('aria-describedby')!)!
+    expect(instructions).toHaveTextContent('barra de espaço')
+    expect(instructions).not.toHaveTextContent('To pick up')
+  })
+
+  it('localizes each sortable habit role in Portuguese', () => {
+    const { container } = renderPortugueseDragList()
+    const sortables = container.querySelectorAll('[aria-roledescription]')
+    expect(sortables).toHaveLength(1)
+    for (const sortable of sortables) expect(sortable).toHaveAttribute('aria-roledescription', 'item reordenável')
+  })
+
+  it('names the habit in a Portuguese keyboard drag announcement', async () => {
+    const { container } = renderPortugueseDragList()
+    const sortable = container.querySelector<HTMLElement>('[aria-roledescription]')!
+    sortable.focus()
+    fireEvent.keyDown(sortable, { key: ' ', code: 'Space' })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Ler um livro selecionado para mover.'))
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Movimento de Ler um livro cancelado.'))
+  })
+
   it('centres Hoje rows in 68px panels with a contrasting parent track in both modes', async () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
@@ -562,6 +604,7 @@ describe('HabitList', () => {
     }
   })
   beforeEach(() => {
+    dragLocale.portuguese = false
     skipFlow.active = false
     useAppToastStore.setState({ currentToast: null, queue: [] })
     rowImplementation.actual = false
