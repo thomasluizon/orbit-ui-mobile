@@ -51,6 +51,24 @@ for (const width of [320, 360, 384, 412]) {
         })
         expect(geometry.width).toBeCloseTo(geometry.available, 0)
         expect(geometry.clamp).toBe('2')
+        await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+        const marketingLabel = page.locator('[data-slot="settings-row-label"]').filter({ hasText: labels[1] })
+        const enlargedMarketing = await marketingLabel.evaluate((label) => ({ fontSize: parseFloat(getComputedStyle(label).fontSize), clamp: getComputedStyle(label).webkitLineClamp, height: label.clientHeight, scrollHeight: label.scrollHeight }))
+        expect(enlargedMarketing.fontSize).toBe(34)
+        expect(enlargedMarketing.clamp).toBe('none')
+        expect(enlargedMarketing.scrollHeight).toBeLessThanOrEqual(enlargedMarketing.height)
+        await expect(page.getByRole('switch', { name: labels[1], exact: true })).toBeVisible()
+        const enlargedTyped = await typedRow.locator('[data-slot="settings-row-label"]').evaluate((label) => {
+          const row = label.closest('button')!
+          const style = getComputedStyle(row)
+          const labelStyle = getComputedStyle(label)
+          return { fontSize: parseFloat(labelStyle.fontSize), width: label.getBoundingClientRect().width, available: row.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd), clamp: labelStyle.webkitLineClamp, height: label.clientHeight, scrollHeight: label.scrollHeight, lineHeight: parseFloat(labelStyle.lineHeight) }
+        })
+        expect(enlargedTyped.fontSize).toBe(34)
+        expect(enlargedTyped.width).toBeCloseTo(enlargedTyped.available, 0)
+        expect(enlargedTyped.clamp).toBe('2')
+        expect(enlargedTyped.height).toBeLessThanOrEqual(2 * enlargedTyped.lineHeight + 1)
+        expect(enlargedTyped.scrollHeight).toBeGreaterThan(enlargedTyped.height)
       })
 
       test('keeps the account label whole beside its live switch at doubled text size', async ({ page }) => {
