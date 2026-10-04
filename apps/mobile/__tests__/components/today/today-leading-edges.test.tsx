@@ -162,6 +162,7 @@ function assertPaddedBody(nodes: Map<Host, YogaNode>, rowHost: Host) {
   const [body, bodyNode] = descendants.find(([element]) => element.type === 'Pressable' &&
     element.props.accessibilityRole === 'button' && element.props.accessibilityLabel?.includes('habit with a long name'))!
   const [, wellNode] = descendants.find(([element]) => {
+    if (element.type !== 'View') return false
     const style = StyleSheet.flatten((element.props.style ?? {}) as StyleProp<ViewStyle>)
     return style.borderRadius === 12 && (style.width === 32 || style.width === 46)
   })!
