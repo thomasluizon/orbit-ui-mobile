@@ -7,37 +7,49 @@ interface UseDismissGuardOptions {
 }
 
 export function useDismissGuard({ isDirty, onDismiss }: Readonly<UseDismissGuardOptions>) {
-  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  const [lifecycle, setLifecycle] = useState({
+    showDiscardDialog: false, cancelling: false, pendingDismiss: false,
+  })
 
   const requestDismiss = useCallback(() => {
+    if (lifecycle.cancelling) {
+      setLifecycle((current) => ({ ...current, pendingDismiss: true }))
+      return
+    }
     const decision = resolveDismissGuardAction('request', isDirty)
-    setShowDiscardDialog(decision.showDiscardDialog)
+    setLifecycle({ showDiscardDialog: decision.showDiscardDialog, cancelling: false, pendingDismiss: false })
     if (decision.shouldDismiss) {
       onDismiss()
     }
-  }, [isDirty, onDismiss])
+  }, [isDirty, lifecycle.cancelling, onDismiss])
 
   const confirmDismiss = useCallback(() => {
     const decision = resolveDismissGuardAction('confirm', isDirty)
-    setShowDiscardDialog(decision.showDiscardDialog)
+    setLifecycle({ showDiscardDialog: decision.showDiscardDialog, cancelling: false, pendingDismiss: false })
     if (decision.shouldDismiss) {
       onDismiss()
     }
   }, [isDirty, onDismiss])
 
+  const beginCancelDismiss = useCallback(() => {
+    setLifecycle({ showDiscardDialog: false, cancelling: true, pendingDismiss: false })
+  }, [])
+
   const cancelDismiss = useCallback(() => {
-    const decision = resolveDismissGuardAction('cancel', isDirty)
-    setShowDiscardDialog(decision.showDiscardDialog)
-  }, [isDirty])
+    setLifecycle((current) => ({
+      showDiscardDialog: current.pendingDismiss, cancelling: false, pendingDismiss: false,
+    }))
+  }, [])
 
   return useMemo(
     () => ({
       canDismiss: !isDirty,
-      showDiscardDialog,
+      showDiscardDialog: lifecycle.showDiscardDialog,
       requestDismiss,
       confirmDismiss,
       cancelDismiss,
+      beginCancelDismiss,
     }),
-    [cancelDismiss, confirmDismiss, isDirty, requestDismiss, showDiscardDialog],
+    [beginCancelDismiss, cancelDismiss, confirmDismiss, isDirty, requestDismiss, lifecycle.showDiscardDialog],
   )
 }

@@ -6,6 +6,8 @@ import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 interface DiscardChangesSheetProps {
   open: boolean
   onKeepEditing: () => void
+  onKeepEditingStart?: () => void
+  onDismissDuringClose?: () => void
   onDiscard: () => void
 }
 
@@ -13,6 +15,8 @@ interface DiscardChangesSheetProps {
 export function DiscardChangesSheet({
   open,
   onKeepEditing,
+  onKeepEditingStart,
+  onDismissDuringClose,
   onDiscard,
 }: Readonly<DiscardChangesSheetProps>) {
   const t = useTranslations()
@@ -25,6 +29,9 @@ export function DiscardChangesSheet({
       message={t('common.discardChangesDescription')}
       cancelLabel={t('common.keepEditing')}
       confirmLabel={t('common.discardChangesAction')}
+      onCancelStart={onKeepEditingStart}
+      onDismissDuringClose={onDismissDuringClose}
+      onCloseComplete={onKeepEditingStart ? onKeepEditing : undefined}
       onCancel={onKeepEditing}
       onConfirm={onDiscard}
     />
