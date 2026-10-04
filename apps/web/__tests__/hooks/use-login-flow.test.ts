@@ -649,3 +649,27 @@ it('keeps the general announcement region stable when verification returns email
   expect(screen.getByText('Other failure', { exact: false })).toBe(generalRegion)
   expect(generalRegion).toHaveTextContent('Other failure Second failure')
 })
+
+
+it('returns focus to the editable OTP after a pending wrong-code rejection', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = Object.assign((key: string) => key, { rich: createTranslator({ locale: 'en', messages }).rich })
+  let rejectCode!: () => void
+  fetchMock.mockImplementation((input) => toUrlString(input).includes('/api/auth/send-code')
+    ? Promise.resolve(jsonResponse({}))
+    : new Promise<Response>((resolve) => { rejectCode = () => resolve(jsonResponse({ errorCode: 'INVALID_VERIFICATION_CODE' }, 400)) }))
+  render(React.createElement(React.Fragment, {}, React.createElement(LoginContent), React.createElement('button', {}, 'Another action')))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  fireEvent.click(screen.getByRole('button', { name: 'auth.sendCode' }))
+  const code = await screen.findByRole('textbox', { name: 'auth.verificationCode' })
+  fireEvent.change(code, { target: { value: '123456' } })
+  await waitFor(() => expect(code).toBeDisabled())
+  const away = screen.getByRole('button', { name: 'Another action' })
+  away.focus()
+  expect(away).toHaveFocus()
+  await act(async () => rejectCode())
+  await waitFor(() => expect(code).toBeEnabled())
+  expect(code).toHaveAttribute('aria-invalid', 'true')
+  expect(code).toHaveFocus()
+})

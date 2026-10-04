@@ -29,6 +29,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
     legal: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 19.2, color: tokens.fg3 },
     legalLink: { textDecorationLine: 'underline', color: tokens.fg2 },
     quietAction: { alignSelf: 'flex-start' },
+    hiddenLiveRegion: { position: 'absolute', width: 1, height: 1 },
     error: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21, color: tokens.statusBadText },
     offlineNotice: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12,
       backgroundColor: tokens.bgWell, borderRadius: radius.md },

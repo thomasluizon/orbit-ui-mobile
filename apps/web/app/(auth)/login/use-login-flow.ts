@@ -164,6 +164,7 @@ export function useLoginFlow() {
     const next = recordLoginFailure(key, attempts.current.get(address), Date.now())
     attempts.current.set(address, next.attempts)
     setCodeFailure(next.failure)
+    if (next.failure !== 'locked' && next.failure !== 'expired') setCodeFocusRequest((request) => request + 1)
     setLockCountdown(next.failure === 'locked' ? Math.max(0, Math.ceil((next.attempts.expiresAt - Date.now()) / 1000)) : 0)
     setErrorKey(next.failure === 'locked' ? null : key)
   }

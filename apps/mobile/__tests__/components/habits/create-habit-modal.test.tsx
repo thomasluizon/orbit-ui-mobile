@@ -131,6 +131,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     formatTimeInput: (value: string) => value,
     formatEndTimeInput: (value: string) => value,
     validateAll: mockValidateAll,
+    clearBackendErrors: vi.fn(),
   }),
 }))
 

@@ -61,7 +61,7 @@ export function LoginStepStage({ step, children }: Readonly<{ step: string; chil
 
 export function LoginValidationMessage({ message, isOnline, styles }: Readonly<{ message?: string; isOnline: boolean; styles: LoginStyles }>) {
   const visibleMessage = isOnline ? message : undefined
-  return <View accessibilityLiveRegion="polite" style={visibleMessage ? undefined : { position: 'absolute', width: 1, height: 1 }}>
+  return <View accessibilityLiveRegion="polite" style={visibleMessage ? undefined : styles.hiddenLiveRegion}>
     {visibleMessage ? <Text style={styles.error}>{visibleMessage}</Text> : null}
   </View>
 }

@@ -18,9 +18,8 @@ describe('tag editor press fills', () => {
     expectPressFill(tree, 'Cancel', tokens.bgHover, radius.full)
     void renderer.act(() => tree.update(<></>))
   })
-})
 
- it('announces server validation beside the editable tag input', () => {
+  it('announces server validation beside the editable tag input', () => {
     const tokens = createTokensV2()
     let tree!: import('react-test-renderer').ReactTestRenderer
     void renderer.act(() => { tree = renderer.create(<TagEditorRow error="Tag must have at most 50 characters" value="Health" inputAriaLabel="Tag" actionLabel="Save" cancelAriaLabel="Cancel" disabled={false} onChange={vi.fn()} onCommit={vi.fn()} onCancel={vi.fn()} styles={createStyles(tokens)} tokens={tokens} />) })
@@ -33,3 +32,4 @@ describe('tag editor press fills', () => {
     expect(caption?.props.accessibilityLiveRegion).toBeUndefined()
     void renderer.act(() => tree.update(<></>))
   })
+})

@@ -49,6 +49,7 @@ export interface HabitFormHelpers {
   backendFieldErrors: Partial<Record<'title' | 'description', string>>
   backendFocusRequest: number
   backendFocusField: 'title' | 'description' | undefined
+  clearBackendErrors: () => void
   reportBackendErrors: (error: unknown) => boolean
   validateAll: (context?: HabitFormValidationContext) => string | null
 }
@@ -98,6 +99,11 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
   useEffect(() => {
     if (backendFocusRequest && backendFocusField === 'title') form.setFocus('title')
   }, [backendFocusRequest, backendFocusField, form])
+  function clearBackendErrors() {
+    backendErrors.clearBackendErrors()
+    setBackendFocusField(undefined)
+    setBackendFocusRequest(0)
+  }
   function reportBackendErrors(error: unknown): boolean {
     const { field, handled } = backendErrors.reportBackendErrors(error)
     if (field) {
@@ -218,6 +224,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     backendFocusField,
     backendFocusRequest,
     reportBackendErrors,
+    clearBackendErrors,
     form,
     isOneTime,
     isGeneral,

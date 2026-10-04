@@ -41,7 +41,7 @@ export function TagEditorRow({
   const inputRef = useRef<TextInput>(null)
   useEffect(() => { if (focusRequest) inputRef.current?.focus() }, [focusRequest])
   return (
-    <View style={{ gap: 8 }}>
+    <View style={styles.tagEditor}>
     <View style={styles.tagFormRow}>
       <BottomSheetAppTextInput
         ref={inputRef}
@@ -84,7 +84,7 @@ export function TagEditorRow({
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </Pressable>
     </View>
-    {error ? <Text style={{ color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 }}>{error}</Text> : null}
+    {error ? <Text style={[styles.fieldError, styles.tagEditorError]}>{error}</Text> : null}
     </View>
   );
 }

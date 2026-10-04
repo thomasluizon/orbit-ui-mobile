@@ -83,6 +83,7 @@ vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
     formState: { isDirty: false },
   },
   validateAll: mocks.validateHabit,
+  clearBackendErrors: vi.fn(),
   setGeneral: vi.fn(),
 }) }))
 vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))

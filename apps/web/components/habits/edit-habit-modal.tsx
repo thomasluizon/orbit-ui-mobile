@@ -258,6 +258,7 @@ export function EditHabitModal({
           slipAlertEnabled: formHelpers.form.getValues('slipAlertEnabled'),
         }
       : prefill.formValues
+    if (habitChanged) formHelpers.clearBackendErrors()
     formHelpers.form.reset(formValues)
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
