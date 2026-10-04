@@ -158,7 +158,7 @@ describe('Control hover paint in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet} :root{${declarations}}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const drag = page.locator('input').first().locator('..').locator('div[aria-hidden="true"]').first()
+      const drag = page.getByRole('button', { name: 'dragAndDrop.handle:{"name":"Read"}', exact: true })
       const controls = [drag, ...['duplicateChecklistItem', 'removeChecklistItem'].map((key) =>
         page.getByRole('button', { name: `habits.form.${key}`, exact: true }),
       )]
