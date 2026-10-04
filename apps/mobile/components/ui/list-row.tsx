@@ -29,7 +29,7 @@ function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolea
 }
 
 function titleLineLimit(textMode: ListRowProps['textMode'], wrapTitle: ListRowProps['wrapTitle']) {
-  return textMode === 'label' || wrapTitle ? undefined : 1
+  return textMode === 'personal' || textMode === 'label' || wrapTitle ? undefined : 1
 }
 
 function chevronStyle(textMode: ListRowProps['textMode']) {

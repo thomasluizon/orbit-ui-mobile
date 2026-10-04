@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
@@ -98,6 +100,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
           autoFocus
           onSubmit={handleSave}
         />
+        {profile?.email ? <PersonalText expanded translate="no" className="text-sm text-[var(--fg-2)]">{profile.email}</PersonalText> : null}
         {error && (
           <p
             role="alert"

@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
@@ -176,15 +177,12 @@ function InteractiveChecklistItem({
     index < itemsLength - 1 ? styles.interactiveItemDivider : null
 
   const itemLabel = (
-    <Text
+    <PersonalText
       style={[
         styles.itemText,
         item.isChecked && styles.itemTextChecked,
       ]}
-      numberOfLines={2}
-    >
-      {item.text}
-    </Text>
+    >{item.text}</PersonalText>
   )
 
   if (!interactive) {

@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
@@ -104,7 +105,7 @@ export function CalendarPickerSection({
                 checked={calendar.isSynced}
                 onChange={(checked) => handleToggle(calendar.id, checked)}
               />
-              {openedCalendarId === calendar.id ? <Text style={[styles.pickerStateText, { color: tokens.fg1, paddingHorizontal: 16, paddingBottom: 12 }]}>{calendar.name}</Text> : null}
+              {openedCalendarId === calendar.id ? <PersonalText expanded style={[styles.pickerStateText, { color: tokens.fg1, paddingHorizontal: 16, paddingBottom: 12 }]}>{calendar.name}</PersonalText> : null}
             </View>
           ))
         : null}

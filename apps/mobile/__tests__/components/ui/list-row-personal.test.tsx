@@ -8,13 +8,13 @@ describe('personal account row', () => {
     const onOpen = vi.fn()
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<ListRow title="Account" description={email} textMode="personal" accessibilityLabel={`Account ${email}`} onClick={onOpen} />) })
-    const text = tree.root.findAll((node) => node.type === 'Text' && node.props.children === email)
+    const text = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === email)
     expect(text).toHaveLength(1)
     expect(text[0]!.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
-    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')[0]!
+    const row = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === 'button')[0]!
     expect(row.props.accessibilityLabel).toContain(email)
-    await act(() => { row.props.onPress() })
+    await act(() => { (row.props.onPress as () => void)() })
     expect(onOpen).toHaveBeenCalledOnce()
-    await act(() => tree.unmount())
+    await act(() => tree.update(<></>))
   })
 })

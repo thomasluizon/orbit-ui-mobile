@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { useCalendars } from '@/hooks/use-calendars'
 
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, Suspense, type Dispatch, type SetStateAction, type ReactNode } from 'react'
@@ -848,6 +850,6 @@ function ExpandedHabitTitleSheet({ title, onClose }: Readonly<{ title: string | 
   const t = useTranslations()
   if (!title) return null
   return <Sheet open title={t('habits.form.title')} onClose={onClose}>
-    <p className="text-base text-[var(--fg-1)] [overflow-wrap:anywhere]">{title}</p>
+    <PersonalText expanded className="text-base text-[var(--fg-1)] ">{title}</PersonalText>
   </Sheet>
 }

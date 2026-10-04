@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { hoverForeground } from '@orbit/shared/theme'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
@@ -85,7 +86,7 @@ function PersonalCheckRow({ label, onOpenLabel, labelExpanded, checked, onChange
   return (
     <View style={styles.personalRow}>
       <Pressable onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={({ pressed }) => [styles.personalCopy, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-        <Text numberOfLines={2} style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>
+        <PersonalText style={[styles.label, { color: tokens.fg1 }]}>{label}</PersonalText>
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}
       </Pressable>

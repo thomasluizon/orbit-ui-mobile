@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -577,5 +579,5 @@ function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled }
   if (!enabled || reviewMode || eventsResult?.status !== 'connected') return null
   const event = eventsResult.events.find((candidate) => candidate.id === eventId)
   if (!event) return null
-  return <p className="py-6 text-base text-[var(--fg-1)] [overflow-wrap:anywhere]">{event.title}</p>
+  return <PersonalText expanded className="py-6 text-base text-[var(--fg-1)] ">{event.title}</PersonalText>
 }

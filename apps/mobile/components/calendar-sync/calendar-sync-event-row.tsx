@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { Pressable, Text, View } from 'react-native'
@@ -106,11 +107,9 @@ export function CalendarSyncEventRow({
         ]}
       >
         <View style={styles.eventBody}>
-          <Text
+          <PersonalText
             style={[styles.eventTitle, { color: issueVisuals.titleColor }]}
-          >
-            {event.title}
-          </Text>
+          >{event.title}</PersonalText>
           <View style={styles.eventMetaRow}>
             {event.startDate ? (
               <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
@@ -136,11 +135,9 @@ export function CalendarSyncEventRow({
               </View>
             ) : null}
             {event.calendarName ? (
-              <Text
+              <PersonalText
                 style={[styles.eventTagText, { color: tokens.fg2 }]}
-              >
-                {event.calendarName}
-              </Text>
+              >{event.calendarName}</PersonalText>
             ) : null}
           </View>
           {event.description ? (

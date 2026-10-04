@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
@@ -39,7 +40,6 @@ const TITLE_TEXT_STYLE_BASE = {
   fontWeight: 500,
   lineHeight: 1.25,
   letterSpacing: '-0.005em',
-  overflowWrap: 'anywhere',
 } as const
 
 interface TitleTextProps {
@@ -50,8 +50,8 @@ interface TitleTextProps {
 
 export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
   return (
-    <span
-      className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
+    <PersonalText
+      className="flex-shrink min-w-0"
       style={{
         ...TITLE_TEXT_STYLE_BASE,
         fontSize: `${size / 16}rem`,
@@ -59,7 +59,7 @@ export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
       }}
     >
       {title}
-    </span>
+    </PersonalText>
   )
 }
 

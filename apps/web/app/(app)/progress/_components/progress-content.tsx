@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import Link from 'next/link'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 
@@ -386,7 +388,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
       onClick={onOpen}
       className="orbit-hover-text relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className={`line-clamp-2 [overflow-wrap:anywhere] text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</span>
+        <PersonalText className={`  text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</PersonalText>
         <span className="flex flex-wrap items-center gap-2">
           {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
           {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-2)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
@@ -484,8 +486,8 @@ function TopHabitRow({ habit }: Readonly<{ habit?: { name: string; emoji: string
       <span className="whitespace-nowrap text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.window.topHabit')}</span>
       {habit?.habitId ? <ChevronRight size={24} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-[var(--fg-3)]" /> : null}
     </span>
-    {habit ? <span title={habit.name} className="line-clamp-2 text-[17px] leading-[1.4] text-[var(--fg-1)]" style={{ overflowWrap: 'anywhere' }}>
-      {habit.emoji ? <span aria-hidden="true">{habit.emoji} </span> : null}{habit.name}
+    {habit ? <span title={habit.name} className="flex min-w-0 items-start gap-1 text-[17px] leading-[1.4] text-[var(--fg-1)]">
+      {habit.emoji ? <span aria-hidden="true">{habit.emoji}</span> : null}<PersonalText>{habit.name}</PersonalText>
     </span> : <span className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.window.topHabitEmpty')}</span>}
   </>
   const rowClass = 'flex min-h-[68px] min-w-0 flex-col gap-1 rounded-[12px] p-4'

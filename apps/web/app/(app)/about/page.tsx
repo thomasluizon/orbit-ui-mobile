@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -21,9 +23,16 @@ interface AboutFactProps {
 }
 
 function AboutFact({ id, label, value }: Readonly<AboutFactProps>) {
+  const [expanded, setExpanded] = useState(false)
+  const Root = id === 'account' ? 'button' : 'div'
+  const Value = id === 'account' ? PersonalText : 'span'
   return (
-    <div
-      className="flex min-w-0 flex-wrap"
+    <Root
+      type={id === 'account' ? 'button' : undefined}
+      aria-label={id === 'account' ? `${label} ${value}` : undefined}
+      aria-expanded={id === 'account' ? expanded : undefined}
+      onClick={id === 'account' ? () => setExpanded(!expanded) : undefined}
+      className={`flex min-w-0 flex-wrap ${id === 'account' ? 'min-h-[48px] w-full cursor-pointer rounded-[12px] border-0 bg-transparent p-2 text-start hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : ''}`}
       data-testid={`about-fact-${id}`}
       style={{ columnGap: 12, rowGap: 4 }}
     >
@@ -39,7 +48,8 @@ function AboutFact({ id, label, value }: Readonly<AboutFactProps>) {
       >
         {label}
       </span>
-      <span
+      <Value
+        expanded={id === 'account' ? expanded : undefined}
         data-testid={`about-fact-${id}-value`}
         style={{
           flex: '0 1 auto',
@@ -49,12 +59,12 @@ function AboutFact({ id, label, value }: Readonly<AboutFactProps>) {
           fontSize: 12,
           fontVariantNumeric: 'tabular-nums',
           lineHeight: 1.6,
-          overflowWrap: 'anywhere',
+          overflowWrap: id === 'account' ? 'normal' : 'anywhere',
         }}
       >
         {value}
-      </span>
-    </div>
+      </Value>
+    </Root>
   )
 }
 

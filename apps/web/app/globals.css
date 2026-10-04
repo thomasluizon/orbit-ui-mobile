@@ -256,15 +256,9 @@
 }
 
 .orbit-sheet-typed-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   text-decoration: underline;
   text-underline-position: from-font;
   text-decoration-thickness: from-font;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  white-space: normal;
 }
 
 .orbit-sheet-title-button:active {

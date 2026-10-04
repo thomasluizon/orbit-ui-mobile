@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ChevronDown } from '@/components/ui/icons'
@@ -13,7 +15,7 @@ export function SupportReplyEmail({ email }: Readonly<{ email: string }>) {
     <div className="flex min-w-0 flex-col gap-2">
       <button
         type="button"
-        aria-labelledby={`${id}-label`}
+        aria-labelledby={`${id}-label ${id}-value`}
         aria-describedby={`${id}-value ${id}-hint`}
         aria-controls={`${id}-value`}
         aria-expanded={expanded}
@@ -25,13 +27,14 @@ export function SupportReplyEmail({ email }: Readonly<{ email: string }>) {
           <span id={`${id}-label`}>{t('profile.support.email')}</span>
           {email ? <ChevronDown size={20} strokeWidth={1.5} aria-hidden className={expanded ? 'shrink-0 rotate-180' : 'shrink-0'} /> : null}
         </span>
-        <span
+        <PersonalText
+          expanded={expanded}
           id={`${id}-value`}
           translate="no"
-          className={`w-full min-w-0 text-base leading-[1.5] [overflow-wrap:anywhere] ${expanded ? '' : 'line-clamp-2'}`}
+          className="w-full min-w-0 text-base leading-[1.5]"
         >
           {email}
-        </span>
+        </PersonalText>
       </button>
       <p id={`${id}-hint`} className="text-sm leading-[1.5] text-[var(--fg-3)]">
         {t('profile.support.emailLockedReason')}

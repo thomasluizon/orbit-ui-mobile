@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useMutation } from '@tanstack/react-query'
@@ -114,6 +115,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
           accessibilityLabel={t('profile.editName.label')}
           testID="edit-name-input"
         />
+        {profile?.email ? <PersonalText expanded selectable style={[styles.label, { color: tokens.fg2 }]}>{profile.email}</PersonalText> : null}
         {error ? (
           <Text
             accessibilityRole="alert"

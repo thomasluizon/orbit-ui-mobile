@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -32,8 +33,7 @@ export function HabitRowContent({
 }: Readonly<HabitRowContentProps>) {
   return (
     <View style={styles.titleBlock}>
-      <Text
-        numberOfLines={2}
+      <PersonalText
         style={[
           styles.title,
           {
@@ -43,7 +43,7 @@ export function HabitRowContent({
         ]}
       >
         {habit.title}
-      </Text>
+      </PersonalText>
 
       {metaOnSupportingLine ? null : <HabitRowMetaStrip metaParts={metaParts} metaColor={metaColor} tokens={tokens} />}
     </View>

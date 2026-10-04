@@ -509,6 +509,21 @@ describe('label and interaction fill guards in Chromium', () => {
     }
   })
 
+  it('rejects a typed email broken inside its token and accepts the personal row rendering', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    try {
+      await page.setContent(`<style>${stylesheet}</style><button>Edit</button>
+        <span data-layout-text-origin="user" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;width:180px;overflow:hidden;overflow-wrap:anywhere">${email}</span>`)
+      await expect(expectLabelsFit(page)).rejects.toThrow('user text must never break inside a word or token')
+      const row = renderToStaticMarkup(createElement(ListRow, { title: 'Account', description: email, textMode: 'personal', href: '/profile/account' }))
+      await page.setContent(`<style>${stylesheet}</style><main>${row}<button>Edit</button></main>`)
+      await loadAppFonts(page)
+      await markUserText(page, [email])
+      await expectLabelsFit(page, page, [email])
+    } finally { await page.close() }
+  })
+
   it('marks the typed field beside a decorative emoji and requires its current rendered mark', async () => {
     const page = await browser.newPage()
     const title = 'A title written by a person'

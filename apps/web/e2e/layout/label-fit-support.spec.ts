@@ -23,7 +23,7 @@ for (const width of [320, 360, 384, 412]) {
           await markRequiredLabels(subjects.getByRole('radio', { name: option.label, exact: true }))
         }
         await markRequiredLabels(form.getByText(words.subject, { exact: true }))
-        const reply = form.getByRole('button', { name: words.email, exact: true })
+        const reply = form.getByRole('button', { name: `${words.email} ${replyEmail}`, exact: true })
         const emailText = reply.getByText(replyEmail, { exact: true })
         await expect(emailText).toBeVisible()
         await expect(reply).toHaveAttribute('aria-expanded', 'false')
@@ -47,7 +47,7 @@ for (const width of [320, 360, 384, 412]) {
         expect(await emailText.evaluate((element) => {
           const style = getComputedStyle(element)
           return style.webkitLineClamp === 'none' && element.scrollHeight <= element.clientHeight + 1
-            && element.scrollWidth <= element.clientWidth + 1
+            && style.overflowX === 'auto'
         })).toBe(true)
         await expectInteractionFill(reply)
         await reply.click()

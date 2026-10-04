@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import Link from 'next/link'
 import {
   useEffect,
@@ -146,6 +148,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
         {props.account ? (
           <Link
             data-shell-account=""
+            aria-label={[props.account, props.accountEmail].filter(Boolean).join(', ')}
             href="/profile"
             className="orbit-hover-text flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
           >
@@ -153,8 +156,8 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
               {Array.from(props.account)[0]?.toLocaleUpperCase()}
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span data-shell-account-name="" className="line-clamp-2 [overflow-wrap:anywhere]">{props.account}</span>{' '}
-              {props.accountEmail ? <span data-shell-account-email="" className="line-clamp-2 text-[12px] font-normal text-[var(--fg-3)] [overflow-wrap:anywhere]">{props.accountEmail}</span> : null}
+              <PersonalText data-shell-account-name="">{props.account}</PersonalText>{' '}
+              {props.accountEmail ? <PersonalText data-shell-account-email="" className="text-[12px] font-normal text-[var(--fg-3)]">{props.accountEmail}</PersonalText> : null}
             </span>
           </Link>
         ) : (

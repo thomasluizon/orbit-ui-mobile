@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { resolveSettingsRowText } from '@orbit/shared/hooks'
 
 import type { ReactNode, MouseEvent } from 'react'
@@ -59,6 +61,7 @@ interface SettingsGroupRowProps {
 }
 
 function SettingsGroupRowContent({ icon, label, textMode, hint, trailing, resolvedAccessory, expanded, labelId }: Readonly<Pick<SettingsGroupRowProps, 'icon' | 'label' | 'textMode' | 'hint' | 'trailing'> & { resolvedAccessory: 'chevron' | 'none'; expanded: boolean; labelId: string }>) {
+  const Label = textMode === 'personal' ? PersonalText : 'span'
   return (
     <>
       {icon ? (
@@ -72,21 +75,22 @@ function SettingsGroupRowContent({ icon, label, textMode, hint, trailing, resolv
       ) : null}
       <span className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
         <span className="flex items-center">
-          <span
+          <Label
+            expanded={textMode === 'personal' ? expanded : undefined}
             id={labelId}
             data-slot="settings-row-label"
-            className={textMode === 'personal' && !expanded ? 'min-w-0 line-clamp-2' : 'min-w-0'}
+            className="min-w-0 w-full"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: '1.0625rem',
               fontWeight: 400,
               lineHeight: textMode === 'label' || expanded ? 1.4 : 1.35,
               color: 'var(--fg-1)',
-              overflowWrap: textMode === 'personal' ? 'anywhere' : 'break-word',
+              overflowWrap: textMode === 'personal' ? 'normal' : 'break-word',
             }}
           >
             {label}
-          </span>
+          </Label>
         </span>
         {hint ? (
           <span

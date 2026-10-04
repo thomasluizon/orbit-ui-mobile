@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useDateFormat } from '@/hooks/use-date-format'
@@ -83,17 +85,15 @@ export function CalendarSyncEventRow({
           <RadioGlyph selected={selected} size={24} />
         </span>
         <span className="flex-1 min-w-0 block">
-          <span
-            className="block [overflow-wrap:anywhere]"
+          <PersonalText
+            className=""
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 17,
               fontWeight: 500,
               color: importIssue ? 'var(--fg-3)' : 'var(--fg-1)',
             }}
-          >
-            {event.title}
-          </span>
+          >{event.title}</PersonalText>
           <span
             className="flex flex-wrap items-center"
             style={{ gap: 8, marginTop: 4 }}
@@ -146,16 +146,14 @@ export function CalendarSyncEventRow({
               </span>
             )}
             {event.calendarName && (
-              <span
-                className="min-w-0 [overflow-wrap:anywhere]"
+              <PersonalText
+                className="min-w-0 "
                 style={{
                   fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   color: 'var(--fg-2)',
                 }}
-              >
-                {event.calendarName}
-              </span>
+              >{event.calendarName}</PersonalText>
             )}
           </span>
           {event.description && (

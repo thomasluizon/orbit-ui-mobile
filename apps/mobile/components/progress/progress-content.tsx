@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -313,7 +314,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5, zIndex: 2 } : null,
       ]}>
       <View style={styles.goalCopy}>
-        <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</Text>
+        <PersonalText ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</PersonalText>
         <View style={styles.goalMeta}>
           {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
           {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
@@ -410,7 +411,7 @@ function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
       {habitId ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
     </View>
-    {habit ? <Text selectable={!habitId} accessibilityLabel={habit.name} numberOfLines={2} ellipsizeMode="tail" style={[styles.topHabitName, { color: tokens.fg1 }]}>{`${habit.emoji ? `${habit.emoji} ` : ''}${habit.name}`}</Text>
+    {habit ? <View style={{ flexDirection: 'row', gap: 4, minWidth: 0 }}>{habit.emoji ? <Text accessible={false} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.emoji}</Text> : null}<View style={{ flex: 1, minWidth: 0 }}><PersonalText selectable={!habitId} accessibilityLabel={habit.name} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.name}</PersonalText></View></View>
       : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}
   </>
   return habitId
