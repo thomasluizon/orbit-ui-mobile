@@ -18,13 +18,13 @@ for (const mode of ['dark', 'light'] as const) {
       for (const textScale of width === 320 ? [1, 2] : [1]) {
         test(`keeps the fill inset and the focus ring visible at ${width}px with ${textScale} text scale`, async ({ page, context }) => {
           await page.setViewportSize({ width, height: 915 })
-          const habit = makeHabitScheduleItem({
-            id: 'proactive-line-habit', title: 'Caminhar pela praça', children: [], hasSubHabits: false,
+          const habits = Array.from({ length: 12 }, (_, position) => makeHabitScheduleItem({
+            id: `proactive-line-habit-${position}`, title: `Caminhar pela praça ${position + 1}`, position, children: [], hasSubHabits: false,
             scheduledDates: [selectedDate],
-          })
+          }))
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-            (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items: [habit], totalCount: 1 } }))
-          await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 1 } }))
+            (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }))
+          await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: habits.length } }))
           const proactive = createMockNotification({
             url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: `${selectedDate}T12:00:00Z`,
           })
@@ -35,7 +35,7 @@ for (const mode of ['dark', 'light'] as const) {
           const line = page.locator('.today-astra-line')
           await expect(line).toBeVisible()
           await expect(page.locator('.today-astra-sentence')).toHaveText(proactive.body)
-          await expect(page.getByTestId('habit-row')).toHaveCount(1)
+          await expect(page.getByTestId('habit-row')).toHaveCount(habits.length)
           await page.evaluate(async (scale) => {
             document.documentElement.style.fontSize = `${16 * scale}px`
             const sentence = document.querySelector<HTMLElement>('.today-astra-sentence')!

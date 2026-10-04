@@ -43,6 +43,7 @@ describe('Hoje proactive line perimeter', () => {
         <div className="relative mx-auto w-full max-w-[740px]">
           <TodayAstra today={formatAPIDate(new Date())} isTodaySelected suppressed={false} />
         </div>
+        <div aria-hidden="true" style={{ height: 1200 }} />
       </DestinationShell>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
@@ -51,6 +52,7 @@ describe('Hoje proactive line perimeter', () => {
       await page.setContent(`<style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
       await page.evaluate(async ({ mode, textScale }) => {
         document.documentElement.className = mode
+        document.querySelector<HTMLElement>('[data-shell-scroller]')!.style.scrollbarGutter = 'stable'
         const sentence = document.querySelector<HTMLElement>('.today-astra-sentence')!
         sentence.style.fontSize = `${Number.parseFloat(getComputedStyle(sentence).fontSize) * textScale}px`
         await document.fonts.ready
