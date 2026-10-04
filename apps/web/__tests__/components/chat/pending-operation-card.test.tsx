@@ -229,11 +229,14 @@ describe('PendingOperationCard', () => {
     expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
   })
 
-  it('removes one item before approval executes the remaining preview', async () => {
-    revise.mockResolvedValue({ ok: true, result: {
+  it.each(['immediate', 'deferred'])('removes one item before approval executes the remaining preview with %s revision', async (timing) => {
+    const revision: PendingOperationRevisionResponse = { ok: true, result: {
       isSuccess: true, error: null, pendingOperationId: 'pending-1', cancelled: false,
       preview: { changes: [], changeTargetCount: 1, items: [secondItem], previewFingerprint: 'preview-2' },
-    } })
+    } }
+    let resolveRevision!: (result: PendingOperationRevisionResponse) => void
+    revise.mockReturnValue(timing === 'immediate' ? Promise.resolve(revision)
+      : new Promise<PendingOperationRevisionResponse>((resolve) => { resolveRevision = resolve }))
     confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     expect(confirm).not.toHaveBeenCalled()
@@ -241,10 +244,26 @@ describe('PendingOperationCard', () => {
     await waitFor(() => expect(revise).toHaveBeenCalledWith('pending-1', {
       previewFingerprint: 'preview-1', items: [{ itemId: 'habit-2' }],
     }))
-    expect(screen.queryByText('Run')).not.toBeInTheDocument()
-    expect(capturedCard.isCurrent?.()).toBe(true)
+    if (timing === 'deferred') {
+      expect(screen.getByText('Run')).toBeInTheDocument()
+      expect(screen.getByText('Read')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeDisabled()
+      expect(confirm).not.toHaveBeenCalled()
+      resolveRevision(revision)
+    }
+    await waitFor(() => {
+      expect(screen.queryByText('Run')).not.toBeInTheDocument()
+      expect(screen.getByText('Read')).toBeInTheDocument()
+      expect(capturedCard.isCurrent?.()).toBe(true)
+      expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeEnabled()
+    })
+    expect(revise).toHaveBeenCalledOnce()
+    expect(confirm).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
-    await waitFor(() => expect(confirm).toHaveBeenCalledOnce())
+    expect(await screen.findByText('status.done')).toBeInTheDocument()
+    expect(screen.queryByText('Run')).not.toBeInTheDocument()
+    expect(screen.getByText('Read')).toBeInTheDocument()
+    expect(confirm).toHaveBeenCalledExactlyOnceWith('pending-1')
   })
 
   it.each(['immediate', 'deferred'])('edits one item and sends only the changed field before approval with %s revision', async (timing) => {
