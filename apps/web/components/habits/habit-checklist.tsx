@@ -4,7 +4,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
-import { createDragAccessibility } from '@/components/ui/drag-accessibility'
+import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { useTranslations } from 'next-intl'
 import {
   DndContext,
@@ -60,6 +60,8 @@ export function HabitChecklist({
   const dndContextId = useId()
   const [newItemText, setNewItemText] = useAccountScopedState('')
   const sortableIds = useChecklistItemKeys(items)
+
+  const dragAccessibility = useDragAccessibility(t, (id) => items[sortableIds.indexOf(String(id))]?.text)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -177,7 +179,7 @@ export function HabitChecklist({
       {editable ? (
         <DndContext
           id={dndContextId}
-          accessibility={createDragAccessibility(t, (id) => items[sortableIds.indexOf(String(id))]?.text)}
+          accessibility={dragAccessibility}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}

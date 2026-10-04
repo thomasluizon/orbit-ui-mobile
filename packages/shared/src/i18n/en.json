@@ -6,8 +6,10 @@
     "handle": "Move {name}",
     "pickedUp": "{name} picked up to move.",
     "movedOver": "{name} moved over {target}.",
+    "returnedToStart": "{name} is back in its starting position.",
     "movedOutside": "{name} is outside a drop area.",
     "droppedOver": "{name} dropped over {target}.",
+    "droppedInPlace": "{name} dropped in its starting position.",
     "dropped": "{name} dropped.",
     "cancelled": "Moving {name} cancelled."
   },

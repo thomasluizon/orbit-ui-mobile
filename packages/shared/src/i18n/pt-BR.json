@@ -6,8 +6,10 @@
     "handle": "Mover {name}",
     "pickedUp": "{name} selecionado para mover.",
     "movedOver": "{name} movido sobre {target}.",
+    "returnedToStart": "{name} voltou para a posição inicial.",
     "movedOutside": "{name} está fora de uma área para soltar.",
     "droppedOver": "{name} solto sobre {target}.",
+    "droppedInPlace": "{name} solto na posição inicial.",
     "dropped": "{name} solto.",
     "cancelled": "Movimento de {name} cancelado."
   },

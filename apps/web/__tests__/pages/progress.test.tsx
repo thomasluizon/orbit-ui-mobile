@@ -239,6 +239,35 @@ describe('ProgressContent', () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)) })
   })
 
+  it.each(['en', 'pt-BR'])('announces a pointer return and unchanged drop in %s after an owner render', async (language) => {
+    mocks.usePortugueseCatalog = language === 'pt-BR'
+    mocks.useEnglishCatalog = language === 'en'
+    const first = createMockGoal({ id: 'first', title: 'Ler doze livros', position: 0 })
+    const second = createMockGoal({ id: 'second', title: 'Caminhar', position: 1 })
+    mocks.goals.data.allGoals = [first, second]
+    const { rerender } = render(<ProgressContent />)
+    const card = getGoalCard(first.title)
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 80))
+    vi.spyOn(getGoalCard(second.title), 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 200, 80))
+    const live = document.querySelector('[id^="DndLiveRegion"]')!
+    fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
+    fireEvent.mouseMove(document, { clientX: 6, clientY: 0 })
+    await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${first.title} selecionado para mover.` : `${first.title} picked up to move.`))
+    fireEvent.mouseMove(document, { clientX: 6, clientY: 100 })
+    const previous = language === 'pt-BR' ? `${first.title} movido sobre ${second.title}.` : `${first.title} moved over ${second.title}.`
+    await waitFor(() => expect(live).toHaveTextContent(previous))
+    mocks.goals.data = { allGoals: [first, second] }
+    rerender(<ProgressContent />)
+    fireEvent.mouseMove(document, { clientX: 6, clientY: 0 })
+    await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${first.title} voltou para a posição inicial.` : `${first.title} is back in its starting position.`))
+    expect(live).not.toHaveTextContent(previous)
+    fireEvent.mouseUp(document)
+    await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${first.title} solto na posição inicial.` : `${first.title} dropped in its starting position.`))
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
+    expect(getGoalCards()).toEqual([card, getGoalCard(second.title)])
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)) })
+  })
+
   let textStyles: string
   let stylesheet: string
   let browser: Browser
