@@ -41,6 +41,25 @@ describe('habit creation history exits', () => {
     await forwardTo('/search')
   })
 
+  it.each(['direct', 'navigated'])('keeps the approved %s exit traversal out of the router restore listener', async (entry) => {
+    if (entry === 'navigated') {
+      history.pushState(null, '', '/')
+      history.pushState(null, '', '/habits/new?from=%2F')
+    } else history.replaceState(null, '', '/habits/new?from=%2F')
+    const routerRestores: unknown[] = []
+    const restoreRoute = () => routerRestores.push(history.state)
+    window.addEventListener('popstate', restoreRoute)
+    const guard = mountGuard()
+    try {
+      act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/')))
+      await waitFor(() => expect(location.pathname).toBe('/'))
+      expect(routerRestores).toEqual([])
+    } finally {
+      guard.unmount()
+      window.removeEventListener('popstate', restoreRoute)
+    }
+  })
+
   it('keeps the origin behind an approved pushed destination', async () => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')

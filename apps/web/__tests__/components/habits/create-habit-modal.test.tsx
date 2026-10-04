@@ -343,6 +343,56 @@ describe('CreateHabitModal', () => {
     expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
   })
 
+  it.each([false, true])('owns browser Back before router restoration with dirty=%s', async (dirty) => {
+    history.pushState(null, '', '/habits/new?from=%2F')
+    mockFormStatus.dirty = dirty
+    const routerRestore = vi.fn()
+    window.addEventListener('popstate', routerRestore)
+    const close = vi.fn(() => history.replaceState(null, '', '/'))
+    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    try {
+      fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+      act(() => history.back())
+      if (dirty) {
+        await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
+        expect(close).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+        expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+        act(() => history.back())
+        await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
+        fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+      }
+      await waitFor(() => expect(location.pathname).toBe('/'))
+      expect(close).toHaveBeenCalledOnce()
+      expect(routerRestore).not.toHaveBeenCalled()
+    } finally {
+      mounted.unmount()
+      window.removeEventListener('popstate', routerRestore)
+    }
+  })
+
+  it('returns the successful screen create to Today without a router restore of the form', async () => {
+    history.replaceState(null, '', '/habits/new?from=%2F')
+    mockFormStatus.dirty = true
+    const routerRestore = vi.fn()
+    window.addEventListener('popstate', routerRestore)
+    const close = vi.fn(() => history.replaceState(null, '', '/'))
+    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    try {
+      await act(async () => { await Promise.resolve() })
+      fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+      await waitFor(() => expect(location.pathname).toBe('/'))
+      expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
+      expect(close).toHaveBeenCalledWith(false)
+      expect(routerRestore).not.toHaveBeenCalled()
+      expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
+      expect(mockShowError).not.toHaveBeenCalled()
+    } finally {
+      mounted.unmount()
+      window.removeEventListener('popstate', routerRestore)
+    }
+  })
+
   it('keeps a dirty draft and forgets a rejected destination before Back', async () => {
     mockFormStatus.dirty = true
     const close = vi.fn()
@@ -447,7 +497,7 @@ describe('CreateHabitModal', () => {
     expect(location.hash).toBe('')
     expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
 
-    await traverseHistory('back')
+    act(() => history.back())
     await waitFor(() => expect(screen.getByText('common.discardChangesTitle')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
     expect(close).not.toHaveBeenCalled()

@@ -11,13 +11,13 @@ async function traceHistory(page: Page) {
   await page.addInitScript(() => {
     const snapshots: { step: string; href: string; state: unknown }[] = []
     function record(step: string) {
-      snapshots.push({ step, href: location.href, state: history.state })
+      snapshots.push({ step, href: location.href, state: structuredClone(history.state) as unknown })
     }
     Object.assign(window, { habitCreateHistory: snapshots })
     for (const method of ['pushState', 'replaceState'] as const) {
       const original = history[method].bind(history)
       history[method] = (...args: Parameters<History[typeof method]>) => {
-        original(...args)
+        original(args[0], args[1], args[2])
         record(method)
       }
     }
@@ -69,6 +69,31 @@ for (const locale of ['pt-BR', 'en'] as const) {
           }
         })
       }
+
+      test('preserves a dirty draft on browser Back until discard is confirmed', async ({ page }) => {
+        await page.goto('/')
+        await page.getByRole('button', { name: messages.nav.createHabit, exact: true }).click()
+        const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
+        await field.fill('Keep this draft')
+        await page.evaluate(() => history.back())
+        const discard = page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })
+        await expect(discard).toBeVisible()
+        await page.getByRole('button', { name: messages.common.keepEditing, exact: true }).click()
+        await expect(field).toHaveValue('Keep this draft')
+        await expect(page).toHaveURL(/\/habits\/new\?/)
+        await page.evaluate(() => history.back())
+        await discard.click()
+        await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
+        await expect(page.locator('[data-habit-create-screen]')).toHaveCount(0)
+      })
+
+      test('returns a clean direct-open form on browser Back without confirmation', async ({ page }) => {
+        await page.goto('/habits/new?from=%2F')
+        await expect(page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toHaveValue('')
+        await page.evaluate(() => history.back())
+        await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
+        await expect(page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })).toHaveCount(0)
+      })
     })
   }
 }
