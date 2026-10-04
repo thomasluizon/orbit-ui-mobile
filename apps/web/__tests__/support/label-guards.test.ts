@@ -3,6 +3,7 @@ import { IncomingMessage, Server, ServerResponse } from 'node:http'
 import { Socket } from 'node:net'
 import { cloneElement, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { act, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -13,11 +14,14 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { profileSchema } from '@orbit/shared/types/profile'
+import { tagListSchema } from '@orbit/shared/types/tag'
 import { mintHermeticJwt } from '@/test-support/hermetic/hermetic-session'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
+import { Sheet } from '@/components/ui/sheet'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitRowContent } from '@/components/habits/habit-row-content'
 import { EventRow } from '@/components/dates/event-row'
@@ -26,12 +30,15 @@ import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-inter
 import { expectLabelsFit, expectLegendFits, markUserText } from '@/e2e/layout/label-fit-contract'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
-describe('label fixture calendars through the hermetic session', () => {
+describe('label fixture calendars and tags through the hermetic session', () => {
   let server: Server
   const calendars = userCalendarsSchema.parse([
     { id: 'calendar-1', name: 'Meu calendário pessoal de compromissos e encontros', accessRole: 'owner', primary: true, backgroundColor: null, isSynced: true },
     { id: 'calendar-2', name: 'Trabalho', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true },
   ])
+  const tags = tagListSchema.parse(Array.from({ length: 21 }, (_, index) => ({
+    id: `tag-${index}`, name: `Tag ${index}`, color: '#808080',
+  })))
 
   beforeAll(async () => {
     const listen = vi.spyOn(Server.prototype, 'listen').mockReturnThis()
@@ -83,6 +90,34 @@ describe('label fixture calendars through the hermetic session', () => {
       expect(requestFixture('/api/calendar/calendars', token).status).toBe(400)
     }
   })
+
+  it('returns a schema-valid empty list without a tags claim', () => {
+    for (const token of [undefined, mintHermeticJwt(profileFixture)]) {
+      const response = requestFixture('/api/tags', token)
+      expect(response.status).toBe(200)
+      expect(tagListSchema.parse(response.body)).toEqual([])
+    }
+  })
+
+  it('carries searchable tags alongside the profile and calendars to the server-side route', () => {
+    const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR' })
+    const token = mintHermeticJwt(profile, calendars, tags)
+    const response = requestFixture('/api/tags', token)
+    expect(response.status).toBe(200)
+    expect(tagListSchema.parse(response.body)).toEqual(tags)
+    expect(profileSchema.parse(requestFixture('/api/profile', token).body)).toEqual(profile)
+    expect(userCalendarsSchema.parse(requestFixture('/api/calendar/calendars', token).body)).toEqual(calendars)
+    expect(requestFixture('/api/tags', mintHermeticJwt(profile)).body).toEqual([])
+  })
+
+  it('rejects invalid tags and malformed sessions at the mock API boundary', () => {
+    const invalidTags = Reflect.apply(mintHermeticJwt, undefined, [profileFixture, undefined, [{}]]) as string
+    for (const token of [invalidTags, 'invalid.payload.signature']) {
+      const response = requestFixture('/api/tags', token)
+      expect(response.status).toBe(400)
+      expect(response.body).toEqual({ error: 'Invalid hermetic tags session' })
+    }
+  })
 })
 
 describe('label and interaction fill guards in Chromium', () => {
@@ -103,6 +138,41 @@ describe('label and interaction fill guards in Chromium', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    it.each([320, 600].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(
+      `keeps typed sheet title interaction fills padded at $width px and text scale $textScale in ${locale}`,
+      async ({ width, textScale }) => {
+        const title = locale === 'pt-BR' ? 'Leitura' : 'Reading'
+        const sheet = render(cloneElement(createElement(NextIntlClientProvider),
+          { locale, messages: words, timeZone: 'UTC' },
+          createElement(Sheet, { title, titleMode: 'typed', onClose: () => {} }),
+        ))
+        const page = await browser.newPage({ viewport: { width, height: 915 } })
+        try {
+          await act(async () => {})
+          const variables = Object.entries(resolveWebThemeVariables('orange', 'dark'))
+            .map(([name, value]) => `${name}: ${value};`).join(' ')
+          await page.setContent(`<!doctype html><style>${stylesheet}
+            :root { ${variables} font-size: ${16 * textScale}px; }
+          </style>${sheet.baseElement.innerHTML}`)
+          await loadAppFonts(page)
+          await page.evaluate(() => {
+            for (const animation of document.getAnimations()) animation.finish()
+          })
+          const trigger = page.getByRole('button', { name: title })
+          await expectInteractionFill(trigger)
+          const bounds = await trigger.boundingBox()
+          const closeBounds = await page.getByRole('button', { name: words.common.close }).boundingBox()
+          expect(bounds!.height).toBeGreaterThanOrEqual(48)
+          expect(closeBounds!.width).toBe(48)
+          expect(closeBounds!.height).toBeGreaterThanOrEqual(48)
+          expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(closeBounds!.x)
+        } finally {
+          await page.close()
+          sheet.unmount()
+        }
+      },
+    )
+
     it.each([
       { name: 'fitting', clipped: false },
       { name: 'clipped', clipped: true },

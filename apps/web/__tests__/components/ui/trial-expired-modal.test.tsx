@@ -132,6 +132,18 @@ describe('TrialExpiredModal', () => {
     expect(screen.queryByText('trial.expired.goals')).not.toBeInTheDocument()
   })
 
+  it('places each paused status on the supporting line beneath its feature label', () => {
+    mockTrialExpired = true
+    render(<TrialExpiredModal />)
+    const pausedStatuses = screen.getAllByText('trial.expired.paused')
+    expect(pausedStatuses).toHaveLength(4)
+    for (const [index, feature] of ['astraCeiling', 'calendarSync', 'retrospective', 'proactiveAstra'].entries()) {
+      const label = screen.getByText(`trial.expired.${feature}`)
+      expect(pausedStatuses[index]?.parentElement).toBe(label.parentElement?.parentElement)
+      expect(label.parentElement?.nextElementSibling).toBe(pausedStatuses[index])
+    }
+  })
+
   it('renders the annual saving from the plans payload', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)

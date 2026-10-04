@@ -84,7 +84,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
       <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
         <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
       </button>
-      <div className="shrink-0 grow-0 text-start" title={`${props.dayName}, ${props.numericDate}`}>
+      <div className="shrink-0 grow-0 ps-[8px] text-start" title={`${props.dayName}, ${props.numericDate}`}>
         <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
           {props.shortDayName ? <>
             <span className="@[15rem]:contents hidden">{props.dayName}</span>

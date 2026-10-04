@@ -306,6 +306,10 @@
         },
         "progress": {
           "createGoal": "Create a goal for {title}"
+        },
+        "habitDetail": {
+          "pauseThisWeek": "Pause the habit \"{title}\" this week",
+          "rename": "Rename the habit \"{title}\""
         }
       },
       "inputLabel": "Ask Astra",
@@ -2249,7 +2253,7 @@
     "proBadge": "Trial",
     "expired": {
       "eyebrow": "Trial ended",
-      "heading": "Your Pro trial has ended",
+      "heading": "Your Pro trial ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
       "astraCeiling": "50 Astra messages per day",

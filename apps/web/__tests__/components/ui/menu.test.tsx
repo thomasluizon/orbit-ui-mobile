@@ -64,6 +64,16 @@ describe('Menu', () => {
     expect(document.querySelector('.orbit-sheet-title')).toHaveTextContent('Options')
   })
 
+  it('discloses the original typed title when a short product heading is supplied', async () => {
+    setWide(false)
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir'
+    render(<Menu open title={title} shortTitle="Ler" titleMode="typed" items={items} />)
+    const trigger = await screen.findByRole('button', { name: title })
+    await userEvent.click(trigger)
+    expect(document.querySelector('.orbit-sheet-full-title')).toHaveTextContent(title)
+    expect(screen.getByRole('menu', { name: title })).toBeInTheDocument()
+  })
+
   it('matches menu icon stroke to medium-weight labels', async () => {
     setWide(false)
     render(<Menu open title="List options" items={[{ id: 'select', label: 'Select', icon: 'checkbox' }]} />)

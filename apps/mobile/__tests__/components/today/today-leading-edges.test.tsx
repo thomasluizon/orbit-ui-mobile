@@ -16,9 +16,9 @@ vi.mock('react-i18next', async () => {
   const { createInstance } = await import('i18next')
   const { default: ICUCommonJs } = await import('i18next-icu/cjs')
   const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
-  const { default: messages } = await import('@orbit/shared/i18n/en.json')
+  const { default: messages } = await import('@orbit/shared/i18n/pt-BR.json')
   const i18n = createInstance()
-  await i18n.use(ICU).init({ lng: 'en', resources: { en: { translation: messages } } })
+  await i18n.use(ICU).init({ lng: 'pt-BR', resources: { 'pt-BR': { translation: messages } } })
   return { useTranslation: () => ({ t: i18n.t.bind(i18n), i18n }) }
 })
 
@@ -153,6 +153,24 @@ function assertPrimaryFill(nodes: Map<Host, YogaNode>, row: [Host, YogaNode]) {
   })
 }
 
+function containsHost(host: Host, element: Host): boolean {
+  return host === element || (host.children ?? []).some((child) => typeof child !== 'string' && containsHost(child, element))
+}
+
+function assertPaddedBody(nodes: Map<Host, YogaNode>, rowHost: Host) {
+  const descendants = [...nodes].filter(([element]) => containsHost(rowHost, element))
+  const [body, bodyNode] = descendants.find(([element]) => element.type === 'Pressable' &&
+    element.props.accessibilityRole === 'button' && element.props.accessibilityLabel?.includes('habit with a long name'))!
+  const [, wellNode] = descendants.find(([element]) => {
+    if (element.type !== 'View') return false
+    const style = StyleSheet.flatten((element.props.style ?? {}) as StyleProp<ViewStyle>)
+    return style.borderRadius === 12 && (style.width === 32 || style.width === 46)
+  })!
+  expect(leadingPosition(wellNode) - leadingPosition(bodyNode)).toBeGreaterThanOrEqual(8)
+  if (typeof body.props.style !== 'function') throw new Error('Body target has no press feedback')
+  for (const pressed of [false, true]) expect(StyleSheet.flatten(body.props.style({ pressed })).paddingLeft).toBeGreaterThanOrEqual(8)
+}
+
 function pressAt(element: Host, nodes: Map<Host, YogaNode>, x: number, y: number): boolean {
   const node = nodes.get(element)!
   const inside = x >= leadingPosition(node) && x < leadingPosition(node) + node.getComputedWidth()
@@ -172,7 +190,7 @@ function pressAt(element: Host, nodes: Map<Host, YogaNode>, x: number, y: number
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
 describe('Hoje leading edges on Android', () => {
-  it.each([320, 384].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].map((selectMode) => ({ width, fontScale, selectMode })))))(
+  it.each([320, 384, 600].flatMap((width) => [1, 2].flatMap((fontScale) => [false, true].map((selectMode) => ({ width, fontScale, selectMode })))))(
     'shares two edges at $width dp and $fontScale text scale, selecting=$selectMode', ({ width, fontScale, selectMode }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
       const onDetail = vi.fn()
@@ -196,14 +214,15 @@ describe('Hoje leading edges on Android', () => {
         const textEdges = [...nodes].filter(([element]) => element.type === 'Text' &&
           ['Sua rotina mudou. Vamos conversar?', 'Quarta-feira', 'Qua.', '8 abr.', 'Leaf', 'Parent', 'Child'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
         expect(textEdges).toHaveLength(6)
-        for (const [, node] of textEdges) expect(Math.abs(leadingPosition(node) - 76)).toBeLessThanOrEqual(1)
         const rows = [...nodes].filter(([element]) => element.props.testID === 'habit-row')
         expect(rows).toHaveLength(3)
+        for (const [rowHost] of rows) assertPaddedBody(nodes, rowHost)
+        for (const [, node] of textEdges) expect(Math.abs(leadingPosition(node) - 84)).toBeLessThanOrEqual(1)
         for (const [, node] of rows) {
           expect(leadingPosition(node)).toBe(16)
           if (fontScale === 2) expect(node.getComputedHeight()).toBeGreaterThan(68)
         }
-        const progress = [...nodes].find(([element]) => element.type === 'Text' && textContent(element) === '0 of 2')!
+        const progress = [...nodes].find(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')!
         expect(progress, JSON.stringify([...nodes].filter(([element]) => element.type === 'Text').map(([element]) => textContent(element)))).toBeDefined()
         const [progressHost, progressNode] = progress
         const measuredProgress = measureText(progressHost, StyleSheet.flatten(progressHost.props.style as StyleProp<TextStyle>), fontScale)

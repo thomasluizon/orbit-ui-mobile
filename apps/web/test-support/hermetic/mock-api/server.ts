@@ -160,6 +160,21 @@ function calendarsForRequest(req: IncomingMessage): unknown {
   }
 }
 
+function tagsForRequest(req: IncomingMessage): unknown {
+  const authorization = req.headers.authorization
+  if (!authorization?.startsWith('Bearer ')) return emptyTagsFixture
+  const encodedPayload = authorization.slice('Bearer '.length).split('.')[1]
+  if (!encodedPayload) return emptyTagsFixture
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as unknown
+    const session = z.object({ hermeticTags: z.array(habitTagSchema).optional() }).parse(payload)
+    return session.hermeticTags ?? emptyTagsFixture
+  } catch {
+    return null
+  }
+}
+
 function handleCatchAll(method: string, pathname: string, res: ServerResponse): void {
   log(`unmapped ${method} ${pathname}`)
   if (method === 'POST' && pathname === '/api/auth/refresh') {
@@ -190,8 +205,9 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     let body = route.body
     if (pathname === '/api/profile') body = profileForRequest(req)
     if (pathname === '/api/calendar/calendars') body = calendarsForRequest(req)
+    if (pathname === '/api/tags') body = tagsForRequest(req)
     if (body === null) {
-      const fixture = pathname === '/api/profile' ? 'profile' : 'calendars'
+      const fixture = pathname.slice(pathname.lastIndexOf('/') + 1)
       sendJson(res, 400, { error: `Invalid hermetic ${fixture} session` })
       return
     }

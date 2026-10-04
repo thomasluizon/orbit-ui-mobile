@@ -83,7 +83,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
 }
 
 const styles = StyleSheet.create({
-  line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 0, paddingRight: 16, paddingVertical: 8, borderRadius: 12 },
+  line: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 8, paddingRight: 16, paddingVertical: 8, borderRadius: 12 },
   feedback: { borderRadius: 12 },
   text: { minWidth: 0, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 },
 })

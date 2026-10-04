@@ -627,6 +627,29 @@ await Promise.resolve()
     expect(mockShowError).not.toHaveBeenCalled()
   })
 
+  it('releases the native screen removal guard before the successful create exits', async () => {
+    let removalBlocked = true
+    function LeaveGuard({ leaving }: Readonly<{ leaving: boolean; requestLeave: () => void }>) {
+      removalBlocked = !leaving
+      return null
+    }
+    const onClose = vi.fn(() => expect(removalBlocked).toBe(false))
+    const onCreated = vi.fn()
+    const tree = renderModal(<CreateHabitModal open presentation="screen" leaveGuard={LeaveGuard} onClose={onClose} onCreated={onCreated} />)
+    await TestRenderer.act(async () => { await Promise.resolve() })
+    expect(removalBlocked).toBe(true)
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
+    })
+    expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(onCreated).toHaveBeenCalledOnce()
+    expect(hasText(tree.root, 'common.discardChangesTitle')).toBe(false)
+    expect(mockShowError).not.toHaveBeenCalled()
+    tree.unmount()
+  })
+
   it('sends a title without the schedule applied from a Portuguese phrase', async () => {
     const phrase = 'Alongar 3 vezes por semana'
     mockLocale.value = 'pt-BR'

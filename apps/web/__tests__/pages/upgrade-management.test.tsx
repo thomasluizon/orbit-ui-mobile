@@ -166,9 +166,13 @@ function UsageStatsWithoutProfile() {
 }
 
 describe('UpgradePage subscription management', () => {
-  it('keeps outcomes inside the plan cards', () => {
+  it('keeps outcomes inside the plan cards', async () => {
     mockPlans = { monthly: { unitAmount: 999 }, yearly: { unitAmount: 6999 }, currency: 'usd', savingsPercent: 42, couponPercentOff: null }
     render(<UpgradePage />)
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
+      expect(document.querySelectorAll('[data-tier]')).toHaveLength(2)
+    })
     for (const list of screen.getAllByRole('list', { name: 'upgrade.outcomes.label' })) {
       expect(list.closest('[data-tier]')).not.toBeNull()
       expect(list.children).toHaveLength(4)

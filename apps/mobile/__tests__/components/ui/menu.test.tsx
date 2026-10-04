@@ -5,6 +5,8 @@ import { createTokensV2 } from '@/lib/theme'
 import { StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Menu } from '@/components/ui/menu'
+import { HabitRow } from '@/components/habits/habit-row'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { Checkbox } from '@/components/ui/icons'
@@ -16,6 +18,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.unmock('@/components/ui/sheet')
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
 
 vi.mock('@lodev09/react-native-true-sheet', () => ({
   TrueSheet: class TrueSheet extends React.Component<{ children?: React.ReactNode; footer?: React.ReactNode }> {
@@ -41,6 +44,40 @@ function menuItemLabels(tree: any): string[] {
 }
 
 describe('Menu (mobile)', () => {
+  it('discloses the full name from a real habit row menu without an edit action', async () => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
+    const onDelete = vi.fn()
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title })} actions={{ onDelete }} />) })
+    const more = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'habits.actions.more')[0]!
+    await TestRenderer.act(() => (more.props.onPress as () => void)())
+    const sheet = tree.root.findAll((node) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!
+    const header = sheet.props.header as React.ReactElement<{ children: React.ReactElement<{ onPress: () => void; children: React.ReactElement<{ numberOfLines?: number }> }>[] }>
+    const titleButton = header.props.children[0]!
+    expect(titleButton.props.children.props.numberOfLines).toBe(2)
+    await TestRenderer.act(() => titleButton.props.onPress())
+    const fullTitle = sheet.findAll((node) => node.type === Text && node.props.children === title)[0]!
+    expect(fullTitle.props.numberOfLines).toBeUndefined()
+    expect(fullTitle.props.selectable).toBe(true)
+    expect(menuItemLabels(tree)).toContain('habits.actions.delete')
+    expect(onDelete).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it('discloses the original typed title even when a short heading is supplied', async () => {
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir'
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Menu open presentation="sheet" title={title} shortTitle="Ler" titleMode="typed" items={[{ id: 'edit', label: 'Edit' }]} />) })
+    const sheet = tree.root.findAll((node) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!
+    const header = sheet.props.header as React.ReactElement<{ children: React.ReactElement<{ onPress: () => void; accessibilityLabel: string }>[] }>
+    const trigger = header.props.children[0]!
+    expect(trigger.props.accessibilityLabel).toBe(title)
+    await TestRenderer.act(() => trigger.props.onPress())
+    expect(sheet.findAll((node) => node.type === Text && node.props.children === title)).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('renders one trailing action row through the real confirmation sheet', async () => {
     let tree!: ReactTestRenderer
     await TestRenderer.act(() => {

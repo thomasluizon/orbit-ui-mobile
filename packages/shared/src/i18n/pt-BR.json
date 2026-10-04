@@ -306,6 +306,10 @@
         },
         "progress": {
           "createGoal": "Criar uma meta para {title}"
+        },
+        "habitDetail": {
+          "pauseThisWeek": "Pausar o hábito \"{title}\" esta semana",
+          "rename": "Renomear o hábito \"{title}\""
         }
       },
       "inputLabel": "Peça à Astra",
@@ -2249,10 +2253,10 @@
     "proBadge": "Período de teste",
     "expired": {
       "eyebrow": "Teste encerrado",
-      "heading": "Seu teste Pro acabou",
+      "heading": "O teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro vão pausar se você não assinar.",
-      "astraCeiling": "50 mensagens da Astra por dia",
+      "astraCeiling": "50 mensagens da Astra ao dia",
       "calendarSync": "Sincronização do calendário",
       "retrospective": "Retrospectiva periódica",
       "proactiveAstra": "Astra proativa",

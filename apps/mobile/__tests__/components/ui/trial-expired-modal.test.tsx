@@ -51,6 +51,14 @@ function renderedText(tree: import('react-test-renderer').ReactTestRenderer | un
     .map((node) => node.props.children)
 }
 
+function parentView(node: import('react-test-renderer').ReactTestInstance) {
+  type ParentedInstance = import('react-test-renderer').ReactTestInstance & { parent: ParentedInstance | null }
+  let parent = (node as ParentedInstance).parent
+  while (parent && String(parent.type) !== 'View') parent = parent.parent
+  if (!parent) throw new Error('Text has no containing view')
+  return parent
+}
+
 const push = vi.hoisted(() => vi.fn())
 
 vi.mock('expo-router', () => ({
@@ -148,6 +156,23 @@ describe('TrialExpiredModal (mobile)', () => {
       params: { from: '/' },
     })
     expect(push).toHaveBeenCalledTimes(1)
+  })
+
+  it('places each paused status on the supporting line beneath its feature label', async () => {
+    const tree = await renderModal()
+    const pausedStatuses = tree!.root.findAll(
+      (node) => String(node.type) === 'Text' && node.props.children === 'trial.expired.paused',
+    )
+    expect(pausedStatuses).toHaveLength(4)
+    for (const [index, feature] of ['astraCeiling', 'calendarSync', 'retrospective', 'proactiveAstra'].entries()) {
+      const label = tree!.root.findAll(
+        (node) => String(node.type) === 'Text' && node.props.children === `trial.expired.${feature}`,
+      )[0]!
+      const textBlock = parentView(parentView(label))
+      expect(parentView(pausedStatuses[index]!) === textBlock).toBe(true)
+      expect(textBlock.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children))
+        .toEqual([`trial.expired.${feature}`, 'trial.expired.paused'])
+    }
   })
 
   it('shows the notice to the next account after the previous one dismissed it', async () => {

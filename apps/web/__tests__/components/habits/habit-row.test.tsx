@@ -90,7 +90,7 @@ describe('HabitRow overflow menus', () => {
     expect(screen.queryByRole('menuitem', { name: 'habits.actions.openSubHabits' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: 'common.select' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'habits.actions.addSubHabit' })).not.toHaveTextContent('Pro')
-    expect(screen.getByText('Read', { selector: '.orbit-sheet-title' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Read' })).toBeInTheDocument()
   })
 
   it('removes the menu while selecting rows', () => {
@@ -270,7 +270,7 @@ describe('HabitRow canonical content', () => {
     const row = screen.getByTestId('habit-row')
     expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
     expect(row.style.paddingInlineStart).toBe('')
-    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '0px' })
+    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '8px' })
   })
 
   it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {

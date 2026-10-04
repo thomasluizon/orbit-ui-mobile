@@ -22,6 +22,7 @@ type ExpectedBase = {
   onSelect?: (id: string) => void
   onClose?: () => void
   title?: string
+  titleMode?: 'label' | 'typed'
   shortTitle?: string
   align?: 'start' | 'end'
 }

@@ -21,36 +21,3 @@ declare module 'react-test-renderer' {
   export function create(element: ReactElement): ReactTestRenderer
   export function act(callback: () => void | Promise<void>): void | Promise<void>
 }
-
-declare module '@testing-library/react-native' {
-  import type { ReactElement } from 'react'
-
-  type TestingLibraryMethod = (...args: readonly unknown[]) => unknown
-
-  export type RenderResult = {
-    toJSON: () => unknown
-  } & Record<string, unknown>
-
-  export const fireEvent: {
-    press: (element: unknown) => void
-    changeText: (element: unknown, text: string) => void
-    [key: string]: (...args: readonly unknown[]) => void
-  }
-
-  export function render(element: ReactElement): RenderResult
-
-  export const screen: {
-    getByLabelText: (text: string) => unknown
-    getByText: (text: string) => unknown
-    getAllByText: (text: string) => unknown[]
-    getByPlaceholderText: (text: string) => unknown
-    getByDisplayValue: (text: string) => unknown
-    getByTestId: (text: string) => unknown
-    queryByText: (text: string) => unknown
-    queryByLabelText: (text: string) => unknown
-    queryByPlaceholderText: (text: string) => unknown
-    queryByDisplayValue: (text: string) => unknown
-    queryByTestId: (text: string) => unknown
-    [key: string]: TestingLibraryMethod
-  }
-}

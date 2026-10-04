@@ -220,6 +220,25 @@ describe('PlanSelection (mobile)', () => {
     expect(motion.props.entering).toBeDefined()
   })
 
+  it.each([false, true])('exposes tier hooks only after loading, reduced motion: %s', (reduced) => {
+    motionMocks.reduced = reduced
+    const tree = renderSelection('yearly', { plans: null, isLoading: true })
+    const tierCards = (interval: SubscriptionInterval) => tree.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.testID === `upgrade-tier-${interval}`,
+    )
+
+    for (const interval of ['yearly', 'monthly'] as const) {
+      expect(tierCards(interval)).toHaveLength(0)
+    }
+
+    tree.rerender({ plans, isLoading: false })
+
+    for (const interval of ['yearly', 'monthly'] as const) {
+      expect(tierCards(interval)).toHaveLength(1)
+    }
+  })
+
   it('hard-cuts loading-to-content with reduced motion', () => {
     motionMocks.reduced = true
     const tree = renderSelection('yearly', { plans: null, isLoading: true })

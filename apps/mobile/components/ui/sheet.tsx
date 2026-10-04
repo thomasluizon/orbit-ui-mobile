@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, us
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { SHEET_BODY_INSETS, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions, type ScrollView, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { X } from '@/components/ui/icons'
@@ -57,6 +57,7 @@ interface MobileSheetProps extends SheetProps {
 /** The native overlay surface. Callers mount it only while it is open. */
 export function Sheet({
   title,
+  titleMode = 'label',
   accessibleTitle,
   headerAccessory,
   actions,
@@ -82,6 +83,7 @@ export function Sheet({
     ), SHEET_BODY_INSETS[0])
   const bodyStyle = [styles.body, { paddingHorizontal: bodyPaddingHorizontal }]
   const { bottom: bottomInset } = useSafeAreaInsets()
+  const { titleExpanded, bodyRef, handleBodyScroll, toggleTitle } = useSheetTitleDisclosure()
   const [headerHeight, setHeaderHeight] = useState(0)
   const [footerHeight, setFooterHeight] = useState(0)
   const { t } = useTranslation()
@@ -140,27 +142,23 @@ export function Sheet({
     return true
   }, [onAttemptDismiss])
 
-  const header = title || accessibleTitle || headerAccessory || onClose || onAttemptDismiss ? (
-    <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
-      {title ? <Text accessibilityLabel={accessibleTitle} numberOfLines={1} style={styles.title}>{title}</Text> : (
-        <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
-      )}
-      {headerAccessory}
-      {onClose || onAttemptDismiss ? (
-        <Pressable
-          accessibilityLabel={t('common.close')}
-          accessibilityRole="button"
-          onPress={() => {
-            if (onClose) requestClose()
-            else onAttemptDismiss?.()
-          }}
-          style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
-        >
-          <X color={tokens.fg2} size={24} strokeWidth={1.8} />
-        </Pressable>
-      ) : null}
-    </View>
-  ) : undefined
+  const closeButton = onClose || onAttemptDismiss ? (
+    <Pressable
+      accessibilityLabel={t('common.close')}
+      accessibilityRole="button"
+      onPress={() => {
+        if (onClose) requestClose()
+        else onAttemptDismiss?.()
+      }}
+      style={({ pressed }) => [styles.close, pressed ? styles.pressed : null]}
+    >
+      <X color={tokens.fg2} size={24} strokeWidth={1.8} />
+    </Pressable>
+  ) : null
+  const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
+    styles, titleExpanded, t, closeButton, onToggleTitle: toggleTitle,
+    onLayout: (event) => setHeaderHeight(event.nativeEvent.layout.height) })
+  const expandedTitle = titleExpanded && titleMode === 'typed' ? <Text selectable style={styles.fullTitle}>{title}</Text> : null
 
   const showSheetToast = topOverlayId === sheetId && currentToast !== null
   const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, bottomInset, setFooterHeight)
@@ -197,11 +195,14 @@ export function Sheet({
     >
       {virtualizedBody ? (
         <View testID="sheet-virtualized-body" style={[bodyStyle, virtualizedBodyStyle(maxBodyHeight, Boolean(footer))]}>
+          {expandedTitle}
           {children}
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </View>
       ) : (
         <KeyboardAwareSheetScrollView
+          ref={bodyRef}
+          onScroll={handleBodyScroll}
           testID="sheet-body-scroll"
           style={{ maxHeight: maxBodyHeight }}
           contentContainerStyle={[bodyStyle, boundedBody ? { maxHeight: maxBodyHeight } : null]}
@@ -209,6 +210,7 @@ export function Sheet({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {expandedTitle}
           {children}
           <View testID="sheet-footer-space" style={{ height: reservedFooterHeight }} />
         </KeyboardAwareSheetScrollView>
@@ -218,6 +220,35 @@ export function Sheet({
 }
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
+  styles, titleExpanded, t, closeButton, onToggleTitle, onLayout,
+}: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle' | 'headerAccessory' | 'onClose' | 'onAttemptDismiss'> & {
+  styles: ReturnType<typeof createStyles>
+  titleExpanded: boolean
+  t: ReturnType<typeof useTranslation>['t']
+  closeButton: ReactNode
+  onToggleTitle: () => void
+  onLayout: NonNullable<import('react-native').ViewProps['onLayout']>
+}) {
+  return title || accessibleTitle || headerAccessory || onClose || onAttemptDismiss ? (
+    <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={onLayout}>
+      {title ? titleMode === 'typed' ? (
+        <Pressable focusInset accessibilityLabel={title} accessibilityRole="button"
+          accessibilityHint={t(titleExpanded ? 'common.collapse' : 'common.expand')}
+          accessibilityState={{ expanded: titleExpanded }}
+          onPress={onToggleTitle}
+          style={({ pressed }) => [styles.titleButton, pressed ? styles.titlePressed : null]}>
+          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.typedTitle}>{title}</Text>
+        </Pressable>
+      ) : <Text accessibilityLabel={accessibleTitle} numberOfLines={1} style={styles.title}>{title}</Text> : (
+        <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
+      )}
+      {headerAccessory}
+      {closeButton}
+    </View>
+  ) : undefined
+}
 
 function renderSheetFooter(
   actions: ReactNode,
@@ -257,6 +288,34 @@ function createStyles(tokens: Tokens) {
       fontFamily: 'Geist_500Medium',
       fontSize: 22,
     },
+    titleButton: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 48,
+      justifyContent: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    titlePressed: {
+      backgroundColor: tokens.bgHover,
+      borderRadius: 12,
+      overflow: 'hidden',
+    },
+    typedTitle: {
+      textDecorationLine: 'underline',
+      color: tokens.fg1,
+      fontFamily: 'Geist_500Medium',
+      fontSize: 22,
+    },
+    fullTitle: {
+      color: tokens.fg1,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 17,
+      lineHeight: 26.35,
+      paddingBottom: 16,
+    },
     titleSpacer: {
       flex: 1,
     },
@@ -289,4 +348,24 @@ function createStyles(tokens: Tokens) {
     footer: { backgroundColor: tokens.bgSheet },
     notice: { paddingHorizontal: 24, paddingVertical: 16 },
   })
+}
+
+function useSheetTitleDisclosure() {
+  const [titleExpanded, setTitleExpanded] = useState(false)
+  const bodyRef = useRef<ScrollView>(null)
+  const currentScroll = useRef(0)
+  const previousScroll = useRef<number | null>(null)
+  useEffect(() => {
+    if (previousScroll.current !== null) {
+      bodyRef.current?.scrollTo({ y: titleExpanded ? 0 : previousScroll.current, animated: false })
+    }
+  }, [titleExpanded])
+  function toggleTitle() {
+    if (!titleExpanded) previousScroll.current = currentScroll.current
+    setTitleExpanded(!titleExpanded)
+  }
+  function handleBodyScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    currentScroll.current = event.nativeEvent.contentOffset.y
+  }
+  return { titleExpanded, bodyRef, handleBodyScroll, toggleTitle }
 }

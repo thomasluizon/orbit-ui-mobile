@@ -11,6 +11,20 @@ const cases = (['sheet', 'anchored'] as const).flatMap((presentation) =>
     (['pointer', 'click-only'] as const).map((activation) => ({ presentation, phase, activation }))))
 
 describe('HabitRow menu replacement', () => {
+  it('discloses a full habit name from the real row menu without an edit action', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
+    const onDelete = vi.fn()
+    render(<HabitRow habit={createMockHabit({ title })} actions={{ onDelete }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+    const menu = await screen.findByRole('menu', { name: title })
+    const header = menu.closest('[role="dialog"]')!.querySelector('header')!
+    fireEvent.click(header.querySelector('button[aria-expanded]')!)
+    expect(screen.getByRole('dialog', { name: title }).querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
+    expect(screen.getByRole('menu', { name: title })).toBeVisible()
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+
   it.each(cases)('replaces the $phase $presentation menu via $activation', async ({ presentation, phase, activation }) => {
     vi.stubGlobal('matchMedia', () => ({ matches: presentation === 'anchored', addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     render(<>

@@ -256,8 +256,8 @@ vi.mock("@/components/ui/section-label", () => ({
 }));
 
 vi.mock("@/components/ui/settings-row", () => ({
-  SettingsRow: ({ label, accessory }: { label: string; accessory?: string }) =>
-    React.createElement("SettingsRow", { accessory }, label),
+  SettingsRow: ({ label, ...props }: React.ComponentProps<typeof import("@/components/ui/settings-row")["SettingsRow"]>) =>
+    React.createElement("SettingsRow", props, label),
 }));
 
 vi.mock("@/components/ui/switch", () => ({
@@ -989,10 +989,11 @@ describe("CalendarSyncScreen", () => {
   });
 
   it("lists imported habits and keeps partial failures visible", async () => {
-    mocks.eventsQuery.data = { status: "connected", events: buildEvents(2) };
+    const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana';
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(2).map((event, index) => index === 0 ? { ...event, title: habitName } : event) };
     mocks.bulkMutateAsync.mockResolvedValue({
       results: [
-        { status: "Success", habitId: "h1", title: "Event 0", error: null },
+        { status: "Success", habitId: "h1", title: habitName, error: null },
         { status: "Failed", habitId: null, title: "Event 1", error: "boom" },
       ],
     });
@@ -1029,10 +1030,11 @@ describe("CalendarSyncScreen", () => {
     ).toBeGreaterThan(0);
     const doneRows = tree.root.findAll(
       (node: TestNode & { type?: unknown }) =>
-        node.type === "SettingsRow" && node.props.children === "Event 0",
+        node.type === "SettingsRow" && node.props.children === habitName,
     );
     expect(doneRows).toHaveLength(1);
     expect(doneRows[0]!.props.accessory).toBe("none");
+    expect(doneRows[0]!.props.textMode).toBe("personal");
     const goToHabits = tree.root.find(
       (node: TestNode) =>
         typeof node.props.onClick === "function" &&

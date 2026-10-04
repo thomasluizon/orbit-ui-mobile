@@ -100,7 +100,7 @@ it('selects a tag below the first viewport while the search keyboard is open', a
     tree.root.findByType('ListRow').props.onClick()
   })
 
-  expect(tree.root.findByType(BottomSheetAppTextInput)).toBeDefined()
+  expect(StyleSheet.flatten(tree.root.findByType(TextInput).props.style)).toMatchObject({ paddingHorizontal: 16, minHeight: 54 })
   const list = tree.root.findByType(FlatList)
   expect(list.props.nestedScrollEnabled).toBe(true)
   expect(list.props.keyboardShouldPersistTaps).toBe('handled')
