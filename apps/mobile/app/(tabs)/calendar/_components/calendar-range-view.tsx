@@ -122,12 +122,14 @@ export function CalendarRangeView({
 
 const styles = StyleSheet.create({
   container: { gap: 16, paddingTop: 12 },
-  header: { paddingHorizontal: 16, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
+  header: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   grid: { width: '100%', maxWidth: 340, alignSelf: 'center', paddingHorizontal: 4 },
   iconButton: { minHeight: 48, minWidth: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   rangeLabel: {
-    width: '100%',
+    flex: 1,
     minWidth: 0,
+    minHeight: 48,
+    textAlignVertical: 'center',
     fontFamily: 'GeistMono_400Regular',
     fontSize: 14,
     fontVariant: ['tabular-nums'],

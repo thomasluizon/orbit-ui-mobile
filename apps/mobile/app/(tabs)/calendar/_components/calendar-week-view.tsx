@@ -6,7 +6,6 @@ import Animated, {
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { createTokensV2 } from "@/lib/theme";
-import { CalendarWeekNav } from "./calendar-shell";
 import { CalendarTimeGrid, type TimeGridColumn } from "./calendar-time-grid";
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -14,16 +13,9 @@ type Tokens = ReturnType<typeof createTokensV2>;
 interface CalendarWeekViewProps {
   columns: readonly TimeGridColumn[];
   dayMap: Map<string, CalendarDayEntry[]>;
-  weekLabel: string;
-  previousWeekLabel: string;
-  nextWeekLabel: string;
-  currentWeekLabel: string;
   /** Direction of the last week-nav step, driving the grid's slide-in motion. */
   slideDirection: "left" | "right" | null;
   isLoading?: boolean;
-  onPreviousWeek: () => void;
-  onNextWeek: () => void;
-  onCurrentWeek: () => void;
   onSelectDay: (dateStr: string) => void;
   displayTime: (time: string) => string;
   language: string;
@@ -38,15 +30,8 @@ interface CalendarWeekViewProps {
 export function CalendarWeekView({
   columns,
   dayMap,
-  weekLabel,
-  previousWeekLabel,
-  nextWeekLabel,
-  currentWeekLabel,
   slideDirection,
   isLoading = false,
-  onPreviousWeek,
-  onNextWeek,
-  onCurrentWeek,
   onSelectDay,
   displayTime,
   language,
@@ -66,35 +51,23 @@ export function CalendarWeekView({
       : leftWeekEntering;
 
   return (
-    <>
-      <CalendarWeekNav
-        weekLabel={weekLabel}
-        previousWeekLabel={previousWeekLabel}
-        nextWeekLabel={nextWeekLabel}
-        currentWeekLabel={currentWeekLabel}
-        onPreviousWeek={onPreviousWeek}
-        onNextWeek={onNextWeek}
-        onCurrentWeek={onCurrentWeek}
+    <Animated.View
+      key={columns[0]?.dateStr ?? "week"}
+      entering={weekEntering}
+    >
+      <CalendarTimeGrid
+        columns={columns}
+        dayMap={dayMap}
+        onSelectDay={onSelectDay}
+        displayTime={displayTime}
+        language={language}
+        allDayLabel={allDayLabel}
+        nowLabel={nowLabel}
+        timeZone={timeZone}
+        isLoading={isLoading}
+        t={t}
         tokens={tokens}
       />
-      <Animated.View
-        key={columns[0]?.dateStr ?? "week"}
-        entering={weekEntering}
-      >
-        <CalendarTimeGrid
-          columns={columns}
-          dayMap={dayMap}
-          onSelectDay={onSelectDay}
-          displayTime={displayTime}
-          language={language}
-          allDayLabel={allDayLabel}
-          nowLabel={nowLabel}
-          timeZone={timeZone}
-          isLoading={isLoading}
-          t={t}
-          tokens={tokens}
-        />
-      </Animated.View>
-    </>
+    </Animated.View>
   );
 }

@@ -77,6 +77,7 @@ import { useToday } from '../today-provider'
 import { CalendarOptions } from './_components/calendar-options'
 import {
   CalendarHeader,
+  CalendarWeekNav,
 } from './_components/calendar-shell'
 
 type MonthSlide = 'left' | 'right' | null
@@ -664,6 +665,15 @@ function CalendarPageContent({
       onSelectMonth={selectMonth}
       viewSelector={viewSelector}
       showMonthNavigation={view === 'month'}
+      periodNavigation={view === 'week' && <CalendarWeekNav
+        weekLabel={weekLabel}
+        previousWeekLabel={t('common.previousWeek')}
+        nextWeekLabel={t('common.nextWeek')}
+        currentWeekLabel={t('calendar.goToCurrentWeek')}
+        onPreviousWeek={prevWeek}
+        onNextWeek={nextWeek}
+        onCurrentWeek={goToCurrentWeek}
+      />}
     />
   )
 
@@ -741,15 +751,8 @@ function CalendarPageContent({
               <CalendarWeekView
                 columns={gridColumns}
                 dayMap={displayRangeDayMap}
-                weekLabel={weekLabel}
-                previousWeekLabel={t('common.previousWeek')}
-                nextWeekLabel={t('common.nextWeek')}
-                currentWeekLabel={t('calendar.goToCurrentWeek')}
                 slideDirection={weekSlide}
                 isLoading={rangeLoading}
-                onPreviousWeek={prevWeek}
-                onNextWeek={nextWeek}
-                onCurrentWeek={goToCurrentWeek}
                 onSelectDay={openDay}
                 displayTime={displayTime}
                 dateFnsLocale={dateFnsLocale}

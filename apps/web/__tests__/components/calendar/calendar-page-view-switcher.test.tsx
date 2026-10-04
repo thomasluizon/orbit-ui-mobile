@@ -213,21 +213,15 @@ vi.mock('@/components/ui/section-label', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('./_components/calendar-shell', () => ({
-  CalendarHeader: ({ onNextMonth, viewSelector, showMonthNavigation }: { onNextMonth: () => void; viewSelector: React.ReactNode; showMonthNavigation: boolean }) => (
-    <div data-testid="calendar-header-group">{showMonthNavigation ? <button type="button" data-testid="calendar-header" onClick={onNextMonth} /> : null}{viewSelector}</div>
-  ),
-  CalendarLegend: () => <div data-testid="calendar-legend" />,
-  CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
-}))
-
-vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
-  CalendarHeader: ({ onNextMonth, viewSelector, showMonthNavigation }: { onNextMonth: () => void; viewSelector: React.ReactNode; showMonthNavigation: boolean }) => (
-    <div data-testid="calendar-header-group">{showMonthNavigation ? <button type="button" data-testid="calendar-header" onClick={onNextMonth} /> : null}{viewSelector}</div>
-  ),
-  CalendarLegend: () => <div data-testid="calendar-legend" />,
-  CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
-}))
+vi.mock('@/app/(app)/calendar/_components/calendar-shell', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/app/(app)/calendar/_components/calendar-shell')>()
+  return {
+    ...actual,
+    CalendarHeader: (props: React.ComponentProps<typeof actual.CalendarHeader>) => <actual.CalendarHeader {...props}
+      viewSelector={<>{props.showMonthNavigation ? <button type="button" data-testid="calendar-header" onClick={props.onNextMonth} /> : null}{props.viewSelector}</>} />,
+    CalendarLegend: () => <div data-testid="calendar-legend" />,
+  }
+})
 
 vi.mock('@/components/calendar/calendar-grid', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/calendar/calendar-grid')>()
@@ -287,24 +281,17 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
   },
 }))
 
-vi.mock('@/components/calendar/calendar-week-view', () => ({
-  CalendarWeekView: ({
-    onSelectDay,
-    onNextWeek,
-    columns,
-  }: {
-    onSelectDay: (date: string) => void
-    onNextWeek: () => void
-    columns: { dateStr: string }[]
-  }) => (
-    <>
+vi.mock('@/components/calendar/calendar-week-view', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/calendar/calendar-week-view')>()
+  return {
+    CalendarWeekView: (props: React.ComponentProps<typeof actual.CalendarWeekView>) => <>
+      <actual.CalendarWeekView {...props} />
       <button type="button" data-testid="week-view" />
-      <button type="button" data-testid="week-day" onClick={() => onSelectDay('2026-09-12')} />
-      <button type="button" data-testid="next-week" onClick={onNextWeek} />
-      <button type="button" data-testid="visible-week-day" onClick={() => onSelectDay(columns[3]!.dateStr)} />
-    </>
-  ),
-}))
+      <button type="button" data-testid="week-day" onClick={() => props.onSelectDay('2026-09-12')} />
+      <button type="button" data-testid="visible-week-day" onClick={() => props.onSelectDay(props.columns[3]!.dateStr)} />
+    </>,
+  }
+})
 
 vi.mock('@/components/calendar/calendar-range-view', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/calendar/calendar-range-view')>()
@@ -358,6 +345,23 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe('CalendarPage view switcher', () => {
+  it('puts every week pager control in the header before the selector and preserves the view while paging', () => {
+    render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    const header = screen.getByTestId('calendar-header-group')
+    const selector = screen.getByRole('radiogroup')
+    const pager = [screen.getByRole('button', { name: 'common.previousWeek' }), screen.getByRole('button', { name: 'common.nextWeek' }), screen.getByRole('button', { name: /, calendar.goToCurrentWeek$/ })]
+    for (const control of pager) {
+      expect(header).toContainElement(control)
+      expect(control.compareDocumentPosition(selector) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+    const label = pager[2]!.textContent
+    fireEvent.click(pager[1]!)
+    expect(screen.getByRole('button', { name: /, calendar.goToCurrentWeek$/ }).textContent).not.toBe(label)
+    fireEvent.click(pager[0]!)
+    expect(screen.getByRole('button', { name: /, calendar.goToCurrentWeek$/ }).textContent).toBe(label)
+    expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
+  })
   it.each([
     ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
     ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
@@ -775,7 +779,7 @@ describe('CalendarPage view switcher', () => {
   it('returns from a later week to the month containing the selected day', () => {
     render(<CalendarPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
-    for (let week = 0; week < 4; week += 1) fireEvent.click(screen.getByTestId('next-week'))
+    for (let week = 0; week < 4; week += 1) fireEvent.click(screen.getByRole('button', { name: 'common.nextWeek' }))
     fireEvent.click(screen.getByTestId('visible-week-day'))
     expect(calendarDayDetailProps.dateStr).toBe('2026-10-08')
 
