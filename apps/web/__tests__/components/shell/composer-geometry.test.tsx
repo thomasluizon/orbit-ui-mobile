@@ -16,6 +16,7 @@ import { toComposerSuggestions, type ComposerProps } from '@orbit/shared/contrac
 import { Composer } from '@/components/shell/composer'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { Menu } from '@/components/ui/menu'
+import { measureFieldInset } from '@/e2e/layout/field-inset-geometry'
 import { inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -49,7 +50,7 @@ function geometryProps(scenario: GeometryScenario, messages: typeof en, withOpen
 interface PillGeometry {
   pill: { left: number; right: number; height: number }
   documentWidth: number
-  input: { width: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
+  input: { width: number; contentWidth: number; height: number; scrollHeight: number; maximumHeight: number; placeholderWidth: number } | null
   controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[]
 }
 
@@ -69,13 +70,13 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   if (measured.input) {
     expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136)
     if (fontScale === 1) {
-      expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.width)
+      expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.contentWidth)
     }
     if (scenario === 'longText') {
       expect(measured.input.height, evidence).toBe(measured.input.maximumHeight)
       expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
     } else if (scenario !== 'typing') {
-      if (measured.input.placeholderWidth > measured.input.width) expect(measured.pill.height, evidence).toBeGreaterThan(24 * fontScale + 32)
+      if (measured.input.placeholderWidth > measured.input.contentWidth) expect(measured.pill.height, evidence).toBeGreaterThan(24 * fontScale + 32)
       else expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
       expect(measured.input.scrollHeight, evidence).toBeLessThanOrEqual(measured.input.height)
     }
@@ -155,6 +156,40 @@ describe('Composer compact geometry in Chromium', () => {
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 1352].flatMap(width => [false, true].flatMap(withOpener =>
+    ['ltr', 'rtl'].map(direction => ({ width, withOpener, direction })),
+  )))('pads the caret and placeholder at $width with opener $withOpener in $direction', async ({ width, withOpener, direction }) => {
+    const configuration = geometryProps('idle', en, withOpener)
+    if (direction === 'rtl') configuration.words = { ...configuration.words, placeholder: 'אבג' }
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root" dir="${direction}"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const field = page.locator('[data-composer-input]')
+      const placeholder = await field.evaluate(measureFieldInset)
+      expect.soft(placeholder.paddingStart).toBe(8)
+      expect.soft(placeholder.paddingEnd).toBe(8)
+      expect.soft(placeholder.inset).toBe(8)
+      expect.soft(placeholder.pillInset).toBe(4 + (withOpener ? 48 : 0) + 8)
+      const box = (await field.boundingBox())!
+      await page.mouse.click(direction === 'rtl' ? box.x + box.width - 2 : box.x + 2, box.y + box.height / 2)
+      expect(await field.evaluate(element => element === document.activeElement)).toBe(true)
+      await field.fill((direction === 'rtl' ? 'אבג ' : 'Astra ').repeat(10).trim())
+      const typed = await field.evaluate(measureFieldInset)
+      expect(typed.inset).toBe(placeholder.inset)
+      expect(typed.contentWidth).toBe(box.width - 16)
+      if (width === 320) expect(typed.height).toBeGreaterThan(placeholder.height)
+      expect(typed.height).toBeLessThanOrEqual(typed.maximumHeight)
+      expect(typed.scrollHeight).toBe(typed.height)
+      for (const control of await page.locator('[data-composer-input-row] button').all()) {
+        const bounds = (await control.boundingBox())!
+        expect(bounds.width).toBe(48)
+        expect(bounds.height).toBe(48)
+      }
+    } finally { await page.close() }
+  })
 
   it.each([en, ptBR].flatMap(messages => (['offline', 'atLimit'] as const).flatMap(scenario =>
     [{ fontScale: 2, width: 320, kept: true }, { fontScale: 1, width: 600, kept: true },
@@ -597,6 +632,7 @@ describe('Composer compact geometry in Chromium', () => {
             pill: { left: bounds.left, right: bounds.right, height: bounds.height },
             documentWidth: document.documentElement.scrollWidth,
             input: input ? { width: input.clientWidth, height: input.clientHeight, scrollHeight: input.scrollHeight,
+              contentWidth: input.clientWidth - parseFloat(getComputedStyle(input).paddingInlineStart) - parseFloat(getComputedStyle(input).paddingInlineEnd),
               maximumHeight: parseFloat(getComputedStyle(input).maxHeight), placeholderWidth: canvas.measureText(input.placeholder).width } : null,
             controls: [...pill.querySelectorAll('button')].map((button) => {
               const rectangle = button.getBoundingClientRect()

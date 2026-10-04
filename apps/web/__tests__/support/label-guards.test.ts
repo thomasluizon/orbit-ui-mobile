@@ -13,6 +13,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { profileSchema } from '@orbit/shared/types/profile'
+import { tagListSchema } from '@orbit/shared/types/tag'
 import { mintHermeticJwt } from '@/test-support/hermetic/hermetic-session'
 import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 import { CalendarLegend } from '@/app/(app)/calendar/_components/calendar-shell'
@@ -26,12 +27,15 @@ import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-inter
 import { expectLabelsFit, expectLegendFits, markUserText } from '@/e2e/layout/label-fit-contract'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
-describe('label fixture calendars through the hermetic session', () => {
+describe('label fixture calendars and tags through the hermetic session', () => {
   let server: Server
   const calendars = userCalendarsSchema.parse([
     { id: 'calendar-1', name: 'Meu calendário pessoal de compromissos e encontros', accessRole: 'owner', primary: true, backgroundColor: null, isSynced: true },
     { id: 'calendar-2', name: 'Trabalho', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true },
   ])
+  const tags = tagListSchema.parse(Array.from({ length: 21 }, (_, index) => ({
+    id: `tag-${index}`, name: `Tag ${index}`, color: '#808080',
+  })))
 
   beforeAll(async () => {
     const listen = vi.spyOn(Server.prototype, 'listen').mockReturnThis()
@@ -81,6 +85,34 @@ describe('label fixture calendars through the hermetic session', () => {
     const invalidCalendars = Reflect.apply(mintHermeticJwt, undefined, [profileFixture, [{}]]) as string
     for (const token of [invalidCalendars, 'invalid.payload.signature']) {
       expect(requestFixture('/api/calendar/calendars', token).status).toBe(400)
+    }
+  })
+
+  it('returns a schema-valid empty list without a tags claim', () => {
+    for (const token of [undefined, mintHermeticJwt(profileFixture)]) {
+      const response = requestFixture('/api/tags', token)
+      expect(response.status).toBe(200)
+      expect(tagListSchema.parse(response.body)).toEqual([])
+    }
+  })
+
+  it('carries searchable tags alongside the profile and calendars to the server-side route', () => {
+    const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR' })
+    const token = mintHermeticJwt(profile, calendars, tags)
+    const response = requestFixture('/api/tags', token)
+    expect(response.status).toBe(200)
+    expect(tagListSchema.parse(response.body)).toEqual(tags)
+    expect(profileSchema.parse(requestFixture('/api/profile', token).body)).toEqual(profile)
+    expect(userCalendarsSchema.parse(requestFixture('/api/calendar/calendars', token).body)).toEqual(calendars)
+    expect(requestFixture('/api/tags', mintHermeticJwt(profile)).body).toEqual([])
+  })
+
+  it('rejects invalid tags and malformed sessions at the mock API boundary', () => {
+    const invalidTags = Reflect.apply(mintHermeticJwt, undefined, [profileFixture, undefined, [{}]]) as string
+    for (const token of [invalidTags, 'invalid.payload.signature']) {
+      const response = requestFixture('/api/tags', token)
+      expect(response.status).toBe(400)
+      expect(response.body).toEqual({ error: 'Invalid hermetic tags session' })
     }
   })
 })
