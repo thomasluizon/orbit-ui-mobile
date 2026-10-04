@@ -162,7 +162,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     const focusedHeader = document.activeElement?.matches('[data-shell-header] h1')
-    if (document.activeElement === document.body || focusedHeader) headingRef.current?.focus({ preventScroll: true })
+    if (focusedHeader) headingRef.current?.focus({ preventScroll: true })
   }, [habit.id])
   const save = async () => {
     const next = title.trim()
@@ -186,8 +186,8 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
           {editing ? (
             <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-display text-[22px] font-medium tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
           ) : (
-            <h1 ref={headingRef} tabIndex={-1} className="max-w-full font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)]">
-              <button type="button" onClick={() => setEditing(true)} style={{ overflowWrap: 'anywhere' }} className="-my-2 block min-h-[var(--touch-min)] min-w-[var(--touch-min)] w-full whitespace-normal border-0 bg-transparent py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]">{habit.title}</button>
+            <h1 ref={headingRef} tabIndex={-1} style={{ outlineOffset: 2 }} className="orbit-focus-inset flow-root max-w-full font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)]">
+              <button type="button" onClick={() => setEditing(true)} style={{ overflowWrap: 'anywhere', outlineOffset: -6 }} className="orbit-focus-inset -mx-2 -my-2 block min-h-[var(--touch-min)] min-w-[var(--touch-min)] w-[calc(100%+1rem)] whitespace-normal border-0 bg-transparent px-2 py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]">{habit.title}</button>
             </h1>
           )}
           {summary ? <p className="mt-1 truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}

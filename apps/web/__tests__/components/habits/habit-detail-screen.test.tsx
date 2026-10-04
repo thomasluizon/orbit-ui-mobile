@@ -26,6 +26,8 @@ import { RouteContext } from '@/components/navigation/route-context'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { readFieldIndicators, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
 
 const mocks = vi.hoisted(() => ({
   pathname: '/habits/habit-1',
@@ -305,10 +307,38 @@ describe('HabitDetailScreen', () => {
     expect(headings[0]).toHaveTextContent(mocks.detail!.title)
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
+    expect(headings[0]).not.toHaveFocus()
     expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
+  })
+
+  it.each([false, true])('leaves focus on the document after a direct load with delayed data=%s', async (delayed) => {
+    mocks.detailLoading = delayed
+    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(document.body).toHaveFocus()
+    mocks.detailLoading = false
+    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).not.toHaveFocus()
+    expect(document.body).toHaveFocus()
+  })
+
+  it.each([false, true])('focuses the habit title after client navigation with delayed data=%s', async (delayed) => {
+    mocks.pathname = '/'
+    const view = render(<RouteContext><DestinationShell onCreate={() => {}}><h1>Today</h1><button type="button">Open habit</button></DestinationShell></RouteContext>)
+    screen.getByRole('button', { name: 'Open habit' }).focus()
+    mocks.pathname = '/habits/habit-1'
+    mocks.detailLoading = delayed
+    view.rerender(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" fromToday /></DestinationShell></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    mocks.detailLoading = false
+    view.rerender(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" fromToday /></DestinationShell></RouteContext>)
+    await act(async () => { vi.advanceTimersByTime(40) })
+    expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
   beforeEach(() => {
     mocks.pathname = '/habits/habit-1'
@@ -668,12 +698,12 @@ describe('HabitDetailScreen', () => {
 
   it('moves focus from the fallback heading to the habit heading when data arrives', () => {
     mocks.detailLoading = true
-    const view = render(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    const view = render(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell></RouteContext>)
     const fallback = screen.getByRole('heading', { level: 1 })
     expect(document.title).toBe('habits.detail.screenTitle · Orbit')
     fallback.focus()
     mocks.detailLoading = false
-    view.rerender(<RouteContext><HabitDetailScreen habitId="habit-1" /></RouteContext>)
+    view.rerender(<RouteContext><DestinationShell onCreate={() => {}}><HabitDetailScreen habitId="habit-1" /></DestinationShell></RouteContext>)
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
   })
@@ -1854,6 +1884,80 @@ describe('HabitDetailScreen', () => {
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
     it.each([
+      [320, 'dark'], [412, 'dark'], [1100, 'dark'],
+      [320, 'light'], [412, 'light'], [1100, 'light'],
+    ] as const)('keeps one clear, unclipped indicator for each title focus target at %ipx in %s mode', async (width, mode) => {
+      vi.useRealTimers()
+      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
+        await page.setContent(`<style>${stylesheet}:root { ${variables} } body { background: var(--bg); }</style>${container.innerHTML}`)
+        const title = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
+        const button = title.getByRole('button')
+        expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toEqual([])
+        await page.locator('[data-habit-detail-header-row] > div').first().getByRole('button').last().focus()
+        await page.keyboard.press('Tab')
+        for (const target of [button, title]) {
+          if (target === title) await title.focus()
+          expect(await target.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
+          expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toHaveLength(1)
+          expect(await readOutlineVisibility(target)).toMatchObject({ width: 2, visible: true, clippedBy: [] })
+          const clearance = await target.evaluate((element) => {
+            const heading = element.closest('h1')!
+            const style = getComputedStyle(element)
+            const bounds = element.getBoundingClientRect()
+            const summary = heading.nextElementSibling!.getBoundingClientRect()
+            const offset = Number.parseFloat(style.outlineOffset)
+            const outerEdge = offset + Number.parseFloat(style.outlineWidth)
+            const range = document.createRange()
+            range.selectNodeContents(heading.querySelector('button')!)
+            const text = range.getBoundingClientRect()
+            return {
+              glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
+              summaryGap: summary.top - bounds.bottom - outerEdge,
+            }
+          })
+          expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
+          expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
+        }
+      } finally { await page.close() }
+    })
+
+    it.each([412, 1100])('aligns title ink and preserves the base header height at %ipx', async (width) => {
+      vi.useRealTimers()
+      const { container } = render(<HabitDetailScreen habitId="habit-1" />)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.getByRole('heading', { level: 1, name: mocks.detail!.title }).evaluate((heading) => {
+          const button = heading.querySelector('button')!
+          const summary = heading.nextElementSibling!
+          const row = heading.closest('[data-habit-detail-header-row]')!
+          const controls = row.firstElementChild!
+          const range = document.createRange()
+          range.selectNodeContents(button)
+          const text = range.getBoundingClientRect()
+          const style = getComputedStyle(button)
+          const lineHeight = Number.parseFloat(style.lineHeight)
+          const lines = range.getClientRects().length
+          return {
+            titleX: text.left,
+            summaryX: summary.getBoundingClientRect().left,
+            controlsX: controls.getBoundingClientRect().left,
+            hitHeight: button.getBoundingClientRect().height,
+            rowHeight: row.getBoundingClientRect().height,
+            baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
+          }
+        })
+        expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
+        expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
+        expect(geometry.hitHeight).toBeGreaterThanOrEqual(48)
+        expect(geometry.rowHeight).toBeCloseTo(geometry.baseHeight, 1)
+      } finally { await page.close() }
+    })
+
+    it.each([
       [412, 'leaf'],
       [1280, 'leaf'],
       [412, 'parent'],
@@ -1912,7 +2016,7 @@ describe('HabitDetailScreen', () => {
           const columnStyle = getComputedStyle(column)
           return { whiteSpace: style.whiteSpace, textOverflow: style.textOverflow,
             lines: range.getClientRects().length, inside: text.right <= bounds.right + 1 && text.bottom <= bounds.bottom + 1,
-            width: bounds.width, available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
+            width: bounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
         })
         expect(geometry.whiteSpace).toBe('normal')
         expect(geometry.textOverflow).not.toBe('ellipsis')
