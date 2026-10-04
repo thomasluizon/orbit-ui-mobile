@@ -1,12 +1,15 @@
 'use client'
 
+import { resolveSettingsRowText } from '@orbit/shared/hooks'
+
 import { ChevronRight, type Icon } from '@/components/ui/icons'
-import type { ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 
 /** Kit ListRow: flat row — leading icon/dot · title (+ desc) · value · trailing slot · chevron.
  *  Used for Profile nav, settings sub-screens, and stat strips. */
 interface SettingsRowProps {
   label: string
+  textMode?: 'label' | 'personal'
   /** Secondary line under the label (Geist Sans 14 fg-3). */
   desc?: string
   value?: ReactNode
@@ -23,88 +26,9 @@ interface SettingsRowProps {
   ariaLabel?: string
   divider?: boolean
 }
-export function SettingsRow({
-  label,
-  desc,
-  value,
-  valueColor,
-  accessory = 'chevron',
-  onClick,
-  mono = false,
-  leadingDot,
-  icon: LeadingIcon,
-  danger = false,
-  children,
-  ariaLabel,
-  divider = true,
-}: Readonly<SettingsRowProps>) {
-  const interactive = typeof onClick === 'function'
-  const RootTag = interactive ? 'button' : 'div'
-  const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
-  const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
-
-  return (
-    <RootTag
-      type={interactive ? 'button' : undefined}
-      onClick={interactive ? onClick : undefined}
-      aria-label={ariaLabel}
-      className={`w-full flex items-center overflow-hidden rounded-[12px] bg-transparent ${interactive ? 'cursor-pointer transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : ''}`}
-      style={{
-        padding: '16px',
-        gap: 12,
-        textAlign: 'left',
-        appearance: 'none',
-        border: 0,
-        borderBottomWidth: divider ? 1 : 0,
-        borderBottomStyle: 'solid',
-        borderBottomColor: 'var(--hairline)',
-      }}
-    >
-      {LeadingIcon && (
-        <span
-          aria-hidden="true"
-          className="inline-flex justify-center shrink-0"
-          style={{ width: 28 }}
-        >
-          <LeadingIcon size={24} strokeWidth={1.5} color={rowColors.iconColor} />
-        </span>
-      )}
-      {leadingDot && (
-        <span
-          aria-hidden="true"
-          className="rounded-full shrink-0"
-          style={{ width: 8, height: 8, background: leadingDot }}
-        />
-      )}
-      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 4 }}>
-        <span
-          className="overflow-hidden line-clamp-2"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 400,
-            lineHeight: 1.35,
-            color: titleColor,
-            overflowWrap: 'anywhere',
-          }}
-        >
-          {label}
-        </span>
-        {desc && (
-          <span
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 400,
-              lineHeight: 1.4,
-              color: 'var(--fg-3)',
-            }}
-          >
-            {desc}
-          </span>
-        )}
-      </span>
-      <span
+function SettingsRowTrailing({ value, children, accessory, valueColor, mono }: Readonly<Pick<SettingsRowProps, 'value' | 'children' | 'accessory' | 'valueColor' | 'mono'>>) {
+  return <>
+      {(value != null || children || accessory === 'chevron') && <span
         className="flex items-center shrink-0"
         style={{
           gap: 8,
@@ -129,7 +53,111 @@ export function SettingsRow({
         {accessory === 'chevron' && (
           <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-3)" />
         )}
+      </span>}
+  </>
+}
+
+function labelPresentation(textMode: SettingsRowProps['textMode'], expanded: boolean) {
+  return { className: textMode === 'personal' && !expanded ? 'line-clamp-2' : undefined, lineHeight: textMode === 'label' || expanded ? 1.4 : 1.35, overflowWrap: textMode === 'personal' ? 'anywhere' as const : 'break-word' as const }
+}
+
+function settingsRowStyle(textMode: SettingsRowProps['textMode'], divider: boolean) {
+  return {
+        padding: '16px',
+        minHeight: 48,
+        alignItems: textMode === 'label' ? 'flex-start' as const : 'stretch' as const,
+        flexDirection: textMode === 'personal' ? 'column' as const : 'row' as const,
+        gap: 12,
+        textAlign: 'left' as const,
+        appearance: 'none' as const,
+        border: 0,
+        borderBottomWidth: divider ? 1 : 0,
+        borderBottomStyle: 'solid' as const,
+        borderBottomColor: 'var(--hairline)',
+  }
+}
+
+export function SettingsRow({
+  label,
+  textMode = 'label',
+  desc,
+  value,
+  valueColor,
+  accessory = 'chevron',
+  onClick,
+  mono = false,
+  leadingDot,
+  icon: LeadingIcon,
+  danger = false,
+  children,
+  ariaLabel,
+  divider = true,
+}: Readonly<SettingsRowProps>) {
+  const [expanded, setExpanded] = useState(false)
+  const labelId = useId()
+  const { expandedState, controls, onAction: handleClick } = resolveSettingsRowText({ textMode, expanded, labelId, onAction: onClick, onToggle: () => setExpanded((current) => !current) })
+  const interactive = typeof handleClick === 'function'
+  const RootTag = interactive ? 'button' : 'div'
+  const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
+  const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
+
+  return (
+    <RootTag
+      type={interactive ? 'button' : undefined}
+      onClick={handleClick}
+      aria-expanded={expandedState}
+      aria-controls={controls}
+      aria-label={ariaLabel}
+      className={`w-full flex items-center overflow-hidden rounded-[12px] bg-transparent ${interactive ? 'cursor-pointer transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : ''}`}
+      style={settingsRowStyle(textMode, divider)}
+    >
+      {LeadingIcon && (
+        <span
+          aria-hidden="true"
+          className="inline-flex justify-center shrink-0"
+          style={{ width: 28 }}
+        >
+          <LeadingIcon size={24} strokeWidth={1.5} color={rowColors.iconColor} />
+        </span>
+      )}
+      {leadingDot && (
+        <span
+          aria-hidden="true"
+          className="rounded-full shrink-0"
+          style={{ width: 8, height: 8, background: leadingDot }}
+        />
+      )}
+      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 4 }}>
+        <span
+          id={labelId}
+          data-slot="settings-row-label"
+          className={labelPresentation(textMode, expanded).className}
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: '1.0625rem',
+            fontWeight: 400,
+            lineHeight: labelPresentation(textMode, expanded).lineHeight,
+            color: titleColor,
+            overflowWrap: labelPresentation(textMode, expanded).overflowWrap,
+          }}
+        >
+          {label}
+        </span>
+        {desc && (
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              fontWeight: 400,
+              lineHeight: 1.4,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {desc}
+          </span>
+        )}
       </span>
+      <SettingsRowTrailing value={value} valueColor={valueColor} accessory={accessory} mono={mono}>{children}</SettingsRowTrailing>
     </RootTag>
   )
 }

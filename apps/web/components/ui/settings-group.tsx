@@ -1,7 +1,9 @@
 'use client'
 
+import { resolveSettingsRowText } from '@orbit/shared/hooks'
+
 import type { ReactNode, MouseEvent } from 'react'
-import React from 'react'
+import React, { useId, useState } from 'react'
 import { ChevronRight } from '@/components/ui/icons'
 
 const SETTINGS_ROW_STYLE: React.CSSProperties = {
@@ -44,6 +46,7 @@ interface SettingsGroupRowProps {
   /** Pre-rendered leading icon node. */
   icon?: ReactNode
   label: string
+  textMode?: 'label' | 'personal'
   /** Optional right-side hint or value text. */
   hint?: string
   /** Optional slot rendered between hint and chevron (toggle, badge). */
@@ -55,20 +58,8 @@ interface SettingsGroupRowProps {
   dataTestId?: string
 }
 
-/** Flat row inside a SettingsGroup. Carries no divider; the group draws them. */
-export function SettingsGroupRow({
-  icon,
-  label,
-  hint,
-  trailing,
-  accessory,
-  onClick,
-  ariaLabel,
-  dataTestId,
-}: Readonly<SettingsGroupRowProps>) {
-  const resolvedAccessory = accessory ?? (onClick ? 'chevron' : 'none')
-
-  const content = (
+function SettingsGroupRowContent({ icon, label, textMode, hint, trailing, resolvedAccessory, expanded, labelId }: Readonly<Pick<SettingsGroupRowProps, 'icon' | 'label' | 'textMode' | 'hint' | 'trailing'> & { resolvedAccessory: 'chevron' | 'none'; expanded: boolean; labelId: string }>) {
+  return (
     <>
       {icon ? (
         <span
@@ -82,14 +73,16 @@ export function SettingsGroupRow({
       <span className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
         <span className="flex items-center">
           <span
-            className="min-w-0 overflow-hidden line-clamp-2"
+            id={labelId}
+            data-slot="settings-row-label"
+            className={textMode === 'personal' && !expanded ? 'min-w-0 line-clamp-2' : 'min-w-0'}
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 17,
+              fontSize: '1.0625rem',
               fontWeight: 400,
-              lineHeight: 1.35,
+              lineHeight: textMode === 'label' || expanded ? 1.4 : 1.35,
               color: 'var(--fg-1)',
-              overflowWrap: 'anywhere',
+              overflowWrap: textMode === 'personal' ? 'anywhere' : 'break-word',
             }}
           >
             {label}
@@ -109,25 +102,49 @@ export function SettingsGroupRow({
           </span>
         ) : null}
       </span>
-      <span className="flex items-center shrink-0" style={{ gap: 8 }}>
+      {(trailing || resolvedAccessory === 'chevron') ? <span className="flex items-center shrink-0" style={{ gap: 8 }}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
           <ChevronRight size={24} strokeWidth={1.8} color="var(--fg-3)" />
         ) : null}
-      </span>
+      </span> : null}
     </>
   )
+}
 
-  if (onClick) {
+/** Flat row inside a SettingsGroup. Carries no divider; the group draws them. */
+export function SettingsGroupRow({
+  icon,
+  label,
+  textMode = 'label',
+  hint,
+  trailing,
+  accessory,
+  onClick,
+  ariaLabel,
+  dataTestId,
+}: Readonly<SettingsGroupRowProps>) {
+  const [expanded, setExpanded] = useState(false)
+  const labelId = useId()
+  const { expandedState, controls, onAction: handleClick } = resolveSettingsRowText({ textMode, expanded, labelId, onAction: onClick, onToggle: () => setExpanded((current) => !current) })
+  const resolvedAccessory = accessory ?? (onClick ? 'chevron' : 'none')
+
+  const content = <SettingsGroupRowContent icon={icon} label={label} textMode={textMode} hint={hint} trailing={trailing} resolvedAccessory={resolvedAccessory} expanded={expanded} labelId={labelId} />
+
+  if (handleClick) {
     return (
       <button
         type="button"
-        onClick={onClick}
+        onClick={handleClick}
+        aria-expanded={expandedState}
+        aria-controls={controls}
         aria-label={ariaLabel}
         data-testid={dataTestId}
         className="w-full text-left flex items-center justify-between cursor-pointer rounded-[12px] bg-transparent transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
         style={{
           ...SETTINGS_ROW_STYLE,
+          alignItems: textMode === 'label' ? 'flex-start' : 'stretch',
+          flexDirection: textMode === 'personal' ? 'column' : 'row',
           appearance: 'none',
           border: 0,
         }}
@@ -142,7 +159,7 @@ export function SettingsGroupRow({
       aria-label={ariaLabel}
       data-testid={dataTestId}
       className="w-full flex items-center justify-between"
-      style={SETTINGS_ROW_STYLE}
+      style={{ ...SETTINGS_ROW_STYLE, alignItems: 'flex-start' }}
     >
       {content}
     </div>

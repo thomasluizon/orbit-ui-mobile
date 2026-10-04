@@ -1,7 +1,8 @@
+import { resolveSettingsRowText } from '@orbit/shared/hooks'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import type { ReactNode } from 'react'
-import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import React, { useState } from 'react'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { ChevronRight } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -37,6 +38,7 @@ interface SettingsGroupRowProps {
   /** Pre-rendered leading icon (e.g. `<Settings size={24} color={tokens.fg1} />`). */
   icon?: ReactNode
   label: string
+  textMode?: 'label' | 'personal'
   /** Screen-reader name; defaults to `label` when omitted (e.g. announce plan state on a subscription row). */
   accessibilityLabel?: string
   /** Optional right-side hint or value text. */
@@ -48,10 +50,32 @@ interface SettingsGroupRowProps {
   onPress?: () => void
 }
 
+function SettingsGroupRowText({ label, textMode, hint, expanded, color, hintColor }: Readonly<Pick<SettingsGroupRowProps, 'label' | 'textMode' | 'hint'> & { expanded: boolean; color: string; hintColor: string }>) {
+  return (
+      <View style={[styles.textBlock, textMode === 'personal' ? styles.personalTextBlock : null]}>
+        <View style={styles.titleRow}>
+          <Text
+            style={[styles.label, textMode === 'label' || expanded ? styles.wrappedLabel : null, { color: color }]}
+            numberOfLines={textMode === 'personal' && !expanded ? 2 : undefined}
+            ellipsizeMode="tail"
+          >
+            {label}
+          </Text>
+        </View>
+        {hint ? (
+          <Text style={[styles.hint, { color: hintColor }]} numberOfLines={1}>
+            {hint}
+          </Text>
+        ) : null}
+      </View>
+  )
+}
+
 /** Flat row inside a SettingsGroup. Carries no divider; the group draws them. */
 export function SettingsGroupRow({
   icon,
   label,
+  textMode = 'label',
   accessibilityLabel,
   hint,
   trailing,
@@ -60,46 +84,42 @@ export function SettingsGroupRow({
 }: Readonly<SettingsGroupRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { fontScale } = useWindowDimensions()
+  const [expanded, setExpanded] = useState(false)
+  const { expandedState, onAction: handlePress } = resolveSettingsRowText({ textMode, expanded, onAction: onPress, onToggle: () => setExpanded((current) => !current) })
   const resolvedAccessory = accessory ?? (onPress ? 'chevron' : 'none')
 
   return (
     <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      accessibilityRole={onPress ? 'button' : 'none'}
+      onPress={handlePress}
+      disabled={!handlePress}
+      accessibilityRole={handlePress ? 'button' : 'none'}
+      accessibilityState={expandedState === undefined ? undefined : { expanded: expandedState }}
       accessibilityLabel={accessibilityLabel ?? label}
       style={({ pressed }) => [
         styles.row,
-        pressed && onPress ? { backgroundColor: tokens.bgHover } : null,
+        textMode === 'label' && fontScale > 1.3 ? styles.largeTextRow : null,
+        textMode === 'personal' ? styles.personalRow : null,
+        pressed && handlePress ? { backgroundColor: tokens.bgHover } : null,
       ]}
     >
       {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
-      <View style={styles.textBlock}>
-        <View style={styles.titleRow}>
-          <Text
-            style={[styles.label, { color: tokens.fg1 }]}
-            numberOfLines={2}
-          >
-            {label}
-          </Text>
-        </View>
-        {hint ? (
-          <Text style={[styles.hint, { color: tokens.fg3 }]} numberOfLines={1}>
-            {hint}
-          </Text>
-        ) : null}
-      </View>
-      <View style={styles.trailingBlock}>
+      <SettingsGroupRowText label={label} textMode={textMode} hint={hint} expanded={expanded} color={tokens.fg1} hintColor={tokens.fg3} />
+      {(trailing || resolvedAccessory === 'chevron') ? <View style={styles.trailingBlock}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
           <ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} />
         ) : null}
-      </View>
+      </View> : null}
     </Pressable>
   )
 }
 
 const styles = StyleSheet.create({
+  largeTextRow: { alignItems: 'flex-start' },
+  personalRow: { flexDirection: 'column', alignItems: 'stretch' },
+  personalTextBlock: { flex: 0, width: '100%' },
+  wrappedLabel: { lineHeight: 23.8 },
   divider: {
     height: StyleSheet.hairlineWidth,
   },

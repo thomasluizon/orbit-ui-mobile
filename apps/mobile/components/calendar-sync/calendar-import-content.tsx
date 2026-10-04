@@ -593,7 +593,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               )}
             </SectionLabel>
             {importResult?.habits.map((habit) => (
-              <SettingsRow key={habit.id} label={habit.title} accessory="none" />
+              <SettingsRow key={habit.id} label={habit.title} textMode="personal" accessory="none" />
             ))}
             <View style={styles.actionPad}>
               <PillButton onClick={onGoToHabits}>
