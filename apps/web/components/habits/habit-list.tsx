@@ -76,6 +76,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import { useAccountGeneration, useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
@@ -343,6 +344,7 @@ export function HabitList({
 
   const data = habitsQuery.data
   const habitsById = data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const dragAccessibility = useDragAccessibility(t, (id) => habitsById.get(String(id))?.title)
   const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
@@ -1381,6 +1383,7 @@ export function HabitList({
       return (
         <DndContext
           id={dndContextId}
+          accessibility={dragAccessibility}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}

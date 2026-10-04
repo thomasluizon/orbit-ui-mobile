@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useLocale, useTranslations } from 'next-intl'
@@ -352,7 +353,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
   onOpen: () => void
 }>) {
   const t = useTranslations()
-  const { setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder })
+  const { attributes, setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder, attributes: { roleDescription: t('dragAndDrop.roleDescription') } })
   const labelKey = getProgressGoalLabelKey(goal)
   const abandoned = goal.status === 'Abandoned'
   const state = t(labelKey ?? 'goals.status.active')
@@ -378,7 +379,8 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
         transform: transform ? `scaleX(${transform.scaleX}) scaleY(${transform.scaleY})` : undefined,
         transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
       }}
-      aria-roledescription={canReorder ? t('goals.dragItem') : undefined}
+      aria-roledescription={canReorder ? attributes['aria-roledescription'] : undefined}
+      aria-describedby={canReorder ? attributes['aria-describedby'] : undefined}
       aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onKeyDown={canReorder ? handleKeyDown : undefined}
       onClick={onOpen}
@@ -415,6 +417,7 @@ function GoalsEmptyState() {
 function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
   const headingId = useId()
   const t = useTranslations()
+  const dragAccessibility = useDragAccessibility(t, (id) => goals.find((goal) => goal.id === id)?.title, t('dragAndDrop.goalInstructions'))
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [filterOpen, setFilterOpen] = useState(false)
@@ -459,7 +462,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
       {goals.length === 0 ? <GoalsEmptyState /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
-        <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
+        <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
             return <GoalCard key={goal.id} goal={goal} index={index} total={goals.length} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />

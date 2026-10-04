@@ -11,6 +11,7 @@ vi.mock('@dnd-kit/core', () => ({
 vi.mock('@dnd-kit/sortable', () => ({
   SortableContext: ({ children }: { children: ReactNode }) => children,
   useSortable: () => ({
+    attributes: {},
     isDragging: true,
     listeners: {},
     setNodeRef: vi.fn(),
