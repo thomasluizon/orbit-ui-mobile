@@ -248,7 +248,7 @@ describe('web Today Astra', () => {
         const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}:${value};`).join('')
         for (const fontSize of [14, 28]) {
           await page.mouse.move(0, 0)
-          await page.setContent(`<html class="${mode}" lang="pt-BR"><style>${stylesheet.css}:root{${variables}}body{padding:16px}.today-astra-line{font-size:${fontSize}px}</style><body>${container.innerHTML}</body></html>`)
+          await page.setContent(`<html class="${mode}" lang="pt-BR"><style>${stylesheet.css}:root{${variables}}.today-astra-line{font-size:${fontSize}px}</style><body>${container.innerHTML}</body></html>`)
           await loadAppFonts(page)
           const action = page.getByRole(variant === 'proactive' ? 'button' : 'link')
           const appearance = await action.evaluate((element) => {
@@ -261,8 +261,7 @@ describe('web Today Astra', () => {
             const target = element.getBoundingClientRect()
             const prose = sentence.getBoundingClientRect()
             return {
-              height: target.height, width: target.width, right: target.right,
-              paddingStart: style.paddingInlineStart, paddingEnd: style.paddingInlineEnd,
+              height: target.height, width: target.width, left: target.left, right: target.right,
               radius: style.borderRadius, background: style.backgroundColor,
               textColor: sentenceStyle.color, glyphColor: getComputedStyle(element.querySelector('svg')!).color,
               canvas: getComputedStyle(document.body).backgroundColor,
@@ -277,7 +276,7 @@ describe('web Today Astra', () => {
             }
           })
           expect(appearance).toMatchObject({
-            width: 288, paddingStart: '24px', paddingEnd: '16px', radius: '12px',
+            width: 288, left: 16, right: 304, radius: '12px',
             background: appearance.expectedBackground, clamp: '2', feedbackEvents: 'none', feedbackInset: '0px', feedbackOpacity: '0', overflow: false,
           })
           expect(appearance.height).toBeGreaterThanOrEqual(48)

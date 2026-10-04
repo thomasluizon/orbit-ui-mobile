@@ -1324,7 +1324,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   min-width: 0;
   min-height: 48px;
   padding: 8px 16px;
-  padding-inline-start: 24px;
+  padding-inline-start: 8px;
   border: 0;
   border-radius: 12px;
   background: var(--bg-well);
@@ -1369,7 +1369,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .today-astra-line:focus-visible {
   outline: 2px solid var(--fg-1);
-  outline-offset: 2px;
+  outline-offset: -4px;
 }
 
 .today-astra-line:active::before {
