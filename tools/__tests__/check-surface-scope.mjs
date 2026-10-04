@@ -88,6 +88,11 @@ function stageUnsafeEmptyTrack(repository) {
 }
 
 export const cases = () => {
+  for (const [label, props, status] of [["absent-copy", "", 0], ["present-copy", 'body="Copy"', 1]]) {
+    const repository = stageRepository(label, { web: `function Notice({body}) { return <div className="bg-[var(--bg-well)]">{body && <p className="text-[var(--fg-3)]">{body}</p>}</div> }
+export function Screen() { return <section className="bg-[var(--bg-elev)]"><Notice ${props} /></section> }` })
+    check("check-surface-scope.mjs", `checks only rendered optional copy: ${label}`, ["--root", repository], { status })
+  }
   const scopedCases = [
     ["promoted-text", `<button className="orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>`, 0],
     ["unpromoted-text", `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>`, 1],
