@@ -3,6 +3,7 @@
 export interface SheetProps {
   open?: true
   title?: string
+  titleMode?: 'label' | 'typed'
   accessibleTitle?: string
   headerAccessory?: React.ReactNode
   actions?: React.ReactNode

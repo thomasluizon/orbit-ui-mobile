@@ -96,6 +96,48 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 const TestRenderer = require('react-test-renderer')
 
 describe('Sheet (mobile)', () => {
+  it.each(['typed', 'label'] as const)('limits a %s title and opens typed text with one press', async (titleMode) => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
+    function Draft() {
+      const [value, setValue] = React.useState('Keep this')
+      return <Text onPress={() => setValue('Edited draft')}>{value}</Text>
+    }
+    const onClose = vi.fn()
+    const scrollTo = vi.fn()
+    __setScrollToImpl(scrollTo)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Sheet title={title} titleMode={titleMode} onClose={onClose}><Draft /></Sheet>)
+    })
+    await TestRenderer.act(() => tree.root.findByType(Draft).findByType(Text).props.onPress())
+    const header = tree.root.findByType(TrueSheet).props.header
+    const heading = header.props.children[0]
+    const titleText = heading.type === Text ? heading : heading.props.children
+    expect(titleText.props.numberOfLines).toBe(titleMode === 'typed' ? 2 : 1)
+    if (titleMode === 'typed') {
+      expect(titleText.props.ellipsizeMode).toBe('tail')
+      expect(StyleSheet.flatten(heading.props.style({ pressed: false })).minHeight).toBe(48)
+      expect(heading.props.accessibilityRole).toBe('button')
+      const scroller = tree.root.findAllByProps({ testID: 'sheet-body-scroll' }).find((node: { type: unknown }) => String(node.type) === 'ScrollView')
+      await TestRenderer.act(() => scroller.props.onScroll({ nativeEvent: { contentOffset: { y: 120 } } }))
+      await TestRenderer.act(() => heading.props.onPress())
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 0, animated: false })
+      const sheets = tree.root.findAllByType(TrueSheet)
+      expect(sheets).toHaveLength(1)
+      const fullTitle = sheets[0].findAllByType(Text).find((node: { props: { children?: string } }) => node.props.children === title)
+      expect(fullTitle.props.numberOfLines).toBeUndefined()
+      expect(fullTitle.props.selectable).toBe(true)
+      expect(tree.root.findByType(TrueSheet).props.header.props.children[0].props.accessibilityState.expanded).toBe(true)
+      await TestRenderer.act(() => tree.root.findByType(TrueSheet).props.header.props.children[0].props.onPress())
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: string } }) => node.props.children === title)).toHaveLength(0)
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 120, animated: false })
+      expect(tree.root.findByType(Draft).findByType(Text).props.children).toBe('Edited draft')
+      expect(onClose).not.toHaveBeenCalled()
+    }
+    await TestRenderer.act(() => tree.unmount())
+  })
+
   it.each([412, 840])('aligns the native sheet to the phone column at %ipx', async (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
     let tree!: ReturnType<typeof TestRenderer.create>
@@ -114,7 +156,7 @@ describe('Sheet (mobile)', () => {
       await Promise.resolve()
     })
     const scroller = tree!.root.findByProps({ testID: 'sheet-body-scroll' })
-    const content = scroller.props.children[0]
+    const content = scroller.props.children[1]
     const callerStyle = StyleSheet.flatten(content.props.style) ?? {}
     expect(callerStyle.paddingBottom ?? callerStyle.paddingVertical ?? callerStyle.padding ?? 0).toBe(0)
     expect(callerStyle.paddingHorizontal ?? callerStyle.padding ?? 0).toBe(0)

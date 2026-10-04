@@ -443,6 +443,7 @@ export const HabitRow = memo(function HabitRow({
           anchorRef={menuButtonRef}
           onClose={closeMenu}
           title={habit.title || t('habits.actions.menuTitle')}
+          titleMode={rowMenuTitleMode(habit.title)}
           items={menuItems}
           onSelect={(id) => runMenuAction(actions, id)}
         />
@@ -450,6 +451,10 @@ export const HabitRow = memo(function HabitRow({
     </View>
   )
 })
+
+function rowMenuTitleMode(title: string | null | undefined) {
+  return title ? 'typed' : 'label'
+}
 
 function HabitRowLayout({ largeText, isChild, supportingMeta, rowStyle, primaryButton, primaryContent, metaParts, metaColor, tokens, children }: Readonly<{
   largeText: boolean

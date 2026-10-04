@@ -47,6 +47,7 @@ interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView>
 
 interface KeyboardAwareSheetScrollViewProps
   extends ComponentProps<typeof ScrollView> {
+  ref?: Ref<ScrollView>
   children: ReactNode
   keyboardVerticalOffset?: number
 }
@@ -352,6 +353,7 @@ export function KeyboardAwareScrollView({
 
 export function KeyboardAwareSheetScrollView({
   children,
+  ref,
   keyboardVerticalOffset = 0,
   keyboardShouldPersistTaps = 'always',
   ...props
@@ -361,6 +363,11 @@ export function KeyboardAwareSheetScrollView({
     scrollRef,
     keyboardVerticalOffset,
   )
+  const assignRef = useCallback((node: ScrollView | null) => {
+    scrollRef.current = node
+    if (typeof ref === 'function') ref(node)
+    else if (ref) ref.current = node
+  }, [ref])
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       keyboardAwareContext.handleScroll(event)
@@ -372,7 +379,7 @@ export function KeyboardAwareSheetScrollView({
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
       <ScrollView
         {...props}
-        ref={scrollRef}
+        ref={assignRef}
         style={props.style}
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
         automaticallyAdjustKeyboardInsets
