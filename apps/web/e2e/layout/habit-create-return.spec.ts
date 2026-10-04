@@ -73,6 +73,13 @@ for (const locale of ['pt-BR', 'en'] as const) {
             await expect(page.locator('[data-habit-create-screen]')).toHaveCount(0)
             await expect(page.getByTestId('habit-row').filter({ hasText: title })).toBeVisible()
             expect(submissions).toHaveLength(1)
+            await page.evaluate(() => new Promise<void>((resolve) => {
+              window.addEventListener('popstate', () => resolve(), { once: true })
+              history.forward()
+            }))
+            await expect(page).not.toHaveURL(/\/habits\/new(?:\?|$)/)
+            await expect(page.locator('[data-habit-create-screen]')).toHaveCount(0)
+            await expect(page.getByTestId('habit-row').filter({ hasText: title })).toBeVisible()
           } finally {
             const snapshots = await page.evaluate(() => Reflect.get(window, 'habitCreateHistory') as unknown)
             await testInfo.attach('habit-create-history', { body: JSON.stringify(snapshots, null, 2), contentType: 'application/json' })

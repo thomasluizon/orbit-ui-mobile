@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import { flushSync } from 'react-dom'
+import { startTransition } from 'react'
 
 type NextHistoryEntry = {
   __NA?: boolean
@@ -7,21 +8,28 @@ type NextHistoryEntry = {
   __PRIVATE_NEXTJS_INTERNALS_TREE?: unknown
 }
 
-export function patchNextAppRouterHistory() {
+export function patchNextAppRouterHistory({ deferRestoration = false }: { deferRestoration?: boolean } = {}) {
   const pushState = history.pushState.bind(history)
   const replaceState = history.replaceState.bind(history)
   const writes = { pushState: vi.fn(pushState), replaceState: vi.fn(replaceState) }
   const restoreUrl = vi.fn()
-  const restoreTraversal = vi.fn<(href: string) => void>()
+  let currentRouterState: unknown
+  const restoreTraversal = vi.fn<(href: string, routerState: unknown) => void>()
   function onPopState(event: PopStateEvent) {
     const entry = event.state as NextHistoryEntry | null
     if (!entry?.__NA) return
-    flushSync(() => restoreTraversal(location.href))
+    currentRouterState = entry.__PRIVATE_NEXTJS_INTERNALS_TREE ?? currentRouterState
+    const restore = () => restoreTraversal(location.href, currentRouterState)
+    if (deferRestoration) startTransition(restore)
+    else flushSync(restore)
   }
   window.addEventListener('popstate', onPopState, true)
   for (const method of ['pushState', 'replaceState'] as const) {
     history[method] = (entry: NextHistoryEntry | null, title, href) => {
-      if (entry?.__NA || entry?._N) return writes[method](entry, title, href)
+      if (entry?.__NA || entry?._N) {
+        if (entry.__PRIVATE_NEXTJS_INTERNALS_TREE) currentRouterState = entry.__PRIVATE_NEXTJS_INTERNALS_TREE
+        return writes[method](entry, title, href)
+      }
       const nextEntry = entry ?? {}
       const current = history.state as NextHistoryEntry | null
       if (current?.__NA) nextEntry.__NA = current.__NA

@@ -63,10 +63,13 @@ describe('habit creation history exits', () => {
     const guard = mountGuard()
     try {
       expect(history.state).toMatchObject({ orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: true })
-      act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/')))
-      await waitFor(() => expect(location.pathname).toBe('/'))
-      expect(routerRestores).toHaveLength(1)
+      const destination = vi.fn(() => history.replaceState(null, '', '/'))
+      act(() => completeHabitCreateNavigation(destination))
+      await waitFor(() => expect(destination).toHaveBeenCalledOnce())
+      expect(location.pathname).toBe('/')
+      expect(routerRestores).toHaveLength(2)
       expect(traversalStates).toMatchObject([
+        { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
         { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
       ])
       expect(history.state).toMatchObject({ __NA: true })
@@ -86,6 +89,8 @@ describe('habit creation history exits', () => {
     guard.unmount()
     await backTo('/search')
     await forwardTo('/calendar')
+    await forwardTo('/search')
+    expect(history.state).not.toHaveProperty('__PRIVATE_NEXTJS_INTERNALS_TREE')
   })
 
   it.each(['pushState', 'replaceState'] as const)('lets Next %s commit after the create screen unmounts', async (method) => {
@@ -138,6 +143,7 @@ describe('habit creation history exits', () => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')
     let guard = mountGuard()
+    const guardedLength = history.length
     location.hash = '#one'
     await waitFor(() => expect(location.hash).toBe('#one'))
     location.hash = '#two'
@@ -149,13 +155,15 @@ describe('habit creation history exits', () => {
     expect(location.hash).toBe('#one')
     guard.unmount()
     guard = mountGuard()
-    const fragmentLength = history.length
+    expect(history.length).toBeGreaterThan(guardedLength)
     act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/calendar')))
     await waitFor(() => expect(location.pathname).toBe('/calendar'))
     guard.unmount()
-    expect(history.length).toBe(fragmentLength)
+    expect(history.length).toBe(guardedLength)
     await backTo('/search')
     await forwardTo('/calendar')
+    await forwardTo('/search')
+    expect(history.state).not.toHaveProperty('__PRIVATE_NEXTJS_INTERNALS_TREE')
   })
 
   it.each(['/habits/new', '/habits/new?from=/search'])('keeps a directly opened copied link usable: %s', async (href) => {
