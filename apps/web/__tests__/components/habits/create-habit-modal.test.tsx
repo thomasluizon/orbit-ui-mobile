@@ -289,6 +289,15 @@ function HabitCreateRouter({ nextHistory }: Readonly<{ nextHistory: ReturnType<t
     : <div>Today</div>
 }
 
+async function unmountAfterExit(mounted: { unmount: () => void }) {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+      mounted.unmount()
+    })
+  })
+}
+
 async function traverseHistory(direction: 'back' | 'forward') {
   await act(async () => {
     await new Promise<void>((resolve) => {
@@ -446,7 +455,7 @@ describe('CreateHabitModal', () => {
       expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
       expect(screen.getByText('Today')).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
-      expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(2)
+      expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(3)
       expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
       expect(mockShowError).not.toHaveBeenCalled()
       nextHistory.restoreTraversal.mockClear()
@@ -533,7 +542,7 @@ describe('CreateHabitModal', () => {
       await waitFor(() => expect(location.pathname).toBe('/notifications'))
       expect(mockPush).toHaveBeenCalledExactlyOnceWith('/notifications')
       expect(close).not.toHaveBeenCalled()
-      mounted.unmount()
+      await unmountAfterExit(mounted)
       await traverseHistory('back')
       expect(location.pathname).toBe('/habits/new')
       await traverseHistory('forward')
@@ -559,7 +568,7 @@ describe('CreateHabitModal', () => {
     expect(close).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => expect(close).toHaveBeenCalledWith(false))
-    mounted.unmount()
+    await unmountAfterExit(mounted)
     await traverseHistory('back')
     expect(location.pathname).toBe('/search')
     await traverseHistory('back')
@@ -597,7 +606,7 @@ describe('CreateHabitModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => expect(close).toHaveBeenCalledWith(false))
-    mounted.unmount()
+    await unmountAfterExit(mounted)
     await traverseHistory('back')
     expect(location.pathname).toBe('/search')
   })
@@ -614,7 +623,7 @@ describe('CreateHabitModal', () => {
     await waitFor(() => expect(location.pathname).toBe('/calendar'))
     expect(destination).toHaveBeenCalledOnce()
     expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(2)
-    mounted.unmount()
+    await unmountAfterExit(mounted)
     await traverseHistory('back')
     expect(location.pathname).toBe('/habits/new')
   })
