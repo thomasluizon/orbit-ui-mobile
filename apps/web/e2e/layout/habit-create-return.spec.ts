@@ -105,6 +105,57 @@ for (const locale of ['pt-BR', 'en'] as const) {
         await expect(page.locator('[data-habit-create-screen]')).toHaveCount(0)
       })
 
+      test('handles browser Back during and after the Keep editing exit', async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: 'no-preference' })
+        await page.goto('/')
+        await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
+        const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
+        const keepEditing = page.getByRole('button', { name: messages.common.keepEditing, exact: true })
+        const discard = page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })
+        await field.fill('Keep this closing draft')
+        await page.evaluate(() => history.back())
+        await expect(keepEditing).toBeVisible()
+        const duringExit = await keepEditing.evaluate((button) => new Promise<{ mountedDuringBack: boolean; animationCount: number }>((resolve, reject) => {
+          if (!(button instanceof HTMLButtonElement)) { reject(new Error('Expected the Keep editing button')); return }
+          const panel = button.closest('[role="dialog"]')
+          if (!panel) { reject(new Error('Expected the discard dialog')); return }
+          const observer = new MutationObserver(() => {
+            if (!panel.hasAttribute('data-ending-style')) return
+            observer.disconnect()
+            const animations = panel.getAnimations()
+            if (!animations.length) { reject(new Error('Expected a real sheet exit transition')); return }
+            animations.forEach((animation) => animation.pause())
+            const onRestored = () => {
+              if (!history.state?.orbitHabitCreateSentinel) return
+              window.removeEventListener('popstate', onRestored)
+              const mountedDuringBack = panel.isConnected && panel.hasAttribute('data-ending-style')
+              animations.forEach((animation) => animation.play())
+              resolve({ mountedDuringBack, animationCount: animations.length })
+            }
+            window.addEventListener('popstate', onRestored)
+            history.back()
+          })
+          observer.observe(panel, { attributes: true })
+          button.click()
+        }))
+        expect(duringExit.mountedDuringBack).toBe(true)
+        expect(duringExit.animationCount).toBeGreaterThan(0)
+        await expect(keepEditing).toBeVisible()
+        await expect(keepEditing).toBeEnabled()
+        await expect(keepEditing).toBeFocused()
+        await expect(field).toHaveValue('Keep this closing draft')
+        await expect(page).toHaveURL(/\/habits\/new\?/)
+        await keepEditing.click()
+        await expect(discard).toHaveCount(0)
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+        await page.evaluate(() => history.back())
+        await expect(discard).toBeVisible()
+        await discard.click()
+        await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
+        await expect(page.locator('[data-habit-create-screen]')).toHaveCount(0)
+        await expect(page.getByRole('dialog')).toHaveCount(0)
+      })
+
       test('returns a clean direct-open form on browser Back without confirmation', async ({ page }) => {
         await page.goto('/habits/new?from=%2F')
         await expect(page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toHaveValue('')
