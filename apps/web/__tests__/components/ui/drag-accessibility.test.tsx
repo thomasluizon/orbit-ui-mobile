@@ -44,6 +44,16 @@ describe.each([
   { locale: 'en' as const, pickedUp: 'Ler picked up to move.', movedOver: 'Ler moved over Caminhar.', droppedOver: 'Ler dropped over Caminhar.', movedOutside: 'Ler is outside a drop area.', dropped: 'Ler dropped.', cancelled: 'Moving Ler cancelled.' },
   { locale: 'pt-BR' as const, pickedUp: 'Ler selecionado para mover.', movedOver: 'Ler movido sobre Caminhar.', droppedOver: 'Ler solto sobre Caminhar.', movedOutside: 'Ler está fora de uma área para soltar.', dropped: 'Ler solto.', cancelled: 'Movimento de Ler cancelado.' },
 ])('drag announcements in $locale', (copy) => {
+  it('links every sortable item to localized instructions and describes its role', () => {
+    renderDragList(copy.locale)
+    const catalog = copy.locale === 'en' ? en : ptBR
+    for (const item of items) {
+      const sortable = screen.getByRole('button', { name: item.title })
+      expect(sortable).toHaveAttribute('aria-roledescription', catalog.dragAndDrop.roleDescription)
+      expect(document.getElementById(sortable.getAttribute('aria-describedby')!)).toHaveTextContent(catalog.dragAndDrop.instructions)
+    }
+  })
+
   it('names both items when moving over and dropping on a target', async () => {
     const { first, live } = renderDragList(copy.locale)
     await startDrag(first, live, copy.pickedUp)
