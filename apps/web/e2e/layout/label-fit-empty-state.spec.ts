@@ -23,7 +23,8 @@ async function expectEmptyTitle(page: Page, surface: Page | Locator, title: stri
   await markRequiredLabels(label)
   const invitation = label.locator('..')
   await expectLabelsFit(page, invitation)
-  for (const action of await invitation.locator('button, a').all()) await expectInteractionFill(action)
+  const actionsWithoutPillHitExtension = invitation.locator('button:not(.orbit-pill-action), a:not(.orbit-pill-action)')
+  for (const action of await actionsWithoutPillHitExtension.all()) await expectInteractionFill(action)
 }
 
 for (const width of [320, 360, 384, 412]) {
