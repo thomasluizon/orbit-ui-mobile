@@ -1,8 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Sheet } from '@/components/ui/sheet'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { CheckRow } from '@/components/ui/check-row'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -27,7 +26,8 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
   const [visibleCount, setVisibleCount] = useState(20)
-  const [openedCalendarName, setOpenedCalendarName] = useAccountScopedState<string | null>(null)
+  const [openedCalendarId, setOpenedCalendarId] = useAccountScopedState<string | null>(null)
+  const disclosureId = useId()
 
   if (!enabled) return null
 
@@ -85,15 +85,21 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
       {!isLoading &&
         !isError &&
         calendars?.slice(0, visibleCount).map((calendar) => (
-          <CheckRow
-            key={calendar.id}
-            label={calendar.name}
-            textMode="personal"
-            onOpenLabel={() => setOpenedCalendarName(calendar.name)}
-            description={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
-            checked={calendar.isSynced}
-            onChange={(checked) => void handleToggle(calendar.id, checked)}
-          />
+          <div key={calendar.id}>
+            <CheckRow
+              label={calendar.name}
+              textMode="personal"
+              onOpenLabel={() => setOpenedCalendarId(openedCalendarId === calendar.id ? null : calendar.id)}
+              labelExpanded={openedCalendarId === calendar.id}
+              labelControls={`${disclosureId}-${calendar.id}`}
+              description={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
+              checked={calendar.isSynced}
+              onChange={(checked) => void handleToggle(calendar.id, checked)}
+            />
+            <div id={`${disclosureId}-${calendar.id}`} hidden={openedCalendarId !== calendar.id}>
+              {openedCalendarId === calendar.id ? <p className="m-0 px-4 pb-3 text-sm text-[var(--fg-1)] [overflow-wrap:anywhere]">{calendar.name}</p> : null}
+            </div>
+          </div>
         ))}
 
       {!isLoading && !isError && calendars && calendars.length > 20 ? (
@@ -108,10 +114,6 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
           ) : null}
         </div>
       ) : null}
-
-      {openedCalendarName ? <Sheet accessibleTitle={openedCalendarName} onClose={() => setOpenedCalendarName(null)}>
-        <p className="text-base text-[var(--fg-1)] [overflow-wrap:anywhere]">{openedCalendarName}</p>
-      </Sheet> : null}
 
       <SettingsDescription inset={false}>{t('calendar.calendars.description')}</SettingsDescription>
     </div>

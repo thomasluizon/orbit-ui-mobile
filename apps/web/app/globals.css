@@ -211,12 +211,15 @@
 .orbit-sheet-header {
   display: flex;
   min-width: 0;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   padding: 16px 24px 8px;
 }
 
 .orbit-sheet-title {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
   min-width: 0;
   flex: 1;
   font-family: var(--font-display);
@@ -225,9 +228,7 @@
   line-height: 1.2;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
 
 .orbit-sheet-close {

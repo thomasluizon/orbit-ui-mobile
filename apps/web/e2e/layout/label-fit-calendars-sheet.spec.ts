@@ -32,6 +32,36 @@ async function expectAtBodyEdge(heading: Locator, body: Locator) {
   expect(Math.abs(bounds!.x - contentLeft)).toBeLessThanOrEqual(1)
 }
 
+async function doubleSheetText(sheet: Locator) {
+  await sheet.evaluate((surface) => {
+    const measurements = [...surface.querySelectorAll<HTMLElement>('*')]
+      .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
+      .map((element) => ({ element, size: Number.parseFloat(getComputedStyle(element).fontSize), line: Number.parseFloat(getComputedStyle(element).lineHeight) }))
+    for (const { element, size, line } of measurements) {
+      element.style.fontSize = `${size * 2}px`
+      if (Number.isFinite(line)) element.style.lineHeight = `${line * 2}px`
+    }
+  })
+}
+
+async function expectWholeText(label: Locator) {
+  await expect(label).toBeVisible()
+  expect(await label.evaluate((element) => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    const fragments = [...range.getClientRects()].filter((rect) => rect.width > 0)
+    const bounds = element.getBoundingClientRect()
+    if (!fragments.length || fragments.some((rect) => rect.left < bounds.left - 1 || rect.right > bounds.right + 1)) return false
+    for (let ancestor: Element | null = element; ancestor; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor)
+      const clip = ancestor.getBoundingClientRect()
+      if (fragments.some((rect) => (['hidden', 'clip'].includes(style.overflowX) && (rect.left < clip.left - 1 || rect.right > clip.right + 1))
+        || (['hidden', 'clip'].includes(style.overflowY) && (rect.top < clip.top - 1 || rect.bottom > clip.bottom + 1)))) return false
+    }
+    return true
+  }), 'enlarged text stays whole, allowing multiline layout').toBe(true)
+}
+
 for (const width of [320, 360, 384, 412, 600]) {
   for (const locale of ['pt-BR', 'en'] as const) {
     test.describe(`Calendars sheet at ${width}px in ${locale}`, () => {
@@ -71,17 +101,23 @@ for (const width of [320, 360, 384, 412, 600]) {
         await markUserText(page, [calendarName, 'Caminhar', 'Ler'])
         await expectLabelsFit(page, sheet, [calendarName, 'Caminhar', 'Ler'])
         const openName = sheet.getByRole('button', { name: calendarName, exact: true })
-        await expectInteractionFill(openName)
+        await expectInteractionFill(sheet.getByRole('checkbox', { name: calendarName, exact: true }))
         await openName.click()
-        const fullName = page.getByRole('dialog', { name: calendarName, exact: true })
-        await expect(fullName.locator('p').getByText(calendarName, { exact: true })).toBeVisible()
-        await fullName.getByRole('button', { name: words.common.close, exact: true }).click()
+        const fullName = sheet.locator('p').getByText(calendarName, { exact: true })
+        await expect(fullName).toBeVisible()
+        await expect(openName).toHaveAttribute('aria-expanded', 'true')
+        await expect(page.getByRole('dialog')).toHaveCount(1)
+        await openName.click()
         await expect(fullName).toHaveCount(0)
         await expect(sheet.getByRole('checkbox', { name: calendarName, exact: true })).toBeChecked()
         if (width === 320 && locale === 'pt-BR') {
-          await page.addStyleTag({ content: 'html { font-size: 32px !important; }' })
-          await markUserText(page, [calendarName, 'Caminhar', 'Ler'])
-          await expectLabelsFit(page, sheet, [calendarName, 'Caminhar', 'Ler'])
+          const headingSize = Number.parseFloat(await eventsHeading.evaluate((element) => getComputedStyle(element).fontSize))
+          const dateSize = Number.parseFloat(await date.evaluate((element) => getComputedStyle(element).fontSize))
+          await doubleSheetText(sheet)
+          await expect(eventsHeading).toHaveCSS('font-size', `${headingSize * 2}px`)
+          await expect(date).toHaveCSS('font-size', `${dateSize * 2}px`)
+          for (const label of [calendarHeading, eventsHeading, date]) await expectWholeText(label)
+          await expectAtBodyEdge(calendarHeading, body)
           await expectAtBodyEdge(eventsHeading, body)
         }
       })

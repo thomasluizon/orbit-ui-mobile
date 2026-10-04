@@ -142,7 +142,7 @@ export function Sheet({
 
   const header = title || accessibleTitle || headerAccessory || onClose || onAttemptDismiss ? (
     <View style={styles.header} accessibilityLabel={accessibleTitle} onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
-      {title ? <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} numberOfLines={1} style={styles.title}>{title}</Text> : (
+      {title ? <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
       {headerAccessory}
@@ -243,7 +243,7 @@ function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     header: {
-      alignItems: 'center',
+      alignItems: 'flex-start',
       flexDirection: 'row',
       gap: 16,
       minHeight: 56,
@@ -254,6 +254,8 @@ function createStyles(tokens: Tokens) {
     title: {
       color: tokens.fg1,
       flex: 1,
+      minHeight: 48,
+      textAlignVertical: 'center',
       fontFamily: 'Geist_500Medium',
       fontSize: 22,
     },

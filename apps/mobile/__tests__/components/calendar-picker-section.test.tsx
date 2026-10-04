@@ -130,10 +130,16 @@ describe('mobile CalendarPickerSection', () => {
     const title = tree.root.findAll((node) => node.type === 'Text' && node.props.children === name)[0]!
     expect(title.props.numberOfLines).toBe(2)
     const open = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === name)[0]!
+    expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
+    expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(true)
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === name && node.props.numberOfLines === undefined)).toHaveLength(1)
     expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+    TestRenderer.act(() => { (open.props.onPress as () => void)() })
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === name && node.props.numberOfLines === undefined)).toHaveLength(0)
+    expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     expect(mocks.mutate).not.toHaveBeenCalled()
+    expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
   })
 
   it('persists the flipped synced value on toggle', () => {
