@@ -135,7 +135,7 @@ describe('web theme variables', () => {
     expect(root.classList.contains('scheme-orange')).toBe(true)
     expect(root.classList.contains('light')).toBe(true)
     expect(root.style.getPropertyValue('--bg')).toBe('#FAFAFA')
-    expect(root.style.getPropertyValue('--bg-hover')).toBe('rgba(9,9,11,0.06)')
+    expect(root.style.getPropertyValue('--bg-hover')).toBe('rgba(9,9,11,0.11)')
     expect(root.style.getPropertyValue('--scrim')).toBe('rgba(0,0,0,0.55)')
     expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute(
       'content',

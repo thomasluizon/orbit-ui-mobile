@@ -83,8 +83,8 @@ describe('widget color generator', () => {
   it.each([
     ['dark', '#E16D33', 'widget_card'],
     ['dark', '#E16D33', 'widget_well'],
-    ['light', '#B64900', 'widget_card'],
-    ['light', '#B64900', 'widget_well'],
+    ['light', '#A63A00', 'widget_card'],
+    ['light', '#A63A00', 'widget_well'],
   ] as const)(
     'keeps the %s streak text token AA on %s',
     (mode, expectedText, surface) => {

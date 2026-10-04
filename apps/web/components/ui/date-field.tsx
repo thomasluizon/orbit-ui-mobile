@@ -266,7 +266,7 @@ export function DateField({
                             className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors ${
                               isCurrentMonth
                                 ? 'text-[var(--fg-1)]'
-                                : 'text-[var(--fg-3)]'
+                                : 'text-[var(--fg-2)]'
                             } ${
                               isSelected
                                 ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] group-hover:bg-[var(--primary-hover)]'

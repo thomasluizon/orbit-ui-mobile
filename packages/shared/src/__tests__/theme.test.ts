@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { contrastOnSurface, withAlpha } from './contrast'
+import { lightHoverTextSurfaces } from './light-hover-surfaces'
 import { schemes } from '../theme/color-schemes'
 import {
   neutralColors,
@@ -386,7 +387,7 @@ const GRANTED_ACCENTS = {
     primaryHover: '#B74E12',
     primaryPressed: '#A24716',
     primarySoft: '#C15109',
-    primaryText: '#B64900',
+    primaryText: '#A63A00',
     primaryDim: '#F4DDD3',
     primaryRgb: '196,83,15',
   },
@@ -421,6 +422,8 @@ const EMPTY_TRACK_SURFACES = {
     { name: 'well', layers: [neutralColors.light.bg, neutralColors.light.bgWell] },
     { name: 'card replacement hover', layers: [neutralColors.light.bg, neutralColors.light.bgHover] },
     { name: 'card child hover', layers: [neutralColors.light.bg, neutralColors.light.bgCard, neutralColors.light.bgHover] },
+    { name: 'widget card', layers: ['#FFFFFF'] },
+    { name: 'widget well', layers: ['#F1F1F2'] },
     {
       name: 'canvas selection',
       layers: [
@@ -536,7 +539,7 @@ describe('byte-exact mode colors', () => {
       bgWell: 'rgba(9,9,11,0.04)',
       bgElev: '#FFFFFF',
       bgElev2: '#FFFFFF',
-      bgHover: 'rgba(9,9,11,0.06)',
+      bgHover: 'rgba(9,9,11,0.11)',
       bgHoverOpaque: 'rgba(9,9,11,0.11)',
       bgSunk: 'rgba(9,9,11,0.04)',
       hairline: 'rgba(9,9,11,0.08)',
@@ -547,7 +550,7 @@ describe('byte-exact mode colors', () => {
       fg2: '#424247',
       fg3: '#68686D',
       fg4: '#89898D',
-      trackEmpty: '#7F7F83',
+      trackEmpty: '#7E7E82',
       scrim: 'rgba(0,0,0,0.55)',
     })
   })
@@ -558,11 +561,21 @@ describe('byte-exact mode colors', () => {
       badText: '#FF7970', fgOnBad: '#020618', fgOnOverdue: '#020618',
     })
     expect(statusConstants.light).toEqual({
-      overdue: '#886100', bad: '#E7000B', overdueText: '#886100',
-      badText: '#D70009', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
+      overdue: '#7D5700', bad: '#E7000B', overdueText: '#7D5700',
+      badText: '#C00000', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
     })
     expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
   })
+
+  for (const { name, layers } of lightHoverTextSurfaces) {
+    it.each([
+      ['primaryText', schemes.orange.accent.light.primaryText],
+      ['overdueText', statusConstants.light.overdueText],
+      ['badText', statusConstants.light.badText],
+    ])('keeps light %s AA on ' + name, (_role, color) => {
+      expect(contrastOnSurface(color, layers)).toBeGreaterThanOrEqual(4.5)
+    })
+  }
 
   for (const mode of ['dark', 'light'] as const) {
     for (const surface of BAD_TEXT_SURFACES[mode]) {
@@ -784,6 +797,14 @@ describe('type roles', () => {
   })
 })
 
+
+describe('transparent light hover role', () => {
+  it.each(['bg', 'bgCard', 'bgField', 'bgElev'] as const)('clears the step over %s', (surface) => {
+    const neutral = neutralColors.light
+    expect(contrastOnSurface(neutral[surface], [neutral[surface], neutral.bgHover]))
+      .toBeGreaterThanOrEqual(1.25)
+  })
+})
 
 describe('opaque control hover role', () => {
   it.each(['dark', 'light'] as const)('clears the hover and foreground floors over elevation in %s', (mode) => {

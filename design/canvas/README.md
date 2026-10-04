@@ -22,6 +22,9 @@ that disagrees with production is a trap rather than an authority.
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
 | Hoje composer | A one-line pill with inside Astra glyph, input, + menu and send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
+| Light transparent hover | `--p-l-hover` uses `rgba(9,9,11,0.11)`; supporting text under the fill uses `fg-2` | The step measures 1.271:1 over white and 1.276:1 over the canvas. |
+| Light empty track | `--p-l-track-empty` uses `#7E7E82`; `--status-empty` retains this neutral at rest and under hover | Constant OKLCH hue and chroma with lower lightness clears 3.036:1 on canvas hover, 3.180:1 on card-child hover and 3.052:1 on canvas selection, while staying between `fg-3` and `fg-4`. |
+| Light accent and status text | `--primary-text` uses `#A63A00`, `--status-overdue` and its text role use `#7D5700`, and `--status-bad-text` uses `#C00000`; only `fg-3` promotes to `fg-2` under light hover | Lower source OKLCH lightness with fixed hue and chroma before gamut-clamping and byte-rounding. Worst-stack well-hover ratios are 4.522:1 orange, 4.510:1 amber and 4.502:1 red; canvas-hover ratios are 4.887:1, 4.874:1 and 4.865:1. |
 | Opaque control hover | Added `--bg-hover-opaque`: dark reuses `--p-hover`, light uses `--p-l-hover-opaque` at `rgba(9,9,11,0.11)` | Layered over the resting elevated fill, the hover step measures 1.477:1 dark and 1.271:1 light, clearing the 1.25:1 floor. |
 | 2026-09-29 | `Orbit Entrar` and `Orbit Verificacao` centre their compact columns with equal vertical padding | The owner's phone layout decision places both sign-in steps between the safe areas. |
 | 2026-09-29 | `Orbit Wrapped`: period line and weekday note from `fg-4` to `fg-3` | Both lines are text, and `fg-4` only clears the non-text floor on the canvas. `fg-3` clears the text floor. |
@@ -81,7 +84,7 @@ states in English and Brazilian Portuguese. Card geometry covers compact and des
 
 ## The design system, under `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`
 
-`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **177 authoritative token values**. A number typed into a component that
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **183 authoritative token values**. A number typed into a component that
 disagrees with a token here is wrong, whatever any document says.
 
 | file | what it fixes |

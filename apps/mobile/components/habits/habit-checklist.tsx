@@ -427,7 +427,7 @@ export function HabitChecklist({
             onPress={clearAll}
             style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
-            <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
+            <Text style={[styles.clearText, { color: tokens.statusBadText }]}>{t('habits.form.clearChecklist')}</Text>
           </Pressable>
         </View>
       )}

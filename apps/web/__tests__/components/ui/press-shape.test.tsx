@@ -65,7 +65,7 @@ describe('painted press and hover shapes', () => {
 
   it('layers the day hover fill over the whole round hit area without hiding the outcome', () => {
     const { container } = render(
-      <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} loggable onPress={() => {}} />,
+      <DayCell size={44} day={15} label="March 15" words={cellWords} done={1} scheduled={1} loggable onPress={() => {}} />,
     )
 
     const hitArea = container.querySelector('button')
@@ -79,8 +79,11 @@ describe('painted press and hover shapes', () => {
     expect(pressFill?.className).toContain('group-hover:opacity-100')
     expect(pressFill?.className).toContain('pointer-events-none')
     expect(pressFill).toHaveAttribute('aria-hidden', 'true')
-    expect(hitArea?.lastElementChild).toBe(pressFill)
-    expect(container.querySelector('[data-outcome="full"] span')).toHaveStyle({ background: 'var(--fg-1)' })
+    expect(hitArea?.firstElementChild).toBe(pressFill)
+    expect(hitArea?.querySelectorAll('[data-press-fill]')).toHaveLength(2)
+    expect(pressFill?.nextElementSibling?.firstElementChild).toHaveAttribute('data-press-fill')
+    expect(pressFill?.nextElementSibling).toHaveAttribute('aria-hidden', 'true')
+    expect(container.querySelector('[data-outcome="full"] span:not([data-press-fill])')).toHaveStyle({ background: 'var(--fg-1)' })
   })
 
   it('gives a read-only day no press fill', () => {
@@ -90,7 +93,7 @@ describe('painted press and hover shapes', () => {
 
     expect(container.querySelector('button')).toBeNull()
     expect(container.querySelector('[data-press-fill]')).toBeNull()
-    expect(container.querySelector('[data-outcome="full"] span')).toHaveStyle({ background: 'var(--fg-1)' })
+    expect(container.querySelector('[data-outcome="full"] span:not([data-press-fill])')).toHaveStyle({ background: 'var(--fg-1)' })
   })
 })
 

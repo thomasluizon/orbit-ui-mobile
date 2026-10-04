@@ -32,7 +32,7 @@ function SettingsRowTrailing({ value, children, accessory, valueColor, mono }: R
         className="flex items-center shrink-0"
         style={{
           gap: 8,
-          color: 'var(--fg-3)',
+          color: 'var(--fg-2)',
           fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: mono ? 12 : 14,
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
@@ -42,7 +42,7 @@ function SettingsRowTrailing({ value, children, accessory, valueColor, mono }: R
           <span
             className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              color: valueColor ?? 'var(--fg-3)',
+              color: valueColor ?? 'var(--fg-2)',
               maxWidth: 220,
             }}
           >
@@ -108,7 +108,7 @@ export function SettingsRow({
       aria-expanded={expandedState}
       aria-controls={controls}
       aria-label={ariaLabel}
-      className={`w-full flex items-center overflow-hidden rounded-[12px] bg-transparent ${interactive ? 'cursor-pointer transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : ''}`}
+      className={`orbit-hover-text w-full flex items-center overflow-hidden rounded-[12px] bg-transparent ${interactive ? 'cursor-pointer transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : ''}`}
       style={settingsRowStyle(textMode, divider)}
     >
       {LeadingIcon && (
@@ -150,7 +150,7 @@ export function SettingsRow({
               fontSize: 14,
               fontWeight: 400,
               lineHeight: 1.4,
-              color: 'var(--fg-3)',
+              color: 'var(--fg-2)',
             }}
           >
             {desc}

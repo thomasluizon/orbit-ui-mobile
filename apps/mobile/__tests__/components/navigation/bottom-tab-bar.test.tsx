@@ -90,6 +90,23 @@ describe('BottomTabBar', () => {
     tree.unmount()
   })
 
+  it.each([true, false])('keeps the light tab colour role under hover and press, active=%s', (active) => {
+    theme.currentTheme = 'light'
+    const tokens = createTokensV2(theme.currentScheme, 'light')
+    const tree = renderNavigation(<BottomTabBar items={items} activeId={active ? 'today' : 'calendar'} onSelect={vi.fn()} label="Navigation" />)
+    const tab = () => tree.hosts().find((node) => node.props.testID === `tab-today-${active ? 'current' : 'inactive'}`)!
+    const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
+    const pointer = tab() as { props: { onHoverIn?: () => void; onHoverOut?: () => void } }
+    expect(pointer.props.onHoverIn).toBeTypeOf('function')
+    void renderer.act(() => pointer.props.onHoverIn?.())
+    for (const pressed of [false, true]) {
+      expect(StyleSheet.flatten(getTabChildStyle(tab(), pressed))).toMatchObject({ color: active ? tokens.primaryText : tokens.fg2 })
+    }
+    void renderer.act(() => pointer.props.onHoverOut?.())
+    expect(StyleSheet.flatten(getTabChildStyle(tab(), false))).toMatchObject({ color: active ? tokens.primarySoft : tokens.fg3 })
+    tree.unmount()
+  })
+
   it.each(['dark', 'light'] as const)('uses resting and pressed label roles in %s mode', (mode) => {
     theme.currentTheme = mode
     const tokens = createTokensV2(theme.currentScheme, mode)

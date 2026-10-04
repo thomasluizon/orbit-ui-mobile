@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { hoverForeground } from '@orbit/shared/theme'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { StyleSheet, Text, View } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
@@ -20,12 +22,15 @@ export function CheckRow({
 }: Readonly<CheckRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const [pressed, setPressed] = useState(false)
 
   if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
     <Pressable
       focusOffset={-6}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       onPress={() => onChange(!checked)}
       disabled={disabled || loading}
       accessibilityRole="checkbox"
@@ -46,19 +51,19 @@ export function CheckRow({
         <Text
           style={[
             styles.label,
-            { color: checked ? tokens.fg3 : tokens.fg1 },
+            { color: checked ? hoverForeground(currentTheme, tokens.fg3, pressed) : tokens.fg1 },
           ]}
         >
           {label}
         </Text>
         {error || description ? (
-          <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg3 }]}>
+          <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>
             {error ?? description}
           </Text>
         ) : null}
       </View>
       {value !== undefined ? (
-        <Text style={[styles.value, { color: tokens.fg3 }]}>{value}</Text>
+        <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text>
       ) : null}
     </Pressable>
   )

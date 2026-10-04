@@ -97,13 +97,15 @@ function backgroundLayers(element: SearchTestInstance, pressed: boolean) {
   return layers
 }
 
-function expectMatchContrast(row: import('react-test-renderer').ReactTestInstance, label: string, hasFragment: boolean, tokens: ReturnType<typeof createTokensV2>) {
+async function expectMatchContrast(row: import('react-test-renderer').ReactTestInstance, label: string, hasFragment: boolean, tokens: ReturnType<typeof createTokensV2>) {
   const match = row.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children).startsWith(label))[0]!
-  const matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
+  let matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
   expect(matchStyle).toMatchObject({ color: tokens.fg3, fontSize: 12, fontFamily: 'GeistMono_400Regular' })
   const fragments = match.findAll((node) => String(node.type) === 'Text' && node !== match)
   expect(fragments).toHaveLength(hasFragment ? 1 : 0)
   for (const pressed of [false, true]) {
+    await TestRenderer.act(() => pressed ? (row.props.onPressIn as () => void)() : (row.props.onPressOut as () => void)())
+    matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
     const layers = backgroundLayers(match as SearchTestInstance, pressed)
     expect(layers).toEqual([tokens.bg, pressed ? tokens.bgHover : tokens.bgCard])
     expect(contrastOnSurface(String(matchStyle.color), layers)).toBeGreaterThanOrEqual(4.5)
@@ -176,7 +178,7 @@ describe('mobile search', () => {
     expect(rows).toHaveLength(2)
     for (const [index, row] of rows.entries()) {
       const label = index === 0 ? messages.habits.search.matchTitle : messages.habits.search.matchTag
-      expectMatchContrast(row, label, index === 1, tokens)
+      await expectMatchContrast(row, label, index === 1, tokens)
     }
   })
 

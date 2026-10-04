@@ -45,7 +45,7 @@ function SettingsRowTrailing({ value, children, accessory, valueColor, mono, tok
           <Text
             style={[
               mono ? styles.valueMono : styles.value,
-              { color: valueColor ?? tokens.fg3 },
+              { color: valueColor ?? tokens.fg2 },
             ]}
             numberOfLines={1}
           >
@@ -124,7 +124,7 @@ export function SettingsRow({
           {label}
         </Text>
         {desc ? (
-          <Text style={[styles.desc, { color: tokens.fg3 }]}>{desc}</Text>
+          <Text style={[styles.desc, { color: tokens.fg2 }]}>{desc}</Text>
         ) : null}
       </View>
       <SettingsRowTrailing value={value} valueColor={valueColor} accessory={accessory} mono={mono} tokens={tokens}>{children}</SettingsRowTrailing>

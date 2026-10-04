@@ -52,7 +52,7 @@ export const neutralColors: Record<SchemeMode, NeutralColors> = {
     bgWell: 'rgba(9,9,11,0.04)',
     bgElev: '#FFFFFF',
     bgElev2: '#FFFFFF',
-    bgHover: 'rgba(9,9,11,0.06)',
+    bgHover: 'rgba(9,9,11,0.11)',
     bgHoverOpaque: 'rgba(9,9,11,0.11)',
     bgSunk: 'rgba(9,9,11,0.04)',
     hairline: 'rgba(9,9,11,0.08)',
@@ -63,7 +63,7 @@ export const neutralColors: Record<SchemeMode, NeutralColors> = {
     fg2: '#424247',
     fg3: '#68686D',
     fg4: '#89898D',
-    trackEmpty: '#7F7F83',
+    trackEmpty: '#7E7E82',
     scrim: 'rgba(0,0,0,0.55)',
   },
 }
@@ -87,10 +87,10 @@ export const statusConstants: Record<SchemeMode, StatusConstants> = {
     fgOnOverdue: '#020618',
   },
   light: {
-    overdue: '#886100',
+    overdue: '#7D5700',
     bad: '#E7000B',
-    overdueText: '#886100',
-    badText: '#D70009',
+    overdueText: '#7D5700',
+    badText: '#C00000',
     fgOnBad: '#FFFFFF',
     fgOnOverdue: '#FFFFFF',
   },
@@ -119,4 +119,8 @@ export function elevatedControlHoverFill(mode: SchemeMode): string {
     return Math.round(below * (1 - alpha) + overlay[index]! * alpha)
   })
   return `rgb(${channels.join(',')})`
+}
+
+export function hoverForeground(mode: SchemeMode, restingColor: string, active: boolean): string {
+  return mode === 'light' && active && restingColor === neutralColors.light.fg3 ? neutralColors.light.fg2 : restingColor
 }

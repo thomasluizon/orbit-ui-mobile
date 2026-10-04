@@ -42,10 +42,10 @@ export const widgetColorPalette = {
     /** WHY: --fg-4. */
     fg4: '#89898D',
     /** WHY: --track-empty. */
-    trackEmpty: '#7F7F83',
+    trackEmpty: '#7E7E82',
     /** WHY: --primary-text. */
-    primaryText: '#B64900',
+    primaryText: '#A63A00',
     /** WHY: --status-overdue. */
-    overdue: '#886100',
+    overdue: '#7D5700',
   },
 } as const

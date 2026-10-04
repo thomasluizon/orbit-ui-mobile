@@ -152,7 +152,7 @@ describe('Hoje header geometry', () => {
             return { background: style.backgroundColor, radius: style.borderRadius, width: bounds.width, height: bounds.height }
           })
           expect(await measure()).toMatchObject({ background: 'rgba(0, 0, 0, 0)' })
-          const fill = mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.06)'
+          const fill = mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.11)'
           await control.hover()
           await expect.poll(async () => (await measure()).background).toBe(fill)
           const hovered = await measure()

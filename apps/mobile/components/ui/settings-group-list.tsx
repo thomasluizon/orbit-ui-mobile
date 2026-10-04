@@ -14,7 +14,7 @@ export function SettingsGroup({ items }: Readonly<SettingsGroupProps>) {
         const content = (
           <>
             <Text style={[styles.label, { color: tokens.fg1 }]}>{item.label}</Text>
-            {item.value ? <Text style={[styles.value, { color: tokens.fg3 }]}>{item.value}</Text> : null}
+            {item.value ? <Text style={[styles.value, { color: item.onClick ? tokens.fg2 : tokens.fg3 }]}>{item.value}</Text> : null}
             {item.trailing}
             {item.onClick ? <ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /> : null}
           </>

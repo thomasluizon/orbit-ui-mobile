@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including the native mobile rule, disclosure, label and typed-text handling, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -18,7 +18,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **D42: there are exactly two sources, this document and the granted canvas.**
 The twenty-one-screen Claude Design export is committed at
-`design/canvas/`, with the design system's 177 token values under
+`design/canvas/`, with the design system's 183 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
 **Precedence, in this order:**
@@ -473,22 +473,22 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg #FAFAFA · --bg-card #FFFFFF (opaque white cards) · --bg-elev #FFFFFF · --bg-elev-2 #FFFFFF
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
---bg-hover rgba(9,9,11,0.06)
+--bg-hover rgba(9,9,11,0.11) /* #E4E4E4 over white, 1.271:1 step; #DFDFE0 over canvas, 1.276:1 step */
 --bg-hover-opaque rgba(9,9,11,0.11) /* overlay on an opaque control -> #E4E4E4 over white. 1.271:1 step */
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
---status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
+--status-overdue #7D5700   /* 6.219:1 on canvas, 4.510:1 on well hover. White on it 6.491:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
---status-bad-text #D70009  /* 4.50:1 on a status-bad tint inside a card, hue 28.5 */
+--status-bad-text #C00000  /* 4.502:1 on well hover, 5.407:1 on a status-bad tint inside a card */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
---fg-on-overdue  #FFFFFF   /* 5.59:1 on the fill */
+--fg-on-overdue  #FFFFFF   /* 6.491:1 on the fill */
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
---track-empty    #7F7F83   /* empty UI track. 3.01:1 on selection over the canvas */
+--track-empty    #7E7E82   /* empty UI track. 3.036:1 on canvas hover */
 --primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
 --primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
---primary-text   #B64900   /* accent text on raised surfaces. 4.51:1 on the worst surface */
+--primary-text   #A63A00   /* accent text on raised surfaces. 4.522:1 on well hover */
 --primary-dim    #F4DDD3   /* the fill at 18% over #FAFAFA. fg-1 on it 13.34:1, fg-2 7.67:1 */
 --fg-on-primary  #FFFFFF
 --selection-bg   the fill at alpha 0.18
@@ -501,11 +501,14 @@ different in kind: it is a mix **with the canvas**, so leaving it unrepointed ga
 dark-mode value `#261611`, a near-black wash painted onto a white card.
 A selected `PlanCard` must use the light-mode value.
 
-**The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. Its next value, `#946A00`, cleared the canvas but missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint both `ExpiryWarning` mirrors paint session-expiry text on. That tint is DERIVED FROM THIS TOKEN, so it darkens with it and has to be solved together rather than measured once. It is now `#886100` at **hue 81.1**, which clears the accent by **36.3 degrees**, measures 5.36:1 on `#FAFAFA`, and carries white at 5.59:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
-
-**`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** The first light
-overdue attempt inherited `#020618`, which measured **4.26:1** on `#B45B00` and missed the 4.5 text
-floor. The explicit white override measures 5.59:1 on the current fill.
+**The two status hues darken in light mode to clear their reachable surfaces.** The
+fill and graphic token `--status-bad` uses `#E7000B`; its text role uses `#C00000`.
+`--status-overdue` and its text role use `#7D5700`. Their light text values are derived by
+lowering only OKLCH lightness with constant source hue and chroma, then gamut-clamping and
+rounding to sRGB bytes. The resulting overdue hue is 79.2 degrees, 34.4 degrees from the
+44.8-degree fill accent; destructive text is 29.2 degrees, 15.6 degrees from that accent.
+Both clear derivation rule 6. Light `--fg-on-overdue` is `#FFFFFF`, which measures
+6.491:1 on the overdue fill.
 
 ### Measured contrast, with the remaining limits closed
 
@@ -517,51 +520,45 @@ Every scope below is derived from those floors and the measured ratios.
 | on | role | scope | canvas | card | field | well | elev-2 | hover | overlay | widget card | widget well |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | dark `--fg-1` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 18.112 | 16.893 | 16.298 | 15.490 | 13.751 | 13.395 | 15.490 | 16.893 | 15.321 |
-| light `--fg-1` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 16.636 | 17.364 | - | 15.236 | - | 14.698 | - | 17.364 | 15.383 |
+| light `--fg-1` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 16.636 | 17.364 | - | 15.236 | - | 13.038 | - | 17.364 | 15.383 |
 | dark `--fg-2` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 12.042 | 11.231 | 10.835 | 10.298 | 9.142 | 8.906 | 10.298 | 11.231 | 10.186 |
-| light `--fg-2` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 9.572 | 9.991 | - | 8.767 | - | 8.457 | - | 9.991 | 8.851 |
+| light `--fg-2` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 9.572 | 9.991 | - | 8.767 | - | 7.502 | - | 9.991 | 8.851 |
 | dark `--fg-3` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.175 | 5.760 | 5.557 | 5.281 | 4.688 | 4.567 | 5.281 | 5.760 | 5.224 |
-| light `--fg-3` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.691 | - | 5.542 | 4.909 |
+| light `--fg-3` | text + graphic | text: canvas, card, well, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.161 | - | 5.542 | 4.909 |
 | dark `--fg-4` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |
-| light `--fg-4` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.950 | - | 3.485 | 3.087 |
+| light `--fg-4` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.617 | - | 3.485 | 3.087 |
 | dark `--track-empty` | graphic | graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 | 4.336 | 3.933 |
-| light `--track-empty` | graphic | graphic: canvas, card, well, hover, widget card, widget well | 3.821 | 3.988 | - | 3.499 | - | 3.376 | - | 3.988 | 3.533 |
+| light `--track-empty` | graphic | graphic: canvas, card, well, hover, widget card, widget well | 3.874 | 4.043 | - | 3.548 | - | 3.036 | - | 4.043 | 3.582 |
 | dark `--primary-soft` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |
-| light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.996 | - | 4.721 | 4.182 |
+| light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.545 | - | 4.721 | 4.182 |
 | dark `--primary-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.098 | 5.688 | 5.487 | 5.215 | 4.630 | 4.510 | 5.215 | 5.688 | 5.159 |
-| light `--primary-text` | text | text: canvas, card, well, hover, widget card, widget well | 5.104 | 5.327 | - | 4.675 | - | 4.509 | - | 5.327 | 4.720 |
+| light `--primary-text` | text | text: canvas, card, well, hover, widget card, widget well | 6.235 | 6.508 | - | 5.711 | - | 4.887 | - | 6.508 | 5.766 |
 | dark `--status-bad-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |
-| light `--status-bad-text` | text | text: canvas, card, well, hover, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.566 | - | 5.394 | 4.779 |
+| light `--status-bad-text` | text | text: canvas, card, well, hover, widget card, widget well | 6.207 | 6.479 | - | 5.685 | - | 4.865 | - | 6.479 | 5.740 |
 <!-- surface-scope:end -->
 
-**`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
-is already defined as accent TEXT on the canvas, so 4.28 on a card is the token used outside its own
-scope, not a colour that needs changing. `--primary-text` is the accent-text token for a card, a
-field, a well, an elevated panel or a hovered surface. It clears 4.5:1 on every raised surface in
-both modes; where accent is not deliberately rationed, emphasis on a raised surface stays a weight
-step rather than a hue.
+**`--primary-soft` is canvas only, and that closes its row by role.** Use
+`--primary-text` for rationed accent text on a card, field, well, elevated panel or hover fill.
+The light `#A63A00` value measures 4.522:1 on its worst stack, well hover. Where accent is not
+deliberately rationed, emphasis on a raised surface stays a weight step rather than a hue.
 
-**Contrast rule: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
-measured 4.26:1 on the well, 4.11:1 on hover, 4.31:1 on the widget well and 4.12:1 on the 10
-percent overdue tint, all below the 4.5 text floor. It uses constant OKLCH hue at
-`#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well, 4.73 on hover,
-4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
-separation from the accent still clears derivation rule 6.
+**Contrast rule: light overdue text.** `#7D5700` measures 6.219:1 on the canvas,
+6.491:1 on the card, 5.696:1 on the well, 4.874:1 on canvas hover and 4.510:1 on well hover.
+It clears 5.750:1 on the widget well and 5.407:1 on the 10 percent overdue tint used by
+session-expiry warnings. Overdue text keeps its amber role under hover and press.
 
 **Contrast rule: `--status-bad-text` on every surface its consumers reach.** The fill and
-graphic token `--status-bad` remains `#FB2C36` dark and `#E7000B` light. Its former duplicate text
-value missed the floor on wells, overlays and hover surfaces. The consumer sweep found text on the
-canvas, card, field, well, opaque overlay, elevated inline step, replacement hover, an elevated
-menu-item hover, and the 10.2 percent `--status-bad` warning tint inside a card. A hover child inside
-a card and a hover child inside a light well are unreachable. Card presses replace the card fill
-with `--bg-hover`, and no bad-text consumer nests a hovered control in a well.
+graphic token stays `#FB2C36` dark and `#E7000B` light. Dark text uses `#FF7970`, which measures
+4.511:1 on the pressed destructive menu item over `--bg-elev`. Light text uses `#C00000`, which
+measures 4.502:1 on well hover and 5.407:1 on the 10.2 percent `--status-bad` warning tint inside
+a card. Destructive labels keep their red role under hover and press.
 
-Dark `#FF7970` holds the original constant OKLCH hue at 25.8 and measures 4.511 on the worst real
-stack, the pressed destructive menu item over `--bg-elev`. Light `#D70009` holds hue 28.5 and is the
-first gamut-clamped byte that clears its worst real stack, 4.502 on the warning tint inside a card.
-The darker `#CD0008` candidate was not used because it paid for the unreachable light well-child
-hover. The closest status-text hue separation is 16.3 degrees from the 44.8-degree accent; overdue
-remains farther away in both modes.
+**Light accent and status text are solved at the token.** Lower only the source OKLCH L
+channel, retain source hue and chroma, then gamut-clamp and byte-round. The first passing
+bytes are `#A63A00`, `#7D5700` and `#C00000`; their immediately preceding bytes `#A63B00`,
+`#7E5700` and `#C10000` measure 4.494:1, 4.489:1 and 4.465:1 on well hover. The shared tests
+cover canvas, card and well at rest; canvas, card, well, overlay, replacement and card-child
+hover; selection over canvas and card; and the widget card and well.
 
 The roles split at language: words such as labels, errors and helper lines use
 `--status-bad-text`; surfaces, borders, rings and non-language glyphs use `--status-bad`. When one
@@ -577,14 +574,17 @@ selection tint once, at the range slot, while the cell keeps its primary selecte
 
 Dark `#7A7A7D` measures 4.649 on canvas, 4.336 on card, 3.976 on well or overlay, 3.439 on a
 replacement hover, 3.034 on a hover child inside a card, 3.325 on selection over canvas, 3.054 on
-selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7F7F83`
-measures 3.821 on canvas, 3.988 on card or overlay, 3.499 on well, 3.376 on replacement hover,
-3.499 on a hover child inside a card, 3.011 on selection over canvas, 3.126 on selection over card,
-3.988 on the widget card and 3.533 on the widget well. No empty-track consumer sits on `--bg-field`
+selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7E7E82`
+measures 3.874 on canvas, 4.043 on card or overlay, 3.548 on well, 3.036 on replacement hover,
+3.180 on a hover child inside a card, 3.052 on selection over canvas, 3.169 on selection over card,
+4.043 on the widget card and 3.582 on the widget well. It is the first rounded byte along the
+constant OKLCH hue and chroma of `#7F7F83` that clears the stronger light canvas hover.
+No empty-track consumer sits on `--bg-field`
 or `--bg-elev-2`, and none combines selection with a well, so those candidate stacks are
-unreachable rather than derivation inputs. `--status-empty` resolves through the corrected token.
+unreachable rather than derivation inputs. `--status-empty` resolves through the empty-track role
+at rest and under hover.
 The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2.83; light 17.36,
-9.99, 5.54, 3.99 and 3.48 for done, frozen, skip, empty and `--fg-4`.
+9.99, 5.54, 4.04 and 3.48 for done, frozen, skip, empty and `--fg-4`.
 
 **Contrast rule: `--fg-3` on a hovered surface, dark.** `--bg-hover` uses alpha 0.13. The text floor and hover-step floor bound it from opposite sides:
 
@@ -593,6 +593,8 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
 | 0.14 | `#2B2B2C` | 1.312 | **4.39**, under the 4.5 text floor |
 | **0.13** | **`#28282A`** | **1.261** | **4.57** |
 | 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
+
+**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Only `--fg-3` is promoted to `--fg-2` under a light hover or press. Accent and status text keep their own colour because their light values clear 4.5:1 on every light hover stack. Hover fills sit below text and graphics.
 
 **Three hover stacks exist, and they measure differently. Read the paint order, not the token.**
 
@@ -611,7 +613,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
    and measures only 1.247:1. Text on the opaque hover layer takes `--fg-2` or lighter:
    `--fg-2` measures **6.974:1 dark** and **7.858:1 light**; dark `--fg-3` falls below 4.5.
 
-**On a hover child inside a card, text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
+**On a hover child inside a card, supporting text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
 stack, `--fg-1` 11.82. The unread notification row already obeys this. Prefer replacement when you
 build a new hover surface; compositing costs a whole neutral step and buys nothing.
 
