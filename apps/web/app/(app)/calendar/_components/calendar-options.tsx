@@ -9,11 +9,13 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { useShellHeaderSlot } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { CalendarLegend } from './calendar-shell'
 
 function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalendar?: () => void }>) {
   const menuId = useId()
   const t = useTranslations()
+  const wide = useIsWideDesktop()
   const anchorRef = useRef<HTMLButtonElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [legendOpen, setLegendOpen] = useState(false)
@@ -23,7 +25,7 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
   return <>
     <DestinationHeaderRow data-testid="calendar-shell-header">
       <button ref={anchorRef} type="button" className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]" aria-label={t('calendar.options')} aria-haspopup="menu" aria-expanded={menuOpen} aria-controls={menuId} onClick={() => setMenuOpen(true)}><MoreVertical size={24} strokeWidth={2} aria-hidden="true" /></button>
-      <NotificationBell />
+      {!wide ? <NotificationBell /> : null}
     </DestinationHeaderRow>
     <Menu id={menuId} open={menuOpen} anchorRef={anchorRef} title={t('calendar.options')} onClose={() => setMenuOpen(false)}
       items={[{ id: 'recurring', label: t('calendar.showRecurring'), checked }, { id: 'google', label: t('calendar.googleCalendar'), disabled: !onGoogleCalendar }, { id: 'legend', label: t('calendar.legendTitle') }]}

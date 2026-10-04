@@ -709,6 +709,8 @@ describe('CalendarPage view switcher', () => {
   it('keeps the selector in the header and the selected day below the grid at wide width', () => {
     isWideDesktopValue = true
     render(<CalendarPage />)
+    expect(screen.queryByRole('button', { name: 'Avisos' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('calendar-shell-header')).toContainElement(screen.getByRole('button', { name: 'calendar.options' }))
 
     const header = screen.getByTestId('calendar-header-group')
     const selector = screen.getByRole('radiogroup', { name: 'calendar.view.switchLabel' })
@@ -716,6 +718,27 @@ describe('CalendarPage view switcher', () => {
     const detail = screen.getByTestId('day-detail')
     expect(header).toContainElement(selector)
     expect(grid.compareDocumentPosition(detail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('preserves the options menu and selected view when moving the bell out of the header and back', () => {
+    const { rerender } = render(<CalendarPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    expect(screen.getAllByRole('button', { name: 'Avisos' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+
+    isWideDesktopValue = true
+    rerender(<CalendarPage />)
+    expect(screen.queryByRole('button', { name: 'Avisos' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'calendar.options' })).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'calendar.showRecurring' }))
+    expect(useUIStore.getState().calendarShowRecurring).toBe(false)
+    expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
+
+    isWideDesktopValue = false
+    rerender(<CalendarPage />)
+    expect(screen.getAllByRole('button', { name: 'Avisos' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'calendar.options' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('keeps the grid and day detail inside a 412px wide shell column', () => {
