@@ -1900,13 +1900,18 @@ describe('HabitDetailScreen', () => {
           const bounds = element.getBoundingClientRect()
           const summary = element.nextElementSibling!.getBoundingClientRect()
           const outerEdge = parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth)
+          const innerEdge = -parseFloat(style.outlineOffset)
+          const range = document.createRange()
+          range.selectNodeContents(element.querySelector('button')!)
+          const text = range.getBoundingClientRect()
           return {
             visible: element.matches(':focus-visible') && style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) >= 2,
             contained: outerEdge <= 0,
             clearOfSummary: bounds.bottom + outerEdge < summary.top,
+            clearOfTitle: text.left > bounds.left + innerEdge && text.right < bounds.right - innerEdge && text.top > bounds.top + innerEdge && text.bottom < bounds.bottom - innerEdge,
           }
         })
-        expect(indicator).toEqual({ visible: true, contained: true, clearOfSummary: true })
+        expect(indicator).toEqual({ visible: true, contained: true, clearOfSummary: true, clearOfTitle: true })
       } finally { await page.close() }
     })
 
