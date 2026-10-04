@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: 4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
-  dateText: { alignItems: 'flex-start', flexGrow: 0, flexShrink: 0 },
+  dateText: { paddingLeft: 8, alignItems: 'flex-start', flexGrow: 0, flexShrink: 0 },
   dayName: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, letterSpacing: -0.44, textAlign: 'left' },
   numericDate: { fontFamily: 'GeistMono_400Regular', fontSize: 12, letterSpacing: 0.24, fontVariant: ['tabular-nums'], textAlign: 'left' },
   disabled: { opacity: 0.5 },

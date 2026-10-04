@@ -270,7 +270,7 @@ describe('HabitRow canonical content', () => {
     const row = screen.getByTestId('habit-row')
     expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
     expect(row.style.paddingInlineStart).toBe('')
-    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '0px' })
+    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '8px' })
   })
 
   it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {

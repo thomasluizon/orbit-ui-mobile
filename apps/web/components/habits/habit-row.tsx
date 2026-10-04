@@ -253,7 +253,7 @@ export function HabitRow({
         largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div className="relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
+      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
     </>
   )
 
@@ -280,7 +280,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         onClick={onClick}
         data-habit-row-body=""
         className={`${supportingMeta ? 'grid col-start-1 col-span-full row-start-1 row-span-2 grid-cols-subgrid grid-rows-subgrid' : 'flex'} min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
-        style={{ gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 0, alignItems: largeText ? 'flex-start' : undefined }}
+        style={{ gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 8, alignItems: largeText ? 'flex-start' : undefined }}
       >
         {supportingMeta ? (
           <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? 4 : 8 }}>

@@ -1420,7 +1420,7 @@ export function HabitList({
     <div
       ref={listContainerRef}
       tabIndex={-1}
-      className="px-4"
+      className="px-[16px]"
     >
       {!drill.currentParent && showAllDone ? <HabitListAllDone onSeeUpcoming={onSeeUpcoming} /> : null}
       {renderMainContent()}

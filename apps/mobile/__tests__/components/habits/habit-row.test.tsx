@@ -224,7 +224,7 @@ describe('HabitRow canonical content (mobile)', () => {
     const row = renderer!.root.findByProps({ testID: 'habit-row' })
     expect(row.children[0].children[0].props.delayLongPress).toBe(500)
     expect(StyleSheet.flatten(row.props.style).paddingLeft).toBeUndefined()
-    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(0)
+    expect(StyleSheet.flatten(row.children[0].children[0].props.style({ pressed: false })).paddingLeft).toBe(8)
   })
 
   it('keeps separate selection and structural columns with a neutral checkbox', () => {
