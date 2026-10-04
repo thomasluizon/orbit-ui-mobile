@@ -346,7 +346,7 @@ describe('CreateHabitModal (mobile)', () => {
     tree.unmount()
   })
 
-  it.each(['cancel', 'confirm'] as const)('guards a mounted Android bell and handles %s without leaving a draft in history', async (choice) => {
+  it.each(['cancel', 'close', 'confirm'] as const)('guards a mounted Android bell and handles %s without leaving a draft in history', async (choice) => {
     mockFormStatus.dirty = true
     const close = vi.fn()
     const tree = renderModal(<><CreateHabitModal open presentation="screen" onClose={close} /><NotificationBell /></>)
@@ -356,9 +356,10 @@ describe('CreateHabitModal (mobile)', () => {
     expect(mockPush).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
     expect(discard().props.open).toBe(true)
-    if (choice === 'cancel') {
+    if (choice !== 'confirm') {
       const keepEditing = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.keepEditing')[0]
-      TestRenderer.act(() => keepEditing.props.onClick())
+      const closeControl = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]
+      TestRenderer.act(() => choice === 'close' ? closeControl.props.onPress() : keepEditing.props.onClick())
       expect(discard().props.open).toBe(false)
       expect(mockFormStatus.dirty).toBe(true)
       expect(mockReplace).not.toHaveBeenCalled()

@@ -521,8 +521,10 @@ export function CreateHabitModal({
           pendingNavigation.current = null
           dismissGuard.beginCancelDismiss()
         }}
-        onKeepEditing={dismissGuard.cancelDismiss}
-        onDismissDuringClose={dismissGuard.requestDismiss}
+        onKeepEditing={() => {
+          if (!dismissGuard.isCancelling) pendingNavigation.current = null
+          dismissGuard.cancelDismiss()
+        }}
         onDiscard={dismissGuard.confirmDismiss}
       />
     </>

@@ -21,7 +21,6 @@ interface ConfirmSheetProps {
   loading?: boolean
   onCloseComplete?: () => void
   onCancelStart?: () => void
-  onDismissDuringClose?: () => void
   /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
   /** Confirms the action and hides the sheet, on press when confirmImmediately is set. */

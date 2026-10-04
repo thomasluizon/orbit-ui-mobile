@@ -99,10 +99,13 @@ describe('Sheet (mobile)', () => {
   it('routes hardware Back while a controlled sheet is closing without completing its exit', async () => {
     const onClose = vi.fn()
     const onBackPress = vi.fn()
+    const sheetRef = React.createRef<SheetHandle>()
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
-      tree = TestRenderer.create(<Sheet title="Discard changes" onClose={onClose} onBackPress={onBackPress} />)
+      tree = TestRenderer.create(<Sheet ref={sheetRef} title="Discard changes" onClose={onClose} onBackPress={onBackPress} />)
     })
+    await TestRenderer.act(async () => { sheetRef.current!.requestClose(); await Promise.resolve() })
+    expect(dismiss).toHaveBeenCalledOnce()
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.dismissible).toBe(false)
     TestRenderer.act(() => { expect(nativeSheet.props.onBackPress()).toBe(true) })

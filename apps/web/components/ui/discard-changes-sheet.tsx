@@ -7,7 +7,6 @@ interface DiscardChangesSheetProps {
   open: boolean
   onKeepEditing: () => void
   onKeepEditingStart?: () => void
-  onDismissDuringClose?: () => void
   onDiscard: () => void
 }
 
@@ -16,7 +15,6 @@ export function DiscardChangesSheet({
   open,
   onKeepEditing,
   onKeepEditingStart,
-  onDismissDuringClose,
   onDiscard,
 }: Readonly<DiscardChangesSheetProps>) {
   const t = useTranslations()
@@ -30,7 +28,6 @@ export function DiscardChangesSheet({
       cancelLabel={t('common.keepEditing')}
       confirmLabel={t('common.discardChangesAction')}
       onCancelStart={onKeepEditingStart}
-      onDismissDuringClose={onDismissDuringClose}
       onCloseComplete={onKeepEditingStart ? onKeepEditing : undefined}
       onCancel={onKeepEditing}
       onConfirm={onDiscard}

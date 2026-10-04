@@ -485,14 +485,14 @@ describe('CreateHabitModal', () => {
     expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
   })
 
-  it('keeps a dirty draft and forgets a rejected destination before Back', async () => {
+  it.each(['common.keepEditing', 'close-overlay'])('forgets a rejected destination before Back after %s', async (cancelAction) => {
     mockFormStatus.dirty = true
     const close = vi.fn()
     const rejectedDestination = vi.fn()
     renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
     act(() => requestHabitCreateNavigation(rejectedDestination))
     expect(close).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    fireEvent.click(screen.getByRole('button', { name: cancelAction }))
     expect(rejectedDestination).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))

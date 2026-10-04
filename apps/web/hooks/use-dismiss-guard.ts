@@ -47,12 +47,13 @@ export function useDismissGuard({ isDirty, onDismiss }: Readonly<UseDismissGuard
   return useMemo(
     () => ({
       canDismiss: !isDirty,
+      isCancelling: lifecycle.cancelling,
       showDiscardDialog: lifecycle.showDiscardDialog,
       requestDismiss,
       confirmDismiss,
       cancelDismiss,
       beginCancelDismiss,
     }),
-    [beginCancelDismiss, cancelDismiss, confirmDismiss, isDirty, requestDismiss, lifecycle.showDiscardDialog],
+    [beginCancelDismiss, cancelDismiss, confirmDismiss, isDirty, requestDismiss, lifecycle.cancelling, lifecycle.showDiscardDialog],
   )
 }
