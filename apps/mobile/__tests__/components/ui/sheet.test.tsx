@@ -20,6 +20,13 @@ import { habitFormSchema } from '@orbit/shared/validation'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { HabitRow } from '@/components/habits/habit-row'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { apiKeySchema } from '@orbit/shared/types/api-key'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { measureProfileRow } from '../../support/profile-row-geometry'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DescriptionViewer } from '@/components/habits/description-viewer'
 
 vi.unmock('@/components/ui/sheet')
@@ -49,7 +56,7 @@ vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
 vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-config', () => ({ useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }) }))
-vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => true }))
+vi.mock('@/hooks/use-profile', () => ({ useHasProAccess: () => true, useProfile: () => ({ profile: null }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
 vi.mock('@/hooks/use-dismiss-guard', () => ({ useDismissGuard: () => ({ canDismiss: true, requestDismiss: vi.fn(), showDiscardDialog: false }) }))
 vi.mock('@/components/ui/discard-changes-sheet', () => ({ DiscardChangesSheet: () => null }))
@@ -95,6 +102,24 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
+const namedKey = apiKeySchema.parse({
+  id: 'long-key', name: 'Personal integration '.repeat(10).slice(0, 200), keyPrefix: 'orbit_sk_prefix',
+  scopes: [], isReadOnly: false, expiresAtUtc: null, createdAtUtc: '2026-10-01T00:00:00Z',
+  lastUsedAtUtc: null, isRevoked: false,
+})
+const keyActions = vi.hoisted(() => ({ revoke: vi.fn() }))
+vi.mock('@/app/advanced-api-keys', () => ({
+  useApiKeyManagement: () => {
+    const [revokingKeyId, setRevokingKeyId] = React.useState<string | null>(null)
+    return {
+      apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() }, apiKeys: [namedKey],
+      canCreateKey: true, createGrantAvailable: true, createKeyError: null,
+      clearCreateKeyError: vi.fn(), clearRevokeKeyError: vi.fn(), revokingKeyId, setRevokingKeyId,
+      revokeKeyMutation: { mutate: keyActions.revoke, isPending: false }, handleCreateKey: vi.fn(),
+    }
+  },
+}))
+
 describe('Sheet (mobile)', () => {
   it('routes hardware Back while a controlled sheet is closing without completing its exit', async () => {
     const onClose = vi.fn()
@@ -133,7 +158,7 @@ describe('Sheet (mobile)', () => {
     await TestRenderer.act(() => tree.unmount())
   })
 
-  it.each(['typed', 'label'] as const)('limits a %s title and opens typed text with one press', async (titleMode) => {
+  it.each(['typed', 'label'] as const)('wraps label titles and opens limited %s text with one press', async (titleMode) => {
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: 2 })
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
     function Draft() {
@@ -151,7 +176,12 @@ describe('Sheet (mobile)', () => {
     const header = tree.root.findByType(TrueSheet).props.header
     const heading = header.props.children[0]
     const titleText = heading.type === Text ? heading : heading.props.children
-    expect(titleText.props.numberOfLines).toBe(titleMode === 'typed' ? 2 : 1)
+    expect(titleText.props.numberOfLines).toBe(titleMode === 'typed' ? 2 : undefined)
+    if (titleMode === 'label') {
+      expect(heading.props.accessibilityRole).toBe('header')
+      expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ minHeight: 48, textAlignVertical: 'center' })
+      expect(StyleSheet.flatten(header.props.style).alignItems).toBe('flex-start')
+    }
     if (titleMode === 'typed') {
       expect(titleText.props.ellipsizeMode).toBe('tail')
       expect(StyleSheet.flatten(heading.props.style({ pressed: false })).minHeight).toBe(48)
@@ -173,6 +203,90 @@ describe('Sheet (mobile)', () => {
       expect(onClose).not.toHaveBeenCalled()
     }
     await TestRenderer.act(() => tree.unmount())
+  })
+
+  it('discloses a long personal API key name in the real revoke confirmation', async () => {
+    keyActions.revoke.mockClear()
+    const queryClient = new QueryClient()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked /></QueryClientProvider>) })
+    try {
+      const revoke = tree.root.findAllByType('Pressable').find(
+        (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel?.startsWith('profile.apiKeys.revokeNamed'),
+      )
+      await TestRenderer.act(() => revoke.props.onPress())
+      const title = tree.root.findByType(ConfirmSheet).props.title
+      expect(title).toContain(namedKey.name)
+      const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+      expect(heading.props.accessibilityRole).toBe('button')
+      expect(heading.props.children.props.numberOfLines).toBe(2)
+      await TestRenderer.act(() => heading.props.onPress())
+      expect(tree.root.findAllByType('Text').some(
+        (node: { props: { children?: string; selectable?: boolean } }) => node.props.selectable && node.props.children === title,
+      )).toBe(true)
+      const confirm = tree.root.findAllByType(PillButton).find(
+        (node: { props: { children?: string } }) => node.props.children === 'orbitMcp.revoke',
+      )
+      await TestRenderer.act(() => confirm.props.onClick())
+      expect(keyActions.revoke).not.toHaveBeenCalled()
+      await TestRenderer.act(() => didDismiss.complete())
+      expect(keyActions.revoke).toHaveBeenCalledExactlyOnceWith(namedKey.id)
+    } finally { await TestRenderer.act(() => tree.unmount()); queryClient.clear() }
+  })
+
+  it('keeps every long habit menu action reachable at 320 by 915 and 200% text', async () => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const title = 'Read a chapter before bed '.repeat(8).slice(0, 200)
+    expect(title).toHaveLength(200)
+    const actions = { onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(),
+      onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
+      onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }
+    const labels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={createMockHabit({ title, isOverdue: true, hasSubHabits: true })}
+        hasChildren hasProAccess actions={actions} />)
+    })
+    try {
+      for (const [index, label] of labels.entries()) {
+        await TestRenderer.act(() => tree.root.findAllByType('Pressable').find(
+          (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === 'habits.actions.more',
+        ).props.onPress())
+        const nativeSheet = tree.root.findByType(TrueSheet)
+        const header = nativeSheet.props.header
+        let headerTree!: ReturnType<typeof TestRenderer.create>
+        await TestRenderer.act(() => { headerTree = TestRenderer.create(header) })
+        const measured = measureProfileRow(headerTree.toJSON(), 320, 2)
+        const headerStyle = StyleSheet.flatten(header.props.style)
+        await TestRenderer.act(() => {
+          header.props.onLayout({ nativeEvent: { layout: {
+            height: measured.height + headerStyle.paddingTop + headerStyle.paddingBottom,
+          } } })
+          headerTree.unmount()
+        })
+        const body = tree.root.findAllByType('ScrollView').find(
+          (node: { props: { testID?: string } }) => node.props.testID === 'sheet-body-scroll',
+        )
+        expect(StyleSheet.flatten(body.props.style).maxHeight).toBeGreaterThan(0)
+        const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
+        expect(heading.props.children.props.numberOfLines).toBe(2)
+        expect(heading.props.children.props.ellipsizeMode).toBe('tail')
+        const items = body.findAllByType('Pressable').filter(
+          (node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'menuitem',
+        )
+        expect(items.map((item: { findAllByType: (type: string) => { props: { children?: string } }[] }) =>
+          item.findAllByType('Text')[0]!.props.children)).toEqual(labels)
+        expect(items.every((item: { props: { disabled?: boolean } }) => !item.props.disabled)).toBe(true)
+        await TestRenderer.act(() => items[index].props.onPress())
+        expect(Object.values(actions)[index]).not.toHaveBeenCalled()
+        await TestRenderer.act(() => didDismiss.complete())
+        expect(Object.values(actions)[index], label).toHaveBeenCalledOnce()
+      }
+    } finally {
+      await TestRenderer.act(() => tree.unmount())
+    }
   })
 
   it.each([412, 840])('aligns the native sheet to the phone column at %ipx', async (width) => {

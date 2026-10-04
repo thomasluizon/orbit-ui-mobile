@@ -1,3 +1,4 @@
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { Pressable, Text, View } from 'react-native'
 import { Bell, X } from '@/components/ui/icons'
@@ -58,6 +59,7 @@ export function CalendarSyncEventRow({
   onDismiss,
 }: Readonly<CalendarSyncEventRowProps>) {
   const { displayTime } = useTimeFormat()
+  const { displayDate } = useDateFormat()
   const importIssue = getCalendarSyncImportIssue(
     event.recurrenceRule,
     event.startDate,
@@ -112,7 +114,7 @@ export function CalendarSyncEventRow({
           <View style={styles.eventMetaRow}>
             {event.startDate ? (
               <Text style={[styles.eventMeta, { color: tokens.fg2 }]}>
-                {event.startDate}
+                {displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' })}
               </Text>
             ) : null}
             {timeLabel ? (

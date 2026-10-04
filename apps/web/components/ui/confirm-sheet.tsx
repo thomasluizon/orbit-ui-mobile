@@ -1,5 +1,6 @@
 'use client'
 
+import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -9,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 interface ConfirmSheetProps {
   open: boolean
   title: string
+  titleMode?: SheetProps['titleMode']
   message: string
   confirmLabel: string
   cancelLabel?: string
@@ -31,6 +33,7 @@ interface ConfirmSheetProps {
 export function ConfirmSheet({
   open,
   title,
+  titleMode = 'label',
   message,
   confirmLabel,
   cancelLabel,
@@ -117,6 +120,7 @@ export function ConfirmSheet({
       initialFocus={destructive ? cancelRef : undefined}
       open
       title={title}
+      titleMode={titleMode}
       onClose={() => {
         if (actionsDisabled) {
           finishControlledClose()

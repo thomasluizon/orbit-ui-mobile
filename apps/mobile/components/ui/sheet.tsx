@@ -244,7 +244,7 @@ function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory,
           style={({ pressed }) => [styles.titleButton, pressed ? styles.titlePressed : null]}>
           <Text numberOfLines={2} ellipsizeMode="tail" style={styles.typedTitle}>{title}</Text>
         </Pressable>
-      ) : <Text accessibilityLabel={accessibleTitle} numberOfLines={1} style={styles.title}>{title}</Text> : (
+      ) : <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />
       )}
       {headerAccessory}
@@ -277,7 +277,7 @@ function virtualizedBodyStyle(maxHeight: number, hasFooter: boolean) {
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     header: {
-      alignItems: 'center',
+      alignItems: 'flex-start',
       flexDirection: 'row',
       gap: 16,
       minHeight: 56,
@@ -288,6 +288,8 @@ function createStyles(tokens: Tokens) {
     title: {
       color: tokens.fg1,
       flex: 1,
+      minHeight: 48,
+      textAlignVertical: 'center',
       fontFamily: 'Geist_500Medium',
       fontSize: 22,
     },

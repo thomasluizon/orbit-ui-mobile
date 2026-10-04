@@ -497,11 +497,11 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               />
             ) : (
               <>
-                <View testID="section-heading-row" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <SectionLabel>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
+                <View testID="section-heading-row" style={{ alignItems: 'stretch' }}>
+                  <View style={{ minWidth: 0 }}>
+                    <SectionLabel inset={false}>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
                   </View>
-                  <View style={{ flexShrink: 0, alignItems: 'center', paddingTop: 24, paddingRight: 16, paddingBottom: 12 }}>
+                  <View style={{ alignSelf: 'flex-end', paddingBottom: 12 }}>
                     <SelectAllToggle
                       allSelected={allSelected}
                       onToggle={toggleAll}
@@ -586,7 +586,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 {t('calendar.importDone')}
               </Text>
             </View>
-            <SectionLabel>
+            <SectionLabel inset={false}>
               {plural(
                 t('calendar.importedCount', { count: importedCount }),
                 importedCount,

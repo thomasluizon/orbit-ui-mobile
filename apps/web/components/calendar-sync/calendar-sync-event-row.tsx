@@ -2,6 +2,7 @@
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
 import { Bell, X } from '@/components/ui/icons'
@@ -40,6 +41,7 @@ export function CalendarSyncEventRow({
   t,
 }: Readonly<CalendarSyncEventRowProps>) {
   const { displayTime } = useTimeFormat()
+  const { displayDate } = useDateFormat()
   const importIssue = getCalendarSyncImportIssue(
     event.recurrenceRule,
     event.startDate,
@@ -105,7 +107,7 @@ export function CalendarSyncEventRow({
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {event.startDate}
+                {displayDate(event.startDate, { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
             )}
             {event.startTime && (

@@ -6,7 +6,6 @@ export function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
     cardPad: {
-      paddingHorizontal: 16,
       paddingBottom: 12,
     },
     connectionCard: {
@@ -41,12 +40,10 @@ export function createStyles() {
     syncNowRow: {
       flexDirection: 'row',
       justifyContent: 'flex-end',
-      paddingHorizontal: 16,
       paddingTop: 16,
       paddingBottom: 4,
     },
     reconnectBlock: {
-      paddingHorizontal: 16,
       paddingVertical: 12,
       gap: 8,
       alignItems: 'flex-start',
@@ -81,7 +78,6 @@ export function createStyles() {
       justifyContent: 'center',
     },
     centerBlock: {
-      paddingHorizontal: 24,
       paddingVertical: 32,
       alignItems: 'center',
       gap: 12,
@@ -167,14 +163,12 @@ export function createStyles() {
       justifyContent: 'center',
     },
     actionPad: {
-      paddingHorizontal: 16,
       paddingVertical: 16,
     },
     pickerStateRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingHorizontal: 16,
       paddingTop: 4,
     },
     pickerStateText: {
@@ -185,7 +179,6 @@ export function createStyles() {
     showMoreRow: {
       alignItems: 'center',
       gap: 8,
-      paddingHorizontal: 16,
       paddingTop: 12,
     },
     showingCountText: {

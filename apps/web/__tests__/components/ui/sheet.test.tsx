@@ -11,6 +11,12 @@ import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { HabitRow } from '@/components/habits/habit-row'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { apiKeySchema } from '@orbit/shared/types/api-key'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import en from '@orbit/shared/i18n/en.json'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { useUIStore } from '@/stores/ui-store'
@@ -18,7 +24,14 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { WidgetInfoOverlay } from '@/components/advanced/advanced-sections'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next/navigation', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next/navigation')>(),
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
+vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string, values?: { name?: string }) =>
+  key === 'profile.apiKeys.revokeNamedQuestion'
+    ? en.profile.apiKeys.revokeNamedQuestion.replace('{name}', values?.name ?? '') : key }))
 
 function NestedReloadSheets() {
   const [upperOpen, setUpperOpen] = useState(true)
@@ -28,6 +41,24 @@ function NestedReloadSheets() {
     </Sheet> : null}
   </Sheet></>
 }
+
+const namedKey = apiKeySchema.parse({
+  id: 'long-key', name: 'Personal integration '.repeat(10).slice(0, 200), keyPrefix: 'orbit_sk_prefix',
+  scopes: [], isReadOnly: false, expiresAtUtc: null, createdAtUtc: '2026-10-01T00:00:00Z',
+  lastUsedAtUtc: null, isRevoked: false,
+})
+const keyActions = vi.hoisted(() => ({ revoke: vi.fn() }))
+vi.mock('@/hooks/use-api-key-management', () => ({
+  useApiKeyManagement: () => {
+    const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
+    return {
+      apiKeysQuery: { isLoading: false, error: null, refetch: vi.fn() }, apiKeys: [namedKey],
+      canCreateKey: true, createGrantAvailable: true, createKeyError: null,
+      clearCreateKeyError: vi.fn(), clearRevokeKeyError: vi.fn(), revokingKeyId, setRevokingKeyId,
+      revokeKeyMutation: { mutate: keyActions.revoke, isPending: false }, handleCreateKey: vi.fn(),
+    }
+  },
+}))
 
 describe('Sheet', () => {
   it('opens the complete typed title with one press and preserves the underlying sheet', async () => {
@@ -56,6 +87,73 @@ describe('Sheet', () => {
     render(<Sheet title="Options" />)
     expect(screen.getByRole('heading', { name: 'Options' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Options' })).toBeNull()
+  })
+
+  it('discloses a long personal API key name in the real revoke confirmation', async () => {
+    keyActions.revoke.mockClear()
+    render(<QueryClientProvider client={new QueryClient()}><ProfileApiKeys profile={createMockProfile({ hasProAccess: true })} unlocked /></QueryClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.revokeNamed' }))
+    const title = en.profile.apiKeys.revokeNamedQuestion.replace('{name}', namedKey.name)
+    const dialog = await screen.findByRole('dialog', { name: title })
+    const heading = screen.getByRole('button', { name: title })
+    expect(heading).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(heading)
+    expect(dialog.querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
+    expect(heading).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.revoke' }))
+    await waitFor(() => expect(keyActions.revoke).toHaveBeenCalledExactlyOnceWith(namedKey.id))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('keeps every long habit menu action reachable at compact width and 200% text', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const title = 'Read a chapter before bed '.repeat(8).slice(0, 200)
+    expect(title).toHaveLength(200)
+    const actions = { onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(),
+      onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
+      onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }
+    const labels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
+      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
+      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    document.head.append(stylesheet)
+    const { unmount } = render(<HabitRow habit={createMockHabit({ title, isOverdue: true })} state="overdue"
+      hasSubHabits hasProAccess actions={actions} />)
+    try {
+      for (const [index, label] of labels.entries()) {
+        fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+        const dialog = await screen.findByRole('dialog', { name: title })
+        dialog.style.width = '320px'
+        dialog.style.fontSize = '200%'
+        const heading = screen.getByRole('button', { name: title })
+        const headingStyle = getComputedStyle(heading)
+        expect(headingStyle.flexGrow).toBe('1')
+        expect(Number.parseFloat(headingStyle.minWidth)).toBe(0)
+        expect(headingStyle.width).toBe('100%')
+        expect(getComputedStyle(heading.firstElementChild!).getPropertyValue('-webkit-line-clamp')).toBe('2')
+        const items = screen.getAllByRole('menuitem')
+        expect(items.map((item) => item.textContent)).toEqual(labels)
+        for (const item of items) {
+          expect(item).toBeEnabled()
+          expect(item.closest('[data-slot="sheet-body"]')).not.toBeNull()
+          item.focus()
+          expect(item).toHaveFocus()
+        }
+        await userEvent.click(heading)
+        expect(dialog.querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
+        expect(heading).toHaveAttribute('aria-expanded', 'true')
+        await userEvent.click(heading)
+        expect(heading).toHaveAttribute('aria-expanded', 'false')
+        fireEvent.click(screen.getByRole('menuitem', { name: label }))
+        await waitFor(() => expect(Object.values(actions)[index]).toHaveBeenCalledOnce())
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      }
+    } finally {
+      unmount()
+      stylesheet.remove()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('returns focus to its trigger after ordinary dismissal without a focus policy', async () => {
