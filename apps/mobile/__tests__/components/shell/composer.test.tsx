@@ -233,6 +233,39 @@ describe('Composer (mobile)', () => {
     } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
   })
 
+  it.each([en, ptBR])('reserves wrapped height across mounted placeholder copy changes without another layout event', messages => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const catalog = messages.shell.composer
+    const configuration = props({ words: catalog, suggestions: [], onAttachFile: vi.fn(), attachWords,
+      onOpenConversation: vi.fn(), conversationLabel: messages.todayAstra.openConversation })
+    const tree = renderComposer(configuration)
+    try {
+      const input = tree.root.findByType('TextInput')
+      const placeholder = tree.root.findByProps({ testID: 'composer-placeholder' })
+      TestRenderer.act(() => placeholder.props.onLayout({ nativeEvent: { layout: { x: 0, y: 12, width: 136, height: 96 } } }))
+      expect(StyleSheet.flatten(input.props.style).height).toBe(120)
+      let previousPlaceholder = placeholder
+      for (const state of ['offline', 'atLimit'] as const) {
+        const nextCopy = state === 'offline' ? catalog.offline : catalog.limit
+        TestRenderer.act(() => tree.update(<Composer {...props({ ...configuration, state, limitReason: nextCopy.reason,
+          words: { ...catalog, placeholder: nextCopy.placeholder } })} />))
+        expect(tree.root.findByType('TextInput')).toBe(input)
+        const nextPlaceholder = tree.root.findByProps({ testID: 'composer-placeholder' })
+        expect(nextPlaceholder.props.children).toBe(nextCopy.placeholder)
+        expect(StyleSheet.flatten(input.props.style).height).toBe(120)
+        expect(nextPlaceholder).not.toBe(previousPlaceholder)
+        previousPlaceholder = nextPlaceholder
+      }
+      TestRenderer.act(() => tree.root.findByProps({ testID: 'composer-placeholder' }).props.onLayout({
+        nativeEvent: { layout: { x: 0, y: 12, width: 136, height: 48 } },
+      }))
+      expect(StyleSheet.flatten(input.props.style).height).toBe(72)
+      TestRenderer.act(() => tree.update(<Composer {...configuration} value="Oi" />))
+      TestRenderer.act(() => input.props.onContentSizeChange({ nativeEvent: { contentSize: { width: 136, height: 72 } } }))
+      expect(StyleSheet.flatten(input.props.style).height).toBe(72)
+    } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+  })
+
   it('reserves a scaled text line before the first native content-size event', () => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
     const tree = renderComposer(props())

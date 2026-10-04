@@ -240,14 +240,14 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
 }>) {
   const { fontScale } = useWindowDimensions()
   const [contentHeight, setContentHeight] = useState(48)
-  const [placeholderHeight, setPlaceholderHeight] = useState<{ text: string; fontScale: number; height: number } | null>(null)
+  const [placeholderHeight, setPlaceholderHeight] = useState<{ fontScale: number; height: number } | null>(null)
   const [placeholderLayout, setPlaceholderLayout] = useState<{ text: string; fontScale: number; fits: boolean } | null>(null)
   const largeText = fontScale > 1.3
   const measurePlaceholder = props.state === 'offline' || props.state === 'atLimit'
   const placeholderFits = largeText || !measurePlaceholder || placeholderLayout?.text !== props.words.placeholder || placeholderLayout.fontScale !== fontScale || placeholderLayout.fits
   const minimumHeight = 24 * fontScale + 24
   const maximumHeight = 5 * 24 * fontScale + 24
-  const emptyHeight = largeText && placeholderHeight?.text === props.words.placeholder && placeholderHeight.fontScale === fontScale
+  const emptyHeight = largeText && placeholderHeight?.fontScale === fontScale
     ? Math.max(minimumHeight, placeholderHeight.height + 24) : minimumHeight
   const inputHeight = props.value.length === 0 ? emptyHeight : Math.min(maximumHeight, Math.max(minimumHeight, contentHeight))
   const inputDisabled = props.state !== 'idle'
@@ -287,11 +287,12 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
           style={[styles.placeholder, { opacity: 0 }]}
         >{props.words.placeholder}</Text> : null}
         {props.value.length === 0 && placeholderFits ? <Text
+          key={`${fontScale}:${props.words.placeholder}`}
           testID="composer-placeholder"
           pointerEvents="none"
           accessible={false}
           numberOfLines={largeText ? undefined : 1}
-          onLayout={event => setPlaceholderHeight({ text: props.words.placeholder, fontScale, height: event.nativeEvent.layout.height })}
+          onLayout={event => setPlaceholderHeight({ fontScale, height: event.nativeEvent.layout.height })}
           style={[styles.placeholder, { color: tokens.fg3 }, inputDisabled ? styles.disabled : null]}
         >{props.words.placeholder}</Text> : null}
         </View>

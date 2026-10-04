@@ -156,6 +156,49 @@ describe('Composer compact geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([en, ptBR].flatMap(messages => (['offline', 'atLimit'] as const).flatMap(scenario =>
+    [{ fontScale: 2, width: 320, kept: true }, { fontScale: 1, width: 600, kept: true },
+      { fontScale: 1, width: 240, kept: false }].map(size => ({ messages, scenario, ...size })),
+  )))('updates the mounted $scenario placeholder at $fontScale text and $width width', async ({ messages, scenario, fontScale, width, kept }) => {
+    const configuration = geometryProps(scenario, messages, true)
+    const page = await browser.newPage({ viewport: { width, height: 740 } })
+    const view = render(<Composer {...geometryProps('idle', messages, true)} />)
+    let restoreContext: (() => void) | undefined
+    try {
+      await page.setContent(`<style>${stylesheet}html{font-size:${16 * fontScale}px}</style>${view.container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('[data-composer-input]').evaluate((element, placeholder) => {
+        const style = getComputedStyle(element)
+        const context = document.createElement('canvas').getContext('2d')!
+        context.font = style.font
+        context.letterSpacing = style.letterSpacing
+        const metrics = context.measureText(placeholder)
+        return { clientWidth: element.clientWidth, font: style.font, fontSize: style.fontSize,
+          letterSpacing: style.letterSpacing, paddingInlineStart: style.paddingInlineStart, paddingInlineEnd: style.paddingInlineEnd,
+          metrics: Object.fromEntries(Object.keys(Object.getPrototypeOf(metrics))
+            .filter(key => typeof Reflect.get(metrics, key) === 'number').map(key => [key, Reflect.get(metrics, key)])) }
+      }, configuration.words.placeholder)
+      const field = screen.getByRole('textbox')
+      Object.assign(field.style, { font: measured.font, fontSize: measured.fontSize, letterSpacing: measured.letterSpacing,
+        paddingInlineStart: measured.paddingInlineStart, paddingInlineEnd: measured.paddingInlineEnd })
+      const widthSpy = vi.spyOn(field, 'clientWidth', 'get').mockReturnValue(measured.clientWidth)
+      const measureText = vi.fn(() => measured.metrics as unknown as TextMetrics)
+      const contextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+        font: '', letterSpacing: '', measureText,
+      } as unknown as CanvasRenderingContext2D)
+      restoreContext = () => contextSpy.mockRestore()
+      view.rerender(<Composer {...configuration} />)
+      const style = getComputedStyle(field)
+      const availableWidth = measured.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd)
+      expect(parseFloat(style.fontSize)).toBe(16 * fontScale)
+      expect(measured.metrics.width! <= availableWidth).toBe(width === 600)
+      expect(field).toHaveAttribute('placeholder', kept ? configuration.words.placeholder : '')
+      if (fontScale === 2) expect(measureText).not.toHaveBeenCalled()
+      else expect(measureText).toHaveBeenCalledWith(configuration.words.placeholder)
+      widthSpy.mockRestore()
+    } finally { restoreContext?.(); view.unmount(); await page.close() }
+  })
+
   it.each([ptBR, en].flatMap(messages => [false, true].flatMap(withOpener =>
     (['idle', 'offline', 'atLimit'] as const).map(scenario => ({ messages, withOpener, scenario })),
   )))('keeps the placeholder whole through text resizing while $scenario with opener $withOpener', async ({ messages, withOpener, scenario }) => {
