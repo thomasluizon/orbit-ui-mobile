@@ -572,6 +572,8 @@ describe('field validation responses', () => {
     act(() => result.current.setEmail('user@test.com'))
     await act(() => result.current.sendCode())
     expect(result.current).toMatchObject({ emailFieldError: 'Legacy email failure' })
+    act(() => result.current.setEmail('corrected@test.com'))
+    expect(result.current.emailFieldError).toBeUndefined()
   })
 })
 

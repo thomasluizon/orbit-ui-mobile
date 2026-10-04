@@ -263,7 +263,7 @@ export function useLoginFlow() {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail: (value: string) => { setEmail(value); setErrorKey(null) }, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     emailFieldError: getBackendFieldError(validationError, 'Email'),
     codeFieldError: getBackendFieldError(validationError, 'Code'),
     codeFocusRequest,

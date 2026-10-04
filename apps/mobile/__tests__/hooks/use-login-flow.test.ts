@@ -844,6 +844,8 @@ describe('field validation responses', () => {
     await act(() => harness.current.setEmail('user@test.com'))
     await act(() => harness.current.sendCode())
     expect(harness.current).toMatchObject({ emailFieldError: 'Legacy email failure' })
+    await act(() => harness.current.setEmail('corrected@test.com'))
+    expect(harness.current.emailFieldError).toBeUndefined()
   })
 })
 
