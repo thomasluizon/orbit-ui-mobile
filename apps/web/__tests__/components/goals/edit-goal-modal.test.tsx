@@ -218,3 +218,13 @@ it('places legacy server validation beside each edited goal field and clears onl
   expect(title).not.toHaveAccessibleDescription('Server title failure')
   expect(unit).toHaveAccessibleDescription('Server unit failure')
 })
+
+it('focuses the mapped goal field while retaining general failures in a mixed response', async () => {
+  mockMutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Unit: ['Server unit failure'], HabitIds: ['Server linked habit failure'] } }, 'Fallback'))
+  render(<EditGoalModal open onOpenChange={vi.fn()} goal={mockGoal} />)
+  const unit = screen.getByLabelText('goals.form.unit')
+  fireEvent.submit(unit.closest('form')!)
+  await waitFor(() => expect(unit).toHaveAccessibleDescription('Server unit failure'))
+  expect(unit).toHaveFocus()
+  expect(mockShowError).toHaveBeenCalled()
+})

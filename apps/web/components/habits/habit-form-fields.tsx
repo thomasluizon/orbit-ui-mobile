@@ -363,7 +363,7 @@ export function HabitFormFields({
     try {
       await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
     } catch (error: unknown) {
-      if (!newTagErrors.reportBackendErrors(error)) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+      if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
     }
   }
 
@@ -371,7 +371,7 @@ export function HabitFormFields({
     try {
       await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
     } catch (error: unknown) {
-      if (!editTagErrors.reportBackendErrors(error)) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+      if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
     }
   }
 

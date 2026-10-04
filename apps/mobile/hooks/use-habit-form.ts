@@ -92,11 +92,12 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     if (backendFocusRequest && backendFocusField === 'title') form.setFocus('title')
   }, [backendFocusRequest, backendFocusField, form])
   function reportBackendErrors(error: unknown): boolean {
-    const field = backendErrors.reportBackendErrors(error)
-    if (!field) return false
-    setBackendFocusField(field)
-    setBackendFocusRequest((request) => request + 1)
-    return true
+    const { field, handled } = backendErrors.reportBackendErrors(error)
+    if (field) {
+      setBackendFocusField(field)
+      setBackendFocusRequest((request) => request + 1)
+    }
+    return handled
   }
   const { isOneTime, isGeneral, isFlexible, isRecurring, showDayPicker, showEndDate } =
     getHabitFormFlags(watchedValues)

@@ -148,8 +148,9 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
       closeSheet(onClose)
     } catch (error: unknown) {
-      const field = backendErrors.reportBackendErrors(error)
-      if (field) { setFocusRequest({ field }); return }
+      const { field, handled } = backendErrors.reportBackendErrors(error)
+      if (field) setFocusRequest({ field })
+      if (handled) return
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
       )

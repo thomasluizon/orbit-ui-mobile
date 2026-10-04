@@ -4,10 +4,10 @@ import { allBackendFormErrorsMapped, deriveBackendFormErrors, firstBackendFormEr
 export function useBackendFieldErrors<Field extends string>(values: Record<Field, unknown>, names: Record<Field, string>) {
   const [failure, setFailure] = useAccountScopedState<BackendFormFailure<Field> | null>(null)
   const [focusRequest, setFocusRequest] = useAccountScopedState(0)
-  function reportBackendErrors(error: unknown): Field | undefined {
+  function reportBackendErrors(error: unknown): { field: Field | undefined; handled: boolean } {
     const field = firstBackendFormError(error, names)
     if (field) { setFailure({ error, values: { ...values } }); setFocusRequest((request) => request + 1) }
-    return allBackendFormErrorsMapped(error, names) ? field : undefined
+    return { field, handled: allBackendFormErrorsMapped(error, names) }
   }
   return { focusRequest, fieldErrors: deriveBackendFormErrors(failure, values, names), reportBackendErrors, clearBackendErrors: () => setFailure(null) }
 }

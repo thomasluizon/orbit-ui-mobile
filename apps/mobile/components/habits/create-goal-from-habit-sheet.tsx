@@ -174,8 +174,9 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         resetForm()
       })
     } catch (error: unknown) {
-      const field = backendErrors.reportBackendErrors(error)
-      if (field) { setFocusRequest({ field }); return }
+      const { field, handled } = backendErrors.reportBackendErrors(error)
+      if (field) setFocusRequest({ field })
+      if (handled) return
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'),
       )

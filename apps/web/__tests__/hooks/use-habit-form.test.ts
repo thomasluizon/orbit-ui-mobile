@@ -252,3 +252,13 @@ it('routes server title and description errors without translating dynamic copy'
   act(() => result.current.form.setValue('title', 'Updated'))
   expect(result.current.backendFieldErrors).toEqual({ description: 'Description exceeds 123 characters' })
 })
+
+it('requests focus and disclosure for mixed description and unknown validation', () => {
+  const { result } = renderHook(() => useHabitForm())
+  let handled = true
+  act(() => { handled = result.current.reportBackendErrors(createApiClientError(400, { errors: { Description: ['Server description failure'], Emoji: ['Server emoji failure'] } }, 'Fallback')) })
+  expect(handled).toBe(false)
+  expect(result.current.backendFieldErrors.description).toBe('Server description failure')
+  expect(result.current.backendFocusField).toBe('description')
+  expect(result.current.backendFocusRequest).toBe(1)
+})
