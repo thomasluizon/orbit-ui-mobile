@@ -64,7 +64,7 @@ describe('Badge (mobile)', () => {
       fontSize: 12,
       includeFontPadding: false,
       letterSpacing: 0.72,
-      textTransform: 'uppercase',
     })
+    expect(StyleSheet.flatten(text.props.style).textTransform).toBeUndefined()
   })
 })
