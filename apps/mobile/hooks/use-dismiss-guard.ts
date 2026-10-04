@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { resolveDismissGuardAction } from '@orbit/shared/hooks'
+import { INITIAL_DISMISS_GUARD_LIFECYCLE, resolveDismissGuardAction, type DismissGuardAction } from '@orbit/shared/hooks'
 
 interface UseDismissGuardOptions {
   isDirty: boolean
@@ -7,50 +7,30 @@ interface UseDismissGuardOptions {
 }
 
 export function useDismissGuard({ isDirty, onDismiss }: Readonly<UseDismissGuardOptions>) {
-  const [lifecycle, setLifecycle] = useState({
-    showDiscardDialog: false, cancelling: false, pendingDismiss: false,
-  })
+  const [lifecycle, setLifecycle] = useState(INITIAL_DISMISS_GUARD_LIFECYCLE)
 
-  const requestDismiss = useCallback(() => {
-    if (lifecycle.cancelling) {
-      setLifecycle((current) => ({ ...current, pendingDismiss: true }))
-      return
-    }
-    const decision = resolveDismissGuardAction('request', isDirty)
-    setLifecycle({ showDiscardDialog: decision.showDiscardDialog, cancelling: false, pendingDismiss: false })
+  const applyAction = useCallback((action: DismissGuardAction) => {
+    const decision = resolveDismissGuardAction(action, isDirty, lifecycle)
+    setLifecycle(decision.lifecycle)
     if (decision.shouldDismiss) {
       onDismiss()
     }
-  }, [isDirty, lifecycle.cancelling, onDismiss])
-
-  const confirmDismiss = useCallback(() => {
-    const decision = resolveDismissGuardAction('confirm', isDirty)
-    setLifecycle({ showDiscardDialog: decision.showDiscardDialog, cancelling: false, pendingDismiss: false })
-    if (decision.shouldDismiss) {
-      onDismiss()
-    }
-  }, [isDirty, onDismiss])
-
-  const beginCancelDismiss = useCallback(() => {
-    setLifecycle({ showDiscardDialog: false, cancelling: true, pendingDismiss: false })
-  }, [])
+  }, [isDirty, lifecycle, onDismiss, setLifecycle])
 
   const cancelDismiss = useCallback(() => {
-    setLifecycle((current) => ({
-      showDiscardDialog: current.pendingDismiss, cancelling: false, pendingDismiss: false,
-    }))
-  }, [])
+    setLifecycle((current) => resolveDismissGuardAction('complete-cancel', isDirty, current).lifecycle)
+  }, [isDirty, setLifecycle])
 
   return useMemo(
     () => ({
       canDismiss: !isDirty,
       isCancelling: lifecycle.cancelling,
       showDiscardDialog: lifecycle.showDiscardDialog,
-      requestDismiss,
-      confirmDismiss,
+      requestDismiss: () => applyAction('request'),
+      confirmDismiss: () => applyAction('confirm'),
       cancelDismiss,
-      beginCancelDismiss,
+      beginCancelDismiss: () => applyAction('begin-cancel'),
     }),
-    [beginCancelDismiss, cancelDismiss, confirmDismiss, isDirty, requestDismiss, lifecycle.cancelling, lifecycle.showDiscardDialog],
+    [applyAction, cancelDismiss, isDirty, lifecycle.cancelling, lifecycle.showDiscardDialog],
   )
 }
