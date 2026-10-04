@@ -70,9 +70,9 @@ describe('ChatEmptyState copy', () => {
     expect(screen.getByText('Fale com a Astra')).toBeInTheDocument()
     expect(screen.getByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
-      'Registrar "Caminhar"',
+      'Registrar hábito',
       'Como foi a semana',
-      'Dividir "Rotina da casa"',
+      'Dividir hábito',
       'Como estão as metas',
     ])
   })
@@ -83,9 +83,9 @@ describe('ChatEmptyState copy', () => {
     expect(screen.getByText('Talk to Astra')).toBeInTheDocument()
     expect(screen.getByText('Some things you can ask')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
-      'Log "Caminhar"',
+      'Log a habit',
       'How the week went',
-      'Split "Rotina da casa"',
+      'Split a habit',
       'How are my goals',
     ])
   })
@@ -105,9 +105,9 @@ describe('ChatEmptyState copy', () => {
 
     expect(await screen.findByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
-      'Registrar "Rotina da casa"',
+      'Registrar hábito',
       'Como foi a semana',
-      'Dividir "Rotina da casa"',
+      'Dividir hábito',
       'Como estão as metas',
     ])
   })
@@ -117,12 +117,17 @@ describe('ChatEmptyState copy', () => {
     ['pt-BR', 'Rotina da casa', 'Registrar "Rotina da casa"', 'Dividir "Rotina da casa"'],
     ['en', 'Meditate', 'Log "Meditate"', 'Split "Meditate"'],
     ['en', 'House routine', 'Log "House routine"', 'Split "House routine"'],
+    ...(['pt-BR', 'en'] as const).map(locale => {
+      const title = 'Caminhar com acentos e muitos detalhes '.repeat(5)
+      return [locale, title, `${locale === 'pt-BR' ? 'Registrar' : 'Log'} "${title}"`, `${locale === 'pt-BR' ? 'Dividir' : 'Split'} "${title}"`] as const
+    }),
   ] as const)('sends the quoted %s suggestion for %s', (locale, title, logLabel, splitLabel) => {
     const onSelectSuggestion = vi.fn()
     const habit = makeHabitScheduleItem({ title, children: [], hasSubHabits: false })
     renderEmptyState(locale, [habit], onSelectSuggestion)
 
-    for (const label of [logLabel, splitLabel]) {
+    const labels = locale === 'pt-BR' ? ['Registrar hábito', 'Dividir hábito'] : ['Log a habit', 'Split a habit']
+    for (const label of labels) {
       const button = screen.getByRole('button', { name: label })
       expect(button.textContent).toBe(label)
       fireEvent.click(button)

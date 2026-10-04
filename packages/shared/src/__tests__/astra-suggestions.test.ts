@@ -38,9 +38,9 @@ describe('selectAstraSuggestions', () => {
     })
 
     expect(selectAstraSuggestions([walk, house], TODAY)).toEqual([
-      { id: 'logHabit', key: 'chat.suggestion.logHabit', params: { habit: 'Caminhar' } },
+      { id: 'logHabit', key: 'chat.suggestion.logHabit', promptKey: 'chat.prompts.logHabit', params: { habit: 'Caminhar' } },
       { id: 'week', key: 'chat.suggestion.week' },
-      { id: 'splitHabit', key: 'chat.suggestion.splitHabit', params: { habit: 'Caminhar' } },
+      { id: 'splitHabit', key: 'chat.suggestion.splitHabit', promptKey: 'chat.prompts.splitHabit', params: { habit: 'Caminhar' } },
       { id: 'goals', key: 'chat.suggestion.goals' },
     ])
   })

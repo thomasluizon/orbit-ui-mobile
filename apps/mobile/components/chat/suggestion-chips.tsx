@@ -15,8 +15,8 @@ interface SuggestionChipsProps {
   contextualAction?: { label: string; onSelect: () => void };
 }
 
-/** The drawn openers for an empty thread, in the order given, each kept to one line.
- *  A press sends the label the person read. */
+/** The drawn openers for an empty thread, with short, complete labels.
+ *  A press sends the complete request for the selected habit. */
 export function SuggestionChips({ suggestions, onSelect, contextualAction }: Readonly<SuggestionChipsProps>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -34,7 +34,7 @@ export function SuggestionChips({ suggestions, onSelect, contextualAction }: Rea
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Text style={styles.chipText} numberOfLines={1}>{label}</Text>
+      <Text style={styles.chipText}>{label}</Text>
     </MotionPressable>
   );
 
@@ -44,8 +44,8 @@ export function SuggestionChips({ suggestions, onSelect, contextualAction }: Rea
         ? renderSuggestion("contextual", contextualAction.label, contextualAction.onSelect)
         : null}
       {suggestions.map((suggestion) => {
-        const label = t(suggestion.key, suggestion.params);
-        return renderSuggestion(suggestion.id, label, () => onSelect(label));
+        const label = t(suggestion.key);
+        return renderSuggestion(suggestion.id, label, () => onSelect(t(suggestion.promptKey ?? suggestion.key, suggestion.params)));
       })}
     </View>
   );
@@ -65,6 +65,7 @@ function createStyles(tokens: AppTokens) {
       maxWidth: "100%",
       justifyContent: "center",
       paddingHorizontal: 16,
+      paddingVertical: 12,
       borderRadius: 999,
       overflow: "hidden",
       backgroundColor: tokens.bgWell,
@@ -78,6 +79,8 @@ function createStyles(tokens: AppTokens) {
     chipText: {
       fontFamily: 'Geist_500Medium',
       fontSize: 14,
+      lineHeight: 20,
+      flexShrink: 1,
       includeFontPadding: false,
       color: tokens.fg2,
     },

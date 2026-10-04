@@ -78,13 +78,16 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
     const host = layoutRef.current!
     const observer = new ResizeObserver(() => {
       const availableWidth = host.getBoundingClientRect().width
-      const chipWidths = [...host.querySelectorAll('button')].map(button => button.getBoundingClientRect().width)
+      const chipWidths = [...host.querySelectorAll<HTMLElement>('[data-suggestion-content]')].map(content => {
+        const buttonStyle = getComputedStyle(content.parentElement!)
+        return content.getBoundingClientRect().width + parseFloat(buttonStyle.paddingInlineStart) + parseFloat(buttonStyle.paddingInlineEnd)
+      })
       const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
       setLayout(previous => previous.availableWidth === next.availableWidth && previous.visibleWidth === next.visibleWidth
         && previous.firstChipMinWidth === next.firstChipMinWidth ? previous : next)
     })
     observer.observe(host)
-    host.querySelectorAll('button').forEach(button => observer.observe(button))
+    host.querySelectorAll('[data-suggestion-content]').forEach(content => observer.observe(content))
     return () => observer.disconnect()
   }, [suggestions])
   const maxWidth = layout.availableWidth > 0 ? layout.availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
@@ -111,8 +114,10 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
             }}
             className="flex min-h-[48px] shrink-0 items-start gap-[8px] rounded-full border-0 bg-[var(--bg-well)] px-[12px] py-[12px] text-start text-sm font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
           >
-            {suggestion.icon ? <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center">{suggestion.icon}</span> : null}
-            <span data-suggestion-label className="min-w-0">{suggestion.label}</span>
+            <span data-suggestion-content className="flex min-w-0 items-start gap-[8px]">
+              {suggestion.icon ? <span aria-hidden="true" className="flex h-[1lh] shrink-0 items-center">{suggestion.icon}</span> : null}
+              <span data-suggestion-label className="min-w-0">{suggestion.label}</span>
+            </span>
           </button>
         ))}
       </div>

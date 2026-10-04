@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nextProvider } from 'react-i18next'
@@ -84,10 +85,14 @@ describe('ChatEmptyState copy (mobile)', () => {
       'Fale com a Astra',
       'Algumas coisas que dá para pedir',
     ]))
+    for (const node of tree.root.findAll((node: any) => node.type === 'Text' && suggestionLabels(tree).includes(node.props.children))) {
+      expect(node.props.numberOfLines).toBeUndefined()
+      expect(node.props.ellipsizeMode).toBeUndefined()
+    }
     expect(suggestionLabels(tree)).toEqual([
-      'Registrar "Caminhar"',
+      'Registrar hábito',
       'Como foi a semana',
-      'Dividir "Rotina da casa"',
+      'Dividir hábito',
       'Como estão as metas',
     ])
   })
@@ -100,9 +105,9 @@ describe('ChatEmptyState copy (mobile)', () => {
       'Some things you can ask',
     ]))
     expect(suggestionLabels(tree)).toEqual([
-      'Log "Caminhar"',
+      'Log a habit',
       'How the week went',
-      'Split "Rotina da casa"',
+      'Split a habit',
       'How are my goals',
     ])
   })
@@ -112,14 +117,29 @@ describe('ChatEmptyState copy (mobile)', () => {
     ['pt-BR', 'Rotina da casa', 'Registrar "Rotina da casa"', 'Dividir "Rotina da casa"'],
     ['en', 'Meditate', 'Log "Meditate"', 'Split "Meditate"'],
     ['en', 'House routine', 'Log "House routine"', 'Split "House routine"'],
+    ...(['pt-BR', 'en'] as const).map(locale => {
+      const title = 'Caminhar com acentos e muitos detalhes '.repeat(5)
+      return [locale, title, `${locale === 'pt-BR' ? 'Registrar' : 'Log'} "${title}"`, `${locale === 'pt-BR' ? 'Dividir' : 'Split'} "${title}"`] as const
+    }),
   ] as const)('sends the quoted %s suggestion for %s', async (locale, title, logLabel, splitLabel) => {
     const onSelectSuggestion = vi.fn()
     const habit = makeHabitScheduleItem({ title, children: [], hasSubHabits: false })
     const tree = await renderEmptyState(locale, [habit], onSelectSuggestion)
 
-    expect(suggestionLabels(tree)).toEqual(expect.arrayContaining([logLabel, splitLabel]))
-    expect(renderedText(tree)).toEqual(expect.arrayContaining([logLabel, splitLabel]))
-    for (const label of [logLabel, splitLabel]) {
+    const expectedLabels = locale === 'pt-BR' ? ['Registrar hábito', 'Dividir hábito'] : ['Log a habit', 'Split a habit']
+    expect(suggestionLabels(tree)).toEqual(expect.arrayContaining(expectedLabels))
+    expect(renderedText(tree)).toEqual(expect.arrayContaining(expectedLabels))
+    for (const label of expectedLabels) {
+      const chip = tree.root.findAllByProps({ accessibilityLabel: label }).at(-1)
+      const text = chip.findByType('Text')
+      expect(text.props.numberOfLines).toBeUndefined()
+      expect(text.props.ellipsizeMode).toBeUndefined()
+      const style = StyleSheet.flatten(chip.props.style)
+      expect(style.minHeight).toBe(48)
+      expect(style.height).toBeUndefined()
+      expect(style.paddingHorizontal).toBe(16)
+      expect(style.paddingVertical).toBe(12)
+      expect(tree.root.findAllByType('View').some((node: any) => StyleSheet.flatten(node.props.style)?.gap === 8)).toBe(true)
       TestRenderer.act(() => {
         tree.root.findAllByProps({ accessibilityLabel: label }).at(-1).props.onPress()
       })

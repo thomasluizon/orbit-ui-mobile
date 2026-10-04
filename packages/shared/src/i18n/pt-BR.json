@@ -1233,10 +1233,14 @@
     "operationFailed": "Não funcionou. Tente de novo.",
     "suggestion": {
       "prompt": "Algumas coisas que dá para pedir",
-      "logHabit": "Registrar \"{habit}\"",
+      "logHabit": "Registrar hábito",
       "week": "Como foi a semana",
-      "splitHabit": "Dividir \"{habit}\"",
+      "splitHabit": "Dividir hábito",
       "goals": "Como estão as metas"
+    },
+    "prompts": {
+      "logHabit": "Registrar \"{habit}\"",
+      "splitHabit": "Dividir \"{habit}\""
     },
     "action": {
       "changes": "Alterações",

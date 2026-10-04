@@ -11,6 +11,7 @@ import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { normalizeHabitQueryData, selectAstraSuggestions } from '@orbit/shared/utils'
+import { expectLabelsFit, markRequiredLabels } from '@/e2e/layout/label-fit-contract'
 import { AstraConversation } from '@/components/chat/conversation'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -25,7 +26,7 @@ vi.mock('@/hooks/use-astra-suggestions', () => ({
 }))
 
 const suggestions = selectAstraSuggestions(normalizeHabitQueryData([
-  makeHabitScheduleItem({ title: 'Rotina da casa', children: [], hasSubHabits: false }),
+  makeHabitScheduleItem({ title: 'Caminhar e cuidar da rotina da casa com muitos detalhes '.repeat(5), children: [], hasSubHabits: false }),
 ]).topLevelHabits, '2026-08-28')
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
@@ -44,7 +45,8 @@ const VIEWPORTS = [
   { width: 1352, height: 677, panelWidth: 380 },
   { width: 1352, height: 915, panelWidth: 380 },
   { width: 600, height: 677, panelWidth: 600 },
-  { width: 320, height: 600, panelWidth: 320 },
+  ...[320, 360, 384, 412].map(width => ({ width, height: 600, panelWidth: width })),
+  ...[1100, 1440].map(width => ({ width, height: 915, panelWidth: 380 })),
 ]
 
 const CASES = VIEWPORTS.flatMap((viewport) => (['en', 'pt-BR'] as const)
@@ -79,6 +81,8 @@ describe('Empty conversation geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      await markRequiredLabels(page.getByText(messages.chat.empty.title, { exact: true }))
+      await expectLabelsFit(page, page.getByRole('log'))
       const geometry = await page.evaluate((disclosure) => {
         const scroller = document.querySelector<HTMLElement>('[role="log"]')!
         const glyph = scroller.querySelector('[data-asset="astra-mark"]')!
