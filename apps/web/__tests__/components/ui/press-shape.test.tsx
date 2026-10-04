@@ -218,7 +218,7 @@ function controlSources(directory: string): string[] {
 }
 
 describe('enabled web control feedback', () => {
-  it.each(['hover:opacity-80', 'enabled:active:opacity-85', 'group-hover:opacity-80', 'group-active:opacity-70', 'md:[&_button:enabled:active]:opacity-85', 'hover:opacity-[0.8]', 'not-disabled:hover:opacity-80', '[&:not(:disabled):hover]:opacity-80'])('rejects content dimming in %s', (className) => {
+  it.each(['hover:opacity-80', 'enabled:active:opacity-85', 'group-hover:opacity-80', 'group-active:opacity-70', 'md:[&_button:enabled:active]:opacity-85', 'hover:opacity-[0.8]', 'not-disabled:hover:opacity-80', '[&:not(:disabled):' + 'hover]:opacity-80'])('rejects content dimming in %s', (className) => {
     expect(dimmingClasses(className)).toEqual([className])
   })
 
