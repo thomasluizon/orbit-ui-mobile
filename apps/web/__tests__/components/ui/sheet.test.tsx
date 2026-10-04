@@ -126,11 +126,11 @@ describe('Sheet', () => {
     unmount()
     expect(useUIStore.getState().openOverlayIds).toHaveLength(0)
   })
-  it('leaves a 24 pixel content peek on a long sheet', () => {
+  it('leaves at least a 24 pixel content peek while clearing the top inset on a long sheet', () => {
     const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
       .replaceAll('\r\n', '\n')
 
-    expect(stylesheet).toContain('padding-block-start: var(--space-6);')
+    expect(stylesheet).toContain('padding-block-start: max(var(--space-6), var(--safe-top));')
     expect(stylesheet).toContain('max-height: 85%;')
   })
 
