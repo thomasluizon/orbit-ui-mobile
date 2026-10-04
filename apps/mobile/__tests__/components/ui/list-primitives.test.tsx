@@ -55,6 +55,21 @@ function actionContent(node: TestNode, pressed: boolean) {
 }
 
 describe('list primitives on mobile', () => {
+  it.each([
+    'Pessoa com um nome completo escrito no próprio perfil',
+    'A person with a full name written in their own profile',
+    `${'longaddress'.repeat(12)}@example.com`,
+  ])('limits a personal title to two lines with a trailing ellipsis: %s', (title) => {
+    const onOpen = vi.fn()
+    const tree = render(<ListRow title={title} textMode="personal" onClick={onOpen} />)
+    const text = tree.root.findByType(Text)
+    expect(text.props.children).toBe(title)
+    expect(text.props.numberOfLines).toBe(2)
+    expect(text.props.ellipsizeMode).toBe('tail')
+    press(tree.root.findByType(Pressable))
+    expect(onOpen).toHaveBeenCalledOnce()
+  })
+
   it('renders the templates glyph in a compact pressed row', () => {
     const tree = render(<ListRow icon="template" title="Templates" compact inForm onClick={vi.fn()} />)
     const icon = tree.root.find((node) => node.props.testID === 'icon-template')

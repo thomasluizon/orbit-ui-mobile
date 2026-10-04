@@ -300,6 +300,48 @@ describe('ProfilePage', () => {
       } finally { await page.close() }
     })
 
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => [1, 2].map((textScale) => ({ locale, width, textScale })))))('wraps account names at word boundaries in $locale at $width px and $textScale text scale', async ({ locale, width, textScale }) => {
+      translateProMessages(locale as 'en' | 'pt-BR')
+      const name = locale === 'en' ? 'A person with a full name written in their own profile' : 'Pessoa com um nome completo escrito no próprio perfil'
+      const email = `${'longaddress'.repeat(12)}@example.com`
+      mockProfileState.current.profile = createMockProfile({ name, email })
+      const profile = render(<ProfilePage />)
+      expect(screen.getByRole('link', { name: new RegExp(name) })).toHaveAttribute('href', '/profile/account')
+      const account = render(<ProfileAccountRoute />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        for (const [surface, view] of [['profile', profile], ['account', account]] as const) {
+          await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+          await loadAppFonts(page)
+          const geometry = await page.evaluate(({ name, email, textScale }) => {
+            const title = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')).find((element) => element.textContent === name)!
+            const description = title.nextElementSibling!
+            for (const element of [title, description] as HTMLElement[]) element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * textScale}px`
+            const text = title.firstChild!
+            const words = Array.from(name.matchAll(/\S+/g)).map((match) => {
+              const range = document.createRange()
+              range.setStart(text, match.index)
+              range.setEnd(text, match.index + match[0].length)
+              return { word: match[0], tops: Array.from(range.getClientRects()).map((rect) => rect.top) }
+            })
+            const emailRange = document.createRange()
+            emailRange.selectNodeContents(description)
+            const titleStyle = getComputedStyle(title)
+            return { words, titleHeight: title.getBoundingClientRect().height, lineHeight: parseFloat(titleStyle.lineHeight), clamp: titleStyle.webkitLineClamp, email: description.textContent, emailLines: emailRange.getClientRects().length, emailOverflow: description.scrollWidth > description.clientWidth, pageOverflow: document.documentElement.scrollWidth > innerWidth }
+          }, { name, email, textScale })
+          for (const word of geometry.words) expect(new Set(word.tops).size, `${surface}: ${word.word}`).toBe(1)
+          if (surface === 'profile') {
+            expect(geometry.clamp).toBe('2')
+            expect(geometry.titleHeight).toBeLessThanOrEqual(2 * geometry.lineHeight + 1)
+          } else expect(geometry.clamp).toBe('none')
+          expect(geometry.email).toBe(email)
+          expect(geometry.emailLines).toBeGreaterThan(1)
+          expect(geometry.emailOverflow).toBe(false)
+          expect(geometry.pageOverflow).toBe(false)
+        }
+      } finally { await page.close() }
+    })
+
     it.each([1, 2])('reveals the full account email within the row at %s text scale', async (textScale) => {
       translateProMessages('en')
       const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
