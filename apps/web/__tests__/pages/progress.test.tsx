@@ -401,14 +401,16 @@ describe('ProgressContent', () => {
         await act(async () => {})
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const bounds = await page.evaluate(() => {
-          const column = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
+          const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+          const column = scroller.getBoundingClientRect()
+          const contentRight = column.left + scroller.clientWidth
           const section = document.querySelector('section')!.getBoundingClientRect()
           const goals = document.querySelector('h2:not(.sr-only)')!.getBoundingClientRect()
           const header = document.querySelector('[data-root-notification-header]')?.getBoundingClientRect()
           const bell = document.querySelector('[data-root-notification-header] button')?.getBoundingClientRect()
-          return { left: section.left - column.left, right: column.right - section.right, goalsLeft: goals.left - column.left,
-            columnWidth: column.width, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
-            trailingInset: bell && bell.width > 0 ? column.right - bell.right : null }
+          return { left: section.left - column.left, right: contentRight - section.right, goalsLeft: goals.left - column.left,
+            columnWidth: scroller.clientWidth, topInset: section.top - column.top, headerHeight: header?.height ?? 0,
+            trailingInset: bell && bell.width > 0 ? contentRight - bell.right : null }
         })
         const gutter = (bounds.columnWidth - Math.min(bounds.columnWidth, 740)) / 2 + 16
         expect(bounds).toEqual({ left: gutter, right: gutter, goalsLeft: gutter, columnWidth: bounds.columnWidth,

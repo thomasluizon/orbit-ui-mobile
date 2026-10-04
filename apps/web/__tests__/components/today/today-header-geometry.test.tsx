@@ -49,7 +49,9 @@ describe('Hoje header geometry', () => {
   let launch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
-  registerChromeLaunchHook(beforeAll, async (next) => { launch = next; browser = await next })
+  registerChromeLaunchHook(beforeAll, async (next) => { launch = next; browser = await next }, {
+    ignoreDefaultArgs: ['--hide-scrollbars'],
+  })
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
@@ -63,6 +65,63 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([320, 412, 600, 840].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(
+    'keeps all four bells aligned with short and overflowing content at $width px and $textScale text scale', async ({ width, textScale }) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const surfaces = [<TodayDateControl key="today" {...props} isTodaySelected />, <CalendarOptions key="calendar" />,
+      <RootNotificationHeader key="progress" />, <RootNotificationHeader key="profile" />]
+    const trailingEdges: number[] = []
+    try {
+      for (const [index, surface] of surfaces.entries()) {
+        for (const contentHeight of [100, 1600, 100]) {
+          const { container, unmount } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+            <DestinationShell onCreate={noop}>
+              {surface}<div style={{ height: contentHeight }} />
+            </DestinationShell>
+          </NextIntlClientProvider>)
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          unmount()
+          await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+          await page.keyboard.press('Tab')
+          await page.getByRole('button', { name: new RegExp(`^${ptBr.notifications.bell}`) }).focus()
+          const geometry = await page.evaluate((bellLabel) => {
+            const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
+            const bell = document.querySelector<HTMLButtonElement>(`[data-shell-column] button[aria-label^="${bellLabel}"]`)!
+            const row = bell.parentElement!
+            const host = row.closest<HTMLElement>('[data-shell-header], [data-shell-scroller]')!
+            const bounds = bell.getBoundingClientRect()
+            const focus = getComputedStyle(bell)
+            const outlineWidth = Number.parseFloat(focus.outlineWidth)
+            const outlineOutset = outlineWidth + Number.parseFloat(focus.outlineOffset)
+            const viewport = host.getBoundingClientRect()
+            return { right: bounds.right, width: bounds.width, height: bounds.height,
+              gutter: scroller.offsetWidth - scroller.clientWidth,
+              pinned: host.hasAttribute('data-shell-header'),
+              overflow: scroller.scrollHeight > scroller.clientHeight,
+              documentWidth: document.documentElement.scrollWidth,
+              focused: bell.matches(':focus-visible'), outlineWidth,
+              focusTop: bounds.top - outlineOutset, focusBottom: bounds.bottom + outlineOutset,
+              viewportTop: viewport.top, viewportBottom: viewport.bottom }
+          }, ptBr.notifications.bell)
+          expect(geometry.overflow).toBe(contentHeight === 1600)
+          expect(geometry.pinned).toBe(index < 2)
+          if (geometry.pinned) {
+            expect(geometry.focused).toBe(true)
+            expect(geometry.outlineWidth).toBeGreaterThanOrEqual(2)
+            expect(geometry.focusTop).toBeGreaterThanOrEqual(geometry.viewportTop)
+            expect(geometry.focusBottom).toBeLessThanOrEqual(geometry.viewportBottom)
+          }
+          if (contentHeight === 1600) expect(geometry.gutter).toBeGreaterThan(0)
+          expect(geometry.width).toBeGreaterThanOrEqual(48)
+          expect(geometry.height).toBeGreaterThanOrEqual(48)
+          expect(geometry.documentWidth).toBe(width)
+          trailingEdges.push(geometry.right)
+        }
+      }
+      expect(Math.max(...trailingEdges) - Math.min(...trailingEdges)).toBeLessThanOrEqual(0.5)
+    } finally { await page.close() }
+  })
 
   it.each([320, 360, 384, 412, 1352].flatMap((width) =>
     (['dark', 'light'] as const).flatMap((mode) => ['en', 'pt-BR'].map((locale) => ({ width, mode, locale }))),

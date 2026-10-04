@@ -229,6 +229,7 @@ describe('Foldable shell geometry', () => {
         }
         return {
           content: { left: rectangle.left + 16, right: rectangle.right - 16 },
+          scrollContent: { left: rectangle.left + 16, right: rectangle.left + scroller.clientWidth - 16 },
           composerCount: document.querySelectorAll('[data-composer-root]').length,
           pinnedCount: document.querySelectorAll('[data-shell-pinned-slot]').length,
           padding: parseFloat(getComputedStyle(scroller).paddingBottom),
@@ -245,7 +246,7 @@ describe('Foldable shell geometry', () => {
       expect(bounds.clearance).toBeGreaterThanOrEqual(31)
       expect.soft(bounds.toast).toEqual(bounds.content)
       expect.soft(bounds.celebration).toEqual(bounds.content)
-      expect.soft(bounds.title).toEqual(bounds.content)
+      expect.soft(bounds.title).toEqual(bounds.scrollContent)
       expect(bounds.documentWidth).toBe(width)
     } finally { await page.close() }
   })
