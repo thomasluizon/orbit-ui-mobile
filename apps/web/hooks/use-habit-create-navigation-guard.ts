@@ -1,6 +1,7 @@
 'use client'
 
 import { startTransition, useEffect, useEffectEvent, useState } from 'react'
+import { resolveHabitCreateReturnPath } from '@orbit/shared/utils'
 
 let activeNavigationGuard: ((action: () => void) => void) | null = null
 let finishNavigation: ((action: () => void) => void) | null = null
@@ -14,27 +15,9 @@ function isCreationBaseEntry(entry: unknown, guardId: string) {
     'orbitHabitCreateSentinel' in entry && entry.orbitHabitCreateSentinel === false
 }
 
-function markCreationEntry(guardId: string, sentinel: boolean, routerEntry: unknown) {
+function markCreationEntry(guardId: string, sentinel: boolean) {
   const entry: unknown = history.state
-  return Object.assign({}, routerEntry, entry, { orbitHabitCreateGuard: guardId, orbitHabitCreateSentinel: sentinel })
-}
-
-function useNextHistoryReady(active: boolean) {
-  const [ready, setReady] = useState(false)
-  useEffect(() => {
-    if (!active) return
-    let frame = 0
-    function checkHistory() {
-      const entry: unknown = history.state
-      if (typeof entry === 'object' && entry !== null && '__NA' in entry && entry.__NA === true &&
-        '__PRIVATE_NEXTJS_INTERNALS_TREE' in entry && entry.__PRIVATE_NEXTJS_INTERNALS_TREE) {
-        setReady(true)
-      } else frame = requestAnimationFrame(checkHistory)
-    }
-    checkHistory()
-    return () => cancelAnimationFrame(frame)
-  }, [active])
-  return ready
+  return Object.assign({}, entry, { orbitHabitCreateGuard: guardId, orbitHabitCreateSentinel: sentinel })
 }
 
 export function completeHabitCreateNavigation(action: () => void) {
@@ -58,17 +41,16 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
   const returnToOrigin = useEffectEvent(onReturn)
   const isLeaving = useEffectEvent(() => leaving)
   const isDirty = useEffectEvent(() => dirty)
-  const historyReady = useNextHistoryReady(active)
   const [rebuildAction, setRebuildAction] = useState<(() => void) | null>(null)
   useEffect(() => {
-    if (!active || !historyReady) return
+    if (!active) return
     const creationPath = location.pathname
     const creationSearch = location.search
     const guardId = `${creationPath}${creationSearch}`
-    const routerEntry: unknown = history.state
+    const returnPath = resolveHabitCreateReturnPath(new URLSearchParams(creationSearch).get('from') ?? undefined)
     if (!isCreationGuardEntry(history.state, guardId) || isCreationBaseEntry(history.state, guardId)) {
-      history.replaceState(markCreationEntry(guardId, false, routerEntry), '', location.href)
-      history.pushState(markCreationEntry(guardId, true, routerEntry), '', location.href)
+      history.replaceState(markCreationEntry(guardId, false), '', location.href)
+      history.pushState(markCreationEntry(guardId, true), '', location.href)
     }
     activeNavigationGuard = (action) => {
       if (isLeaving()) action()
@@ -92,7 +74,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         if (!rebuiltSentinel) {
           rebuiltSentinel = true
           startTransition(() => setRebuildAction(() => () => {
-            history.pushState(markCreationEntry(guardId, true, routerEntry), '', location.href)
+            history.pushState({ __NA: true }, '', returnPath)
             history.back()
           }))
           return
@@ -110,7 +92,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
         return
       }
       if (!atBaseEntry && location.pathname === creationPath && location.search === creationSearch) {
-        history.replaceState(markCreationEntry(guardId, true, routerEntry), '', location.href)
+        history.replaceState(markCreationEntry(guardId, true), '', location.href)
         return
       }
       restoring = true
@@ -144,11 +126,7 @@ export function useHabitCreateNavigationGuard({ active, dirty, leaving, onNaviga
       window.removeEventListener('popstate', handlePopState)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('click', handleClick, true)
-      if (completingNavigation && (location.pathname !== creationPath || location.search !== creationSearch)) {
-        history.pushState(history.state, '', location.href)
-        history.back()
-      }
     }
-  }, [active, historyReady])
+  }, [active])
   useEffect(() => { rebuildAction?.() }, [rebuildAction])
 }

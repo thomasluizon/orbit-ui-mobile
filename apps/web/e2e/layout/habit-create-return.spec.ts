@@ -10,6 +10,10 @@ import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fix
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
+async function waitForCreationGuard(page: Page) {
+  await page.waitForFunction(() => Reflect.get(Object(history.state), 'orbitHabitCreateSentinel') === true)
+}
+
 async function traceHistory(page: Page) {
   await page.addInitScript(() => {
     const snapshots: { step: string; href: string; state: unknown }[] = []
@@ -93,6 +97,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await page.getByRole('button', { name: messages.habits.createManually, exact: true }).click()
           const field = page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })
           await field.fill('Keep this draft')
+          await waitForCreationGuard(page)
           await page.evaluate(() => history.back())
           const discard = page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })
           await expect(discard).toBeVisible()
@@ -100,6 +105,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await expect(field).toHaveValue('Keep this draft')
           await expect(page).toHaveURL(/\/habits\/new\?/)
           await expect(discard).toHaveCount(0)
+          await waitForCreationGuard(page)
           await page.evaluate(() => history.back())
           await discard.click()
           await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)
@@ -114,8 +120,10 @@ for (const locale of ['pt-BR', 'en'] as const) {
           const keepEditing = page.getByRole('button', { name: messages.common.keepEditing, exact: true })
           const discard = page.getByRole('button', { name: messages.common.discardChangesAction, exact: true })
           await field.fill('Keep this closing draft')
+          await waitForCreationGuard(page)
           await page.evaluate(() => history.back())
           await expect(keepEditing).toBeVisible()
+          await waitForCreationGuard(page)
           const duringExit = await keepEditing.evaluate((button) => new Promise<{ mountedDuringBack: boolean; animationCount: number }>((resolve, reject) => {
             if (!(button instanceof HTMLButtonElement)) { reject(new Error('Expected the Keep editing button')); return }
             const panel = button.closest('[role="dialog"]')
@@ -149,6 +157,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await expect(discard).toHaveCount(0)
           await expect(page.getByRole('dialog')).toHaveCount(0)
           await expect(field).toHaveValue('Keep this closing draft')
+          await waitForCreationGuard(page)
           await page.evaluate(() => history.back())
           await expect(discard).toBeVisible()
           await discard.click()
@@ -161,6 +170,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
       test('returns a clean direct-open form on browser Back without confirmation', async ({ page }) => {
         await page.goto('/habits/new?from=%2F')
         await expect(page.getByRole('textbox', { name: messages.habits.form.describe, exact: true })).toHaveValue('')
+        await waitForCreationGuard(page)
         await page.evaluate(() => Reflect.set(window, 'habitCreateDocumentMarker', 'clean-create-document'))
         await Promise.all([
           page.waitForURL(`${LAYOUT_ORIGIN}/`),
