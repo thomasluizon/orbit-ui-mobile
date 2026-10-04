@@ -30,6 +30,34 @@ function NestedReloadSheets() {
 }
 
 describe('Sheet', () => {
+  it('opens the complete typed title with one press and preserves the underlying sheet', async () => {
+    const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
+    const onClose = vi.fn()
+    render(<Sheet title={title} titleMode="typed" onClose={onClose}><input aria-label="Draft" defaultValue="Keep this" /></Sheet>)
+    const trigger = screen.getByRole('button', { name: title })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.type(screen.getByRole('textbox', { name: 'Draft' }), ' edited')
+    const body = screen.getByRole('dialog', { name: title }).querySelector<HTMLElement>('[data-slot="sheet-body"]')!
+    body.scrollTop = 120
+    await userEvent.click(trigger)
+    expect(body.scrollTop).toBe(0)
+    const dialog = screen.getByRole('dialog', { name: title })
+    expect(dialog.querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(body.scrollTop).toBe(120)
+    expect(trigger).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue('Keep this edited')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('keeps product titles as noninteractive headings', () => {
+    render(<Sheet title="Options" />)
+    expect(screen.getByRole('heading', { name: 'Options' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Options' })).toBeNull()
+  })
+
   it('returns focus to its trigger after ordinary dismissal without a focus policy', async () => {
     const user = userEvent.setup()
     function Host() {

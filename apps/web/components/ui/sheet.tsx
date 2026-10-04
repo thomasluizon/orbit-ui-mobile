@@ -2,7 +2,7 @@
 
 import { ActionRow } from './action-row'
 
-import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref, type RefObject } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { SHEET_BODY_INSETS } from '@orbit/shared/theme'
 import { Dialog } from '@base-ui/react/dialog'
@@ -53,8 +53,9 @@ interface WebSheetProps extends SheetProps {
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTitle, headerAccessory, actions, minimumBodyWidth, boundedBody, virtualizedBody, initialFocus, finalFocus, onClose, onAttemptDismiss, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
+  const { titleExpanded, bodyRef, toggleTitle } = useSheetTitleDisclosure()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
   const overlayId = useId()
@@ -130,8 +131,10 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
           <Dialog.Popup className="orbit-sheet-panel" initialFocus={initialFocus} finalFocus={finalFocus} style={minimumBodyWidth == null ? undefined : { containerType: 'inline-size', containerName: 'sheet-panel' }}>
             <div className="orbit-sheet-grabber" aria-hidden="true" />
             <header className="orbit-sheet-header">
-              <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'}>
-                {title ?? accessibleTitle ?? t('common.appName')}
+              <Dialog.Title aria-label={accessibleTitle} translate={titleTranslate} className={title ? 'orbit-sheet-title' : 'sr-only'} data-title-mode={titleMode}>
+                <SheetTitleContent title={title} titleMode={titleMode} accessibleTitle={accessibleTitle}
+                  expanded={titleExpanded} onToggle={toggleTitle}
+                  fullTitleId={`${overlayId}-full-title`} />
               </Dialog.Title>
               {headerAccessory}
               {onClose || onAttemptDismiss ? (
@@ -140,7 +143,7 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
                 </Dialog.Close>
               ) : null}
             </header>
-            {children == null ? null : (
+            {children == null && !(title && titleMode === 'typed') ? null : (
               <>
                 {minimumBodyWidth == null ? null : <style>{`
                   [data-sheet-body-id="${overlayId}"] { padding-inline: ${SHEET_BODY_INSETS[0]}px; }
@@ -150,10 +153,11 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
                     }
                   `).join('')}
                 `}</style>}
-                <div className="orbit-sheet-body" data-slot="sheet-body" data-sheet-body-id={overlayId} style={{
+                <div ref={bodyRef} className="orbit-sheet-body" data-slot="sheet-body" data-sheet-body-id={overlayId} style={{
                   ...(boundedBody ? { display: 'flex', flexDirection: 'column', minHeight: 0 } as const : {}),
                   ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
                 }}>
+                  {titleMode === 'typed' ? <p id={`${overlayId}-full-title`} hidden={!titleExpanded} className="orbit-sheet-full-title">{title}</p> : null}
                   {children}
                 </div>
               </>
@@ -172,4 +176,35 @@ export function Sheet({ title, titleTranslate, accessibleTitle, headerAccessory,
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onToggle, fullTitleId }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle'> & {
+  expanded: boolean
+  onToggle: () => void
+  fullTitleId: string
+}) {
+  const t = useTranslations()
+  if (!title || titleMode !== 'typed') return title ?? accessibleTitle ?? t('common.appName')
+  return (
+    <button type="button" className="orbit-sheet-title-button" aria-expanded={expanded}
+      aria-controls={fullTitleId} title={t(expanded ? 'common.collapse' : 'common.expand')} onClick={onToggle}>
+      <span className="orbit-sheet-typed-title">{title}</span>
+    </button>
+  )
+}
+
+function useSheetTitleDisclosure() {
+  const [titleExpanded, setTitleExpanded] = useState(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const previousScroll = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (bodyRef.current && previousScroll.current !== null) {
+      bodyRef.current.scrollTop = titleExpanded ? 0 : previousScroll.current
+    }
+  }, [titleExpanded])
+  function toggleTitle() {
+    if (!titleExpanded) previousScroll.current = bodyRef.current?.scrollTop ?? 0
+    setTitleExpanded(!titleExpanded)
+  }
+  return { titleExpanded, bodyRef, toggleTitle }
 }

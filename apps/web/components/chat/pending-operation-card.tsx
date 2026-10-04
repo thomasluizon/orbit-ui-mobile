@@ -88,6 +88,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
   return <Sheet
     ref={sheetRef}
     title={`${labels.editTitle}: ${item.entityName}`}
+    titleMode="typed"
     onClose={() => { if (!busy) onClose() }}
     actions={<ActionRow>
       <Button size="sm" variant="ghost" disabled={busy} onClick={() => closeSheet(onClose)}>{labels.cancel}</Button>

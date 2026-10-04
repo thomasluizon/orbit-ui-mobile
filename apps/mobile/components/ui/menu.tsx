@@ -89,6 +89,7 @@ export function Menu({
   onClose,
   title,
   shortTitle,
+  titleMode,
   presentation = 'auto',
   anchorRef,
   wideFrom,
@@ -124,7 +125,7 @@ export function Menu({
 
   if (sheetPresentation) {
     return (
-      <MenuSheet items={orderedItems} onClose={onClose} onSelect={onSelect} title={title} shortTitle={shortTitle} />
+      <MenuSheet items={orderedItems} onClose={onClose} onSelect={onSelect} title={title} shortTitle={shortTitle} titleMode={titleMode} />
     )
   }
 
@@ -176,11 +177,12 @@ function MenuSheet({
   onClose,
   title,
   shortTitle,
-}: Readonly<Pick<MenuProps, 'items' | 'onSelect' | 'onClose' | 'title' | 'shortTitle'>>) {
+  titleMode,
+}: Readonly<Pick<MenuProps, 'items' | 'onSelect' | 'onClose' | 'title' | 'shortTitle' | 'titleMode'>>) {
   const { sheetRef, closeSheet } = useSheetHost()
 
   return (
-    <Sheet ref={sheetRef} open title={shortTitle ?? title} accessibleTitle={title} onClose={onClose}>
+    <Sheet ref={sheetRef} open title={titleMode === 'typed' ? title : shortTitle ?? title} titleMode={titleMode} accessibleTitle={title} onClose={onClose}>
       <MenuItems
         items={items}
         sheetPresentation
