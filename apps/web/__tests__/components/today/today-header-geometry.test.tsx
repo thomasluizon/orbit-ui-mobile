@@ -14,7 +14,12 @@ import { TodayAstra } from '@/components/today/today-astra'
 import { HabitRow } from '@/components/habits/habit-row'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from '@/app/(app)/today-shell'
+import { CalendarOptions } from '@/app/(app)/calendar/_components/calendar-options'
+import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
+import { NotificationBell } from '@/components/navigation/notification-bell'
+import { ShellWide } from '@/components/shell/shell-wide'
 import { DestinationShell } from '@/components/shell/destination-shell'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { Menu } from '@/components/ui/menu'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -58,6 +63,69 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([320, 360, 384, 412, 1352].flatMap((width) =>
+    (['dark', 'light'] as const).flatMap((mode) => ['en', 'pt-BR'].map((locale) => ({ width, mode, locale }))),
+  ))('keeps root header icons transparent until interaction at $width in $mode and $locale', async ({ width, mode, locale }) => {
+    const messages = locale === 'en' ? en : ptBr
+    const surfaces = width < 1024 ? [<TodayDateControl key="today" {...props} isTodaySelected />, <CalendarOptions key="calendar" />,
+      <RootNotificationHeader key="progress" />, <RootNotificationHeader key="profile" />] : [
+      <TodayDateControl key="today" {...props} isTodaySelected />, <CalendarOptions key="calendar" />,
+      <ShellWide key="sidebar" items={[]} activeId="hoje" navLabel={messages.nav.today} notifications={<NotificationBell />}><div /></ShellWide>,
+    ]
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      for (const surface of surfaces) {
+        const { container, unmount } = render(<NextIntlClientProvider locale={locale} messages={messages}>{surface}</NextIntlClientProvider>)
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
+        await page.setContent(`<!doctype html><style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
+        unmount()
+        await page.evaluate((theme) => { document.documentElement.className = theme }, mode)
+        const controls = page.locator('[data-today-header-actions] button, [data-testid="calendar-shell-header"] button, [data-root-notification-header] button, [data-shell-sidebar] button[aria-label^="' + messages.notifications.bell + '"]')
+        let inspected = 0
+        const ordered = await controls.all()
+        for (const control of ordered.reverse()) {
+          if (!await control.isVisible()) continue
+          inspected += 1
+          const measure = () => control.evaluate((element) => {
+            const style = getComputedStyle(element)
+            const bounds = element.getBoundingClientRect()
+            return { background: style.backgroundColor, radius: style.borderRadius, width: bounds.width, height: bounds.height }
+          })
+          expect(await measure()).toMatchObject({ background: 'rgba(0, 0, 0, 0)' })
+          const fill = mode === 'dark' ? 'rgba(250, 250, 250, 0.13)' : 'rgba(9, 9, 11, 0.06)'
+          await control.hover()
+          await expect.poll(async () => (await measure()).background).toBe(fill)
+          const hovered = await measure()
+          expect(hovered.width).toBeGreaterThanOrEqual(48)
+          expect(hovered.height).toBeGreaterThanOrEqual(48)
+          expect(Number.parseFloat(hovered.radius)).toBeGreaterThanOrEqual(24)
+          await page.mouse.down()
+          await expect.poll(async () => (await measure()).background).toBe(fill)
+          await page.mouse.move(width - 1, 914)
+          await expect.poll(async () => (await measure()).background).toBe(fill)
+          await page.mouse.up()
+          await control.evaluate((element) => {
+            const start = document.createElement('span')
+            start.tabIndex = 0
+            start.style.position = 'absolute'
+            element.before(start)
+            start.focus()
+          })
+          await page.keyboard.press('Tab')
+          expect(await control.evaluate((element) => element === document.activeElement)).toBe(true)
+          await control.evaluate((element) => element.previousElementSibling?.remove())
+          if ((await control.getAttribute('aria-label'))?.startsWith(messages.notifications.bell)) {
+            await expect.poll(async () => (await measure()).background).toBe(fill)
+            expect(await control.evaluate((element) => Number.parseFloat(getComputedStyle(element).outlineWidth))).toBeGreaterThanOrEqual(2)
+          }
+          await control.evaluate((element) => (element as HTMLElement).blur())
+          await expect.poll(async () => (await measure()).background).toBe('rgba(0, 0, 0, 0)')
+        }
+        expect(inspected).toBeGreaterThan(0)
+      }
+    } finally { await page.close() }
+  })
 
   it.each([320, 384].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode })))))(
     'shares two leading edges at $width with $textScale text scale, selecting=$selectMode', async ({ width, textScale, selectMode }) => {

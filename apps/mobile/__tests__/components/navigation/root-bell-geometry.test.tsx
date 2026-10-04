@@ -136,7 +136,7 @@ const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isT
 
 afterEach(() => { __resetTestHostConfig(); vi.clearAllMocks() })
 
-it.each([320, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
+it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
   'aligns all four root bells at $width with text scale $fontScale and opens Avisos', async ({ width, fontScale }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     const surfaces: [string, ReactNode][] = [
@@ -151,6 +151,18 @@ it.each([320, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, f
       await renderer.act(() => { tree = renderer.create(<Shell412 tabBar={null}>{surface}</Shell412>) as Tree })
       try {
         const host = tree.toJSON()
+        function checkHeaderIcons(node: Host, inHeader = false) {
+          const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(node.props.testID ?? '')
+          if (header && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel !== 'Today') {
+            const style = node.props.style
+            const rest = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+            const pressed = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style)
+            expect(rest.backgroundColor ?? 'transparent', `${name} ${node.props.accessibilityLabel}`).toBe('transparent')
+            expect(pressed.backgroundColor).toBe(createTokensV2('purple', 'dark').bgHover)
+          }
+          for (const child of node.children ?? []) if (typeof child !== 'string') checkHeaderIcons(child, header)
+        }
+        checkHeaderIcons(host)
         const geometry = measureBell(host, width, fontScale)
         reference ??= geometry
         expect(Math.abs(geometry.bell.right - reference.bell.right), `${name} trailing edge`).toBeLessThanOrEqual(1)
