@@ -167,14 +167,6 @@ export function getBackendFieldError(err: unknown, field: string): string | unde
   return key ? errors?.[key]?.join('\n') : undefined
 }
 
-export function getBackendGeneralError(err: unknown, mappedFields: readonly string[] = []): string | undefined {
-  const mappedNames = mappedFields.map((field) => field.toLowerCase())
-  const messages = Object.entries(extractBackendFieldErrors(err) ?? {})
-    .filter(([field]) => !mappedNames.includes(field.toLowerCase()))
-    .flatMap(([, errors]) => errors)
-  return messages.join('\n') || undefined
-}
-
 export function extractBackendErrorCode(err: unknown): string | undefined {
   const data = extractNestedData(err)
   const fromData =
@@ -505,6 +497,6 @@ export function getFriendlyErrorMessage(
   context: FriendlyErrorContext = 'generic',
 ): string {
   const fieldErrors = extractBackendFieldErrors(err)
-  if (fieldErrors) return getBackendGeneralError(err) ?? translate(fallbackKey)
+  if (fieldErrors) return Object.values(fieldErrors).flat().join('\n') || translate(fallbackKey)
   return translate(getFriendlyErrorKey(err, fallbackKey, context))
 }

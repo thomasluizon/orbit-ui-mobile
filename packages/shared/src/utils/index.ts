@@ -108,7 +108,6 @@ export {
   extractBackendFieldErrors,
   extractBackendErrorDetails,
   getBackendFieldError,
-  getBackendGeneralError,
   extractBackendRequestId,
   extractBackendStatus,
   isPayGateError,
