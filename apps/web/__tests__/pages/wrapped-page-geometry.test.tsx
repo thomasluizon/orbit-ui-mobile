@@ -82,10 +82,13 @@ describe('WrappedPage cover geometry in Chromium', () => {
   async function measureCover(
     viewport: { width: number; height: number },
     { container, backLabel }: ReturnType<typeof renderPage>,
+    insets = { top: 0, bottom: 0, left: 0, right: 0 },
   ) {
     await act(async () => {})
     const page = await browser.newPage({ viewport })
     try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       return await page.evaluate((label) => {
@@ -101,6 +104,10 @@ describe('WrappedPage cover geometry in Chromium', () => {
           coverTop: cover.top,
           coverBottom: cover.bottom,
           coverClipped: coverElement.scrollHeight > coverElement.clientHeight,
+          backControlLeft: backControl.left,
+          backControlRight: backControl.right,
+          contentLeft: cover.left,
+          contentRight: cover.right,
           backControlTop: backControl.top,
           backControlBottom: backControl.bottom,
           backControlWidth: backControl.width,
@@ -115,6 +122,27 @@ describe('WrappedPage cover geometry in Chromium', () => {
       await page.close()
     }
   }
+
+  it.each(COVER_STATES.flatMap((cover) => [
+    { width: 412, height: 915, top: 24, bottom: 34, left: 0, right: 0 },
+    { width: 844, height: 390, top: 0, bottom: 21, left: 44, right: 44 },
+    { width: 844, height: 390, top: 0, bottom: 0, left: 0, right: 0 },
+  ].map((viewport) => ({ ...cover, ...viewport }))))(
+    'keeps the $state cover inside all insets at $width by $height',
+    async ({ state, width, height, top, bottom, left, right, ...wrappedState }) => {
+      wrapped.current = wrappedState
+      const rendered = renderPage()
+      expect(rendered.container.querySelector('[data-state]')).toHaveAttribute('data-state', state)
+      const measured = await measureCover({ width, height }, rendered, { top, bottom, left, right })
+      expect(measured.backControlTop).toBeGreaterThanOrEqual(top)
+      expect(measured.backControlBottom).toBeLessThanOrEqual(height - bottom)
+      expect(measured.backControlLeft).toBeGreaterThanOrEqual(left)
+      expect(measured.backControlRight).toBeLessThanOrEqual(width - right)
+      expect(measured.contentLeft).toBeGreaterThanOrEqual(left)
+      expect(measured.contentRight).toBeLessThanOrEqual(width - right)
+      if (top === 0 && left === 0) expect(measured.backControlTop).toBe(4)
+    },
+  )
 
   it.each(LOCALES.flatMap((locale) => (['dark', 'light'] as const).map((mode) => ({ locale, mode }))))(
     'uses the drawn period chip tokens in $locale, $mode',

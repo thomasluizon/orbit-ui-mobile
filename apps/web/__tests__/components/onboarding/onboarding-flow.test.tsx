@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => {
   return {
     finalFinish: undefined as (() => Promise<void>) | undefined,
     useRealPush: false,
+    dialogOpenChanges: vi.fn(),
     createHabit: vi.fn(),
     updateHabit: vi.fn(),
     finishOnboarding: vi.fn(),
@@ -50,6 +51,18 @@ vi.mock('@/components/onboarding/onboarding-actions-context', async (importOrigi
   ...(await importOriginal<typeof import('@/components/onboarding/onboarding-actions-context')>()),
   useLiveOnboardingActions: () => mocks.liveActions(),
 }))
+
+vi.mock('@base-ui/react/dialog', async (importOriginal) => {
+  const { Dialog } = await importOriginal<typeof import('@base-ui/react/dialog')>()
+  type RootProps = Omit<React.ComponentProps<typeof Dialog.Root>, 'children'> & { children: React.ReactNode }
+  function ObservedDialogRoot(props: RootProps) {
+    return <Dialog.Root {...props} onOpenChange={(...args) => {
+      mocks.dialogOpenChanges(...args)
+      props.onOpenChange?.(...args)
+    }}><Dialog.Trigger>reopen onboarding</Dialog.Trigger>{props.children}</Dialog.Root>
+  }
+  return { Dialog: { ...Dialog, Root: ObservedDialogRoot } }
+})
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -205,6 +218,17 @@ describe('OnboardingFlow state model', () => {
     expect(region).toHaveTextContent('errors.api.appUpdated')
     expect(screen.getAllByText('errors.api.appUpdated')).toHaveLength(1)
     expect(dialog).toContainElement(screen.getByRole('button', { name: 'errors.api.reload' }))
+  })
+
+  it('ignores a dialog open request after onboarding has completed', async () => {
+    await reachDone(true)
+    fireEvent.click(screen.getByRole('button', { name: 'finish' }))
+    await waitFor(() => expect(screen.queryByTestId('done')).toBeNull())
+    mocks.dialogOpenChanges.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'reopen onboarding' }))
+    expect(mocks.dialogOpenChanges).toHaveBeenCalledWith(true, expect.anything())
+    expect(screen.queryByTestId('done')).toBeNull()
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
   })
 
   it('keeps Reload reachable inside the done dialog when finishing fails', async () => {
