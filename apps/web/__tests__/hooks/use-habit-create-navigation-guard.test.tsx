@@ -9,7 +9,19 @@ import {
 let nextHistory: ReturnType<typeof patchNextAppRouterHistory>
 
 beforeEach(() => { nextHistory = patchNextAppRouterHistory() })
-afterEach(() => nextHistory.restore())
+afterEach(() => {
+  try {
+    for (const [entry] of [...nextHistory.writes.replaceState.mock.calls, ...nextHistory.writes.pushState.mock.calls]) {
+      if (entry && 'orbitHabitCreateGuard' in entry) {
+        expect(entry).toMatchObject({ __NA: true })
+        expect(entry).toHaveProperty('__PRIVATE_NEXTJS_INTERNALS_TREE.tree')
+        expect(entry).toHaveProperty('__PRIVATE_NEXTJS_INTERNALS_TREE.renderedSearch')
+      }
+    }
+  } finally {
+    nextHistory.restore()
+  }
+})
 
 function mountGuard() {
   return renderHook(() => useHabitCreateNavigationGuard({
