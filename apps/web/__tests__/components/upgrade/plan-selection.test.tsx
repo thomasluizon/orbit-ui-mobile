@@ -92,17 +92,6 @@ describe('PlanSelection', () => {
     vi.restoreAllMocks()
   })
 
-  it('fills the capped interval width only on wide screens', () => {
-    renderSelection()
-    const group = screen.getByRole('radiogroup', { name: 'upgrade.plans.intervalLabel' })
-    expect(group.parentElement).toHaveClass('min-[1024px]:max-w-[320px]')
-    expect(group).toHaveClass('min-[1024px]:w-full')
-    for (const option of screen.getAllByRole('radio')) {
-      expect(option).toHaveClass('min-[1024px]:flex-1')
-    }
-    expect(group).toHaveClass('inline-flex')
-  })
-
   it('leads with annual and gives the recommended tier the only filled action', () => {
     renderSelection()
 

@@ -142,6 +142,7 @@ export function PlanSelection({
         value={selectedInterval}
         onChange={selectInterval}
         disabled={checkoutPending}
+        fullWidth
       />
     </View>
   )

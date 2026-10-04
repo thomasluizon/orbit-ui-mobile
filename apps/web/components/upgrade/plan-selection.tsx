@@ -115,7 +115,7 @@ export function PlanSelection({
         value={selectedInterval}
         onChange={selectInterval}
         disabled={checkoutPending}
-        wideFill
+        fullWidth
       />
     </div>
   )

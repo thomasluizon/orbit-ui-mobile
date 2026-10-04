@@ -2592,7 +2592,7 @@
       "allowanceLabel": "Daily Astra allowance",
       "freeAllowance": "5",
       "proAllowance": "50",
-      "perDay": "messages a day",
+      "perDay": "messages/day",
       "allowanceNote": "The free 5 cover logging the day and asking for one change. The 50 cover rearranging the week as often as you need to."
     },
     "outcomes": {
