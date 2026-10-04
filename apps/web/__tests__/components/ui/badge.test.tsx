@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { afterAll, beforeAll, describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
 import { Badge } from '@/components/ui/badge'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const CUSTOM_PROPERTY_REFERENCE = /var\((--[a-z0-9-]+)\)/g
 const CUSTOM_PROPERTY_DECLARATION = /(--[a-z0-9-]+)\s*:/g
@@ -47,7 +50,8 @@ describe('Badge', () => {
       render(<Badge variant={variant}>{variant}</Badge>)
       const badge = screen.getByText(variant)
       expect(badge).toBeInTheDocument()
-      expect(badge).toHaveClass('rounded-[8px]', 'uppercase')
+      expect(badge).toHaveClass('rounded-[8px]')
+      expect(badge).not.toHaveClass('uppercase')
     },
   )
 
@@ -90,4 +94,33 @@ describe('Badge', () => {
       expect(contrastOnSurface(label!, [variables['--bg']!, variables['--primary-dim']!, fill!])).toBeGreaterThanOrEqual(4.5)
     },
   )
+})
+
+describe('Badge casing in Chromium', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['solid', 'outline'] as const)('preserves natural case in the %s variant', async (variant) => {
+    const labels = ['Conquistada', 'Recomendado', 'Pro', 'Mensal']
+    const { container } = render(<div>{labels.map((label) => <Badge key={label} variant={variant}>{label}</Badge>)}</div>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      for (const label of labels) {
+        const style = await page.getByText(label, { exact: true }).evaluate((element) => ({
+          textTransform: getComputedStyle(element).textTransform,
+          whiteSpace: getComputedStyle(element).whiteSpace,
+        }))
+        expect(style).toEqual({ textTransform: 'none', whiteSpace: 'nowrap' })
+      }
+    } finally { await page.close() }
+  })
 })
