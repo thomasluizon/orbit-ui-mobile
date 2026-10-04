@@ -1,5 +1,7 @@
 'use client'
 
+import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
+import { useBackendErrorDisclosure } from '@/hooks/use-backend-field-errors'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
@@ -265,6 +267,11 @@ export function HabitFormFields({
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(defaultExpanded)
   const [detailsPresented, setDetailsPresented] = useAccountScopedState(defaultExpanded)
+  const descriptionFailure = formHelpers.backendFieldErrors.description
+  useBackendErrorDisclosure(descriptionFailure, () => {
+    setDetailsPresented(true)
+    setDetailsOpen(true)
+  })
   const [proposal, setProposal] = useAccountScopedState(EMPTY_HABIT_FORM_PROPOSAL)
   const rendersGranularSubHabits = typeof children === 'function'
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
@@ -377,7 +384,7 @@ export function HabitFormFields({
       <HabitUnderstanding
         inputRef={titleField.ref}
         value={title}
-        error={errors.title?.message ? t(errors.title.message) : undefined}
+        error={resolveBackendFormFieldMessage(formHelpers.backendFieldErrors.title, errors.title?.message, t)}
         emoji={emoji}
         days={days}
         daily={daily}
@@ -532,6 +539,8 @@ export function HabitFormFields({
             <section>
               <Input
                 label={t('habits.form.description')}
+                error={descriptionFailure}
+                focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
                 value={description}
                 onChange={(value) => setValue('description', value, { shouldDirty: true })}
                 multiline

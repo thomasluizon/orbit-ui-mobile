@@ -87,10 +87,10 @@ async function fetchWithSession<T>(
   const buildHeaders = (token: string): Record<string, string> => ({
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
-    'Accept-Language': language,
     ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
     ...(accountIntent.eventOrigin ? { 'X-Orbit-Event-Origin': accountIntent.eventOrigin } : {}),
     ...(init.headers as Record<string, string> | undefined),
+    'Accept-Language': language,
   })
 
   let session = await resolveServerSession()
@@ -169,9 +169,9 @@ export async function serverPublicFetch<T = unknown>(
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'Accept-Language': language,
       ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
       ...(init.headers as Record<string, string> | undefined),
+      'Accept-Language': language,
     },
   })
 

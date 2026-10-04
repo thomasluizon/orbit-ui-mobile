@@ -322,6 +322,7 @@ export function EditHabitModal({
         closeSheet(() => onOpenChange(false))
         await onSaved?.()
       } catch (error: unknown) {
+        if (formHelpers.reportBackendErrors(error)) return
         showError(getFriendlyErrorMessage(error, translate, 'errors.updateHabit', 'habit'))
       }
     },

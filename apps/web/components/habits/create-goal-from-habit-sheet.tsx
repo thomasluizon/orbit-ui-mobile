@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useId, useMemo } from 'react'
+import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
+
+import { useCallback, useId, useMemo, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -18,6 +20,8 @@ import {
 } from '@orbit/shared/utils'
 import {
   buildGoalTitle,
+  getFirstGoalDraftFieldError,
+  getGoalDraftFieldErrorKeys,
   isStreakGoal,
   parseGoalTargetValue,
   validateGoalDraftInput,
@@ -114,6 +118,16 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
   const [targetValue, setTargetValue] = useAccountScopedState('')
   const [unit, setUnit] = useAccountScopedState('')
   const [deadline, setDeadline] = useAccountScopedState('')
+  const descriptionRef = useRef<HTMLInputElement>(null)
+  const targetRef = useRef<HTMLInputElement>(null)
+  const unitRef = useRef<HTMLInputElement>(null)
+  const [focusRequest, setFocusRequest] = useAccountScopedState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
+  useEffect(() => {
+    if (focusRequest?.field === 'description') descriptionRef.current?.focus()
+    else if (focusRequest?.field === 'targetValue') targetRef.current?.focus()
+    else if (focusRequest?.field === 'unit') unitRef.current?.focus()
+  }, [focusRequest])
+  const backendErrors = useBackendFieldErrors({ description, targetValue, unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
   const [submitted, setSubmitted] = useAccountScopedState(false)
 
   const isSubmitting = createGoal.isPending
@@ -132,7 +146,8 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
     setUnit('')
     setDeadline('')
     setSubmitted(false)
-  }, [setDeadline, setDescription, setGoalType, setSubmitted, setTargetValue, setUnit])
+    backendErrors.clearBackendErrors()
+  }, [backendErrors, setDeadline, setDescription, setGoalType, setSubmitted, setTargetValue, setUnit])
 
   const { sheetRef, closeSheet } = useSheetHost()
   const formId = useId()
@@ -148,7 +163,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
     },
   })
 
-  const fieldErrors = useMemo(
+  const localFieldErrors = useMemo(
     () =>
       buildGoalFieldErrors(
         submitted,
@@ -159,6 +174,8 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
       ),
     [submitted, description, targetValue, unit, translate],
   )
+
+  const fieldErrors = { ...localFieldErrors, ...backendErrors.fieldErrors }
 
   const handleTypeChange = useCallback(
     (type: GoalType) => {
@@ -183,6 +200,8 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
       )
       if (err) {
         showError(err)
+        const field = getFirstGoalDraftFieldError(getGoalDraftFieldErrorKeys(description, targetValue, unit))
+        if (field) setFocusRequest({ field: field.field })
         return
       }
 
@@ -209,10 +228,12 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         })
       } catch (error: unknown) {
         if (getAccountGeneration() !== accountGeneration) return
+        const field = backendErrors.reportBackendErrors(error)
+        if (field) { setFocusRequest({ field }); return }
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
       }
     },
-    [closeSheet, createGoal, deadline, description, goalType, onClose, resetForm, setSubmitted, showError, targetValue, translate, unit],
+    [backendErrors, setFocusRequest, closeSheet, createGoal, deadline, description, goalType, onClose, resetForm, setSubmitted, showError, targetValue, translate, unit],
   )
 
   return (
@@ -237,6 +258,7 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
         <form id={formId} onSubmit={(e) => void onSubmit(e)} noValidate>
           <div style={{ padding: '4px 0 0' }}>
             <FieldWell
+              inputRef={descriptionRef}
               label={t('goals.form.description')}
               id="create-goal-description"
               type="text"
@@ -257,6 +279,8 @@ export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalF
           </div>
 
           <GoalTargetFields
+            targetRef={targetRef}
+            unitRef={unitRef}
             isStreak={isStreak}
             targetValue={targetValue}
             unit={unit}

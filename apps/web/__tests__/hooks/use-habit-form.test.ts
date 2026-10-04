@@ -1,3 +1,4 @@
+import { createApiClientError } from '@orbit/shared/utils'
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -241,4 +242,13 @@ describe('useHabitForm', () => {
       expect(result.current.formatTimeInput('123456')).toBe('12:34')
     })
   })
+})
+
+
+it('routes server title and description errors without translating dynamic copy', () => {
+  const { result } = renderHook(() => useHabitForm())
+  act(() => { result.current.reportBackendErrors(createApiClientError(400, { errors: { Title: ['Server title failure'], Description: ['Description exceeds 123 characters'] } }, 'Fallback')) })
+  expect(result.current.backendFieldErrors).toEqual({ title: 'Server title failure', description: 'Description exceeds 123 characters' })
+  act(() => result.current.form.setValue('title', 'Updated'))
+  expect(result.current.backendFieldErrors).toEqual({ description: 'Description exceeds 123 characters' })
 })

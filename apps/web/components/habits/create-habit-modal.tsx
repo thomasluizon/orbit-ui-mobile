@@ -303,6 +303,11 @@ export function CreateHabitModal({
   const createErrorKey = isSubHabitMode ? 'errors.createSubHabit' : 'errors.createHabit'
   const createErrorEntity = isSubHabitMode ? 'subHabit' : 'habit'
 
+  const reportCreateFailure = useCallback((error: unknown) => {
+    if (formHelpers.reportBackendErrors(error)) return
+    showError(getFriendlyErrorMessage(error, translate, createErrorKey, createErrorEntity))
+  }, [formHelpers, showError, translate, createErrorKey, createErrorEntity])
+
   const handleSubmit = useCallback(
     async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
@@ -346,17 +351,10 @@ export function CreateHabitModal({
         })
       } catch (error: unknown) {
         if (getAccountGeneration() !== submittingAccount) return
-        showError(
-          getFriendlyErrorMessage(
-            error,
-            translate,
-            createErrorKey,
-            createErrorEntity,
-          ),
-        )
+        reportCreateFailure(error)
       }
     },
-    [requestReminderPermission, canUseSubHabits, finishClose, createErrorEntity, createErrorKey, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [reportCreateFailure, requestReminderPermission, canUseSubHabits, finishClose, createHabit, createSubHabit, formHelpers, isOnline, isSubHabitMode, locale, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags],
   )
 
   const handleSuggest = useCallback(

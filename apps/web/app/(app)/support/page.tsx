@@ -1,5 +1,7 @@
 'use client'
 
+import { getBackendFieldError } from '@orbit/shared/utils'
+
 import { useState, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -144,6 +146,15 @@ export default function SupportPage() {
       setMessage('')
       forgetStoredSupportDraft()
     } catch (err: unknown) {
+      const subjectFailure = getBackendFieldError(err, 'Subject')
+      const messageFailure = getBackendFieldError(err, 'Message')
+      if (subjectFailure || messageFailure) {
+        setSubjectError(subjectFailure ?? null)
+        setMessageError(messageFailure ?? null)
+        if (subjectFailure) setSubjectFocusRequest((request) => request + 1)
+        else setMessageFocusRequest((request) => request + 1)
+        return
+      }
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setIsSending(false)

@@ -1,5 +1,7 @@
 'use client'
 
+import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
+
 import { useState, useCallback, useEffect, useId, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -65,6 +67,7 @@ export function EditGoalModal({
   const [targetValue, setTargetValue] = useState(() => String(goal.targetValue))
   const [unit, setUnit] = useState(() => goal.unit)
   const [deadline, setDeadline] = useState(() => goal.deadline ?? '')
+  const backendErrors = useBackendFieldErrors({ description, targetValue, unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
   const [submitted, setSubmitted] = useState(false)
   const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
   const descriptionRef = useRef<HTMLInputElement>(null)
@@ -84,7 +87,7 @@ export function EditGoalModal({
     onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
 
-  const fieldErrors = useMemo(() => {
+  const localFieldErrors = useMemo(() => {
     if (!submitted) return {}
     const keys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
     const errs: Record<string, string> = {}
@@ -96,6 +99,8 @@ export function EditGoalModal({
     }
     return errs
   }, [submitted, description, targetValue, unit, translate])
+
+  const fieldErrors = { ...localFieldErrors, ...backendErrors.fieldErrors }
 
   useEffect(() => {
     if (focusRequest?.field === 'description') descriptionRef.current?.focus()
@@ -116,6 +121,7 @@ export function EditGoalModal({
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
+      backendErrors.clearBackendErrors()
     }
   }
 
@@ -148,10 +154,12 @@ export function EditGoalModal({
         await updateGoal.mutateAsync({ goalId: goal.id, data: request })
         closeSheet(() => onOpenChange(false))
       } catch (error: unknown) {
+        const field = backendErrors.reportBackendErrors(error)
+        if (field) { setFocusRequest({ field }); return }
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
       }
     },
-    [closeSheet, deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
+    [backendErrors, closeSheet, deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 
   const unitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''

@@ -106,6 +106,7 @@ function createFormHelpers(overrides: Record<string, unknown> = {}): TestHabitFo
     isOneTime: true, isGeneral: false, isFlexible: false, isRecurring: false,
     showDayPicker: false, showEndDate: true,
     daysList: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((value) => ({ value, label: value.slice(0, 3), accessibleLabel: value })),
+    backendFieldErrors: {}, backendFocusRequest: 0, backendFocusField: undefined, reportBackendErrors: vi.fn(() => false),
     frequencyUnits: [], setOneTime: vi.fn(), setRecurring: vi.fn(), setFlexible: vi.fn(),
     setGeneral: vi.fn(), toggleDay: vi.fn(), formatTimeInput: vi.fn(),
     formatEndTimeInput: vi.fn(), validateAll: vi.fn(() => null),

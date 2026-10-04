@@ -335,6 +335,7 @@ export function EditHabitModal({
       closeSheet(onClose)
       await onSaved?.()
     } catch (error: unknown) {
+      if (formHelpers.reportBackendErrors(error)) return
       showError(
         getFriendlyErrorMessage(
           error,

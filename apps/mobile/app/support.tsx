@@ -1,3 +1,4 @@
+import { getBackendFieldError } from '@orbit/shared/utils'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   AccessibilityInfo,
@@ -338,6 +339,15 @@ export default function SupportScreen() {
       setMessage('')
       void forgetStoredSupportDraft()
     } catch (err: unknown) {
+      const subjectFailure = getBackendFieldError(err, 'Subject')
+      const messageFailure = getBackendFieldError(err, 'Message')
+      if (subjectFailure || messageFailure) {
+        setSubjectError(subjectFailure ?? null)
+        setMessageError(messageFailure ?? null)
+        if (subjectFailure) setSubjectFocusRequest((request) => request + 1)
+        else setMessageFocusRequest((request) => request + 1)
+        return
+      }
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
       AccessibilityInfo.announceForAccessibility(
         `${t('profile.support.failureTitle')} ${t('profile.support.failureBody')}`,

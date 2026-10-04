@@ -401,6 +401,7 @@ export function CreateHabitModal({
       }
       finishClose(() => { onClose(); onCreated?.() })
     } catch (error: unknown) {
+      if (formHelpers.reportBackendErrors(error)) return
       showError(
         getFriendlyErrorMessage(
           error,

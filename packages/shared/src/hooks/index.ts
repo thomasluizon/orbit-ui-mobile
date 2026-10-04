@@ -15,3 +15,5 @@ export * from './suggestion-request-core'
 export * from './composer-recording-core'
 
 export { resolveSettingsRowText } from './settings-row-text-core'
+
+export * from './backend-field-errors-core'
