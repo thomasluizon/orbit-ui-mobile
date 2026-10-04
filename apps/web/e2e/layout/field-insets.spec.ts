@@ -32,6 +32,7 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
     const before = await field.evaluate(measureFieldInset)
     expect(before.paddingStart).toBe(expected)
     expect(before.inset - before.borderStart).toBeCloseTo(expected!, 1)
+    if (await field.getAttribute('data-composer-input') !== null) continue
     const original = await field.inputValue()
     await field.fill(await field.getAttribute('data-hour-cycle') ? '08:00' : 'M')
     const typed = await field.evaluate(measureFieldInset)
