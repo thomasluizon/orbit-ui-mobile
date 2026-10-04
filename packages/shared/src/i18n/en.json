@@ -1065,7 +1065,7 @@
     "profileButton": "Google Calendar",
     "profileHint": "Import events as habits",
     "fetchingEvents": "Fetching your calendar events...",
-    "noEvents": "No upcoming events found in your Google Calendar.",
+    "noEvents": "No events",
     "eventsFound": "{count} event found | {count} events found",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
@@ -1126,7 +1126,7 @@
       "reconnectBody": "Auto-sync paused. Reconnect to resume.",
       "reconnectCta": "Reconnect",
       "reviewModeTitle": "Review new events",
-      "reviewModeEmpty": "No new events to review.",
+      "reviewModeEmpty": "Nothing to review",
       "dismissSuggestion": "Dismiss",
       "enableSuccess": "Auto-sync enabled",
       "disableSuccess": "Auto-sync disabled",
@@ -1205,7 +1205,7 @@
       }
     },
     "empty": {
-      "title": "Talk to Astra about your routine"
+      "title": "Talk to Astra"
     },
     "copy": "Copy",
     "copied": "Copied",
@@ -2953,7 +2953,7 @@
       "active": "Active",
       "completed": "Completed",
       "abandoned": "Abandoned",
-      "empty": "A goal tracks what you want to achieve: start from a habit or ask Astra.",
+      "empty": "No goals yet",
       "createAction": "Create goal",
       "request": "Help me create a goal.",
       "filterEmpty": "No goals match this view.",
@@ -2988,7 +2988,7 @@
       "lockedAction": "See Orbit Pro"
     },
     "achievements": {
-      "empty": "No achievements are available yet.",
+      "empty": "Log habits to earn them",
       "xp": "{current} / {next} XP",
       "xpProgress": "Progress to the next level",
       "earnedLabel": "Earned",

@@ -64,10 +64,10 @@ describe('ChatEmptyState copy', () => {
     cleanup()
   })
 
-  it('reads the drawn pt-BR title, prompt and suggestions, with Astra in the feminine', () => {
+  it('reads the compact pt-BR title, prompt and suggestions, with Astra in the feminine', () => {
     renderEmptyState('pt-BR', [walkWithSubHabits, houseRoutine])
 
-    expect(screen.getByText('Fale com a Astra sobre a sua rotina')).toBeInTheDocument()
+    expect(screen.getByText('Fale com a Astra')).toBeInTheDocument()
     expect(screen.getByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
       'Registrar "Caminhar"',
@@ -77,10 +77,10 @@ describe('ChatEmptyState copy', () => {
     ])
   })
 
-  it('reads the drawn English title, prompt and suggestions', () => {
+  it('reads the compact English title, prompt and suggestions', () => {
     renderEmptyState('en', [walkWithSubHabits, houseRoutine])
 
-    expect(screen.getByText('Talk to Astra about your routine')).toBeInTheDocument()
+    expect(screen.getByText('Talk to Astra')).toBeInTheDocument()
     expect(screen.getByText('Some things you can ask')).toBeInTheDocument()
     expect(suggestionLabels()).toEqual([
       'Log "Caminhar"',
@@ -95,7 +95,7 @@ describe('ChatEmptyState copy', () => {
     habitRequest.fetchJson.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve }))
     renderEmptyState('pt-BR', null)
 
-    expect(screen.getByText('Fale com a Astra sobre a sua rotina')).toBeInTheDocument()
+    expect(screen.getByText('Fale com a Astra')).toBeInTheDocument()
     expect(screen.queryByText('Algumas coisas que dá para pedir')).toBeNull()
     expect(screen.queryAllByRole('button')).toEqual([])
 
