@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { flushSync } from 'react-dom'
 
 type NextHistoryEntry = {
   __NA?: boolean
@@ -11,6 +12,13 @@ export function patchNextAppRouterHistory() {
   const replaceState = history.replaceState.bind(history)
   const writes = { pushState: vi.fn(pushState), replaceState: vi.fn(replaceState) }
   const restoreUrl = vi.fn()
+  const restoreTraversal = vi.fn<(href: string) => void>()
+  function onPopState(event: PopStateEvent) {
+    const entry = event.state as NextHistoryEntry | null
+    if (!entry?.__NA) return
+    flushSync(() => restoreTraversal(location.href))
+  }
+  window.addEventListener('popstate', onPopState, true)
   for (const method of ['pushState', 'replaceState'] as const) {
     history[method] = (entry: NextHistoryEntry | null, title, href) => {
       if (entry?.__NA || entry?._N) return writes[method](entry, title, href)
@@ -26,6 +34,11 @@ export function patchNextAppRouterHistory() {
   return {
     writes,
     restoreUrl,
-    restore: () => { history.pushState = pushState; history.replaceState = replaceState },
+    restoreTraversal,
+    restore: () => {
+      history.pushState = pushState
+      history.replaceState = replaceState
+      window.removeEventListener('popstate', onPopState, true)
+    },
   }
 }

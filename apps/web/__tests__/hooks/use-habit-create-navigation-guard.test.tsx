@@ -37,7 +37,7 @@ async function forwardTo(pathname: string) {
 }
 
 describe('habit creation history exits', () => {
-  it('returns a copied link from the initial browser entry without a phantom Forward route', async () => {
+  it('returns a copied link from the initial browser entry', async () => {
     expect(history.length).toBe(1)
     history.replaceState(null, '', '/habits/new?from=/search')
     const guard = mountGuard()
@@ -47,10 +47,9 @@ describe('habit creation history exits', () => {
     guard.unmount()
     history.replaceState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: ['search', {}], renderedSearch: '' } }, '', '/search')
     await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/search'))
-    await forwardTo('/search')
   })
 
-  it.each(['direct', 'navigated'])('keeps the approved %s exit traversal out of the router restore listener', async (entry) => {
+  it.each(['direct', 'navigated'])('replaces the base on an approved %s exit after router restoration', async (entry) => {
     if (entry === 'navigated') {
       history.pushState(null, '', '/')
       history.pushState(null, '', '/habits/new?from=%2F')
@@ -66,9 +65,8 @@ describe('habit creation history exits', () => {
       expect(history.state).toMatchObject({ orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: true })
       act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/')))
       await waitFor(() => expect(location.pathname).toBe('/'))
-      expect(routerRestores).toEqual([])
+      expect(routerRestores).toHaveLength(1)
       expect(traversalStates).toMatchObject([
-        { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
         { orbitHabitCreateGuard: '/habits/new?from=%2F', orbitHabitCreateSentinel: false },
       ])
       expect(history.state).toMatchObject({ __NA: true })
@@ -79,19 +77,18 @@ describe('habit creation history exits', () => {
     }
   })
 
-  it('keeps the origin behind an approved pushed destination', async () => {
+  it('keeps the origin behind an approved replaced destination', async () => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')
     const guard = mountGuard()
-    act(() => completeHabitCreateNavigation(() => history.pushState(null, '', '/calendar')))
+    act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/calendar')))
     await waitFor(() => expect(location.pathname).toBe('/calendar'))
     guard.unmount()
     await backTo('/search')
     await forwardTo('/calendar')
-    await forwardTo('/calendar')
   })
 
-  it.each(['pushState', 'replaceState'] as const)('replaces the discarded entry when Next %s commits after the create screen unmounts', async (method) => {
+  it.each(['pushState', 'replaceState'] as const)('lets Next %s commit after the create screen unmounts', async (method) => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')
     const guard = mountGuard()
@@ -105,13 +102,14 @@ describe('habit creation history exits', () => {
     window.addEventListener('popstate', routerRestore)
     guard.unmount()
     history[method]({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: ['calendar', {}], renderedSearch: '' } }, '', '/calendar')
-    await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/calendar'))
-    expect(nextHistory.writes.pushState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/calendar')
+    expect(nextHistory.writes[method]).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/calendar')
+    expect(nextHistory.writes[method === 'pushState' ? 'replaceState' : 'pushState']).not.toHaveBeenCalled()
+    expect(location.pathname).toBe('/calendar')
     expect(routerRestore).not.toHaveBeenCalled()
     window.removeEventListener('popstate', routerRestore)
-    await backTo('/search')
+    await backTo(method === 'pushState' ? '/habits/new' : '/search')
     history.pushState(null, '', '/progress')
-    await backTo('/search')
+    await backTo(method === 'pushState' ? '/habits/new' : '/search')
   })
 
   it.each([1, 3])('reuses its sentinel after %s reload-like remounts before returning', async (remounts) => {
@@ -136,11 +134,10 @@ describe('habit creation history exits', () => {
     await backTo('/search')
   })
 
-  it('truncates the abandoned fragment branch after fragment Back and remount', async () => {
+  it('returns from the base after fragment Back and remount', async () => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')
     let guard = mountGuard()
-    const guardedLength = history.length
     location.hash = '#one'
     await waitFor(() => expect(location.hash).toBe('#one'))
     location.hash = '#two'
@@ -152,12 +149,12 @@ describe('habit creation history exits', () => {
     expect(location.hash).toBe('#one')
     guard.unmount()
     guard = mountGuard()
-    act(() => completeHabitCreateNavigation(() => history.pushState(null, '', '/calendar')))
+    const fragmentLength = history.length
+    act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/calendar')))
     await waitFor(() => expect(location.pathname).toBe('/calendar'))
     guard.unmount()
-    expect(history.length).toBe(guardedLength)
+    expect(history.length).toBe(fragmentLength)
     await backTo('/search')
-    await forwardTo('/calendar')
     await forwardTo('/calendar')
   })
 
@@ -165,7 +162,7 @@ describe('habit creation history exits', () => {
     history.pushState(null, '', '/profile')
     history.pushState(null, '', href)
     const guard = mountGuard()
-    act(() => completeHabitCreateNavigation(() => history.pushState(null, '', '/calendar')))
+    act(() => completeHabitCreateNavigation(() => history.replaceState(null, '', '/calendar')))
     await waitFor(() => expect(location.pathname).toBe('/calendar'))
     guard.unmount()
     await backTo('/profile')

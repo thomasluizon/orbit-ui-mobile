@@ -49,6 +49,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           const submissions: string[] = []
           page.on('response', (response) => {
             if (response.request().method() !== 'POST' || new URL(response.url()).pathname !== '/habits/new') return
+            if (!response.request().postData()?.includes(title)) return
             submissions.push(response.url())
             created = response.ok()
           })
@@ -90,6 +91,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         await page.getByRole('button', { name: messages.common.keepEditing, exact: true }).click()
         await expect(field).toHaveValue('Keep this draft')
         await expect(page).toHaveURL(/\/habits\/new\?/)
+        await expect(discard).toHaveCount(0)
         await page.evaluate(() => history.back())
         await discard.click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}/`)

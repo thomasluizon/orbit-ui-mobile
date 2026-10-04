@@ -272,6 +272,20 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
+function HabitCreateRouter({ nextHistory }: Readonly<{ nextHistory: ReturnType<typeof patchNextAppRouterHistory> }>) {
+  const [href, setHref] = React.useState(location.pathname + location.search)
+  React.useLayoutEffect(() => {
+    nextHistory.restoreTraversal.mockImplementation((restoredHref) => {
+      const restored = new URL(restoredHref)
+      setHref(restored.pathname + restored.search)
+    })
+    history.replaceState({ __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: ['', {}], renderedSearch: '' } }, '', href)
+  }, [href, nextHistory])
+  return href === '/'
+    ? <div>Today</div>
+    : <CreateHabitModal open presentation="screen" onOpenChange={() => setHref('/')} />
+}
+
 async function traverseHistory(direction: 'back' | 'forward') {
   await act(async () => {
     await new Promise<void>((resolve) => {
@@ -347,7 +361,7 @@ describe('CreateHabitModal', () => {
     expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
   })
 
-  it.each([false, true])('owns browser Back before router restoration with dirty=%s', async (dirty) => {
+  it.each([false, true])('guards browser Back after router restoration with dirty=%s', async (dirty) => {
     history.pushState(null, '', '/habits/new?from=%2F')
     mockFormStatus.dirty = dirty
     const routerRestore = vi.fn()
@@ -368,33 +382,46 @@ describe('CreateHabitModal', () => {
       }
       await waitFor(() => expect(location.pathname).toBe('/'))
       expect(close).toHaveBeenCalledOnce()
-      expect(routerRestore).not.toHaveBeenCalled()
+      expect(routerRestore).toHaveBeenCalled()
     } finally {
       mounted.unmount()
       window.removeEventListener('popstate', routerRestore)
     }
   })
 
-  it('returns the successful screen create to Today without a router restore of the form', async () => {
-    history.replaceState(null, '', '/habits/new?from=%2F')
+  it.each(['direct', 'navigated'])('returns the successful %s screen create to Today after an eager router restore', async (entry) => {
+    if (entry === 'navigated') {
+      history.pushState(null, '', '/')
+      history.pushState(null, '', '/habits/new?from=%2F')
+    } else history.replaceState(null, '', '/habits/new?from=%2F')
     mockFormStatus.dirty = true
-    const routerRestore = vi.fn()
-    window.addEventListener('popstate', routerRestore)
-    const close = vi.fn(() => history.replaceState(null, '', '/'))
-    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    const mounted = renderWithProviders(<HabitCreateRouter nextHistory={nextHistory} />)
     try {
       await act(async () => { await Promise.resolve() })
+      nextHistory.writes.replaceState.mockClear()
       fireEvent.click(screen.getByRole('button', { name: 'habits.createHabit' }))
+      await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/'))
       await waitFor(() => expect(location.pathname).toBe('/'))
       expect(mockCreateMutateAsync).toHaveBeenCalledOnce()
-      expect(close).toHaveBeenCalledWith(false)
-      expect(routerRestore).not.toHaveBeenCalled()
+      expect(screen.getByText('Today')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+      expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(1)
       expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
       expect(mockShowError).not.toHaveBeenCalled()
     } finally {
       mounted.unmount()
-      window.removeEventListener('popstate', routerRestore)
     }
+  })
+
+  it('returns clean direct-open browser Back to Today after an eager router restore', async () => {
+    history.replaceState(null, '', '/habits/new?from=%2F')
+    renderWithProviders(<HabitCreateRouter nextHistory={nextHistory} />)
+    nextHistory.writes.replaceState.mockClear()
+    act(() => history.back())
+    await waitFor(() => expect(nextHistory.writes.replaceState).toHaveBeenCalledWith(expect.objectContaining({ __NA: true }), '', '/'))
+    await waitFor(() => expect(location.pathname).toBe('/'))
+    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.queryByText('common.discardChangesTitle')).toBeNull()
   })
 
   it('keeps a dirty draft and forgets a rejected destination before Back', async () => {
@@ -447,7 +474,7 @@ describe('CreateHabitModal', () => {
       expect(close).not.toHaveBeenCalled()
       mounted.unmount()
       await traverseHistory('back')
-      expect(location.pathname).toBe('/search')
+      expect(location.pathname).toBe('/habits/new')
       await traverseHistory('forward')
       expect(location.pathname).toBe('/notifications')
     }
@@ -514,7 +541,7 @@ describe('CreateHabitModal', () => {
     expect(location.pathname).toBe('/search')
   })
 
-  it('removes its browser history guard before an approved destination', async () => {
+  it('allows an approved pushed destination without an extra traversal', async () => {
     history.pushState(null, '', '/search')
     history.pushState(null, '', '/habits/new?from=/search')
     mockFormStatus.dirty = true
@@ -524,9 +551,11 @@ describe('CreateHabitModal', () => {
     expect(destination).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
     await waitFor(() => expect(location.pathname).toBe('/calendar'))
+    expect(destination).toHaveBeenCalledOnce()
+    expect(nextHistory.restoreTraversal).toHaveBeenCalledTimes(1)
     mounted.unmount()
-    history.back()
-    await waitFor(() => expect(location.pathname).toBe('/search'))
+    await traverseHistory('back')
+    expect(location.pathname).toBe('/habits/new')
   })
 
   it('guards a desktop navigation chord while the screen is dirty', async () => {
