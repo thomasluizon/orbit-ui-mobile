@@ -85,7 +85,8 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           unit: 'times', type: 'Standard', status: 'Active', deadline: null, position: index,
           createdAtUtc: '2025-01-01T00:00:00Z', completedAtUtc: null, progressPercentage: 0, linkedHabits: [],
         }))
-        await context.route(url => url.pathname === API.tags.list, route => route.fulfill({ json: tags }))
+        const profile = profileSchema.parse({ ...profileFixture, language: locale })
+        await setLayoutProfileSession(context, profile, undefined, tags)
         await context.route(url => url.pathname === API.goals.list, route => route.fulfill({ json: { ...emptyGoalsPageFixture, items: goals, totalCount: goals.length } }))
         await page.goto('/habits/new')
         const screen = page.locator('[data-habit-create-screen]')

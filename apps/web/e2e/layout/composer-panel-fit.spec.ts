@@ -128,7 +128,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await setLayoutProfileSession(context, profile)
         await page.goto('/')
         await page.evaluate(() => document.fonts.ready)
-        const field = page.locator('[data-composer-root]:visible [data-composer-input]')
+        const field = page.locator('[data-shell-pinned-slot] [data-composer-input]')
         await expect(field).toHaveAttribute('placeholder', messages.shell.composer.placeholder)
         const empty = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
@@ -158,7 +158,13 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(empty.scrollHeight).toBe(empty.clientHeight)
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
-        await field.fill('Astra '.repeat(10))
+        const draft = 'Astra '.repeat(10)
+        await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
+        const overlay = page.locator('[data-shell-conversation="overlay"]')
+        await overlay.locator('[data-composer-input]').fill(draft)
+        await page.getByRole('button', { name: messages.common.closeConversation }).click()
+        await expect(overlay).toHaveCount(0)
+        await expect(field).toHaveValue(draft)
         const typed = await field.evaluate((element) => {
           const input = element as HTMLTextAreaElement
           const style = getComputedStyle(input)
