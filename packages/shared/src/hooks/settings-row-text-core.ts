@@ -6,7 +6,7 @@ interface SettingsRowTextState<Action> {
   onToggle: () => void
 }
 
-export function resolveSettingsRowText<Action extends (...arguments_: never[]) => unknown>({ textMode, expanded, labelId, onAction, onToggle }: SettingsRowTextState<Action>) {
+export function resolveSettingsRowText<Action extends (...arguments_: never[]) => unknown>({ textMode, expanded, labelId, onAction, onToggle }: SettingsRowTextState<Action>): { onAction: Action | (() => void) | undefined; expandedState: boolean | undefined; controls: string | undefined } {
   const disclosesText = textMode === 'personal' && !onAction
   return {
     onAction: onAction ?? (disclosesText ? onToggle : undefined),
