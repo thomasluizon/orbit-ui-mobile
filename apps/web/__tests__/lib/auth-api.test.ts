@@ -12,6 +12,7 @@ const { mockCookies, mockCookieStore } = vi.hoisted(() => {
 })
 
 vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
   cookies: mockCookies,
 }))
 

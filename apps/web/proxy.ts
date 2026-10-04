@@ -1,3 +1,4 @@
+import { resolveRequestLanguage } from '@/lib/resolve-request-language'
 import { NextResponse, type NextRequest } from 'next/server'
 import {
   ACCOUNT_ID_HEADER,
@@ -26,6 +27,7 @@ async function resolveProxySession(request: NextRequest): Promise<{
   const session = await resolveSessionTokens({
     authToken,
     refreshToken,
+    language: resolveRequestLanguage(request.cookies.get('i18n_locale')?.value, request.headers.get('accept-language')),
     persistSession: (tokens) => {
       refreshedTokens = tokens
     },

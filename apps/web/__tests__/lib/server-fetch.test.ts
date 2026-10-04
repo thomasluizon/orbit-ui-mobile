@@ -26,6 +26,7 @@ vi.mock('@/lib/auth-api', async (importOriginal) => ({
 }))
 
 vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
   cookies: () => Promise.resolve({ get: vi.fn(), set: vi.fn() }),
 }))
 
