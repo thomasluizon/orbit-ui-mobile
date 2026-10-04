@@ -193,6 +193,46 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
 }
 
 describe('Composer (mobile)', () => {
+  it.each([1, 1.3, 1.5, 2].flatMap(fontScale => [false, true].flatMap(withOpener =>
+    (['idle', 'offline', 'atLimit'] as const).map(state => ({ fontScale, withOpener, state })),
+  )))('keeps the placeholder whole at $fontScale text while $state with opener $withOpener', ({ fontScale, withOpener, state }) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
+    const catalog = ptBR.shell.composer
+    const placeholder = state === 'idle' ? catalog.placeholder : state === 'offline' ? catalog.offline.placeholder : catalog.limit.placeholder
+    const configuration = props({ state, words: { ...catalog, placeholder }, suggestions: [],
+      ...(state !== 'idle' ? { limitReason: state === 'offline' ? catalog.offline.reason : catalog.limit.reason } : {}),
+      onAttachFile: vi.fn(), attachWords,
+      ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: ptBR.todayAstra.openConversation } : {}),
+    })
+    const tree = renderComposer(configuration)
+    try {
+      const visible = () => tree.root.findByProps({ testID: 'composer-placeholder' })
+      if (fontScale <= 1.3) {
+        expect(visible().props.numberOfLines).toBe(1)
+        return
+      }
+      expect(visible().props.numberOfLines).toBeUndefined()
+      const height = 2 * 24 * fontScale
+      TestRenderer.act(() => visible().props.onLayout({ nativeEvent: { layout: { x: 0, y: 12, width: 136, height } } }))
+      expect(StyleSheet.flatten(tree.root.findByType('TextInput').props.style).height).toBe(height + 24)
+      expect(visible().props.children).toBe(placeholder)
+      if (state !== 'idle') {
+        const measure = tree.root.findByProps({ testID: 'composer-placeholder-measure' })
+        const line = { x: 0, y: 0, width: 136, height: 24 * fontScale, ascender: 16, capHeight: 12, descender: 4, xHeight: 8, text: placeholder }
+        TestRenderer.act(() => measure.props.onTextLayout({ nativeEvent: { lines: [line, { ...line, y: line.height }] } }))
+        expect(visible().props.children).toBe(placeholder)
+      } else {
+        TestRenderer.act(() => tree.update(<Composer {...configuration} value="Oi" />))
+        expect(tree.root.findAllByProps({ testID: 'composer-placeholder' })).toHaveLength(0)
+        TestRenderer.act(() => tree.root.findByType('TextInput').props.onContentSizeChange({ nativeEvent: { contentSize: { width: 136, height: 24 * fontScale + 24 } } }))
+        expect(StyleSheet.flatten(tree.root.findByType('TextInput').props.style).height).toBe(24 * fontScale + 24)
+        TestRenderer.act(() => tree.update(<Composer {...configuration} />))
+        expect(visible().props.children).toBe(placeholder)
+        expect(StyleSheet.flatten(tree.root.findByType('TextInput').props.style).height).toBe(height + 24)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
+  })
+
   it('reserves a scaled text line before the first native content-size event', () => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
     const tree = renderComposer(props())
@@ -370,14 +410,16 @@ describe('Composer (mobile)', () => {
       offline: locale.shell.composer.offline.placeholder,
       atLimit: locale.shell.composer.limit.placeholder,
     }
-    const tree = renderComposer(props({
+    const configuration = props({
       state, ...(state === 'offline' || state === 'atLimit' ? { limitReason: 'persistent reason' } : {}),
       suggestions: [], words: { ...locale.shell.composer, placeholder: statePlaceholders[state] ?? locale.shell.composer.placeholder },
       onAttachFile: vi.fn(), onAttachImage: vi.fn(), attachWords, onVoice: vi.fn(), voiceWords,
       ...(withOpener ? { onOpenConversation: vi.fn(), conversationLabel: 'Open conversation' } : {}),
-    }))
+    })
+    const tree = renderComposer(configuration)
         try {
           for (const lineCount of state === 'recording' || state === 'transcribing' ? [1] : [1, 3, 5, 8]) {
+            TestRenderer.act(() => tree.update(<Composer {...configuration} value={Array.from({ length: lineCount }, () => 'Typed line').join('\n')} />))
             const nativeInput = tree.root.findAllByType('TextInput')[0]
             if (nativeInput) TestRenderer.act(() => nativeInput.props.onContentSizeChange({ nativeEvent: { target: 1, contentSize: { width: 136, height: 24 * fontScale * lineCount + 24 } } }))
             const nodes = new Map<string, YogaNode>()
@@ -390,7 +432,7 @@ describe('Composer (mobile)', () => {
               expect(controls.getComputedWidth()).toBe(48)
               expect(controls.getComputedHeight()).toBe(48)
               expect(controls.getComputedTop() + controls.getComputedHeight()).toBeLessThanOrEqual(field.getComputedHeight())
-              const send = nodes.get(state === 'sending' ? 'composer-send-accent' : 'composer-send-neutral')!
+              const send = nodes.get(state === 'idle' || state === 'sending' ? 'composer-send-accent' : 'composer-send-neutral')!
               expect(send.getParent()).toEqual(field)
               expect(send.getComputedWidth()).toBe(48)
               expect(send.getComputedHeight()).toBe(48)

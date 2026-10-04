@@ -240,11 +240,16 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
 }>) {
   const { fontScale } = useWindowDimensions()
   const [contentHeight, setContentHeight] = useState(48)
+  const [placeholderHeight, setPlaceholderHeight] = useState<{ text: string; fontScale: number; height: number } | null>(null)
   const [placeholderLayout, setPlaceholderLayout] = useState<{ text: string; fontScale: number; fits: boolean } | null>(null)
+  const largeText = fontScale > 1.3
   const measurePlaceholder = props.state === 'offline' || props.state === 'atLimit'
-  const placeholderFits = !measurePlaceholder || placeholderLayout?.text !== props.words.placeholder || placeholderLayout.fontScale !== fontScale || placeholderLayout.fits
+  const placeholderFits = largeText || !measurePlaceholder || placeholderLayout?.text !== props.words.placeholder || placeholderLayout.fontScale !== fontScale || placeholderLayout.fits
   const minimumHeight = 24 * fontScale + 24
   const maximumHeight = 5 * 24 * fontScale + 24
+  const emptyHeight = largeText && placeholderHeight?.text === props.words.placeholder && placeholderHeight.fontScale === fontScale
+    ? Math.max(minimumHeight, placeholderHeight.height + 24) : minimumHeight
+  const inputHeight = props.value.length === 0 ? emptyHeight : Math.min(maximumHeight, Math.max(minimumHeight, contentHeight))
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
   return (
@@ -271,7 +276,7 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
           onSubmitEditing={() => {
             if (canSend) props.onSend()
           }}
-          style={[styles.input, { color: tokens.fg1, height: Math.min(maximumHeight, Math.max(minimumHeight, contentHeight)) }]}
+          style={[styles.input, { color: tokens.fg1, height: inputHeight }]}
         />
         {props.value.length === 0 && measurePlaceholder ? <Text
           testID="composer-placeholder-measure"
@@ -285,7 +290,8 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
           testID="composer-placeholder"
           pointerEvents="none"
           accessible={false}
-          numberOfLines={1}
+          numberOfLines={largeText ? undefined : 1}
+          onLayout={event => setPlaceholderHeight({ text: props.words.placeholder, fontScale, height: event.nativeEvent.layout.height })}
           style={[styles.placeholder, { color: tokens.fg3 }, inputDisabled ? styles.disabled : null]}
         >{props.words.placeholder}</Text> : null}
         </View>
