@@ -166,7 +166,7 @@ export function DateField({
         className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-md py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
-        <span className={displayValue ? undefined : 'text-[var(--fg-3)]'}>{displayValue || placeholder || t('common.selectDate')}</span>
+        <span className={displayValue ? undefined : 'text-[var(--fg-2)]'}>{displayValue || placeholder || t('common.selectDate')}</span>
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 
@@ -266,7 +266,7 @@ export function DateField({
                             className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors ${
                               isCurrentMonth
                                 ? 'text-[var(--fg-1)]'
-                                : 'text-[var(--fg-3)]'
+                                : 'text-[var(--fg-2)]'
                             } ${
                               isSelected
                                 ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] group-hover:bg-[var(--primary-hover)]'

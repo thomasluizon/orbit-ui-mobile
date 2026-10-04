@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { neutralColors } from '@orbit/shared/theme'
+import { HabitLogButton } from '@/components/habits/habit-log-button'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -37,6 +38,19 @@ function pressedFill(control: ReactTestInstance): string {
 }
 
 describe('light hover text on Android', () => {
+  it.each([undefined, 0])('keeps an empty habit track visible with progress %s', async (progress) => {
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<HabitLogButton label="Log habit" logged={false} progress={progress} onPress={() => {}} />) })
+    try {
+      const control = tree.root.findAll((node) => String(node.type) === 'Pressable')[0]!
+      await act(() => { (control.props.onPressIn as (() => void) | undefined)?.() })
+      const circle = tree.root.findAll((node) => String(node.type) === 'Circle')[0]
+      const ring = tree.root.findAll((node) => node.props.testID === 'status-ring')[0]
+      const color = circle ? String(circle.props.stroke) : String(StyleSheet.flatten(ring!.props.style as StyleProp<ViewStyle>).borderColor)
+      expect(contrastOnSurface(color, [neutralColors.light.bg, pressedFill(control)])).toBeGreaterThanOrEqual(3)
+    } finally { await act(() => { tree.update(<></>) }) }
+  })
+
   it.each(cases)('keeps every text on $name above the floor', async ({ element, role }) => {
     let tree!: ReactTestRenderer
     await act(() => { tree = create(element) })

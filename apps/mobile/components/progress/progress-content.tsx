@@ -1,3 +1,4 @@
+import { hoverForeground } from '@orbit/shared/theme'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -321,7 +322,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
           {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
         </View>
       </View>
-      <GoalIndicator goal={goal} trackColor={currentTheme === 'light' && pressed ? tokens.fg2 : undefined} />
+      <GoalIndicator goal={goal} trackColor={hoverForeground(currentTheme, tokens.trackEmpty, pressed)} />
       </>}
     </MotionPressable>
   )

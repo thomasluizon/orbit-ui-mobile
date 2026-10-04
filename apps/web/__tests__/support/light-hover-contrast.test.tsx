@@ -1,11 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { neutralColors } from '@orbit/shared/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { ShellWide } from '@/components/shell/shell-wide'
+import { HabitLogButton } from '@/components/habits/habit-log-button'
+import { DateField } from '@/components/ui/date-field'
+import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -14,6 +18,9 @@ import { SettingsGroup } from '@/components/ui/settings-group-list'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
+
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en' }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 0 } }) }))
 
 const cases = [
   { name: 'checked row', element: <CheckRow label="Checked" checked description="Description" value="Value" onChange={() => {}} /> },
@@ -40,6 +47,61 @@ describe('rendered light hover contrast', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   for (const width of [600, 1352]) {
+    it('keeps the habit logging track visible at ' + width, async () => {
+      const { container, unmount } = render(<HabitLogButton label="Log habit" logged={false} progress={0} onPress={() => {}} />)
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+        await page.locator('button').hover()
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('button')!).backgroundColor === 'rgba(9, 9, 11, 0.11)')
+        const stroke = await page.locator('circle').first().evaluate((node) => getComputedStyle(node).stroke)
+        expect(contrastOnSurface(stroke, [neutralColors.light.bg, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
+      } finally { await page.close(); unmount() }
+    })
+
+    if (width === 1352) it('keeps the sidebar account email readable', async () => {
+      const { container, unmount } = render(<ShellWide items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+        const account = page.locator('[data-shell-account]')
+        await account.hover()
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-shell-account]')!).backgroundColor === 'rgba(9, 9, 11, 0.11)')
+        const color = await page.locator('[data-shell-account-email]').evaluate((node) => getComputedStyle(node).color)
+        expect(contrastOnSurface(color, [neutralColors.light.bgElev, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(4.5)
+      } finally { await page.close(); unmount() }
+    })
+
+    it('keeps an outside-month date numeral readable at ' + width, async () => {
+      const { container, unmount } = render(<DateField value="2025-06-15" onChange={() => {}} />)
+      fireEvent.click(container.querySelector('button')!)
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${document.body.innerHTML}</body></html>`)
+        const day = page.locator('button[data-day="2025-07-01"]')
+        await day.hover()
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-day="2025-07-01"]')!).backgroundColor === 'rgba(9, 9, 11, 0.11)')
+        const color = await day.locator('span').evaluate((node) => getComputedStyle(node).color)
+        expect(contrastOnSurface(color, [neutralColors.light.bgField, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(4.5)
+      } finally { await page.close(); unmount() }
+    })
+
+    it('keeps the partial day empty arc visible at ' + width, async () => {
+      const { container, unmount } = render(<DayCell day={16} done={1} scheduled={2} words={{ none: 'Empty', partial: 'Partial', full: 'Done', notScheduled: 'Not scheduled', of: 'of', today: 'Today', readOnly: 'Read only' }} loggable onPress={() => {}} />)
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
+        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
+        await page.locator('button').hover()
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-press-fill]')!).opacity === '1')
+        const stroke = await page.locator('circle').first().evaluate((node) => getComputedStyle(node).stroke)
+        expect(contrastOnSurface(stroke, [neutralColors.light.bg, neutralColors.light.bgHover])).toBeGreaterThanOrEqual(3)
+      } finally { await page.close(); unmount() }
+    })
+
     it.each(cases)('keeps $name readable at ' + width, async ({ element }) => {
       const { container, unmount } = render(element)
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })

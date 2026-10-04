@@ -34,7 +34,7 @@ describe('Bottom tab geometry in Chromium', () => {
       const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
       try {
         const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<style>${stylesheet}:root{${theme}}html{font-size:${16 * textScale}px}</style>${container.innerHTML}`)
+        await page.setContent(`<html class="${mode}"><style>${stylesheet}:root{${theme}}html{font-size:${16 * textScale}px}</style>${container.innerHTML}`)
         await loadAppFonts(page)
         const bar = await page.locator('nav').boundingBox()
         expect(bar).not.toBeNull()

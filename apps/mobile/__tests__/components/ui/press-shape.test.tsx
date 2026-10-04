@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName } from '@orbit/shared/utils'
@@ -26,6 +26,7 @@ type StyledNode = Readonly<{
     onPressIn?: () => void
     onPressOut?: () => void
     hitSlop?: unknown
+    testID?: string
   }
   findAllByType(type: unknown): StyledNode[]
   findAllByProps(props: Record<string, unknown>): StyledNode[]
@@ -179,6 +180,7 @@ describe('pressed hit area shapes', () => {
 
       renderer.act(() => control.props.onPressIn?.())
       const pressed = findPressable(tree, label)
+      expect(pressed.findAllByType(View).filter((node) => node.props.testID === 'day-press-fill')).toHaveLength(2)
       const fill = pressed.findAllByProps({ testID: 'day-press-fill' })[0]
       expect(fill).toBeDefined()
       expect(StyleSheet.flatten(fill!.props.style as StyleProp<ViewStyle>)).toMatchObject({

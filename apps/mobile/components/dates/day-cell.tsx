@@ -1,4 +1,4 @@
-import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
+import { hoverForeground, MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 import { useState } from 'react'
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
@@ -11,7 +11,7 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 type ContentsProps = Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens; pressed: boolean }>
 
-/** The hover token is a translucent overlay, so it layers over the day's own fill rather than replacing it. */
+/** The translucent hover layer covers the round hit area below the day's foreground. */
 function PressFill({ size, tokens }: Readonly<{ size: number; tokens: Tokens }>) {
   return <View pointerEvents="none" testID="day-press-fill" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} />
 }
@@ -27,7 +27,7 @@ function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProp
 
   return (
     <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
-      {pressed ? <PressFill size={size} tokens={tokens} /> : null}
+      {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       {outcome === 'partial' ? (
         <Svg width={size} height={size} style={styles.arc}>
           <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.statusEmpty} strokeWidth={stroke} />
@@ -58,7 +58,7 @@ function HabitHistoryContents({ props, outcome, size, tokens, pressed }: Content
   else if (missed) textColor = tokens.fg2
   return (
     <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
-      {pressed ? <PressFill size={size} tokens={tokens} /> : null}
+      {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
       {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
     </View>
@@ -83,7 +83,7 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   ]
   const state = { ...props.accessibilityState, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
-  const contentsTokens = currentTheme === 'light' && pressed ? { ...tokens, statusEmpty: tokens.fg2 } : tokens
+  const contentsTokens = { ...tokens, statusEmpty: hoverForeground(currentTheme, tokens.statusEmpty, pressed) }
   const contents = props.habitHistory
     ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={contentsTokens} pressed={pressed} />
     : <DayCellContents props={props} outcome={outcome} size={size} tokens={contentsTokens} pressed={pressed} />
@@ -103,6 +103,7 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
         testID={testID}
         style={containerStyle}
       >
+        {pressed ? <PressFill size={size} tokens={tokens} /> : null}
         {contents}
         {todayRing}
       </Pressable>

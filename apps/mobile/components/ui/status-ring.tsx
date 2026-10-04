@@ -8,11 +8,12 @@ export function StatusRing({
   status = 'empty',
   size = 30,
   label,
+  trackColor,
 }: Readonly<StatusRingProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const color = {
-    empty: { graphic: tokens.statusEmpty },
+    empty: { graphic: trackColor ?? tokens.statusEmpty },
     done: { graphic: tokens.fg1 },
     overdue: { graphic: tokens.statusOverdue },
     bad: { graphic: tokens.statusBad },

@@ -9,11 +9,17 @@ import { sheetTestControls } from "@/__tests__/support/sheet-double";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
-import { createTokensV2 } from "@/lib/theme";
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast';
+import { createTokensV2, setRuntimeTheme, getRuntimeTheme, createSurfaces, radius, shadows } from "@/lib/theme";
 import {
   CalendarTimeGrid,
   type TimeGridColumn,
 } from "@/app/(tabs)/calendar/_components/calendar-time-grid";
+
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => {
+  const { scheme, themeMode } = getRuntimeTheme();
+  return { currentScheme: scheme, currentTheme: themeMode, surfaces: createSurfaces(scheme, themeMode), radius, shadows, applyTheme: vi.fn(), toggleTheme: vi.fn() };
+} }));
 
 const TestRenderer = require("react-test-renderer");
 
@@ -49,7 +55,7 @@ function column(dateStr: string, isFuture = false): TimeGridColumn {
 }
 
 const mounted: Tree[] = [];
-afterEach(() => { TestRenderer.act(() => { for (const tree of mounted) tree.update(<></>); }); mounted.length = 0; vi.restoreAllMocks(); sheetTestControls.defer(false); });
+afterEach(() => { TestRenderer.act(() => { for (const tree of mounted) tree.update(<></>); }); mounted.length = 0; setRuntimeTheme({ themeMode: 'dark' }); vi.restoreAllMocks(); sheetTestControls.defer(false); });
 
 const displayTime = (time: string) => time;
 const tokens = createTokensV2("purple", "dark");
@@ -130,6 +136,24 @@ function renderedAncestorHeight(node: TestNode): number | undefined {
 }
 
 describe("CalendarTimeGrid (mobile)", () => {
+  it.each(['light', 'dark'] as const)('keeps the today weekday readable on %s press', (mode) => {
+    setRuntimeTheme({ themeMode: mode });
+    const palette = createTokensV2('purple', mode);
+    const col = { ...column('2025-06-16'), isToday: true };
+    const tree = renderGrid([col], new Map(), vi.fn(), false, displayTime, 'UTC', palette);
+    const header = hostsByTestID(tree, 'time-grid-col-header')[0]!;
+    const weekday = tree.root.findAll((node) => node.type === 'Text' && resolveStyle(node.props.style).color === palette.primaryText)[0]!;
+    expect(resolveStyle(weekday.props.style).color).toBe(palette.primaryText);
+    TestRenderer.act(() => header.props.onPressIn?.());
+    const fill = StyleSheet.flatten(header.props.style({ pressed: true })).backgroundColor;
+    const color = String(resolveStyle(weekday.props.style).color);
+    expect(fill).toBe(palette.bgHover);
+    if (mode === 'light') expect(contrastOnSurface(color, [palette.bg, palette.bgCard, fill])).toBeGreaterThanOrEqual(4.5);
+    else expect(color).toBe(palette.primaryText);
+    TestRenderer.act(() => header.props.onPressOut?.());
+    expect(resolveStyle(weekday.props.style).color).toBe(palette.primaryText);
+  });
+
   it("grows the grid labels and padded column widths at 200% font scale", () => {
     vi.spyOn(ReactNative, "useWindowDimensions").mockReturnValue({ width: 320, height: 915, scale: 1, fontScale: 2 });
     const col = column("2025-06-16");

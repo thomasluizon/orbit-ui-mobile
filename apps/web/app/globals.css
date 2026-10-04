@@ -2044,6 +2044,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   --status-overdue-text: var(--fg-2);
   --fg-3: var(--fg-2);
   --track-empty: var(--fg-2);
+  --status-empty: var(--fg-2);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2053,5 +2054,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     --status-overdue-text: var(--fg-2);
     --fg-3: var(--fg-2);
     --track-empty: var(--fg-2);
+    --status-empty: var(--fg-2);
   }
 }

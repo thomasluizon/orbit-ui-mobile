@@ -13,7 +13,7 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
   return {}
 }
 
-/** The hover token is a translucent overlay, so it layers over the day's own fill rather than replacing it. */
+/** The translucent hover layer covers the round hit area below the day's foreground. */
 function PressFill() {
   return (
     <span
@@ -56,7 +56,7 @@ function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProp
       className="relative inline-flex items-center justify-center rounded-full"
       style={{ width: size, height: size, ...ringStyle(outcome) }}
     >
-      {props.loggable && !props.outsideMonth ? <PressFill /> : null}
+      {outcome === 'full' && props.loggable && !props.outsideMonth ? <PressFill /> : null}
       {outcome === 'partial' ? <PartialArc fraction={fraction} size={size} /> : null}
       <span
         className={`relative ${numeralClass}`}
@@ -85,7 +85,7 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
       className="relative inline-flex items-center justify-center rounded-full"
       style={{ width: size, height: size, background: outcome === 'full' ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
     >
-      {props.loggable && !props.outsideMonth ? <PressFill /> : null}
+      {outcome === 'full' && props.loggable && !props.outsideMonth ? <PressFill /> : null}
       <span className={`relative ${numeralClass}`} style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums', fontWeight: props.today ? 500 : 400 }}>{props.day}</span>
       {missed ? <span className="absolute rounded-full bg-[var(--status-empty)]" style={{ width: 3, height: 3, bottom: 4 }} /> : null}
     </span>
@@ -121,6 +121,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
         onClick={props.onPress}
         className="orbit-hover-text group relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 cursor-pointer transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >
+        <PressFill />
         {contents}
       </button>
     )

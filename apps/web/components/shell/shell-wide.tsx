@@ -147,7 +147,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
           <Link
             data-shell-account=""
             href="/profile"
-            className="flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+            className="orbit-hover-text flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
           >
             <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
               {Array.from(props.account)[0]?.toLocaleUpperCase()}
