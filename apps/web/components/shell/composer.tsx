@@ -211,7 +211,8 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
       const context = document.createElement('canvas').getContext('2d')!
       context.font = style.font
       context.letterSpacing = style.letterSpacing
-      input!.placeholder = context.measureText(props.words.placeholder).width <= availableWidth ? props.words.placeholder : ''
+      const largeText = parseFloat(style.fontSize) > 16 * 1.3
+      input!.placeholder = largeText || context.measureText(props.words.placeholder).width <= availableWidth ? props.words.placeholder : ''
     }
     const observer = new ResizeObserver(updatePlaceholder)
     observer.observe(input)
@@ -255,7 +256,7 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
           onKeyDown={(event) => handleSendKeyDown(event, canSend, props.onSend)}
           onPaste={props.onPaste}
           onFocus={props.onOpenConversation}
-          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent py-[12px] text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word] placeholder:whitespace-nowrap"
+          className="max-h-[calc(5lh+24px)] min-h-[48px] min-w-0 flex-1 resize-none appearance-none border-0 bg-transparent py-[12px] text-base text-[var(--fg-1)] focus-visible:outline-0 placeholder:text-[var(--fg-3)] disabled:cursor-not-allowed disabled:opacity-50 [field-sizing:content] [white-space:pre-wrap] [overflow-wrap:break-word]"
         />}
 
         <ComposerControls props={props} />

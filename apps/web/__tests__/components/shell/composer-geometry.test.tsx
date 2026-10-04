@@ -68,13 +68,17 @@ function assertPillGeometry(measured: PillGeometry, context: { width: number; fo
   expect(new Set(measured.controls.map((control) => control.top)).size, evidence).toBe(1)
   if (measured.input) {
     expect(measured.input.width, evidence).toBeGreaterThanOrEqual(136)
-    if (fontScale === 1 || scenario === 'offline' || scenario === 'atLimit') {
+    if (fontScale === 1) {
       expect(measured.input.placeholderWidth, evidence).toBeLessThanOrEqual(measured.input.width)
     }
     if (scenario === 'longText') {
       expect(measured.input.height, evidence).toBe(measured.input.maximumHeight)
       expect(measured.input.scrollHeight, evidence).toBeGreaterThan(measured.input.height)
-    } else if (scenario !== 'typing') expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
+    } else if (scenario !== 'typing') {
+      if (measured.input.placeholderWidth > measured.input.width) expect(measured.pill.height, evidence).toBeGreaterThan(24 * fontScale + 32)
+      else expect(measured.pill.height, evidence).toBe(24 * fontScale + 32)
+      expect(measured.input.scrollHeight, evidence).toBeLessThanOrEqual(measured.input.height)
+    }
   } else expect(measured.pill.height, evidence).toBe(56)
 }
 
@@ -117,11 +121,13 @@ describe('Composer compact geometry in Chromium', () => {
     const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css + `:root{${theme}}`
     const buildOptions = {
-      stdin: { contents: `import React from 'react'; import { createRoot } from 'react-dom/client';
+      stdin: { contents: `import React, { useState } from 'react'; import { createRoot } from 'react-dom/client';
         import { Composer } from './components/shell/composer';
         const props = JSON.parse(document.getElementById('configuration').textContent);
-        createRoot(document.getElementById('root')).render(React.createElement(Composer, {
-          ...props, onChangeValue: () => {}, onSend: () => {},
+        function MountedComposer() {
+          const [value, setValue] = useState(props.value);
+          return React.createElement(Composer, {
+          ...props, value, onChangeValue: setValue, onSend: () => {},
           onOpenConversation: props.conversationLabel ? () => {} : undefined,
           onAttachFile: props.attachWords ? () => {} : undefined,
           onAttachImage: props.attachWords ? () => {} : undefined,
@@ -131,7 +137,9 @@ describe('Composer compact geometry in Chromium', () => {
             remove: name => props.attachmentRemoveTemplate.replace('{name}', name) } : undefined,
           suggestions: props.suggestions.map(chip => ({ ...chip, onSelect: () => {},
             icon: React.createElement('svg', { width: 20, height: 20, 'aria-hidden': true }) }))
-        }));`, resolveDir: process.cwd(), loader: 'tsx' },
+          });
+        }
+        createRoot(document.getElementById('root')).render(React.createElement(MountedComposer));`, resolveDir: process.cwd(), loader: 'tsx' },
       bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
       define: { 'process.env.NODE_ENV': '"production"', 'process.env': '{}' },
     }
@@ -147,6 +155,62 @@ describe('Composer compact geometry in Chromium', () => {
     `, JSON.stringify(buildOptions)], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([ptBR, en].flatMap(messages => [false, true].flatMap(withOpener =>
+    (['idle', 'offline', 'atLimit'] as const).map(scenario => ({ messages, withOpener, scenario })),
+  )))('keeps the placeholder whole through text resizing while $scenario with opener $withOpener', async ({ messages, withOpener, scenario }) => {
+    const configuration = geometryProps(scenario, messages, withOpener)
+    const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const field = page.locator('[data-composer-input]')
+      for (const fontScale of [1, 1.3, 1.5, 2, 1]) {
+        await page.evaluate(scale => { document.documentElement.style.fontSize = `${16 * scale}px` }, fontScale)
+        await vi.waitFor(async () => {
+          const measured = await field.evaluate(element => {
+            const input = element as HTMLTextAreaElement
+            const style = getComputedStyle(input)
+            const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+            const canvas = document.createElement('canvas').getContext('2d')!
+            canvas.font = style.font
+            canvas.letterSpacing = style.letterSpacing
+            return { placeholder: input.placeholder, width: input.clientWidth, scrollWidth: input.scrollWidth,
+              height: input.clientHeight, scrollHeight: input.scrollHeight,
+              singleLineHeight: parseFloat(style.lineHeight) + padding,
+              textWidth: canvas.measureText(input.placeholder).width,
+              pillHeight: input.parentElement!.getBoundingClientRect().height }
+          })
+          const evidence = JSON.stringify({ scenario, withOpener, fontScale, measured })
+          expect(measured.scrollWidth, evidence).toBeLessThanOrEqual(measured.width)
+          expect(measured.scrollHeight, evidence).toBeLessThanOrEqual(measured.height)
+          expect(measured.pillHeight, evidence).toBeGreaterThanOrEqual(56)
+          expect(measured.pillHeight, evidence).toBeGreaterThanOrEqual(measured.height + 8)
+          if (fontScale > 1.3) {
+            expect(measured.placeholder, evidence).toBe(configuration.words.placeholder)
+            if (measured.textWidth > measured.width) expect(measured.height, evidence).toBeGreaterThan(measured.singleLineHeight)
+          } else expect(measured.height, evidence).toBeCloseTo(measured.singleLineHeight, 0)
+        })
+        if (scenario === 'idle' && fontScale === 2) {
+          const placeholderHeight = await field.evaluate(element => element.clientHeight)
+          await field.fill('Oi')
+          await vi.waitFor(async () => {
+            expect(await field.inputValue()).toBe('Oi')
+            expect(await field.evaluate(element => element.clientHeight)).toBe(72)
+          })
+          await field.fill('Mensagem longa\n'.repeat(12))
+          await vi.waitFor(async () => {
+            const typed = await field.evaluate(element => ({ height: element.clientHeight, scrollHeight: element.scrollHeight }))
+            expect(typed.height).toBe(264)
+            expect(typed.scrollHeight).toBeGreaterThan(typed.height)
+          })
+          await field.fill('')
+          await vi.waitFor(async () => expect(await field.evaluate(element => element.clientHeight)).toBe(placeholderHeight))
+        }
+      }
+    } finally { await page.close() }
+  })
 
   it.each([en, ptBR].flatMap(messages => ['idle', 'offline', 'atLimit'].map(state => ({ messages, state }))))(
     'shows a whole state placeholder or omits it as the pill resizes: $state', async ({ messages, state }) => {

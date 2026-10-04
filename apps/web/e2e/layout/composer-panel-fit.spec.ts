@@ -133,7 +133,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             contentWidth: input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
             clientHeight: input.clientHeight,
             scrollHeight: input.scrollHeight,
-            whiteSpace: getComputedStyle(input, '::placeholder').whiteSpace,
+            singleLineHeight: parseFloat(style.lineHeight) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom),
           }
         })
         expect(empty.pillHeight).toBe(56)
@@ -142,7 +142,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         for (const control of empty.controls) { expect(control.width).toBe(48); expect(control.height).toBe(48) }
         expect(empty.contentWidth).toBeGreaterThanOrEqual(136)
         expect(empty.scrollHeight).toBe(empty.clientHeight)
-        expect(empty.whiteSpace).toBe('nowrap')
+        expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
         await field.fill('Astra '.repeat(10))
         const typed = await field.evaluate((element) => {
