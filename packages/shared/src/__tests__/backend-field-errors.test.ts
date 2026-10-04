@@ -21,7 +21,7 @@ describe('backend form failures', () => {
     expect(backendFormFieldFocusRequest('code', undefined, 2)).toBeUndefined()
   })
 
-  it('joins unmapped field messages in field and message order with case-insensitive mapping', () => {
+  it('joins repeated unmapped messages in field order with case-insensitive mapping', () => {
     const english = verificationValidationResponses.en.errors.Code
     const portuguese = verificationValidationResponses['pt-BR'].errors.Code
     const error = { errors: { Code: [...english], Email: [...portuguese], Other: [...english] } }
