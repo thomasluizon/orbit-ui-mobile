@@ -1,6 +1,6 @@
 import { measureTextOverflow } from '../../../e2e/layout/text-overflow-geometry'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -37,6 +37,15 @@ function Pricing({ coupon }: Readonly<{ coupon: boolean }>) {
 const cases = [412, 1440].flatMap((width) => (['en', 'pt-BR'] as const)
   .flatMap((locale) => [false, true].map((coupon) => ({ width, locale, coupon }))))
 
+async function waitForLoadedTiers(container: HTMLElement) {
+  await waitFor(() => {
+    expect(container.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
+    for (const interval of ['yearly', 'monthly']) {
+      expect(container.querySelectorAll(`[data-tier="${interval}"]`)).toHaveLength(1)
+    }
+  })
+}
+
 describe('Pro tier geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -57,6 +66,7 @@ describe('Pro tier geometry in Chromium', () => {
   it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }])('fills the content column with equal period segments at $width in $locale', async ({ width, locale }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={false} /></NextIntlClientProvider>)
+    await waitForLoadedTiers(container)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -82,6 +92,7 @@ describe('Pro tier geometry in Chromium', () => {
   it.each(compactCases)('keeps both allowance captions whole on one line at $width in $locale', async ({ width, locale }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={false} /></NextIntlClientProvider>)
+    await waitForLoadedTiers(container)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -110,6 +121,7 @@ describe('Pro tier geometry in Chromium', () => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}>
       <main className="mx-auto max-w-[560px] p-4"><div><OnboardingProStep onFinish={async () => {}} /></div></main>
     </NextIntlClientProvider>)
+    await waitForLoadedTiers(container)
     const page = await browser.newPage({ viewport: { width, height: 1800 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -133,6 +145,7 @@ describe('Pro tier geometry in Chromium', () => {
   it.each(cases)('hugs card content at $width in $locale, coupon: $coupon', async ({ width, locale, coupon }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={coupon} /></NextIntlClientProvider>)
+    await waitForLoadedTiers(container)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
