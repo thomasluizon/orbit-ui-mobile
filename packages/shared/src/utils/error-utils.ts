@@ -1,4 +1,5 @@
 import type { ZodType } from 'zod'
+import { validationErrorDetailsSchema, validationErrorsSchema, type ValidationErrorDetails } from '../types/api'
 
 import { MAX_HABIT_DESCRIPTION_LENGTH, MAX_HABIT_TITLE_LENGTH } from '../validation/constants'
 
@@ -11,6 +12,7 @@ interface BackendErrorData {
   type?: string
   status?: number
   data?: BackendErrorData
+  errorDetails?: ValidationErrorDetails
   errors?: Record<string, string[]>
 }
 
@@ -19,6 +21,7 @@ interface ErrorWithData {
   status?: number
   code?: string
   errorCode?: string
+  errorDetails?: ValidationErrorDetails
   fieldErrors?: Record<string, string[]>
 }
 
@@ -37,6 +40,7 @@ export class ApiClientError extends Error {
   status: number
   code?: string
   data?: unknown
+  errorDetails?: ValidationErrorDetails
   fieldErrors?: Record<string, string[]>
 
   constructor(
@@ -45,6 +49,7 @@ export class ApiClientError extends Error {
     options?: {
       code?: string
       data?: unknown
+      errorDetails?: ValidationErrorDetails
       fieldErrors?: Record<string, string[]>
     },
   ) {
@@ -54,6 +59,7 @@ export class ApiClientError extends Error {
     this.code = options?.code
     this.data = options?.data
     this.fieldErrors = options?.fieldErrors
+    this.errorDetails = options?.errorDetails
   }
 }
 
@@ -118,7 +124,8 @@ function extractNestedData(err: unknown): BackendErrorData | undefined {
   const directData = asBackendErrorData(err.data)
   if (directData) return directData
 
-  return asBackendErrorData(err)
+  const body = asBackendErrorData((err as { body?: unknown }).body)
+  return body ?? asBackendErrorData(err)
 }
 
 function normalizeMessage(message: string | undefined): string {
@@ -142,16 +149,22 @@ export function extractBackendFieldErrors(
   err: unknown,
 ): Record<string, string[]> | undefined {
   const data = extractNestedData(err)
-  const nestedErrors = data?.data?.errors ?? data?.errors
-  if (nestedErrors && typeof nestedErrors === 'object') {
-    return nestedErrors
-  }
+  const candidate = data?.data?.errors ?? data?.errors ?? (isErrorWithData(err) ? err.fieldErrors : undefined)
+  const parsed = validationErrorsSchema.safeParse(candidate)
+  return parsed.success ? parsed.data : undefined
+}
 
-  if (isErrorWithData(err) && err.fieldErrors) {
-    return err.fieldErrors
-  }
+export function extractBackendErrorDetails(err: unknown): ValidationErrorDetails | undefined {
+  const data = extractNestedData(err)
+  const candidate = data?.data?.errorDetails ?? data?.errorDetails ?? (isErrorWithData(err) ? err.errorDetails : undefined)
+  const parsed = validationErrorDetailsSchema.safeParse(candidate)
+  return parsed.success ? parsed.data : undefined
+}
 
-  return undefined
+export function getBackendFieldError(err: unknown, field: string): string | undefined {
+  const errors = extractBackendFieldErrors(err)
+  const key = Object.keys(errors ?? {}).find((name) => name.toLowerCase() === field.toLowerCase())
+  return key ? errors?.[key]?.join('\n') : undefined
 }
 
 export function extractBackendErrorCode(err: unknown): string | undefined {
@@ -166,10 +179,11 @@ export function extractBackendErrorCode(err: unknown): string | undefined {
 
   if (isErrorWithData(err)) {
     const body = asBackendErrorData((err as { body?: unknown }).body)
-    return body?.errorCode ?? body?.code
+    const bodyCode = body?.errorCode ?? body?.code
+    if (bodyCode) return bodyCode
   }
 
-  return undefined
+  return Object.values(extractBackendErrorDetails(err) ?? {}).flat()[0]?.code
 }
 
 export function extractBackendStatus(err: unknown): number | undefined {
@@ -213,6 +227,7 @@ export function createApiClientError(
     code,
     data: payload,
     fieldErrors,
+    errorDetails: extractBackendErrorDetails(wrapped),
   })
 }
 
@@ -332,6 +347,7 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   HABIT_NOT_OWNED: 'errors.api.noPermission',
   INVALID_SESSION: 'errors.api.sessionExpired',
   INVALID_VERIFICATION_CODE: 'auth.errors.invalidCode',
+  VALIDATION_VERIFICATION_CODE_FORMAT: 'auth.errors.invalidRequest',
   CODE_EXPIRED: 'auth.errors.codeExpired',
   ALREADY_LOGGED: 'habits.errors.alreadyLogged',
   MAX_DEPTH_REACHED: 'habits.errors.maxDepthReached',
@@ -480,5 +496,6 @@ export function getFriendlyErrorMessage(
   fallbackKey: string,
   context: FriendlyErrorContext = 'generic',
 ): string {
+  if (extractBackendFieldErrors(err)) return extractBackendError(err) ?? translate(fallbackKey)
   return translate(getFriendlyErrorKey(err, fallbackKey, context))
 }
