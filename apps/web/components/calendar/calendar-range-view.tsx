@@ -59,9 +59,9 @@ export function CalendarRangeView({
       className="flex flex-col"
       style={{ gap: 16, maxWidth: 420, padding: '12px 0 24px' }}
     >
-      <div className="flex items-start gap-3" style={{ paddingInline: 16 }}>
+      <div className="flex flex-wrap items-start justify-end gap-3" style={{ paddingInline: 16 }}>
         <p
-          className="flex min-h-12 min-w-0 flex-1 items-center wrap-anywhere"
+          className="flex min-h-12 min-w-0 flex-auto items-center"
           style={{
             color: 'var(--fg-2)',
             fontFamily: 'var(--font-mono)',
@@ -71,14 +71,16 @@ export function CalendarRangeView({
         >
           {rangeLabel}
         </p>
-        <button type="button" aria-label={previousRangeLabel} onClick={onPreviousRange}
-          className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
-          <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
-        </button>
-        <button type="button" aria-label={nextRangeLabel} onClick={onNextRange} disabled={nextRangeDisabled}
-          className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
-          <ChevronRight size={20} strokeWidth={2} aria-hidden="true" />
-        </button>
+        <div className="flex shrink-0 gap-3">
+          <button type="button" aria-label={previousRangeLabel} onClick={onPreviousRange}
+            className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
+            <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
+          <button type="button" aria-label={nextRangeLabel} onClick={onNextRange} disabled={nextRangeDisabled}
+            className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
+            <ChevronRight size={20} strokeWidth={2} aria-hidden="true" />
+          </button>
+        </div>
       </div>
       {isLoading ? (
         <>

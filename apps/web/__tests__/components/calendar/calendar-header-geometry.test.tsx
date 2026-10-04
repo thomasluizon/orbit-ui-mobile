@@ -340,7 +340,15 @@ describe('Calendar header geometry in Chromium', () => {
         const geometry = await page.evaluate(() => {
           const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
           const stats = document.querySelector<HTMLElement>('[data-testid="calendar-stats"]')!
+          const labelText = document.querySelector('p')!.firstChild!
+          const splitWords = [...labelText.textContent!.matchAll(/\S+/g)].filter((word) => {
+            const range = document.createRange()
+            range.setStart(labelText, word.index)
+            range.setEnd(labelText, word.index + word[0].length)
+            return new Set([...range.getClientRects()].map((box) => box.top)).size > 1
+          }).map((word) => word[0])
           return { pageWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
+            splitWords,
             statsLeft: stats.getBoundingClientRect().left, statsRight: stats.getBoundingClientRect().right,
             placeholders: [...stats.querySelectorAll<HTMLElement>('[role="status"]')].map((value) => {
               const bounds = value.lastElementChild!.getBoundingClientRect()
@@ -362,6 +370,7 @@ describe('Calendar header geometry in Chromium', () => {
         expect(geometry.gridScroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.gridWidth)
         expect(geometry.label).toBe(16)
         expect(geometry.labelOverflow).toBe(false)
+        expect(geometry.splitWords).toEqual([])
         if (scale === 1) for (const target of geometry.targets) expect(Math.abs(geometry.labelCenter - target.center)).toBeLessThanOrEqual(2)
         for (const target of geometry.targets) { expect(target.width).toBeGreaterThanOrEqual(48); expect(target.height).toBeGreaterThanOrEqual(48); expect(target.left).toBeGreaterThanOrEqual(16); expect(target.right).toBeLessThanOrEqual(width - 16) }
       }

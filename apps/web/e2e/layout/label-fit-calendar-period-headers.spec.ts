@@ -75,7 +75,7 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
         await page.getByRole('radio', { name: words.calendar.view.range, exact: true }).click()
         const previous = page.getByRole('button', { name: words.calendar.range.previous, exact: true })
         const next = page.getByRole('button', { name: words.calendar.range.next, exact: true })
-        const row = previous.locator('..')
+        const row = previous.locator('xpath=ancestor::div[p][1]')
         const label = row.locator('p')
         await markRequiredLabels(label)
         await expectLabelsFit(page, row)
