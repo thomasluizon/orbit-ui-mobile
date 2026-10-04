@@ -306,6 +306,10 @@
         },
         "progress": {
           "createGoal": "Criar uma meta para {title}"
+        },
+        "habitDetail": {
+          "pauseThisWeek": "Pausar o hábito \"{title}\" esta semana",
+          "rename": "Renomear o hábito \"{title}\""
         }
       },
       "inputLabel": "Peça à Astra",
