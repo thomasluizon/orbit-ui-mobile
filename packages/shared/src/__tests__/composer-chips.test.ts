@@ -222,6 +222,7 @@ describe('composer strip layout', () => {
         const chipWidths = naturalWidths.map(size => Math.min(size * scale, available - 32))
         const total = chipWidths.reduce((sum, size) => sum + size, (chipWidths.length - 1) * 8)
         const layout = resolveComposerStripLayout(available, chipWidths)
+        expect(layout.visibleWidth).toBe(available)
         if (total <= available) {
           expect(layout.visibleWidth).toBe(available)
           continue

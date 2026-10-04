@@ -242,6 +242,7 @@ describe('Composer compact geometry in Chromium', () => {
           })
           const evidence = JSON.stringify({ width, fontScale, surface, scenario, measured })
           expect(measured.documentWidth, evidence).toBe(width)
+          expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           if (measured.overflow) {
             expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
             expect(measured.peek, evidence).toBeLessThanOrEqual(32)

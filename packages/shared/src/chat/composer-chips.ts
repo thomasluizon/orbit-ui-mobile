@@ -22,7 +22,7 @@ export function resolveComposerStripLayout(availableWidth: number, measuredWidth
     if (nextStart + COMPOSER_CHIP_PEEK > availableWidth) break
     visibleWidth = nextStart + COMPOSER_CHIP_PEEK
   }
-  return { visibleWidth, firstChipMinWidth }
+  return { visibleWidth: availableWidth, firstChipMinWidth: Math.max(chipWidths[0]!, firstChipMinWidth) + availableWidth - visibleWidth }
 }
 
 export type ComposerChipSurface = 'today' | 'calendar' | 'progress' | 'profile' | 'habitDetail'

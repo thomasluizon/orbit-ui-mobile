@@ -305,6 +305,7 @@ describe('Composer (mobile)', () => {
         }
         const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
         const visible = StyleSheet.flatten(scroller.props.style).width ?? available
+        expect(visible).toBe(available)
         chipWidths[0] = Math.max(chipWidths[0]!, StyleSheet.flatten(byLabel(tree.root, 'chip sentinel 0')[0].props.style).minWidth)
         const starts = chipWidths.map((_, index) => chipWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
         const partial = starts.findIndex((start, index) => start < visible && start + chipWidths[index]! > visible)
