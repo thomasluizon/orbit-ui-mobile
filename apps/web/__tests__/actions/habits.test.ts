@@ -1,3 +1,4 @@
+import en from '@orbit/shared/i18n/en.json'
 vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -129,7 +130,7 @@ describe('habit server actions', () => {
     })
 
     it('throws on non-OK response', async () => {
-      mockApiResponse({ error: 'Title is required' }, 400)
+      mockApiResponse({ error: en.habits.form.titleRequired }, 400)
 
       await expect(createHabit({ title: '' }, 'account-a')).rejects.toThrow()
     })

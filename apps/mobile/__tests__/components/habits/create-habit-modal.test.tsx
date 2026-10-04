@@ -1,3 +1,4 @@
+import en from '@orbit/shared/i18n/en.json'
 import React from 'react'
 import { StyleSheet } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -834,7 +835,7 @@ await Promise.resolve()
 
   it.each([
     [403, undefined, 'Blocked by the edge', 'errors.api.edgeBlocked'],
-    [400, 'VALIDATION_ERROR', 'Title must be 200 characters or fewer', 'habits.form.titleTooLong'],
+    [400, 'VALIDATION_ERROR', en.habits.form.titleTooLong, 'habits.form.titleTooLong'],
     [429, 'RATE_LIMITED', 'Rate limited', 'toast.errors.tooManyRequests'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed', 'toast.errors.server'],
     [403, 'PAY_GATE', 'Calendar integration is a Pro feature. Upgrade to unlock!', 'errors.api.calendarPro'],
