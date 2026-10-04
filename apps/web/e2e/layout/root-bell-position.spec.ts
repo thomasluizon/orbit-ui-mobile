@@ -9,6 +9,8 @@ import { emptyGoalsPageFixture } from '../../test-support/hermetic/mock-api/fixt
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
+test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
+
 const calendarMonth = calendarMonthResponseSchema.parse({ habits: [], logs: {} })
 const goals = paginatedGoalResponseSchema.parse(emptyGoalsPageFixture)
 const overflowingGoals = paginatedGoalResponseSchema.parse({
@@ -55,7 +57,7 @@ async function measureBell(bell: Locator) {
 for (const locale of ['en', 'pt-BR'] as const) {
   for (const width of [320, 412, 600, 840]) {
     test.describe(`root bell position in ${locale} at ${width}px`, () => {
-      test.use({ appLocale: locale, viewport: { width, height: 915 }, launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
+      test.use({ appLocale: locale, viewport: { width, height: 915 } })
       const words = locale === 'pt-BR' ? ptBR : en
 
       for (const content of ['short', 'long'] as const) {
