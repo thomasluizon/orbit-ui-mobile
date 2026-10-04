@@ -17,6 +17,7 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
   onCurrentMonth: () => void
   onSelectMonth: (month: number, year: number) => void
+  periodNavigation?: ReactNode
   viewSelector?: ReactNode
   showMonthNavigation?: boolean
 }
@@ -36,7 +37,7 @@ function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, 
   </div>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, viewSelector, showMonthNavigation = true }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, periodNavigation, viewSelector, showMonthNavigation = true }: Readonly<CalendarHeaderProps>) {
   const pickerId = useId()
   const yearButtonRef = useRef<HTMLButtonElement>(null)
   const t = useTranslations()
@@ -57,6 +58,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
       </button>
       <button type="button" className={headerButton} aria-label={nextMonthLabel} onClick={onNextMonth}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
     </div> : null}
+    {periodNavigation}
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       headerAccessory={<button ref={yearButtonRef} type="button" className={`${headerButton} px-3`} aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={pickerId} onClick={() => setChoosingYear(!choosingYear)}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>}
@@ -77,7 +79,7 @@ interface CalendarWeekNavProps {
 }
 
 export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, currentWeekLabel, onPreviousWeek, onNextWeek, onCurrentWeek }: Readonly<CalendarWeekNavProps>) {
-  return <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-3">
+  return <div data-testid="calendar-week-navigation" className="flex flex-wrap items-center justify-center gap-2">
     <button type="button" className={headerButton} aria-label={previousWeekLabel} onClick={onPreviousWeek}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
     <button type="button" className={`${headerButton} max-w-full px-3 py-2 text-center`} aria-label={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</button>
     <button type="button" className={headerButton} aria-label={nextWeekLabel} onClick={onNextWeek}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
