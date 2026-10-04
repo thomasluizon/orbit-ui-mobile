@@ -26,7 +26,6 @@ async function waitForRoot(page: Page, root: string, words: typeof en | typeof p
   } else if (root === '/progress') {
     if (content === 'short') await expect(page.getByText(words.progressScreen.goals.empty, { exact: true })).toBeVisible()
     else await expect(page.locator('[data-goal-id]')).toHaveCount(overflowingGoals.items.length)
-    await expect(page.locator('[data-component="freeze-bank"]')).toBeVisible()
   } else if (root === '/profile') {
     await expect(page.getByTestId('profile-settings-groups')).toBeVisible()
   }

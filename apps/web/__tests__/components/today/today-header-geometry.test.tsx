@@ -83,20 +83,35 @@ describe('Hoje header geometry', () => {
           await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
           unmount()
           await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+          await page.keyboard.press('Tab')
+          await page.getByRole('button', { name: new RegExp(`^${ptBr.notifications.bell}`) }).focus()
           const geometry = await page.evaluate((bellLabel) => {
             const scroller = document.querySelector<HTMLElement>('[data-shell-scroller]')!
             const bell = document.querySelector<HTMLButtonElement>(`[data-shell-column] button[aria-label^="${bellLabel}"]`)!
             const row = bell.parentElement!
             const host = row.closest<HTMLElement>('[data-shell-header], [data-shell-scroller]')!
             const bounds = bell.getBoundingClientRect()
+            const focus = getComputedStyle(bell)
+            const outlineWidth = Number.parseFloat(focus.outlineWidth)
+            const outlineOutset = outlineWidth + Number.parseFloat(focus.outlineOffset)
+            const viewport = host.getBoundingClientRect()
             return { right: bounds.right, width: bounds.width, height: bounds.height,
               gutter: scroller.offsetWidth - scroller.clientWidth,
               pinned: host.hasAttribute('data-shell-header'),
               overflow: scroller.scrollHeight > scroller.clientHeight,
-              documentWidth: document.documentElement.scrollWidth }
+              documentWidth: document.documentElement.scrollWidth,
+              focused: bell.matches(':focus-visible'), outlineWidth,
+              focusTop: bounds.top - outlineOutset, focusBottom: bounds.bottom + outlineOutset,
+              viewportTop: viewport.top, viewportBottom: viewport.bottom }
           }, ptBr.notifications.bell)
           expect(geometry.overflow).toBe(contentHeight === 1600)
           expect(geometry.pinned).toBe(index < 2)
+          if (geometry.pinned) {
+            expect(geometry.focused).toBe(true)
+            expect(geometry.outlineWidth).toBeGreaterThanOrEqual(2)
+            expect(geometry.focusTop).toBeGreaterThanOrEqual(geometry.viewportTop)
+            expect(geometry.focusBottom).toBeLessThanOrEqual(geometry.viewportBottom)
+          }
           if (contentHeight === 1600) expect(geometry.gutter).toBeGreaterThan(0)
           expect(geometry.width).toBeGreaterThanOrEqual(48)
           expect(geometry.height).toBeGreaterThanOrEqual(48)
