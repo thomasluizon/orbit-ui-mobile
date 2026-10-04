@@ -1,3 +1,4 @@
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { patchNextAppRouterHistory } from '@/__tests__/support/next-app-router-history'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -300,7 +301,7 @@ async function traverseHistory(direction: 'back' | 'forward') {
 
 describe('CreateHabitModal', () => {
   let nextHistory: ReturnType<typeof patchNextAppRouterHistory>
-  afterEach(() => nextHistory.restore())
+  afterEach(() => { nextHistory.restore(); sheetTestControls.defer(false) })
   beforeEach(() => {
     nextHistory = patchNextAppRouterHistory()
     vi.stubGlobal('Notification', { permission: 'default' })
@@ -391,6 +392,38 @@ describe('CreateHabitModal', () => {
     }
   })
 
+  it.each(['en', 'pt-BR'])('replays browser Back during Keep editing exit in %s', async (locale) => {
+    mockLocale.value = locale
+    mockFormStatus.dirty = true
+    history.pushState(null, '', '/habits/new?from=%2F')
+    const close = vi.fn(() => history.replaceState(null, '', '/'))
+    const mounted = renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'draft' }), { target: { value: 'Keep this draft' } })
+    act(() => history.back())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.keepEditing' })).toBeInTheDocument())
+    sheetTestControls.defer(true)
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    await traverseHistory('back')
+    await waitFor(() => expect(history.state.orbitHabitCreateSentinel).toBe(true))
+    expect(close).not.toHaveBeenCalled()
+    act(() => sheetTestControls.completeDismissal())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.keepEditing' })).toBeInTheDocument())
+    expect(screen.getByRole('textbox', { name: 'draft' })).toHaveValue('Keep this draft')
+    expect(close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    act(() => sheetTestControls.completeDismissal())
+    expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+    act(() => history.back())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.discardChangesAction' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))
+    act(() => sheetTestControls.completeDismissal())
+    await waitFor(() => expect(close).toHaveBeenCalledOnce())
+    expect(location.pathname).toBe('/')
+    mounted.unmount()
+  })
+
   it.each([
     ['direct', false], ['navigated', false], ['direct', true], ['navigated', true],
   ])('returns the successful %s screen create to Today with deferred restoration=%s', async (entry, deferRestoration) => {
@@ -452,14 +485,14 @@ describe('CreateHabitModal', () => {
     expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
   })
 
-  it('keeps a dirty draft and forgets a rejected destination before Back', async () => {
+  it.each(['common.keepEditing', 'close-overlay'])('forgets a rejected destination before Back after %s', async (cancelAction) => {
     mockFormStatus.dirty = true
     const close = vi.fn()
     const rejectedDestination = vi.fn()
     renderWithProviders(<CreateHabitModal open presentation="screen" onOpenChange={close} />)
     act(() => requestHabitCreateNavigation(rejectedDestination))
     expect(close).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'common.keepEditing' }))
+    fireEvent.click(screen.getByRole('button', { name: cancelAction }))
     expect(rejectedDestination).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'common.back' }))
     fireEvent.click(screen.getByRole('button', { name: 'common.discardChangesAction' }))

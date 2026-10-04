@@ -71,7 +71,7 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
   )
 
   return (
-    <>
+    <div className="px-[16px]">
       {line.notificationId ? (
         <button
           type="button"
@@ -90,6 +90,6 @@ export function TodayAstra({ today, isTodaySelected, suppressed }: Readonly<Toda
         </Link>
       )}
       <span id={destinationId} className="sr-only">{line.destination}</span>
-    </>
+    </div>
   )
 }

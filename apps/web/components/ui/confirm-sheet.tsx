@@ -22,6 +22,7 @@ interface ConfirmSheetProps {
   confirmImmediately?: boolean
   loading?: boolean
   onCloseComplete?: () => void
+  onCancelStart?: () => void
   /** Runs after the sheet is gone when the person cancels. It has to hide the sheet. */
   onCancel: () => void
   /** Confirms the action and hides the sheet, on press when confirmImmediately is set. */
@@ -42,6 +43,7 @@ export function ConfirmSheet({
   confirmImmediately = false,
   loading = false,
   onCloseComplete,
+  onCancelStart,
   onCancel,
   onConfirm,
 }: Readonly<ConfirmSheetProps>) {
@@ -68,7 +70,7 @@ export function ConfirmSheet({
       ...current,
       mounted: current.lastOpen,
       closing: false,
-      generation: current.lastOpen ? current.generation + 1 : current.generation,
+      generation: current.generation + 1,
     }) : current)
     onCloseCompleteRef.current?.()
   }, [])
@@ -82,7 +84,8 @@ export function ConfirmSheet({
   const actionsDisabled = lifecycle.closing || !open || loading
   const cancel = () => {
     if (actionsDisabled) return
-    closeSheet()
+    if (onCancelStart) onCancelStart()
+    else closeSheet()
   }
   const confirm = () => {
     if (actionsDisabled) return

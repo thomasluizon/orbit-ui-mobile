@@ -517,8 +517,12 @@ export function CreateHabitModal({
       {renderCreateSheet()}
       <DiscardChangesSheet
         open={dismissGuard.showDiscardDialog}
-        onKeepEditing={() => {
+        onKeepEditingStart={() => {
           pendingNavigation.current = null
+          dismissGuard.beginCancelDismiss()
+        }}
+        onKeepEditing={() => {
+          if (!dismissGuard.isCancelling) pendingNavigation.current = null
           dismissGuard.cancelDismiss()
         }}
         onDiscard={dismissGuard.confirmDismiss}

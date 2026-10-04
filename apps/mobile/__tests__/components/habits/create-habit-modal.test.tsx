@@ -10,6 +10,7 @@ import { ApiClientError, applyHabitPhraseRead, readHabitPhrase } from '@orbit/sh
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { dismissTopOverlay } from '@/lib/overlay-stack'
+import { PillButton } from '@/components/ui/pill-button'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -314,7 +315,38 @@ describe('CreateHabitModal (mobile)', () => {
     tree.unmount()
   })
 
-  it.each(['cancel', 'confirm'] as const)('guards a mounted Android bell and handles %s without leaving a draft in history', async (choice) => {
+  it.each(['en', 'pt-BR'])('replays Android Back during Keep editing exit in %s', async (locale) => {
+    mockLocale.value = locale
+    mockFormStatus.dirty = true
+    const close = vi.fn()
+    const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={close} />)
+    const press = (label: string) => {
+      const button = tree.root.findAll((node) => node.type === PillButton && node.props.children === label)[0]
+      TestRenderer.act(() => button.props.onClick())
+    }
+    TestRenderer.act(() => { dismissTopOverlay('system-back') })
+    sheetTestControls.defer(true)
+    press('common.keepEditing')
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    TestRenderer.act(() => { dismissTopOverlay('system-back') })
+    expect(close).not.toHaveBeenCalled()
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.keepEditing')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Sheet' && node.props.open)).toHaveLength(1)
+    expect(mockFormStatus.dirty).toBe(true)
+    expect(close).not.toHaveBeenCalled()
+    press('common.keepEditing')
+    TestRenderer.act(() => sheetTestControls.completeDismissal())
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    TestRenderer.act(() => { dismissTopOverlay('system-back') })
+    press('common.discardChangesAction')
+    await TestRenderer.act(async () => { sheetTestControls.completeDismissal(); await Promise.resolve() })
+    expect(close).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
+
+  it.each(['cancel', 'close', 'confirm'] as const)('guards a mounted Android bell and handles %s without leaving a draft in history', async (choice) => {
     mockFormStatus.dirty = true
     const close = vi.fn()
     const tree = renderModal(<><CreateHabitModal open presentation="screen" onClose={close} /><NotificationBell /></>)
@@ -324,8 +356,10 @@ describe('CreateHabitModal (mobile)', () => {
     expect(mockPush).not.toHaveBeenCalled()
     expect(mockReplace).not.toHaveBeenCalled()
     expect(discard().props.open).toBe(true)
-    if (choice === 'cancel') {
-      TestRenderer.act(() => discard().props.onKeepEditing())
+    if (choice !== 'confirm') {
+      const keepEditing = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.keepEditing')[0]
+      const closeControl = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss')[0]
+      TestRenderer.act(() => choice === 'close' ? closeControl.props.onPress() : keepEditing.props.onClick())
       expect(discard().props.open).toBe(false)
       expect(mockFormStatus.dirty).toBe(true)
       expect(mockReplace).not.toHaveBeenCalled()
