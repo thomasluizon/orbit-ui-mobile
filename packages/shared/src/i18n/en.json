@@ -1,4 +1,18 @@
 {
+  "dragAndDrop": {
+    "instructions": "To pick up an item, press the space bar. While dragging, use the arrow keys to move it. Press space again to drop it, or Escape to cancel.",
+    "goalInstructions": "To move a goal, hold Alt and press the up or down arrow key.",
+    "roleDescription": "sortable item",
+    "handle": "Move {name}",
+    "pickedUp": "{name} picked up to move.",
+    "movedOver": "{name} moved over {target}.",
+    "returnedToStart": "{name} is back in its starting position.",
+    "movedOutside": "{name} is outside a drop area.",
+    "droppedOver": "{name} dropped over {target}.",
+    "droppedInPlace": "{name} dropped in its starting position.",
+    "dropped": "{name} dropped.",
+    "cancelled": "Moving {name} cancelled."
+  },
   "meta": {
     "title": "Orbit - Personal Habit Tracker",
     "description": "Build better habits with AI-powered tracking and insights."
@@ -800,7 +814,6 @@
       "suggestTagsError": "Couldn't suggest tags. Try again.",
       "slipAlert": "Slip alerts",
       "slipAlertDescription": "AI sends motivational nudges before your usual slip times",
-      "editDescription": "Update habit details",
       "checklist": "Checklist",
       "checklistPlaceholder": "Add an item",
       "templates": "Templates",

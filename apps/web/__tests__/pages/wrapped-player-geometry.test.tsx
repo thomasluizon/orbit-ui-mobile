@@ -65,11 +65,19 @@ const VIEWPORTS = [
   { width: 500, height: 706 },
   { width: 412, height: 800 },
   { width: 1440, height: 900 },
-].flatMap((viewport) => [
-  { ...viewport, locale: 'en', toast: false },
-  { ...viewport, locale: 'en', toast: true },
-  { ...viewport, locale: 'pt-BR', toast: true },
+].concat([{ width: 844, height: 390 }]).flatMap((viewport) => [
+  { ...viewport, locale: 'en', toast: false, safeArea: false },
+  { ...viewport, locale: 'en', toast: true, safeArea: false },
+  { ...viewport, locale: 'pt-BR', toast: true, safeArea: false },
+  ...([320, 412, 500, 844].includes(viewport.width) ? [{ ...viewport, locale: 'pt-BR', toast: viewport.width !== 844, safeArea: true }] : []),
 ])
+
+function playerInsets(width: number, safeArea: boolean) {
+  if (!safeArea) return { top: 0, bottom: 0, left: 0, right: 0 }
+  return width === 844
+    ? { top: 0, bottom: 21, left: 44, right: 44 }
+    : { top: 24, bottom: 34, left: 0, right: 0 }
+}
 
 describe('WrappedPage player reload banner geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -99,9 +107,11 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     wrapped.slides = buildWrappedSlides(wrapped.recap)
   })
 
-  async function measureSlide(viewport: { width: number; height: number }, markup: string) {
+  async function measureSlide(viewport: { width: number; height: number }, markup: string, safeArea = false) {
     const page = await browser.newPage({ viewport })
     try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets: playerInsets(viewport.width, safeArea) })
       await page.setContent(`<style>${stylesheet}</style>${markup}`)
       await loadAppFonts(page)
       return await page.evaluate(() => {
@@ -125,6 +135,10 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
           }).map((button) => button.getAttribute('aria-label') ?? button.textContent),
           unavailableColumnCount: dialog.querySelectorAll('[data-unavailable]').length,
           unavailableValueOverflow,
+          controls: [...dialog.querySelectorAll('button, h1, h2, p, [data-shell-notice], [data-testid="wrapped-pager"]')].map((element) => {
+            const bounds = element.getBoundingClientRect()
+            return { left: bounds.left, right: bounds.right }
+          }),
           closeTop: close.getBoundingClientRect().top,
           closeBottom: close.getBoundingClientRect().bottom,
           noticeTop: notice.getBoundingClientRect().top,
@@ -149,8 +163,9 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     }
   }
 
-  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast', async ({ locale, toast, ...viewport }) => {
+  it.each(VIEWPORTS)('keeps the banner and pager in view on every slide at $width by $height in $locale, toast $toast', async ({ locale, toast, safeArea = false, ...viewport }) => {
     const messages = locale === 'en' ? en : pt
+    const insets = playerInsets(viewport.width, safeArea)
     useVersionGateStore.getState().requireReload('appUpdated')
     if (toast) {
       useAppToastStore.getState().showToast({
@@ -165,18 +180,22 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
     expect(container.querySelectorAll('[role="dialog"] [data-shell-notice] [role="status"]')).toHaveLength(toast ? 2 : 1)
 
     for (const slide of wrapped.slides as { id: string }[]) {
-      const measured = await measureSlide(viewport, container.innerHTML)
+      const measured = await measureSlide(viewport, container.innerHTML, safeArea)
 
-      expect({ slide: slide.id, pagerBottom: measured.pagerBottom <= viewport.height })
+      expect({ slide: slide.id, pagerBottom: measured.pagerBottom <= viewport.height - insets.bottom })
         .toEqual({ slide: slide.id, pagerBottom: true })
+      for (const control of measured.controls) {
+        expect(control.left).toBeGreaterThanOrEqual(insets.left)
+        expect(control.right).toBeLessThanOrEqual(viewport.width - insets.right)
+      }
       expect(measured.unavailableColumnCount).toBe(slide.id === 'consistency' ? 3 : 0)
       expect(measured.unavailableValueOverflow).toBe(0)
       expect(measured.undersizedControls, `slide ${slide.id} control targets`).toEqual([])
-      expect(measured.closeTop).toBeGreaterThanOrEqual(0)
+      expect(measured.closeTop).toBeGreaterThanOrEqual(insets.top)
       expect(measured.closeBottom).toBeLessThanOrEqual(viewport.height)
       expect(measured.closeTopAtEnd).toBeGreaterThanOrEqual(0)
       expect(measured.closeBottomAtEnd).toBeLessThanOrEqual(viewport.height)
-      expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height)
+      expect(measured.pagerBottomAtEnd).toBeLessThanOrEqual(viewport.height - insets.bottom)
       expect(measured.bannerInset).toEqual({ left: 0, right: 0 })
       expect(measured.noticeTop).toBeGreaterThanOrEqual(0)
       expect(measured.noticeBottom).toBeLessThanOrEqual(measured.pagerTop + 0.5)
@@ -185,6 +204,28 @@ describe('WrappedPage player reload banner geometry in Chromium', () => {
       const next = screen.queryByTestId('wrapped-next-zone')
       if (next) fireEvent.click(next)
     }
+  })
+
+  it.each([
+    { width: 412, height: 915, top: 24, bottom: 34, left: 0, right: 0 },
+    { width: 844, height: 390, top: 0, bottom: 21, left: 44, right: 44 },
+    { width: 844, height: 390, top: 0, bottom: 0, left: 0, right: 0 },
+  ])('restores the cover inset after closing the player at $width', async ({ width, height, ...insets }) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><WrappedPage /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('button', { name: en.wrapped.start }))
+    fireEvent.click(screen.getByRole('button', { name: en.wrapped.close }))
+    await act(async () => {})
+    const page = await browser.newPage({ viewport: { width, height } })
+    try {
+      const session = await page.context().newCDPSession(page)
+      await session.send('Emulation.setSafeAreaInsetsOverride', { insets })
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const back = (await page.getByRole('button', { name: en.common.backToProfile }).boundingBox())!
+      expect(back.y).toBe(insets.top + 4)
+      expect(back.x).toBe(insets.left + 16)
+      expect(back.x + back.width).toBeLessThanOrEqual(width - insets.right)
+      expect(container.querySelector('[role="dialog"]')).toBeNull()
+    } finally { await page.close() }
   })
 
   it.each(['dark', 'light'] as const)('fills the whole close target on hover and press in %s mode', async (mode) => {

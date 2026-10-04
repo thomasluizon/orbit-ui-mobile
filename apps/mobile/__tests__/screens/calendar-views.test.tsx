@@ -1,7 +1,10 @@
+import { format as formatDate } from 'date-fns/format'
+import { ptBR as portugueseDates } from 'date-fns/locale/pt-BR'
 import React from "react";
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
-import { __setScrollToImpl } from '../../test-mocks/react-native'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { __setWindowDimensions, __setScrollToImpl } from '../../test-mocks/react-native'
 
 import en from "@orbit/shared/i18n/en.json";
 import ptBR from "@orbit/shared/i18n/pt-BR.json";
@@ -52,6 +55,7 @@ const state = vi.hoisted(() => ({
   rangeLoading: false,
   rangeFetching: false,
   language: "en",
+  periodGeometry: false,
   monthMap: new Map<string, CalendarDayEntry[]>(),
   monthLoading: false,
   monthFetching: false,
@@ -119,10 +123,16 @@ vi.mock('@/components/calendar-sync/calendar-import-content', () => ({
 
 
 
+vi.mock('date-fns', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('date-fns')>();
+  return { ...actual, format: (date: Date, pattern: string) => state.periodGeometry ? formatDate(date, pattern, { locale: portugueseDates }) : actual.format(date, pattern) };
+});
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       const messages = state.language === 'en' ? en : ptBR;
+      if (state.periodGeometry && key === 'calendar.range.label') return messages.calendar.range.label.replace('{start}', String(params?.start)).replace('{end}', String(params?.end));
       if (key === 'dates.today') return messages.dates.today;
       if (key === 'calendar.agenda.timedEntryLabel') return messages.calendar.agenda.timedEntryLabel.replace('{title}', String(params?.title)).replace('{time}', String(params?.time));
       return params ? `${key}:${JSON.stringify(params)}` : key;
@@ -235,14 +245,17 @@ vi.mock("@/lib/theme", () => ({
 vi.mock("@/components/ui/sheet", async () => await import("@/__tests__/support/sheet-double"));
 vi.mock("@/components/ui/section-label", () => ({ SectionLabel: () => null }));
 
-vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", () => ({
+vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/app/(tabs)/calendar/_components/calendar-shell")>();
+  return {
   CalendarHeader: (props: Record<string, any>) => {
     calendarGridProps.header = props;
-    return <View testID="calendar-header-group">{props.viewSelector}</View>;
+    return <actual.CalendarHeader {...(props as React.ComponentProps<typeof actual.CalendarHeader>)} />;
   },
-  CalendarWeekNav: () => null,
+  CalendarWeekNav: actual.CalendarWeekNav,
   CalendarLegend: () => <View testID="calendar-legend" />,
-}));
+  };
+});
 vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/app/(tabs)/calendar/_components/calendar-grid")>();
   calendarGridProps.actual = actual.CalendarGrid;
@@ -375,6 +388,76 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  it.each([1, 2])('keeps the week pager above the selector at 320 dp and font scale %i', (scale) => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: scale });
+    state.language = 'pt-BR';
+    type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
+    let tree!: Tree & { toJSON: () => Host | Host[]; unmount: () => void };
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    pressView(tree, 'week');
+    try {
+      const findHeader = (host: Host): Host | undefined => host.props.testID === 'calendar-header-group' ? host :
+        (host.children ?? []).filter((child): child is Host => typeof child !== 'string').map(findHeader).find(Boolean);
+      const header = [tree.toJSON()].flat().map(findHeader).find(Boolean)!;
+      const measured = measureProfileRow(header, 320, scale);
+      const pager = measured.controls.filter((control) => ['common.previousWeek', 'common.nextWeek'].includes(control.accessibilityLabel ?? '') || control.accessibilityLabel?.endsWith(', calendar.goToCurrentWeek'));
+      expect(pager).toHaveLength(3);
+      const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
+      expect(segments).toHaveLength(4);
+      for (const control of pager) {
+        expect(control.bottom).toBeLessThanOrEqual(Math.min(...segments.map((segment) => segment.top)));
+        expect(control.width).toBeGreaterThanOrEqual(48);
+        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.left).toBeGreaterThanOrEqual(16);
+        expect(control.right).toBeLessThanOrEqual(304);
+      }
+      const initial = pager.find((control) => control.labels.length)!.labels[0];
+      for (const label of ['common.nextWeek', 'common.previousWeek']) {
+        const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
+        TestRenderer.act(() => control.props.onPress());
+        expect(tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.checked)).toHaveLength(1);
+      }
+      expect(hostTexts(tree)).toContain(initial);
+    } finally { TestRenderer.act(() => tree.unmount()); }
+  });
+
+  it.each([1, 2])('keeps the range label beside both 48 dp targets at 320 dp and font scale %i', (scale) => {
+    __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: scale });
+    state.language = 'pt-BR';
+    state.periodGeometry = true;
+    type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
+    let tree!: Tree & { toJSON: () => Host | Host[]; unmount: () => void };
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    pressView(tree, 'range');
+    try {
+      const findRange = (host: Host): Host | undefined => (host.children ?? []).some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('30 ago a 12 set')) ? host :
+        (host.children ?? []).filter((child): child is Host => typeof child !== 'string').map(findRange).find(Boolean);
+      const header = [tree.toJSON()].flat().map(findRange).find(Boolean)!;
+
+      expect(header).toBeDefined();
+      const measured = measureProfileRow(header, 320, scale);
+      const label = measured.texts.find((text) => text.label === '30 ago a 12 set')!;
+      expect(measured.controls).toHaveLength(2);
+      expect(label.clipped).toBe(false);
+      if (scale === 1) {
+        expect(label.lines).toBe(1);
+        for (const control of measured.controls) expect(Math.abs((label.top + label.bottom - control.top - control.bottom) / 2)).toBeLessThanOrEqual(2);
+      }
+      for (const control of measured.controls) {
+        expect(control.left).toBeGreaterThanOrEqual(label.right + 12);
+        expect(control.right).toBeLessThanOrEqual(304);
+        expect(control.width).toBeGreaterThanOrEqual(48);
+        expect(control.height).toBeGreaterThanOrEqual(48);
+      }
+      for (const label of ['calendar.range.previous', 'calendar.range.next']) {
+        const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
+        TestRenderer.act(() => control.props.onPress());
+      }
+      expect(hostTexts(tree)).toContain('30 ago a 12 set');
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.checked)).toHaveLength(1);
+    } finally { TestRenderer.act(() => tree.unmount()); }
+  });
+
   it.each([
     ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
     ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
@@ -399,6 +482,8 @@ describe("CalendarScreen views (mobile)", () => {
     sheetTestControls.defer(false);
     useUIStore.setState({ calendarShowRecurring: true, setCalendarHasError: state.setCalendarHasError });
     state.language = "en";
+    state.periodGeometry = false;
+    __setWindowDimensions({ width: 412, height: 900, scale: 1, fontScale: 1 });
     state.routeParams = {};
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-12T12:00:00.000Z"));
@@ -1451,8 +1536,8 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
     pressView(tree, 'week');
     for (let week = 0; week < 4; week += 1) {
-      const weekView = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
-      TestRenderer.act(() => { weekView.props.onNextWeek(); });
+      const nextWeek = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.nextWeek')[0]!;
+      TestRenderer.act(() => { nextWeek.props.onPress(); });
     }
     const weekView = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
     const selected = weekView.props.columns[3].dateStr as string;

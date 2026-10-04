@@ -255,11 +255,21 @@ describe('EditHabitModal', () => {
     expect(screen.getByText('habits.editHabit')).toBeDefined()
   })
 
-  it('shows edit description', () => {
+  it('omits the redundant edit description', () => {
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
-    expect(screen.getByText('habits.form.editDescription')).toBeDefined()
+    expect(screen.queryByText('habits.form.editDescription')).toBeNull()
+  })
+
+  it('starts the sheet body with the habit form', () => {
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+
+    const form = screen.getByTestId('habit-form-fields').closest('form')
+    const body = screen.getByTestId('sheet').querySelector('[data-slot="sheet-body"]')
+    expect(body?.firstElementChild).toBe(form)
   })
 
   it('passes the immutable creation timestamp as the start date', () => {

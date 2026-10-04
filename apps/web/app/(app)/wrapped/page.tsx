@@ -83,7 +83,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
   const playerOpen = isPlaying && recap && !isEmpty
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[900px] flex-col">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[900px] flex-col pt-[var(--safe-top)] pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)]">
       {!playerOpen ? <UpdateAvailableBanner /> : null}
       <div className="flex flex-1 flex-col">
         {!playerOpen ? (

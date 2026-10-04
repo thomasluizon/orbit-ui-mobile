@@ -70,14 +70,16 @@ export function CalendarRangeView({
         <Text style={[styles.rangeLabel, { color: tokens.fg2 }]}>
           {rangeLabel}
         </Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={previousRangeLabel} onPress={onPreviousRange}
-          style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }]}>
-          <ChevronLeft size={20} strokeWidth={2} color={tokens.fg2} />
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={nextRangeLabel} onPress={onNextRange} disabled={nextRangeDisabled} accessibilityState={{ disabled: nextRangeDisabled }}
-          style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }, nextRangeDisabled && { opacity: 0.4 }]}>
-          <ChevronRight size={20} strokeWidth={2} color={tokens.fg2} />
-        </Pressable>
+        <View style={styles.controls}>
+          <Pressable accessibilityRole="button" accessibilityLabel={previousRangeLabel} onPress={onPreviousRange}
+            style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }]}>
+            <ChevronLeft size={20} strokeWidth={2} color={tokens.fg2} />
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={nextRangeLabel} onPress={onNextRange} disabled={nextRangeDisabled} accessibilityState={{ disabled: nextRangeDisabled }}
+            style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }, nextRangeDisabled && { opacity: 0.4 }]}>
+            <ChevronRight size={20} strokeWidth={2} color={tokens.fg2} />
+          </Pressable>
+        </View>
       </View>
       {isLoading ? (
         <>
@@ -122,12 +124,15 @@ export function CalendarRangeView({
 
 const styles = StyleSheet.create({
   container: { gap: 16, paddingTop: 12 },
-  header: { paddingHorizontal: 16, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
+  header: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  controls: { flexDirection: 'row', flexShrink: 0, gap: 12 },
   grid: { width: '100%', maxWidth: 340, alignSelf: 'center', paddingHorizontal: 4 },
   iconButton: { minHeight: 48, minWidth: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   rangeLabel: {
-    width: '100%',
+    flex: 1,
     minWidth: 0,
+    minHeight: 48,
+    textAlignVertical: 'center',
     fontFamily: 'GeistMono_400Regular',
     fontSize: 14,
     fontVariant: ['tabular-nums'],

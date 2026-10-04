@@ -20,6 +20,7 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
   onCurrentMonth: () => void
   onSelectMonth: (month: number, year: number) => void
+  periodNavigation?: ReactNode
   viewSelector?: ReactNode
   showMonthNavigation?: boolean
   tokens: Tokens
@@ -42,7 +43,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   </View>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, viewSelector, showMonthNavigation = true, tokens }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, periodNavigation, viewSelector, showMonthNavigation = true, tokens }: Readonly<CalendarHeaderProps>) {
   const { t, i18n } = useTranslation()
   const styles = createStyles(tokens)
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
@@ -60,6 +61,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={nextMonthLabel} onPress={onNextMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
     </View> : null}
+    {periodNavigation}
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       headerAccessory={<Pressable accessibilityRole="button" accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></Pressable>}
@@ -82,7 +84,7 @@ interface CalendarWeekNavProps {
 
 export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, currentWeekLabel, onPreviousWeek, onNextWeek, onCurrentWeek, tokens }: Readonly<CalendarWeekNavProps>) {
   const styles = createStyles(tokens)
-  return <View style={styles.weekHeader}>
+  return <View testID="calendar-week-navigation" style={styles.navigation}>
     <Pressable accessibilityRole="button" accessibilityLabel={previousWeekLabel} onPress={onPreviousWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
     <Pressable accessibilityRole="button" accessibilityLabel={`${weekLabel}, ${currentWeekLabel}`} onPress={onCurrentWeek} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}><Text style={[styles.label, styles.weekLabel]}>{weekLabel}</Text></Pressable>
     <Pressable accessibilityRole="button" accessibilityLabel={nextWeekLabel} onPress={onNextWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
@@ -114,7 +116,6 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     header: { gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
     navigation: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
-    weekHeader: { paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.bgField },
     titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgField },
     pressed: { backgroundColor: tokens.bgHover },

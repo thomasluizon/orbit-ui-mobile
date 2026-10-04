@@ -37,6 +37,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     includeFontPadding: false,
     letterSpacing: 0.72,
-    textTransform: 'uppercase',
   },
 })

@@ -40,7 +40,9 @@ export function ExpiryWarning() {
         className="flex items-center rounded-[14px]"
         style={{
           padding: '8px 12px',
-          margin: 'calc(var(--safe-top) + 0.25rem) 10px 0',
+          marginTop: 'calc(var(--safe-top) + 0.25rem)',
+          marginLeft: 'max(10px, var(--safe-left))',
+          marginRight: 'max(10px, var(--safe-right))',
           gap: 12,
           background: 'color-mix(in srgb, var(--status-overdue) 10%, var(--bg))',
           boxShadow:

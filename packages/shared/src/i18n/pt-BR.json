@@ -1,4 +1,18 @@
 {
+  "dragAndDrop": {
+    "instructions": "Para mover um item, pressione a barra de espaço. Use as setas para mudar a posição. Pressione espaço novamente para soltar ou Escape para cancelar.",
+    "goalInstructions": "Para mover uma meta, segure Alt e pressione a seta para cima ou para baixo.",
+    "roleDescription": "item reordenável",
+    "handle": "Mover {name}",
+    "pickedUp": "{name} selecionado para mover.",
+    "movedOver": "{name} movido sobre {target}.",
+    "returnedToStart": "{name} voltou para a posição inicial.",
+    "movedOutside": "{name} está fora de uma área para soltar.",
+    "droppedOver": "{name} solto sobre {target}.",
+    "droppedInPlace": "{name} solto na posição inicial.",
+    "dropped": "{name} solto.",
+    "cancelled": "Movimento de {name} cancelado."
+  },
   "meta": {
     "title": "Orbit - Rastreador Pessoal de Hábitos",
     "description": "Crie hábitos melhores com acompanhamento e insights por IA."
@@ -800,7 +814,6 @@
       "suggestTagsError": "Não foi possível sugerir tags. Tente novamente.",
       "slipAlert": "Alertas de deslize",
       "slipAlertDescription": "A IA manda mensagens de incentivo antes dos seus horários de deslize",
-      "editDescription": "Atualize os detalhes do hábito",
       "checklist": "Checklist",
       "checklistPlaceholder": "Adicionar item",
       "templates": "Modelos",

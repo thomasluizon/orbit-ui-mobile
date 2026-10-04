@@ -81,6 +81,7 @@ import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarHeader,
+  CalendarWeekNav,
 } from "./calendar/_components/calendar-shell";
 import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
@@ -820,6 +821,16 @@ function CalendarScreenContent({
         onSelectMonth={selectMonth}
         tokens={tokens}
         showMonthNavigation={view === 'month'}
+        periodNavigation={view === 'week' && <CalendarWeekNav
+          weekLabel={weekLabel}
+          previousWeekLabel={t('common.previousWeek')}
+          nextWeekLabel={t('common.nextWeek')}
+          currentWeekLabel={t('calendar.goToCurrentWeek')}
+          onPreviousWeek={prevWeek}
+          onNextWeek={nextWeek}
+          onCurrentWeek={goToCurrentWeek}
+          tokens={tokens}
+        />}
         viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
       />
   );
@@ -940,15 +951,8 @@ function CalendarScreenContent({
             <CalendarWeekView
               columns={gridColumns}
               dayMap={displayRangeDayMap}
-              weekLabel={weekLabel}
-              previousWeekLabel={t("common.previousWeek")}
-              nextWeekLabel={t("common.nextWeek")}
-              currentWeekLabel={t("calendar.goToCurrentWeek")}
               slideDirection={weekSlide}
               isLoading={rangeLoading}
-              onPreviousWeek={prevWeek}
-              onNextWeek={nextWeek}
-              onCurrentWeek={goToCurrentWeek}
               onSelectDay={onSelectDay}
               displayTime={displayTime}
               language={i18n.language}

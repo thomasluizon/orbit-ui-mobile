@@ -4,6 +4,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { useCallback, useId } from 'react'
 import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
+import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { useTranslations } from 'next-intl'
 import {
   DndContext,
@@ -59,6 +60,8 @@ export function HabitChecklist({
   const dndContextId = useId()
   const [newItemText, setNewItemText] = useAccountScopedState('')
   const sortableIds = useChecklistItemKeys(items)
+
+  const dragAccessibility = useDragAccessibility(t, (id) => items[sortableIds.indexOf(String(id))]?.text)
 
   const checkedCount = items.filter((i) => i.isChecked).length
   const atItemLimit = items.length >= MAX_CHECKLIST_ITEMS
@@ -176,6 +179,7 @@ export function HabitChecklist({
       {editable ? (
         <DndContext
           id={dndContextId}
+          accessibility={dragAccessibility}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
@@ -292,7 +296,7 @@ function SortableChecklistItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({ id, attributes: { roleDescription: t('dragAndDrop.roleDescription') } })
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -305,17 +309,18 @@ function SortableChecklistItem({
       ref={setNodeRef}
       style={style}
       className="flex items-center gap-1 group py-1"
-      {...attributes}
     >
-      <div
+      <button
+        type="button"
         ref={setActivatorNodeRef}
+        {...attributes}
         {...listeners}
-        aria-hidden="true"
-        className="checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
+        aria-label={t('dragAndDrop.handle', { name: item.text })}
+        className="orbit-focus-inset checklist-drag-handle touch-target shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-hover)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
         style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN }}
       >
-        <GripHorizontal size={16} strokeWidth={1.8} />
-      </div>
+        <GripHorizontal size={16} strokeWidth={1.8} aria-hidden="true" />
+      </button>
 
       <div
         aria-hidden="true"
