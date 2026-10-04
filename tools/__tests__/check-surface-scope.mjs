@@ -79,6 +79,41 @@ export const cases = () => {
     const repository = stageRepository(label, { web })
     check("check-surface-scope.mjs", `resolves paint ancestry and scoped foreground: ${label}`, ["--root", repository], { status })
   }
+  const producerCases = [
+    { label: "partial-day", paths: ["apps/web/components/dates/day-cell.tsx"], path: "apps/web/components/dates/day-cell.tsx", before: 'stroke="var(--status-empty)"', after: 'stroke="var(--fg-4)"' },
+    { label: "habit-track", paths: ["apps/web/components/habits/habit-log-button.tsx", "apps/web/components/ui/progress-ring.tsx", "apps/web/components/ui/status-ring.tsx"], path: "apps/web/components/ui/progress-ring.tsx", before: 'stroke="var(--track-empty)"', after: 'stroke="var(--fg-4)"' },
+    { label: "native-promotion", paths: ["apps/mobile/components/navigation/bottom-tab-bar.tsx"], path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: 'hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)', after: 'tokens.fg3' },
+  ]
+  for (const producer of producerCases) {
+    const good = stageProducerRepository(`actual-${producer.label}`, producer.paths)
+    check("check-surface-scope.mjs", `accepts the shipped composition: ${producer.label}`, ["--root", good], { status: 0 })
+    const bad = stageProducerRepository(`broken-${producer.label}`, producer.paths, producer)
+    check("check-surface-scope.mjs", `rejects a removed foreground correction: ${producer.label}`, ["--root", bad], {
+      status: 1, stderr: producer.label === "native-promotion" ? /--fg-3 on hover, light ratio/ : /--fg-4 on hover, .*GRAPHIC floor 3\.00/,
+    })
+  }
+  const producerText = stageProducerRepository("actual-text-promotion", ["apps/web/components/navigation/bottom-tab-bar.tsx"])
+  const producerCss = join(producerText, "apps/web/app/globals.css")
+  writeFileSync(producerCss, readFileSync(producerCss, "utf8").replaceAll("--fg-3: var(--fg-2);", ""))
+  check("check-surface-scope.mjs", "rejects the shipped inactive tab when its CSS promotion is removed", ["--root", producerText], {
+    status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
+  })
+  const aliasSource = `<div className="alias-owner bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><svg className="track-owner"><circle stroke="var(--status-empty)" /></svg></div>`
+  for (const [label, css, status] of [
+    ["inherited-alias", ".alias-owner { --status-empty: var(--fg-4); } .track-owner { --fg-4: var(--fg-3); }", 1],
+    ["rebound-alias", ".alias-owner { --status-empty: var(--fg-4); } .track-owner { --fg-4: var(--fg-3); --status-empty: var(--fg-4); }", 0],
+  ]) {
+    const repository = stageRepository(label, { web: aliasSource })
+    const cssPath = join(repository, "apps/web/app/globals.css")
+    writeFileSync(cssPath, readFileSync(cssPath, "utf8") + css)
+    check("check-surface-scope.mjs", `resolves aliases at their defining scope: ${label}`, ["--root", repository], { status })
+  }
+  for (const [label, promotion, status] of [["imported-style", "", 1], ["promoted-imported-style", "orbit-hover-text", 0]]) {
+    const repository = stageRepository(label, { web: `import { captionStyle } from './caption'
+export function Screen(){return <button className="${promotion} bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span style={captionStyle}>Caption</span></button>}` })
+    writeFileSync(join(repository, "apps/web/caption.ts"), `export const captionStyle = { color: 'var(--fg-3)' }`)
+    check("check-surface-scope.mjs", `follows an imported foreground to its painted caller: ${label}`, ["--root", repository], { status })
+  }
   const promoted = stageRepository("removed-promotion", { web: scopedCases[0][1] })
   const cssPath = join(promoted, "apps/web/app/globals.css")
   writeFileSync(cssPath, readFileSync(cssPath, "utf8").replaceAll("--fg-3: var(--fg-2);", ""))
