@@ -94,8 +94,21 @@ export async function expectLabelsFit(page: Page, surface: Page | Locator = page
       }
       return metadata
     }
-    const labels = new Map<Element, { text: string[]; lines: Set<number>; clipped: boolean }>()
-    const userText = new Map<Element, { text: string[]; lines: Set<number>; clipped: boolean; ellipsized: boolean }>()
+    function countVisualLines(fragments: DOMRect[]) {
+      const lines: DOMRect[] = []
+      for (const fragment of [...fragments].sort((first, second) => first.top - second.top)) {
+        const center = (fragment.top + fragment.bottom) / 2
+        const sharesLine = lines.some((line) => {
+          const lineCenter = (line.top + line.bottom) / 2
+          return center >= line.top && center <= line.bottom
+            && lineCenter >= fragment.top && lineCenter <= fragment.bottom
+        })
+        if (!sharesLine) lines.push(fragment)
+      }
+      return lines.length
+    }
+    const labels = new Map<Element, { text: string[]; fragments: DOMRect[]; clipped: boolean }>()
+    const userText = new Map<Element, { text: string[]; fragments: DOMRect[]; clipped: boolean; ellipsized: boolean }>()
     for (const node of nodes) {
       const owner = node.parentElement!
       if (!node.textContent.trim() || owner.closest('svg, [aria-hidden="true"]')) continue
@@ -103,24 +116,24 @@ export async function expectLabelsFit(page: Page, surface: Page | Locator = page
       if (!geometry) continue
       const userElement = owner.closest('[data-layout-text-origin="user"]')
       if (userElement) {
-        const typed = userText.get(userElement) ?? { text: [], lines: new Set<number>(), clipped: false, ellipsized: false }
+        const typed = userText.get(userElement) ?? { text: [], fragments: [], clipped: false, ellipsized: false }
         typed.text.push(node.textContent.trim())
-        geometry.visibleFragments.forEach((fragment) => typed.lines.add(Math.round(fragment.top)))
+        typed.fragments.push(...geometry.visibleFragments)
         typed.clipped ||= geometry.clipped
         typed.ellipsized ||= geometry.ellipsized
         userText.set(userElement, typed)
         continue
       }
       const labelElement = labelOwner(owner)
-      const label = labels.get(labelElement) ?? { text: [], lines: new Set<number>(), clipped: false }
+      const label = labels.get(labelElement) ?? { text: [], fragments: [], clipped: false }
       label.text.push(node.textContent.trim())
-      geometry.fragments.forEach((fragment) => label.lines.add(Math.round(fragment.top)))
+      label.fragments.push(...geometry.fragments)
       label.clipped ||= geometry.clipped
       labels.set(labelElement, label)
     }
     return {
-      labels: [...labels.values()].map((label) => ({ text: label.text.join(' '), lines: label.lines.size, clipped: label.clipped })),
-      userText: [...userText.values()].map((typed) => ({ text: typed.text.join(' '), lines: typed.lines.size, clipped: typed.clipped, ellipsized: typed.ellipsized })),
+      labels: [...labels.values()].map((label) => ({ text: label.text.join(' '), lines: countVisualLines(label.fragments), clipped: label.clipped })),
+      userText: [...userText.values()].map((typed) => ({ text: typed.text.join(' '), lines: countVisualLines(typed.fragments), clipped: typed.clipped, ellipsized: typed.ellipsized })),
     }
   }, logicalLabelSelector)
   for (const value of requiredUserValues) {
