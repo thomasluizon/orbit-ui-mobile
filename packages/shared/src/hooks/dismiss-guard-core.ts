@@ -1,28 +1,46 @@
-export type DismissGuardAction = 'request' | 'confirm' | 'cancel'
+export type DismissGuardAction = 'request' | 'confirm' | 'begin-cancel' | 'complete-cancel'
+
+export interface DismissGuardLifecycle {
+  showDiscardDialog: boolean
+  cancelling: boolean
+  pendingDismiss: boolean
+}
+
+export const INITIAL_DISMISS_GUARD_LIFECYCLE: DismissGuardLifecycle = {
+  showDiscardDialog: false,
+  cancelling: false,
+  pendingDismiss: false,
+}
 
 export interface DismissGuardDecision {
-  showDiscardDialog: boolean
+  lifecycle: DismissGuardLifecycle
   shouldDismiss: boolean
 }
 
-/**
- * Resolves a dismiss-guard interaction shared by the web and mobile
- * `useDismissGuard` hooks: requesting a dismiss on a dirty form opens the
- * discard dialog instead of dismissing, confirming closes the dialog and
- * dismisses, and cancelling just closes the dialog.
- */
 export function resolveDismissGuardAction(
   action: DismissGuardAction,
   isDirty: boolean,
+  lifecycle: Readonly<DismissGuardLifecycle>,
 ): DismissGuardDecision {
   switch (action) {
     case 'request':
-      return isDirty
-        ? { showDiscardDialog: true, shouldDismiss: false }
-        : { showDiscardDialog: false, shouldDismiss: true }
+      return lifecycle.cancelling
+        ? { lifecycle: { ...lifecycle, pendingDismiss: true }, shouldDismiss: false }
+        : {
+          lifecycle: { ...INITIAL_DISMISS_GUARD_LIFECYCLE, showDiscardDialog: isDirty },
+          shouldDismiss: !isDirty,
+        }
     case 'confirm':
-      return { showDiscardDialog: false, shouldDismiss: true }
-    case 'cancel':
-      return { showDiscardDialog: false, shouldDismiss: false }
+      return { lifecycle: INITIAL_DISMISS_GUARD_LIFECYCLE, shouldDismiss: true }
+    case 'begin-cancel':
+      return {
+        lifecycle: { ...INITIAL_DISMISS_GUARD_LIFECYCLE, cancelling: true },
+        shouldDismiss: false,
+      }
+    case 'complete-cancel':
+      return {
+        lifecycle: { ...INITIAL_DISMISS_GUARD_LIFECYCLE, showDiscardDialog: lifecycle.pendingDismiss },
+        shouldDismiss: false,
+      }
   }
 }

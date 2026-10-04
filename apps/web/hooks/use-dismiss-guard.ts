@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo } from 'react'
-import { resolveDismissGuardAction } from '@orbit/shared/hooks'
+import { INITIAL_DISMISS_GUARD_LIFECYCLE, resolveDismissGuardAction, type DismissGuardAction } from '@orbit/shared/hooks'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 
 interface UseDismissGuardOptions {
@@ -10,37 +10,30 @@ interface UseDismissGuardOptions {
 }
 
 export function useDismissGuard({ isDirty, onDismiss }: Readonly<UseDismissGuardOptions>) {
-  const [showDiscardDialog, setShowDiscardDialog] = useAccountScopedState(false)
+  const [lifecycle, setLifecycle] = useAccountScopedState(INITIAL_DISMISS_GUARD_LIFECYCLE)
 
-  const requestDismiss = useCallback(() => {
-    const decision = resolveDismissGuardAction('request', isDirty)
-    setShowDiscardDialog(decision.showDiscardDialog)
+  const applyAction = useCallback((action: DismissGuardAction) => {
+    const decision = resolveDismissGuardAction(action, isDirty, lifecycle)
+    setLifecycle(decision.lifecycle)
     if (decision.shouldDismiss) {
       onDismiss()
     }
-  }, [isDirty, onDismiss, setShowDiscardDialog])
-
-  const confirmDismiss = useCallback(() => {
-    const decision = resolveDismissGuardAction('confirm', isDirty)
-    setShowDiscardDialog(decision.showDiscardDialog)
-    if (decision.shouldDismiss) {
-      onDismiss()
-    }
-  }, [isDirty, onDismiss, setShowDiscardDialog])
+  }, [isDirty, lifecycle, onDismiss, setLifecycle])
 
   const cancelDismiss = useCallback(() => {
-    const decision = resolveDismissGuardAction('cancel', isDirty)
-    setShowDiscardDialog(decision.showDiscardDialog)
-  }, [isDirty, setShowDiscardDialog])
+    setLifecycle((current) => resolveDismissGuardAction('complete-cancel', isDirty, current).lifecycle)
+  }, [isDirty, setLifecycle])
 
   return useMemo(
     () => ({
       canDismiss: !isDirty,
-      showDiscardDialog,
-      requestDismiss,
-      confirmDismiss,
+      isCancelling: lifecycle.cancelling,
+      showDiscardDialog: lifecycle.showDiscardDialog,
+      requestDismiss: () => applyAction('request'),
+      confirmDismiss: () => applyAction('confirm'),
       cancelDismiss,
+      beginCancelDismiss: () => applyAction('begin-cancel'),
     }),
-    [cancelDismiss, confirmDismiss, isDirty, requestDismiss, showDiscardDialog],
+    [applyAction, cancelDismiss, isDirty, lifecycle.cancelling, lifecycle.showDiscardDialog],
   )
 }
