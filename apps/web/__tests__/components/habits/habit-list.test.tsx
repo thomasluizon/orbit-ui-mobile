@@ -422,6 +422,63 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it('keeps the Hoje list inset and content edge fixed at enlarged text in both selection modes', async () => {
+    rowImplementation.actual = true
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: parent.id, scheduledDates: [TODAY] })
+    const leaf = createMockHabit({ id: 'leaf', title: 'Leaf', scheduledDates: [TODAY] })
+    for (const habit of [parent, child, leaf]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent, leaf]
+    const cssPath = resolve(process.cwd(), 'app/globals.css')
+    const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
+    const launch = launchChrome()
+    try {
+      const browser = await launch
+      const cases = [320, 600].flatMap((width) => [1, 2].flatMap((textScale) => [false, true].map((selectMode) => ({ width, textScale, selectMode }))))
+      for (const { width, textScale, selectMode } of cases) {
+        document.documentElement.style.fontSize = `${16 * textScale}px`
+        const { container, unmount } = renderWithProviders(<HabitList view="today" isSelectMode={selectMode}
+          filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+        const markup = container.innerHTML
+        unmount()
+        const page = await browser.newPage({ viewport: { width, height: 915 } })
+        try {
+          await page.setContent(`<style>${stylesheet.css}:root{font-size:${16 * textScale}px}</style>${markup}`)
+          const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
+            const body = row.querySelector('[data-habit-row-body]')!
+            const title = (row.querySelector('[data-habit-row-heading] > div') ?? body.querySelector(':scope > div'))!
+            const well = body.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+            return {
+              inset: row.getBoundingClientRect().left,
+              textEdge: title.getBoundingClientRect().left,
+              wellInset: well.getBoundingClientRect().left - body.getBoundingClientRect().left,
+              targets: Array.from(row.querySelectorAll('button')).map((button) => {
+                const bounds = button.getBoundingClientRect()
+                return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height }
+              }),
+            }
+          }))
+          expect(geometry).toHaveLength(3)
+          for (const row of geometry) {
+            expect(row.inset).toBe(16)
+            expect(row.textEdge).toBe(84)
+            expect(row.wellInset).toBeGreaterThanOrEqual(8)
+            for (const target of row.targets) {
+              expect(target.left).toBeGreaterThanOrEqual(16)
+              expect(target.right).toBeLessThanOrEqual(width - 16)
+              expect(target.width).toBeGreaterThanOrEqual(48)
+              expect(target.height).toBeGreaterThanOrEqual(48)
+            }
+          }
+        } finally { await page.close() }
+      }
+    } finally {
+      document.documentElement.style.removeProperty('font-size')
+      await closeChrome(launch)
+    }
+  }, 45_000)
+
   it('centres Hoje rows in 68px panels with a contrasting parent track in both modes', async () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
