@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nextProvider } from 'react-i18next'
@@ -128,8 +129,17 @@ describe('ChatEmptyState copy (mobile)', () => {
     const expectedLabels = locale === 'pt-BR' ? ['Registrar hábito', 'Dividir hábito'] : ['Log a habit', 'Split a habit']
     expect(suggestionLabels(tree)).toEqual(expect.arrayContaining(expectedLabels))
     expect(renderedText(tree)).toEqual(expect.arrayContaining(expectedLabels))
-    const labels = locale === 'pt-BR' ? ['Registrar hábito', 'Dividir hábito'] : ['Log a habit', 'Split a habit']
-    for (const label of labels) {
+    for (const label of expectedLabels) {
+      const chip = tree.root.findAllByProps({ accessibilityLabel: label }).at(-1)
+      const text = chip.findByType('Text')
+      expect(text.props.numberOfLines).toBeUndefined()
+      expect(text.props.ellipsizeMode).toBeUndefined()
+      const style = StyleSheet.flatten(chip.props.style)
+      expect(style.minHeight).toBe(48)
+      expect(style.height).toBeUndefined()
+      expect(style.paddingHorizontal).toBe(16)
+      expect(style.paddingVertical).toBe(12)
+      expect(tree.root.findAllByType('View').some((node: any) => StyleSheet.flatten(node.props.style)?.gap === 8)).toBe(true)
       TestRenderer.act(() => {
         tree.root.findAllByProps({ accessibilityLabel: label }).at(-1).props.onPress()
       })

@@ -15,7 +15,7 @@ interface SuggestionChipsProps {
   contextualAction?: { label: string; onSelect: () => void };
 }
 
-/** The drawn openers for an empty thread, in the order given, each kept to one line.
+/** The drawn openers for an empty thread, with short, complete labels.
  *  A press sends the complete request for the selected habit. */
 export function SuggestionChips({ suggestions, onSelect, contextualAction }: Readonly<SuggestionChipsProps>) {
   const { t } = useTranslation();

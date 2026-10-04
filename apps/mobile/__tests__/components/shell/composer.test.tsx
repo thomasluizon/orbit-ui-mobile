@@ -205,6 +205,7 @@ describe('Composer (mobile)', () => {
     const onAttachRemove = vi.fn()
     const tree = renderComposer(props({ value: 'Keep this draft', attachWords, onAttachFile: vi.fn(), onAttachRemove,
       attachments: [{ id: 'file', kind: 'file', name }] }))
+    expect(byLabel(tree.root, name)[0].findByType('Text').props.numberOfLines).toBe(2)
     pressControl(byLabel(tree.root, name)[0])
     const sheet = tree.root.findByType('Sheet')
     expect(sheet.props.title).toBe(attachWords.trayLabel)
