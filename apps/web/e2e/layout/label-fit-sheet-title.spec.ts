@@ -12,7 +12,7 @@ import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const day = '2026-09-04'
-const longTitle = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
+const longTitle = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar ideias para conversar com meus amigos amanhã cedo.'
 const shortTitle = 'Ler'
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   items: [longTitle, shortTitle].map((title, index) => makeHabitScheduleItem({
