@@ -56,6 +56,10 @@ describe('Onboarding final Pro step', () => {
     mocks.locale = locale
     const view = await mount()
     const step = view.container.querySelector('[data-onboarding-step="paywall"]')!
+    await waitFor(() => {
+      expect(step.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
+      expect(step.querySelectorAll('[data-tier-content]')).toHaveLength(2)
+    })
     const cards = step.querySelectorAll<HTMLElement>('[data-tier-content]')
     expect(cards).toHaveLength(2)
     expect(Array.from(cards, (card) => card.dataset.tierContent)).toEqual(['yearly', 'monthly'])
@@ -96,6 +100,10 @@ describe('Onboarding final Pro step', () => {
     expect(heading.id).toBe('onboarding-title'); expect(heading).toHaveAttribute('translate', 'no')
     if (state === 'offline') for (const button of screen.getAllByRole('button', { name: /Subscribe/ })) expect(button).toBeDisabled()
     if (state === 'loaded') {
+      await waitFor(() => {
+        expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
+        expect(view.container.querySelectorAll('[data-tier]')).toHaveLength(2)
+      })
       expect(screen.getAllByRole('button', { name: /Subscribe/ })).toHaveLength(2)
       const lists = screen.getAllByRole('list', { name: translate('upgrade.outcomes.label') })
       expect(lists).toHaveLength(2)

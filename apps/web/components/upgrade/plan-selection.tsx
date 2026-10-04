@@ -249,11 +249,12 @@ function TierReservation({ interval, t, children }: Readonly<{
           selected={false}
           loading={false}
           disabled
+          measurement
           onCheckout={() => {}}
           t={t}
         />
       </div>
-      <div data-tier-content={interval} style={{ gridArea: '1 / 1', minWidth: 0, display: 'grid' }}>{children}</div>
+      <div style={{ gridArea: '1 / 1', minWidth: 0, display: 'grid' }}>{children}</div>
     </div>
   )
 }
@@ -264,6 +265,7 @@ function TierCard({
   selected,
   loading,
   disabled,
+  measurement = false,
   onCheckout,
   t,
 }: Readonly<{
@@ -272,14 +274,15 @@ function TierCard({
   selected: boolean
   loading: boolean
   disabled: boolean
+  measurement?: boolean
   onCheckout: (interval: SubscriptionInterval) => void
   t: ReturnType<typeof useTranslations>
 }>) {
   return (
     <section
-      data-tier={tier.interval}
-      data-tier-content={tier.interval}
-      data-selected={selected || undefined}
+      data-tier={measurement ? undefined : tier.interval}
+      data-tier-content={measurement ? undefined : tier.interval}
+      data-selected={measurement ? undefined : selected || undefined}
       className="flex min-w-0 flex-col gap-2 rounded-[var(--r-card)] p-6"
       style={{
         background: selected ? 'var(--primary-dim)' : 'var(--bg-card)',

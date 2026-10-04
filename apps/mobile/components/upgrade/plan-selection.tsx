@@ -282,6 +282,7 @@ function TierReservation({ interval, t, tokens, children }: Readonly<{
           selected={false}
           loading={false}
           disabled
+          measurement
           onCheckout={() => {}}
           t={t}
           tokens={tokens}
@@ -304,6 +305,7 @@ function TierCard({
   selected,
   loading,
   disabled,
+  measurement = false,
   onCheckout,
   t,
   tokens,
@@ -313,13 +315,14 @@ function TierCard({
   selected: boolean
   loading: boolean
   disabled: boolean
+  measurement?: boolean
   onCheckout: (interval: SubscriptionInterval) => void
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
   return (
     <View
-      testID={`upgrade-tier-${tier.interval}`}
+      testID={measurement ? undefined : `upgrade-tier-${tier.interval}`}
       style={[
         styles.tierCard,
         {

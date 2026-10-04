@@ -368,7 +368,7 @@ describe('UpgradePage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  it('renders the arithmetic pitch and four outcomes per tier', () => {
+  it('renders the arithmetic pitch and four outcomes per tier', async () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -378,6 +378,10 @@ describe('UpgradePage', () => {
     }
     render(<UpgradePage />)
 
+    await waitFor(() => {
+      expect(document.querySelectorAll('[data-tier-reservation]')).toHaveLength(0)
+      expect(document.querySelectorAll('[data-tier]')).toHaveLength(2)
+    })
     expect(screen.getByText('upgrade.convert.freeHeading')).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.freeAllowance')).toBeInTheDocument()
     expect(screen.getByText('upgrade.convert.proAllowance')).toBeInTheDocument()

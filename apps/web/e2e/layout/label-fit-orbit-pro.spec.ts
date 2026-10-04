@@ -33,7 +33,10 @@ for (const width of [320, 360, 384, 412]) {
         test('keeps period segments and allowance captions whole', async ({ page }) => {
           await page.goto('/upgrade')
           const screen = page.locator('[data-upgrade-screen]')
+          await expect(screen.locator('[data-tier-reservation]')).toHaveCount(0)
+          await expect(screen.locator('[data-tier]')).toHaveCount(2)
           await expect(screen.locator('[data-tier="yearly"]')).toBeVisible()
+          await expect(screen.locator('[data-tier="monthly"]')).toBeVisible()
           await expect(screen.getByRole('progressbar')).toHaveCount(0)
           await page.evaluate(() => document.fonts.ready)
           const allowance = screen.getByRole('region', { name: words.upgrade.convert.allowanceLabel, exact: true })

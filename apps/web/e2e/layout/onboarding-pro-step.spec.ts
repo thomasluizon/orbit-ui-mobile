@@ -29,8 +29,12 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const step = page.locator(`[data-onboarding-step="${branch}"]`)
         await expect(step).toBeVisible()
         if (branch === 'paywall') {
+          await expect(step.locator('[data-tier-reservation]')).toHaveCount(0)
           const cards = step.locator('[data-tier-content]')
           await expect(cards).toHaveCount(2)
+          for (const interval of ['yearly', 'monthly'] as const) {
+            await expect(step.locator(`[data-tier="${interval}"]`)).toBeVisible()
+          }
           await expect(step.getByRole('list', { name: messages.upgrade.outcomes.label, exact: true })).toHaveCount(2)
           for (const interval of ['yearly', 'monthly'] as const) {
             const card = cards.filter({ has: page.getByRole('heading', { name: messages.upgrade.plans[interval].name, exact: true }) })
