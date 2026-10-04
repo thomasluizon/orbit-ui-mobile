@@ -158,6 +158,8 @@ for (const width of [320, 600]) {
             expect(pressedInset).toBeCloseTo(8, 2)
             await page.mouse.move(width - 1, 914)
             await page.mouse.up()
+            // Wait for dnd-kit's click capture cleanup: https://github.com/clauderic/dnd-kit/blob/@dnd-kit/core@6.3.1/packages/core/src/sensors/pointer/AbstractPointerSensor.ts#L159
+            await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)))
             await body.evaluate((element) => { element.parentElement!.tabIndex = 0; (element.parentElement as HTMLElement).focus() })
             await page.keyboard.press('Tab')
             await expect(body).toBeFocused()

@@ -253,7 +253,7 @@ export function HabitRow({
         largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta}>
         {primaryContent}
       </HabitRowPrimaryButton>
-      {supportingMeta ? <div className="relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
+      {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
     </>
   )
 
