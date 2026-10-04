@@ -5,19 +5,19 @@ export const verificationValidationResponses = {
     "requestId": "request-reference",
     "errors": {
       "Code": [
-        "'Code' must be 6 characters in length. You entered 5 characters.",
-        "Code must be a 6-digit number"
+        "Enter all 6 digits",
+        "Enter all 6 digits"
       ]
     },
     "errorDetails": {
       "Code": [
         {
           "code": "ExactLengthValidator",
-          "message": "'Code' must be 6 characters in length. You entered 5 characters."
+          "message": "Enter all 6 digits"
         },
         {
           "code": "VALIDATION_VERIFICATION_CODE_FORMAT",
-          "message": "Code must be a 6-digit number"
+          "message": "Enter all 6 digits"
         }
       ]
     }
@@ -28,19 +28,19 @@ export const verificationValidationResponses = {
     "requestId": "request-reference",
     "errors": {
       "Code": [
-        "'Code' deve ter exatamente 6 caracteres. Você digitou 5 caracteres.",
-        "O código deve ter 6 dígitos"
+        "Digite os 6 dígitos",
+        "Digite os 6 dígitos"
       ]
     },
     "errorDetails": {
       "Code": [
         {
           "code": "ExactLengthValidator",
-          "message": "'Code' deve ter exatamente 6 caracteres. Você digitou 5 caracteres."
+          "message": "Digite os 6 dígitos"
         },
         {
           "code": "VALIDATION_VERIFICATION_CODE_FORMAT",
-          "message": "O código deve ter 6 dígitos"
+          "message": "Digite os 6 dígitos"
         }
       ]
     }

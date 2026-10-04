@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { createApiClientError, extractBackendErrorCode, extractBackendFieldErrors, extractBackendErrorDetails, getBackendFieldError, getFriendlyErrorMessage } from '../utils/error-utils'
 import { validationFailureSchema } from '../types/api'
 import { verificationValidationResponses } from '../test-support/validation-fixtures'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 
 describe('validation response parsing', () => {
-  it.each(['en', 'pt-BR'] as const)('retains ordered messages and codes in %s', (language) => {
+  it.each(['en', 'pt-BR'] as const)('retains repeated instructions and ordered codes in %s', (language) => {
     const payload = verificationValidationResponses[language]
+    const instruction = (language === 'en' ? en : ptBR).auth.errors.codeFormat
+    expect(payload.errors.Code).toEqual([instruction, instruction])
     const error = createApiClientError(400, payload, 'Fallback')
     expect(extractBackendErrorCode(error)).toBe('ExactLengthValidator')
     expect(error).toHaveProperty('errorDetails', payload.errorDetails)
