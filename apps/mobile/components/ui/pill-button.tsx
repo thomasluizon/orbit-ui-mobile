@@ -48,12 +48,11 @@ export function Button({
     caution: tokens.fgOnOverdue,
   }
 
-  const secondaryFill = mixHex(tokens.fg1, tokens.bg, 0.1)
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
   const ghostFill = elevated ? tokens.bgElev : 'transparent'
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
-      return { backgroundColor: pressed ? secondaryFill : tokens.fg1 }
+      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
     }
     if (variant === 'ghost') {
       return {

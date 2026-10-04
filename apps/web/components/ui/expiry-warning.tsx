@@ -14,6 +14,8 @@ const EXPIRY_ACTION_STYLE = {
   fontWeight: 500,
   color: 'var(--fg-1)',
   padding: '0 8px',
+  transitionDuration: 'var(--dur-hover-control), 150ms',
+  transitionTimingFunction: 'var(--ease-standard), var(--ease-out)',
   textDecoration: 'underline',
   textUnderlineOffset: 3,
 } as const

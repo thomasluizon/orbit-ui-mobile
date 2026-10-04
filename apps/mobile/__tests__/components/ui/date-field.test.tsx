@@ -98,7 +98,7 @@ describe('DateField (mobile)', () => {
       expect(targetStyle.width).toBe(`${100 / 7}%`)
       expect(targetStyle.minHeight).toBe(44)
 
-      const circle = target.props.children
+      const circle = target.props.children({ pressed: false })
       const circleStyle = flatten(circle.props.style)
       expect(circleStyle.width).toBe(36)
       expect(circleStyle.height).toBe(36)
