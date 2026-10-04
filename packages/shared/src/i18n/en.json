@@ -306,6 +306,10 @@
         },
         "progress": {
           "createGoal": "Create a goal for {title}"
+        },
+        "habitDetail": {
+          "pauseThisWeek": "Pause the habit \"{title}\" this week",
+          "rename": "Rename the habit \"{title}\""
         }
       },
       "inputLabel": "Ask Astra",
