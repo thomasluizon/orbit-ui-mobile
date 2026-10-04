@@ -57,7 +57,7 @@ vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 
 type Node = {
   type: unknown
-  props: { onClose?: () => void; title?: string; accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onFocus?: () => void; onBlur?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
+  props: { onClose?: () => void; title?: string; accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onFocus?: () => void; onBlur?: () => void; onHoverIn?: () => void; onHoverOut?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
   parent: Node | null
   findAll: (predicate: (node: Node) => boolean) => Node[]
 }
@@ -132,6 +132,28 @@ afterEach(() => {
 })
 
 describe('mobile alerts', () => {
+  it.each(['dark', 'light'] as const)('keeps the bell transparent until hover, press or focus in %s', (mode) => {
+    state.mode = mode
+    state.unreadCount = 25
+    const tree = render(<NotificationBell />)
+    const button = () => hosts(tree, 'Pressable', 'Alerts, 25 unread')[0]!
+    const surface = (pressed = false) => {
+      const style = button().props.style
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
+    }
+    const tokens = createTokensV2('purple', mode)
+    expect(surface()).toMatchObject({ backgroundColor: 'transparent', width: 48, minHeight: 48, borderRadius: 999 })
+    expect(surface(true).backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => button().props.onHoverIn?.())
+    expect(surface().backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => button().props.onFocus?.())
+    TestRenderer.act(() => button().props.onHoverOut?.())
+    expect(surface().backgroundColor).toBe(tokens.bgHover)
+    expect(surface(true).backgroundColor).toBe(tokens.bgHover)
+    TestRenderer.act(() => button().props.onBlur?.())
+    expect(surface().backgroundColor).toBe('transparent')
+    expect(testId(tree, 'notification-count')[0]!.props.children).toBe('9+')
+  })
   it.each(['dark', 'light'].flatMap((mode) =>
     ['row body', 'row timestamp', 'row target', 'detail body', 'detail metadata'].map((field) => ({ mode, field })),
   ))('resolves rendered $field to fg2 in $mode', ({ mode, field }) => {
