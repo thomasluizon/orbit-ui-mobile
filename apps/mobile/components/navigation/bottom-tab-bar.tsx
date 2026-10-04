@@ -24,7 +24,7 @@ export function BottomTabBar({ items, activeId, onSelect, label }: Readonly<TabB
             style={[styles.tab, { minWidth: 80 * fontScale }, hoveredId === item.id && { backgroundColor: tokens.bgHover }, focusedId === item.id && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -2 }]}>
             {({ pressed }) => <>
               {item.icon ? <View testID={`tab-indicator-${item.id}`} style={[styles.indicator, pressed && hoveredId !== item.id && { backgroundColor: tokens.bgHover }]}>{item.icon({ active })}</View> : null}
-              <Text style={[styles.label, { color: hoverForeground(currentTheme, active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3, hoveredId === item.id) }]}>{item.label}</Text>
+              <Text style={[styles.label, { color: active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id) }]}>{item.label}</Text>
             </>}
           </Pressable>
         )

@@ -1,5 +1,3 @@
-import { hoverForeground } from '@orbit/shared/theme';
-import { useAppTheme } from '@/lib/use-app-theme';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { InsetFocusPressable } from "@/components/ui/inset-focus-pressable";
 import {
@@ -213,13 +211,9 @@ function ColumnHeader({
   styles: ReturnType<typeof createStyles>;
 }>) {
   const locale = language === "pt-BR" ? ptBR : enUS;
-  const { currentTheme } = useAppTheme();
-  const [pressed, setPressed] = useState(false);
   return (
     <InsetFocusPressable
       testID="time-grid-col-header"
-      onPressIn={() => setPressed(true)}
-      onPressOut={() => setPressed(false)}
       focusOffset={-6}
       accessibilityRole="button"
       onPress={() => onSelectDay(column.dateStr)}
@@ -235,7 +229,7 @@ function ColumnHeader({
       <Text
         style={[
           styles.colHeaderWeekday,
-          { color: column.isToday ? hoverForeground(currentTheme, tokens.primaryText, pressed) : tokens.fg2 },
+          { color: column.isToday ? tokens.primaryText : tokens.fg2 },
         ]}
       >
         {format(column.date, "EEE", { locale }).toUpperCase()}

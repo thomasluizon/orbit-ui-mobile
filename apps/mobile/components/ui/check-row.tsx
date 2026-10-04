@@ -56,7 +56,7 @@ export function CheckRow({
           {label}
         </Text>
         {error || description ? (
-          <Text style={[styles.description, { color: error ? hoverForeground(currentTheme, tokens.statusBadText, pressed) : tokens.fg2 }]}>
+          <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>
             {error ?? description}
           </Text>
         ) : null}
@@ -81,13 +81,11 @@ const styles = StyleSheet.create({
 })
 
 function PersonalCheckRow({ label, onOpenLabel, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
-  const { currentTheme } = useAppTheme()
-  const [pressed, setPressed] = useState(false)
   return (
     <View style={styles.personalRow}>
-      <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.personalCopy, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+      <Pressable onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [styles.personalCopy, pressed ? { backgroundColor: tokens.bgHover } : null]}>
         <Text numberOfLines={2} style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>
-        {error || description ? <Text style={[styles.description, { color: error ? hoverForeground(currentTheme, tokens.statusBadText, pressed) : tokens.fg2 }]}>{error ?? description}</Text> : null}
+        {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}
       </Pressable>
       <Pressable onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={({ pressed }) => [styles.personalControl, pressed ? { backgroundColor: tokens.bgHover } : null, disabled || loading ? styles.disabled : null]}>

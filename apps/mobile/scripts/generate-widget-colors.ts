@@ -63,8 +63,8 @@ const PALETTES = {
     fg3: ['#68686D', '--fg-3'],
     fg4: ['#89898D', '--fg-4'],
     trackEmpty: ['#7E7E82', '--track-empty'],
-    primaryText: ['#B64900', '--primary-text'],
-    overdue: ['#886100', '--status-overdue'],
+    primaryText: ['#A63A00', '--primary-text'],
+    overdue: ['#7D5700', '--status-overdue'],
   },
 } as const satisfies Record<'dark' | 'light', Palette>
 

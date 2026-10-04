@@ -15,7 +15,7 @@ const grantedAccent: Record<SchemeMode, SchemeAccent> = {
     primaryHover: '#B74E12',
     primaryPressed: '#A24716',
     primarySoft: '#C15109',
-    primaryText: '#B64900',
+    primaryText: '#A63A00',
     primaryDim: '#F4DDD3',
     primaryRgb: '196,83,15',
   },

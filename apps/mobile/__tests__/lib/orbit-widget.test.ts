@@ -72,8 +72,8 @@ describe('toWidgetColors', () => {
       textMuted: '#68686D',
       border: '#E6E6E8',
       borderMuted: '#E6E6E8',
-      overdue: '#886100',
-      streakText: '#B64900',
+      overdue: '#7D5700',
+      streakText: '#A63A00',
       statusEmpty: '#7E7E82',
     })
   })
@@ -100,7 +100,7 @@ describe('toWidgetColors', () => {
     expect(preferences.light_background).toBe('#FFFFFF')
     expect(preferences.light_surface).toBe('#F1F1F2')
     expect(preferences.dark_streakText).toBe('#E16D33')
-    expect(preferences.light_streakText).toBe('#B64900')
+    expect(preferences.light_streakText).toBe('#A63A00')
     expect(Object.keys(preferences)).toHaveLength(22)
   })
 
@@ -149,7 +149,7 @@ describe('toWidgetColors', () => {
     expect(widgetLayout).toContain('android:textColor="@color/widget_fg_3"')
     expect(widgetLayout).not.toContain('widget_flame')
 
-    expect(lightResources).toContain('<color name="widget_streak_text">#B64900</color>')
+    expect(lightResources).toContain('<color name="widget_streak_text">#A63A00</color>')
     expect(darkResources).toContain('<color name="widget_streak_text">#E16D33</color>')
   })
 

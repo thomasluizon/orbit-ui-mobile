@@ -1,4 +1,4 @@
-import { hoverForeground, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
 import {
@@ -427,7 +427,7 @@ export function HabitChecklist({
             onPress={clearAll}
             style={({ pressed }) => [styles.clearAction, pressed ? { backgroundColor: tokens.bgHover } : null]}
           >
-            {({ pressed }) => <Text style={[styles.clearText, { color: hoverForeground(currentTheme, tokens.statusBadText, pressed) }]}>{t('habits.form.clearChecklist')}</Text>}
+            <Text style={[styles.clearText, { color: tokens.statusBadText }]}>{t('habits.form.clearChecklist')}</Text>
           </Pressable>
         </View>
       )}

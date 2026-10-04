@@ -18,7 +18,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **D42: there are exactly two sources, this document and the granted canvas.**
 The twenty-one-screen Claude Design export is committed at
-`design/canvas/`, with the design system's 177 token values under
+`design/canvas/`, with the design system's 183 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
 **Precedence, in this order:**
@@ -476,11 +476,11 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-hover rgba(9,9,11,0.11) /* #E4E4E4 over white, 1.271:1 step; #DFDFE0 over canvas, 1.276:1 step */
 --bg-hover-opaque rgba(9,9,11,0.11) /* overlay on an opaque control -> #E4E4E4 over white. 1.271:1 step */
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
---status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
+--status-overdue #7D5700   /* 6.219:1 on canvas, 4.510:1 on well hover. White on it 6.491:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
---status-bad-text #D70009  /* 4.50:1 on a status-bad tint inside a card, hue 28.5 */
+--status-bad-text #C00000  /* 4.502:1 on well hover, 5.407:1 on a status-bad tint inside a card */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
---fg-on-overdue  #FFFFFF   /* 5.59:1 on the fill */
+--fg-on-overdue  #FFFFFF   /* 6.491:1 on the fill */
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
@@ -488,7 +488,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --track-empty    #7E7E82   /* empty UI track. 3.036:1 on canvas hover */
 --primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
 --primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
---primary-text   #B64900   /* accent text on raised surfaces. 4.51:1 on the worst surface */
+--primary-text   #A63A00   /* accent text on raised surfaces. 4.522:1 on well hover */
 --primary-dim    #F4DDD3   /* the fill at 18% over #FAFAFA. fg-1 on it 13.34:1, fg-2 7.67:1 */
 --fg-on-primary  #FFFFFF
 --selection-bg   the fill at alpha 0.18
@@ -501,11 +501,14 @@ different in kind: it is a mix **with the canvas**, so leaving it unrepointed ga
 dark-mode value `#261611`, a near-black wash painted onto a white card.
 A selected `PlanCard` must use the light-mode value.
 
-**The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. Its next value, `#946A00`, cleared the canvas but missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint both `ExpiryWarning` mirrors paint session-expiry text on. That tint is DERIVED FROM THIS TOKEN, so it darkens with it and has to be solved together rather than measured once. It is now `#886100` at **hue 81.1**, which clears the accent by **36.3 degrees**, measures 5.36:1 on `#FAFAFA`, and carries white at 5.59:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
-
-**`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** The first light
-overdue attempt inherited `#020618`, which measured **4.26:1** on `#B45B00` and missed the 4.5 text
-floor. The explicit white override measures 5.59:1 on the current fill.
+**The two status hues darken in light mode to clear their reachable surfaces.** The
+fill and graphic token `--status-bad` uses `#E7000B`; its text role uses `#C00000`.
+`--status-overdue` and its text role use `#7D5700`. Their light text values are derived by
+lowering only OKLCH lightness with constant source hue and chroma, then gamut-clamping and
+rounding to sRGB bytes. The resulting overdue hue is 79.2 degrees, 34.4 degrees from the
+44.8-degree fill accent; destructive text is 29.2 degrees, 15.6 degrees from that accent.
+Both clear derivation rule 6. Light `--fg-on-overdue` is `#FFFFFF`, which measures
+6.491:1 on the overdue fill.
 
 ### Measured contrast, with the remaining limits closed
 
@@ -529,40 +532,33 @@ Every scope below is derived from those floors and the measured ratios.
 | dark `--primary-soft` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |
 | light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.545 | - | 4.721 | 4.182 |
 | dark `--primary-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.098 | 5.688 | 5.487 | 5.215 | 4.630 | 4.510 | 5.215 | 5.688 | 5.159 |
-| light `--primary-text` | text | text: canvas, card, well, widget card, widget well | 5.104 | 5.327 | - | 4.675 | - | 4.000 | - | 5.327 | 4.720 |
+| light `--primary-text` | text | text: canvas, card, well, hover, widget card, widget well | 6.235 | 6.508 | - | 5.711 | - | 4.887 | - | 6.508 | 5.766 |
 | dark `--status-bad-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |
-| light `--status-bad-text` | text | text: canvas, card, well, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.050 | - | 5.394 | 4.779 |
+| light `--status-bad-text` | text | text: canvas, card, well, hover, widget card, widget well | 6.207 | 6.479 | - | 5.685 | - | 4.865 | - | 6.479 | 5.740 |
 <!-- surface-scope:end -->
 
-**`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
-is already defined as accent TEXT on the canvas, so 4.28 on a card is the token used outside its own
-scope, not a colour that needs changing. `--primary-text` is the accent-text token for a card, a
-field, a well or an elevated panel. Dark hover keeps this role; light hover takes `--fg-2`
-for its 4.5:1 text floor; where accent is not deliberately rationed, emphasis on a raised surface stays a weight
-step rather than a hue.
+**`--primary-soft` is canvas only, and that closes its row by role.** Use
+`--primary-text` for rationed accent text on a card, field, well, elevated panel or hover fill.
+The light `#A63A00` value measures 4.522:1 on its worst stack, well hover. Where accent is not
+deliberately rationed, emphasis on a raised surface stays a weight step rather than a hue.
 
-**Contrast rule: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
-measured 4.26:1 on the well, 4.11:1 on hover, 4.31:1 on the widget well and 4.12:1 on the 10
-percent overdue tint, all below the 4.5 text floor. It uses constant OKLCH hue at
-`#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well,
-4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
-separation from the accent still clears derivation rule 6. On light hover, overdue text takes
-`--fg-2`, since the resting role measures 4.198:1 on the stronger canvas fill.
+**Contrast rule: light overdue text.** `#7D5700` measures 6.219:1 on the canvas,
+6.491:1 on the card, 5.696:1 on the well, 4.874:1 on canvas hover and 4.510:1 on well hover.
+It clears 5.750:1 on the widget well and 5.407:1 on the 10 percent overdue tint used by
+session-expiry warnings. Overdue text keeps its amber role under hover and press.
 
 **Contrast rule: `--status-bad-text` on every surface its consumers reach.** The fill and
-graphic token `--status-bad` remains `#FB2C36` dark and `#E7000B` light. Its former duplicate text
-value missed the floor on wells, overlays and hover surfaces. The consumer sweep found text on the
-canvas, card, field, well, opaque overlay, elevated inline step, replacement hover, an elevated
-menu-item hover, and the 10.2 percent `--status-bad` warning tint inside a card. Card presses replace the card fill
-with `--bg-hover`. Light hovered destructive labels take `--fg-2`; their resting role measures
-4.050:1 on the canvas hover and 4.242:1 on a white hover.
+graphic token stays `#FB2C36` dark and `#E7000B` light. Dark text uses `#FF7970`, which measures
+4.511:1 on the pressed destructive menu item over `--bg-elev`. Light text uses `#C00000`, which
+measures 4.502:1 on well hover and 5.407:1 on the 10.2 percent `--status-bad` warning tint inside
+a card. Destructive labels keep their red role under hover and press.
 
-Dark `#FF7970` holds the original constant OKLCH hue at 25.8 and measures 4.511 on the worst real
-stack, the pressed destructive menu item over `--bg-elev`. Light `#D70009` holds hue 28.5 and is the
-first gamut-clamped byte that clears its resting warning stack, 4.502 on the tint inside a card.
-The darker `#CD0008` candidate was not used because it paid for the unreachable light well-child
-hover. The closest status-text hue separation is 16.3 degrees from the 44.8-degree accent; overdue
-remains farther away in both modes.
+**Light accent and status text are solved at the token.** Lower only the source OKLCH L
+channel, retain source hue and chroma, then gamut-clamp and byte-round. The first passing
+bytes are `#A63A00`, `#7D5700` and `#C00000`; their immediately preceding bytes `#A63B00`,
+`#7E5700` and `#C10000` measure 4.494:1, 4.489:1 and 4.465:1 on well hover. The shared tests
+cover canvas, card and well at rest; canvas, card, well, overlay, replacement and card-child
+hover; selection over canvas and card; and the widget card and well.
 
 The roles split at language: words such as labels, errors and helper lines use
 `--status-bad-text`; surfaces, borders, rings and non-language glyphs use `--status-bad`. When one
@@ -598,7 +594,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
 | **0.13** | **`#28282A`** | **1.261** | **4.57** |
 | 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
 
-**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Hovered status and accent text also take `--fg-2` while retaining their resting roles. Hover fills sit below text and graphics.
+**Contrast rule: light hover foregrounds.** The ink overlay uses alpha 0.11. Supporting text on interactive rows takes `--fg-2`; it measures 7.502:1 over the canvas and 7.858:1 over white. `--fg-3` measures 4.161:1 and 4.358:1 on those fills, below the text floor. Only `--fg-3` is promoted to `--fg-2` under a light hover or press. Accent and status text keep their own colour because their light values clear 4.5:1 on every light hover stack. Hover fills sit below text and graphics.
 
 **Three hover stacks exist, and they measure differently. Read the paint order, not the token.**
 
@@ -617,7 +613,7 @@ The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2
    and measures only 1.247:1. Text on the opaque hover layer takes `--fg-2` or lighter:
    `--fg-2` measures **6.974:1 dark** and **7.858:1 light**; dark `--fg-3` falls below 4.5.
 
-**On a hover child inside a card, text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
+**On a hover child inside a card, supporting text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
 stack, `--fg-1` 11.82. The unread notification row already obeys this. Prefer replacement when you
 build a new hover surface; compositing costs a whole neutral step and buys nothing.
 

@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { contrastOnSurface, withAlpha } from './contrast'
+import { lightHoverTextSurfaces } from './light-hover-surfaces'
 import { schemes } from '../theme/color-schemes'
 import {
-  hoverForeground,
   neutralColors,
   selectionAlpha,
   statusConstants,
@@ -133,7 +133,7 @@ const BAD_TEXT_SOURCE_SITES = [
   {
     name: 'mobile list row title',
     path: 'apps/mobile/components/ui/list-row.tsx',
-    pattern: /const titleColor = danger \? hoverForeground\(currentTheme, tokens\.statusBadText, /,
+    pattern: /const titleColor = danger \? tokens\.statusBadText/,
   },
   {
     name: 'mobile streak repair error',
@@ -143,7 +143,7 @@ const BAD_TEXT_SOURCE_SITES = [
   {
     name: 'mobile settings row title',
     path: 'apps/mobile/components/ui/settings-row.tsx',
-    pattern: /const titleColor = danger \? hoverForeground\(currentTheme, tokens\.statusBadText, /,
+    pattern: /const titleColor = danger \? tokens\.statusBadText/,
   },
 ] as const
 
@@ -387,7 +387,7 @@ const GRANTED_ACCENTS = {
     primaryHover: '#B74E12',
     primaryPressed: '#A24716',
     primarySoft: '#C15109',
-    primaryText: '#B64900',
+    primaryText: '#A63A00',
     primaryDim: '#F4DDD3',
     primaryRgb: '196,83,15',
   },
@@ -561,16 +561,26 @@ describe('byte-exact mode colors', () => {
       badText: '#FF7970', fgOnBad: '#020618', fgOnOverdue: '#020618',
     })
     expect(statusConstants.light).toEqual({
-      overdue: '#886100', bad: '#E7000B', overdueText: '#886100',
-      badText: '#D70009', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
+      overdue: '#7D5700', bad: '#E7000B', overdueText: '#7D5700',
+      badText: '#C00000', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
     })
     expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
   })
 
+  for (const { name, layers } of lightHoverTextSurfaces) {
+    it.each([
+      ['primaryText', schemes.orange.accent.light.primaryText],
+      ['overdueText', statusConstants.light.overdueText],
+      ['badText', statusConstants.light.badText],
+    ])('keeps light %s AA on ' + name, (_role, color) => {
+      expect(contrastOnSurface(color, layers)).toBeGreaterThanOrEqual(4.5)
+    })
+  }
+
   for (const mode of ['dark', 'light'] as const) {
     for (const surface of BAD_TEXT_SURFACES[mode]) {
       it(`keeps the ${mode} bad status text at the text floor on ${surface.name}`, () => {
-        expect(contrastOnSurface(hoverForeground(mode, statusConstants[mode].badText, surface.layers.includes(neutralColors[mode].bgHover)), surface.layers))
+        expect(contrastOnSurface(statusConstants[mode].badText, surface.layers))
           .toBeGreaterThanOrEqual(4.5)
       })
     }
@@ -595,7 +605,7 @@ describe('byte-exact mode colors', () => {
       withAlpha(statusConstants.light.overdue, EXPIRY_TINT_ALPHA),
     ]],
   ] as const)('keeps light overdue text AA on the %s surface', (_surface, layers) => {
-    expect(contrastOnSurface(hoverForeground('light', statusConstants.light.overdueText, layers.includes(neutralColors.light.bgHover)), layers))
+    expect(contrastOnSurface(statusConstants.light.overdueText, layers))
       .toBeGreaterThanOrEqual(4.5)
   })
 

@@ -97,7 +97,7 @@ describe('HabitRow neutral metadata contrast (mobile)', () => {
           (node: { children: unknown[] }) => node.children.includes(word),
         )
         const foreground = StyleSheet.flatten(stateWord.props.style).color
-        expect(foreground).toBe(mode === 'light' && pressed ? tokens.fg2 : color)
+        expect(foreground).toBe(color)
         expect(contrastOnSurface(foreground, layers)).toBeGreaterThanOrEqual(4.5)
       }
     }

@@ -1,4 +1,4 @@
-import { hoverForeground, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
@@ -72,7 +72,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { ref, accessibilityLabel, expanded, icon, description, trailing, danger = false, action, chevron = true, compact = !description, inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
-  const titleColor = danger ? hoverForeground(currentTheme, tokens.statusBadText, bodyPressed) : tokens.fg1
+  const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, compactForm, !!trailing)
   const body: ReactNode = (

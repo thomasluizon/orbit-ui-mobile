@@ -87,10 +87,10 @@ export const statusConstants: Record<SchemeMode, StatusConstants> = {
     fgOnOverdue: '#020618',
   },
   light: {
-    overdue: '#886100',
+    overdue: '#7D5700',
     bad: '#E7000B',
-    overdueText: '#886100',
-    badText: '#D70009',
+    overdueText: '#7D5700',
+    badText: '#C00000',
     fgOnBad: '#FFFFFF',
     fgOnOverdue: '#FFFFFF',
   },
@@ -122,5 +122,5 @@ export function elevatedControlHoverFill(mode: SchemeMode): string {
 }
 
 export function hoverForeground(mode: SchemeMode, restingColor: string, active: boolean): string {
-  return mode === 'light' && active ? neutralColors.light.fg2 : restingColor
+  return mode === 'light' && active && restingColor === neutralColors.light.fg3 ? neutralColors.light.fg2 : restingColor
 }

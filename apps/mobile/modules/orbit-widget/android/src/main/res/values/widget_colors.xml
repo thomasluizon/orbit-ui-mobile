@@ -20,7 +20,7 @@
     <!-- WHY: track-empty. -->
     <color name="widget_track_empty">#7E7E82</color>
     <!-- WHY: primary-text. -->
-    <color name="widget_streak_text">#B64900</color>
+    <color name="widget_streak_text">#A63A00</color>
     <!-- WHY: status-overdue. -->
-    <color name="widget_overdue">#886100</color>
+    <color name="widget_overdue">#7D5700</color>
 </resources>

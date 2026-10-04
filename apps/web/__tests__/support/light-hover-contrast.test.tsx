@@ -15,6 +15,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { SettingsGroupRow } from '@/components/ui/settings-group'
 import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { Menu } from '@/components/ui/menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
@@ -23,6 +24,8 @@ vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLo
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 0 } }) }))
 
 const cases = [
+  { name: 'colored row', element: <ListRow title="Delete" danger onClick={() => {}} trailing={<><span style={{ color: 'var(--primary-text)' }}>Accent</span><span style={{ color: 'var(--status-overdue-text)' }}>Overdue</span></>} /> },
+  { name: 'destructive menu', element: <Menu open presentation="sheet" items={[{ id: 'delete', label: 'Delete', destructive: true }]} />, selector: '[role="menuitem"]' },
   { name: 'checked row', element: <CheckRow label="Checked" checked description="Description" value="Value" onChange={() => {}} /> },
   { name: 'row error', element: <CheckRow label="Checked" checked error="Error" onChange={() => {}} /> },
   { name: 'personal row error', element: <CheckRow label="Personal" textMode="personal" onOpenLabel={() => {}} checked error="Error" value="Value" onChange={() => {}} /> },
@@ -123,18 +126,39 @@ describe('rendered light hover contrast', () => {
       } finally { await page.close(); unmount() }
     })
 
-    it.each(cases)('keeps $name readable at ' + width, async ({ element }) => {
+    it.each(cases)('keeps $name readable at ' + width, async ({ element, ...scenario }) => {
       const { container, unmount } = render(element)
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
-        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${container.innerHTML}</body></html>`)
-        const control = page.locator('button').first()
+        await page.setContent(`<html class="light" style="${variables}"><style>${stylesheet}</style><body>${'selector' in scenario ? document.body.innerHTML : container.innerHTML}</body></html>`)
+        const selector = scenario.selector ?? 'button'
+        const control = page.locator(selector).first()
+        const resting = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
+          .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
+          .map((element) => getComputedStyle(element).color))
         await control.hover()
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('button')!).backgroundColor === 'rgba(9, 9, 11, 0.11)')
+        await page.waitForFunction((selector) => getComputedStyle(document.querySelector(selector)!).backgroundColor === 'rgba(9, 9, 11, 0.11)', selector)
         const colors = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
+        const rgb = (hex: string) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`
+        const expected = resting.map((color) => color === rgb(neutralColors.light.fg3)
+          ? rgb(neutralColors.light.fg2)
+          : color === rgb(resolveWebThemeVariables('orange', 'light')['--primary-soft']!)
+            ? rgb(resolveWebThemeVariables('orange', 'light')['--primary-text']!) : color)
+        expect(colors).toEqual(expected)
+        await page.mouse.down()
+        const pressedColors = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
+          .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
+          .map((element) => getComputedStyle(element).color))
+        expect(pressedColors).toEqual(expected)
+        await page.mouse.move(0, 0)
+        const pressOnly = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
+          .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
+          .map((element) => getComputedStyle(element).color))
+        expect(pressOnly).toEqual(expected)
+        await page.mouse.up()
         expect(colors.length).toBeGreaterThan(0)
         for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {
           for (const color of colors) {

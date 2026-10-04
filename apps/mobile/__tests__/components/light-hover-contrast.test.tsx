@@ -72,8 +72,13 @@ describe('light hover text on Android', () => {
     try {
       let control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === role)[0]!
       expect(control).toBeDefined()
+      const restingColors = control.findAll((node) => String(node.type) === 'Text')
+        .map((label) => StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color)
       await act(() => { (control.props.onPressIn as (() => void) | undefined)?.() })
       control = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityRole === role)[0]!
+      const pressedColors = control.findAll((node) => String(node.type) === 'Text')
+        .map((label) => StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color)
+      expect(pressedColors).toEqual(restingColors.map((color) => color === neutralColors.light.fg3 ? neutralColors.light.fg2 : color))
       const fill = pressedFill(control)
       expect(fill).toBe(neutralColors.light.bgHover)
       for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {

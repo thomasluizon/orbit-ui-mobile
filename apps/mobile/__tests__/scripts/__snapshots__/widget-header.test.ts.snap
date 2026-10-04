@@ -94,7 +94,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" stroke="#E6E6E8" stroke-width="1"/>
 <text x="12" y="18" fill="#68686D" font-size="13" font-weight="500" letter-spacing="0.52">HOJE</text>
 <text x="12" y="35" fill="#68686D" font-size="12">3 de 7 concluídos</text>
-<text x="250" y="28" text-anchor="end" fill="#B64900" font-size="15" font-weight="500">12</text>
+<text x="250" y="28" text-anchor="end" fill="#A63A00" font-size="15" font-weight="500">12</text>
 <text x="253" y="28" fill="#68686D" font-size="12">dias</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#68686D" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect y="47" width="336" height="1" fill="#E6E6E8"/>
@@ -104,11 +104,11 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="68" fill="#68686D" font-size="15">Água da manhã</text>
 <text x="42" y="84" fill="#68686D" font-size="12" letter-spacing="0.22">08:00</text>
 <rect x="0.5" y="96.5" width="335" height="47" rx="16" fill="#F1F1F2" stroke="#E6E6E8" stroke-width="1"/>
-<path d="M22 112.2l8 14.8H14z" fill="none" stroke="#886100" stroke-width="1.7" stroke-linejoin="round"/>
-<path d="M22 117v4" stroke="#886100" stroke-width="1.7" stroke-linecap="round"/>
-<circle cx="22" cy="123" r="1" fill="#886100"/>
+<path d="M22 112.2l8 14.8H14z" fill="none" stroke="#7D5700" stroke-width="1.7" stroke-linejoin="round"/>
+<path d="M22 117v4" stroke="#7D5700" stroke-width="1.7" stroke-linecap="round"/>
+<circle cx="22" cy="123" r="1" fill="#7D5700"/>
 <text x="42" y="116" fill="#1A1A1D" font-size="15">Caminhada</text>
-<text x="42" y="132" fill="#886100" font-size="12" letter-spacing="0.22">18:00</text>
+<text x="42" y="132" fill="#7D5700" font-size="12" letter-spacing="0.22">18:00</text>
 <rect x="0.5" y="144.5" width="335" height="47" rx="16" fill="#F1F1F2" stroke="#E6E6E8" stroke-width="1"/>
 <circle cx="22" cy="168" r="8.5" fill="none" stroke="#7E7E82" stroke-width="1.5"/>
 <text x="42" y="164" fill="#1A1A1D" font-size="15">Rotina da casa</text>
@@ -134,7 +134,7 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" stroke="#E6E6E8" stroke-width="1"/>
 <text x="12" y="18" fill="#68686D" font-size="13" font-weight="500" letter-spacing="0.52">TODAY</text>
 <text x="12" y="35" fill="#68686D" font-size="12">3 of 7 completed</text>
-<text x="250" y="28" text-anchor="end" fill="#B64900" font-size="15" font-weight="500">12</text>
+<text x="250" y="28" text-anchor="end" fill="#A63A00" font-size="15" font-weight="500">12</text>
 <text x="253" y="28" fill="#68686D" font-size="12">days</text>
 <path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" fill="#68686D" transform="translate(-3 -1) scale(.82) translate(72 4)"/>
 <rect y="47" width="336" height="1" fill="#E6E6E8"/>
@@ -144,11 +144,11 @@ exports[`Android widget header > matches the reproducible SVG source for every p
 <text x="42" y="68" fill="#68686D" font-size="15">Morning water</text>
 <text x="42" y="84" fill="#68686D" font-size="12" letter-spacing="0.22">08:00</text>
 <rect x="0.5" y="96.5" width="335" height="47" rx="16" fill="#F1F1F2" stroke="#E6E6E8" stroke-width="1"/>
-<path d="M22 112.2l8 14.8H14z" fill="none" stroke="#886100" stroke-width="1.7" stroke-linejoin="round"/>
-<path d="M22 117v4" stroke="#886100" stroke-width="1.7" stroke-linecap="round"/>
-<circle cx="22" cy="123" r="1" fill="#886100"/>
+<path d="M22 112.2l8 14.8H14z" fill="none" stroke="#7D5700" stroke-width="1.7" stroke-linejoin="round"/>
+<path d="M22 117v4" stroke="#7D5700" stroke-width="1.7" stroke-linecap="round"/>
+<circle cx="22" cy="123" r="1" fill="#7D5700"/>
 <text x="42" y="116" fill="#1A1A1D" font-size="15">Walk</text>
-<text x="42" y="132" fill="#886100" font-size="12" letter-spacing="0.22">18:00</text>
+<text x="42" y="132" fill="#7D5700" font-size="12" letter-spacing="0.22">18:00</text>
 <rect x="0.5" y="144.5" width="335" height="47" rx="16" fill="#F1F1F2" stroke="#E6E6E8" stroke-width="1"/>
 <circle cx="22" cy="168" r="8.5" fill="none" stroke="#7E7E82" stroke-width="1.5"/>
 <text x="42" y="164" fill="#1A1A1D" font-size="15">House routine</text>

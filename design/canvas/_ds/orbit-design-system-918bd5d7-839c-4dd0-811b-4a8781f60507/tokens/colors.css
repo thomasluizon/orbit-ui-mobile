@@ -26,12 +26,13 @@
   /* primitives: THE accent, warm orange, the only one. Granted by Thomas 2026-08-16.
      Rose is retired. Treatment is always a dark fill with #FFFFFF on it. */
   --p-orange-dark:#C4530F; --p-orange-text:#C85716; --p-orange-raised-text:#E16D33; --p-orange-rgb:196,83,15; /* @kind color */
-  --p-orange-lmtext:#C15109; --p-orange-lm-raised-text:#B64900;
+  --p-orange-lmtext:#C15109; --p-orange-lm-raised-text:#A63A00; /* 4.522:1 on light well hover */
   --p-on-fill:#FFFFFF;
 
   /* primitives: status. Five of seven states are neutral; only these two carry a hue. */
-  --p-overdue:#FE9A00; --p-bad:#FB2C36; --p-on-status:#020618;
-  --p-l-overdue:#886100; /* hue 81.1, 36.3deg from the accent; 5.36:1 on #FAFAFA, white on it 5.59:1 */ --p-l-bad:#E7000B; --p-l-on-bad:#FFFFFF;
+  --p-overdue:#FE9A00; --p-bad:#FB2C36; --p-bad-text:#FF7970; --p-on-status:#020618;
+  --p-l-bad-text:#C00000; /* 4.502:1 on light well hover */
+  --p-l-overdue:#7D5700; /* 6.219:1 on canvas, 4.510:1 on well hover; white on it 6.491:1 */ --p-l-bad:#E7000B; --p-l-on-bad:#FFFFFF;
 
   /* The habit colour palette was deleted 2026-08-16. Colour-as-data (D30) and the tinted
      monochrome emoji (D31) are both reversed: the accent is rationed to four roles and every
@@ -72,6 +73,8 @@
   --status-frozen:var(--fg-2);  /* DAY-SCOPED: the streak day strip only. A freeze is never a habit status. */
   --status-overdue:var(--p-overdue);
   --status-bad:var(--p-bad);
+  --status-bad-text:var(--p-bad-text);
+  --status-overdue-text:var(--p-overdue);
   --fg-on-bad:var(--p-on-status);
   --fg-on-overdue:var(--p-on-status);
   --scrim:var(--p-scrim);
@@ -94,6 +97,7 @@
   --fg-1:var(--p-l-fg1); --fg-2:var(--p-l-fg2); --fg-3:var(--p-l-fg3); --fg-4:var(--p-l-fg4); --track-empty:var(--p-l-track-empty);
   --primary-soft:var(--p-orange-lmtext);
   --primary-text:var(--p-orange-lm-raised-text);
+  --status-bad-text:var(--p-l-bad-text); --status-overdue-text:var(--p-l-overdue);
   --status-overdue:var(--p-l-overdue); --status-bad:var(--p-l-bad); --fg-on-bad:var(--p-l-on-bad); --fg-on-overdue:#FFFFFF;
   --status-done:var(--fg-1); --status-empty:var(--track-empty); --status-frozen:var(--fg-2);
   --primary-dim:color-mix(in oklab, var(--primary) 18%, var(--bg));
