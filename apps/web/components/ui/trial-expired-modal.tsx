@@ -130,11 +130,7 @@ export function TrialExpiredModal() {
             <SettingsGroupRow
               key={featureKey}
               label={t(featureKey)}
-              trailing={
-                <span className="font-mono text-xs text-[var(--fg-3)]">
-                  {t('trial.expired.paused')}
-                </span>
-              }
+              hint={t('trial.expired.paused')}
             />
           ))}
         </SettingsGroup>

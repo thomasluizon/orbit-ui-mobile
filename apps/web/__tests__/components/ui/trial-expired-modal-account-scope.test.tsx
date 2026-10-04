@@ -27,7 +27,7 @@ vi.mock('@/hooks/use-subscription-plans', () => ({
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 
 function noticeHeading() {
-  return screen.queryByText('Your Pro trial has ended')
+  return screen.queryByText('Your Pro trial ended')
 }
 
 beforeEach(() => {

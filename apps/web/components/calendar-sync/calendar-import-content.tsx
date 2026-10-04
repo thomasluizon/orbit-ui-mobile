@@ -510,7 +510,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
           {importResult && importResult.habits.length > 0 && (
             <div className="w-full">
               {importResult.habits.map((habit) => (
-                <SettingsRow key={habit.id} label={habit.title} accessory="none" />
+                <SettingsRow key={habit.id} label={habit.title} textMode="personal" accessory="none" />
               ))}
             </div>
           )}

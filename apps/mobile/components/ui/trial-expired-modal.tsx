@@ -149,11 +149,7 @@ export function TrialExpiredModal() {
             <SettingsGroupRow
               key={featureKey}
               label={t(featureKey)}
-              trailing={
-                <Text style={[styles.paused, { color: tokens.fg3 }]}>
-                  {t('trial.expired.paused')}
-                </Text>
-              }
+              hint={t('trial.expired.paused')}
             />
           ))}
         </SettingsGroup>
@@ -181,10 +177,6 @@ function createStyles() {
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 24,
-    },
-    paused: {
-      fontFamily: 'GeistMono_400Regular',
-      fontSize: 12,
     },
   })
 }

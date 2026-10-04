@@ -882,8 +882,9 @@ describe('CalendarSyncPage', () => {
   })
 
   it('lists imported habits on the done step and keeps partial failures visible', async () => {
+    const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana'
     const events = [
-      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      { id: 'e1', title: habitName, description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
       { id: 'e2', title: 'Team Meeting', description: null, startDate: '2025-06-01', startTime: '10:00', endTime: '11:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
     ]
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -902,7 +903,7 @@ describe('CalendarSyncPage', () => {
       ) => {
         options.onSuccess({
           results: [
-            { status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null },
+            { status: 'Success', habitId: 'h1', title: habitName, error: null },
             { status: 'Failed', habitId: null, title: 'Team Meeting', error: 'boom' },
           ],
         })
@@ -911,7 +912,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+      expect(screen.getByText(habitName)).toBeInTheDocument()
     })
 
     fireEvent.click(await screen.findByText(/calendar\.importButton/))
@@ -919,7 +920,12 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
     })
-    expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+    expect(screen.getByText(habitName)).toBeInTheDocument()
+    const importedHabit = screen.getByRole('button', { name: habitName })
+    expect(importedHabit).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(importedHabit)
+    expect(importedHabit).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(habitName)).toBeVisible()
     expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
     expect(screen.getAllByRole('alert').some((alert) => alert.textContent === 'calendar.importPartialFailure:{"count":1}')).toBe(true)
     expect(toastError).not.toHaveBeenCalled()
