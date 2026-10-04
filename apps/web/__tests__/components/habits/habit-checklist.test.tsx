@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 
 
-vi.mock('next-intl', () => ({
+const locale = vi.hoisted(() => ({ portuguese: false, english: false }))
+
+vi.mock('next-intl', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next-intl')>()),
   useTranslations: () => {
+    if (locale.english) return createTranslator({ locale: 'en', messages: en })
+    if (locale.portuguese) return createTranslator({ locale: 'pt-BR', messages: ptBR })
     const t = (key: string, params?: Record<string, unknown>) => {
       if (params && Object.keys(params).length > 0) {
         return `${key}(${JSON.stringify(params)})`
@@ -33,6 +41,8 @@ function makeItems(overrides?: Partial<ChecklistItem>[]): ChecklistItem[] {
 describe('HabitChecklist', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    locale.portuguese = false
+    locale.english = false
   })
 
   describe('rendering', () => {
@@ -148,6 +158,64 @@ describe('HabitChecklist', () => {
   })
 
   describe('editable mode', () => {
+    it('localizes the editable drag instructions in Portuguese', () => {
+      locale.portuguese = true
+      render(<HabitChecklist items={[{ text: 'Preparar café', isChecked: false }]} editable />)
+      const row = screen.getByRole('button', { name: 'Mover Preparar café' })
+      expect(document.getElementById(row.getAttribute('aria-describedby')!)?.textContent).toContain('barra de espaço')
+      expect(document.getElementById(row.getAttribute('aria-describedby')!)?.textContent).not.toContain('To pick up')
+    })
+
+    it('localizes each editable sortable role in Portuguese', () => {
+      locale.portuguese = true
+      const { container } = render(<HabitChecklist items={makeItems()} editable />)
+      const sortables = container.querySelectorAll('[aria-roledescription]')
+      expect(sortables).toHaveLength(3)
+      for (const sortable of sortables) expect(sortable).toHaveAttribute('aria-roledescription', 'item reordenável')
+    })
+
+    it('names the checklist item in a Portuguese keyboard drag announcement', async () => {
+      locale.portuguese = true
+      const { container } = render(<HabitChecklist items={[{ text: 'Preparar café', isChecked: false }]} editable />)
+      const sortable = container.querySelector<HTMLElement>('[aria-roledescription]')!
+      sortable.focus()
+      fireEvent.keyDown(sortable, { key: ' ', code: 'Space' })
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Preparar café selecionado para mover.'))
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+      fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Movimento de Preparar café cancelado.'))
+    })
+
+
+    it.each(['en', 'pt-BR'])('announces a keyboard return and unchanged drop in %s after an owner render', async (language) => {
+      locale.portuguese = language === 'pt-BR'
+      locale.english = language === 'en'
+      const name = 'Preparar café'
+      const target = 'Lavar a xícara'
+      const items = [{ text: name, isChecked: false }, { text: target, isChecked: false }]
+      const onItemsChange = vi.fn()
+      const { container, rerender } = render(<HabitChecklist items={items} editable onItemsChange={onItemsChange} />)
+      const rows = container.querySelectorAll<HTMLElement>('[aria-roledescription]')
+      vi.spyOn(rows[0]!.parentElement!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 80))
+      vi.spyOn(rows[1]!.parentElement!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 200, 80))
+      const live = screen.getByRole('status')
+      rows[0]!.focus()
+      fireEvent.keyDown(rows[0]!, { key: ' ', code: 'Space' })
+      await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${name} selecionado para mover.` : `${name} picked up to move.`))
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+      fireEvent.keyDown(document, { code: 'ArrowDown' })
+      const previous = language === 'pt-BR' ? `${name} movido sobre ${target}.` : `${name} moved over ${target}.`
+      await waitFor(() => expect(live).toHaveTextContent(previous))
+      rerender(<HabitChecklist items={items} editable proposedItemCount={1} onItemsChange={onItemsChange} />)
+      fireEvent.keyDown(document, { code: 'ArrowUp' })
+      await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${name} voltou para a posição inicial.` : `${name} is back in its starting position.`))
+      expect(live).not.toHaveTextContent(previous)
+      fireEvent.keyDown(document, { code: 'Space' })
+      await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${name} solto na posição inicial.` : `${name} dropped in its starting position.`))
+      expect(onItemsChange).not.toHaveBeenCalled()
+      expect(screen.getAllByRole('textbox').map((input) => (input as HTMLInputElement).value).slice(0, 2)).toEqual([name, target])
+    })
+
     it('keeps each row mounted through an optimistic reorder and its rollback', () => {
       const original = makeItems().slice(0, 2)
       function ChecklistHarness() {

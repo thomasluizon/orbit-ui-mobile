@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -13,6 +14,7 @@ export function SortableHabitItem({
   id: string
   children: React.ReactNode
 }>) {
+  const t = useTranslations()
   const {
     attributes,
     listeners,
@@ -20,7 +22,7 @@ export function SortableHabitItem({
     transform,
     transition,
     isDragging: isItemDragging,
-  } = useSortable({ id })
+  } = useSortable({ id, attributes: { roleDescription: t('dragAndDrop.roleDescription') } })
 
   const sensorListeners = listeners as Record<string, React.EventHandler<React.SyntheticEvent<HTMLElement>>> | undefined
   const rowListeners = Object.fromEntries(

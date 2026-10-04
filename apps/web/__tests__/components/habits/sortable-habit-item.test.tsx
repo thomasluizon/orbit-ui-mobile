@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
 import { SortableHabitItem } from '@/components/habits/habit-list/sortable-habit-item'
 
 const sortable = vi.hoisted(() => ({ isDragging: false }))
@@ -23,9 +25,9 @@ describe('sortable habit stacking', () => {
   it('raises only the dragged row within the local sibling scale', () => {
     sortable.isDragging = true
     render(
-      <SortableHabitItem id="habit-1">
+      <NextIntlClientProvider locale="en" messages={en}><SortableHabitItem id="habit-1">
         <span>Read</span>
-      </SortableHabitItem>,
+      </SortableHabitItem></NextIntlClientProvider>,
     )
 
     expect(screen.getByText('Read').parentElement).toHaveStyle({
@@ -36,9 +38,9 @@ describe('sortable habit stacking', () => {
 
   it('returns a resting row to automatic stacking', () => {
     render(
-      <SortableHabitItem id="habit-1">
+      <NextIntlClientProvider locale="en" messages={en}><SortableHabitItem id="habit-1">
         <span>Read</span>
-      </SortableHabitItem>,
+      </SortableHabitItem></NextIntlClientProvider>,
     )
 
     expect(screen.getByText('Read').parentElement).toHaveStyle({

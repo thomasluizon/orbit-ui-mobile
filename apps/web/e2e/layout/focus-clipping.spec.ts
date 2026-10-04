@@ -75,7 +75,7 @@ for (const width of [412, 1352] as const) {
         await refreshTodayHabits(page)
         const main = page.locator('main[data-shell-scroller]')
         await expect(main.locator('[data-habit-title]')).toHaveCount(14)
-        const handles = main.locator('[aria-roledescription="sortable"]')
+        const handles = main.locator(`[aria-roledescription="${messages.dragAndDrop.roleDescription}"]`)
         await expect(handles).toHaveCount(14)
         const controls = main.locator('button:visible:not(:disabled), a[href]:visible, [tabindex="0"]:visible')
         const count = await controls.count()
