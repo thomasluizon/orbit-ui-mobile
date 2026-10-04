@@ -114,6 +114,7 @@ vi.mock('@/hooks/use-habit-suggestion', () => ({
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    reportBackendErrors: vi.fn(() => false),
     form: {
       reset: mockFormReset,
       setValue: mockFormSetValue,
@@ -139,6 +140,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     formatTimeInput: vi.fn((v: string) => v),
     formatEndTimeInput: vi.fn((v: string) => v),
     validateAll: mockValidateAll,
+    clearBackendErrors: vi.fn(),
   }),
 }))
 

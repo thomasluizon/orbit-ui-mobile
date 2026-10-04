@@ -32,7 +32,7 @@ describe('client response throttle adapter', () => {
 
   it('records an auth upgrade refusal without consuming or replaying the response', async () => {
     const refused = new Response('Upgrade required', { status: 426 })
-    const fetchMock = vi.fn(async () => refused)
+    const fetchMock = vi.fn<typeof fetch>(async () => refused)
     vi.stubGlobal('fetch', fetchMock)
     const response = await fetchWithThrottle('/api/auth/send-code')
     expect(response).toBe(refused)
@@ -58,7 +58,7 @@ describe('client response throttle adapter', () => {
 
   it('publishes a deadline without consuming the caller response or replaying the request', async () => {
     const refused = Response.json(payload, { status: 429 })
-    const fetchMock = vi.fn(async () => refused)
+    const fetchMock = vi.fn<typeof fetch>(async () => refused)
     vi.stubGlobal('fetch', fetchMock)
     const controller = new AbortController()
     const init = { method: 'POST', body: new FormData(), signal: controller.signal }
@@ -68,7 +68,8 @@ describe('client response throttle adapter', () => {
     })
     expect(response).toBe(refused)
     expect(await response.json()).toEqual(payload)
-    expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/example', init)
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith('/api/example', { ...init, headers: expect.any(Headers) })
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get('Accept-Language')).toBe('en')
   })
 
   it('publishes auth refusals while preserving the login error contract', async () => {

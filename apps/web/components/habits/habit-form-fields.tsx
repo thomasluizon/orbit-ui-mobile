@@ -1,5 +1,7 @@
 'use client'
 
+import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
+import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 
 import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
@@ -265,6 +267,13 @@ export function HabitFormFields({
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(defaultExpanded)
   const [detailsPresented, setDetailsPresented] = useAccountScopedState(defaultExpanded)
+  const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
+  const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
+  const descriptionFailure = formHelpers.backendFieldErrors.description
+  useBackendErrorDisclosure(descriptionFailure, formHelpers.backendFocusRequest, () => {
+    setDetailsPresented(true)
+    setDetailsOpen(true)
+  })
   const [proposal, setProposal] = useAccountScopedState(EMPTY_HABIT_FORM_PROPOSAL)
   const rendersGranularSubHabits = typeof children === 'function'
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
@@ -351,25 +360,19 @@ export function HabitFormFields({
       showError(translate(validationError))
       return
     }
-    await tags.createAndSelectTag(async (name, color) => {
-      try {
-        return (await createTag.mutateAsync({ name, color })).id
-      } catch (error: unknown) {
-        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-        throw error
-      }
-    })
+    try {
+      await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
+    } catch (error: unknown) {
+      if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+    }
   }
 
   async function saveEditedTag() {
-    await tags.saveEditTag(async (id, name, color) => {
-      try {
-        await updateTag.mutateAsync({ tagId: id, name, color })
-      } catch (error: unknown) {
-        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-        throw error
-      }
-    })
+    try {
+      await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
+    } catch (error: unknown) {
+      if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+    }
   }
 
   return (
@@ -377,7 +380,7 @@ export function HabitFormFields({
       <HabitUnderstanding
         inputRef={titleField.ref}
         value={title}
-        error={errors.title?.message ? t(errors.title.message) : undefined}
+        error={resolveBackendFormFieldMessage(formHelpers.backendFieldErrors.title, errors.title?.message, t)}
         emoji={emoji}
         days={days}
         daily={daily}
@@ -494,6 +497,8 @@ export function HabitFormFields({
             <section>
               <TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
                 <TagEditorRow
+                  error={newTagErrors.fieldErrors.name}
+                  focusRequest={newTagErrors.focusRequest}
                   value={tags.newTagName}
                   placeholder={t('habits.form.tagName')}
                   disabled={createTag.isPending}
@@ -502,10 +507,12 @@ export function HabitFormFields({
                   actionLabel={t('common.add')}
                   onChange={tags.setNewTagName}
                   onCommit={() => void createNewTag()}
-                  onCancel={() => tags.setShowNewTag(false)}
+                  onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }}
                 />
               ) : tags.editingTagId ? (
                 <TagEditorRow
+                  error={editTagErrors.fieldErrors.name}
+                  focusRequest={editTagErrors.focusRequest}
                   value={tags.editTagName}
                   disabled={updateTag.isPending}
                   inputAriaLabel={t('habits.form.tagName')}
@@ -513,7 +520,7 @@ export function HabitFormFields({
                   actionLabel={t('common.save')}
                   onChange={tags.setEditTagName}
                   onCommit={() => void saveEditedTag()}
-                  onCancel={tags.cancelEditTag}
+                  onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }}
                 />
               ) : undefined} />
               {tags.atTagLimit ? <p className="text-sm text-[var(--fg-3)]">{t('habits.form.tagLimit')}</p> : null}
@@ -532,6 +539,8 @@ export function HabitFormFields({
             <section>
               <Input
                 label={t('habits.form.description')}
+                error={descriptionFailure}
+                focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)}
                 value={description}
                 onChange={(value) => setValue('description', value, { shouldDirty: true })}
                 multiline

@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native'
+import type { Ref } from 'react'
+import { Text, View, type TextInput } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
@@ -11,6 +12,8 @@ interface GoalTargetFieldsProps {
   targetValue: string
   unit: string
   fieldErrors: Record<string, string>
+  targetRef?: Ref<TextInput>
+  unitRef?: Ref<TextInput>
   onChangeTarget: (value: string) => void
   onChangeUnit: (value: string) => void
 }
@@ -22,6 +25,8 @@ export function GoalTargetFields({
   targetValue,
   unit,
   fieldErrors,
+  targetRef,
+  unitRef,
   onChangeTarget,
   onChangeUnit,
 }: Readonly<GoalTargetFieldsProps>) {
@@ -35,6 +40,8 @@ export function GoalTargetFields({
             : t('goals.form.targetValue')}
         </Text>
         <BottomSheetAppTextInput
+          ref={targetRef}
+          accessibilityHint={fieldErrors.targetValue}
           value={targetValue}
           onChangeText={onChangeTarget}
           keyboardType="decimal-pad"
@@ -56,6 +63,8 @@ export function GoalTargetFields({
         <View style={styles.halfField}>
           <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
           <BottomSheetAppTextInput
+            ref={unitRef}
+            accessibilityHint={fieldErrors.unit}
             value={unit}
             onChangeText={onChangeUnit}
             placeholder={t('goals.form.unitPlaceholder')}

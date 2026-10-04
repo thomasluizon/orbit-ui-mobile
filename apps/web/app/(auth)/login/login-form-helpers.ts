@@ -82,7 +82,7 @@ export async function fetchAuthEndpoint(
 ): Promise<unknown> {
   const request = () => fetchWithThrottle(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Accept-Language': typeof body.language === 'string' ? body.language : 'en' },
     body: JSON.stringify(body),
   })
   const response = url === '/api/auth/verify-code'

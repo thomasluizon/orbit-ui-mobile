@@ -270,6 +270,7 @@ export function CreateHabitModal({
 
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
+      formHelpers.clearBackendErrors()
       formHelpers.form.reset({ ...buildEmptyHabitFormValues(fallbackDate), title: initialTitle })
       tags.resetTags()
       setSelectedGoalIds([])
@@ -401,6 +402,7 @@ export function CreateHabitModal({
       }
       finishClose(() => { onClose(); onCreated?.() })
     } catch (error: unknown) {
+      if (formHelpers.reportBackendErrors(error)) return
       showError(
         getFriendlyErrorMessage(
           error,

@@ -1,10 +1,14 @@
+import React from 'react'
+import { LoginContent } from '@/app/(auth)/login/login-content'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, renderHook, waitFor } from '@testing-library/react'
 
 import { useLoginFlow } from '@/app/(auth)/login/use-login-flow'
 
 const mocks = vi.hoisted(() => ({
   search: '',
+  language: 'en',
+  translate: (key: string) => key,
   isOnline: true,
   setAuth: vi.fn(),
   showError: vi.fn(),
@@ -16,13 +20,13 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => 'en',
+  useTranslations: () => mocks.translate,
+  useLocale: () => mocks.language,
 }))
 
-vi.mock('motion/react', () => ({ useReducedMotion: () => false }))
+vi.mock('motion/react', () => ({ useReducedMotion: () => true, AnimatePresence: ({ children }: { children: React.ReactNode }) => children, motion: { div: ({ children }: { children: React.ReactNode }) => React.createElement('div', {}, children) } }))
 
-vi.mock('@orbit/shared/theme', () => ({ resolveMotionPreset: () => ({}) }))
+vi.mock('@orbit/shared/theme', async (original) => ({ ...await original<typeof import('@orbit/shared/theme')>(), resolveMotionPreset: () => ({ reducedMotionEnabled: true }) }))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
@@ -122,6 +126,8 @@ function typeCode(result: { current: ReturnType<typeof useLoginFlow> }, code: st
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
   vi.clearAllMocks()
+  mocks.language = 'en'
+  mocks.translate = (key: string) => key
   mocks.search = ''
   mocks.isOnline = true
   setNavigatorOnline(true)
@@ -539,4 +545,131 @@ describe('auth state recovery', () => {
     await act(async () => result.current.verifyCode('123456'))
     expect(mocks.setAuth).toHaveBeenCalledTimes(1)
   })
+})
+
+
+describe('field validation responses', () => {
+  it.each(['en', 'pt-BR'] as const)('retains %s server copy and paired codes', async (language) => {
+    const { verificationValidationResponses } = await import('@orbit/shared/test-support/validation-fixtures')
+    const payload = verificationValidationResponses[language]
+    wireAuthNetwork({ body: payload, status: 400 })
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(() => result.current.verifyCode('123456'))
+    expect(result.current).toMatchObject({ codeFieldError: payload.errors.Code.join('\n'), validationErrorDetails: payload.errorDetails, codeFailure: null })
+  })
+
+  it('makes the format code available when five digits are submitted', async () => {
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(() => result.current.verifyCode('12345'))
+    expect(result.current).toMatchObject({ errorMessage: 'auth.errors.codeFormat', validationCode: 'VALIDATION_VERIFICATION_CODE_FORMAT', codeFailure: null })
+  })
+
+  it('shows legacy email validation beside the email field', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ errors: { Email: ['Legacy email failure'] } }, 400))
+    const { result } = renderHook(() => useLoginFlow())
+    act(() => result.current.setEmail('user@test.com'))
+    await act(() => result.current.sendCode())
+    expect(result.current).toMatchObject({ emailFieldError: 'Legacy email failure' })
+    act(() => result.current.setEmail('corrected@test.com'))
+    expect(result.current.emailFieldError).toBeUndefined()
+  })
+})
+
+
+it.each(['en', 'pt-BR'] as const)('shows the five-digit format error in the mounted %s login form', async (language) => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import(`@orbit/shared/i18n/${language}.json`)).default
+  const translate = createTranslator({ locale: language, messages })
+  mocks.language = language
+  mocks.translate = translate
+  render(React.createElement(LoginContent))
+  fireEvent.change(screen.getByRole('textbox', { name: translate('auth.email') }), { target: { value: 'user@test.com' } })
+  fireEvent.click(screen.getByRole('button', { name: translate('auth.sendCode') }))
+  const code = await screen.findByRole('textbox', { name: translate('auth.verificationCode') })
+  fireEvent.change(code, { target: { value: '12345' } })
+  fireEvent.blur(code)
+  expect(code).toHaveAttribute('aria-invalid', 'true')
+  expect(document.getElementById(code.getAttribute('aria-describedby') ?? '')).toHaveTextContent(translate('auth.errors.codeFormat'))
+  expect(screen.getByRole('button', { name: translate('auth.verify') })).toBeDisabled()
+  fireEvent.change(code, { target: { value: '1234' } })
+  expect(code).not.toHaveAttribute('aria-invalid')
+})
+
+
+it.each([
+  { step: 'email', mixed: true }, { step: 'code', mixed: true },
+  { step: 'email', mixed: false }, { step: 'code', mixed: false },
+])('keeps unmapped validation visible in the owning $step form (mixed: $mixed)', async ({ step, mixed }) => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
+  render(React.createElement(LoginContent))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  if (step === 'code') {
+    fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+    await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
+  }
+  const field = step === 'email' ? 'Email' : 'Code'
+  const other = 'Other'
+  fetchMock.mockResolvedValue(jsonResponse({ errors: { ...(mixed ? { [field]: ['Field failure'] } : {}), [other]: ['Other failure', 'Second failure'] } }, 400))
+  const input = screen.getByRole('textbox')
+  if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+  else fireEvent.change(input, { target: { value: '123456' } })
+  if (mixed) await waitFor(() => expect(input).toHaveAccessibleDescription('Field failure'))
+  else await waitFor(() => expect(screen.getByText('Other failure', { exact: false })).toBeInTheDocument())
+  expect(screen.getByText('Other failure', { exact: false })).toHaveTextContent('Other failure Second failure')
+  if (mixed) expect(input).toHaveFocus()
+  expect(input).toHaveValue(step === 'email' ? 'user@test.com' : '123456')
+  fetchMock.mockResolvedValue(jsonResponse({ errors: { [other]: ['Unknown first', 'Unknown second'] } }, 400))
+  fireEvent.change(input, { target: { value: step === 'email' ? 'corrected@test.com' : '123457' } })
+  if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+  await waitFor(() => expect(screen.getByText('Unknown first', { exact: false })).toHaveTextContent('Unknown first Unknown second'))
+  expect(input).not.toHaveAttribute('aria-invalid')
+})
+
+
+it('keeps the general announcement region stable when verification returns email validation', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
+  render(React.createElement(LoginContent))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+  const code = await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
+  const generalRegion = screen.getAllByRole('status').at(-1)
+  expect(generalRegion).toBeEmptyDOMElement()
+  fetchMock.mockResolvedValue(jsonResponse({ errors: { Email: ['Email failure'], Other: ['Other failure', 'Second failure'] } }, 400))
+  fireEvent.change(code, { target: { value: '123456' } })
+  const email = await screen.findByRole('textbox', { name: mocks.translate('auth.email') })
+  expect(email).toHaveAccessibleDescription('Email failure')
+  expect(email).toHaveFocus()
+  expect(email).toHaveValue('user@test.com')
+  expect(screen.getByText('Other failure', { exact: false })).toBe(generalRegion)
+  expect(generalRegion).toHaveTextContent('Other failure Second failure')
+})
+
+
+it('returns focus to the editable OTP after a pending wrong-code rejection', async () => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = Object.assign((key: string) => key, { rich: createTranslator({ locale: 'en', messages }).rich })
+  let rejectCode!: () => void
+  fetchMock.mockImplementation((input) => toUrlString(input).includes('/api/auth/send-code')
+    ? Promise.resolve(jsonResponse({}))
+    : new Promise<Response>((resolve) => { rejectCode = () => resolve(jsonResponse({ errorCode: 'INVALID_VERIFICATION_CODE' }, 400)) }))
+  render(React.createElement(React.Fragment, {}, React.createElement(LoginContent), React.createElement('button', {}, 'Another action')))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  fireEvent.click(screen.getByRole('button', { name: 'auth.sendCode' }))
+  const code = await screen.findByRole('textbox', { name: 'auth.verificationCode' })
+  fireEvent.change(code, { target: { value: '123456' } })
+  await waitFor(() => expect(code).toBeDisabled())
+  const away = screen.getByRole('button', { name: 'Another action' })
+  away.focus()
+  expect(away).toHaveFocus()
+  await act(async () => rejectCode())
+  await waitFor(() => expect(code).toBeEnabled())
+  expect(code).toHaveAttribute('aria-invalid', 'true')
+  expect(code).toHaveFocus()
 })

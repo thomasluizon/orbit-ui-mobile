@@ -99,3 +99,20 @@ describe('verify-code BFF route', () => {
     expect(JSON.stringify(json)).not.toContain('ECONNREFUSED')
   })
 })
+
+
+describe('signed-out validation language', () => {
+  it.each(['en', 'pt-BR'])('forwards %s and preserves the validation contract', async (language) => {
+    const { verificationValidationResponses } = await import('@orbit/shared/test-support/validation-fixtures')
+    const payload = verificationValidationResponses[language as 'en' | 'pt-BR']
+    mockFetch.mockResolvedValue(new Response(JSON.stringify(payload), { status: 400 }))
+    const request = new NextRequest('https://app.useorbit.org/api/auth/verify-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept-Language': language, 'X-Orbit-Request-Id': payload.requestId },
+      body: JSON.stringify({ ...validBody, code: '12345', language }),
+    })
+    const response = await POST(request)
+    const forwarded = mockFetch.mock.calls.at(-1)?.[1] as RequestInit
+    expect(new Headers(forwarded.headers).get('Accept-Language')).toBe(language)
+    expect(await response.json()).toMatchObject(payload)
+  })
+})

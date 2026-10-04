@@ -9,6 +9,7 @@ const { mockCookieStore } = vi.hoisted(() => ({
 }))
 
 vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
   cookies: () => Promise.resolve(mockCookieStore),
 }))
 

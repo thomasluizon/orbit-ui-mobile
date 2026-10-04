@@ -1,3 +1,5 @@
+import { unmappedBackendFormError } from '@orbit/shared/hooks'
+import { extractBackendFieldErrors, extractBackendErrorDetails, extractBackendErrorCode, getBackendFieldError } from '@orbit/shared/utils'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
@@ -35,10 +37,12 @@ export function useLoginFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorKey, setErrorKey] = useState<string | null>(
+  const [errorKey, setLoginErrorKey] = useState<string | null>(
     searchParams.get('googleError') === '1' ? 'auth.errors.googleError' : null,
   )
+  const [validationError, setValidationError] = useState<unknown>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [codeFocusRequest, setCodeFocusRequest] = useState(0)
   const [codeFailure, setCodeFailure] = useState<LoginCodeFailure>(null)
   const [lockCountdown, setLockCountdown] = useState(0)
   const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
@@ -94,6 +98,11 @@ export function useLoginFlow() {
     return () => clearInterval(timer)
   }, [codeFailure, email])
 
+  function setErrorKey(key: string | null) {
+    setValidationError(null)
+    setLoginErrorKey(key)
+  }
+
   function available() { return !busy.current && isOnline && !isOfflinePreflight() }
   function getReturnUrl() {
     const destination = getNotificationDestination(searchParams.get(NOTIFICATION_URL_PARAM))
@@ -131,16 +140,31 @@ export function useLoginFlow() {
       setSuccessMessage(t('auth.codeSent'))
       entry.startResendCountdown()
     } catch (error: unknown) {
-      setErrorKey(resolveLoginErrorState(error, t, 'send').key)
+      if (!reportValidationFailure(error)) setErrorKey(resolveLoginErrorState(error, t, 'send').key)
     } finally { busy.current = false; setIsSubmitting(false) }
   }
 
+  function reportValidationFailure(error: unknown): boolean {
+    if (!extractBackendFieldErrors(error)) return false
+    setErrorKey(null)
+    setValidationError(error)
+    if (getBackendFieldError(error, 'Code')) setCodeFocusRequest((request) => request + 1)
+    if (getBackendFieldError(error, 'Email')) {
+      setStep('email')
+      setEmailFocusRequest((request) => request + 1)
+    }
+    return true
+  }
+
   function reportVerificationFailure(error: unknown) {
+    if (reportValidationFailure(error)) return
+
     const key = resolveLoginErrorState(error, t).key
     const address = email.trim().toLowerCase()
     const next = recordLoginFailure(key, attempts.current.get(address), Date.now())
     attempts.current.set(address, next.attempts)
     setCodeFailure(next.failure)
+    if (next.failure !== 'locked' && next.failure !== 'expired') setCodeFocusRequest((request) => request + 1)
     setLockCountdown(next.failure === 'locked' ? Math.max(0, Math.ceil((next.attempts.expiresAt - Date.now()) / 1000)) : 0)
     setErrorKey(next.failure === 'locked' ? null : key)
   }
@@ -151,7 +175,12 @@ export function useLoginFlow() {
 
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? entry.codeDigits.join('')
-    if (!available() || code.length !== 6 || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    if (!available() || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    if (!isValidVerificationCode(code)) {
+      setErrorKey('auth.errors.codeFormat')
+      setCodeFocusRequest((request) => request + 1)
+      return
+    }
     const protection = takeTurnstileToken()
     if (!protection) return
     busy.current = true
@@ -176,6 +205,7 @@ export function useLoginFlow() {
   }
 
   function onCodeChange(value: string) {
+    setErrorKey(null)
     if (pendingAutoCode.current !== value) pendingAutoCode.current = null
     entry.onCodeChange(value)
   }
@@ -196,7 +226,7 @@ export function useLoginFlow() {
       setCodeFailure(null)
       setSuccessMessage(t('auth.codeResent'))
       entry.startResendCountdown()
-    } catch (error: unknown) { setErrorKey(resolveLoginErrorState(error, t, 'send').key) }
+    } catch (error: unknown) { if (!reportValidationFailure(error)) setErrorKey(resolveLoginErrorState(error, t, 'send').key) }
     finally { busy.current = false; setIsSubmitting(false); setIsResending(false) }
   }
 
@@ -235,7 +265,14 @@ export function useLoginFlow() {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail: (value: string) => { setEmail(value); setErrorKey(null) }, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
+    emailFieldError: getBackendFieldError(validationError, 'Email'),
+    codeFieldError: getBackendFieldError(validationError, 'Code'),
+    codeFocusRequest,
+    validationErrorDetails: extractBackendErrorDetails(validationError),
+    validationCode: extractBackendErrorCode(validationError) ?? (errorKey === 'auth.errors.codeFormat' ? 'VALIDATION_VERIFICATION_CODE_FORMAT' : undefined),
+    onCodeBlur: () => { if (entry.codeDigits.join('').length > 0 && !isValidVerificationCode(entry.codeDigits.join(''))) setErrorKey('auth.errors.codeFormat') },
+    validationGeneralError: unmappedBackendFormError(validationError, [step === 'email' ? 'Email' : 'Code']),
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     turnstileSiteKey, turnstileToken, turnstileResetKey, onTurnstileToken: handleTurnstileToken,
     pendingHabitCount, isOnline, authStepMotion, ...entry, onCodeChange, codeFailure, lockCountdown, accountBack,

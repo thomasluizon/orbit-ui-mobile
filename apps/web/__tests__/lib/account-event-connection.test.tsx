@@ -27,6 +27,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  document.cookie = 'i18n_locale=;max-age=0;path=/'
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   setAccountEventOrigin(null)
@@ -66,12 +67,13 @@ it('refreshes a query fetched while the first ticket request failed', async () =
   await waitFor(() => expect(fetchHabits).toHaveBeenCalledTimes(1), { timeout: 4000 })
   expect(observer.getCurrentResult().data).toBe('after connection')
   expect((fetchMock.mock.calls[2]?.[0] as URL).origin).toBe('https://api.example.test')
-  expect(fetchMock.mock.calls[2]?.[1]).toMatchObject({ headers: undefined })
+  expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).has('Last-Event-ID')).toBe(false)
   unsubscribe()
   view.unmount()
 })
 
-it('requests replay after a closed stream and handles a server resync', async () => {
+it.each(['en', 'pt-BR'])('requests replay in selected %s after a closed stream and handles a server resync', async (language) => {
+  document.cookie = `i18n_locale=${language};path=/`
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
   const ticket = new Response(JSON.stringify({ ticket: 'ticket', apiBase: 'https://api.example.test' }))
   const firstEvent = 'event: ready\ndata: {"connectionId":"first"}\n\nid: epoch.1\nevent: changes\ndata: {"v":1,"changes":[]}\n\n'
@@ -89,7 +91,8 @@ it('requests replay after a closed stream and handles a server resync', async ()
 
   const view = render(<AccountEventConnection />)
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4), { timeout: 3000 })
-  expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: { 'Last-Event-ID': 'epoch.1' } })
+  expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get('Last-Event-ID')).toBe('epoch.1')
+  for (const [, init] of fetchMock.mock.calls) expect(new Headers((init as RequestInit).headers).get('Accept-Language')).toBe(language)
   await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits'] }))
   view.unmount()
 })
@@ -142,7 +145,7 @@ it('replays changes missed while the page was hidden', async () => {
   visibility = 'visible'
   document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
   await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
-  expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: { 'Last-Event-ID': 'epoch.5' } })
+  expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get('Last-Event-ID')).toBe('epoch.5')
   view.unmount()
 })
 
@@ -170,7 +173,7 @@ it('refreshes each account query once after returning without a replay cursor', 
   await settle()
   await waitFor(() => expect(client.isFetching()).toBe(0))
   expect({ beforeOpen, afterOpen: refreshCounts(queries) }).toEqual({ beforeOpen: [0, 0, 0], afterOpen: [1, 1, 1] })
-  expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: undefined })
+  expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).has('Last-Event-ID')).toBe(false)
   stopObserving(queries)
   view.unmount()
 })
@@ -251,7 +254,7 @@ it.each([false, true])('refreshes exhausted AI usage after midnight only after t
     expect(fetchProfile).toHaveBeenCalledTimes(1)
     expect(observer.getCurrentResult().data?.aiMessagesUsed).toBe(0)
     expect(refreshCounts(habits)).toEqual([cursor ? 0 : 1])
-    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: cursor ? { 'Last-Event-ID': 'epoch.5' } : undefined })
+    expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get('Last-Event-ID')).toBe(cursor ? 'epoch.5' : null)
     setVisibility('hidden')
     vi.setSystemTime(new Date('2026-01-01T03:06:00Z'))
     setVisibility('visible')
@@ -288,7 +291,7 @@ it('refreshes once when a return with a replay cursor cannot reopen', async () =
     setVisibility('visible')
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4))
     expect(refreshCounts(queries)).toEqual([0, 0, 0])
-    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({ headers: { 'Last-Event-ID': 'epoch.5' } })
+    expect(new Headers(fetchMock.mock.calls[3]?.[1]?.headers).get('Last-Event-ID')).toBe('epoch.5')
     failSecondOpen(new Error('stream unavailable'))
     await waitFor(() => expect(refreshCounts(queries)).toEqual([1, 1, 1]))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5), { timeout: 4000 })

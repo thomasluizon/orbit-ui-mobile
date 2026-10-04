@@ -617,6 +617,12 @@ export function createStyles(tokens: AppTokens) {
       borderWidth: 2,
       borderColor: tokens.primary,
     },
+    tagEditor: {
+      gap: 8,
+    },
+    tagEditorError: {
+      marginTop: 0,
+    },
     tagFormRow: {
       flexDirection: "row",
       alignItems: "center",

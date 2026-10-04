@@ -17,6 +17,9 @@ interface CodeStepProps {
   resendCountdown: number
   lockCountdown: number
   codeFailure: LoginCodeFailure
+  fieldError?: string
+  onCodeBlur?: () => void
+  codeFocusRequest?: number
   errorSignal: string | null
   successMessage: string | null
   isOnline: boolean
@@ -30,13 +33,13 @@ interface CodeStepProps {
 }
 
 export function CodeStep({ email, codeDigits, isSubmitting, isResending, canResend, resendCountdown, lockCountdown,
-  codeFailure, errorSignal, successMessage, isOnline, onVerifyCode, onCodeChange, onBackToEmail,
+  codeFailure, fieldError: backendFieldError, onCodeBlur, codeFocusRequest, errorSignal, successMessage, isOnline, onVerifyCode, onCodeChange, onBackToEmail,
   onResendCode, canSubmitTurnstile, turnstileWidget, t }: Readonly<CodeStepProps>) {
   const reduced = useReducedMotion()
   const locked = codeFailure === 'locked'
   const waiting = locked && lockCountdown > 0
   const expired = codeFailure === 'expired'
-  const fieldError = isOnline && !locked ? errorSignal ?? undefined : undefined
+  const fieldError = isOnline && !locked ? backendFieldError ?? errorSignal ?? undefined : undefined
   const shake = Boolean(fieldError) && !reduced
   return (
     <div className="flex flex-col gap-6">
@@ -52,7 +55,7 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
         <motion.div animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
           transition={{ duration: reduced ? 0 : 0.28, ease: motionEasings.standard }} data-mock={expired || undefined}>
           <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
-            onChange={onCodeChange} error={fieldError}
+            onChange={onCodeChange} onBlur={onCodeBlur} focusRequest={codeFocusRequest} error={fieldError}
             hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
             disabled={isSubmitting || expired || waiting} />
         </motion.div>

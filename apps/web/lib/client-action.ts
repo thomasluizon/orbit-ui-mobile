@@ -92,7 +92,7 @@ export async function runServerAction<T>(
 
   throw createApiClientError(
     result.status,
-    { error: result.error, ...(result.code ? { errorCode: result.code } : {}) },
+    { error: result.error, ...(result.code ? { errorCode: result.code } : {}), errors: result.fieldErrors, errorDetails: result.errorDetails },
     result.error,
   )
 }

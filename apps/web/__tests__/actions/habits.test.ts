@@ -1,3 +1,4 @@
+vi.mock('@/lib/request-language', () => ({ getServerRequestLanguage: vi.fn().mockResolvedValue('en') }))
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { resolveServerSessionMock } = vi.hoisted(() => ({

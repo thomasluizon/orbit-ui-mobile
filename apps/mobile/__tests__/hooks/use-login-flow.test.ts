@@ -14,8 +14,8 @@ import { LoginContent } from '@/components/auth/login-content'
 vi.mock('react-i18next', async (importActual) => ({
   ...(await importActual<typeof import('react-i18next')>()),
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
-    i18n: { language: 'en' },
+    t: (key: string, params?: Record<string, unknown>) => mocks.localized ? String(testI18n.t(key, params)) : params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: mocks.language },
   }),
 }))
 
@@ -31,6 +31,8 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   isOnline: true,
+  localized: false,
+  language: 'en',
   params: {},
   codeDigits: ['', '', '', '', '', ''],
   apiClient: vi.fn(),
@@ -99,7 +101,6 @@ vi.mock('@/lib/auth-flow', async (importOriginal) => ({
   getStoredReferralCode: mocks.getStoredReferralCode,
   isSafeReturnUrl: () => true,
   isValidReferralCode: () => false,
-  isValidVerificationCode: () => false,
   storeAuthReturnUrl: vi.fn(),
   storeReferralCode: vi.fn(),
 }))
@@ -171,6 +172,8 @@ function bodyOf(options: { body: string }): Record<string, unknown> {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  mocks.localized = false
+  mocks.language = 'en'
   mocks.isOnline = true
   mocks.params = {}
   mocks.codeDigits = ['', '', '', '', '', '']
@@ -815,4 +818,84 @@ describe('Google dismissal through the owning login flow', () => {
     expect(harness.current.errorKey).toBeNull()
     await callback.clearPendingGoogleAuthSession()
   })
+})
+
+
+describe('field validation responses', () => {
+  it.each(['en', 'pt-BR'] as const)('retains %s server copy and paired codes', async (language) => {
+    const { verificationValidationResponses } = await import('@orbit/shared/test-support/validation-fixtures')
+    const payload = verificationValidationResponses[language]
+    mocks.apiClient.mockRejectedValue(createApiClientError(400, payload, 'Fallback'))
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.verifyCode('123456'))
+    expect(harness.current).toMatchObject({ codeFieldError: payload.errors.Code.join('\n'), validationErrorDetails: payload.errorDetails, codeFailure: null })
+  })
+
+  it('makes the format code available when five digits are submitted', async () => {
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.verifyCode('12345'))
+    expect(harness.current).toMatchObject({ errorMessage: 'auth.errors.codeFormat', validationCode: 'VALIDATION_VERIFICATION_CODE_FORMAT', codeFailure: null })
+  })
+
+  it('shows legacy email validation beside the email field', async () => {
+    mocks.apiClient.mockRejectedValue(createApiClientError(400, { errors: { Email: ['Legacy email failure'] } }, 'Fallback'))
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    expect(harness.current).toMatchObject({ emailFieldError: 'Legacy email failure' })
+    await act(() => harness.current.setEmail('corrected@test.com'))
+    expect(harness.current.emailFieldError).toBeUndefined()
+  })
+})
+
+
+it.each(['en', 'pt-BR'] as const)('shows the five-digit format error in the mounted %s login form', async (language) => {
+  mocks.localized = true
+  mocks.language = language
+  await testI18n.changeLanguage(language)
+  let tree!: { root: { findAllByType: (type: string) => { props: Record<string, unknown> }[] }; unmount: () => void }
+  await act(() => { tree = TestRenderer.create(React.createElement(LoginContent)) })
+  const input = () => tree.root.findAllByType('TextInput')[0]!
+  await act(() => (input().props.onChangeText as (value: string) => void)('user@test.com'))
+  await act(() => (input().props.onSubmitEditing as () => void)())
+  await act(() => (input().props.onChangeText as (value: string) => void)('12345'))
+  await act(() => (input().props.onBlur as () => void)())
+  expect(input().props.accessibilityHint).toBe(testI18n.t('auth.errors.codeFormat'))
+  const error = tree.root.findAllByType('Text').find((node) => node.props.children === testI18n.t('auth.errors.codeFormat'))
+  expect(error?.props.accessibilityLiveRegion).toBe('polite')
+  expect(mocks.focus).not.toHaveBeenCalled()
+  await act(() => (input().props.onChangeText as (value: string) => void)('1234'))
+  expect(input().props.accessibilityHint).toBe(testI18n.t('auth.codeHint'))
+  await act(() => tree.unmount())
+})
+
+
+it.each([
+  { step: 'email', mixed: true }, { step: 'code', mixed: true },
+  { step: 'email', mixed: false }, { step: 'code', mixed: false },
+])('keeps unmapped validation visible in the owning $step form (mixed: $mixed)', async ({ step, mixed }) => {
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  await act(() => { tree = TestRenderer.create(React.createElement(LoginContent)) })
+  const input = () => tree.root.findAll((node) => String(node.type) === 'TextInput')[0]!
+  await act(() => (input().props.onChangeText as (value: string) => void)('user@test.com'))
+  if (step === 'code') {
+    await act(() => (input().props.onSubmitEditing as () => void)())
+    expect(input().props.accessibilityLabel).toBe('auth.verificationCode')
+  }
+  const field = step === 'email' ? 'Email' : 'Code'
+  const other = 'Other'
+  mocks.apiClient.mockRejectedValue(createApiClientError(400, { errors: { ...(mixed ? { [field]: ['Field failure'] } : {}), [other]: ['Other failure', 'Second failure'] } }, 'Fallback'))
+  if (step === 'email') await act(() => (input().props.onSubmitEditing as () => void)())
+  else await act(() => (input().props.onChangeText as (value: string) => void)('123456'))
+  if (mixed) expect(input().props.accessibilityHint).toBe('Field failure')
+  expect(tree.root.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children)).toContain('Other failure\nSecond failure')
+  if (mixed) expect(mocks.focus).toHaveBeenCalled()
+  expect(input().props.value).toBe(step === 'email' ? 'user@test.com' : '123456')
+  mocks.apiClient.mockRejectedValue(createApiClientError(400, { errors: { [other]: ['Unknown first', 'Unknown second'] } }, 'Fallback'))
+  await act(() => (input().props.onChangeText as (value: string) => void)(step === 'email' ? 'corrected@test.com' : '123457'))
+  if (step === 'email') await act(() => (input().props.onSubmitEditing as () => void)())
+  expect(tree.root.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children)).toContain('Unknown first\nUnknown second')
+  expect(input().props.accessibilityHint).not.toBe('Field failure')
+  await act(() => tree.update(React.createElement(React.Fragment)))
 })

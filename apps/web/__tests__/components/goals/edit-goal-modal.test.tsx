@@ -1,3 +1,4 @@
+import { createApiClientError } from '@orbit/shared/utils'
 import { afterAll, beforeAll, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
@@ -199,4 +200,31 @@ describe('EditGoalModal', () => {
       })
     })
   })
+})
+
+
+it('places legacy server validation beside each edited goal field and clears only an edited field', async () => {
+  mockMutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'], Unit: ['Server unit failure'] } }, 'Fallback'))
+  render(<EditGoalModal open onOpenChange={vi.fn()} goal={mockGoal} />)
+  const title = screen.getByLabelText('goals.form.description')
+  const unit = screen.getByLabelText('goals.form.unit')
+  fireEvent.submit(title.closest('form')!)
+  await waitFor(() => expect(title).toHaveAccessibleDescription('Server title failure'))
+  expect(unit).toHaveAccessibleDescription('Server unit failure')
+  expect(screen.getByText('Server unit failure').style.color).toBe('var(--status-bad-text)')
+  expect(title).toHaveFocus()
+  expect(mockShowError).not.toHaveBeenCalled()
+  fireEvent.change(title, { target: { value: 'Updated title' } })
+  expect(title).not.toHaveAccessibleDescription('Server title failure')
+  expect(unit).toHaveAccessibleDescription('Server unit failure')
+})
+
+it('focuses the mapped goal field while retaining general failures in a mixed response', async () => {
+  mockMutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Unit: ['Server unit failure'], HabitIds: ['Server linked habit failure'] } }, 'Fallback'))
+  render(<EditGoalModal open onOpenChange={vi.fn()} goal={mockGoal} />)
+  const unit = screen.getByLabelText('goals.form.unit')
+  fireEvent.submit(unit.closest('form')!)
+  await waitFor(() => expect(unit).toHaveAccessibleDescription('Server unit failure'))
+  expect(unit).toHaveFocus()
+  expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Server linked habit failure'))
 })

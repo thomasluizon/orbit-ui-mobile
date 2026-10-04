@@ -270,7 +270,7 @@ describe('auth store', () => {
     await useAuthStore.getState().logout()
     unsubscribe()
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
     expect(posthogMocks.resetPostHogUser).toHaveBeenCalledOnce()
     expect(resetAtSignedOut).toHaveBeenCalledWith(1)
     expect(useAuthStore.getState()).toMatchObject({
@@ -326,7 +326,7 @@ describe('auth store', () => {
 
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
     expect(pushMocks.captureException).toHaveBeenCalledWith(failure)
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
 
@@ -376,7 +376,7 @@ describe('auth store', () => {
       await useAuthStore.getState().logout()
       releaseInitial('previous account')
       expect(queryFn).toHaveBeenCalledTimes(1)
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) })
       expect(mockFetch).not.toHaveBeenCalledWith('/api/profile')
     } finally {
       unsubscribe()
@@ -407,7 +407,7 @@ describe('auth store', () => {
     useAuthStore.getState().setAuth(makeLoginResponse())
 
     const oldLogout = useAuthStore.getState().logout()
-    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) }))
     const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
       email: 'new@example.com', code: '123456',
     }).then((response) => useAuthStore.getState().setAuth(response as LoginResponse))
@@ -446,7 +446,7 @@ describe('auth store', () => {
     useAuthStore.getState().setAuth(makeLoginResponse())
 
     const oldLogout = useAuthStore.getState().logout()
-    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) }))
     const replacementLogin = fetchAuthEndpoint('/api/auth/verify-code', {
       email: 'alex@example.com', code: '123456',
     })
@@ -475,7 +475,7 @@ describe('auth store', () => {
     useAuthStore.getState().setAuth(makeLoginResponse())
 
     const oldLogout = useAuthStore.getState().logout()
-    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) }))
     useAuthStore.getState().adoptAccountFromSignal('user-2')
     await vi.waitFor(() => expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
@@ -557,7 +557,7 @@ describe('auth store', () => {
     })))
 
     useAuthStore.getState().adoptAccountFromSignal(null)
-    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined))
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', { headers: expect.any(Headers) }))
 
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
@@ -784,7 +784,7 @@ describe('auth store', () => {
       await vi.runOnlyPendingTimersAsync()
 
       expect(typeof cleanup).toBe('function')
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined)
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', { headers: expect.any(Headers) })
       cleanup()
     })
 
@@ -802,7 +802,7 @@ describe('auth store', () => {
       await vi.advanceTimersByTimeAsync(60000)
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
-      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', undefined)
+      expect(mockFetch).toHaveBeenCalledWith('/api/auth/session', { headers: expect.any(Headers) })
       cleanup()
     })
 

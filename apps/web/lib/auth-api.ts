@@ -1,3 +1,4 @@
+import { getServerRequestLanguage } from './request-language'
 import { cookies } from 'next/headers'
 import { API } from '@orbit/shared/api'
 
@@ -184,6 +185,7 @@ export async function clearSessionCookies(
 
 export async function refreshSessionTokens(
   refreshToken: string,
+  language?: string,
 ): Promise<RefreshSessionResult> {
   const inFlight = refreshRequests.get(refreshToken)
   if (inFlight) {
@@ -196,7 +198,7 @@ export async function refreshSessionTokens(
     try {
       const response = await fetch(`${apiBase}${API.auth.refresh}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept-Language': language ?? await getServerRequestLanguage() },
         body: JSON.stringify({ refreshToken }),
         signal: AbortSignal.timeout(10000),
       })
@@ -267,6 +269,7 @@ export async function resolveServerSession(options?: {
   return resolveSessionTokens({
     authToken,
     refreshToken,
+    language: await getServerRequestLanguage(cookieStore),
     forceRefresh: options?.forceRefresh ?? false,
     refreshThresholdMs: options?.refreshThresholdMs ?? ACCESS_TOKEN_REFRESH_THRESHOLD_MS,
     persistSession: async (tokens) => {
@@ -285,6 +288,7 @@ export async function resolveSessionTokens(options: {
   refreshThresholdMs?: number
   persistSession?: (tokens: SessionTokens) => void | Promise<void>
   clearSession?: () => void | Promise<void>
+  language?: string
 }): Promise<ResolvedServerSession> {
   const forceRefresh = options.forceRefresh ?? false
   const refreshThresholdMs =
@@ -308,7 +312,7 @@ export async function resolveSessionTokens(options: {
   }
 
   if (options.refreshToken) {
-    const refreshResult = await refreshSessionTokens(options.refreshToken)
+    const refreshResult = await refreshSessionTokens(options.refreshToken, options.language)
     if (refreshResult.outcome === 'refreshed') {
       const { tokens: refreshedTokens } = refreshResult
       await options.persistSession?.(refreshedTokens)

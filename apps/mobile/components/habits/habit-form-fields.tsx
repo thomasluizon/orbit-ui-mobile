@@ -1,3 +1,5 @@
+import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
+import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import Animated, { Easing, Keyframe } from 'react-native-reanimated'
@@ -288,6 +290,12 @@ export function HabitFormFields({
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
   const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
   const lastLocallyReadTitleRef = useRef<string | null>(null)
+  const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
+  const editTagErrors = useBackendFieldErrors({ name: tags.editTagName }, { name: 'Name' })
+  const descriptionFailure = formHelpers.backendFieldErrors.description
+  useBackendErrorDisclosure(descriptionFailure, formHelpers.backendFocusRequest, () => {
+    setDetailsOpen(true)
+  })
   const [previousExpandSignal, setPreviousExpandSignal] = useState(expandAdvancedSignal)
   if (expandAdvancedSignal !== previousExpandSignal) {
     setPreviousExpandSignal(expandAdvancedSignal)
@@ -377,25 +385,19 @@ export function HabitFormFields({
       showError(translate(validationError))
       return
     }
-    await tags.createAndSelectTag(async (name, color) => {
-      try {
-        return (await createTag.mutateAsync({ name, color })).id
-      } catch (error: unknown) {
-        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-        throw error
-      }
-    })
+    try {
+      await tags.createAndSelectTag(async (name, color) => (await createTag.mutateAsync({ name, color })).id)
+    } catch (error: unknown) {
+      if (!newTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+    }
   }
 
   async function saveEditedTag() {
-    await tags.saveEditTag(async (id, name, color) => {
-      try {
-        await updateTag.mutateAsync({ tagId: id, name, color })
-      } catch (error: unknown) {
-        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-        throw error
-      }
-    })
+    try {
+      await tags.saveEditTag(async (id, name, color) => { await updateTag.mutateAsync({ tagId: id, name, color }) })
+    } catch (error: unknown) {
+      if (!editTagErrors.reportBackendErrors(error).handled) showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+    }
   }
 
   return (
@@ -418,7 +420,7 @@ export function HabitFormFields({
         days={days}
         daily={daily}
         emoji={emoji}
-        error={errors.title?.message ? t(errors.title.message) : undefined}
+        error={resolveBackendFormFieldMessage(formHelpers.backendFieldErrors.title, errors.title?.message, t)}
         value={title}
       />
 
@@ -476,10 +478,10 @@ export function HabitFormFields({
               <Switch label={t('habits.form.habitTypeAvoid')} checked={isBadHabit} onChange={(checked) => setValue('isBadHabit', checked, { shouldDirty: true })} />
             </View>
             <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
-            <View><TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={tags.setNewTagName} onCommit={() => void createNewTag()} onCancel={() => tags.setShowNewTag(false)} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={tags.cancelEditTag} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
+            <View><TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={tags.setNewTagName} onCommit={() => void createNewTag()} onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
             <View><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
-            <View><Input label={t('habits.form.description')} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
+            <View><Input label={t('habits.form.description')} error={descriptionFailure} focusRequest={backendFormFieldFocusRequest('description', formHelpers.backendFocusField, formHelpers.backendFocusRequest)} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
           </Animated.View>
         ) : null}
       </View>

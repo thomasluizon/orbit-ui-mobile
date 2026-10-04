@@ -51,7 +51,7 @@ it('serializes logout and replacement login cookie writes across tabs', async ()
     userId: 'old-user', name: 'Old', email: 'old@example.com',
   })
   const oldLogout = firstTab.useAuthStore.getState().logout()
-  await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' }))
+  await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST', headers: expect.any(Headers) }))
 
   vi.resetModules()
   const secondTab = await import('@/app/(auth)/login/login-form-helpers')

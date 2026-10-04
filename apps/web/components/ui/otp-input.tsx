@@ -8,6 +8,8 @@ export function OtpInput({
   value,
   onChange,
   onComplete,
+  onBlur,
+  focusRequest,
   error,
   hint,
   disabled = false,
@@ -29,8 +31,12 @@ export function OtpInput({
   }
 
   useEffect(() => {
-    if (error) inputRef.current?.focus()
-  }, [error])
+    if (focusRequest === undefined && error) inputRef.current?.focus()
+  }, [error, focusRequest])
+
+  useEffect(() => {
+    if (focusRequest) inputRef.current?.focus()
+  }, [focusRequest])
 
   return (
     <div className="flex flex-col gap-2" data-error={error ? '' : undefined}>
@@ -42,7 +48,7 @@ export function OtpInput({
           value={value}
           onChange={handleChange}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => { setFocused(false); onBlur?.() }}
           aria-label={label}
           aria-invalid={error ? true : undefined}
           aria-describedby={error || hint ? descriptionId : undefined}

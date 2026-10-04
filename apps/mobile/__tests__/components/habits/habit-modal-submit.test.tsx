@@ -1,6 +1,8 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
+import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -54,13 +56,15 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 async function renderSheet(mode: 'create' | 'edit') {
   const onClose = vi.fn()
   let tree!: ReactTestRenderer
-  await act(() => { tree = create(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}>
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  const element = (open: boolean) => <QueryClientProvider client={client}>
     {mode === 'create'
-      ? <CreateHabitModal open onClose={onClose} />
-      : <EditHabitModal open onClose={onClose} habit={habit} />}
-  </QueryClientProvider>); return Promise.resolve() })
+      ? <CreateHabitModal open={open} onClose={onClose} initialTitle={habit.title} />
+      : <EditHabitModal open={open} onClose={onClose} habit={habit} />}
+  </QueryClientProvider>
+  await act(() => { tree = create(element(true)); return Promise.resolve() })
   const label = mode === 'create' ? 'habits.createHabit' : 'common.save'
-  return { onClose, tree, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
+  return { onClose, tree, setOpen: async (open: boolean) => { await act(() => { tree.update(element(open)); return Promise.resolve() }) }, title: tree.root.findAll((node) => (node.type as unknown) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!, submit: tree.root.findAll((node) => (node.type as unknown) === 'Pressable').find((node) => node.findAll((child) => (child.type as unknown) === 'Text').some((text) => text.props.children === label))! }
 }
 
 async function changeTitle(title: ReactTestInstance, value: string) {
@@ -87,6 +91,27 @@ async function settleMutation() {
 
 describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
   beforeEach(() => { vi.resetAllMocks(); __setFocusImpl(() => {}) })
+
+
+  it('discards backend errors and focus requests when a persistent owner opens a matching draft', async () => {
+    const messages = verificationValidationResponses.en.errors.Code
+    mutation.mockRejectedValue({ errors: { Title: [...messages] } })
+    const { title, submit, tree, setOpen } = await renderSheet(mode)
+    await changeTitle(title, habit.title)
+    await pressSubmit(submit)
+    await settleMutation()
+    expect(title.props.accessibilityHint).toBe(messages.join('\n'))
+    const form = () => tree.root.findAll((node) => node.type === HabitFormFields)[0]!.props.formHelpers as import('@/hooks/use-habit-form').HabitFormHelpers
+    expect(form().backendFocusRequest).toBeGreaterThan(0)
+    await setOpen(false)
+    await setOpen(true)
+    const nextTitle = tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'habits.form.describe')[0]!
+    expect(nextTitle.props.value).toBe(habit.title)
+    expect(nextTitle.props.accessibilityHint).toBeUndefined()
+    expect(form().backendFocusRequest).toBe(0)
+    expect(form().backendFocusField).toBeUndefined()
+    await act(() => { tree.update(<></>); return Promise.resolve() })
+  })
 
   it.each(['', '   '])('focuses an invalid title and shows its inline error after submit (%j)', async (value) => {
     const focus = vi.fn()

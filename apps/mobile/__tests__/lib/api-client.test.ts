@@ -674,3 +674,16 @@ describe('mobile apiClient', () => {
     expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 })
+
+
+describe('selected request language', () => {
+  it.each(['en', 'pt-BR'])('sends %s on signed-out auth requests', async (language) => {
+    const { i18n } = await import('@/lib/i18n')
+    await i18n.changeLanguage(language)
+    getTokenMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }))
+    await apiClient(API.auth.sendCode, { method: 'POST', body: '{}' })
+    expect(new Headers(fetchMock.mock.calls.at(-1)?.[1].headers).get('Accept-Language')).toBe(language)
+    await i18n.changeLanguage('en')
+  })
+})

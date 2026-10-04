@@ -276,6 +276,7 @@ export function EditHabitModal({
           slipAlertEnabled: formHelpers.form.getValues('slipAlertEnabled'),
         }
       : prefill.formValues
+    if (habitChanged) formHelpers.clearBackendErrors()
     formHelpers.form.reset(formValues)
     setOriginalEndDate(prefill.originalEndDate)
     setReminderTimes(prefill.reminderTimes)
@@ -335,6 +336,7 @@ export function EditHabitModal({
       closeSheet(onClose)
       await onSaved?.()
     } catch (error: unknown) {
+      if (formHelpers.reportBackendErrors(error)) return
       showError(
         getFriendlyErrorMessage(
           error,

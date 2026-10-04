@@ -1,3 +1,4 @@
+import { createApiClientError } from '@orbit/shared/utils'
 import React, { useImperativeHandle } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
@@ -160,4 +161,20 @@ describe('EditGoalModal helpers', () => {
     })
     expect(mocks.mutateAsync).toHaveBeenCalledOnce()
   })
+})
+
+
+it('places legacy server validation beside each edited goal field and clears only an edited field', async () => {
+  mocks.showError.mockClear()
+  mocks.mutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'], Unit: ['Server unit failure'] } }, 'Fallback'))
+  const { tree, input, save } = renderModal()
+  await TestRenderer.act(async () => { await save().props.onPress() })
+  expect(input('goals.form.description').props.accessibilityHint).toBe('Server title failure')
+  expect(input('goals.form.unit').props.accessibilityHint).toContain('Server unit failure')
+  expect(mocks.focus).toHaveBeenCalledWith('goals.form.description', 'Server title failure')
+  expect(mocks.showError).not.toHaveBeenCalled()
+  TestRenderer.act(() => input('goals.form.description').props.onChangeText('Updated title'))
+  expect(input('goals.form.description').props.accessibilityHint).toBeUndefined()
+  expect(input('goals.form.unit').props.accessibilityHint).toContain('Server unit failure')
+  TestRenderer.act(() => tree.unmount())
 })

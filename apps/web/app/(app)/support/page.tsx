@@ -1,5 +1,8 @@
 'use client'
 
+import { unmappedBackendFormError } from '@orbit/shared/hooks'
+import { extractBackendFieldErrors, getBackendFieldError } from '@orbit/shared/utils'
+
 import { useState, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -64,6 +67,7 @@ export default function SupportPage() {
   const [message, setMessage] = useState(initialDraft.message)
   const [isSending, setIsSending] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [validationMessage, setValidationMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState<string | null>(null)
   const [messageError, setMessageError] = useState<string | null>(null)
@@ -76,6 +80,7 @@ export default function SupportPage() {
     setMessage('')
     setSuccess(false)
     setError(null)
+    setValidationMessage(null)
     setSubjectError(null)
     setMessageError(null)
   })
@@ -126,6 +131,7 @@ export default function SupportPage() {
     const accountGeneration = getAccountGeneration()
     setIsSending(true)
     setError(null)
+    setValidationMessage(null)
     setSuccess(false)
 
     try {
@@ -144,6 +150,18 @@ export default function SupportPage() {
       setMessage('')
       forgetStoredSupportDraft()
     } catch (err: unknown) {
+      const subjectFailure = getBackendFieldError(err, 'Subject')
+      const messageFailure = getBackendFieldError(err, 'Message')
+      if (extractBackendFieldErrors(err)) {
+        const generalFailure = unmappedBackendFormError(err, ['Subject', 'Message'])
+        setError(generalFailure ?? null)
+        setValidationMessage(generalFailure ?? null)
+        setSubjectError(subjectFailure ?? null)
+        setMessageError(messageFailure ?? null)
+        if (subjectFailure) setSubjectFocusRequest((request) => request + 1)
+        else if (messageFailure) setMessageFocusRequest((request) => request + 1)
+        return
+      }
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setIsSending(false)
@@ -179,6 +197,7 @@ export default function SupportPage() {
                 messageMaxLength={messageMaxLength}
                 messageOverLimitHint={messageOverLimitHint}
                 error={error}
+                validationMessage={validationMessage}
                 subjectError={subjectError}
                 messageError={messageError}
                 isSending={isSending}

@@ -41,6 +41,7 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: mocks.replace }),
 }))
 
+vi.mock('@/lib/i18n', () => ({ i18n: { language: 'en' } }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,

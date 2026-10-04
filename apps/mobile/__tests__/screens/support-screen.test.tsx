@@ -754,6 +754,24 @@ describe('SupportScreen', () => {
     )
   })
 
+  it('keeps mixed field and general server validation visible without losing the draft', async () => {
+    mocks.apiClient.mockRejectedValue({ errors: { Message: ['Message exceeds 123 characters'], Email: ['Server email failure'] } })
+    const tree = await renderScreen()
+    await selectSubject(tree.root)
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message body')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.accessibilityHint).toContain('Message exceeds 123 characters')
+    expect(tree.root.findAll((node) => node.props.children === 'Server email failure')).not.toHaveLength(0)
+    expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('Message body')
+  })
+
   it('surfaces a friendly error when the request fails', async () => {
     mocks.apiClient.mockRejectedValue(new Error('boom'))
     const tree = await renderScreen()

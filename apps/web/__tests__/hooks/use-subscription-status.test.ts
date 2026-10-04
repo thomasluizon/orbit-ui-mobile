@@ -53,7 +53,7 @@ describe('useSubscriptionStatus', () => {
 
     await act(async () => { await result.current.refetch({ cancelRefetch: false, throwOnError: true }) })
     await waitFor(() => expect(result.current.status).toEqual(status))
-    expect(mockFetch).toHaveBeenCalledWith(API.subscription.status, undefined)
+    expect(mockFetch).toHaveBeenCalledWith(API.subscription.status, { headers: expect.any(Headers) })
   })
 
   it('keeps status empty when the live request fails', async () => {

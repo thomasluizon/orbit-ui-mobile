@@ -10,6 +10,8 @@ export function OtpInput({
   value,
   onChange,
   onComplete,
+  onBlur,
+  focusRequest,
   error,
   hint,
   disabled = false,
@@ -34,8 +36,12 @@ export function OtpInput({
   }
 
   useEffect(() => {
-    if (error) inputRef.current?.focus()
-  }, [error])
+    if (focusRequest === undefined && error) inputRef.current?.focus()
+  }, [error, focusRequest])
+
+  useEffect(() => {
+    if (focusRequest) inputRef.current?.focus()
+  }, [focusRequest])
 
   return (
     <View style={styles.root}>
@@ -45,7 +51,7 @@ export function OtpInput({
           value={value}
           onChangeText={handleChange}
           onFocus={() => { setFocused(true); keyboardAware?.revealInput(inputRef.current) }}
-          onBlur={() => setFocused(false)}
+          onBlur={() => { setFocused(false); onBlur?.() }}
           editable={!disabled}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
@@ -84,6 +90,7 @@ export function OtpInput({
       {error || hint ? (
         <Text
           accessibilityRole={error ? 'alert' : undefined}
+          accessibilityLiveRegion={error ? 'polite' : undefined}
           style={[styles.caption, { color: error ? tokens.statusBadText : tokens.fg3 }]}
         >
           {error ?? hint}

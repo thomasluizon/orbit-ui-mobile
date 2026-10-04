@@ -1,3 +1,4 @@
+import { getServerRequestLanguage } from './request-language'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { createApiClientError } from '@orbit/shared'
@@ -81,6 +82,7 @@ async function fetchWithSession<T>(
   const accountIntent = intendedAccountId?.startsWith('{')
     ? accountIntentSchema.parse(JSON.parse(intendedAccountId) as unknown)
     : { accountId: intendedAccountId, eventOrigin: null }
+  const language = await getServerRequestLanguage()
   const appVersion = process.env.APP_VERSION
   const buildHeaders = (token: string): Record<string, string> => ({
     Authorization: `Bearer ${token}`,
@@ -88,6 +90,7 @@ async function fetchWithSession<T>(
     ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
     ...(accountIntent.eventOrigin ? { 'X-Orbit-Event-Origin': accountIntent.eventOrigin } : {}),
     ...(init.headers as Record<string, string> | undefined),
+    'Accept-Language': language,
   })
 
   let session = await resolveServerSession()
@@ -160,6 +163,7 @@ export async function serverPublicFetch<T = unknown>(
   init: RequestInit = {},
   schema?: ZodType<T>,
 ): Promise<T | null> {
+  const language = await getServerRequestLanguage()
   const appVersion = process.env.APP_VERSION
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -167,6 +171,7 @@ export async function serverPublicFetch<T = unknown>(
       'Content-Type': 'application/json',
       ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
       ...(init.headers as Record<string, string> | undefined),
+      'Accept-Language': language,
     },
   })
 

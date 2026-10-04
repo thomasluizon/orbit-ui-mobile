@@ -83,7 +83,7 @@ describe('profile presentation helpers', () => {
 
     await expect(hydrateProfilePresentation()).resolves.toEqual(profile)
 
-    expect(fetchMock).toHaveBeenCalledWith(API.profile.get, { cache: 'no-store' })
+    expect(fetchMock).toHaveBeenCalledWith(API.profile.get, { cache: 'no-store', headers: expect.any(Headers) })
     expect(document.documentElement).toHaveClass('scheme-orange', 'dark')
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('#C4530F')
     expect(document.cookie).toContain('orbit_color_scheme=orange')

@@ -107,6 +107,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    reportBackendErrors: vi.fn(() => false),
     form: {
       control: { values: {} },
       reset: vi.fn(),
@@ -131,6 +132,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     formatTimeInput: (value: string) => value,
     formatEndTimeInput: (value: string) => value,
     validateAll: mockValidateAll,
+    clearBackendErrors: vi.fn(),
   }),
 }))
 

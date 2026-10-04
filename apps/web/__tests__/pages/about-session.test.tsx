@@ -83,6 +83,7 @@ vi.mock('@/hooks/use-habit-form', () => ({ useHabitForm: () => ({
     formState: { isDirty: false },
   },
   validateAll: mocks.validateHabit,
+  clearBackendErrors: vi.fn(),
   setGeneral: vi.fn(),
 }) }))
 vi.mock('@/hooks/use-tag-selection', () => ({ useTagSelection: () => ({ selectedTagIds: [], resetTags: vi.fn() }) }))
@@ -278,7 +279,7 @@ it.each(['auth_token', 'refresh_token'])('restores the destination shell on a ha
   mocks.fetch.mockReturnValueOnce(new Promise<Response>((resolve) => { resolveSession = resolve }))
   render(await RootLayout({ children: <QueryAppLayout><p>About content</p></QueryAppLayout> }), { container: document })
   expect(screen.getByText('About content')).toBeInTheDocument()
-  expect(mocks.fetch).toHaveBeenCalledWith('/api/auth/session', undefined)
+  expect(mocks.fetch).toHaveBeenCalledWith('/api/auth/session', { headers: expect.any(Headers) })
   await act(async () => resolveSession(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 }))))
   expect(screen.getByRole('main', { name: 'Destination shell' })).toHaveTextContent('About content')
   cleanup()

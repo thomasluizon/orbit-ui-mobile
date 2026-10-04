@@ -1,3 +1,4 @@
+import { i18n } from './i18n'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getToken } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse } from '@orbit/shared'
@@ -85,6 +86,7 @@ function buildRequestHeaders(
     ...buildClientTimeZoneHeaders(),
     ...buildAppVersionHeaders(),
     ...options.headers,
+    'Accept-Language': i18n.language,
   }
 
   const method = options.method?.toUpperCase() ?? 'GET'

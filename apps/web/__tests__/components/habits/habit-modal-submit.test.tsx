@@ -1,6 +1,7 @@
 import React from 'react'
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { verificationValidationResponses } from '@orbit/shared/test-support/validation-fixtures'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -8,6 +9,14 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mutation = vi.hoisted(() => vi.fn())
 const showError = vi.hoisted(() => vi.fn())
+let currentForm!: import('@/hooks/use-habit-form').HabitFormHelpers
+vi.mock('@/components/habits/habit-form-fields', async (original) => {
+  const actual = await original<typeof import('@/components/habits/habit-form-fields')>()
+  return { HabitFormFields: (props: React.ComponentProps<typeof actual.HabitFormFields>) => {
+    currentForm = props.formHelpers
+    return <actual.HabitFormFields {...props} />
+  } }
+})
 const habit = createMockHabit({ title: 'Walk every day' })
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -52,16 +61,37 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }
 
 async function renderSheet(mode: 'create' | 'edit') {
   const onClose = vi.fn()
-  await act(async () => { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}>
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  const element = (open: boolean) => <QueryClientProvider client={client}>
     {mode === 'create'
-      ? <CreateHabitModal open onOpenChange={onClose} />
-      : <EditHabitModal open onOpenChange={onClose} habit={habit} />}
-  </QueryClientProvider>) })
-  return { onClose, title: screen.getByRole('textbox', { name: 'habits.form.describe' }), submit: screen.getByRole('button', { name: mode === 'create' ? 'habits.createHabit' : 'common.save' }) }
+      ? <CreateHabitModal open={open} onOpenChange={onClose} initialTitle={habit.title} />
+      : <EditHabitModal open={open} onOpenChange={onClose} habit={habit} />}
+  </QueryClientProvider>
+  let view!: ReturnType<typeof render>
+  await act(async () => { view = render(element(true)) })
+  return { onClose, setOpen: async (open: boolean) => { await act(async () => view.rerender(element(open))) }, title: screen.getByRole('textbox', { name: 'habits.form.describe' }), submit: screen.getByRole('button', { name: mode === 'create' ? 'habits.createHabit' : 'common.save' }) }
 }
 
 describe.each(['create', 'edit'] as const)('habit %s submit', (mode) => {
   beforeEach(() => { vi.resetAllMocks() })
+
+  it('discards backend errors and focus requests when a persistent owner opens a matching draft', async () => {
+    const messages = verificationValidationResponses.en.errors.Code
+    mutation.mockRejectedValue({ errors: { Title: [...messages] } })
+    const { title, submit, setOpen } = await renderSheet(mode)
+    await act(async () => fireEvent.change(title, { target: { value: habit.title } }))
+    await act(async () => fireEvent.click(submit))
+    await waitFor(() => expect(title).toHaveAttribute('aria-invalid', 'true'))
+    expect(currentForm.backendFocusRequest).toBeGreaterThan(0)
+    await setOpen(false)
+    await setOpen(true)
+    const nextTitle = screen.getByRole('textbox', { name: 'habits.form.describe' })
+    expect(nextTitle).toHaveValue(habit.title)
+    expect(nextTitle).not.toHaveAttribute('aria-invalid', 'true')
+    expect(screen.queryByText(messages.join('\n'))).not.toBeInTheDocument()
+    expect(currentForm.backendFocusRequest).toBe(0)
+    expect(currentForm.backendFocusField).toBeUndefined()
+  })
 
   it.each(['', '   '])('focuses an invalid title and shows its inline error after submit (%j)', async (value) => {
     const { title, submit } = await renderSheet(mode)

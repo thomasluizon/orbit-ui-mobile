@@ -1,3 +1,4 @@
+import { resolveSystemLocale } from '@orbit/shared/utils'
 import { NextResponse, type NextRequest } from 'next/server'
 import { sendCodeRequestSchema } from '@orbit/shared/types/auth'
 import {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json', 'Accept-Language': resolveSystemLocale(body.language),
         [ORBIT_REQUEST_ID_HEADER]: requestId,
       },
       body: JSON.stringify(body),

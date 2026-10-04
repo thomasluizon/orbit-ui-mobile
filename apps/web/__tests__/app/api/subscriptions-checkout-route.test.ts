@@ -83,7 +83,7 @@ describe('subscriptions checkout route', () => {
           'X-Orbit-Country-Code': 'BR',
           'X-Forwarded-For': '177.10.20.31',
           'CloudFront-Viewer-Country': 'BR',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Accept-Language': 'pt-BR',
           'X-Orbit-Time-Zone': 'America/Sao_Paulo',
         },
       }),

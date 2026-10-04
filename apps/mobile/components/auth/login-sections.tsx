@@ -57,3 +57,11 @@ export function LoginStepStage({ step, children }: Readonly<{ step: string; chil
     inputRange: [0, 1], outputRange: [step === 'email' ? -12 : 12, 0],
   }) }] }}>{children}</Animated.View>
 }
+
+
+export function LoginValidationMessage({ message, isOnline, styles }: Readonly<{ message?: string; isOnline: boolean; styles: LoginStyles }>) {
+  const visibleMessage = isOnline ? message : undefined
+  return <View accessibilityLiveRegion="polite" style={visibleMessage ? undefined : styles.hiddenLiveRegion}>
+    {visibleMessage ? <Text style={styles.error}>{visibleMessage}</Text> : null}
+  </View>
+}

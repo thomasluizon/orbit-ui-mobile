@@ -320,7 +320,7 @@ async function rotateSessionToken(
   try {
     response = await fetch(`${MOBILE_API_BASE}${API.auth.refresh}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Accept-Language': i18n.language },
       body: JSON.stringify({ refreshToken }),
     })
   } catch (error: unknown) {

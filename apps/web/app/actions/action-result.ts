@@ -1,3 +1,6 @@
+import { extractBackendFieldErrors, extractBackendErrorDetails } from '@orbit/shared/utils'
+import type { ValidationErrorDetails } from '@orbit/shared/types'
+
 export type ServerActionResult<T> =
   | { ok: true; data: T }
   | {
@@ -5,6 +8,8 @@ export type ServerActionResult<T> =
       error: string
       status: number
       code?: string
+      fieldErrors?: Record<string, string[]>
+      errorDetails?: ValidationErrorDetails
       sessionRefreshFailed: boolean
     }
 
@@ -54,11 +59,15 @@ export async function wrapServerAction<T>(fn: () => Promise<T>): Promise<ServerA
       ? (error as { code: string }).code
       : undefined
 
+    const fieldErrors = extractBackendFieldErrors(error)
+    const errorDetails = extractBackendErrorDetails(error)
     return {
       ok: false,
       error: message,
       status,
       ...(code ? { code } : {}),
+      ...(fieldErrors ? { fieldErrors } : {}),
+      ...(errorDetails ? { errorDetails } : {}),
       sessionRefreshFailed: reportsSessionRefreshFailure(error),
     }
   }

@@ -51,7 +51,7 @@ describe('session refresh recovery', () => {
       expiresAt,
       sessionRefreshFailed: false,
     })
-    expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/auth/session', undefined)
+    expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/auth/session', { headers: expect.any(Headers) })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -89,7 +89,7 @@ describe('session refresh recovery', () => {
       expiresAt,
       sessionRefreshFailed: false,
     })
-    expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/auth/session', undefined)
+    expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/auth/session', { headers: expect.any(Headers) })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { resolveRequestLanguage } from './resolve-request-language'
+
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useThrottleStore } from '@/stores/throttle-store'
 import {
@@ -98,7 +100,10 @@ export async function applySessionRefreshFailure(response: Response): Promise<vo
 }
 
 export async function fetchWithUpgradeGuidance(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const response = await fetch(input, init)
+  const headers = new Headers(init?.headers)
+  const selected = typeof document === 'undefined' ? undefined : /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)?.[1]
+  headers.set('Accept-Language', resolveRequestLanguage(selected, headers.get('Accept-Language') ?? (typeof navigator === 'undefined' ? null : navigator.language)))
+  const response = await fetch(input, { ...init, headers })
   if (response.status === 426) {
     const { useVersionGateStore } = await import('@/stores/version-gate-store')
     useVersionGateStore.getState().markUpgradeRequired(null)
@@ -112,11 +117,10 @@ export async function sessionAwareFetch(
 ): Promise<Response> {
   const method = init?.method?.toUpperCase() ?? 'GET'
   const origin = getAccountEventOrigin()
-  let requestInit = init
+  const headers = new Headers(init?.headers)
+  const requestInit = { ...init, headers }
   if (origin && method !== 'GET' && method !== 'HEAD') {
-    const headers = new Headers(init?.headers)
     headers.set('X-Orbit-Event-Origin', origin)
-    requestInit = { ...init, headers }
   }
   const response = await fetchWithUpgradeGuidance(input, requestInit)
   await applySessionRefreshFailure(response)

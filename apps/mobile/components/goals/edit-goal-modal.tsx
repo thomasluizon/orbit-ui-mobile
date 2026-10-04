@@ -1,3 +1,4 @@
+import { useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -66,6 +67,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [deadline, setDeadline] = useState('')
+  const backendErrors = useBackendFieldErrors({ description, targetValue, unit }, { description: 'Title', targetValue: 'TargetValue', unit: 'Unit' })
   const [submitted, setSubmitted] = useState(false)
   const [focusRequest, setFocusRequest] = useState<{ field: 'description' | 'targetValue' | 'unit' } | null>(null)
   const descriptionRef = useRef<TextInput>(null)
@@ -83,7 +85,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     onDismiss: () => closeSheet(onClose),
   })
 
-  const fieldErrors = useMemo(() => {
+  const localFieldErrors = useMemo(() => {
     if (!submitted) return {}
     const keys = getGoalDraftFieldErrorKeys(description, targetValue, unit)
     const errs: Record<string, string> = {}
@@ -95,6 +97,8 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     }
     return errs
   }, [submitted, description, targetValue, unit, translate])
+
+  const fieldErrors = { ...localFieldErrors, ...backendErrors.fieldErrors }
 
   useEffect(() => {
     if (focusRequest?.field === 'description') descriptionRef.current?.focus()
@@ -114,6 +118,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
+      backendErrors.clearBackendErrors()
     }
   }
 
@@ -143,11 +148,15 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
       await updateGoal.mutateAsync({ goalId: goal.id, data: request })
       closeSheet(onClose)
     } catch (error: unknown) {
+      const { field, handled } = backendErrors.reportBackendErrors(error)
+      if (field) setFocusRequest({ field })
+      if (handled) return
       showError(
         getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'),
       )
     }
   }, [
+    backendErrors,
     closeSheet,
     deadline,
     description,

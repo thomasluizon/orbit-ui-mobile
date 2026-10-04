@@ -1,3 +1,4 @@
+import { resolveSystemLocale } from '@orbit/shared/utils'
 import { NextResponse, type NextRequest } from 'next/server'
 import { setSessionCookies } from '@/lib/auth-api'
 import {
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${apiBase}/api/auth/verify-code`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json', 'Accept-Language': resolveSystemLocale(body.language),
         [ORBIT_REQUEST_ID_HEADER]: requestId,
       },
       body: JSON.stringify(body),

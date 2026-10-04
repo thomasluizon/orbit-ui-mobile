@@ -106,6 +106,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     setGeneral: vi.fn(),
     toggleDay: vi.fn(),
     validateAll: mockValidateAll,
+    clearBackendErrors: vi.fn(),
   }),
 }))
 
