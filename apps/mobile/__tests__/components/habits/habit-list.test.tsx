@@ -2,7 +2,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { expectPressFill } from '../../support/press-feedback'
 import React from 'react'
 import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geometry'
-import { FlatList, View } from 'react-native'
+import { FlatList, StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
@@ -2081,6 +2081,48 @@ describe('HabitList', () => {
     expect(draggableList).toBeTruthy()
     expect(tree.root.findAllByType('Header')).toHaveLength(1)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(0)
+  })
+
+  it.each(['populated', 'deep', 'loading', 'empty', 'error'])('spaces drill groups by 24 without widening rows (%s)', (surface) => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const children = ['first', 'second'].map((id) => createMockHabit({ id, title: id, parentId: parent.id }))
+    seedHabits([parent, ...children])
+    mockDrillState.currentParentId = parent.id
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = surface === 'deep' ? ['root', parent.id] : [parent.id]
+    mockDrillState.drillChildren = surface === 'populated' || surface === 'deep' ? children : []
+    mockDrillState.drillLoading = surface === 'loading'
+    mockDrillState.drillError = surface === 'error' ? 'boom' : null
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+    })
+    const list = tree!.root.findByType('FlatList')
+    let composition: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      composition = createTestTree(<View>
+        {list.props.ListHeaderComponent}
+        <View testID="drill-content">
+          {list.props.data.length > 0
+            ? list.props.data.map((item: NormalizedHabit, index: number) => list.props.renderItem({ item, index }))
+            : list.props.ListEmptyComponent}
+          {list.props.ListFooterComponent}
+        </View>
+      </View>)
+    })
+    const geometry = measureSafeArea((composition! as GeometryTree).toJSON(), (host) =>
+      (surface === 'deep' ? host.props.accessibilityRole === 'button' && JSON.stringify(host.children).includes('habits.backToHabits')
+        : host.props.accessibilityLabel === 'common.back')
+        ? 'control' : host.props.testID === 'drill-content' ? 'content' : undefined)
+    expect(geometry.get('content')!.top - geometry.get('control')!.bottom).toBe(24)
+    if (surface === 'populated' || surface === 'deep') {
+      const rowHosts = composition!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
+        typeof node.type === 'string' && node.props.testID === 'habit-row')
+      expect(rowHosts).toHaveLength(2)
+      for (const row of rowHosts) {
+        expect(StyleSheet.flatten(row.props.style).marginBottom).toBe(12)
+      }
+    }
   })
 
   it('uses a plain list for drill view', () => {

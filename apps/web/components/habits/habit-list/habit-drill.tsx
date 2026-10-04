@@ -69,62 +69,64 @@ export function HabitDrill({
   ) : null
 
   return (
-    <>
-      <div className="flex items-center" style={{ gap: 12, padding: '8px 16px 16px' }}>
-        <button
-          type="button"
-          aria-label={t('common.back')}
-          className="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
-          style={{
-            width: TOUCH_TARGET_MIN,
-            height: TOUCH_TARGET_MIN,
-            boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-          }}
-          onClick={drill.drillBack}
-        >
-          <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-        <div className="min-w-0 flex-1">
-          <h2
-            className="truncate"
+    <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex items-center" style={{ gap: 12, padding: '8px 16px 0' }}>
+          <button
+            type="button"
+            aria-label={t('common.back')}
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
             style={{
-              margin: 0,
-              color: 'var(--fg-1)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 20,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
+              width: TOUCH_TARGET_MIN,
+              height: TOUCH_TARGET_MIN,
+              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
             }}
+            onClick={drill.drillBack}
           >
-            {drill.currentParent?.title ?? ''}
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              color: 'var(--fg-3)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {t('habits.drillProgress', {
-              done: drill.completedCount,
-              total: drill.drillChildren.length,
-            })}
-          </p>
+            <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <h2
+              className="truncate"
+              style={{
+                margin: 0,
+                color: 'var(--fg-1)',
+                fontFamily: 'var(--font-display)',
+                fontSize: 20,
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {drill.currentParent?.title ?? ''}
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                color: 'var(--fg-3)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {t('habits.drillProgress', {
+                done: drill.completedCount,
+                total: drill.drillChildren.length,
+              })}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {drill.drillStack.length > 1 ? (
-        <ListRow
-          compact={false}
-          icon="home"
-          title={t('habits.backToHabits')}
-          chevron={false}
-          onClick={drill.drillReset}
-        />
-      ) : null}
+        {drill.drillStack.length > 1 ? (
+          <ListRow
+            compact={false}
+            icon="home"
+            title={t('habits.backToHabits')}
+            chevron={false}
+            onClick={drill.drillReset}
+          />
+        ) : null}
+      </div>
 
       {drill.drillLoading ? <HabitListSkeleton /> : null}
 
@@ -140,27 +142,29 @@ export function HabitDrill({
       ) : null}
 
       {!drill.drillLoading && !drill.drillError ? (
-        <>
-          {drill.drillChildren.length === 0 ? (
-            <DrillEmptyMessage drill={drill} t={t} onShowCompleted={onShowCompleted} />
-          ) : (
-            drill.drillChildren.map((child) => {
-              const nestedChildren = drill.getDrillChildren(child.id)
-              return renderHabitCard(
-                child,
-                0,
-                nestedChildren.length > 0,
-                child.hasSubHabits || nestedChildren.length > 0,
-                { isDrillCard: true },
-              )
-            })
-          )}
-          {addRow}
+        <div>
+          <div className="flex min-w-0 flex-col gap-3">
+            {drill.drillChildren.length === 0 ? (
+              <DrillEmptyMessage drill={drill} t={t} onShowCompleted={onShowCompleted} />
+            ) : (
+              drill.drillChildren.map((child) => {
+                const nestedChildren = drill.getDrillChildren(child.id)
+                return renderHabitCard(
+                  child,
+                  0,
+                  nestedChildren.length > 0,
+                  child.hasSubHabits || nestedChildren.length > 0,
+                  { isDrillCard: true },
+                )
+              })
+            )}
+            {addRow}
+          </div>
           <div aria-live="polite" aria-atomic="true">
             {subHabitRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
           </div>
-        </>
+        </div>
       ) : null}
-    </>
+    </div>
   )
 }

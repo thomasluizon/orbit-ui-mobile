@@ -88,13 +88,13 @@ export function createStyles(tokens: AppTokens) {
     listContent: {
       paddingHorizontal: 16,
     },
+    drillControls: { gap: 8, paddingBottom: 24 },
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       paddingHorizontal: 0,
-      paddingVertical: 8,
-      paddingBottom: 16,
+      paddingTop: 8,
     },
     drillBackBtn: {
       width: TOUCH_TARGET_MIN,

@@ -96,39 +96,41 @@ export function HabitDrill({
   const header = (
     <>
       {listHeaderComponent}
-      <View style={styles.drillHeader}>
-        <Pressable
-          onPress={drill.drillBack}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          style={({ pressed }) => [
-            styles.drillBackBtn,
-            pressed ? styles.drillBackBtnPressed : null,
-          ]}
-        >
-          <ArrowLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
-        </Pressable>
-        <View style={styles.drillHeading}>
-          <Text style={styles.drillTitle} numberOfLines={1}>
-            {drill.currentParent?.title ?? ''}
-          </Text>
-          <Text style={styles.drillProgress}>
-            {t('habits.drillProgress', {
-              done: drill.completedCount,
-              total: drill.drillChildren.length,
-            })}
-          </Text>
+      <View style={styles.drillControls}>
+        <View style={styles.drillHeader}>
+          <Pressable
+            onPress={drill.drillBack}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+            style={({ pressed }) => [
+              styles.drillBackBtn,
+              pressed ? styles.drillBackBtnPressed : null,
+            ]}
+          >
+            <ArrowLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
+          </Pressable>
+          <View style={styles.drillHeading}>
+            <Text style={styles.drillTitle} numberOfLines={1}>
+              {drill.currentParent?.title ?? ''}
+            </Text>
+            <Text style={styles.drillProgress}>
+              {t('habits.drillProgress', {
+                done: drill.completedCount,
+                total: drill.drillChildren.length,
+              })}
+            </Text>
+          </View>
         </View>
+        {drill.drillStack.length > 1 ? (
+          <ListRow
+            compact={false}
+            icon="home"
+            title={t('habits.backToHabits')}
+            chevron={false}
+            onClick={drill.drillReset}
+          />
+        ) : null}
       </View>
-      {drill.drillStack.length > 1 ? (
-        <ListRow
-          compact={false}
-          icon="home"
-          title={t('habits.backToHabits')}
-          chevron={false}
-          onClick={drill.drillReset}
-        />
-      ) : null}
     </>
   )
 

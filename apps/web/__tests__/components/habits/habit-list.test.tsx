@@ -2982,6 +2982,47 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).not.toHaveBeenCalled()
   })
 
+  it.each(['populated', 'deep', 'loading', 'empty', 'error'])('spaces drill groups by 24 without widening rows (%s)', async (surface) => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
+    const children = ['first', 'second'].map((id) => createMockHabit({ id, title: id, parentId: parent.id }))
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+    mockDrillState.currentParentId = parent.id
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = surface === 'deep' ? ['root', parent.id] : [parent.id]
+    mockDrillState.drillChildren = surface === 'populated' || surface === 'deep' ? children : []
+    mockDrillState.drillLoading = surface === 'loading'
+    mockDrillState.drillError = surface === 'error' ? 'boom' : null
+    const { container } = renderWithProviders(<HabitList view="today" filters={defaultFilters} />)
+    const cssPath = resolve('app/globals.css')
+    const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
+    const launch = launchChrome()
+    try {
+      const browser = await launch
+      const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+      await page.setContent(`<style>${stylesheet.css}</style>${container.innerHTML}`)
+      const control = surface === 'deep'
+        ? page.getByRole('button', { name: 'habits.backToHabits' })
+        : page.getByRole('button', { name: 'common.back', exact: true })
+      const controlBottom = await control.evaluate((element) => element.getBoundingClientRect().bottom)
+      const contentTop = await page.evaluate((surface) => {
+        const content = surface === 'loading' ? document.querySelector('[data-variant="habit-row"]')!
+          : surface === 'error' ? document.querySelector('[role="alert"]')!.parentElement!
+          : surface === 'empty' ? Array.from(document.querySelectorAll('p')).find((p) => p.textContent === 'habits.noSubHabits')!.parentElement!
+          : document.querySelector('[data-testid="habit-card-first"]')!
+        return content.getBoundingClientRect().top
+      }, surface)
+      expect.soft(contentTop - controlBottom).toBe(24)
+      if (surface === 'populated' || surface === 'deep') {
+        expect(await page.evaluate(() => {
+          const first = document.querySelector('[data-testid="habit-card-first"]')!.getBoundingClientRect()
+          const second = document.querySelector('[data-testid="habit-card-second"]')!.getBoundingClientRect()
+          return second.top - first.bottom
+        })).toBe(12)
+      }
+    } finally { await closeChrome(launch) }
+  }, 45_000)
+
   it('offers Show completed when filtering hides every drilled child', () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
     const onShowCompleted = vi.fn()

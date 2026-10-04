@@ -9,6 +9,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { TodayPageClient } from '@/app/(app)/today-page-client'
+import { useTodayNavigation } from '@/app/(app)/use-today-navigation'
 import { HabitListEmptyState, HabitListSkeleton } from '@/components/habits/habit-list/empty-state'
 import { LazyMotion, domAnimation } from 'motion/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -16,8 +17,11 @@ import { DestinationShell } from '@/components/shell/destination-shell'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/', useParams: () => ({}), useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams({ date: state.date }),
+}))
 const state = vi.hoisted(() => ({ lineVisible: true, profileReady: true, surface: 'list', date: '2026-09-04' }))
+vi.mock('@/app/(app)/today-provider', () => ({ useToday: () => '2026-09-04' }))
 vi.mock('@/hooks/use-profile', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-profile')>(),
   useProfile: () => ({ profile: state.profileReady ? createMockProfile({ timeZone: 'UTC', lastCompletionDate: null }) : undefined }),
@@ -28,10 +32,7 @@ vi.mock('@/hooks/use-notifications', () => ({
 }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => ({
-  nav: { today: '2026-09-04', dateStr: state.date, selectedDate: new Date(`${state.date}T12:00:00Z`),
-    dateNav: { dayName: 'Hoje', shortDayName: 'Hoje', numericDate: '4 de setembro', isTodaySelected: true, nextDisabled: false,
-      previousLabel: 'Previous', nextLabel: 'Next', todayLabel: 'Today', goToTodayLabel: 'Today',
-      onGoToPreviousDay: vi.fn(), onGoToToday: vi.fn(), onGoToNextDay: vi.fn() } },
+  nav: useTodayNavigation('2026-09-04'),
   data: { isFetching: state.surface === 'loading', showLoadError: false, filters: {}, refetch: vi.fn() },
   habitListRef: { current: null }, selectedHabitIds: new Set(), selection: {},
 }) }))
