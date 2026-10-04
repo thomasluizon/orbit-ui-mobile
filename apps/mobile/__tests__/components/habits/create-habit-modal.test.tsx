@@ -106,6 +106,7 @@ vi.mock('@/stores/ui-store', async (importOriginal) => {
 
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
+    reportBackendErrors: vi.fn(() => false),
     form: {
       control: { values: {} },
       reset: vi.fn(),
