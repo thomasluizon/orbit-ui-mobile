@@ -295,8 +295,8 @@ function MetricsSection({ visible, loading, error, metrics, isBadHabit }: Readon
     <div data-habit-detail-stat-card="" role={loading ? 'status' : undefined} aria-busy={loading || undefined} className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6" style={{ boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)' }}>
       {values.map((item) => (
         <div key={item.label} data-habit-detail-stat-row="" className="flex min-h-12 flex-wrap items-baseline gap-2 py-2">
-          <span data-habit-detail-stat-label="" className="min-w-0 flex-1 whitespace-normal break-words text-sm leading-5 text-[var(--fg-2)]">{item.label}</span>
-          <span className="grid max-w-full shrink-0 text-end font-[family-name:var(--font-display)] text-[22px] font-semibold leading-[1.3] text-[var(--fg-1)] tabular-nums">
+          <span data-habit-detail-stat-label="" className="min-w-min flex-auto whitespace-normal text-sm leading-5 text-[var(--fg-2)]">{item.label}</span>
+          <span className="ms-auto grid max-w-full shrink-0 text-end font-[family-name:var(--font-display)] text-[22px] font-semibold leading-[1.3] text-[var(--fg-1)] tabular-nums">
             <span className="col-start-1 row-start-1 inline-flex items-baseline justify-end">
               <span aria-hidden="true" className="invisible w-0">0</span>
               <span data-habit-detail-stat-value="">{loading ? <span className="text-sm leading-[1.3]">{common('loading')}</span> : item.value}</span>

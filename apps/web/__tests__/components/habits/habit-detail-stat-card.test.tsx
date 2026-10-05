@@ -153,6 +153,7 @@ describe('habit detail stat card geometry', () => {
       const scaledStyles = fontScale === 2 ? '[data-habit-detail-stat-label] { font-size: 28px; line-height: 40px; } [data-habit-detail-stat-value] { font-size: 44px; line-height: 1.3; } [data-habit-detail-stat-value] > span { font-size: 28px; } [data-habit-detail-stat-label] + span { font-size: 44px; } [data-habit-detail-stat-label] + span > [aria-hidden] { font-size: 28px; }' : ''
       const markup = view.container.querySelector('[data-habit-detail-content]')!.outerHTML
       await page.setContent(`<style>${stylesheet}${scaledStyles}</style>${markup}`)
+      await page.evaluate(() => document.fonts.ready)
       const card = page.locator('[data-habit-detail-stat-card]')
       expect(await card.count()).toBe(1)
       const geometry = await card.evaluate((element) => {
@@ -161,7 +162,13 @@ describe('habit detail stat card geometry', () => {
         return { radius: style.borderRadius, padding: style.padding, rows: Array.from(element.querySelectorAll('[data-habit-detail-stat-row]'), (row) => {
           const label = row.querySelector('[data-habit-detail-stat-label]')!
           const value = row.querySelector('[data-habit-detail-stat-value]')!
-          return { height: row.getBoundingClientRect().height, labelStart: label.getBoundingClientRect().left - rect.left, valueEnd: rect.right - value.getBoundingClientRect().right, labelHeight: label.getBoundingClientRect().height, labelLineHeight: Number.parseFloat(getComputedStyle(label).lineHeight), labelOverflow: label.scrollWidth > label.clientWidth, labelTruncated: getComputedStyle(label).textOverflow === 'ellipsis', fontSize: getComputedStyle(value).fontSize, weight: getComputedStyle(value).fontWeight }
+          const words = Array.from(label.textContent!.matchAll(/\S+/g), (word) => {
+            const range = document.createRange()
+            range.setStart(label.firstChild!, word.index!)
+            range.setEnd(label.firstChild!, word.index! + word[0].length)
+            return new Set(Array.from(range.getClientRects(), (fragment) => fragment.top)).size
+          })
+          return { valueBelowLabel: value.getBoundingClientRect().top >= label.getBoundingClientRect().bottom, wordLineCounts: words, height: row.getBoundingClientRect().height, labelStart: label.getBoundingClientRect().left - rect.left, valueEnd: rect.right - value.getBoundingClientRect().right, labelHeight: label.getBoundingClientRect().height, labelLineHeight: Number.parseFloat(getComputedStyle(label).lineHeight), labelOverflow: label.scrollWidth > label.clientWidth, labelTruncated: getComputedStyle(label).textOverflow === 'ellipsis', fontSize: getComputedStyle(value).fontSize, weight: getComputedStyle(value).fontWeight }
         }) }
       })
       expect(geometry.radius).toBe('20px')
@@ -173,14 +180,16 @@ describe('habit detail stat card geometry', () => {
         expect(Math.abs(row.valueEnd - 24)).toBeLessThanOrEqual(0.5)
         expect(row.fontSize).toBe(`${22 * fontScale}px`)
         expect(row.weight).toBe('600')
+        expect(row.wordLineCounts.every((lines) => lines === 1)).toBe(true)
         expect(row.labelOverflow).toBe(false)
         expect(row.labelTruncated).toBe(false)
       }
-      if (width === 320 && fontScale === 2) expect(geometry.rows.some((row) => row.labelHeight > row.labelLineHeight)).toBe(true)
+      if (width === 320 && fontScale === 2) expect(geometry.rows.some((row) => row.labelHeight > row.labelLineHeight || row.valueBelowLabel)).toBe(true)
       const loadedHeight = await card.evaluate((element) => element.getBoundingClientRect().height)
       mocks.loading = true
       view.rerender(<HabitDetailScreen habitId="habit-1" />)
       await page.setContent(`<style>${stylesheet}${scaledStyles}</style>${view.container.querySelector('[data-habit-detail-content]')!.outerHTML}`)
+      await page.evaluate(() => document.fonts.ready)
       expect(await card.getAttribute('aria-busy')).toBe('true')
       expect(await card.evaluate((element) => element.getBoundingClientRect().height)).toBe(loadedHeight)
     } finally { await page.close() }

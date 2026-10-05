@@ -151,7 +151,7 @@ function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Reado
     { label: t('habits.detail.monthlyRate'), value: metrics ? `${Math.round(metrics.monthlyCompletionRate)}%` : '' },
   ]
   return (
-    <View testID="habit-detail-stat-card" accessible={loading} accessibilityRole={loading ? 'progressbar' : undefined} accessibilityLabel={loading ? t('common.loading') : undefined} accessibilityState={{ busy: loading }} style={[styles.statCard, { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairlineGhost}` }]}>
+    <View testID="habit-detail-stat-card" accessible={loading} accessibilityRole={loading ? 'progressbar' : undefined} accessibilityLabel={loading ? t('common.loading') : undefined} accessibilityState={{ busy: loading }} style={[styles.statCard, { backgroundColor: tokens.bgCard }]}>
       {values.map((item) => (
         <View key={item.label} testID="habit-detail-stat-row" style={styles.statRow}>
           <Text testID="habit-detail-stat-label" style={[styles.statLabel, { color: tokens.fg2 }]}>{item.label}</Text>
@@ -166,6 +166,7 @@ function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Reado
           </View>
         </View>
       ))}
+      <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={[styles.statRing, { borderColor: tokens.hairlineGhost }]} />
     </View>
   )
 }
@@ -653,9 +654,10 @@ const styles = StyleSheet.create({
   disclosureTitle: { fontSize: 17 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statCard: { padding: 24, borderRadius: 20 },
+  statRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1 },
   statRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, minHeight: 48, paddingVertical: 8 },
-  statLabel: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
-  statValueSlot: { flexShrink: 0, maxWidth: '100%', alignItems: 'flex-end' },
+  statLabel: { flexGrow: 1, flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  statValueSlot: { marginStart: 'auto', flexShrink: 0, maxWidth: '100%', alignItems: 'flex-end' },
   statValueLine: { flexDirection: 'row', alignItems: 'baseline' },
   statValueStrut: { width: 0, opacity: 0 },
   statValueSizer: { height: 0, opacity: 0, fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, fontWeight: '600' },

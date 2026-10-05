@@ -104,6 +104,14 @@ function applyDimensions(node: YogaNode, style: LayoutStyle) {
 }
 
 function applyFlex(node: YogaNode, style: LayoutStyle) {
+  node.setMargin(Yoga.EDGE_START, style.marginStart as number | 'auto' | undefined)
+  if (style.position === 'absolute') {
+    node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+    node.setPosition(Yoga.EDGE_TOP, style.top as number | undefined)
+    node.setPosition(Yoga.EDGE_RIGHT, style.right as number | undefined)
+    node.setPosition(Yoga.EDGE_BOTTOM, style.bottom as number | undefined)
+    node.setPosition(Yoga.EDGE_LEFT, style.left as number | undefined)
+  }
   node.setFlexGrow(style.flexGrow ?? (style.flex ?? 0))
   node.setFlexShrink(style.flexShrink ?? 0)
   if (style.flexBasis !== undefined) node.setFlexBasis(style.flexBasis as number | `${number}%` | 'auto')
