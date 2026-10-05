@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import type { ComponentProps } from 'react'
+import { useState, type ComponentProps } from 'react'
+import userEvent from '@testing-library/user-event'
 
 const todaySource = vi.hoisted(() => ({ value: '2025-06-15', locale: 'en' }))
 
@@ -31,6 +32,11 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 function CalendarGrid(props: Omit<ComponentProps<typeof CalendarGridComponent>, 'todayKey' | 'weekStartsOn'>) {
   return <CalendarGridComponent {...props} todayKey={useToday()} weekStartsOn={1} />
+}
+
+function SelectableCalendarGrid() {
+  const [selectedDateStr, setSelectedDateStr] = useState('2025-06-15')
+  return <CalendarGrid currentMonth={new Date(2025, 5, 1)} dayMap={new Map()} onSelectDay={setSelectedDateStr} selectedDateStr={selectedDateStr} />
 }
 
 describe('CalendarGrid', () => {
@@ -65,6 +71,104 @@ describe('CalendarGrid', () => {
       />,
     )
     expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(labels)
+  })
+
+  it.each([
+    ['2025-06-20', new Date(2025, 5, 1), '2025-06-20'],
+    [null, new Date(2025, 5, 1), '2025-06-15'],
+    ['2025-05-20', new Date(2025, 5, 1), '2025-06-15'],
+    ['2025-06-15', new Date(2025, 6, 1), '2025-07-01'],
+  ])('has one tab stop for selection %s in %s', (selectedDateStr, month, expectedDate) => {
+    render(<CalendarGrid currentMonth={month} dayMap={emptyMap} onSelectDay={vi.fn()} selectedDateStr={selectedDateStr} />)
+    const buttons = screen.getByTestId('month-grid-days').querySelectorAll('button')
+    expect([...buttons].filter((button) => button.tabIndex === 0)).toEqual([screen.getByTestId(`calendar-day-select-${expectedDate}`)])
+    expect([...buttons].filter((button) => button.tabIndex === -1)).toHaveLength(buttons.length - 1)
+  })
+
+  it('tabs into the selected day and then out of the month grid', async () => {
+    vi.useRealTimers()
+    const user = userEvent.setup()
+    render(<><button type="button">Before</button><SelectableCalendarGrid /><button type="button">After</button></>)
+    screen.getByRole('button', { name: 'Before' }).focus()
+    await user.tab()
+    expect(screen.getByTestId('calendar-day-select-2025-06-15')).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'After' })).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(screen.getByTestId('calendar-day-select-2025-06-15')).toHaveFocus()
+  })
+
+  it.each([0, 1] as const)('moves focus within weeks starting on %i without selecting', (weekStartsOn) => {
+    const onSelectDay = vi.fn()
+    render(<CalendarGridComponent currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={onSelectDay} selectedDateStr="2025-06-15" weekStartsOn={weekStartsOn} todayKey={todaySource.value} />)
+    screen.getByTestId('calendar-day-select-2025-06-15').focus()
+    const steps = [
+      ['ArrowRight', '2025-06-16'],
+      ['ArrowDown', '2025-06-23'],
+      ['Home', weekStartsOn === 1 ? '2025-06-23' : '2025-06-22'],
+      ['End', weekStartsOn === 1 ? '2025-06-29' : '2025-06-28'],
+      ['ArrowLeft', weekStartsOn === 1 ? '2025-06-28' : '2025-06-27'],
+      ['ArrowUp', weekStartsOn === 1 ? '2025-06-21' : '2025-06-20'],
+    ]
+    for (const [key, date] of steps) {
+      fireEvent.keyDown(document.activeElement!, { key })
+      expect(screen.getByTestId(`calendar-day-select-${date}`)).toHaveFocus()
+      expect(screen.getByTestId(`calendar-day-select-${date}`)).toHaveAttribute('tabindex', '0')
+    }
+    expect(onSelectDay).not.toHaveBeenCalled()
+    expect(screen.getByTestId('calendar-day-select-2025-06-15')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it.each([
+    ['2025-06-01', ['ArrowLeft', 'ArrowUp', 'Home']],
+    ['2025-06-30', ['ArrowRight', 'ArrowDown', 'End']],
+  ])('stops keyboard movement at %s', (date, keys) => {
+    const onSelectDay = vi.fn()
+    render(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={onSelectDay} selectedDateStr={date} />)
+    const edge = screen.getByTestId(`calendar-day-select-${date}`)
+    edge.focus()
+    for (const key of keys) {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+      fireEvent(edge, event)
+      expect(event.defaultPrevented).toBe(true)
+      expect(edge).toHaveFocus()
+    }
+    expect(onSelectDay).not.toHaveBeenCalled()
+  })
+
+  it('selects focused read-only and future days with Enter and Space', async () => {
+    vi.useRealTimers()
+    const user = userEvent.setup()
+    render(<SelectableCalendarGrid />)
+    const selected = screen.getByTestId('calendar-day-select-2025-06-15')
+    selected.focus()
+    await user.keyboard('{ArrowUp}{ArrowLeft}')
+    const readOnly = screen.getByTestId('calendar-day-select-2025-06-07')
+    expect(readOnly).toHaveFocus()
+    expect(readOnly).toHaveAccessibleName(/calendar\.dayCell\.readOnly/)
+    expect(selected).toHaveAttribute('aria-pressed', 'true')
+    await user.keyboard('{Enter}')
+    expect(readOnly).toHaveAttribute('aria-pressed', 'true')
+    expect(readOnly).toHaveAttribute('tabindex', '0')
+    await user.keyboard('{ArrowDown}{ArrowDown} ')
+    const future = screen.getByTestId('calendar-day-select-2025-06-21')
+    expect(future).toHaveFocus()
+    expect(future).toHaveAttribute('aria-pressed', 'true')
+    expect(future).toHaveAttribute('tabindex', '0')
+    expect(future).toHaveAccessibleName(/calendar\.dayCell\.future/)
+  })
+
+  it('follows pointer selection, external selection and month changes', () => {
+    const onSelectDay = vi.fn()
+    const { rerender } = render(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={onSelectDay} selectedDateStr="2025-06-15" />)
+    fireEvent.click(screen.getByTestId('calendar-day-select-2025-06-07'))
+    expect(screen.getByTestId('calendar-day-select-2025-06-07')).toHaveAttribute('tabindex', '0')
+    rerender(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={onSelectDay} selectedDateStr="2025-06-20" />)
+    expect(screen.getByTestId('calendar-day-select-2025-06-20')).toHaveAttribute('tabindex', '0')
+    rerender(<CalendarGrid currentMonth={new Date(2025, 6, 1)} dayMap={emptyMap} onSelectDay={onSelectDay} selectedDateStr="2025-06-20" />)
+    expect(screen.getByTestId('calendar-day-select-2025-07-01')).toHaveAttribute('tabindex', '0')
+    rerender(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={onSelectDay} selectedDateStr="2025-06-20" />)
+    expect(screen.getByTestId('calendar-day-select-2025-06-20')).toHaveAttribute('tabindex', '0')
   })
 
   it('renders day cells', () => {
