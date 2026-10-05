@@ -14,6 +14,15 @@ const t = ((key: string, params?: Record<string, unknown>) =>
   params ? `${key}:${JSON.stringify(params)}` : key) as ReturnType<typeof useTranslations>
 
 describe('lapsed subscription notice', () => {
+  it.each([0, 4, 5])('omits usage and capacity notices at %i of 5 messages', (aiMessagesUsed) => {
+    render(<SubscriptionNotice status={{ ...status, aiMessagesUsed, aiMessagesLimit: 5 }} locale="en" t={t} />)
+    expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.lapsed.lostMessages:{"limit":5}')).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.usage.title')).not.toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.usage.nearLimit')).not.toBeInTheDocument()
+  })
+
   it('lists each lost entitlement separately with the current message allowance', () => {
     render(<SubscriptionNotice status={status} locale="en" t={t} />)
     const rows = within(screen.getByRole('list')).getAllByRole('listitem')

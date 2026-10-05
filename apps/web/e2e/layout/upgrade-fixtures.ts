@@ -71,7 +71,7 @@ const subscriptions = {
   }),
 }
 
-const subscriptionFixtures = {
+export const subscriptionFixtures = {
   ...subscriptions,
   lapsed: subscriptionStatusSchema.parse({ ...subscriptions.free, lapseReason: 'expired', subscriptionEndedAtUtc: '2026-09-01T12:00:00Z' }),
   playCanceled: subscriptionStatusSchema.parse({ ...subscriptions.play, lapseReason: 'canceled' }),
