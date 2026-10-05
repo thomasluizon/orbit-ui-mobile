@@ -142,7 +142,7 @@ describe('mobile alerts', () => {
       return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
     }
     const tokens = createTokensV2('purple', mode)
-    expect(surface()).toMatchObject({ backgroundColor: 'transparent', width: 48, minHeight: 48, borderRadius: 999 })
+    expect(surface()).toMatchObject({ backgroundColor: 'transparent', minWidth: 48, minHeight: 48, borderRadius: 999 })
     expect(surface(true).backgroundColor).toBe(tokens.bgHover)
     TestRenderer.act(() => button().props.onHoverIn?.())
     expect(surface().backgroundColor).toBe(tokens.bgHover)
@@ -363,7 +363,7 @@ describe('mobile alerts', () => {
     expect(StyleSheet.flatten(badge.props.style)).toMatchObject({ backgroundColor: tokens.fg1, color: tokens.bg, minWidth: 20, minHeight: 20, borderRadius: 8 })
     const buttons = hosts(tree, 'Pressable', 'Alerts, 25 unread')
     expect(buttons).toHaveLength(1)
-    expect(buttons[0]!.findAll((node) => node.props.testID === 'notification-count')).toHaveLength(0)
+    expect(buttons[0]!.findAll((node) => node.type === 'Text' && node.props.testID === 'notification-count')).toHaveLength(1)
     let markerParent = badge.parent
     while (markerParent && markerParent.type !== 'View') markerParent = markerParent.parent
     expect(markerParent?.props).toMatchObject({ pointerEvents: 'none', accessible: false, importantForAccessibility: 'no-hide-descendants' })

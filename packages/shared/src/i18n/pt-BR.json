@@ -317,7 +317,7 @@
   },
   "todayAstra": {
     "createSentence": "Me ajude a criar um hábito para hoje",
-    "openConversation": "Abrir a conversa",
+    "openConversation": "Abrir conversa",
     "returningElapsed": "Você concluiu um hábito pela última vez há {days} dias.",
     "returningBounded": "Você concluiu um hábito pela última vez há mais de 30 dias.",
     "viewProgress": "Ver no Progresso",

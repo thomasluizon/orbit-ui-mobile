@@ -29,10 +29,17 @@ function textWidth(label: string, style: TextStyle, scale: number) {
   return Math.ceil(bounds.x + bounds.width)
 }
 
+function applyAlignment(node: YogaNode, style: ViewStyle) {
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
+  if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
+}
+
 function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.height === 'number') node.setHeight(style.height)
   if (typeof style.width === 'number') node.setWidth(style.width)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  applyAlignment(node, style)
   if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
   if (style.alignSelf === 'flex-start') node.setAlignSelf(Yoga.ALIGN_FLEX_START)
   if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
@@ -47,8 +54,8 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
 }
 
-function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; intrinsic: number; host: Host }[], figures: { node: YogaNode; state: string }[], parentFigure = false): YogaNode {
-  const node = Yoga.Node.create()
+function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; intrinsic: number; host: Host }[], figures: { node: YogaNode; state: string }[], parentFigure = false, config?: ReturnType<typeof Yoga.Config.create>): YogaNode {
+  const node = Yoga.Node.create(config)
   if (host.props.testID?.startsWith('calendar-figure-')) figures.push({ node, state: host.props.testID })
   const figure = parentFigure || !!host.props.testID?.match(/^(stat-tile|calendar-figure)-/)
   const flattened = StyleSheet.flatten(host.props.style ?? {}) as (ViewStyle & TextStyle) | undefined
@@ -64,7 +71,7 @@ function buildLayout(host: Host, fontScale: number, labels: { node: YogaNode; in
     if (figure || label === en.progressScreen.streak.next || label === ptBR.progressScreen.streak.next) labels.push({ node, intrinsic, host })
     node.setMeasureFunc((width, mode) => ({ width: mode === Yoga.MEASURE_MODE_UNDEFINED ? intrinsic : Math.min(width, intrinsic), height: Math.ceil(intrinsic / Math.max(width, 1)) * (style.lineHeight ?? 20) * fontScale }))
   } else {
-    (host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => node.insertChild(buildLayout(child, fontScale, labels, figures, figure), index))
+    (host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => node.insertChild(buildLayout(child, fontScale, labels, figures, figure, config), index))
   }
   return node
 }
@@ -119,4 +126,90 @@ it.each([en, ptBR].flatMap((catalog) => [320, 360, 384, 412].flatMap((width) => 
     }
     expect(layout.getComputedWidth()).toBe(width)
   } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+
+it.each([en, ptBR].flatMap((catalog) => [280, 311, 312, 320, 360, 384, 412].flatMap((width) => [1, 1.3, 1.31, 2].map((fontScale) => ({ catalog, width, fontScale })))))('aligns calendar figures at $width and text scale $fontScale', async ({ catalog, width, fontScale }) => {
+  __setWindowDimensions({ width, height: 900, scale: 1, fontScale })
+  const stats = [
+    { key: 'bestStreak', value: 123, label: catalog.calendar.bestStreak },
+    { key: 'totalLogs', value: 999, label: catalog.calendar.totalLogs },
+    { key: 'missed', value: 31, label: catalog.calendar.missedCount },
+  ] as const
+  let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
+  await TestRenderer.act(() => { tree = TestRenderer.create(<View>
+    <CalendarStats stats={stats} />
+    <CalendarStats stats={stats} state="loading" loadingLabel={catalog.calendar.loading} />
+    <CalendarStats stats={stats} state="empty" emptyLabel={catalog.calendar.emptyStat} />
+  </View>) as typeof tree })
+  const figures: { node: YogaNode; state: string }[] = []
+  const labels: { node: YogaNode; intrinsic: number; host: Host }[] = []
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(0)
+  const layout = buildLayout(tree.toJSON(), fontScale, labels, figures, false, config)
+  try {
+    layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+    expect(figures).toHaveLength(9)
+    for (const { node } of figures) {
+      const value = node.getChild(0)
+      const caption = node.getChild(1)
+      expect(value.getComputedLeft()).toBe(0)
+      expect(caption.getComputedLeft()).toBe(0)
+      expect(caption.getComputedTop() - value.getComputedTop() - value.getComputedHeight()).toBeCloseTo(8, 0)
+      expect(Math.abs(node.getComputedHeight() - (30.8 * fontScale + 8 + 20 * fontScale))).toBeLessThanOrEqual(1)
+      expect(caption.getComputedHeight()).toBeCloseTo(20 * fontScale, 0)
+    }
+    for (let offset = 0; offset < figures.length; offset += 3) {
+      const group = figures.slice(offset, offset + 3)
+      expect(group[0]!.node.getComputedLeft()).toBe(16)
+      for (let index = 1; index < group.length; index++) {
+        const previous = group[index - 1]!.node
+        const current = group[index]!.node
+        expect(Math.abs(current.getComputedWidth() - previous.getComputedWidth())).toBeLessThanOrEqual(1)
+        if (width - 32 < 20 * 14 * fontScale || fontScale > 1.3) {
+          expect(current.getComputedLeft()).toBe(16)
+          expect(current.getComputedTop() - previous.getComputedTop() - previous.getComputedHeight()).toBeCloseTo(16, 0)
+        } else {
+          expect(current.getComputedLeft() - previous.getComputedLeft() - previous.getComputedWidth()).toBeCloseTo(16, 0)
+          expect(current.getComputedTop()).toBe(previous.getComputedTop())
+        }
+      }
+    }
+    for (const label of labels) expect(label.node.getComputedWidth()).toBeGreaterThanOrEqual(label.intrinsic)
+  } finally { layout.freeRecursive(); config.free(); await TestRenderer.act(() => tree.unmount()) }
+})
+
+it('reflows within a narrower parent and returns to columns when it grows', async () => {
+  __setWindowDimensions({ width: 600, height: 900, scale: 1, fontScale: 1 })
+  const stats = [
+    { key: 'bestStreak', value: 123, label: ptBR.calendar.bestStreak },
+    { key: 'totalLogs', value: 999, label: ptBR.calendar.totalLogs },
+    { key: 'missed', value: 31, label: ptBR.calendar.missedCount },
+  ] as const
+  let tree!: ReturnType<typeof TestRenderer.create> & { toJSON: () => Host; unmount: () => void }
+  await TestRenderer.act(() => { tree = TestRenderer.create(<CalendarStats stats={stats} />) as typeof tree })
+  try {
+    for (const width of [280, 320, 412]) {
+      const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-stats')[0]!
+      const onLayout = row.props.onLayout
+      if (typeof onLayout !== 'function') throw new TypeError('Calendar figures must respond to their measured group width')
+      await TestRenderer.act(() => onLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height: 0 } } }))
+      const figures: { node: YogaNode; state: string }[] = []
+      const layout = buildLayout(tree.toJSON(), 1, [], figures)
+      try {
+        layout.calculateLayout(width, undefined, Yoga.DIRECTION_LTR)
+        expect(figures).toHaveLength(3)
+        const first = figures[0]!.node
+        const second = figures[1]!.node
+        expect(first.getComputedLeft()).toBe(16)
+        if (width === 280) {
+          expect(second.getComputedLeft()).toBe(16)
+          expect(second.getComputedTop()).toBeGreaterThan(first.getComputedTop())
+        } else {
+          expect(second.getComputedTop()).toBe(first.getComputedTop())
+          expect(second.getComputedLeft() - first.getComputedLeft() - first.getComputedWidth()).toBe(16)
+        }
+      } finally { layout.freeRecursive() }
+    }
+  } finally { await TestRenderer.act(() => tree.unmount()) }
 })

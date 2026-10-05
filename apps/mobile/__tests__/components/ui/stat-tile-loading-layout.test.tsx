@@ -4,7 +4,8 @@ import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { describe, expect, it } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
+import { StatTile } from '@/components/ui/stat-tile'
+import { Skeleton } from '@/components/ui/skeleton'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
@@ -28,6 +29,7 @@ function applyLayoutStyle(node: YogaNode, style: LayoutStyle) {
   node.setPadding(Yoga.EDGE_HORIZONTAL, numericDimension(style.paddingHorizontal))
   node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
@@ -48,6 +50,43 @@ function buildLayout(host: ReactTestRendererJSON, fontScale: number, config: Ret
 }
 
 describe('StatTile loading layout (mobile)', () => {
+  it.each([1, 2])('keeps standalone loaded, loading, empty and skeleton tiles at the same content height at font scale %i', (fontScale) => {
+    for (const catalog of [en, ptBR]) {
+      let tree!: RenderedTree
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<View>
+          <View><StatTile value={21} label={catalog.progressScreen.streak.longest} /></View>
+          <View><StatTile state="loading" loadingLabel={catalog.calendar.loading} label={catalog.progressScreen.streak.longest} /></View>
+          <View><StatTile state="empty" emptyLabel={catalog.progressScreen.window.bestWeekdayEmpty} label={catalog.progressScreen.streak.longest} /></View>
+          <Skeleton variant="stat-tile" label={catalog.calendar.loading} />
+        </View>)
+      })
+      const config = Yoga.Config.create()
+      config.setPointScaleFactor(0)
+      const layout = buildLayout(tree.toJSON(), fontScale, config)
+      try {
+        layout.calculateLayout(412, undefined)
+        const heights = []
+        for (let index = 0; index < layout.getChildCount(); index++) {
+          const tile = layout.getChild(index).getChild(0)
+          const value = tile.getChild(0)
+          const label = tile.getChild(1)
+          const contentStart = tile.getComputedPadding(Yoga.EDGE_LEFT) + tile.getComputedBorder(Yoga.EDGE_LEFT)
+          expect(value.getComputedLeft()).toBeCloseTo(contentStart, 1)
+          expect(label.getComputedLeft()).toBeCloseTo(contentStart, 1)
+          expect(label.getComputedTop() - value.getComputedTop() - value.getComputedHeight()).toBeCloseTo(8, 1)
+          expect(tile.getComputedHeight()).toBeCloseTo(34 + (22 * 1.4 + 20) * fontScale + 8, 1)
+          heights.push(tile.getComputedHeight())
+        }
+        expect(heights).toEqual(Array(4).fill(heights[0]))
+      } finally {
+        layout.freeRecursive()
+        config.free()
+        TestRenderer.act(() => tree.unmount())
+      }
+    }
+  })
+
   it.each([320, 360, 412].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('contains each placeholder in its tile content at $width and font scale $fontScale', ({ width, fontScale }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
     for (const catalog of [en, ptBR]) {
@@ -79,12 +118,14 @@ describe('StatTile loading layout (mobile)', () => {
           expect(placeholderLeft + placeholder.getComputedWidth()).toBeLessThanOrEqual(contentRight + 0.5)
           expect(placeholder.getComputedWidth()).toBeGreaterThan(0)
           expect(placeholder.getComputedWidth()).toBeLessThanOrEqual(64)
-          expect(tile.getComputedHeight()).toBeGreaterThanOrEqual(STAT_TILE_MIN_HEIGHT)
+          expect(tile.getComputedHeight()).toBeCloseTo(34 + (22 * 1.4 + 20) * fontScale + 8, 1)
+          expect(value.getComputedLeft()).toBeCloseTo(contentLeft, 1)
+          expect(tile.getChild(1).getComputedLeft()).toBeCloseTo(contentLeft, 1)
           expect(tile.getChild(1).getComputedTop() - value.getComputedTop() - value.getComputedHeight()).toBeCloseTo(8, 0)
           expect(value.getComputedHeight()).toBeCloseTo(22 * 1.4 * fontScale, 0)
           expect(tiles[index]!.props.accessibilityRole).toBe('progressbar')
           expect(tiles[index]!.props.accessibilityLabel).toBe(catalog.calendar.loading)
-          expect(tiles[index]!.findAll((child) => typeof child.type === 'string' && child.props.accessibilityElementsHidden === true && child.props.importantForAccessibility === 'no-hide-descendants')).toHaveLength(1)
+          expect(tiles[index]!.findAll((child) => typeof child.type === 'string' && child.props.accessibilityElementsHidden === true && child.props.importantForAccessibility === 'no-hide-descendants')).toHaveLength(2)
         }
       } finally {
         layout.freeRecursive()

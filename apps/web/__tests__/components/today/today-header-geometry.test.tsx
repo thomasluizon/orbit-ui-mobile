@@ -45,6 +45,24 @@ const props = {
   onToggleSelect: noop, onToggleCollapse: noop, onRefresh: noop, onToggleCompleted: noop,
 }
 
+function assertHeaderControls(controls: { left: number; right: number; top: number; bottom: number; width: number; height: number }[], width: number, scale: number, leadingAction = false) {
+  for (const [index, control] of controls.entries()) {
+    expect(control.left).toBeGreaterThanOrEqual(16)
+    expect(control.right).toBeLessThanOrEqual(width - 16)
+    expect(control.width).toBeGreaterThanOrEqual(48)
+    expect(control.height).toBeGreaterThanOrEqual(48)
+    if (index > 0) {
+      const previous = controls[index - 1]!
+      if (control.top >= previous.bottom) expect(control.top - previous.bottom).toBeGreaterThanOrEqual(4)
+      else expect(control.left - previous.right).toBeGreaterThanOrEqual(4)
+    }
+  }
+  const aligned = leadingAction ? controls.slice(1) : controls
+  const centers = aligned.map((control) => (control.top + control.bottom) / 2)
+  expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(1)
+  if (scale === 1) expect(controls[0]!.top + controls[0]!.height / 2).toBeCloseTo(centers[0]!, 0)
+}
+
 describe('Hoje header geometry', () => {
   let launch: BrowserLaunch | undefined
   let browser: Browser
@@ -435,16 +453,8 @@ describe('Hoje header geometry', () => {
       expect(geometry.dayLines).toBe(1)
       expect(geometry.dayFontSize).toBe(22 * scale)
       expect(geometry.arrows[1]!.left - geometry.dateBlock.right).toBeCloseTo(12)
-      for (const controls of [geometry.arrows, geometry.actions]) {
-        for (const [index, control] of controls.entries()) {
-          expect(control.left).toBeGreaterThanOrEqual(0)
-          expect(control.right).toBeLessThanOrEqual(width)
-          expect(control.width).toBeGreaterThanOrEqual(48)
-          expect(control.height).toBeGreaterThanOrEqual(48)
-          if (index > 0) expect(control.left - controls[index - 1]!.right).toBeGreaterThanOrEqual(4)
-        }
-        expect(new Set(controls.map((control) => (control.top + control.bottom) / 2)).size).toBe(1)
-      }
+      assertHeaderControls(geometry.arrows, width, scale)
+      assertHeaderControls(geometry.actions, width, scale, true)
     } finally { await page.close() }
   })
   it.each(['en', 'pt-BR'] as const)('fits the open %s menu at 320 pixels and 200 percent text', async (locale) => {

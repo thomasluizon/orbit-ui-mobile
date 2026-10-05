@@ -1,7 +1,5 @@
 import type { StatTileProps } from '@orbit/shared/contracts/display'
 
-export const STAT_TILE_MIN_HEIGHT = 132
-
 function shownStatValue(props: StatTileProps): string {
   if (props.state === 'empty') return props.emptyLabel
   if (props.state === 'loading') return ''
@@ -22,7 +20,7 @@ function TileValue({ shownValue, isEmpty }: Readonly<{
         fontSize: isEmpty ? 12 : 22,
         fontWeight: isEmpty ? 500 : 600,
         fontVariantNumeric: 'tabular-nums',
-        lineHeight: isEmpty ? '24px' : 1.4,
+        lineHeight: isEmpty ? (22 * 1.4) / 12 : 1.4,
         whiteSpace: 'nowrap',
       }}
     >
@@ -39,8 +37,8 @@ export function StatTile(props: Readonly<StatTileProps>) {
 
   return (
     <div
-      className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-[20px] bg-[var(--bg-card)] p-4 min-[1024px]:p-6 text-center"
-      style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)', minHeight: STAT_TILE_MIN_HEIGHT, minWidth: 'max-content' }}
+      className="flex min-w-0 flex-1 flex-col items-start gap-2 rounded-[20px] bg-[var(--bg-card)] p-4 text-start"
+      style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)', minWidth: 'max-content' }}
       data-state={state}
       data-variant={isLoading ? 'stat-tile' : undefined}
       role={isLoading ? 'status' : undefined}
@@ -49,13 +47,13 @@ export function StatTile(props: Readonly<StatTileProps>) {
     >
       {isLoading ? (
         <span aria-hidden="true" className="relative" style={{ width: '100%', maxWidth: 64, fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.4 }}>
-          <span className="invisible">0</span><span className="absolute inset-x-0 top-1/2 h-6 -translate-y-1/2 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
+          <span className="invisible">0</span><span className="absolute inset-x-0 top-1/2 h-[22px] -translate-y-1/2 skeleton-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
         </span>
       ) : (
         <TileValue shownValue={shownValue} isEmpty={isEmpty} />
       )}
       <span
-        className="min-w-0"
+        className="relative min-w-0"
         style={{
           color: isEmpty ? 'var(--fg-3)' : 'var(--fg-2)',
           fontFamily: 'var(--font-sans)',
@@ -64,7 +62,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           whiteSpace: 'nowrap',
         }}
       >
-        {label}
+        {isLoading ? <><span className="invisible" aria-hidden="true">{label}</span><span aria-hidden="true" className="absolute inset-y-0 start-0 w-2/3 skeleton-pulse rounded-[8px] bg-[var(--bg-elev-2)]" /></> : label}
       </span>
     </div>
   )
