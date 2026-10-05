@@ -29,9 +29,13 @@ describe('personal account row', () => {
     await act(() => tree.update(<></>))
   })
 
-  it.each([false, true])('keeps measured word boundaries when unclamped=%s', async (unclamped) => {
+  it.each([
+    { unclamped: false, measured: ['Read extra', 'ordinarilyLongWord ', 'daily before ', 'breakfast'] },
+    { unclamped: true, measured: ['Read extra', 'ordinarilyLongWord ', 'daily before ', 'breakfast'] },
+    { unclamped: false, measured: ['Read extraordinarily', 'LongWord daily before ', 'breakfast'] },
+    { unclamped: true, measured: ['Read extraordinarily', 'LongWord daily before ', 'breakfast'] },
+  ])('keeps measured word boundaries when unclamped=$unclamped and lines=$measured', async ({ unclamped, measured }) => {
     const title = 'Read extraordinarilyLongWord daily before breakfast'
-    const measured = ['Read extra', 'ordinarilyLongWord ', 'daily before ', 'breakfast']
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<PersonalText unclamped={unclamped}>{title}</PersonalText>) })
     const probe = tree.root.findAll((node) => String(node.type) === 'Text' && typeof node.props.onTextLayout === 'function')[0]!

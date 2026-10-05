@@ -16,6 +16,11 @@ function wordLines(text: string, measuredLines: readonly string[]) {
     let boundary = offset
     while (boundary > 0 && !/\s/u.test(text[boundary - 1] ?? '') && !/\s/u.test(text[boundary] ?? '')) boundary--
     if (boundary > 0) boundaries.add(boundary)
+    if (boundary < offset) {
+      let wordEnd = offset
+      while (wordEnd < text.length && !/\s/u.test(text[wordEnd] ?? '')) wordEnd++
+      boundaries.add(wordEnd)
+    }
   }
   const sorted = [...boundaries].sort((first, second) => first - second)
   return sorted.slice(1).map((end, index) => text.slice(sorted[index], end).trim()).filter(Boolean)
