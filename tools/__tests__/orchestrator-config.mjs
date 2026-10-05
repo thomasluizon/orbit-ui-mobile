@@ -434,7 +434,7 @@ export const cases = async () => {
       real.timeouts.gitRemoteSeconds === 30 &&
       real.timeouts.receiptLockSeconds === 1 &&
       real.caps.cloudParallelTasks === 8 &&
-      real.caps.parallelTickets === 6 &&
+      real.caps.parallelTickets === 10 &&
       real.caps.workerLaunchesPerBranch === 2 &&
       real.caps.workerLogMegabytes === 512,
     JSON.stringify({ cloud: real.cloud, timeouts: real.timeouts, caps: real.caps }),

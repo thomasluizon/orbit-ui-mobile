@@ -186,12 +186,17 @@ export const cases = async () => {
     return
   }
   check(TOOL, "research refuses an output inside a repository", ["--research", "--order", fixture.prompt, "--out", join(fixture.worktree, "findings.md")], { status: 2, stderr: /output.*repository/ }, { path: fixture.path })
-  const admissionFixture = launch("admission-refusal", launchConfig(stubEngine(IMMEDIATE)))
+  const admissionConfig = launchConfig(stubEngine(IMMEDIATE))
+  const pullRequestCap = admissionConfig.caps.maxOpenPullRequests
+  const repositoryCount = Object.keys(admissionConfig.repos).length
+  const pullsPerRepository = Math.floor(pullRequestCap / repositoryCount) + 1
+  const aboveCapPulls = Array.from({ length: pullsPerRepository }, (_, index) => ({ number: index + 1 }))
+  const admissionFixture = launch("admission-refusal", admissionConfig)
   const refusedArgs = ["--issue", "ORB-201", "--worktree", admissionFixture.worktree, "--prompt", admissionFixture.prompt]
-  const refusedResult = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ pulls: [1, 2, 3, 4].map((number) => ({ number })) }) })
+  const refusedResult = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ pulls: aboveCapPulls }) })
   const refusedBody = JSON.parse(refusedResult.stdout)
-  T(`${TOOL}: admission refuses before reservation and wake source`, refusedResult.status === 8 && refusedBody.reason === "ADMISSION_REFUSED" && refusedBody.counts.openPullRequests === 12 && !existsSync(join(admissionFixture.worktree, ".git", "orbit-worker-launches")) && readWakeSourceStates(admissionFixture.base).live.length === 0, JSON.stringify(refusedBody))
-  const admittedExisting = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ branchPulls: [{ number: 99 }], pulls: [1, 2, 3, 4].map((number) => ({ number })), queuedRuns: 100 }) })
+  T(`${TOOL}: admission refuses before reservation and wake source`, refusedResult.status === 8 && refusedBody.reason === "ADMISSION_REFUSED" && refusedBody.counts.openPullRequests === pullsPerRepository * repositoryCount && refusedBody.limits.maxOpenPullRequests === pullRequestCap && !existsSync(join(admissionFixture.worktree, ".git", "orbit-worker-launches")) && readWakeSourceStates(admissionFixture.base).live.length === 0, JSON.stringify(refusedBody))
+  const admittedExisting = run(TOOL, refusedArgs, { path: admissionFixture.path, env: githubAuthEnv({ branchPulls: [{ number: 99 }], pulls: aboveCapPulls, queuedRuns: 100 }) })
   T(`${TOOL}: existing pull request proceeds above both caps`, admittedExisting.status === 0, admittedExisting.stderr)
   discardLog(admittedExisting.stdout)
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
