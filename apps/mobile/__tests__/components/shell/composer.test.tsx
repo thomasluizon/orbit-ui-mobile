@@ -200,6 +200,26 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
 }
 
 describe('Composer (mobile)', () => {
+  it.each([
+    { locale: 'pt-BR', messages: ptBR, name: 'Abrir conversa' },
+    { locale: 'en', messages: en, name: 'Open the conversation' },
+  ])('names the conversation glyph in $locale', ({ messages, name }) => {
+    const onOpenConversation = vi.fn()
+    const tree = renderComposer(props({
+      words: messages.shell.composer,
+      onOpenConversation,
+      conversationLabel: messages.todayAstra.openConversation,
+    }))
+    try {
+      const controls = byLabel(tree.root, name)
+      expect(controls).toHaveLength(1)
+      expect(controls[0].props.accessibilityRole).toBe('button')
+      pressControl(controls[0])
+      expect(onOpenConversation).toHaveBeenCalledOnce()
+      expect(byLabel(tree.root, 'Abrir a conversa')).toHaveLength(0)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([false, true])('paints both recovery controls and invokes their actions (reduced motion: %s)', (reducedMotion) => {
     motionState.reducedMotion = reducedMotion
     const tokens = createTokensV2('purple', 'dark')
