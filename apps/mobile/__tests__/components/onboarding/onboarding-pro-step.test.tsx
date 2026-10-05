@@ -1,6 +1,10 @@
+import { Resvg } from '@resvg/resvg-js'
+import { ScrollView, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { __setWindowDimensions, __resetTestHostConfig } from '../../../test-mocks/react-native'
+import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import React from 'react'
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -40,6 +44,20 @@ vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: (options: { onPurch
 } }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }) }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: (props: Record<string, unknown>) => React.createElement('PillButton', props) }))
+
+vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
+  useOnboardingActions: () => ({ finishOnboarding: vi.fn(async () => {}) }),
+  useOnboardingIsLive: () => true,
+}))
+vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
+vi.mock('@/components/onboarding/onboarding-welcome', () => ({ OnboardingWelcome: () => null }))
+vi.mock('@/components/onboarding/onboarding-create-habit', () => ({ OnboardingCreateHabit: () => null }))
+vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: () => null }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: vi.fn(), replace: vi.fn() }) }))
+vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
+vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ isSupported: false }) }))
+
+afterEach(__resetTestHostConfig)
 
 beforeEach(async () => {
   vi.clearAllMocks()
@@ -166,4 +184,41 @@ describe('Android final Pro step', () => {
     await act(() => exit.current?.exit())
     expect(finish).not.toHaveBeenCalled()
   })
+})
+
+const font = require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')
+const geometryCases = [320, 360, 384, 412, 640, 1440].flatMap((width) => ['pt-BR', 'en']
+  .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))
+it.each(geometryCases)('fits the owning Android final-step heading at $width in $locale, trial=$trial', async ({ width, locale, trial }) => {
+  __setWindowDimensions({ width, height: 1400, scale: 1, fontScale: 1 })
+  mocks.locale = locale
+  mocks.profile = createMockProfile({ hasProAccess: trial, isTrialActive: trial, plan: trial ? 'pro' : 'free', trialEndsAt: trial ? new Date(Date.now() + 7 * 86400000).toISOString() : null })
+  mocks.refetch.mockResolvedValue({ data: mocks.profile, isError: false })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await act(() => { tree = TestRenderer.create(<OnboardingFlow finalStepOnly />) })
+  try {
+    const text = translate(trial ? 'onboarding.flow.trial.title' : 'upgrade.convert.freeHeading')
+    const heading = tree.root.findAll((node) => node.type === Text && node.props.accessibilityRole === 'header' && node.props.children === text)[0]!
+    expect(heading).toBeDefined()
+    const style = StyleSheet.flatten(heading.props.style as StyleProp<TextStyle>)
+    let measure = width
+    for (let ancestor = Reflect.get(heading, 'parent') as ReactTestInstance | null; ancestor; ancestor = Reflect.get(ancestor, 'parent') as ReactTestInstance | null) {
+      if (ancestor.type !== View && ancestor.type !== ScrollView) continue
+      const ancestorStyle = StyleSheet.flatten((ancestor.type === ScrollView ? ancestor.props.contentContainerStyle : ancestor.props.style) as StyleProp<ViewStyle>)
+      measure = Math.min(measure, Number(ancestorStyle.maxWidth ?? measure)) - Number(ancestorStyle.paddingHorizontal ?? 0) * 2
+    }
+    expect(heading.props.numberOfLines).toBeUndefined()
+    expect(heading.props.ellipsizeMode).toBeUndefined()
+    expect(heading.props.adjustsFontSizeToFit).not.toBe(true)
+    expect(heading.props.allowFontScaling).not.toBe(false)
+    expect(style.fontSize).toBe(width < 640 ? 28 : 34)
+    expect(style.fontFamily).toBe('SpaceGrotesk_500Medium')
+    expect(style.letterSpacing).toBeCloseTo(-0.02 * style.fontSize!)
+    const escaped = text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="100"><text y="50" font-family="Space Grotesk" font-size="${style.fontSize}" letter-spacing="${style.letterSpacing}">${escaped}</text></svg>`
+    const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!
+    process.stdout.write(`${JSON.stringify({ width, locale, trial, measure, textWidth: bounds.x + bounds.width })}\n`)
+    if (!trial) expect(bounds.x + bounds.width).toBeLessThanOrEqual(measure)
+    expect(measure).toBe(Math.min(width, width >= 1024 ? 560 : 440) - 32)
+  } finally { await act(() => tree.update(<></>)) }
 })

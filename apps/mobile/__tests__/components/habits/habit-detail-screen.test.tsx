@@ -3,7 +3,7 @@ import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { queryClient, restoreQueryCache, setQueryCacheScope, QUERY_CACHE_VERSION } from '@/lib/query-client'
-import { AccessibilityInfo, StyleSheet, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, StyleSheet, View, type TextStyle, type ViewStyle } from 'react-native'
 import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApiClientError, formatAPIDate, formatLocaleDateTime, isHabitSlipping, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -28,6 +28,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { expectPressPaint } from '@/__tests__/support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -112,6 +113,8 @@ const mocks = vi.hoisted(() => ({
   uses24HourClock: undefined as boolean | undefined,
   reducedMotion: false,
   realPressTokens: false,
+  realHabitRows: false,
+  theme: 'dark',
 }))
 
 vi.mock('@/lib/motion', async (importOriginal) => ({
@@ -306,7 +309,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark', surfaces: { screen: { backgroundColor: '#111111' } } }),
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: mocks.theme, surfaces: { screen: { backgroundColor: '#111111' } } }),
 }))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: ({ size, color }: { size: number; color?: string }) => React.createElement('AstraGlyph', { size, color }) }))
 vi.mock('@/components/ui/confirm-sheet', () => ({
@@ -384,8 +387,9 @@ vi.mock('@/components/habits/habit-form-fields/styles', async (importOriginal) =
 vi.mock('@/components/habits/habit-log-button', () => ({
   HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
 }))
-vi.mock('@/components/habits/habit-row', () => ({
-  HabitRow: ({ habit, selectedDate, today, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; selectedDate: Date; today: string; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
+vi.mock('@/components/habits/habit-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
+  const mockRow = ({ habit, selectedDate, today, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; selectedDate: Date; today: string; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
     testID: `child-${habit.id}`,
     state: habit.isCompleted ? 'done' : 'empty',
     action: habit.isCompleted ? 'unlog' : 'log',
@@ -395,8 +399,9 @@ vi.mock('@/components/habits/habit-row', () => ({
     completionReason,
     completionStatusUnavailable,
     actions,
-  }),
-}))
+  })
+  return { HabitRow: (props: Parameters<typeof mockRow>[0]) => mocks.realHabitRows ? <actual.HabitRow {...props} /> : mockRow(props) }
+})
 
 describe('HabitDetailScreen', () => {
   it.each([320, 412, 1280])('shows the full habit title below the controls without a line limit at %s', (width) => {
@@ -439,6 +444,42 @@ describe('HabitDetailScreen', () => {
     expect(tree.root.findByProps({ testID: 'create-sub-habit' })).toBeDefined()
   })
 
+  it.each(['light', 'dark'] as const)('keeps detail child monograms readable through the complete %s paint stack', (mode) => {
+    mocks.realPressTokens = true
+    mocks.realHabitRows = true
+    mocks.theme = mode
+    const tokens = createTokensV2('purple', mode)
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<View style={{ backgroundColor: tokens.bg }}><HabitDetailScreen habitId="habit-1" /></View>) })
+    const group = tree.root.findByProps({ testID: 'detail-children' })
+    const row = group.findByProps({ testID: 'habit-row' })
+    const body = () => row.findAll((node: TestNode) => node.type === 'Pressable' && typeof node.props.onPressIn === 'function')[0]!
+    const measure = (pressed: boolean) => {
+      const monogram = row.findAll((node: TestNode) => node.type === 'Text' && node.props.children === 'R')[0]!
+      const well = row.findAll((node: TestNode) => node.type === 'View' && node.props.accessibilityElementsHidden === true)[0]!
+      const style = body().props.style as (state: { pressed: boolean }) => ViewStyle[]
+      return {
+        color: StyleSheet.flatten(monogram.props.style as TextStyle).color as string,
+        layers: [
+          StyleSheet.flatten(tree.root.findAllByType('View')[0]!.props.style).backgroundColor,
+          StyleSheet.flatten(group.props.style as ViewStyle).backgroundColor,
+          StyleSheet.flatten(row.props.style as ViewStyle).backgroundColor,
+          StyleSheet.flatten(style({ pressed })).backgroundColor ?? 'transparent',
+          StyleSheet.flatten(well.props.style as ViewStyle).backgroundColor,
+        ].filter((color): color is string => typeof color === 'string' && color !== 'transparent'),
+      }
+    }
+    const resting = measure(false)
+    expect(contrastOnSurface(resting.color, resting.layers)).toBeGreaterThanOrEqual(4.5)
+    TestRenderer.act(() => { (body().props.onPressIn as () => void)() })
+    const pressed = measure(true)
+    expect(contrastOnSurface(pressed.color, pressed.layers)).toBeGreaterThanOrEqual(4.5)
+    expect(pressed.color).toBe(tokens.fg2)
+    TestRenderer.act(() => { (body().props.onPressOut as () => void)() })
+    expect(measure(false)).toEqual(resting)
+    TestRenderer.act(() => { tree.update(<></>) })
+  })
+
   it('groups a parent label, populated child card and creation row without empty status text', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
@@ -467,6 +508,8 @@ describe('HabitDetailScreen', () => {
   beforeEach(() => {
     mocks.reducedMotion = false
     mocks.realPressTokens = false
+    mocks.realHabitRows = false
+    mocks.theme = 'dark'
     mocks.metricsError = false
     mocks.realMetrics = false
     mocks.getStorage.mockReset().mockResolvedValue(null)
