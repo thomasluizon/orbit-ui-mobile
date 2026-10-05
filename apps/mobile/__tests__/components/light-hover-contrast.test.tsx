@@ -14,6 +14,9 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { SettingsGroupRow } from '@/components/ui/settings-group'
 import { SettingsGroup } from '@/components/ui/settings-group-list'
 import { Menu } from '@/components/ui/menu'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
+import { createTokensV2 } from '@/lib/theme'
 import { SearchResult } from '@/components/search/search-results'
 
 const themeMock = vi.hoisted((): { currentTheme: 'light' | 'dark' } => ({ currentTheme: 'light' }))
@@ -139,6 +142,49 @@ describe('habit monogram contrast on Android', () => {
       expect(contrastOnSurface(pressed.color, [pressed.canvas, pressed.card, fill, pressed.well])).toBeGreaterThanOrEqual(4.5)
       expect(pressed.color).toBe(colors.fg2)
       await act(() => { (body().props.onPressOut as () => void)() })
+      expect(measure()).toEqual(resting)
+    } finally {
+      await act(() => { tree.update(<></>) })
+      themeMock.currentTheme = 'light'
+    }
+  })
+})
+
+describe('tab indicator contrast on Android', () => {
+  it.each((['light', 'dark'] as const).flatMap((mode) =>
+    [true, false].map((active) => ({ mode, active })),
+  ))('keeps canvas labels and indicator icons readable in $mode, active=$active', async ({ mode, active }) => {
+    themeMock.currentTheme = mode
+    const tokens = createTokensV2('orange', mode)
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<BottomTabBar label="Navigation" activeId={active ? 'hoje' : 'other'}
+      items={[{ id: 'hoje', label: 'Hoje', icon: ({ active: selected }) => <DestinationIcon destination="hoje" active={selected} color={selected ? tokens.primary : tokens.fg3} /> }]}
+      onSelect={vi.fn()} />) })
+    const tab = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'tab')[0]!
+    const measure = () => {
+      const label = tab().findAll((node) => String(node.type) === 'Text')[0]!
+      const indicator = tab().findAll((node) => typeof node.type === 'string' && node.props.testID === 'tab-indicator-hoje')[0]!
+      const icon = indicator.findAll((node) => node.type === DestinationIcon)[0]!
+      return {
+        label: StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color as string,
+        buttonFill: StyleSheet.flatten(tab().props.style as StyleProp<ViewStyle>).backgroundColor,
+        indicatorFill: StyleSheet.flatten(indicator.props.style as StyleProp<ViewStyle>).backgroundColor,
+        icon: icon.props.color as string,
+      }
+    }
+    try {
+      const resting = measure()
+      expect(resting.label).toBe(active ? tokens.primarySoft : tokens.fg3)
+      await act(() => { (tab().props.onHoverIn as () => void)() })
+      const hovered = measure()
+      expect(hovered).toMatchObject({ label: resting.label, buttonFill: undefined, indicatorFill: tokens.bgHover })
+      expect(contrastOnSurface(hovered.label, [tokens.bg])).toBeGreaterThanOrEqual(4.5)
+      expect(contrastOnSurface(hovered.icon, [tokens.bg, hovered.indicatorFill as string])).toBeGreaterThanOrEqual(3)
+      await act(() => { (tab().props.onPressIn as () => void)() })
+      expect(measure()).toEqual(hovered)
+      await act(() => { (tab().props.onHoverOut as () => void)() })
+      expect(measure()).toEqual(hovered)
+      await act(() => { (tab().props.onPressOut as () => void)() })
       expect(measure()).toEqual(resting)
     } finally {
       await act(() => { tree.update(<></>) })
