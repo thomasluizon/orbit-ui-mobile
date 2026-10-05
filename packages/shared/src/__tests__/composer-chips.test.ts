@@ -23,14 +23,16 @@ function ids(overrides: Partial<ComposerChipState> = {}) {
 }
 
 describe('composer chips', () => {
-  it('accepts two suggestions with their callbacks and rejects one or seven', () => {
+  it('accepts one or two suggestions with their callbacks and rejects seven', () => {
     const suggestions = buildComposerChips(state({ surface: 'habitDetail', detailHabit: { title: 'Reading', checklistItems: [] } }))
       .filter(chip => chip.id !== 'habitDetail.askAstra')
       .map(chip => ({ id: chip.id, label: chip.key, onSelect: () => chip.id }))
     const accepted = toComposerSuggestions(suggestions)
     expect(accepted.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
     expect(accepted.map(chip => chip.onSelect())).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
-    expect(() => toComposerSuggestions(suggestions.slice(0, 1))).toThrow()
+    const requested = toComposerSuggestions(suggestions.slice(0, 1))
+    expect(requested).toEqual(suggestions.slice(0, 1))
+    expect(requested[0]!.onSelect()).toBe('habitDetail.pauseThisWeek')
     expect(() => toComposerSuggestions(Array(7).fill(suggestions[0]))).toThrow()
   })
 
@@ -169,6 +171,16 @@ describe('composer chips', () => {
       label: 'Create a goal', prompt: 'Help me make a goal',
     })
     expect(chips).toHaveLength(4)
+    expect(chips.slice(1)).toEqual(buildComposerChips(state({ surface: 'progress' })).slice(0, 3))
+  })
+
+  it.each(['loading', 'error'] as const)('keeps only the explicit Progress goal request while habits are %s', status => {
+    const contextualSuggestion = { id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' }
+    expect(buildComposerChips(state({ surface: 'progress', status, contextualSuggestion }))).toEqual([{
+      ...contextualSuggestion, key: 'progressScreen.goals.createAction',
+    }])
+    expect(buildComposerChips(state({ surface: 'progress', status }))).toEqual([])
+    expect(buildComposerChips(state({ surface: 'progress', status, contextualSuggestion, profile: null }))).toEqual([])
   })
 
   it('has localized text for every chip and interpolates habit titles', () => {

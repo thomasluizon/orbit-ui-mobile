@@ -5,6 +5,7 @@ import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { prepareChatRequest } from '@orbit/shared/stores'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
     habitData: { topLevelHabits: [] as NormalizedHabit[], totalCount: 0 } as { topLevelHabits: NormalizedHabit[]; totalCount: number } | null,
     detail: null as HabitDetail | null,
     habitFilters: [] as HabitsFilter[],
+    habitsError: false,
     isRecording: false,
     isTranscribing: false,
     speechSupported: true,
@@ -119,7 +121,7 @@ vi.mock('@/lib/query-client', () => ({
 
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: false } },
+  useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: mocks.state.habitsError } },
   useHabitDetail: () => ({ data: mocks.state.detail, isError: false }),
 }))
 
@@ -451,6 +453,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
     mocks.state.detail = null
     mocks.state.habitFilters = []
+    mocks.state.habitsError = false
     mocks.state.isRecording = false
     mocks.state.isTranscribing = false
     mocks.state.speechSupported = true
@@ -1713,6 +1716,32 @@ describe('web useChatComposer streaming send', () => {
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe('Help me make a goal')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
+  })
+
+  it.each(['loading', 'error'] as const)('selects the requested Progress goal beside an existing draft while habits are %s', async status => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = null
+    mocks.state.habitsError = status === 'error'
+    useChatStore.getState().setDraft('Unsent note')
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal',
+    })
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    function GoalRequestComposer() {
+      const chat = useChatComposer({ pathname: '/progress' })
+      return <Composer {...chat.composerProps} />
+    }
+    render(<GoalRequestComposer />)
+    expect(screen.getByRole('textbox')).toHaveValue('Unsent note')
+    const group = screen.getByRole('group', { name: 'shell.composer.suggestionsLabel' })
+    expect(group.querySelectorAll('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe('Help me make a goal')
+    expect(screen.getByRole('textbox')).toHaveValue('Unsent note')
     expect(useChatStore.getState().draft).toBe('Unsent note')
   })
 
