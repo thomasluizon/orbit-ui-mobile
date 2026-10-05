@@ -3,13 +3,14 @@
 
 import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute } from "node:path"
+import { reviewHarnessSectionLines, reviewEvidenceProblem } from "./lib/review-harness.mjs"
 
 const USAGE = `usage: merge-review-batch-body.mjs --body-file <absolute path> --report-file <absolute path> --out <absolute path> [--ui-scope]
 
   --body-file   current pull request body
   --report-file review worker's final report
   --out         merged body for gh pr edit --body-file
-  --ui-scope    require and replace the Review harness section for this batch
+  --ui-scope    require complete Review harness evidence and replace the section for this batch
 
 exit codes: 0 body written, 1 missing report evidence, 2 invalid arguments`
 
@@ -71,6 +72,8 @@ try {
   if (uiScope) {
     const incoming = section(report, "Review harness")
     if (!incoming?.body) throw new Error("missing ## Review harness in UI review report")
+    const detail = reviewEvidenceProblem(reviewHarnessSectionLines(`## Review harness\n\n${incoming.body}`))
+    if (detail) throw new Error(`incomplete ## Review harness in UI review report: ${detail}`)
     const existing = section(body, "Review harness")
     if (existing) existing.body = incoming.body
     else body.sections.push({ title: "Review harness", body: incoming.body })

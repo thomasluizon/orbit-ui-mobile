@@ -5,7 +5,8 @@ import {
   REDESIGN_BASE,
   REQUIRED_REVIEW_EVIDENCE,
   isUiReviewPath,
-  reviewEvidenceTemplateAnswer,
+  reviewHarnessSectionLines,
+  reviewEvidenceProblem,
   renderReviewEvidenceBlock,
 } from "./lib/review-harness.mjs"
 
@@ -34,12 +35,6 @@ const fail = (code, message) => {
   console.error(message)
   process.exit(code)
 }
-
-/**
- * A closed set, checked lowercased after punctuation is stripped. An open "looks empty" heuristic
- * would guess; this refuses only what somebody typed to fill the line.
- */
-const PLACEHOLDERS = new Set(["", "todo", "tbd", "na", "n a", "none", "pending", "wip", "x", "y", "yes", "no", "done", "ok", "a confirmar"])
 
 const options = { base: null, bodyFile: null, changedFilesFile: null }
 const flags = new Map([
@@ -84,71 +79,16 @@ if (uiFiles.length === 0) {
 }
 
 const body = read(options.bodyFile, "pull request body")
-const lines = body.split(/\r?\n/)
-const headingIndex = lines.findIndex((line) => /^#{2,}\s+review\s+harness\s*$/i.test(line.trim()))
-if (headingIndex === -1) {
+const sectionLines = reviewHarnessSectionLines(body)
+if (sectionLines === null) {
   fail(
     1,
     `::error::This pull request changes ${uiFiles.length} UI file(s) on ${REDESIGN_BASE} and its body carries no "## Review harness" block. Complete every lane and close-gate agent in the canonical review sweep, then record one line each. The motion lane may instead say "not applicable: no changed animation".`,
   )
 }
 
-const headingLevel = lines[headingIndex].trim().match(/^#+/)[0].length
-const sectionLines = []
-for (let index = headingIndex + 1; index < lines.length; index++) {
-  const heading = lines[index].trim().match(/^(#+)\s+\S/)
-  if (heading && heading[1].length <= headingLevel) break
-  sectionLines.push(lines[index])
-}
-
-const evidenceOf = (skill) => {
-  const pattern = new RegExp(`${skill}\\b[^:\\n]*:(.*)$`, "i")
-  for (const line of sectionLines) {
-    const match = line.match(pattern)
-    if (match) return match[1]
-  }
-  return null
-}
-
-const normalizeEvidence = (value) => value
-  .toLowerCase()
-  .replaceAll(/[`*_~[\]()<>./\\|,;:!?"'-]/g, " ")
-  .replaceAll(/\s+/g, " ")
-  .trim()
-
-const missing = []
-const empty = []
-const invalidConditional = []
-for (const requirement of REQUIRED_REVIEW_EVIDENCE) {
-  const raw = evidenceOf(requirement.name)
-  if (raw === null) {
-    missing.push(requirement.name)
-    continue
-  }
-  const normalized = normalizeEvidence(raw)
-  const templateAnswer = normalizeEvidence(reviewEvidenceTemplateAnswer(requirement))
-  if (PLACEHOLDERS.has(normalized) || normalized.length < 8 || normalized === templateAnswer) {
-    empty.push(requirement.name)
-    continue
-  }
-  const notApplicable = requirement.notApplicable
-    ? `not applicable ${requirement.notApplicable}`
-    : null
-  if (normalized.startsWith("not applicable") && normalized !== notApplicable) {
-    invalidConditional.push(requirement.name)
-  }
-}
-
-if (missing.length > 0 || empty.length > 0 || invalidConditional.length > 0) {
-  const detail = [
-    missing.length > 0 ? `no line for: ${missing.join(", ")}` : null,
-    empty.length > 0 ? `empty or placeholder evidence for: ${empty.join(", ")}` : null,
-    invalidConditional.length > 0
-      ? `invalid not-applicable statement for: ${invalidConditional.join(", ")}; use "not applicable: no changed animation" only for the motion lane`
-      : null,
-  ]
-    .filter(Boolean)
-    .join("; ")
+const detail = reviewEvidenceProblem(sectionLines)
+if (detail) {
   fail(
     1,
     `::error::The "Review harness" block in this pull request body is incomplete: ${detail}. Each required review entry needs one line saying what it found, or "no findings" where it found nothing. This gate only withholds; it never grants completion.`,
