@@ -916,7 +916,10 @@ describe('UpgradePage subscription management', () => {
     const endedKey = lapseReason === 'payment_failed' ? 'payment_failed' : 'ended'
     expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${endedKey}`)
     expect(document.body.textContent).toContain('2026-08-01')
-    expect(document.body.textContent).toContain('upgrade.billing.usage.title')
+    expect(document.body.textContent).not.toContain('upgrade.billing.usage.title')
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('upgrade.billing.usage.nearLimit')
+    expect(document.body.textContent).toContain('upgrade.billing.lapsed.lostMessages')
     expect(screen.getByText('upgrade.billing.lapsed.lostCalendar')).toBeInTheDocument()
     expect(screen.getByText('upgrade.billing.lapsed.lostRetrospective')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')

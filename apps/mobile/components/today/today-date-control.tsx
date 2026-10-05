@@ -43,22 +43,24 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const menu = useAnchoredMenu()
-  return <DestinationHeaderRow testID="today-header-actions" gap={4}>
+  return <DestinationHeaderRow testID="today-header-actions" gap={4} wrap>
     {!props.isTodaySelected ? <PillButton variant="ghost" size="sm" minimumHeight={48}
       accessibleName={props.goToTodayLabel} onClick={props.onGoToToday}>{props.todayLabel}</PillButton> : null}
     <View style={styles.spacer} />
-    <Pressable accessibilityRole="button" accessibilityLabel={props.searchLabel} onPress={props.onSearch}
-      style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
-      <Search size={20} color={tokens.fg2} />
-    </Pressable>
-    <MenuAnchorHost anchorRef={menu.anchorRef}>
-      <Pressable accessibilityRole="button" accessibilityLabel={props.moreLabel}
-        accessibilityState={{ expanded: menu.visible }} onPress={menu.toggle}
+    <View style={styles.actions}>
+      <Pressable accessibilityRole="button" accessibilityLabel={props.searchLabel} onPress={props.onSearch}
         style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
-        <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
+        <Search size={20} color={tokens.fg2} />
       </Pressable>
-    </MenuAnchorHost>
-    <NotificationBell />
+      <MenuAnchorHost anchorRef={menu.anchorRef}>
+        <Pressable accessibilityRole="button" accessibilityLabel={props.moreLabel}
+          accessibilityState={{ expanded: menu.visible }} onPress={menu.toggle}
+          style={({ pressed }) => [styles.iconButton, pressed && { backgroundColor: tokens.bgHover }]}>
+          <MoreVertical size={20} strokeWidth={1.8} color={tokens.fg2} />
+        </Pressable>
+      </MenuAnchorHost>
+      <NotificationBell />
+    </View>
     <Menu open={menu.visible} anchorRef={menu.anchorRef} title={props.moreLabel} shortTitle={props.menuHeading}
       items={[
         { id: 'select', label: props.selectLabel, icon: 'checkbox' },
@@ -104,6 +106,7 @@ export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
 
 const styles = StyleSheet.create({
   spacer: { flex: 1 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, minHeight: 56, paddingVertical: 4 },
   iconButton: { alignItems: 'center', borderRadius: 999, overflow: 'hidden', minHeight: 48, justifyContent: 'center', width: 48, flexShrink: 0 },
   dateText: { paddingLeft: 8, alignItems: 'flex-start', flexGrow: 0, flexShrink: 0 },

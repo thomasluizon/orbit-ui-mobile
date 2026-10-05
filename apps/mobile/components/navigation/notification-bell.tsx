@@ -36,13 +36,10 @@ export function NotificationBellDisplay({ count, onPress }: { count: number; onP
       {count > 9 ? '9+' : count}
     </Text>
   </View> : null
-  return onPress ? <View style={styles.bellDisplay}>
-      <Pressable accessibilityRole="button" accessibilityLabel={label}
+  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label}
         onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={({ pressed }) => [styles.bellButton, (pressed || hovered || focused) && { backgroundColor: tokens.bgHover }]}
-        onPress={onPress}>{glyph}</Pressable>
-      {marker}
-    </View>
+        onPress={onPress}>{glyph}{marker}</Pressable>
     : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellDisplay}>{glyph}{marker}</View>
 }

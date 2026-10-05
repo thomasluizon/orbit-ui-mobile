@@ -40,7 +40,7 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     if (!isOnline) { setCreateRefusal(true); return }
     onCreateHabit(search.query)
   }
-  return <Command shouldFilter={false} label={t('habits.search.title')} className="flex flex-col gap-4">
+  return <Command shouldFilter={false} disablePointerSelection label={t('habits.search.title')} className="flex flex-col gap-4">
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={null} onBack={() => {}} searchMode />
     {hasQuery && <CommandList label={t('habits.search.title')} aria-busy={search.busy} className="px-4 py-2">
       {search.showLoading && <Searching />}

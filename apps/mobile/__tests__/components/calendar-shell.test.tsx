@@ -327,7 +327,7 @@ describe("CalendarStats (mobile)", () => {
     )[0]!;
     expect(StyleSheet.flatten(statsRow.props.style)).toMatchObject({
       flexDirection: "row",
-      gap: 12,
+      gap: 16,
     });
     expect(statsRow.props.children).toHaveLength(3);
     expect(texts).toContain("Best streak");

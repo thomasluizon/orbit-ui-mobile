@@ -84,7 +84,10 @@ describe('CalendarRangeView', () => {
     const loadingStats = screen.getByTestId('calendar-stats')
     expect(screen.getByText('Logs').closest('[aria-hidden="true"]')).toBe(loadingStats)
     const loadingStatsStyle = loadingStats.style.cssText
-    expect(loadingStats.children).toHaveLength(3)
+    const loadingFigures = screen.getByTestId('calendar-figures')
+    expect(loadingFigures).toHaveStyle({ display: 'grid', gap: '16px' })
+    const loadingFiguresStyle = loadingFigures.style.cssText
+    expect(loadingFigures.children).toHaveLength(3)
     expect(loadingStats.querySelectorAll('[data-state="loading"]')).toHaveLength(3)
 
     view.rerender(
@@ -113,7 +116,9 @@ describe('CalendarRangeView', () => {
     expect(screen.getByText('Logs').previousSibling).toHaveTextContent('1')
     const loadedStats = screen.getByTestId('calendar-stats')
     expect(loadedStats.style.cssText).toBe(loadingStatsStyle)
-    expect(loadedStats.children).toHaveLength(3)
+    const loadedFigures = screen.getByTestId('calendar-figures')
+    expect(loadedFigures.style.cssText).toBe(loadingFiguresStyle)
+    expect(loadedFigures.children).toHaveLength(3)
     expect(loadedStats.querySelectorAll('[data-state="default"]')).toHaveLength(3)
   })
 })

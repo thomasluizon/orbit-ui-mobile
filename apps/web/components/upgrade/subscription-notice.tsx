@@ -2,7 +2,6 @@ import type { useTranslations } from 'next-intl'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { Icon } from '@/components/ui/icon'
-import { UsageStats } from './usage-stats'
 import { formatBillingDate } from './styles'
 
 type UpgradeTranslations = ReturnType<typeof useTranslations>
@@ -18,7 +17,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonl
     ? formatBillingDate(status.subscriptionEndedAtUtc, locale) : null
   const paymentFailed = status.lapseReason === 'payment_failed'
   const endedKey = paymentFailed ? 'upgrade.billing.lapsed.payment_failed' : 'upgrade.billing.lapsed.ended'
-  const usagePercent = status.aiMessagesLimit > 0 ? Math.min(100, status.aiMessagesUsed / status.aiMessagesLimit * 100) : 0
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
@@ -43,7 +41,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonl
           <PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton>
         </div> : null}
       </section>
-      <UsageStats usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} />
     </div>
   )
 }

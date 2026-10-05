@@ -434,7 +434,7 @@ export function HabitFormFields({
       />
 
       <View style={styles.disclosure}>
-        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} inset={false} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
+        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} expanded={detailsOpen} inset={false} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
