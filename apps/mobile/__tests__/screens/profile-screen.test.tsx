@@ -692,7 +692,7 @@ describe('ProfileScreen', () => {
         }
         const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
           node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
-        expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+        expect(decorativeSlots).toHaveLength(expectedDecorativeSlots(row, navigates))
       }
       const expectedValue = locale === 'en' ? plan.en : plan.pt
       const text = nodeText(group)
@@ -1908,3 +1908,8 @@ it('places the Perfil bell inside the page scroller and opens Avisos', async () 
 
 
 })
+
+function expectedDecorativeSlots(row: { findAll: (predicate: (node: { props: { children?: unknown } }) => boolean) => unknown[] }, navigates: boolean) {
+  if (row.findAll((node) => node.props.children === 'Alex').length > 0) return 3
+  return navigates ? 2 : 1
+}

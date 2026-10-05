@@ -10,6 +10,8 @@ import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import {
   ProfileSettingsFrame,
 } from '@/components/profile/profile-settings-frame'
+import { PersonalText } from '@/components/ui/personal-text'
+import { Sheet } from '@/components/ui/sheet'
 import { ListRow } from '@/components/ui/list-row'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { useLogout } from '@/hooks/use-logout'
@@ -82,14 +84,13 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
   const proEntry = profile ? getProfileProEntry(profile, t) : undefined
   const rows = {
     you: PROFILE_SUBMENUS.flatMap((submenu) => {
-      const row = <ListRow
+      const row = submenu.id === 'account' ? <AccountNavigationRow key={submenu.id} profile={profile} submenu={submenu} /> : <ListRow
         key={submenu.id}
         compact
         icon={<ProfileNavIcon iconKey={submenu.iconKey} />}
-        textMode={submenu.id === 'account' ? 'personal' : 'label'}
-        title={submenu.id === 'account' ? profile?.name ?? t(submenu.labelKey) : t(submenu.labelKey)}
-        accessibilityLabel={submenu.id === 'account' ? t('profile.submenus.accountLabel', { name: profile?.name ?? t(submenu.labelKey), email: profile?.email ?? '' }) : t(submenu.labelKey)}
-        description={submenu.id === 'account' ? profile?.email : undefined}
+        textMode="label"
+        title={t(submenu.labelKey)}
+        accessibilityLabel={t(submenu.labelKey)}
         onClick={() => router.push(submenu.route)}
       />
       if (submenu.id !== 'account' || !proEntry) return [row]
@@ -112,5 +113,17 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
   return <>
     <ProfileSettingsFrame isLoading={isLoading} loadingLabel={t('profile.loading')} labels={{ more: t('profile.groups.more') }} rows={rows} />
       <WidgetInfoSheet open={showWidgetInfo} onClose={() => setShowWidgetInfo(false)} t={t} tokens={tokens} />
+  </>
+}
+
+function AccountNavigationRow({ profile, submenu }: Readonly<{ profile: Profile | undefined; submenu: typeof PROFILE_SUBMENUS[number] }>) {
+  const [expanded, setExpanded] = useState(false)
+  const { t } = useTranslation()
+  const router = useRouter()
+  const name = profile?.name ?? t(submenu.labelKey)
+  const label = t('profile.submenus.accountLabel', { name, email: profile?.email ?? '' })
+  return <>
+    <ListRow compact icon={<ProfileNavIcon iconKey={submenu.iconKey} />} textMode="personal" title={name} description={profile?.email} accessibilityLabel={label} onClick={() => router.push(submenu.route)} action={profile?.email ? { icon: 'chevron-down', label: `${t('contextMenu.viewDetails')}, ${label}`, onPress: () => setExpanded(true) } : undefined} />
+    {expanded ? <Sheet onClose={() => setExpanded(false)} title={t('contextMenu.viewDetails')}><PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 16 }}>{name}</PersonalText>{profile?.email ? <PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 16 }}>{profile.email}</PersonalText> : null}</Sheet> : null}
   </>
 }

@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import postcss from 'postcss'
@@ -330,7 +331,7 @@ describe('ProfilePage', () => {
           if (surface === 'profile') {
             expect(geometry.clamp).toBe('2')
             expect(geometry.titleHeight).toBeLessThanOrEqual(2 * geometry.lineHeight + 1)
-          } else expect(geometry.clamp).toBe('2')
+          } else expect(geometry.clamp).toBe('none')
           expect(geometry.email).toBe(email)
           expect(geometry.emailLines).toBe(1)
           expect(geometry.emailOverflow).toBe(true)
@@ -438,7 +439,7 @@ describe('ProfilePage', () => {
         const title = row.querySelector('[data-slot="list-row-title"]')!
         const icons = row.querySelectorAll('svg')
         const navigates = row.querySelector('a') !== null
-        expect(icons, title.textContent!).toHaveLength(navigates ? 2 : 1)
+        expect(icons, title.textContent!).toHaveLength(title.textContent === 'Alex' ? 3 : navigates ? 2 : 1)
         expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -955,7 +956,7 @@ describe('ProfilePage', () => {
     render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
-    expect(apiKeys.getByText('Work key')).toBeInTheDocument()
+    expect(apiKeys.getByText(personalText('Work key'))).toBeInTheDocument()
     expect(apiKeys.getByText('orb_live_1234…')).toBeInTheDocument()
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.revokeNamed' }))
     expect(screen.getByRole('dialog', { name: 'profile.apiKeys.revokeNamedQuestion' })).toBeInTheDocument()

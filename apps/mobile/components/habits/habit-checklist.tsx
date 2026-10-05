@@ -172,6 +172,7 @@ function InteractiveChecklistItem({
   tokens,
 }: Readonly<InteractiveChecklistItemProps>) {
   const [expanded, setExpanded] = useState(false)
+  const [pressed, setPressed] = useState(false)
   function handlePress() {
     onToggle(index)
   }
@@ -184,12 +185,13 @@ function InteractiveChecklistItem({
       style={[
         styles.itemText,
         item.isChecked && styles.itemTextChecked,
+        pressed && { color: tokens.fg2 },
       ]}
     >{item.text}</PersonalText>
   )
 
   return <View style={[dividerStyle, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start' }]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{itemLabel}</Pressable>
+    <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', gap: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><View style={{ flex: 1, minWidth: 0 }}>{itemLabel}</View><ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></Pressable>
     {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={handlePress} /> : null}
   </View>
 }

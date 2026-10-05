@@ -2,11 +2,11 @@
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import type { MouseEventHandler, ReactNode } from 'react'
+import { useId, useState, type MouseEventHandler, type ReactNode } from 'react'
 import Link from 'next/link'
 import { PersonalText } from '@/components/ui/personal-text'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
-import { ChevronRight } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 
 type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
@@ -42,18 +42,28 @@ function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebLis
   return { gap: 4, ...(compact && hasTrailing ? { paddingBlock: 4 } : {}), ...(wrapTitle && hasTrailing ? { minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' } : {}), ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' } : {}) }
 }
 
-function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description, value, readOnly }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly'>>) {
+function personalTextProps(textMode: WebListRowProps['textMode'], expanded: boolean | undefined) {
+  return textMode === 'personal' ? { expanded } : {}
+}
+
+function titleClass(textMode: WebListRowProps['textMode'], wrapTitle: boolean | undefined) {
+  if (textMode === 'personal') return ''
+  return textMode === 'label' || wrapTitle ? 'break-words' : 'truncate'
+}
+
+function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description, value, readOnly, personalExpanded }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'personalExpanded'>>) {
   const Title = textMode === 'personal' ? PersonalText : 'span'
   const Description = textMode === 'personal' ? PersonalText : 'span'
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return <span className="flex min-w-0 flex-1 flex-col" style={{ ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
-    <Title data-slot="list-row-title" translate={titleTranslate} className={textMode === 'personal' ? '' : textMode === 'label' ? 'break-words' : wrapTitle ? 'break-words' : 'truncate'} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</Title>
-    {description ? <Description data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.75rem' : 14, lineHeight: 1.4 }}>{description}</Description> : null}
+    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</Title>
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.75rem' : 14, lineHeight: 1.4 }}>{description}</Description> : null}
   </span>
 }
 
-function RowValue({ value, textMode, wrapValue }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue'>>) {
+function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
   if (!value) return null
+  if (valueTextMode === 'personal') return <PersonalText expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
   return <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</span>
 }
 
@@ -81,10 +91,24 @@ function RowBody(props: Readonly<WebListRowProps>) {
   )
 }
 
-export function ListRow(props: Readonly<WebListRowProps>) {
+function ownsPersonalDisclosure(original: Readonly<WebListRowProps>) {
+  return (original.textMode === 'personal' || original.valueTextMode === 'personal') && !original.href && !original.onClick && !original.readOnly
+}
+
+function useRowDisclosure(original: Readonly<WebListRowProps>) {
+  const [disclosed, setDisclosed] = useState(false)
+  const contentId = useId()
+  const ownsDisclosure = ownsPersonalDisclosure(original)
+  const props = ownsDisclosure ? { ...original, accessibilityLabel: original.accessibilityLabel ?? [original.title, original.description, original.value].filter(Boolean).join(', '), expanded: disclosed, personalExpanded: disclosed, controls: contentId, chevron: true, onClick: () => setDisclosed(!disclosed) } : original
+  const Chevron = ownsDisclosure ? ChevronDown : ChevronRight
+  return { props, Chevron, contentId }
+}
+
+export function ListRow(original: Readonly<WebListRowProps>) {
+  const { props, Chevron, contentId } = useRowDisclosure(original)
   const { accessibilityLabel, expanded, controls, action, chevron = true, compact = !props.description, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: 24 }}><ChevronRight aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm, !!props.trailing)
 

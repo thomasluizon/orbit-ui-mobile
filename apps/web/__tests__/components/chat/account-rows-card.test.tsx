@@ -33,6 +33,25 @@ describe('Astra account rows on web', () => {
     expect(mocks.push).toHaveBeenCalledWith('/profile')
   })
 
+  it('discloses complete account values without navigating', () => {
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    const name = 'Ler palavraMuitoLonga todos os dias'
+    const { container } = render(<AccountRowsCard accountRows={{ kind: 'profile', surfaceId: 'profile', rows: [
+      { key: 'name', value: name, valueType: 'text' },
+      { key: 'email', value: email, valueType: 'text' },
+    ] }} />)
+    for (const value of [name, email]) {
+      const disclosure = screen.getByRole('button', { name: new RegExp(value) })
+      expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+      const text = container.querySelector(`[data-personal-text][aria-label="${value}"]`)
+      expect(text).toBeInTheDocument()
+      fireEvent.click(disclosure)
+      expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+      expect(text).toHaveClass('overflow-x-auto')
+    }
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
   it('copies the referral code and shares its link without a destination chip', async () => {
     render(<AccountRowsCard accountRows={{ kind: 'referral', surfaceId: 'profile', rows: [], referralCode: 'ORBIT123', referralLink: 'https://example.com/r/ORBIT123' }} />)
     expect(screen.getByText('ORBIT123')).not.toHaveClass('truncate')

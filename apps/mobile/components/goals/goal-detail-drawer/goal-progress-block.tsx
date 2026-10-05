@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useRef, useState, type Ref } from 'react'
@@ -36,7 +37,7 @@ interface GoalProgressBlockProps {
   isUpdatingStatus: boolean
   onComplete: () => void
   refetchDetail: () => Promise<unknown>
-  headingRef: Ref<Text>
+  headingRef: Ref<View>
 }
 
 export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail, headingRef }: Readonly<GoalProgressBlockProps>) {
@@ -90,7 +91,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
     <View style={styles.section}>
       <View style={styles.header}>
         <View style={styles.heading}>
-          <Text ref={headingRef} testID="goal-detail-heading" accessibilityRole="header" style={[styles.title, { fontSize: width >= 768 ? 28 : 22, color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
+          <PersonalText accessibilityRef={headingRef} expanded testID="goal-detail-heading" accessibilityRole="header" style={[styles.title, { fontSize: width >= 768 ? 28 : 22, color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</PersonalText>
           <View style={styles.meta}>
             {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
             {!abandoned ? <Text style={[styles.figure, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}

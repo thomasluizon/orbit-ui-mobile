@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, type Ref } from 'react'
 import { ScrollView, StyleSheet, Text, View, type TextProps } from 'react-native'
 
 type PersonalTextProps = Omit<TextProps, 'children'> & {
   children: string
   expanded?: boolean
+  accessibilityRef?: Ref<View>
 }
 
 function wordLines(text: string, measuredLines: readonly string[]) {
@@ -19,13 +20,13 @@ function wordLines(text: string, measuredLines: readonly string[]) {
   return sorted.slice(1).map((end, index) => text.slice(sorted[index], end).trim()).filter(Boolean)
 }
 
-export function PersonalText({ children, expanded = false, style, ...props }: Readonly<PersonalTextProps>) {
+export function PersonalText({ children, expanded = false, accessibilityRef, style, ...props }: Readonly<PersonalTextProps>) {
   const [measurement, setMeasurement] = useState<{ text: string; lines: string[] }>()
   const singleToken = !/\s/u.test(children.trim())
   const lines = measurement?.text === children ? measurement.lines : [children]
   const visibleLines = expanded ? lines : lines.length > 1 ? [lines[0], lines.slice(1).join(' ')] : lines
   if (singleToken && !expanded) return <Text {...props} style={style} numberOfLines={1} ellipsizeMode="tail">{children}</Text>
-  return <View style={styles.container} accessible accessibilityRole={props.accessibilityRole} accessibilityLanguage={props.accessibilityLanguage} accessibilityHint={props.accessibilityHint} accessibilityLabel={props.accessibilityLabel ?? children}>
+  return <View ref={accessibilityRef} testID={props.testID} style={styles.container} accessible accessibilityRole={props.accessibilityRole} accessibilityLanguage={props.accessibilityLanguage} accessibilityHint={props.accessibilityHint} accessibilityLabel={props.accessibilityLabel ?? children}>
     {!singleToken ? <Text {...props} accessible={false} importantForAccessibility="no-hide-descendants" style={[style, styles.measurement]} numberOfLines={undefined} ellipsizeMode="clip" textBreakStrategy="simple" android_hyphenationFrequency="none" onTextLayout={(event) => {
       const nextLines = wordLines(children, event.nativeEvent.lines.map((line) => line.text))
       setMeasurement((current) => current?.text === children && current.lines.join('\n') === nextLines.join('\n') ? current : { text: children, lines: nextLines })

@@ -190,7 +190,7 @@ export function CalendarSyncEventRow({
         </span>
       </button>
 
-      <button type="button" aria-label={t('contextMenu.viewDetails')} aria-describedby={descriptionIds} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="icon-btn touch-target shrink-0" style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, color: 'var(--fg-3)' }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></button>
+      <button type="button" aria-label={t('contextMenu.viewDetails')} aria-describedby={descriptionIds} aria-expanded={expanded} aria-controls={`${titleId}-details`} onClick={() => setExpanded(!expanded)} className="icon-btn touch-target shrink-0" style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, color: 'var(--fg-3)' }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></button>
       {isReviewMode && suggestionId && (
         <button
           type="button"
@@ -203,7 +203,7 @@ export function CalendarSyncEventRow({
           <X size={20} strokeWidth={1.8} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
         </button>
       )}
-      {expanded ? <div className="min-w-0 w-full" data-calendar-event-disclosure=""><PersonalText expanded>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded>{event.calendarName}</PersonalText> : null}</div> : null}
+      <div id={`${titleId}-details`} hidden={!expanded} className="min-w-0 w-full" data-calendar-event-disclosure="">{expanded ? <><PersonalText expanded>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded>{event.calendarName}</PersonalText> : null}</> : null}</div>
     </div>
   )
 }

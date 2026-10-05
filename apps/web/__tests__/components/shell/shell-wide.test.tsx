@@ -199,7 +199,7 @@ describe('ShellWide', () => {
     rerender(<ShellWide {...props} account="Ada Lovelace" />)
     const account = screen.getByRole('link', { name: 'Ada Lovelace' })
     expect(account).toHaveClass('min-h-[var(--touch-min)]')
-    expect(account.previousElementSibling).toContainElement(create)
+    expect(account.parentElement?.previousElementSibling).toContainElement(create)
   })
 
   it('uses a modal conversation overlay below the side-panel breakpoint', () => {

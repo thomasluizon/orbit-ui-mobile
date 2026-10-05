@@ -6,7 +6,7 @@ import type { ReactNode, Ref } from 'react'
 import { cloneElement, isValidElement, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
-import { ChevronRight } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -24,7 +24,9 @@ function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasD
   return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null, compact && hasAction ? { minHeight: TOUCH_TARGET_MIN + 8 } : null, compact && hasTrailing ? styles.controlRowBody : null]
 }
 
-function RowValue({ value, wrap, color }: Readonly<{ value: string; wrap: boolean; color: string }>) {
+function RowValue({ value, wrap, color, personal, expanded }: Readonly<{ value: string | undefined; wrap: boolean; color: string; personal?: boolean; expanded?: boolean }>) {
+  if (!value) return null
+  if (personal) return <PersonalText expanded={expanded} style={[styles.value, { maxWidth: '100%', color }]}>{value}</PersonalText>
   return <Text style={[styles.value, wrap ? styles.wrappedValue : null, { color }]} numberOfLines={wrap ? undefined : 1}>{value}</Text>
 }
 
@@ -48,15 +50,19 @@ function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNod
   return readOnly === true && textMode === 'label' && Boolean(trailing) && !value
 }
 
-function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, readOnly, titleColor, valueColor }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly'> & { titleColor: string; valueColor: string }>) {
+function personalTextProps(textMode: ListRowProps['textMode'], expanded: boolean | undefined) {
+  return textMode === 'personal' ? { expanded } : {}
+}
+
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, readOnly, titleColor, valueColor, personalExpanded, valueTextMode }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'personalExpanded' | 'valueTextMode'> & { titleColor: string; valueColor: string }>) {
   const Title = textMode === 'personal' ? PersonalText : Text
   const Description = textMode === 'personal' ? PersonalText : Text
   const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), keepsControlInline ? styles.labelControlText : null]}>
-    <Title numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Title>
-    {description ? <Description ellipsizeMode="tail" style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Description> : null}
+    <Title {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Title>
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
-  const rowValue = value ? <RowValue value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} /> : null
+  const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
   return wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
 }
 
@@ -68,7 +74,20 @@ function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
   return icon
 }
 
-export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
+function ownsPersonalDisclosure(original: Readonly<ListRowProps>) {
+  return (original.textMode === 'personal' || original.valueTextMode === 'personal') && !original.onClick && !original.readOnly
+}
+
+function useRowDisclosure(original: Readonly<ListRowProps & { ref?: Ref<View> }>) {
+  const [disclosed, setDisclosed] = useState(false)
+  const ownsDisclosure = ownsPersonalDisclosure(original)
+  const props = ownsDisclosure ? { ...original, accessibilityLabel: original.accessibilityLabel ?? [original.title, original.description, original.value].filter(Boolean).join(', '), expanded: disclosed, personalExpanded: disclosed, onClick: () => setDisclosed(!disclosed), chevron: true } : original
+  const Chevron = ownsDisclosure ? ChevronDown : ChevronRight
+  return { props, Chevron }
+}
+
+export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) {
+  const { props, Chevron } = useRowDisclosure(original)
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -86,7 +105,7 @@ export function ListRow(props: Readonly<ListRowProps & { ref?: Ref<View> }>) {
       ) : null}
       <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
       {trailing && props.textMode !== 'label' ? <View style={styles.trailing}>{trailing}</View> : null}
-      {!readOnly && chevron ? <View importantForAccessibility="no-hide-descendants" style={chevronStyle(props.textMode)}><ChevronRight size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
+      {!readOnly && chevron ? <View importantForAccessibility="no-hide-descendants" style={chevronStyle(props.textMode)}><Chevron size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
   )
 
