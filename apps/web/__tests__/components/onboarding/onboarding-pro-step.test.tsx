@@ -234,6 +234,7 @@ describe('owning onboarding pitch geometry', () => {
       expect(geometry.fontWeight).toBe('500')
       expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
       expect(geometry.textWidth).toBeLessThanOrEqual(geometry.measure)
+      if (width === 320 && trial) expect(geometry.textWidth).toBeLessThanOrEqual(268)
       if (width < 1024) {
         expect(geometry.scrollerMeasure).toBe(width - 4)
         expect(geometry.measure).toBe(Math.min(width - 4, 440) - 32)
