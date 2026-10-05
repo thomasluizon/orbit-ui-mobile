@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/server-fetch'
 import { createHabit, updateHabit } from '@/app/actions/habits'
 import { API } from '@orbit/shared/api'
+import { confirmPendingOperation, executePendingOperation } from '@/app/actions/chat'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -498,5 +499,34 @@ describe('serverAuthMutate', () => {
     )
 
     expect(result).toBeNull()
+  })
+})
+
+
+describe('Astra proxy failure logging through server actions', () => {
+  beforeEach(() => {
+    resolveServerSessionMock.mockReset()
+    mockFetch.mockReset()
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    vi.spyOn(performance, 'now').mockReturnValueOnce(10).mockReturnValue(35)
+    resolveServerSessionMock.mockResolvedValue({ token: makeAccessToken('account-a'), refreshFailed: false })
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it.each(['confirm', 'execute'])('logs an upstream 503 once for %s without operation ids or tokens', async (action) => {
+    mockFetch.mockResolvedValue(new Response('private upstream body', {
+      status: 503,
+      headers: { 'x-orbit-request-id': '0HNP2CCF19CBE:00000001', 'rndr-id': '38645fab-293e-4840' },
+    }))
+
+    const result = action === 'confirm'
+      ? await confirmPendingOperation('private-operation', 'account-a')
+      : await executePendingOperation('private-operation', 'private-token', 'account-a')
+
+    expect(result).toMatchObject({ ok: false, status: 503 })
+    expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      path: `/api/ai/pending-operations/:id/${action}`, status: 503, upstreamStatus: 503,
+      apiRequestId: '0HNP2CCF19CBE:00000001', renderRequestId: '38645fab-293e-4840', elapsedMs: 25,
+    }) + '\n')
   })
 })

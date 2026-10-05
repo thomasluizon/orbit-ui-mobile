@@ -3,6 +3,7 @@ import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
+import { observeProxyFailure, type RecordProxyUpstream } from '@/lib/proxy-failure-log'
 
 /**
  * BFF: streaming proxy for the chat SSE endpoint. The catch-all proxy buffers
@@ -46,7 +47,7 @@ function accountChangedResponse(): Response {
   )
 }
 
-export async function POST(request: NextRequest) {
+async function handleStream(request: NextRequest, recordUpstream: RecordProxyUpstream) {
   const session = await resolveServerSession()
   if (!session.token) {
     return unauthorizedResponse(session.refreshFailed)
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData()
   let upstream = await forwardStream(request, formData, session.token)
+  recordUpstream(upstream)
 
   if (upstream.status === 401) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
@@ -68,6 +70,7 @@ export async function POST(request: NextRequest) {
       return accountChangedResponse()
     }
     upstream = await forwardStream(request, formData, refreshedSession.token)
+    recordUpstream(upstream)
   }
 
   if (!upstream.ok || !upstream.body) {
@@ -89,4 +92,8 @@ export async function POST(request: NextRequest) {
       'x-accel-buffering': 'no',
     },
   })
+}
+
+export async function POST(request: NextRequest) {
+  return observeProxyFailure('/api/chat/stream', (recordUpstream) => handleStream(request, recordUpstream))
 }

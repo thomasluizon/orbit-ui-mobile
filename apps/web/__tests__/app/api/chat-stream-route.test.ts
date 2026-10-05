@@ -6,7 +6,7 @@ import { resolveServerSession } from '@/lib/auth-api'
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
-afterEach(() => vi.useRealTimers())
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
 vi.mock('@/lib/auth-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth-api')>()),
@@ -23,6 +23,7 @@ vi.stubGlobal('fetch', mockFetch)
 
 describe('chat stream route', () => {
   beforeEach(() => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     mockFetch.mockReset()
     vi.mocked(resolveServerSession).mockReset()
   })
@@ -123,4 +124,32 @@ describe('chat stream route', () => {
     expect(response.status).toBe(409)
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
+
+  it.each([503, 200])('logs exactly one structured failure for %i and preserves the response', async (status) => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+    vi.spyOn(performance, 'now').mockReturnValueOnce(10).mockReturnValue(35)
+    mockFetch.mockResolvedValue(new Response('upstream body', {
+      status,
+      headers: { 'x-orbit-request-id': '0HNP2CCF19CBE:00000001', 'rndr-id': '38645fab-293e-4840' },
+    }))
+    const formData = new FormData()
+    formData.set('message', 'private message')
+    const request = new NextRequest('http://localhost:3000/api/chat/stream?private=query', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: formData,
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(status)
+    expect(await response.text()).toBe('upstream body')
+    if (status === 200) {
+      expect(process.stderr.write).not.toHaveBeenCalled()
+    } else {
+      expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+        path: '/api/chat/stream', status: 503, upstreamStatus: 503,
+        apiRequestId: '0HNP2CCF19CBE:00000001', renderRequestId: '38645fab-293e-4840', elapsedMs: 25,
+      }) + '\n')
+    }
+  })
+
 })
