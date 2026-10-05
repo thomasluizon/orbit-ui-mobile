@@ -1,3 +1,4 @@
+import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
 import { useOverlayBack } from "@/hooks/use-overlay-back";
@@ -15,7 +16,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { chatTraceLabelKey } from "@orbit/shared/chat";
+import { chatTraceLabelKey, stripChatDirectives } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
@@ -67,6 +68,25 @@ function ThinkingTrace({ steps, running }: Readonly<{
   </View>;
 }
 
+function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: Readonly<{
+  content: string;
+  complete: boolean;
+  messageId: string;
+  claimAnnouncement: (messageId: string) => boolean;
+}>) {
+  const [announcement, setAnnouncement] = useState('');
+  useEffect(() => {
+    if (!complete || !content) return;
+    let mounted = true;
+    void Promise.resolve().then(() => {
+      if (!mounted || !claimAnnouncement(messageId)) return;
+      setAnnouncement(stripChatDirectives(content));
+    });
+    return () => { mounted = false; };
+  }, [complete, content, messageId, claimAnnouncement]);
+  return <Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
+}
+
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -103,6 +123,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
+    isPendingOperationBusy = false,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -110,7 +131,15 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const keyboardScroll = useConversationKeyboardScroll(flatListRef);
 
 
+  const announcedMessageIds = useRef(new Set<string>());
+  const claimAnnouncement = useCallback((messageId: string) => {
+    if (announcedMessageIds.current.has(messageId)) return false;
+    announcedMessageIds.current.add(messageId);
+    return true;
+  }, []);
+
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
+  const [initialStreamingMessageId] = useState(() => streamingMessageId);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
   const closeConversation = useCallback(() => {
@@ -144,6 +173,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
     ({ item }) => (
       <View style={{ gap: 16 }}>
+      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
         animateEntry={!initialMessageIds.has(item.id)}
@@ -162,9 +192,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     ),
     [
       confirmAndExecutePendingOperation,
+      claimAnnouncement,
       handleActionChipClick,
       handleBreakdownConfirmed,
       initialMessageIds,
+      initialStreamingMessageId,
       messages,
       canShowFollowUps,
       sendMessage,
@@ -172,6 +204,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       refreshPendingOperationForBubble,
       prepareStepUpForBubble,
       streamingMessageId,
+      isTyping,
       verifyStepUpForBubble,
     ],
   );
@@ -179,6 +212,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
   return (
+    <ChatCardOperationContext.Provider value={chat.trackCardOperation}>
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <View style={styles.content}>
         <AppBar
@@ -224,8 +258,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               onLayout={keyboardScroll.onLayout}
               ListFooterComponent={activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
               accessibilityLabel={t("chat.title")}
-              accessibilityLiveRegion={activeSteps.length > 0 ? "none" : "polite"}
-              accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 }}
+              accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy }}
             />
           </View>
         )}
@@ -254,5 +287,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         />
       )}
     </View>
+    </ChatCardOperationContext.Provider>
   );
 }
