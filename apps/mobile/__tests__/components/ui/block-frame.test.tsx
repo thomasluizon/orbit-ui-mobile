@@ -102,7 +102,7 @@ describe('BlockFrame on mobile', () => {
   it('renders a busy loading skeleton without row labels', () => {
     const tree = render(<BlockFrame {...frame({ state: 'loading', actions: <Text>Save</Text> })} />)
     const root = tree.root.findByProps({ testID: 'block-frame-loading' })
-    expect(prop(root, 'accessibilityState')).toEqual({ busy: true })
+    expect(prop(root, 'accessibilityState')).toBeUndefined()
     expect(tree.root.findByProps({ testID: 'block-frame-loading-skeleton' })).toBeDefined()
     expect(textValues(tree)).not.toContain('First row')
   })
@@ -196,7 +196,7 @@ describe('BlockFrame on mobile', () => {
       />,
     )
 
-    expect(prop(tree.root.findByProps({ testID: 'block-frame-partiallyFailed' }), 'accessibilityState')).toEqual({ busy: false })
+    expect(prop(tree.root.findByProps({ testID: 'block-frame-partiallyFailed' }), 'accessibilityState')).toBeUndefined()
     expect(tree.root.findByProps({ testID: 'block-frame-item-done-done' })).toBeDefined()
     expect(tree.root.findByProps({ testID: 'block-frame-item-failed-failed' })).toBeDefined()
     expect(tree.root.findAll((node) =>
@@ -306,15 +306,15 @@ describe('BlockFrame on mobile', () => {
     expect(tree.root.findAllByProps({ testID: 'action' })).toHaveLength(0)
   })
 
-  it('keeps announcements local and exposes busy state only while working', () => {
+  it('keeps announcements local without owning list busy state', () => {
     const tree = render(<BlockFrame {...frame()} />)
     expect(prop(tree.root.findByProps({ testID: 'block-frame-body' }), 'accessibilityLiveRegion')).toBe('polite')
-    expect(prop(tree.root.findByProps({ testID: 'block-frame-resting' }), 'accessibilityState')).toEqual({ busy: false })
+    expect(prop(tree.root.findByProps({ testID: 'block-frame-resting' }), 'accessibilityState')).toBeUndefined()
 
     void act(() => {
       tree.update(<BlockFrame {...frame({ state: 'acting' })} />)
     })
-    expect(prop(tree.root.findByProps({ testID: 'block-frame-acting' }), 'accessibilityState')).toEqual({ busy: true })
+    expect(prop(tree.root.findByProps({ testID: 'block-frame-acting' }), 'accessibilityState')).toBeUndefined()
     expect(textValues(tree).filter((value) => value === 'In progress')).toHaveLength(items.length)
   })
 

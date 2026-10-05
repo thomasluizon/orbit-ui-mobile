@@ -253,6 +253,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const {
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
+    isPendingOperationBusy,
+    trackCardOperation,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -817,6 +819,8 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
+    isPendingOperationBusy,
+    trackCardOperation,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

@@ -3,6 +3,7 @@ import { AccessibilityInfo, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClarificationRequest, PendingAgentOperation } from '@orbit/shared/types'
 import type { MessageBubbleProps, PendingOperationMessageState } from '@orbit/shared/chat'
+import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ActionRow } from '@/components/ui/action-row'
@@ -17,6 +18,7 @@ type ClarificationCardProps = Readonly<{ clarificationRequest: ClarificationRequ
 export function ClarificationCard({ clarificationRequest, entityName, pendingOperation: savedPreview, savedState, onPreview, onStateChange, onPendingOperationRevise, onPendingOperationRefresh, onPendingOperationConfirmExecute, onPendingOperationPrepareStepUp, onPendingOperationVerifyStepUp, onActionChipClick }: ClarificationCardProps) {
   const { t } = useTranslation()
   const resolve = useResolveClarification()
+  const trackCardOperation = useChatCardOperation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
@@ -29,7 +31,7 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
   const choose = async (label: string, value: string) => {
     setErrorKey(null)
     try {
-      const result = await resolve.mutateAsync({ operationId: clarificationRequest.operationId, value })
+      const result = await trackCardOperation(() => resolve.mutateAsync({ operationId: clarificationRequest.operationId, value }))
       if (result.operation.status === 'PendingConfirmation' && result.pendingOperation) {
         setLocalPreview(result.pendingOperation)
         onPreview?.(result.pendingOperation)

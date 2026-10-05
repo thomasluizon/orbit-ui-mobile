@@ -60,14 +60,14 @@ describe('BottomTabBar', () => {
       expect(contrastOnSurface(resting.color, resting.backgrounds)).toBeGreaterThanOrEqual(4.5)
       await act(() => { (tab().props.onHoverIn as () => void)() })
       const hovered = measure()
-      expect(hovered.color).toBe(tokens.primaryText)
-      expect(hovered.backgrounds).toEqual([tokens.bg, tokens.bgHover])
+      expect(hovered.color).toBe(resting.color)
+      expect(hovered.backgrounds).toEqual([tokens.bg])
       expect(contrastOnSurface(hovered.color, hovered.backgrounds)).toBeGreaterThanOrEqual(4.5)
       await act(() => { (tab().props.onPressIn as () => void)() })
       expect(measure()).toEqual(hovered)
       await act(() => { (tab().props.onHoverOut as () => void)() })
       const pressed = measure()
-      expect(pressed.color).toBe(tokens.primaryText)
+      expect(pressed.color).toBe(resting.color)
       expect(pressed.backgrounds).toEqual([tokens.bg])
       expect(contrastOnSurface(pressed.color, pressed.backgrounds)).toBeGreaterThanOrEqual(4.5)
       if (icons) {
@@ -121,21 +121,25 @@ describe('BottomTabBar', () => {
     expect(StyleSheet.flatten(indicator?.props.style)).toMatchObject({ width: 56, height: 32 })
     if (!tab) throw new Error('Progress tab was not rendered')
     expect(StyleSheet.flatten(getTabChildStyle(tab, false, View))).not.toHaveProperty('backgroundColor')
-    expect(StyleSheet.flatten(getTabChildStyle(tab, true, View))).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover })
+    expect(StyleSheet.flatten(getTabChildStyle(tab, true, View))).toMatchObject({ backgroundColor: createTokensV2('orange', theme.currentTheme).bgHover })
     tree.unmount()
   })
 
-  it('fills the whole rounded tab hit area on pointer hover without changing the indicator geometry', () => {
-    const tree = renderNavigation(<BottomTabBar items={items.map((item) => ({ ...item, icon: () => <Text>Icon</Text> }))} activeId="today" onSelect={vi.fn()} label="Navigation" />)
-    const tab = () => tree.hosts().find((node) => node.props.testID === 'tab-progress-inactive')!
+  it.each((['dark', 'light'] as const).flatMap((mode) => [true, false].map((active) => ({ mode, active }))))('fills only the indicator on pointer hover in $mode, active=$active', ({ mode, active }) => {
+    theme.currentTheme = mode
+    const tokens = createTokensV2(theme.currentScheme, mode)
+    const tree = renderNavigation(<BottomTabBar items={items.map((item) => ({ ...item, icon: () => <Text>Icon</Text> }))} activeId={active ? "progress" : "today"} onSelect={vi.fn()} label="Navigation" />)
+    const tab = () => tree.hosts().find((node) => node.props.testID === `tab-progress-${active ? "current" : "inactive"}`)!
     const hoverTab = tab() as { props: { onHoverIn?: () => void; onHoverOut?: () => void } }
     expect(hoverTab.props.onHoverIn).toBeTypeOf('function')
     const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
     void renderer.act(() => hoverTab.props.onHoverIn?.())
-    expect(StyleSheet.flatten(tab().props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 999 })
+    expect(StyleSheet.flatten(tab().props.style)).not.toHaveProperty('backgroundColor')
+    expect(StyleSheet.flatten(getTabChildStyle(tab(), false))).toMatchObject({ color: active ? tokens.primarySoft : tokens.fg3 })
     const indicator = tree.hosts().find((node) => node.props.testID === 'tab-indicator-progress')!
-    expect(StyleSheet.flatten(indicator.props.style)).toMatchObject({ width: 56, height: 32 })
-    expect(StyleSheet.flatten(getTabChildStyle(tab(), true, View))).not.toHaveProperty('backgroundColor')
+    expect(StyleSheet.flatten(indicator.props.style)).toMatchObject({ width: 56, height: 32, borderRadius: 999, backgroundColor: tokens.bgHover })
+    expect(StyleSheet.flatten(getTabChildStyle(tab(), true, View))).toMatchObject({ backgroundColor: tokens.bgHover })
+    expect(StyleSheet.flatten(getTabChildStyle(tab(), true))).toMatchObject({ color: active ? tokens.primarySoft : tokens.fg3 })
     void renderer.act(() => hoverTab.props.onHoverOut?.())
     expect(StyleSheet.flatten(tab().props.style)).not.toHaveProperty('backgroundColor')
     tree.unmount()
@@ -151,7 +155,7 @@ describe('BottomTabBar', () => {
     expect(pointer.props.onHoverIn).toBeTypeOf('function')
     void renderer.act(() => pointer.props.onHoverIn?.())
     for (const pressed of [false, true]) {
-      expect(StyleSheet.flatten(getTabChildStyle(tab(), pressed))).toMatchObject({ color: active ? tokens.primaryText : tokens.fg2 })
+      expect(StyleSheet.flatten(getTabChildStyle(tab(), pressed))).toMatchObject({ color: active ? tokens.primarySoft : tokens.fg3 })
     }
     void renderer.act(() => pointer.props.onHoverOut?.())
     expect(StyleSheet.flatten(getTabChildStyle(tab(), false))).toMatchObject({ color: active ? tokens.primarySoft : tokens.fg3 })
@@ -176,7 +180,7 @@ describe('BottomTabBar', () => {
     expect(StyleSheet.flatten(getTabChildStyle(inactiveTab, false))).toMatchObject({ color: tokens.fg3 })
     expect(StyleSheet.flatten(getTabChildStyle(inactiveTab, true))).toMatchObject({ color: tokens.fg3 })
     expect(StyleSheet.flatten(getTabChildStyle(activeTab, false))).toMatchObject({ color: tokens.primarySoft })
-    expect(StyleSheet.flatten(getTabChildStyle(activeTab, true))).toMatchObject({ color: tokens.primaryText })
+    expect(StyleSheet.flatten(getTabChildStyle(activeTab, true))).toMatchObject({ color: tokens.primarySoft })
     tree.unmount()
   })
 })

@@ -1,14 +1,18 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { DndContext, MouseSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { SortableContext } from '@dnd-kit/sortable'
+import { SortableContext, useSortable } from '@dnd-kit/sortable'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
-import { SortableHabitItem } from '@/components/habits/habit-list/sortable-habit-item'
 
 const items = [{ id: 'first', title: 'Ler' }, { id: 'second', title: 'Caminhar' }]
+
+function SortableAnnouncementItem({ id, title }: Readonly<{ id: string; title: string }>) {
+  const { attributes, listeners, setNodeRef } = useSortable({ id, attributes: { roleDescription: useTranslations()('dragAndDrop.roleDescription') } })
+  return <button type="button" ref={setNodeRef} {...attributes} {...listeners}>{title}</button>
+}
 
 function DragList() {
   const t = useTranslations()
@@ -16,7 +20,7 @@ function DragList() {
   const accessibility = useDragAccessibility(t, (id) => items.find((item) => item.id === id)?.title)
   return <DndContext sensors={sensors} accessibility={accessibility}>
     <SortableContext items={items.map((item) => item.id)}>
-      {items.map((item) => <SortableHabitItem key={item.id} id={item.id}>{item.title}</SortableHabitItem>)}
+      {items.map((item) => <SortableAnnouncementItem key={item.id} {...item} />)}
     </SortableContext>
   </DndContext>
 }

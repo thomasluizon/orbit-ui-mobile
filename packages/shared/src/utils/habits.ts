@@ -318,6 +318,7 @@ export interface ReorderableHabitItem {
   id: string
   parentId: string | null
   position?: number | null
+  createdAtUtc?: string
 }
 
 export interface HabitReorderPosition {
@@ -327,13 +328,17 @@ export interface HabitReorderPosition {
 
 /**
  * Sort siblings deterministically by their current stored position,
- * pushing null/undefined positions to the end and breaking ties by id.
+ * pushing null/undefined positions to the end and preserving creation order.
+ * Inputs without creation metadata break ties by id.
  */
 function sortSiblingsByPosition<T extends ReorderableHabitItem>(siblings: T[]): T[] {
   return [...siblings].sort((a, b) => {
     const aPos = a.position ?? Number.MAX_SAFE_INTEGER
     const bPos = b.position ?? Number.MAX_SAFE_INTEGER
     if (aPos !== bPos) return aPos - bPos
+    if (a.createdAtUtc !== undefined || b.createdAtUtc !== undefined) {
+      return (a.createdAtUtc ?? '').localeCompare(b.createdAtUtc ?? '')
+    }
     return a.id.localeCompare(b.id)
   })
 }

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { API } from "@orbit/shared/api";
 import type {
@@ -38,6 +38,12 @@ export function usePendingOperationExecution({
   handleExecutedOperation,
 }: UsePendingOperationExecutionOptions) {
   const { t, i18n } = useTranslation();
+  const [batchCount, setBatchCount] = useState(0);
+  const trackBatch = useCallback(async <Result,>(operation: () => Promise<Result>) => {
+    setBatchCount((count) => count + 1);
+    try { return await operation(); }
+    finally { setBatchCount((count) => count - 1); }
+  }, []);
 
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
     try {
@@ -197,11 +203,24 @@ export function usePendingOperationExecution({
     [verifyAndExecutePendingOperationStepUp],
   );
 
+  const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>
+    trackBatch(() => revisePendingOperationForBubble(...args)), [revisePendingOperationForBubble, trackBatch]);
+  const trackedRefresh = useCallback((...args: Parameters<typeof refreshPendingOperationForBubble>) =>
+    trackBatch(() => refreshPendingOperationForBubble(...args)), [refreshPendingOperationForBubble, trackBatch]);
+  const trackedExecute = useCallback((...args: Parameters<typeof confirmAndExecutePendingOperation>) =>
+    trackBatch(() => confirmAndExecutePendingOperation(...args)), [confirmAndExecutePendingOperation, trackBatch]);
+  const trackedPrepare = useCallback((...args: Parameters<typeof prepareStepUpForBubble>) =>
+    trackBatch(() => prepareStepUpForBubble(...args)), [prepareStepUpForBubble, trackBatch]);
+  const trackedVerify = useCallback((...args: Parameters<typeof verifyStepUpForBubble>) =>
+    trackBatch(() => verifyStepUpForBubble(...args)), [verifyStepUpForBubble, trackBatch]);
+
   return {
-    revisePendingOperationForBubble,
-    refreshPendingOperationForBubble,
-    confirmAndExecutePendingOperation,
-    prepareStepUpForBubble,
-    verifyStepUpForBubble,
+    isPendingOperationBusy: batchCount > 0,
+    trackCardOperation: trackBatch,
+    revisePendingOperationForBubble: trackedRevise,
+    refreshPendingOperationForBubble: trackedRefresh,
+    confirmAndExecutePendingOperation: trackedExecute,
+    prepareStepUpForBubble: trackedPrepare,
+    verifyStepUpForBubble: trackedVerify,
   };
 }

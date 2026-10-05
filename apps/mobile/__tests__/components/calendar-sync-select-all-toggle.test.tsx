@@ -15,12 +15,11 @@ interface TestNode {
   props: Record<string, unknown>
 }
 
-function renderToggle(allSelected: boolean, onToggle: () => void, disabled = false) {
+function renderToggle(allSelected: boolean, onToggle: () => void) {
   let tree: { root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] } }
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <SelectAllToggle
-        disabled={disabled}
         allSelected={allSelected}
         onToggle={onToggle}
         selectAllLabel={selectAllLabel}
@@ -41,12 +40,14 @@ function getButton(tree: ReturnType<typeof renderToggle>) {
 }
 
 describe('mobile SelectAllToggle', () => {
-  it.each([false, true])('paints the whole target without invisible slop, disabled: %s', (disabled) => {
-    const button = getButton(renderToggle(false, vi.fn(), disabled))
+  it('paints the whole enabled target without invisible slop', () => {
+    const button = getButton(renderToggle(false, vi.fn()))
     const style = button.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-    expect(button.props.disabled).toBe(disabled)
+    expect(button.props.disabled).toBeUndefined()
+    expect(button.props.accessibilityState).toEqual({ selected: false })
     expect(button.props.hitSlop).toBeUndefined()
-    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', ...(disabled ? { opacity: 0.6 } : {}) })
+    expect(StyleSheet.flatten(style({ pressed: false })).opacity).toBeUndefined()
+    expect(StyleSheet.flatten(style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent' })
     expect(StyleSheet.flatten(style({ pressed: true }))).toMatchObject({ width: 48, height: 48, backgroundColor: tokens.bgHover })
   })
 
