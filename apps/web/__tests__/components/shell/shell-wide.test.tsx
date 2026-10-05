@@ -84,7 +84,7 @@ describe('ShellWide', () => {
     const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} fab={<button type="button">Create</button>}><h1>Today</h1></ShellWide>)
     const bottom = container.querySelector('[data-shell-bottom]')
     expect(bottom).not.toHaveClass('shadow-[inset_0_1px_0_var(--hairline)]')
-    const fab = container.querySelector('[data-shell-fab]')
+    const fab = container.querySelector<HTMLElement>('[data-shell-fab]')
     expect(fab).toContainElement(screen.getByRole('button', { name: 'Create' }))
     expect(container.querySelector('[data-shell-scroller]')).not.toContainElement(fab)
     expect(fab).toHaveStyle({ bottom: 'calc(100% + 16px)' })

@@ -29,10 +29,14 @@ describe('Shell bottom column geometry', () => {
   it.each([320, 600, 840, 1100].flatMap((width) =>
     (['idle', 'atLimit', 'offline'] as const).map((state) => ({ width, state })),
   ))('aligns bottom chrome with content at $width in $state', async ({ width, state }) => {
-    const limitReason = state === 'atLimit' ? en.shell.composer.limit.reason : en.shell.composer.offline.reason
+    const composerStates = {
+      idle: { state: 'idle' },
+      atLimit: { state: 'atLimit', limitReason: en.shell.composer.limit.reason },
+      offline: { state: 'offline', limitReason: en.shell.composer.offline.reason },
+    } as const
     const view = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
-      composer={<Composer state={state} value="" suggestions={[]} words={en.shell.composer}
-        {...(state === 'idle' ? {} : { limitReason })} onChangeValue={vi.fn()} onSend={vi.fn()} />}
+      composer={<Composer {...composerStates[state]}
+        value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       notice={<Toast kind="neutral" message="Habit saved" />}
       tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
       fab={<button type="button" style={{ width: 48, height: 48 }}>Create</button>}>
