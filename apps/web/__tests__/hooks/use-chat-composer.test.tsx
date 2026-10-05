@@ -1735,7 +1735,9 @@ describe('web useChatComposer streaming send', () => {
     render(<GoalRequestComposer />)
     expect(screen.getByRole('textbox')).toHaveValue('Unsent note')
     const group = screen.getByRole('group', { name: 'shell.composer.suggestionsLabel' })
-    expect(group.querySelectorAll('button')).toHaveLength(1)
+    const chips = group.querySelectorAll('button')
+    expect(chips.length).toBeGreaterThanOrEqual(3)
+    expect(chips[0]).toHaveAccessibleName('Create a goal')
     fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body

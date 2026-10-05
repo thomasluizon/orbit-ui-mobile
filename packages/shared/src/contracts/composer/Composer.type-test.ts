@@ -84,7 +84,6 @@ type ExpectedComposerSuggestion = {
 }
 type ExpectedComposerSuggestions =
   | readonly []
-  | readonly [ExpectedComposerSuggestion]
   | readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion]
   | readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion]
   | readonly [
@@ -385,6 +384,7 @@ const videoAttachment: ComposerAttachment = { id: 'video', kind: 'video', name: 
 void [missingAttachmentId, missingAttachmentKind, missingAttachmentName, videoAttachment]
 
 const suggestions2: ComposerSuggestions = [chip, chip]
+// @ts-expect-error one suggestion is below the contract minimum
 const suggestions1: ComposerSuggestions = [chip]
 // @ts-expect-error seven suggestions are above the contract maximum
 const suggestions7: ComposerSuggestions = [chip, chip, chip, chip, chip, chip, chip]

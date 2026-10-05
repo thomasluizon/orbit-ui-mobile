@@ -1787,7 +1787,7 @@ describe('mobile useChatComposer', () => {
     expect(tree.root.findByType('TextInput').props.value).toBe('Unsent note')
     const group = tree.root.findByProps({ accessibilityLabel: 'shell.composer.suggestionsLabel' })
     const chips = group.findAllByType('Pressable')
-    expect(chips).toHaveLength(1)
+    expect(chips.length).toBeGreaterThanOrEqual(3)
     expect(chips[0].props.accessibilityLabel).toBe('Create a goal')
     TestRenderer.act(() => chips[0].props.onPress())
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())

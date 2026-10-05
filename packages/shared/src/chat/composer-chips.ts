@@ -119,9 +119,9 @@ function progressChips(state: ComposerChipState): ComposerChip[] {
     id: contextual.id, key: 'progressScreen.goals.createAction',
     label: contextual.label, prompt: contextual.prompt,
   }] : []
-  if (state.status !== 'success') return requested
-  const noGoal = state.habits.find((habit) => !habit.linkedGoals?.length)
-  const withGoal = state.habits.some((habit) => Boolean(habit.linkedGoals?.length))
+  if (state.status !== 'success' && !requested.length) return []
+  const noGoal = state.status === 'success' ? state.habits.find((habit) => !habit.linkedGoals?.length) : undefined
+  const withGoal = state.status === 'success' && state.habits.some((habit) => Boolean(habit.linkedGoals?.length))
   const candidates = [
     ...(noGoal ? [chip('progress.createGoal', { title: noGoal.title })] : []),
     ...(state.profile.currentStreak === 0 && state.profile.longestStreak > 0 ? [chip('progress.brokenStreak')] : []),
