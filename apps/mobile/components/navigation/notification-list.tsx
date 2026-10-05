@@ -49,7 +49,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 16, gap: 8 },
+  list: { width: '100%', maxWidth: 560, alignSelf: 'flex-start', padding: 16, gap: 8 },
   skeletonRow: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 12 },
   dotColumn: { width: 8 },
   skeletonContent: { flex: 1, gap: 8 },
