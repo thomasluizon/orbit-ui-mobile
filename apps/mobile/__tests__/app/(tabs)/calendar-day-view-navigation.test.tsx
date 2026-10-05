@@ -1,4 +1,6 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
+import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -309,7 +311,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
   })
 
-  it('shows one stable grid skeleton while the month is loading', () => {
+  it('keeps one named loading region with a placeholder for every month date', () => {
     calendarIsLoading = true
     let tree!: TestTree
     TestRenderer.act(() => {
@@ -319,10 +321,13 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     const shapes = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     )
-    expect(shapes).toHaveLength(1)
-    expect(shapes[0]?.props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ width: 332, height: 284, gap: 4 })]),
-    )
+    const month = buildCalendarMonthModel(new Date(2026, 7, 1), calendarDayMap, 1, '2026-08-15')
+    expect(shapes).toHaveLength(month.gridDays.length)
+    for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44 })
+    const grid = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'calendar-grid')[0]!
+    const loadingRegions = grid.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')
+    expect(loadingRegions).toHaveLength(1)
+    expect(loadingRegions[0]?.props).toMatchObject({ accessibilityLabel: 'calendar.loading', accessibilityState: { busy: true } })
     expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
     expect(tree.root.findAll((node) => String(node.props.testID).startsWith('day-cell-'))).toHaveLength(0)
   })
