@@ -4,7 +4,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Copy } from '@/components/ui/icons'
 import { BUTTON_SIZES } from '@orbit/shared/theme'
 import { contrastOnSurface, withAlpha } from '@orbit/shared/__tests__/contrast'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, mixHex, radius } from '@/lib/theme'
+import { expectPressPaint } from '@/__tests__/support/press-feedback'
 
 const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
 
@@ -42,6 +43,19 @@ function pressableHeight(tree: any): number | undefined {
 }
 
 describe('PillButton (mobile)', () => {
+  it.each(['dark', 'light'] as const)('paints the secondary fill and preserves its label in %s', (mode) => {
+    theme.mode = mode
+    const tokens = createTokensV2('purple', mode)
+    const onClick = vi.fn()
+    const tree = renderPill(<PillButton variant="secondary" onClick={onClick}>Secondary</PillButton>)
+    const button = tree.root.findByType('Pressable')
+    expectPressPaint(button, { fill: mixHex(tokens.fg1, tokens.bg, 0.1), restFill: tokens.fg1, borderRadius: radius.full })
+    expect(flattenStyle(tree.root.findByType('Text').props.style).color).toBe(tokens.bg)
+    TestRenderer.act(() => button.props.onPress())
+    expect(onClick).toHaveBeenCalledOnce()
+    TestRenderer.act(() => tree.unmount())
+    theme.mode = 'dark'
+  })
 
   it('defaults ordinary pills to small', () => {
     const tree = renderPill(<PillButton>Continue</PillButton>)

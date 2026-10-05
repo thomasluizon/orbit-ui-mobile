@@ -26,6 +26,8 @@ import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
+import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
@@ -108,6 +110,13 @@ const mocks = vi.hoisted(() => ({
   rescheduleRefetch: vi.fn(),
   language: 'en',
   uses24HourClock: undefined as boolean | undefined,
+  reducedMotion: false,
+  realPressTokens: false,
+}))
+
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/motion')>()),
+  usePrefersReducedMotion: () => mocks.reducedMotion,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -289,10 +298,13 @@ vi.mock('@/hooks/use-reschedule-suggestion', () => ({
     return { suggestion: mocks.suggestion, error: mocks.rescheduleError, refetch: mocks.rescheduleRefetch }
   },
 }))
-vi.mock('@/lib/theme', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/theme')>()),
-  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
-}))
+vi.mock('@/lib/theme', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/theme')>()
+  return {
+    ...actual,
+    createTokensV2: (...args: Parameters<typeof actual.createTokensV2>) => mocks.realPressTokens ? actual.createTokensV2(...args) : new Proxy({}, { get: () => '#111111' }),
+  }
+})
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark', surfaces: { screen: { backgroundColor: '#111111' } } }),
 }))
@@ -453,6 +465,8 @@ describe('HabitDetailScreen', () => {
     expect(editingHeaders).toHaveLength(1)
   })
   beforeEach(() => {
+    mocks.reducedMotion = false
+    mocks.realPressTokens = false
     mocks.metricsError = false
     mocks.realMetrics = false
     mocks.getStorage.mockReset().mockResolvedValue(null)
@@ -1636,12 +1650,16 @@ describe('HabitDetailScreen', () => {
 
 
 
-  it.each(['', 'My draft'])('opens Astra about the habit and preserves an existing draft %s', (draft) => {
+  it.each(['', 'My draft'])('paints and opens Astra about the habit, preserving draft %s', (draft) => {
+    mocks.reducedMotion = draft !== ''
+    mocks.realPressTokens = true
     useChatStore.getState().setDraft(draft)
     useChatStore.getState().setContextualSuggestion(null)
     useUIStore.getState().setAstraConversationOpen(false)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
+    expectPressPaint(ask, { fill: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, scale: mocks.reducedMotion ? 1 : 0.96 })
     TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!.props.onPress())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
@@ -1649,6 +1667,8 @@ describe('HabitDetailScreen', () => {
       expect(useChatStore.getState().draft).toBe(draft)
       expect(useChatStore.getState().contextualSuggestion).toMatchObject({ id: 'habit-detail:habit-1', prompt })
     } else expect(useChatStore.getState().draft).toBe(prompt)
+    mocks.reducedMotion = false
+    mocks.realPressTokens = false
   })
 
   it('preserves consecutive edits before detail refreshes', async () => {

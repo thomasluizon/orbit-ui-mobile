@@ -10,6 +10,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { calendarKeys } from '@orbit/shared/query';
 import { Link as LinkIcon } from '@/components/ui/icons';
 import { advanceAccountGeneration } from '@/lib/session-epoch';
+import { expectPressPaint } from '@/__tests__/support/press-feedback';
 
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from "@/components/calendar-sync/calendar-import-content";
 import AuthCallbackScreen from '@/app/auth-callback';
@@ -102,8 +103,15 @@ const mocks = vi.hoisted(() => {
     autoSyncError: false,
     refetchAutoSyncState: vi.fn(),
     language: 'en',
+    reducedMotion: false,
+    realPressTokens: false,
   };
 });
+
+vi.mock('@/lib/motion', () => ({
+  usePrefersReducedMotion: () => mocks.reducedMotion,
+  toAnimatedEasing: () => (value: number) => value,
+}));
 
 vi.mock("expo-router", async () => {
   const React = await import("react");
@@ -237,11 +245,11 @@ vi.mock("@/lib/use-app-theme", () => ({
 }));
 
 vi.mock("@/lib/theme", async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>();
+  const actual = await importOriginal<typeof import('@/lib/theme')>();
   return {
     ...actual,
     createColors: () => colorProxy,
-    createTokensV2: () => tokensV2Proxy,
+    createTokensV2: (...args: Parameters<typeof actual.createTokensV2>) => mocks.realPressTokens ? actual.createTokensV2(...args) : tokensV2Proxy,
   };
 });
 
@@ -305,6 +313,8 @@ vi.mock("react-native", async (importOriginal) => {
 describe("CalendarSyncScreen", () => {
   afterEach(() => { vi.unstubAllEnvs(); });
   beforeEach(() => {
+    mocks.reducedMotion = false;
+    mocks.realPressTokens = false;
     vi.clearAllMocks();
     mocks.profile = createMockProfile({ hasProAccess: true });
     mocks.language = 'en';
@@ -656,7 +666,11 @@ describe("CalendarSyncScreen", () => {
     return root.findAll((node) => node.props.children === "calendar.showMore");
   }
 
-  it("renders only the first page of events and reveals more on demand", async () => {
+  it.each([false, true])("paints the pager and reveals the next page (reduced motion: %s)", async (reducedMotion) => {
+    mocks.reducedMotion = reducedMotion;
+    mocks.realPressTokens = true;
+    const { createTokensV2 } = await vi.importActual<typeof import('@/lib/theme')>('@/lib/theme');
+    const tokens = createTokensV2('purple', 'dark');
     mocks.eventsQuery.data = { status: "connected", events: buildEvents(45) };
 
     let tree: any;
@@ -680,12 +694,15 @@ describe("CalendarSyncScreen", () => {
         ).length > 0,
     );
 
+    expectPressPaint(pressable, { fill: tokens.bgHoverOpaque, restFill: tokens.bgElev, overlay: true, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 });
     await TestRenderer.act(async () => {
       (pressable.props.onPress as () => void)();
       await Promise.resolve();
     });
 
     expect(countEventTitles(tree.root)).toBe(40);
+    mocks.reducedMotion = false;
+    mocks.realPressTokens = false;
   });
 
   it("does not show the pager when events fit on one page", async () => {
