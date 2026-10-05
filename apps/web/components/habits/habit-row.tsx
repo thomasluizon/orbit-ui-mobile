@@ -278,6 +278,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   children: ReactNode
 }>) {
   const contentId = useId()
+  const accessibleLabel = [label, meta.map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
   const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
   const paddingStyle = { gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 8, alignItems: largeText ? 'flex-start' : undefined }
   const control = (
@@ -285,7 +286,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         type="button"
         onClick={onClick}
         data-habit-row-body=""
-        aria-labelledby={independentText ? contentId : undefined}
+        aria-label={independentText ? accessibleLabel : undefined}
         className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left ${independentText ? 'transition-[background-color]' : 'transition-[background-color,transform] active:scale-[0.96]'} duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
         style={paddingStyle}
       >
@@ -302,7 +303,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         ) : null}
       </button>
   )
-  return independentText ? <PersonalTextAction label={label} contentId={contentId} className={`${supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} transition-transform duration-[var(--dur-hover)] ease-[var(--ease-standard)] motion-safe:has-[>button:active]:scale-[0.96]`} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={paddingStyle} control={control} /> : control
+  return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={`${supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} transition-transform duration-[var(--dur-hover)] ease-[var(--ease-standard)] motion-safe:has-[>button:active]:scale-[0.96]`} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={paddingStyle} control={control} /> : control
 }
 
 function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild, supportingMeta, children }: Readonly<{

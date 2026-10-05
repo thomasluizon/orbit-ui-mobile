@@ -95,7 +95,7 @@ async function checkSurfaceLabels(page: Page, surface: Page | Locator = page, re
 async function checkProgressLabels(page: Page, words: typeof en | typeof ptBR) {
   await expect(page.locator(`[data-goal-id="${goals.items[0]!.id}"]`).getByText(userFields.goalTitle, { exact: true })).toBeVisible()
   await expect(page.locator('[data-component="freeze-bank"]')).toBeVisible()
-  await expect(page.getByTestId('progress-top-habit').getByText(userFields.habitTitle)).toBeVisible()
+  await expect(page.locator('[data-personal-text-action]').filter({ has: page.getByTestId('progress-top-habit') }).getByText(userFields.habitTitle)).toBeVisible()
   for (const caption of [
     words.progressScreen.window.completionRate, words.progressScreen.window.activeDays,
     words.progressScreen.window.bestWeekday, words.progressScreen.window.topHabit,

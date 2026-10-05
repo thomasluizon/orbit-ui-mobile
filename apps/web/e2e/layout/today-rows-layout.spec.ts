@@ -73,12 +73,13 @@ async function assertTodayTextEdges(page: Page, sentenceVisible: boolean, width:
     const rows = Array.from(document.querySelectorAll('[data-testid="habit-row"]'))
     const dates = Array.from(document.querySelectorAll('[data-today-date-row] [title] p'))
     const sentence = document.querySelector('.today-astra-sentence')
-    const titles = rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div'))!)
+    const titles = rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div') ?? row.querySelector('[data-personal-text-content] > div'))!)
     return {
       edges: [...dates, ...titles, ...(includeSentence && sentence ? [sentence] : [])].map((element) => element.getBoundingClientRect().left),
       insets: rows.map((row) => {
         const body = row.querySelector('[data-habit-row-body]')!
-        const well = body.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+        const content = body.children.length ? body : body.parentElement!.querySelector('[data-personal-text-content]')!
+        const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
         return well.getBoundingClientRect().left - body.getBoundingClientRect().left
       }),
       targets: rows.flatMap((row) => Array.from(row.querySelectorAll('button')).map((button) => {
@@ -150,7 +151,8 @@ for (const width of [320, 600]) {
             await expect(body).toHaveCSS('padding-inline-start', '8px')
             await page.mouse.down()
             const pressedInset = await body.evaluate((element) => {
-              const well = element.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+              const content = element.children.length ? element : element.parentElement!.querySelector('[data-personal-text-content]')!
+              const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
               const bounds = element.getBoundingClientRect()
               const scale = Number.parseFloat(getComputedStyle(element).scale) || 1
               return (well.getBoundingClientRect().left - bounds.left) / scale

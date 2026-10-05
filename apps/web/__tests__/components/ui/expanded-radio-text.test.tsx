@@ -34,6 +34,8 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { PersonalTextDetails } from './components/ui/personal-text-details';
           import { SettingsRow } from './components/ui/settings-row';
           import { SettingsGroupRow } from './components/ui/settings-group';
+          import { HabitRow } from './components/habits/habit-row';
+          import { createMockHabit } from '../../packages/shared/src/__tests__/factories';
           import { SupportReplyEmail } from './app/(app)/support/_components/support-reply-email';
           import { NextIntlClientProvider } from 'next-intl';
           import messages from '../../packages/shared/src/i18n/en.json';
@@ -50,6 +52,15 @@ describe('expanded RadioRow personal text in Chromium', () => {
               });
             }, []);
             if (composition === 'support') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><SupportReplyEmail email={label} /></NextIntlClientProvider>;
+            if (composition === 'habit') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><HabitRow habit={createMockHabit({ title: label })} selectMode selected hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2', { kind: 'overdue', label: 'Overdue' }]} /></NextIntlClientProvider>;
+            if (composition === 'settingsMetadata') return <SettingsRow label={label} textMode="personal" desc="Details" value={<span>Value</span>} />;
+            if (composition === 'settingsImage') return <SettingsRow label={label} textMode="personal" value={<span role="img" aria-label="Special value" />} />;
+            if (composition === 'settingsRegion') return <SettingsRow label={label} textMode="personal" value={<span role="region" aria-label="Additional information"><span>{label}</span></span>} />;
+            if (composition === 'settingsEvolvingRegion') return <SettingsRow label={label} textMode="personal" value={<span role={selected ? 'region' : undefined} aria-label={selected ? 'Additional information' : undefined}><span>{label}</span></span>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
+            if (composition === 'settingsEvolvingLink') return <SettingsRow label={label} textMode="personal" value={<a href={selected ? '/details' : undefined}>{label}</a>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
+            if (composition === 'settingsEvolvingEditor') return <SettingsRow label={label} textMode="personal" value={<span contentEditable={selected ? true : undefined} suppressContentEditableWarning>{label}</span>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
+            if (composition === 'settingsGroupMetadata') return <SettingsGroupRow label={label} textMode="personal" hint="Details" />;
+            if (composition === 'disabledRadio') return <RadioRow label={label} textMode="personal" disabled />;
             if (composition === 'disabledList') return <ListRow title={label} textMode="personal" personalExpanded disabled />;
             if (composition === 'list') return <ListRow title={label} textMode="personal" />;
             if (composition === 'settings') return <SettingsRow label={label} textMode="personal" />;
@@ -77,7 +88,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.locator('#root').evaluate((root, text) => { (root as HTMLElement).dataset.label = text }, label)
     await page.locator('#root').evaluate((root, kind) => { (root as HTMLElement).dataset.composition = kind }, composition)
     await page.addScriptTag({ content: componentScript })
-    await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: composition !== 'support' }).waitFor()
+    await page.getByRole(composition === 'radio' ? 'radio' : 'button', { name: label, exact: !['support', 'habit'].includes(composition) }).waitFor()
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
@@ -186,6 +197,76 @@ describe('expanded RadioRow personal text in Chromium', () => {
     } finally { await page.close() }
   })
 
+
+  it.each(['settingsMetadata', 'settingsGroupMetadata', 'settingsImage', 'settingsRegion'])('preserves supporting content beside the split %s action', async (composition) => {
+    const page = await mount('Fits', 'light', composition)
+    try {
+      const tree = await page.locator('#root').ariaSnapshot()
+      expect(tree.split('Fits')).toHaveLength(2)
+      for (const value of composition === 'settingsRegion' ? ['Additional information'] : composition === 'settingsImage' ? ['Special value'] : composition === 'settingsMetadata' ? ['Details', 'Value'] : ['Details']) {
+        expect(tree.split(value)).toHaveLength(2)
+      }
+    } finally { await page.close() }
+  })
+
+  it('exposes a supporting region when its semantics change in place', async () => {
+    const page = await mount('Fits', 'light', 'settingsEvolvingRegion')
+    try {
+      await page.getByRole('button', { name: 'Show details', exact: true }).click()
+      await page.getByRole('region', { name: 'Additional information', exact: true }).waitFor({ timeout: 2_000 })
+      expect((await page.locator('#root').ariaSnapshot()).split('Fits')).toHaveLength(2)
+    } finally { await page.close() }
+  })
+
+  it.each(['settingsEvolvingLink', 'settingsEvolvingEditor'])('exposes supporting %s content when it becomes interactive in place', async (composition) => {
+    const page = await mount('Fits', 'light', composition)
+    try {
+      await page.getByRole('button', { name: 'Show details', exact: true }).click()
+      const content = composition === 'settingsEvolvingLink' ? page.getByRole('link', { name: 'Fits', exact: true }) : page.locator('[contenteditable="true"]:not([aria-hidden="true"])')
+      await content.waitFor({ timeout: 2_000 })
+      await content.focus()
+      expect(await content.evaluate((element) => document.activeElement === element)).toBe(true)
+      expect((await page.locator('#root').ariaSnapshot()).split('Fits')).toHaveLength(3)
+    } finally { await page.close() }
+  })
+
+  it('keeps selected habit progress and state in the action name when its title overflows', async () => {
+    const page = await mount(token, 'light', 'habit')
+    try {
+      const action = page.locator('[data-habit-row-body]')
+      expect(await action.ariaSnapshot()).toContain('0 of 2')
+      expect(await action.ariaSnapshot()).toContain('Overdue')
+      const tree = await page.locator('[data-personal-text-action]').ariaSnapshot()
+      expect(tree.split('0 of 2')).toHaveLength(2)
+      expect(tree.split('Overdue')).toHaveLength(2)
+      expect(await page.getByRole('region', { name: token, exact: true }).count()).toBe(1)
+    } finally { await page.close() }
+  })
+
+  it.each(['radio', 'disabledRadio'])('keeps the split %s visual text out of the reading order', async (composition) => {
+    const page = await mount('Fits', 'light', composition)
+    try {
+      const tree = await page.locator('#root').ariaSnapshot()
+      expect(tree).not.toContain('- text:')
+      expect(tree.split('Fits')).toHaveLength(composition === 'radio' ? 2 : 3)
+    } finally { await page.close() }
+  })
+
+  it.each(['list', 'details', 'settings', 'settingsGroup', 'support'])('announces the split %s content once and preserves its expanded scroll region', async (composition) => {
+    const page = await mount(token, 'light', composition)
+    try {
+      const collapsed = await page.locator('#root').ariaSnapshot()
+      expect(collapsed.split(token)).toHaveLength(2)
+      await page.getByRole('button').click()
+      const region = page.getByRole('region', { name: token, exact: true })
+      await region.waitFor()
+      await region.focus()
+      expect(await region.evaluate((element) => document.activeElement === element)).toBe(true)
+      const expanded = await page.locator('#root').ariaSnapshot()
+      expect(expanded.split(token)).toHaveLength(3)
+      expect(expanded).not.toContain('- text:')
+    } finally { await page.close() }
+  })
 
   it('keeps disabled personal list content dimmed beside its disabled action', async () => {
     const page = await mount('Fits', 'light', 'disabledList')

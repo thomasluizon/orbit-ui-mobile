@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View, type TextProps } from 'react-native
 type PersonalTextProps = Omit<TextProps, 'children'> & {
   children: string
   expanded?: boolean
+  unclamped?: boolean
   accessibilityRef?: Ref<View>
 }
 
@@ -20,13 +21,13 @@ function wordLines(text: string, measuredLines: readonly string[]) {
   return sorted.slice(1).map((end, index) => text.slice(sorted[index], end).trim()).filter(Boolean)
 }
 
-export function PersonalText({ children, expanded = false, accessibilityRef, style, ...props }: Readonly<PersonalTextProps>) {
+export function PersonalText({ children, expanded = false, unclamped = false, accessibilityRef, style, ...props }: Readonly<PersonalTextProps>) {
   const [measurement, setMeasurement] = useState<{ text: string; lines: string[] }>()
   const expandedStyle = StyleSheet.flatten(style ?? {})
-  const visibleStyle = expanded ? [style, { lineHeight: Math.max(expandedStyle.lineHeight ?? 0, (expandedStyle.fontSize ?? 14) * 1.4) }] : style
+  const visibleStyle = expanded || unclamped ? [style, { lineHeight: Math.max(expandedStyle.lineHeight ?? 0, (expandedStyle.fontSize ?? 14) * 1.4) }] : style
   const singleToken = !/\s/u.test(children.trim())
   const lines = measurement?.text === children ? measurement.lines : [children]
-  const visibleLines = expanded ? lines : lines.length > 1 ? [lines[0], lines.slice(1).join(' ')] : lines
+  const visibleLines = expanded || unclamped ? lines : lines.length > 1 ? [lines[0], lines.slice(1).join(' ')] : lines
   if (singleToken && !expanded) return <Text {...props} style={style} numberOfLines={1} ellipsizeMode="tail">{children}</Text>
   return <View ref={accessibilityRef} testID={props.testID} style={styles.container} accessible accessibilityRole={props.accessibilityRole} accessibilityLanguage={props.accessibilityLanguage} accessibilityHint={props.accessibilityHint} accessibilityLabel={props.accessibilityLabel ?? children}>
     {!singleToken ? <Text {...props} accessible={false} importantForAccessibility="no-hide-descendants" style={[style, styles.measurement]} numberOfLines={undefined} ellipsizeMode="clip" textBreakStrategy="simple" android_hyphenationFrequency="none" onTextLayout={(event) => {

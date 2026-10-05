@@ -2,6 +2,7 @@
 
 import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown } from '@/components/ui/icons'
+import { usePersonalTextContentRef } from '@/components/ui/personal-text-action'
 import { PersonalText } from '@/components/ui/personal-text'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { useRadioGroupItem } from '@/components/ui/radio-row'
@@ -75,6 +76,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
   const accessibilityLabel = textMode === 'personal'
     ? [label, description, meta, tag, disabled ? reason : null].filter(Boolean).join(', ')
     : undefined
+  const contentRef = usePersonalTextContentRef(accessibilityLabel ?? label)
 
   const control = <button
     ref={elementRef}
@@ -91,7 +93,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
 
   if (!disabled && textMode === 'personal') return <div className="relative min-w-0 transition-[scale] duration-150 ease-[var(--ease-out)] motion-safe:has-[>button:active]:scale-[0.96] hover:[--radio-row-secondary:var(--fg-2)] hover:[--radio-row-track:var(--fg-3)] has-[>button:active]:[--radio-row-secondary:var(--fg-2)] has-[>button:active]:[--radio-row-track:var(--fg-3)]">
     {control}
-    <div className="pointer-events-none relative flex w-full min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{content}</div>
+    <div ref={contentRef} className="pointer-events-none relative flex w-full min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{content}</div>
   </div>
 
   return disabled ? <DisabledRadioRow label={label} textMode={textMode} accessibilityLabel={accessibilityLabel} contentId={contentId} selected={selected} disclosed={disclosed} onToggle={() => setDisclosed(!disclosed)} style={style}>{content}</DisabledRadioRow> : control
@@ -108,11 +110,12 @@ function DisabledRadioRow({ label, textMode, accessibilityLabel, contentId, sele
   style: ReturnType<typeof radioRowStyle>
   children: ReactNode
 }>) {
+  const contentRef = usePersonalTextContentRef(accessibilityLabel ?? label)
   if (textMode !== 'personal') return <div role="radio" aria-checked={selected} aria-disabled="true" className="flex min-w-0 items-center" style={style}>{children}</div>
   return <div className="flex min-w-0 items-center">
     <div className="relative min-w-0 flex-1">
       <div role="radio" aria-label={accessibilityLabel} aria-checked={selected} aria-disabled="true" className="absolute inset-0" style={{ ...style, padding: 0 }} />
-      <div className="flex min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{children}</div>
+      <div ref={contentRef} className="flex min-w-0 items-center" style={{ ...style, background: undefined, boxShadow: undefined }}>{children}</div>
     </div>
     <button type="button" aria-label={label} aria-expanded={disclosed} aria-controls={contentId} onClick={onToggle} className="orbit-hover-text flex min-h-12 min-w-12 items-center justify-center rounded-[12px] p-2 hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><ChevronDown aria-hidden="true" size={20} strokeWidth={2} className={disclosed ? 'rotate-180' : undefined} /></button>
   </div>

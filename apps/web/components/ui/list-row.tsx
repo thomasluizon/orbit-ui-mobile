@@ -133,7 +133,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
 
   return (
     <div className={`orbit-list-row-shell flex items-stretch ${inForm ? 'orbit-list-row-form' : ''}`} style={{ minHeight: 52 }}>
-      {(props.textMode === 'personal' || props.valueTextMode === 'personal') && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? [props.title, props.description, props.value].filter(Boolean).join(', ')} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
+      {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? [props.title, props.description, props.value].filter(Boolean).join(', ')} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
         <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(compact, inset, compactForm, !!props.description)}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}>

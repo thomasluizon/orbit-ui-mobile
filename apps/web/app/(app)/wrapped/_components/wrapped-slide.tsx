@@ -157,6 +157,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
             </span>
           </motion.div>
           <motion.h2
+            aria-labelledby={titleId}
             data-testid="wrapped-motion-part"
             {...motionProps(1, reducedMotion)}
             style={topHabitTitleStyle}

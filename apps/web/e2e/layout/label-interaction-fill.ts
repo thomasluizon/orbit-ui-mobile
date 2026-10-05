@@ -33,11 +33,13 @@ async function readFill(control: Locator) {
     }
     const controlBounds = element.getBoundingClientRect()
     const controlStyle = getComputedStyle(element)
-    const content: DOMRect[] = [...fill.querySelectorAll('svg')].map((icon) => icon.getBoundingClientRect())
-    const walker = document.createTreeWalker(fill, NodeFilter.SHOW_TEXT)
+    const visualContent = element.children.length ? fill : element.parentElement!.querySelector('[data-personal-text-content]') ?? fill
+    const content: DOMRect[] = [...visualContent.querySelectorAll('svg')].map((icon) => icon.getBoundingClientRect())
+    const walker = document.createTreeWalker(visualContent, NodeFilter.SHOW_TEXT)
     while (walker.nextNode()) {
       const node = walker.currentNode
-      if (!node.textContent?.trim() || node.parentElement!.closest('svg, [aria-hidden="true"]')) continue
+      if (!node.textContent?.trim() || node.parentElement!.closest('svg')) continue
+      if (node.parentElement!.closest('[aria-hidden="true"]:not([data-personal-text-visual-copy])')) continue
       const range = document.createRange()
       range.selectNodeContents(node)
       for (const rect of range.getClientRects()) {

@@ -29,6 +29,24 @@ describe('personal account row', () => {
     await act(() => tree.update(<></>))
   })
 
+  it.each([false, true])('keeps measured word boundaries when unclamped=%s', async (unclamped) => {
+    const title = 'Read extraordinarilyLongWord daily before breakfast'
+    const measured = ['Read extra', 'ordinarilyLongWord ', 'daily before ', 'breakfast']
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<PersonalText unclamped={unclamped}>{title}</PersonalText>) })
+    const probe = tree.root.findAll((node) => String(node.type) === 'Text' && typeof node.props.onTextLayout === 'function')[0]!
+    const onTextLayout = probe.props.onTextLayout
+    if (typeof onTextLayout !== 'function') throw new Error('Text measurement callback missing')
+    await act(() => { onTextLayout({ nativeEvent: { lines: measured.map((text) => ({ text, x: 0, y: 0, width: 100, height: 24, descender: 0, capHeight: 16, ascender: 18, xHeight: 12 })) } }) })
+    const visible = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants')
+    expect(visible.map((node) => node.props.children)).toEqual(unclamped
+      ? ['Read', 'extraordinarilyLongWord', 'daily before', 'breakfast']
+      : ['Read', 'extraordinarilyLongWord daily before breakfast'])
+    for (const line of visible) expect(line.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
+    expect(tree.root.findAll((node) => String(node.type) === 'ScrollView')).toHaveLength(0)
+    await act(() => tree.update(<></>))
+  })
+
   it('keeps a long email on one line with tail ellipsis and the full accessible name', async () => {
     const email = `${'longaddress'.repeat(12)}@example.com`
     const onOpen = vi.fn()

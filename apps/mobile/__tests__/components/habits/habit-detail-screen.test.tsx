@@ -409,7 +409,7 @@ describe('HabitDetailScreen', () => {
     const target = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === title)[0]!
     const visibleTitle = target.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
     expect(visibleTitle.props.numberOfLines).toBe(1)
-    expect(target.findAllByType(PersonalText)[0]!.props.expanded).toBe(true)
+    expect(target.findAllByType('ScrollView')).toHaveLength(0)
     const titleStyle = StyleSheet.flatten(visibleTitle.props.style as { fontSize: number; lineHeight: number })
     expect(titleStyle.lineHeight / titleStyle.fontSize).toBeGreaterThanOrEqual(1.4)
     const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
@@ -1558,7 +1558,7 @@ describe('HabitDetailScreen', () => {
       ...(hasDescription ? ['habit-detail-description'] : []),
       'habit-detail-strip-section',
     ])
-    expect(copy.findAll((node: TestNode) => node.type === 'ScrollView')).toHaveLength(1)
+    expect(copy.findAll((node: TestNode) => node.type === 'ScrollView')).toHaveLength(0)
     expect(StyleSheet.flatten(parent.props.style)).toBeUndefined()
     const strip = contentSlots[1 + Number(hasTags) + Number(hasDescription)]!
     expect(StyleSheet.flatten(strip.props.style)).toEqual({ gap: 8, paddingTop: 24 })

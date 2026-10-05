@@ -10,10 +10,10 @@ ellipsis contract. The sidebar account row remains collapsed.
 | Surface family | Web owner | Expanded states and action boundary |
 | --- | --- | --- |
 | Personal radio options | `apps/web/components/ui/select-check.tsx` | Selected enabled option; disclosed disabled option. Radio and disclosure controls are siblings of the scrolling text. |
-| Personal list rows | `apps/web/components/ui/list-row.tsx` | Disclosed title, description or value; the account row's expanded value. Native destination or disclosure remains beside the text. |
+| Personal list rows | `apps/web/components/ui/list-row.tsx` | Disclosed title, description or value; the account row's expanded value. A disclosure remains beside scrolling text; collapsed destination text stays inside its native link. |
 | Typed text disclosure | `apps/web/components/ui/personal-text-details.tsx` | Inline disclosure separates its button; icon-only disclosure opens a sheet with standalone text. |
 | Habit selection rows | `apps/web/components/habits/habit-row.tsx` | Selected title expands through `habit-row-content.tsx`; the selection action keeps its progress and status accessible name. |
-| Habit detail heading | `apps/web/components/habits/habit-detail-screen.tsx` | Expanded heading beside its rename button; editing still uses the input. |
+| Habit detail heading | `apps/web/components/habits/habit-detail-screen.tsx` | Unclamped title inside its native rename button; words wrap and oversized tokens ellipsize without scrolling. The rename input reveals the full title. |
 | Checklist item labels | `apps/web/components/habits/habit-checklist.tsx` | Disclosed label beside its disclosure button and completion checkbox. |
 | Progress top habit | `apps/web/app/(app)/progress/_components/progress-content.tsx` | A habit without a destination discloses beside its button; a habit with an id remains a collapsed destination link. |
 | Retrospective top habit | `apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx` | Disclosed heading beside its button, inside the existing motion part. |
@@ -37,7 +37,7 @@ Standalone expanded text owners:
 - `apps/web/components/ui/sheet.tsx`
 
 The corresponding mobile owners use `apps/mobile/components/ui/personal-text.tsx`:
-accessible native text with horizontal `ScrollView` for expanded lines. It has no
+accessible native text with horizontal `ScrollView` for expanded lines. Unclamped headings wrap between words without scrolling and ellipsize oversized tokens. It has no
 web keyboard-focusable scroller. Overflow tab stops, DOM action separation and
 CSS outline clearance are web platform adapters; they do not change the native
 word-boundary or disclosure behavior.

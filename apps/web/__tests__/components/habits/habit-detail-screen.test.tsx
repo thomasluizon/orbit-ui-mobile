@@ -2005,22 +2005,21 @@ describe('HabitDetailScreen', () => {
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
-          const button = element.querySelector('button')!
-          const content = element.querySelector('[data-personal-text-content]') as HTMLElement
-          const style = getComputedStyle(content)
+          const button = element.querySelector<HTMLButtonElement>(':scope > button')!
+          const style = getComputedStyle(button)
           const fontSize = parseFloat(style.fontSize) * 2
           const lineHeight = parseFloat(style.lineHeight) * 2
-          content.style.fontSize = `${fontSize}px`
-          content.style.lineHeight = `${lineHeight}px`
+          button.style.fontSize = `${fontSize}px`
+          button.style.lineHeight = `${lineHeight}px`
           const range = document.createRange()
-          range.selectNodeContents(element.querySelector('[data-personal-text]')!)
+          range.selectNodeContents(button)
           const text = range.getBoundingClientRect()
           const bounds = button.getBoundingClientRect()
           const column = element.closest('[data-habit-detail-content]')!
           const columnStyle = getComputedStyle(column)
           return { whiteSpace: style.whiteSpace, textOverflow: style.textOverflow,
             lines: range.getClientRects().length, inside: text.right <= bounds.right + 1 && text.bottom <= bounds.bottom + 1,
-            width: bounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 8, available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
+            width: bounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
         })
         expect(geometry.whiteSpace).toBe('normal')
         expect(geometry.textOverflow).not.toBe('ellipsis')

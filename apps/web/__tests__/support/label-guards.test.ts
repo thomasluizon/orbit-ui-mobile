@@ -565,6 +565,35 @@ describe('label and interaction fill guards in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it('allows the unclamped rename heading while retaining word-boundary checks', async () => {
+    const title = Array(3).fill('Read a long chapter and discuss the details with the reading group').join(' ')
+    const heading = render(createElement('h1', { style: { fontSize: 22, lineHeight: 1.4 } }, createElement('button', { type: 'button', 'aria-label': title, style: { width: '100%', whiteSpace: 'normal' } }, cloneElement(createElement(PersonalText, null, title), { unclamped: true }))))
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main style="width:288px">${heading.container.innerHTML}<button>Rename</button></main>`)
+      await loadAppFonts(page)
+      await expectLabelsFit(page, page, [title])
+    } finally { await page.close(); heading.unmount() }
+  })
+
+  it('measures the visual copy of a split row without exposing it twice to assistive technology', async () => {
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    const row = render(createElement(ListRow, { title: 'Account', description: email, textMode: 'personal', personalExpanded: false, onClick: () => {} }))
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main>${row.container.innerHTML}<button>Edit</button></main>`)
+      await loadAppFonts(page)
+      await markUserText(page, [email])
+      await expectLabelsFit(page, page, [email])
+      await page.getByRole('button', { name: `Account, ${email}` }).evaluate((element) => {
+        const control = element as HTMLElement
+        control.style.setProperty('transition', 'none', 'important')
+        control.style.setProperty('background-color', 'rgb(220, 220, 220)', 'important')
+      })
+      await expectFillShape(page.getByRole('button', { name: `Account, ${email}` }), 'resting')
+    } finally { await page.close(); row.unmount() }
+  })
+
   it('marks the typed field beside a decorative emoji and requires its current rendered mark', async () => {
     const page = await browser.newPage()
     const title = 'A title written by a person'

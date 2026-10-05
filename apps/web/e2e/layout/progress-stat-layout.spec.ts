@@ -50,17 +50,17 @@ for (const locale of ['en', 'pt-BR'] as const) {
         const windowSection = page.getByRole('region', { name: words.progressScreen.sections.window })
         const values = windowSection.locator('[data-state="default"] > span[title]')
         await expect(values).toHaveText(['38%', '2', words.dates.daysAbbreviated.monday])
-        const habitRow = windowSection.getByTestId('progress-top-habit')
+        const habitRow = windowSection.locator('[data-personal-text-action]').filter({ has: page.getByTestId('progress-top-habit') })
         const habitTitle = habitRow.locator('span[title]')
         await expect(habitRow).toBeVisible()
         await expect(habitRow).toContainText(words.progressScreen.window.topHabit)
         await expect(habitTitle).toHaveAttribute('title', 'Caminhar')
         await expect(habitTitle).toContainText('Caminhar')
-        await expect(habitRow.locator('a, button, [role="button"], [data-state]')).toHaveCount(0)
+        await expect(habitRow.locator('a, button, [role="button"], [data-state]')).toHaveCount(1)
         expect(await habitTitle.evaluate((element) => ({
           fontSize: getComputedStyle(element).fontSize,
           tabular: getComputedStyle(element).fontVariantNumeric.includes('tabular-nums'),
-          precedingFigures: element.parentElement?.previousElementSibling?.querySelectorAll('[data-state="default"]').length,
+          precedingFigures: element.closest('[data-personal-text-action]')?.previousElementSibling?.querySelectorAll('[data-state="default"]').length,
         }))).toEqual({ fontSize: '17px', tabular: false, precedingFigures: 3 })
         await page.evaluate(() => document.fonts.ready)
         const geometry = await values.evaluateAll((elements) => elements.map((value) => {

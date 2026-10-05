@@ -187,7 +187,7 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
         </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><PersonalText expanded style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></Pressable>}
+          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></Pressable>}
           {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
       </View>

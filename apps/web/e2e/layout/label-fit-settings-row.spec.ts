@@ -45,10 +45,10 @@ for (const width of [320, 360, 384, 412]) {
         }
         await markUserText(page, [habitName])
         await expectLabelsFit(page, page.locator('main'), [habitName])
-        const typedRow = page.getByRole('button', { name: habitName, exact: true })
+        const typedRow = page.locator('[data-personal-text-action]').filter({ has: page.getByRole('button', { name: habitName, exact: true }) })
         await expectInteractionFill(page.getByRole('button', { name: labels[2], exact: true }))
         const geometry = await typedRow.getByText(habitName, { exact: true }).evaluate((label) => {
-          const row = label.closest('button')!
+          const row = label.closest('[data-personal-text-content]')!
           const style = getComputedStyle(row)
           return { width: label.getBoundingClientRect().width, available: row.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd), clamp: getComputedStyle(label).webkitLineClamp }
         })
@@ -63,7 +63,7 @@ for (const width of [320, 360, 384, 412]) {
         expect(enlargedMarketing.scrollHeight).toBeLessThanOrEqual(enlargedMarketing.height)
         await expect(page.getByRole('switch', { name: labels[1], exact: true })).toBeVisible()
         const enlargedTyped = await typedRow.getByText(habitName, { exact: true }).evaluate((label) => {
-          const row = label.closest('button')!
+          const row = label.closest('[data-personal-text-content]')!
           const style = getComputedStyle(row)
           const labelStyle = getComputedStyle(label)
           return { fontSize: parseFloat(labelStyle.fontSize), width: label.getBoundingClientRect().width, available: row.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd), clamp: labelStyle.webkitLineClamp, height: label.clientHeight, scrollHeight: label.scrollHeight, lineHeight: parseFloat(labelStyle.lineHeight) }
