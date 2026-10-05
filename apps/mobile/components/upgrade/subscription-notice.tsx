@@ -2,7 +2,6 @@ import { Text, View } from 'react-native'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { Icon } from '@/components/ui/icon'
-import { UsageCard } from './usage-card'
 import { formatBillingDate } from './types'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
@@ -19,7 +18,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
     ? formatBillingDate(status.subscriptionEndedAtUtc, locale) : null
   const paymentFailed = status.lapseReason === 'payment_failed'
   const endedKey = paymentFailed ? 'upgrade.billing.lapsed.payment_failed' : 'upgrade.billing.lapsed.ended'
-  const usagePercent = status.aiMessagesLimit > 0 ? Math.min(100, status.aiMessagesUsed / status.aiMessagesLimit * 100) : 0
   return (
     <View style={styles.billingStack}>
       <View style={[styles.billingCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
@@ -44,7 +42,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
           <PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton>
         </View> : null}
       </View>
-      <UsageCard usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} tokens={tokens} />
     </View>
   )
 }
