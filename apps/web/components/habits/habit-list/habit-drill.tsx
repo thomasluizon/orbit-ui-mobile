@@ -143,11 +143,14 @@ export function HabitDrill({
 
       {!drill.drillLoading && !drill.drillError ? (
         <div>
-          <div className="flex min-w-0 flex-col gap-3">
-            {drill.drillChildren.length === 0 ? (
+          {drill.drillChildren.length === 0 ? (
+            <>
               <DrillEmptyMessage drill={drill} t={t} onShowCompleted={onShowCompleted} />
-            ) : (
-              drill.drillChildren.map((child) => {
+              {addRow}
+            </>
+          ) : (
+            <div className="flex min-w-0 flex-col gap-3">
+              {drill.drillChildren.map((child) => {
                 const nestedChildren = drill.getDrillChildren(child.id)
                 return renderHabitCard(
                   child,
@@ -156,10 +159,10 @@ export function HabitDrill({
                   child.hasSubHabits || nestedChildren.length > 0,
                   { isDrillCard: true },
                 )
-              })
-            )}
-            {addRow}
-          </div>
+              })}
+              {addRow}
+            </div>
+          )}
           <div aria-live="polite" aria-atomic="true">
             {subHabitRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
           </div>

@@ -2982,7 +2982,7 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).not.toHaveBeenCalled()
   })
 
-  it.each(['populated', 'deep', 'loading', 'empty', 'error'])('spaces drill groups by 24 without widening rows (%s)', async (surface) => {
+  it.each(['populated', 'deep', 'loading', 'empty', 'filtered-empty', 'error'])('spaces drill groups by 24 without widening rows (%s)', async (surface) => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
     const children = ['first', 'second'].map((id) => createMockHabit({ id, title: id, parentId: parent.id }))
     mockHabitsData.habitsById.set(parent.id, parent)
@@ -2993,7 +2993,9 @@ describe('HabitList', () => {
     mockDrillState.drillChildren = surface === 'populated' || surface === 'deep' ? children : []
     mockDrillState.drillLoading = surface === 'loading'
     mockDrillState.drillError = surface === 'error' ? 'boom' : null
-    const { container } = renderWithProviders(<HabitList view="today" filters={defaultFilters} />)
+    mockDrillState.hasUnfilteredChildren = surface === 'filtered-empty'
+    mockDrillState.canRevealCompletedChildren = surface === 'filtered-empty'
+    const { container } = renderWithProviders(<HabitList view="today" filters={defaultFilters} onShowCompleted={vi.fn()} />)
     const cssPath = resolve('app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()
@@ -3008,11 +3010,19 @@ describe('HabitList', () => {
       const contentTop = await page.evaluate((surface) => {
         const content = surface === 'loading' ? document.querySelector('[data-variant="habit-row"]')!
           : surface === 'error' ? document.querySelector('[role="alert"]')!.parentElement!
-          : surface === 'empty' ? Array.from(document.querySelectorAll('p')).find((p) => p.textContent === 'habits.noSubHabits')!.parentElement!
+          : surface === 'empty' || surface === 'filtered-empty' ? Array.from(document.querySelectorAll('p')).find((p) => p.textContent === (surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits'))!.parentElement!
           : document.querySelector('[data-testid="habit-card-first"]')!
         return content.getBoundingClientRect().top
       }, surface)
       expect.soft(contentTop - controlBottom).toBe(24)
+      if (surface === 'empty' || surface === 'filtered-empty') {
+        const emptyMessageToAddRowGap = 0
+        const message = page.getByText(surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits', { exact: true })
+        const messageBottom = await message.evaluate((element) => element.parentElement!.getBoundingClientRect().bottom)
+        const addRowTop = await page.getByRole('button', { name: 'habits.form.addSubHabit' }).evaluate((element) => element.getBoundingClientRect().top)
+        expect(addRowTop - messageBottom).toBe(emptyMessageToAddRowGap)
+        if (surface === 'filtered-empty') expect(await page.getByRole('button', { name: 'habits.showCompleted' }).count()).toBe(1)
+      }
       if (surface === 'populated' || surface === 'deep') {
         expect(await page.evaluate(() => {
           const first = document.querySelector('[data-testid="habit-card-first"]')!.getBoundingClientRect()

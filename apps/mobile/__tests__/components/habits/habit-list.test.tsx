@@ -2083,7 +2083,7 @@ describe('HabitList', () => {
     expect(tree.root.findAllByType('FlatList')).toHaveLength(0)
   })
 
-  it.each(['populated', 'deep', 'loading', 'empty', 'error'])('spaces drill groups by 24 without widening rows (%s)', (surface) => {
+  it.each(['populated', 'deep', 'loading', 'empty', 'filtered-empty', 'error'])('spaces drill groups by 24 without widening rows (%s)', (surface) => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true })
     const children = ['first', 'second'].map((id) => createMockHabit({ id, title: id, parentId: parent.id }))
     seedHabits([parent, ...children])
@@ -2093,9 +2093,11 @@ describe('HabitList', () => {
     mockDrillState.drillChildren = surface === 'populated' || surface === 'deep' ? children : []
     mockDrillState.drillLoading = surface === 'loading'
     mockDrillState.drillError = surface === 'error' ? 'boom' : null
+    mockDrillState.hasUnfilteredChildren = surface === 'filtered-empty'
+    mockDrillState.canRevealCompletedChildren = surface === 'filtered-empty'
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
-      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />)
+      tree = createTestTree(<HabitList view="today" filters={{}} showCompleted={false} onShowCompleted={vi.fn()} onCreatePress={vi.fn()} />)
     })
     const list = tree!.root.findByType('FlatList')
     let composition: ReturnType<typeof TestRenderer.create>
@@ -2110,11 +2112,25 @@ describe('HabitList', () => {
         </View>
       </View>)
     })
-    const geometry = measureSafeArea((composition! as GeometryTree).toJSON(), (host) =>
-      (surface === 'deep' ? host.props.accessibilityRole === 'button' && JSON.stringify(host.children).includes('habits.backToHabits')
-        : host.props.accessibilityLabel === 'common.back')
-        ? 'control' : host.props.testID === 'drill-content' ? 'content' : undefined)
+    const emptyMessageKey = surface === 'empty' ? 'habits.noSubHabits' : 'habits.filterEmptySubHabits'
+    const geometry = measureSafeArea((composition! as GeometryTree).toJSON(), (host) => {
+      if (host.props.testID === 'drill-content') return 'content'
+      if (surface !== 'deep' && host.props.accessibilityLabel === 'common.back') return 'control'
+      if (host.props.accessibilityRole === 'button') {
+        const text = flattenText(host.children)
+        if (surface === 'deep' && text.includes('habits.backToHabits')) return 'control'
+        if (text.includes('habits.form.addSubHabit')) return 'add-row'
+        if (text.includes('habits.showCompleted')) return 'show-completed'
+      }
+      if (host.type === 'View' && host.children?.some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes(emptyMessageKey))) return 'empty-message'
+      return undefined
+    })
     expect(geometry.get('content')!.top - geometry.get('control')!.bottom).toBe(24)
+    if (surface === 'empty' || surface === 'filtered-empty') {
+      const emptyMessageToAddRowGap = 0
+      expect(geometry.get('add-row')!.top - geometry.get('empty-message')!.bottom).toBe(emptyMessageToAddRowGap)
+      if (surface === 'filtered-empty') expect(geometry.has('show-completed')).toBe(true)
+    }
     if (surface === 'populated' || surface === 'deep') {
       const rowHosts = composition!.root.findAll((node: import('react-test-renderer').ReactTestInstance) =>
         typeof node.type === 'string' && node.props.testID === 'habit-row')
