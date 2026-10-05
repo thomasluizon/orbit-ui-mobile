@@ -23,6 +23,17 @@ function ids(overrides: Partial<ComposerChipState> = {}) {
 }
 
 describe('composer chips', () => {
+  it('accepts two suggestions with their callbacks and rejects one or seven', () => {
+    const suggestions = buildComposerChips(state({ surface: 'habitDetail', detailHabit: { title: 'Reading', checklistItems: [] } }))
+      .filter(chip => chip.id !== 'habitDetail.askAstra')
+      .map(chip => ({ id: chip.id, label: chip.key, onSelect: () => chip.id }))
+    const accepted = toComposerSuggestions(suggestions)
+    expect(accepted.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
+    expect(accepted.map(chip => chip.onSelect())).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
+    expect(() => toComposerSuggestions(suggestions.slice(0, 1))).toThrow()
+    expect(() => toComposerSuggestions(Array(7).fill(suggestions[0]))).toThrow()
+  })
+
   it('moves Today chips out of the dock while retaining habit detail chips and callbacks', () => {
     const suggestions = toComposerSuggestions(buildComposerChips(state()).map((chip) => ({
       id: chip.id, label: chip.key, onSelect: () => chip.id,
@@ -127,7 +138,6 @@ describe('composer chips', () => {
       'progress.stuckThisWeek', 'today.logYesterday', 'today.createMorningHabit',
     ])
     expect(buildComposerChips(state({ surface: 'habitDetail', detailHabit: { title: 'Reading', checklistItems: [] } }))).toEqual([
-      { id: 'habitDetail.askAstra', key: 'shell.composer.chips.habitDetail.askAstra', params: { title: 'Reading' }, promptKey: 'habits.detail.askAstraSeedDefault' },
       { id: 'habitDetail.pauseThisWeek', key: 'shell.composer.chips.habitDetail.pauseThisWeek', params: { title: 'Reading' }, promptKey: 'shell.composer.prompts.habitDetail.pauseThisWeek' },
       { id: 'habitDetail.rename', key: 'shell.composer.chips.habitDetail.rename', params: { title: 'Reading' }, promptKey: 'shell.composer.prompts.habitDetail.rename' },
     ])
@@ -211,11 +221,13 @@ describe('composer chips', () => {
     }
   })
 
-  it('never returns one, two, or more than six chips', () => {
-    for (const surface of ['today', 'calendar', 'progress', 'profile', 'habitDetail'] as const) {
-      for (const status of ['loading', 'error', 'success'] as const) {
-        for (const habits of [[], [pending], [overdue, pending, parent]]) {
-          const count = buildComposerChips(state({ surface, status, habits, detailHabit: { title: 'Reading', checklistItems: [] } })).length
+  it.each(['today', 'calendar', 'progress', 'profile', 'habitDetail'] as const)('returns the required chip count on %s', surface => {
+    for (const status of ['loading', 'error', 'success'] as const) {
+      for (const habits of [[], [pending], [overdue, pending, parent]]) {
+        const count = buildComposerChips(state({ surface, status, habits, detailHabit: { title: 'Reading', checklistItems: [] } })).length
+        if (surface === 'habitDetail') {
+          expect(count).toBe(status === 'success' ? 2 : 0)
+        } else {
           expect(count === 0 || (count >= 3 && count <= 6)).toBe(true)
         }
       }

@@ -74,6 +74,26 @@ jobs:
 
       - run: npm run build
 
+  tool-hook-tests:
+    name: Tool and Hook Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run tools harness
+        run: node tools/test-tools.mjs
+
+      - name: Run hooks harness
+        if: ${{ !cancelled() }}
+        run: node .claude/hooks/test-hooks.mjs
+
   unit-tests:
     name: Unit Tests
     needs: build

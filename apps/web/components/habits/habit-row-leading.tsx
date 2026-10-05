@@ -33,7 +33,7 @@ export function HabitRowLeading({
             : {
                 fontFamily: 'var(--font-sans)',
                 fontWeight: 500,
-                color: 'var(--fg-3)',
+                color: 'var(--habit-row-meta-color)',
               }),
         }}
       >

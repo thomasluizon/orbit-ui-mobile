@@ -292,7 +292,6 @@
           "exportData": "Export my data"
         },
         "habitDetail": {
-          "askAstra": "Ask Astra",
           "pauseThisWeek": "Pause this week",
           "rename": "Rename"
         }
@@ -885,7 +884,6 @@
       "daysFree": "Days free",
       "reminders": "Reminders",
       "linkedGoal": "Linked goal",
-      "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
       "copyDescription": "Copy description",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",
