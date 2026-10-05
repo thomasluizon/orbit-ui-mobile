@@ -79,7 +79,7 @@ describe('Skeleton', () => {
     const placeholder = container.querySelector('[data-variant="stat-tile"] > div') as HTMLElement
     const loaded = container.querySelector('[data-state="default"]') as HTMLElement
     expect(placeholder.style.minHeight).toBe(loaded.style.minHeight)
-    expect(placeholder.style.minHeight).not.toBe('')
+    expect(placeholder.style.minHeight).toBe('')
   })
 
   it('uses only an opacity pulse and no sweep or spinner', () => {

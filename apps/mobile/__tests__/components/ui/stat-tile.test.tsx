@@ -4,7 +4,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
-import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
+import { StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 
@@ -43,7 +43,8 @@ describe('StatTile (mobile)', () => {
     })
     const tiles = tree!.root.findAllByProps({ testID: 'stat-tile-default' })
     for (const tile of tiles) {
-      expect(StyleSheet.flatten(tile.props.style).minHeight).toBe(STAT_TILE_MIN_HEIGHT)
+      expect(StyleSheet.flatten(tile.props.style).minHeight).toBeUndefined()
+      expect(StyleSheet.flatten(tile.props.style).alignItems).toBe('flex-start')
       expect(StyleSheet.flatten(tile.props.style).height).toBeUndefined()
     }
     const renderedValues = tree!.root.findAllByType('Text').filter(

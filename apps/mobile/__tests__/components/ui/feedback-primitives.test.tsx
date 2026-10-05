@@ -59,7 +59,12 @@ describe('mobile feedback primitives', () => {
     const tree = render(<Skeleton variant="stat-tile" label="Loading stats" />)
     const output = JSON.stringify(tree.toJSON())
 
-    expect(output).toContain('minHeight')
+    expect(output).not.toContain('minHeight')
+    const blocks = tree.root.findAllByType('AnimatedView')
+    expect(blocks).toHaveLength(2)
+    for (const block of blocks) {
+      expect(StyleSheet.flatten(block.props.style).opacity.value).toBe(1)
+    }
     expect(output).not.toMatch(/gradient|shimmer|sweep|spinner/i)
   })
 
