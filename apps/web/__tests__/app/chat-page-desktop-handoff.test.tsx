@@ -1,17 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ReactNode } from 'react'
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 
 type ActionChipHandler = (entityId: string, actionType: string) => void
-type SuggestionHandler = (suggestion: string) => void
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(),
   setOpen: vi.fn(),
   goBack: vi.fn(),
   onActionChipClick: null as ActionChipHandler | null,
-  onSuggestion: null as SuggestionHandler | null,
   composer: {
     chatContainerRef: { current: null },
     fileInputRef: { current: null },
@@ -39,7 +40,11 @@ const mocks = vi.hoisted(() => ({
     openFilePicker: vi.fn(),
     handleFileSelect: vi.fn(),
     removeImage: vi.fn(),
-    composerProps: {},
+    composerProps: {
+      words: { placeholder: 'placeholder', send: 'send', actions: 'actions', suggestionsLabel: 'live suggestions' },
+      state: 'idle' as const, value: '', onChangeValue: vi.fn(), onSend: vi.fn(),
+      suggestions: [] as { id: string; label: string; onSelect: () => void }[],
+    },
     sendMessage: vi.fn(),
     retryLastSend: vi.fn(),
     canRetryLastSend: false,
@@ -79,12 +84,6 @@ vi.mock('@/components/chat/message-bubble', () => ({
     return null
   },
 }))
-vi.mock('@/components/chat/chat-empty-state', () => ({
-  ChatEmptyState: ({ onSelectSuggestion }: { onSelectSuggestion: SuggestionHandler }) => {
-    mocks.onSuggestion = onSelectSuggestion
-    return <div data-testid="empty-state" />
-  },
-}))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({ data: { goalsById: new Map([[mocks.goal.id, mocks.goal]]) } }),
@@ -121,7 +120,6 @@ vi.mock('@/components/goals/goal-detail-drawer/use-goal-drawer-initial-action', 
 vi.mock('@/components/chat/typing-indicator', () => ({
   TypingIndicator: () => <div data-testid="typing-indicator" />,
 }))
-vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 
 import { AstraConversation } from '@/components/chat/conversation'
@@ -138,8 +136,8 @@ describe('ChatPage', () => {
     mocks.push.mockClear()
     mocks.setOpen.mockClear()
     mocks.onActionChipClick = null
-    mocks.onSuggestion = null
     mocks.composer.messages = []
+    mocks.composer.composerProps.suggestions = []
     mocks.composer.hasProAccess = false
     mocks.composer.showSuggestions = false
     mocks.composer.isTyping = false
@@ -158,16 +156,24 @@ describe('ChatPage', () => {
     mocks.composer.showSuggestions = true
     render(<ChatPage />)
 
-    expect(screen.getByTestId('empty-state')).toBeInTheDocument()
+    expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
+    expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
   })
 
   it('sends the selected live suggestion', () => {
     mocks.composer.showSuggestions = true
+    const chips = buildComposerChips({ surface: 'today', status: 'success',
+      habits: [createMockHabit()], totalHabitCount: 1, profile: createMockProfile() })
+    mocks.composer.composerProps.suggestions = [...toComposerSuggestions(chips.map(chip => ({
+      id: chip.id, label: chip.label ?? chip.key,
+      onSelect: () => mocks.composer.sendMessage(chip.prompt ?? chip.promptKey ?? chip.key),
+    })))]
     render(<ChatPage />)
 
-    act(() => mocks.onSuggestion?.('Plan today'))
+    expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
+    fireEvent.click(within(screen.getByRole('group', { name: 'live suggestions' })).getAllByRole('button')[0]!)
 
-    expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Plan today')
+    expect(mocks.composer.sendMessage).toHaveBeenCalledWith(chips[0]!.prompt ?? chips[0]!.promptKey ?? chips[0]!.key)
   })
 
   it('closes from the app-bar trailing control', () => {
