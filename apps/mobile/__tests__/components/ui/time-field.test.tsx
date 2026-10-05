@@ -83,25 +83,42 @@ async function pressDone(tree: any) {
 }
 
 describe('TimeField', () => {
-  it('paints the option press fill on the whole row at the enumerated radius', async () => {
-    mockUses24HourClock = true
+  it.each([true, false])('keeps every selected value tinted and ringed at rest and press with 24-hour clock %s', async (uses24HourClock) => {
+    mockUses24HourClock = uses24HourClock
     let tree: any
     await TestRenderer.act(async () => {
       await Promise.resolve()
-      tree = TestRenderer.create(<TimeField value="14:30" onChange={vi.fn()} />)
+      tree = TestRenderer.create(<TimeField value="21:00" onChange={vi.fn()} />)
     })
     await openPicker(tree)
 
-    const selected = radioOption(tree, 'common.hours', '14')
+    const selectedOptions = [
+      radioOption(tree, 'common.hours', uses24HourClock ? '21' : '09'),
+      radioOption(tree, 'common.minutes', '00'),
+      ...(uses24HourClock ? [] : [radioOption(tree, 'common.amPm', 'PM')]),
+    ]
     const unselected = radioOption(tree, 'common.hours', '07')
     const tokens = createTokensV2('purple', 'dark')
 
-    for (const option of [selected, unselected]) {
+    for (const option of [...selectedOptions, unselected]) {
       expect(StyleSheet.flatten(option.props.style({ pressed: false }))).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
     }
     expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
-    expect(StyleSheet.flatten(selected.props.style({ pressed: true })).backgroundColor).toBe(tokens.primaryPressed)
-    expect(StyleSheet.flatten(selected.props.style({ pressed: false })).backgroundColor).toBe(tokens.primary)
+    for (const selected of selectedOptions) {
+      for (const pressed of [false, true]) {
+        expect(StyleSheet.flatten(selected.props.style({ pressed })).backgroundColor).toBe(tokens.bgHover)
+      }
+      const label = selected.findAll((node: any) => node.type === 'Text')[0]
+      expect(StyleSheet.flatten(label.props.style).color).toBe(tokens.fg1)
+      const ring = selected.findAll((node: any) => node.type === 'View' && StyleSheet.flatten(node.props.style)?.borderWidth === 2)[0]
+      expect(ring).toBeDefined()
+      expect(StyleSheet.flatten(ring.props.style)).toMatchObject({
+        position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+        borderWidth: 2, borderColor: tokens.primary, borderRadius: 12,
+      })
+      expect(ring.props.pointerEvents).toBe('none')
+      expect(selected.props.focusColor).toBe(tokens.fg1)
+    }
   })
 
   it('keeps one ring on the focused time entry', async () => {

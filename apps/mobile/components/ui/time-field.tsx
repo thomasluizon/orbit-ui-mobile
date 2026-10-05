@@ -58,8 +58,7 @@ interface TimeColumnProps {
 }
 
 function pressedOptionBackground(tokens: Tokens, selected: boolean, pressed: boolean) {
-  if (selected) return pressed ? tokens.primaryPressed : tokens.primary
-  return pressed ? tokens.bgHover : 'transparent'
+  return selected || pressed ? tokens.bgHover : 'transparent'
 }
 
 function TimeOption({
@@ -93,7 +92,7 @@ function TimeOption({
     <GestureDetector gesture={tapGesture}>
       <InsetFocusPressable
         {...navigationProps}
-        focusColor={selected ? tokens.fgOnPrimary : tokens.fg1}
+        focusColor={tokens.fg1}
         ref={elementRef}
         accessibilityLabel={formattedValue}
         accessibilityRole="radio"
@@ -104,10 +103,11 @@ function TimeOption({
           { backgroundColor: pressedOptionBackground(tokens, selected, pressed || touchPressed) },
         ]}
       >
+        {selected ? <View pointerEvents="none" accessible={false} style={[StyleSheet.absoluteFill, { borderWidth: 2, borderColor: tokens.primary, borderRadius: 12 }]} /> : null}
         <Text
           style={[
             styles.optionLabel,
-            { color: selected ? tokens.fgOnPrimary : tokens.fg1 },
+            { color: tokens.fg1 },
           ]}
         >
           {formattedValue}
