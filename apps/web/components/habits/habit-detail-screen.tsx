@@ -144,10 +144,12 @@ function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundar
   return undefined
 }
 
-function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onLog, completionDisabled, completionReason }: Readonly<{
+function HabitHeader({ habit, completed, logged, overdue, progress, summary, onRename, onEmoji, onLog, completionDisabled, completionReason }: Readonly<{
   habit: NormalizedHabit
   completed: boolean
   logged: boolean
+  overdue: boolean
+  progress?: number
   summary: string
   onRename: (title: string) => Promise<boolean>
   onEmoji: (emoji: string) => void
@@ -180,7 +182,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
           <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
           <div className="flex-1" />
           <PillButton variant="ghost" size="sm" iconOnly label={t('rename')} onClick={() => setEditing(true)}><Pencil size={20} /></PillButton>
-          <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
+          <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} status={overdue ? 'overdue' : 'empty'} progress={progress} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
         </div>
         <div className="min-w-0 w-full">
           {editing ? (
@@ -611,7 +613,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
   return (
     <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <div>
-        <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
+        <HabitHeader habit={habit} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={children.length > 0 ? children.filter((child) => child.completed).length / children.length * 100 : undefined} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
         <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
       </div>

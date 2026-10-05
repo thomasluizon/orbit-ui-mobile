@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
   pathname: '/habits/habit-1',
   realTimeField: false,
   realReminderSections: false,
+  realHeaderRing: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   metricsError: false,
@@ -236,9 +237,14 @@ vi.mock('@/components/habits/habit-checklist', () => ({
   ),
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
-vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled?: boolean; disabledReason?: string }) => <button type="button" aria-label={label} data-logged={logged} data-disabled-reason={disabledReason} disabled={disabled} onClick={onPress}>{label}</button>,
-}))
+vi.mock('@/components/habits/habit-log-button', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-log-button')>()
+  return {
+    HabitLogButton: (props: React.ComponentProps<typeof actual.HabitLogButton>) => mocks.realHeaderRing
+      ? <actual.HabitLogButton {...props} />
+      : <button type="button" aria-label={props.label} data-logged={props.logged} data-disabled-reason={props.disabledReason} disabled={props.disabled} onClick={props.onPress}>{props.label}</button>,
+  }
+})
 vi.mock('@/components/habits/habit-row', () => ({
   HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
     <div>
@@ -269,6 +275,63 @@ function openRescueGate() {
 }
 
 describe('HabitDetailScreen', () => {
+  it('keeps child progress in an unlogged bad habit parent header', () => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true })]).habitsById
+    mocks.scopedHabits = new Map([
+      ['habit-1', { ...makeScopedParent(), isBadHabit: true }],
+      ['child-1', makeScopedChild('2026-08-28')],
+    ])
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '100')
+    expect(header.querySelector('[data-status]')).toBeNull()
+  })
+
+  it('shows empty, overdue and done status in the leaf header', () => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), children: [] }
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = () => view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header().querySelector('[data-status="empty"]')).toBeInTheDocument()
+    expect(header().querySelector('[role="progressbar"]')).toBeNull()
+
+    mocks.scopedHabits.set('habit-1', { ...makeScopedParent(), isOverdue: true })
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(header().querySelector('[data-status="overdue"]')).toBeInTheDocument()
+
+    mocks.logs = [{ id: 'selected', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T12:00:00Z' }]
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(header().querySelector('[data-status="done"]')).toBeInTheDocument()
+  })
+
+  it.each([0, 1, 2])('shows the selected day fraction for an unlogged parent with %i children done', (done) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    const child = makeDetail().children[0]!
+    mocks.detail = { ...makeDetail(), children: [child, { ...child, id: 'child-2' }] }
+    mocks.scopedHabits = new Map(mocks.detail.children.map((entry, index) => [entry.id, {
+      ...makeScopedChild('2026-08-28'), id: entry.id,
+      isLoggedInRange: index < done,
+      instances: index < done ? [{ date: '2026-08-28', status: 'Completed', logId: entry.id }] : [],
+    }]))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    const ring = header.querySelector('[role="progressbar"]')!
+    expect(ring).toHaveAttribute('aria-valuenow', String(done * 50))
+    expect(header.querySelector('[data-status]')).toBeNull()
+    const paintedCircles = Array.from(ring.querySelectorAll('circle')).filter((circle) => circle.getAttribute('visibility') !== 'hidden')
+    expect(paintedCircles).toHaveLength(done === 0 ? 1 : 2)
+
+    mocks.logs = [{ id: 'selected', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T12:00:00Z' }]
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(header.querySelector('[data-status="done"]')).toBeInTheDocument()
+    expect(header.querySelector('[role="progressbar"]')).toBeNull()
+  })
+
   it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
     mocks.detail = { ...makeDetail(), children: [] }
     mocks.scopedLoading = state === 'loading'
@@ -341,6 +404,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
   beforeEach(() => {
+    mocks.realHeaderRing = false
     mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
     mocks.realReminderSections = false;

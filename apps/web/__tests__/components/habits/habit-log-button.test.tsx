@@ -23,6 +23,15 @@ describe('HabitLogButton', () => {
     expect(onPress).toHaveBeenCalledOnce()
   })
 
+  it('uses the supplied overdue status when there is no child progress', () => {
+    const view = render(<HabitLogButton label="Log Read" logged={false} status="overdue" onPress={vi.fn()} />)
+    expect(screen.getByTestId('status-ring')).toHaveTextContent('overdue')
+    expect(screen.queryByTestId('progress-ring')).not.toBeInTheDocument()
+    view.rerender(<HabitLogButton label="Log Read" logged={false} status="overdue" progress={0} onPress={vi.fn()} />)
+    expect(screen.getByTestId('progress-ring')).toHaveTextContent('0')
+    expect(screen.queryByTestId('status-ring')).not.toBeInTheDocument()
+  })
+
   it('shows visible partial progress until the habit is complete', () => {
     const view = render(
       <HabitLogButton label="Log Read" logged={false} completed={false} progress={0.5} onPress={vi.fn()} />,
