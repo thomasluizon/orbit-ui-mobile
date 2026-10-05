@@ -318,6 +318,27 @@ async function selectGoalFilter(tree: TestTree, view: string) {
 }
 
 describe('mobile ProgressContent', () => {
+  it.each([320, 412, 840])('uses 16 between streak children and window tiles at %ipx', async (width) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-02']
+    try {
+      const tree = await renderProgress()
+      const bank = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'freeze-bank')[0]!
+      let streak = bank.parent!
+      while (streak.type !== 'View') streak = streak.parent!
+      expect(StyleSheet.flatten(streak.props.style as ViewStyle).gap).toBe(16)
+      expect(streak.findAll((node) => node.type === 'Text' && String(node.props.children).startsWith('progressScreen.streak.gapBody'))).toHaveLength(1)
+      const grids = tree.root.findAll((node) => node.type === 'View' && String(node.props.testID).startsWith('progress-window-grid-'))
+      expect(grids).toHaveLength(1)
+      expect(StyleSheet.flatten(grids[0]!.props.style as ViewStyle).gap).toBe(16)
+      const rows = grids[0]!.findAll((node) => node.type === 'View' && node.props.testID === 'progress-window-row')
+      expect(rows.length).toBeGreaterThan(0)
+      for (const row of rows) expect(StyleSheet.flatten(row.props.style as ViewStyle).gap).toBe(16)
+    } finally {
+      dimensions.mockRestore()
+    }
+  })
+
   it.each([false, true])('scrolls Progresso on reselect and preserves goal detail at open=%s', async (detailOpen) => {
     const goal = createMockGoal()
     mocks.goals.data.allGoals = [goal]
@@ -675,6 +696,12 @@ describe('mobile ProgressContent', () => {
       'skeleton-unit-habit-row', 'skeleton-unit-habit-row', 'skeleton-unit-habit-row',
     ])
     expect(pillButtons(tree.root)).toHaveLength(0)
+    let tileRow = units[2]!.parent!
+    while (StyleSheet.flatten<ViewStyle>(tileRow.props.style ?? {}).flexDirection !== 'row') tileRow = tileRow.parent!
+    expect(StyleSheet.flatten(tileRow.props.style as ViewStyle).gap).toBe(16)
+    let tileGrid = tileRow.parent!
+    while (tileGrid.type !== 'View') tileGrid = tileGrid.parent!
+    expect(StyleSheet.flatten(tileGrid.props.style as ViewStyle).gap).toBe(16)
   })
 
   it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', async (state) => {
