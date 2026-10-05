@@ -42,8 +42,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
         const conversation = page.locator(`[data-shell-conversation="${presentation}"]`)
         await expect(conversation).toBeVisible()
         const scroller = conversation.getByRole('feed', { name: messages.chat.title })
-        await expect(scroller.getByText(messages.chat.suggestion.prompt, { exact: true })).toBeVisible()
-        await expect(scroller.getByRole('button')).toHaveCount(4)
+        await expect(scroller.getByText(messages.chat.empty.title, { exact: true })).toBeVisible()
+        await expect(scroller.getByRole('button')).toHaveCount(0)
+        await expect(conversation.getByRole('group', { name: messages.shell.composer.suggestionsLabel, exact: true })).toHaveCount(1)
         await page.evaluate(() => document.fonts.ready)
 
         const top = await scroller.evaluate((element) => {

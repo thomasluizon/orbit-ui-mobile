@@ -1251,17 +1251,6 @@
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
-    "suggestion": {
-      "prompt": "Algumas coisas que dá para pedir",
-      "logHabit": "Registrar hábito",
-      "week": "Como foi a semana",
-      "splitHabit": "Dividir hábito",
-      "goals": "Como estão as metas"
-    },
-    "prompts": {
-      "logHabit": "Registrar \"{habit}\"",
-      "splitHabit": "Dividir \"{habit}\""
-    },
     "action": {
       "changes": "Alterações",
       "completed": "A Astra atualizou o Orbit",

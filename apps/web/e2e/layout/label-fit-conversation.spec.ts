@@ -78,17 +78,15 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
         const empty = conversation.getByRole('feed')
         await markRequiredLabels(empty.getByText(words.chat.empty.title, { exact: true }))
-        for (const label of [words.chat.suggestion.logHabit, words.chat.suggestion.week,
-          words.chat.suggestion.splitHabit, words.chat.suggestion.goals]) {
-          await markRequiredLabels(empty.getByRole('button', { name: label, exact: true }))
-        }
+        await expect(empty.getByRole('button')).toHaveCount(0)
         await expectLabelsFit(page, empty)
         const strip = conversation.getByRole('group', { name: words.shell.composer.suggestionsLabel, exact: true })
         await markRequiredLabels(strip.getByRole('button'))
         expect(await strip.getByRole('button').count()).toBeGreaterThanOrEqual(3)
         await expectLabelsFit(page, strip)
         await expectStripEdge(strip)
-        await expectInteractionFill(empty.getByRole('button', { name: words.chat.suggestion.logHabit, exact: true }))
+        await strip.getByRole('button').first().focus()
+        await expectInteractionFill(strip.getByRole('button').first())
       })
 
       test('keeps habit detail suggestions whole through the trailing gutter', async ({ page }) => {
