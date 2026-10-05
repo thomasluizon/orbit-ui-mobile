@@ -92,7 +92,7 @@ const BAD_TEXT_SOURCE_SITES = [
   },
   {
     name: 'mobile notification status error',
-    path: 'apps/mobile/components/profile/preferences-sections.tsx',
+    path: 'apps/mobile/components/profile/push-devices-row.tsx',
     pattern: /tone === 'critical' \? tokens\.statusBadText/,
   },
   {

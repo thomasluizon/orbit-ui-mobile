@@ -1,23 +1,16 @@
 import { useMemo, useRef, useState, type Ref } from 'react'
-import { View, Text, Pressable } from 'react-native'
+import { View, Text } from 'react-native'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
-  getNativePushStatusPresentation,
   getTimezoneList,
   buildPreferencePickerModel,
   type PreferencePicker,
-  type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
-import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
 import { Sheet, type SheetHandle } from '@/components/ui/sheet'
-import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { Switch } from '@/components/ui/switch'
 import { RadioRow } from '@/components/ui/select-check'
 import { RadioGroup } from '@/components/ui/radio-row'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RowList } from '@/components/ui/row-list'
 import { styles, type Tokens } from '@/app/preferences-styles'
 
 export type { PreferencePicker }
@@ -128,172 +121,6 @@ function TimeZoneOptions({
         </View>
       ) : null}
     </View>
-  )
-}
-
-type TranslationFn = (key: string, params?: Record<string, unknown>) => string
-
-interface PushNotificationSectionProps {
-  tokens: Tokens
-  t: TranslationFn
-  pushSupported: boolean
-  pushEnabled: boolean
-  pushRegistered: boolean
-  pushLoading: boolean
-  permissionStatus: NotificationPermissionStatus | null
-  registrationStatus: NativePushRegistrationStatus
-  onToggle: () => void
-  onOpenSettings: () => void
-  showSectionLabel?: boolean
-  deviceLabel?: string
-  deviceDescription?: string
-  contained?: boolean
-}
-
-function PushSectionLabel({
-  show,
-  t,
-}: Readonly<{ show: boolean; t: TranslationFn }>) {
-  return show ? (
-    <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
-  ) : null
-}
-
-interface SupportedPushContentProps {
-  tokens: Tokens
-  t: TranslationFn
-  pushEnabled: boolean
-  pushLoading: boolean
-  permissionStatus: NotificationPermissionStatus | null
-  pushStatusColor: string
-  pushStatusText: string
-  switchLabel: string
-  deviceLabel?: string
-  deviceDescription?: string
-  onToggle: () => void
-  onOpenSettings: () => void
-}
-
-function SupportedPushContent({
-  tokens,
-  t,
-  pushEnabled,
-  pushLoading,
-  permissionStatus,
-  pushStatusColor,
-  pushStatusText,
-  switchLabel,
-  deviceLabel,
-  deviceDescription,
-  onToggle,
-  onOpenSettings,
-}: Readonly<SupportedPushContentProps>) {
-  return (
-    <>
-      <SettingsRow
-        label={deviceLabel ?? t('settings.notifications.allowed')}
-        desc={deviceDescription}
-        accessory="none"
-        divider={false}
-      >
-        <View
-          pointerEvents={pushLoading ? 'none' : 'auto'}
-          accessible={pushLoading}
-          accessibilityRole={pushLoading ? 'switch' : undefined}
-          accessibilityLabel={pushLoading ? switchLabel : undefined}
-          accessibilityState={pushLoading ? { checked: pushEnabled, disabled: true } : undefined}
-        >
-          <View
-            accessibilityElementsHidden={pushLoading}
-            importantForAccessibility={pushLoading ? 'no-hide-descendants' : 'auto'}
-          >
-            <Switch checked={pushEnabled} onChange={onToggle} label={switchLabel} />
-          </View>
-        </View>
-      </SettingsRow>
-      <View style={styles.statusBlock}>
-        <Text style={[styles.statusText, { color: pushStatusColor }]}>
-          {pushStatusText}
-        </Text>
-      </View>
-      {permissionStatus === 'denied' ? (
-        <Pressable
-          onPress={onOpenSettings}
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.linkChip,
-            {
-              backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-              borderColor: tokens.hairline,
-            },
-            pressed ? styles.linkChipPressed : null,
-          ]}
-        >
-          <Text style={[styles.linkText, { color: tokens.fg2 }]}>
-            {t('settings.notifications.openSettings')}
-          </Text>
-        </Pressable>
-      ) : null}
-    </>
-  )
-}
-
-export function PushNotificationSection({
-  tokens,
-  t,
-  pushSupported,
-  pushEnabled,
-  pushRegistered,
-  pushLoading,
-  permissionStatus,
-  registrationStatus,
-  onToggle,
-  onOpenSettings,
-  showSectionLabel = true,
-  deviceLabel,
-  deviceDescription,
-  contained = false,
-}: Readonly<PushNotificationSectionProps>) {
-  const pushStatusPresentation = getNativePushStatusPresentation({
-    permissionStatus,
-    registrationStatus,
-    isEnabled: pushEnabled,
-    isRegistered: pushRegistered,
-  })
-  const pushStatusText = t(pushStatusPresentation.messageKey)
-  const switchLabel = deviceLabel ?? t('settings.notifications.title')
-  const accentStatusColor =
-    pushStatusPresentation.tone === 'accent' ? tokens.primarySoft : tokens.fg3
-  const pushStatusColor =
-    pushStatusPresentation.tone === 'critical' ? tokens.statusBadText : accentStatusColor
-  const content = pushSupported ? (
-    <SupportedPushContent
-      tokens={tokens}
-      t={t}
-      pushEnabled={pushEnabled}
-      pushLoading={pushLoading}
-      permissionStatus={permissionStatus}
-      pushStatusColor={pushStatusColor}
-      pushStatusText={pushStatusText}
-      switchLabel={switchLabel}
-      deviceLabel={deviceLabel}
-      deviceDescription={deviceDescription}
-      onToggle={onToggle}
-      onOpenSettings={onOpenSettings}
-    />
-  ) : (
-    <View style={styles.statusBlock}>
-      <Text style={[styles.statusText, { color: tokens.fg3 }]}>
-        {t('settings.notifications.unsupportedNative')}
-      </Text>
-    </View>
-  )
-
-  return (
-    <>
-      <PushSectionLabel show={showSectionLabel} t={t} />
-      {contained ? <RowList>{content}</RowList> : content}
-    </>
   )
 }
 
