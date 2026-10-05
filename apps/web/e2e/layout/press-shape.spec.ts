@@ -134,7 +134,7 @@ for (const width of [412, 1280] as const) {
       }
       if (width === 412) await expectFullTouchTarget(page.getByRole('button', { name: ptBr.habits.search.title, exact: true }), 'pill')
       const destination = width === 412
-        ? page.locator('[data-shell-tab-bar] nav > button').nth(2)
+        ? page.locator('[data-shell-tab-bar] nav > button').nth(2).locator('[data-tab-indicator]')
         : page.locator('[data-shell-sidebar] nav button').nth(2)
       await expectHoverOnHitArea(destination, width === 412 ? 'pill' : 12)
 
