@@ -103,6 +103,45 @@ describe('search result geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each(['light', 'dark'] as const)('keeps hovered result paint neutral with either keyboard option active in $theme', async (theme) => {
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'description', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Open Run/ })
+    const page = await browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      for (const selectedIndex of [0, 1]) {
+        if (selectedIndex === 1) fireEvent.keyDown(input, { key: 'ArrowDown' })
+        expect(screen.getAllByRole('option')[selectedIndex]).toHaveAttribute('aria-selected', 'true')
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((variables) => {
+          for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+          document.body.style.backgroundColor = 'var(--bg)'
+        }, resolveWebThemeVariables('orange', theme))
+        const second = page.getByRole('option').nth(1)
+        await second.hover()
+        const paint = await second.evaluate((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = 'var(--bg-hover)'
+          probe.style.boxShadow = 'inset 0 0 0 1px var(--hairline-ghost)'
+          element.append(probe)
+          const expected = getComputedStyle(probe)
+          const actual = getComputedStyle(element)
+          const measured = { background: actual.backgroundColor, shadow: actual.boxShadow.split(/, (?=rgba?\()/).filter((layer) => !layer.startsWith('rgba(0, 0, 0, 0) ')), hover: expected.backgroundColor, hairline: expected.boxShadow }
+          probe.remove()
+          return measured
+        })
+        expect(paint.background).toBe(paint.hover)
+        expect(paint.shadow).toEqual([paint.hairline])
+      }
+    } finally { await page.close() }
+  })
+
   it.each(cases)('aligns $count result rows with the field at $width in $locale', async ({ width, locale, count }) => {
     mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
     const habits = Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))
