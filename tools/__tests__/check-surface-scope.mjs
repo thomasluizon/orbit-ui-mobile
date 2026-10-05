@@ -248,7 +248,7 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: " group-hover:text-[var(--primary-text)]", after: "" },
     { path: "apps/web/components/shell/shell-wide.tsx", before: " hover:text-[var(--primary-text)]", after: "" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)", after: "active ? tokens.primarySoft : tokens.fg3" },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id || pressed ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)", after: "active ? tokens.primarySoft : tokens.fg3" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
