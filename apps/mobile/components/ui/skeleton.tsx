@@ -5,12 +5,12 @@ import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated already drives this single opacity pulse on the UI thread; the existing Reanimated migration remains device-gated https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   StyleSheet,
+  Text,
   View,
 } from 'react-native'
 import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { STAT_TILE_MIN_HEIGHT } from './stat-tile'
 
 function usePulseOpacity() {
   const opacity = useMemo(() => new Animated.Value(1), [])
@@ -78,8 +78,14 @@ function StatTileSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; o
       testID="skeleton-stat-tile-shape"
       style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
     >
-      <Block style={styles.statValue} tokens={tokens} opacity={opacity} />
-      <Block style={styles.statLabel} tokens={tokens} opacity={opacity} />
+      <View style={styles.statValue}>
+        <Text style={styles.statValueLine}>0</Text>
+        <Block style={styles.statValueBlock} tokens={tokens} opacity={opacity} />
+      </View>
+      <View style={styles.statLabel}>
+        <Text style={styles.statLabelLine}>0</Text>
+        <Block style={styles.statLabelBlock} tokens={tokens} opacity={opacity} />
+      </View>
     </View>
   )
 }
@@ -180,14 +186,18 @@ const styles = StyleSheet.create({
   settingsMeta: { width: '66%', height: 12 },
   settingsValue: { width: 48, height: 16 },
   statTile: {
-    minHeight: STAT_TILE_MIN_HEIGHT,
     borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 24,
-    gap: 12,
+    padding: 16,
+    gap: 8,
+    alignItems: 'flex-start',
   },
-  statValue: { width: '50%', height: 24 },
-  statLabel: { width: '66%', height: 16 },
+  statValue: { width: '50%', justifyContent: 'center' },
+  statValueLine: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 22 * 1.4, opacity: 0 },
+  statValueBlock: { position: 'absolute', width: '100%', height: 22 },
+  statLabel: { width: '66%' },
+  statLabelLine: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, opacity: 0 },
+  statLabelBlock: { position: 'absolute', width: '100%', height: '100%' },
   barChart: { width: '100%', gap: 8 },
   barReadout: { width: '50%', height: 16 },
   barPlot: { width: '100%', height: 96 },

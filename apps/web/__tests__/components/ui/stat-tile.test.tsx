@@ -10,7 +10,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
-import { STAT_TILE_MIN_HEIGHT, StatTile } from '@/components/ui/stat-tile'
+import { StatTile } from '@/components/ui/stat-tile'
+import { Skeleton } from '@/components/ui/skeleton'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 describe('StatTile', () => {
@@ -36,6 +37,56 @@ describe('StatTile', () => {
       stylesheet = compiled.css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([320, 412, 1280].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('holds the drawn start edge and exact height across states at $width and text scale $fontScale', async ({ width, fontScale }) => {
+      for (const catalog of [en, ptBR]) {
+        const labels = [catalog.progressScreen.streak.longest, catalog.streakDisplay.detail.tierTileLabel,
+          catalog.progressScreen.window.completionRate, catalog.progressScreen.window.activeDays, catalog.progressScreen.window.bestWeekday]
+        const { container, unmount } = render(
+          <div style={{ padding: 16 }}>
+            {labels.map((label) => <div key={label}>
+              <StatTile value={21} label={label} />
+              <StatTile state="loading" loadingLabel={catalog.calendar.loading} label={label} />
+              <StatTile state="empty" emptyLabel={catalog.progressScreen.window.bestWeekdayEmpty} label={label} />
+            </div>)}
+            <Skeleton variant="stat-tile" label={catalog.calendar.loading} />
+          </div>,
+        )
+        const page = await browser.newPage({ viewport: { width, height: 1400 } })
+        try {
+          await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+          await loadAppFonts(page)
+          await page.evaluate((scale) => {
+            const sizes = Array.from(document.querySelectorAll<HTMLElement>('span')).map((element) => ({ element,
+              size: parseFloat(getComputedStyle(element).fontSize), line: parseFloat(getComputedStyle(element).lineHeight) }))
+            for (const { element, size, line } of sizes) {
+              element.style.fontSize = `${size * scale}px`
+              if (Number.isFinite(line)) element.style.lineHeight = `${line * scale}px`
+            }
+          }, fontScale)
+          const geometry = await page.locator('[data-state], [data-variant="stat-tile"] > div').evaluateAll((tiles) => tiles.map((tile) => {
+            const bounds = tile.getBoundingClientRect()
+            const style = getComputedStyle(tile)
+            const value = tile.children[0]!.getBoundingClientRect()
+            const label = tile.children[1]!.getBoundingClientRect()
+            const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+            return { height: bounds.height, expectedHeight: padding + value.height + label.height + 8,
+              valueStart: value.left - bounds.left - parseFloat(style.paddingLeft),
+              labelStart: label.left - bounds.left - parseFloat(style.paddingLeft),
+              gap: label.top - value.bottom, padding }
+          }))
+          expect(geometry).toHaveLength(16)
+          for (const tile of geometry) {
+            expect(Math.abs(tile.valueStart)).toBeLessThanOrEqual(0.5)
+            expect(Math.abs(tile.labelStart)).toBeLessThanOrEqual(0.5)
+            expect(tile.padding).toBe(32)
+            expect(tile.gap).toBe(8)
+            expect(tile.height).toBeCloseTo(tile.expectedHeight, 1)
+            expect(tile.height).toBeCloseTo(32 + (22 * 1.4 + 20) * fontScale + 8, 1)
+          }
+        } finally { await page.close(); unmount() }
+      }
+    })
 
     it.each([320, 360, 412].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('contains loading placeholders inside compact tile content at $width with root text scale $fontScale', async ({ width, fontScale }) => {
       for (const catalog of [en, ptBR]) {
@@ -75,7 +126,7 @@ describe('StatTile', () => {
             expect(tile.placeholderRight).toBeLessThanOrEqual(tile.contentRight + 0.5)
             expect(tile.placeholderWidth).toBeGreaterThan(0)
             expect(tile.placeholderWidth).toBeLessThanOrEqual(64)
-            expect(tile.height).toBeGreaterThanOrEqual(STAT_TILE_MIN_HEIGHT)
+            expect(tile.height).toBeCloseTo(32 * fontScale + 22 * 1.4 + 20 + 8 * fontScale, 1)
             expect(tile.valueHeight).toBeCloseTo(22 * 1.4, 1)
             expect(tile.gap).toBe(8 * fontScale)
             expect(tile.busy).toBe('true')
@@ -149,7 +200,7 @@ describe('StatTile', () => {
             expect(tile.labelRight).toBeLessThanOrEqual(tile.contentRight + 0.5)
             expect(tile.valueFontSize).toBe(22 * fontScale)
             expect(tile.labelFontSize).toBe(14 * fontScale)
-            expect(tile.height).toBeGreaterThanOrEqual(STAT_TILE_MIN_HEIGHT)
+            expect(tile.height).toBeCloseTo(32 + (22 * 1.4 + 20) * fontScale + 8, 1)
           }
           const calendarHeights = await page.locator('[data-testid="calendar-stats"]').evaluateAll((rows) => rows.slice(0, 2).map((row) => Array.from(row.children, (figure) => figure.getBoundingClientRect().height)))
           expect(calendarHeights[0]).toEqual(calendarHeights[1])
@@ -189,7 +240,7 @@ describe('StatTile', () => {
     render(<StatTile value="Wed" label="Best weekday" />)
     const value = screen.getByText('Wed')
     expect(value).toHaveStyle({ fontSize: 22, whiteSpace: 'nowrap' })
-    expect(value.parentElement).toHaveStyle({ minHeight: STAT_TILE_MIN_HEIGHT })
+    expect(value.parentElement!.style.minHeight).toBe('')
   })
 
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {

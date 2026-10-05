@@ -3,8 +3,6 @@ import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export const STAT_TILE_MIN_HEIGHT = 132
-
 function shownStatValue(props: StatTileProps): string | number {
   if (props.state === 'empty') return props.emptyLabel
   if (props.state === 'loading') return ''
@@ -53,11 +51,12 @@ export function StatTile(props: Readonly<StatTileProps>) {
           color={isEmpty ? tokens.fg3 : tokens.fg1}
         />
       )}
-      <Text
-        style={[styles.label, { color: isEmpty ? tokens.fg3 : tokens.fg2 }]}
-      >
-        {label}
-      </Text>
+      {state === 'loading' ? (
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Text style={[styles.label, { opacity: 0 }]}>{label}</Text>
+          <View style={[styles.labelSkeleton, { backgroundColor: tokens.bgElev2 }]} />
+        </View>
+      ) : <Text style={[styles.label, { color: isEmpty ? tokens.fg3 : tokens.fg2 }]}>{label}</Text>}
     </View>
   )
 }
@@ -66,10 +65,8 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     minWidth: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'flex-start',
     gap: 8,
-    minHeight: STAT_TILE_MIN_HEIGHT,
     borderRadius: 20,
     borderWidth: 1,
     padding: 16,
@@ -78,26 +75,27 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 22,
     lineHeight: 22 * 1.4,
-    textAlign: 'center',
+    textAlign: 'auto',
     fontVariant: ['tabular-nums'],
     maxWidth: '100%',
   },
   emptyValue: {
     fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
-    lineHeight: 24,
+    lineHeight: 22 * 1.4,
     maxWidth: '100%',
   },
   label: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: 'auto',
   },
-  loadingValue: { width: '100%', maxWidth: 64, alignItems: 'center', justifyContent: 'center' },
+  loadingValue: { width: '100%', maxWidth: 64, justifyContent: 'center' },
+  labelSkeleton: { position: 'absolute', width: '66%', height: '100%', borderRadius: 8 },
   valueSkeleton: {
     width: '100%',
-    height: 24,
+    height: 22,
     borderRadius: 8,
   },
 })
