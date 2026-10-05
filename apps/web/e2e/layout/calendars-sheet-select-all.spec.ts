@@ -19,39 +19,40 @@ const events = calendarEventsResponseSchema.parse([
   createMockCalendarSyncEvent({ id: 'read', title: 'Ler', calendarName: '', startDate: null, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] }),
 ])
 
-async function expectHeadingAlignment(row: Locator, body: Locator) {
-  const heading = row.getByRole('heading')
-  const toggle = row.getByRole('button')
-  await expect(toggle).toBeEnabled()
-  const firstLine = await heading.evaluate((element) => {
+async function expectHeadingAlignment(row: Locator) {
+  await expect(row.getByRole('button')).toBeEnabled()
+  const geometry = await row.evaluate((element) => {
+    const heading = element.querySelector('h2')!
+    const toggle = element.querySelector('button')!.getBoundingClientRect()
+    const body = element.closest<HTMLElement>('[data-slot="sheet-body"]')!
     const range = document.createRange()
-    range.selectNodeContents(element)
+    range.selectNodeContents(heading)
     const first = [...range.getClientRects()].find((rect) => rect.width > 0)!
-    return { centre: first.top + first.height / 2, left: element.getBoundingClientRect().left }
-  })
-  const edges = await body.evaluate((element) => {
-    const style = getComputedStyle(element)
-    const bounds = element.getBoundingClientRect()
+    const style = getComputedStyle(body)
+    const bounds = body.getBoundingClientRect()
     return {
+      lineCentre: first.top + first.height / 2,
+      lineLeft: heading.getBoundingClientRect().left,
+      toggleCentre: toggle.top + toggle.height / 2,
+      toggleRight: toggle.right,
       start: bounds.left + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft),
-      end: bounds.left + element.clientLeft + element.clientWidth - Number.parseFloat(style.paddingRight),
+      end: bounds.left + body.clientLeft + body.clientWidth - Number.parseFloat(style.paddingRight),
     }
   })
-  const bounds = await toggle.boundingBox()
-  expect(bounds).not.toBeNull()
-  expect(Math.abs(bounds!.y + bounds!.height / 2 - firstLine.centre)).toBeLessThanOrEqual(2)
-  expect(Math.abs(bounds!.x + bounds!.width - edges.end)).toBeLessThanOrEqual(1)
-  expect(Math.abs(firstLine.left - edges.start)).toBeLessThanOrEqual(1)
+  expect(Math.abs(geometry.toggleCentre - geometry.lineCentre)).toBeLessThanOrEqual(2)
+  expect(Math.abs(geometry.toggleRight - geometry.end)).toBeLessThanOrEqual(1)
+  expect(Math.abs(geometry.lineLeft - geometry.start)).toBeLessThanOrEqual(1)
 }
 
 async function doubleSheetText(sheet: Locator) {
-  await sheet.evaluate((surface) => {
+  await sheet.evaluate(async (surface) => {
     const measurements = [surface, ...surface.querySelectorAll<HTMLElement>('*')]
       .map((element) => ({ element, size: Number.parseFloat(getComputedStyle(element).fontSize), line: Number.parseFloat(getComputedStyle(element).lineHeight) }))
     for (const { element, size, line } of measurements) {
       element.style.fontSize = `${size * 2}px`
       if (Number.isFinite(line)) element.style.lineHeight = `${line * 2}px`
     }
+    await Promise.allSettled(surface.getAnimations({ subtree: true }).filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished))
   })
 }
 
@@ -84,11 +85,10 @@ for (const width of [320, 412, 1352]) {
           const row = sheet.getByTestId('section-heading-row')
           await expect(row.getByRole('heading')).toHaveText(`${count} ${locale === 'pt-BR' ? 'eventos' : 'events'}`)
           await expect(row.getByRole('button', { name: words.calendar.deselectAll, exact: true })).toBeVisible()
-          const body = sheet.locator('[data-slot="sheet-body"]')
-          await expectHeadingAlignment(row, body)
+          await expectHeadingAlignment(row)
           expect(await row.getByRole('heading').evaluate((element) => element.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(element).lineHeight))).toBeCloseTo(1, 1)
           await doubleSheetText(sheet)
-          await expectHeadingAlignment(row, body)
+          await expectHeadingAlignment(row)
         })
       }
 
