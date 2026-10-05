@@ -67,10 +67,12 @@ vi.mock('react-native', async (importOriginal) => {
     FlatList: React.forwardRef<unknown, {
       data: ChatMessage[]
       renderItem: (entry: { item: ChatMessage }) => React.ReactNode
+      ListFooterComponent?: React.ReactNode
     }>((props, _ref) => React.createElement(
       'FlatList',
       props,
       props.data.map((item) => React.createElement(React.Fragment, { key: item.id }, props.renderItem({ item }))),
+      props.ListFooterComponent,
     )),
   }
 })
@@ -135,6 +137,7 @@ vi.mock('@/components/chat/conversation.styles', () => ({
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
+  parent: TestNode | null
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
@@ -369,6 +372,30 @@ describe('ChatScreen composer recoveries', () => {
     const chip = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && nodeText(node).includes('Check goals'))[0]
     TestRenderer.act(() => press(chip))
     expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Check goals', 'followUp')
+  })
+
+  it('gives the owning turn a 16 gap before the follow-up group', async () => {
+    mocks.composer.showSuggestions = false
+    mocks.composer.canShowFollowUps = true
+    mocks.composer.messages = [{ id: 'answer', role: 'ai', content: 'Done', timestamp: new Date(),
+      followUps: ['Check goals', 'Review habits'] }]
+    const tree = await renderScreen()
+    const bubble = findByType(tree.root, 'MessageBubble')
+    expect(bubble?.parent?.parent?.props.style).toMatchObject({ gap: 16 })
+  })
+
+  it.each([false, true])('aligns the tool trace to the message edge when running is %s', async (running) => {
+    mocks.composer.showSuggestions = false
+    const steps = [{ domain: 'habits', access: 'read' }]
+    mocks.composer.activeSteps = running ? steps : []
+    mocks.composer.messages = [{ id: 'answer', role: 'ai', content: 'Done', timestamp: new Date(),
+      toolSteps: running ? [] : steps }]
+    const tree = await renderScreen()
+    const trace = running
+      ? tree.root.findAll(node => node.type === 'View' && node.props.accessibilityLiveRegion === 'none')[0]
+      : findByLabel(tree.root, '1 steps')?.parent?.parent
+    expect(trace).toBeDefined()
+    expect(trace?.props.style).not.toHaveProperty('paddingHorizontal')
   })
 
   it('closes from the conversation header', async () => {
