@@ -83,7 +83,7 @@ interface CalendarWeekNavProps {
 export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, currentWeekLabel, onPreviousWeek, onNextWeek, onCurrentWeek }: Readonly<CalendarWeekNavProps>) {
   return <div data-testid="calendar-week-navigation" className="flex min-h-12 flex-wrap items-center justify-center gap-2">
     <button type="button" className={headerButton} aria-label={previousWeekLabel} onClick={onPreviousWeek}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
-    <button type="button" className={`${titleButton} max-w-full px-3 py-2 text-center`} aria-label={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</button>
+    <PillButton size="sm" variant="ghost" minimumHeight={48} accessibleName={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</PillButton>
     <button type="button" className={headerButton} aria-label={nextWeekLabel} onClick={onNextWeek}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
   </div>
 }

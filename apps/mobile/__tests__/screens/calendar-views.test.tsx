@@ -445,8 +445,11 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it.each([1, 2])('keeps the week pager above the selector at 320 dp and font scale %i', (scale) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 4, 12));
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: scale });
     state.language = 'pt-BR';
+    state.periodGeometry = true;
     type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
     let tree!: Tree & { toJSON: () => Host | Host[]; unmount: () => void };
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
@@ -467,6 +470,15 @@ describe("CalendarScreen views (mobile)", () => {
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
       }
+      const title = measured.texts.find((text) => text.label === pager.find((control) => control.labels.length)!.labels[0])!;
+      expect.soft(title.clipped).toBe(false);
+      if (scale === 1) {
+        expect.soft(new Set(pager.map((control) => control.top)).size).toBe(1);
+        expect.soft(Math.min(...segments.map((segment) => segment.top))).toBe(76);
+        expect.soft(title.lines).toBe(1);
+      }
+      const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', calendar.goToCurrentWeek'))[0]!;
+      expect(StyleSheet.flatten(titleControl.props.style({ pressed: true })).borderRadius).toBeGreaterThanOrEqual(pager.find((control) => control.labels.length)!.height / 2);
       const initial = pager.find((control) => control.labels.length)!.labels[0];
       for (const label of ['common.nextWeek', 'common.previousWeek']) {
         const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
@@ -474,7 +486,7 @@ describe("CalendarScreen views (mobile)", () => {
         expect(tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.checked)).toHaveLength(1);
       }
       expect(hostTexts(tree)).toContain(initial);
-    } finally { TestRenderer.act(() => tree.unmount()); }
+    } finally { TestRenderer.act(() => tree.unmount()); vi.useRealTimers(); }
   });
 
   it.each([1, 2])('keeps the range label beside both 48 dp targets at 320 dp and font scale %i', (scale) => {

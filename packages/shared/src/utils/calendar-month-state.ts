@@ -1,3 +1,5 @@
+import { format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
 import { MONTH_GRID_TARGET_MIN } from '../theme/breakpoints'
 import { capitalizeFirstLetter, formatLocaleDate } from './locale-format'
 
@@ -39,7 +41,9 @@ export function formatCalendarMonthHeading(month: Date, todayKey: string, locale
 }
 
 export function formatCalendarWeekLabel(start: Date, end: Date, locale: string): string {
-  const startLabel = formatLocaleDate(start, locale, { day: 'numeric', month: 'short' })
-  const endLabel = formatLocaleDate(end, locale, { day: 'numeric', ...(start.getMonth() === end.getMonth() ? {} : { month: 'short' }) })
+  const dateLocale = locale === 'pt-BR' ? ptBR : enUS
+  const pattern = locale === 'pt-BR' ? 'd MMM' : 'MMM d'
+  const startLabel = format(start, pattern, { locale: dateLocale })
+  const endLabel = format(end, start.getMonth() === end.getMonth() ? 'd' : pattern, { locale: dateLocale })
   return `${startLabel} - ${endLabel}`
 }

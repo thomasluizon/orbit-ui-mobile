@@ -51,12 +51,12 @@ for (const width of [320, 412, 600, 840]) {
             expect((await box(body)).top - segments.bottom, `${view} body clearance`).toBe(24)
             const navigation = header.locator('[data-testid$="-navigation"]')
             expect((await box(navigation)).height).toBe(48)
-            const chevrons = navigation.locator('button').filter({ has: page.locator('svg') })
-            for (const control of await chevrons.all()) {
+            const controls = navigation.locator('button')
+            for (const control of await controls.all()) {
               const paint = await control.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, ring: getComputedStyle(button).boxShadow }))
               expect(paint.background).toBe('rgba(0, 0, 0, 0)')
               const isChevron = await control.evaluate((button) => !button.textContent.trim())
-              if (isChevron) {
+              if (isChevron || view === 'week' || view === 'agenda') {
                 expect(paint.ring).toContain('1.5px')
                 expect(paint.ring).toContain('inset')
               }
@@ -64,11 +64,11 @@ for (const width of [320, 412, 600, 840]) {
           }
           const current = header.getByRole('button', { name: new RegExp(`, ${words.dates.today}$`) })
           const firstDay = page.getByTestId('calendar-agenda-day').first()
-          const initialDay = await firstDay.innerText()
+          const initialDay = await firstDay.textContent()
           await header.getByRole('button', { name: words.common.nextWeek, exact: true }).click()
-          await expect(firstDay).not.toHaveText(initialDay)
+          await expect.poll(() => firstDay.textContent()).not.toBe(initialDay)
           await current.click()
-          await expect(firstDay).toHaveText(initialDay)
+          await expect.poll(() => firstDay.textContent()).toBe(initialDay)
           expect((await box(firstDay)).top - (await box(selector)).bottom).toBe(24)
         })
       })

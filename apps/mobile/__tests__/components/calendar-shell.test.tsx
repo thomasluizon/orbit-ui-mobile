@@ -9,7 +9,8 @@ import ptBR from "@orbit/shared/i18n/pt-BR.json";
 import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-options';
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Sheet } from "@/components/ui/sheet";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, radius } from "@/lib/theme";
+import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useUIStore } from "@/stores/ui-store";
 import {
   CalendarHeader,
@@ -102,21 +103,6 @@ function pressByAccessibilityLabel(tree: Tree, label: string) {
   TestRenderer.act(() => {
     matches[0]!.props.onPress();
   });
-}
-
-function exercisePressCallbacks(tree: Tree) {
-  for (const node of tree.root.findAll(() => true)) {
-    const style = node.props.style;
-    if (typeof style === "function") {
-      const pressed = StyleSheet.flatten(style({ pressed: true }));
-      if (pressed?.backgroundColor === createTokensV2("purple", "dark").bgHover && node.props.onPress) {
-        expect(node.props.hitSlop).toBeUndefined();
-        expect(Math.max(pressed.height ?? 0, pressed.minHeight ?? 0)).toBeGreaterThanOrEqual(48);
-        expect(Math.max(pressed.width ?? 0, pressed.minWidth ?? 0)).toBeGreaterThanOrEqual(48);
-      }
-      style({ pressed: false });
-    }
-  }
 }
 
 describe("CalendarHeader month and year navigation (mobile)", () => {
@@ -227,14 +213,20 @@ describe("CalendarWeekNav (mobile)", () => {
 
     expect(hostTextValues(tree!)).toContain("Apr 6 – 12");
     for (const label of ['Previous week', 'Next week']) expectPressFill(tree!, label, tokens.bgHover, 999);
-    expectPressFill(tree!, 'Apr 6 – 12, Go to current week', tokens.bgHover, 12);
+    const current = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Apr 6 – 12, Go to current week')[0]!;
+    expect.soft(current.props.hitSlop).toBe((TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2);
+    expect.soft(StyleSheet.flatten(current.props.style({ pressed: false }))).toMatchObject({
+      backgroundColor: 'transparent', minHeight: TOUCH_TARGET_MIN, borderWidth: 1.5, borderColor: tokens.hairlineStrong,
+    });
+    expect.soft(StyleSheet.flatten(current.props.style({ pressed: true }))).toMatchObject({
+      backgroundColor: tokens.bgHover, borderRadius: radius.full, overflow: 'hidden',
+    });
     pressByAccessibilityLabel(tree!, "Previous week");
     pressByAccessibilityLabel(tree!, "Next week");
     pressByAccessibilityLabel(tree!, "Apr 6 – 12, Go to current week");
     expect(onPreviousWeek).toHaveBeenCalledTimes(1);
     expect(onNextWeek).toHaveBeenCalledTimes(1);
     expect(onCurrentWeek).toHaveBeenCalledTimes(1);
-    exercisePressCallbacks(tree!);
   });
 });
 

@@ -317,14 +317,20 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 600, 840])('keeps the week pager above the selector at %ipx and 200% text', async (width) => {
-    const weekLabel = formatCalendarWeekLabel(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
-    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+  it.each([320, 412, 600, 840].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('keeps the week pager in one 48px line at $width in $locale and reflows at 200%', async ({ width, locale, messages }) => {
+    const viewOptions = [
+      { value: 'month', label: messages.calendar.view.month },
+      { value: 'week', label: messages.calendar.view.week },
+      { value: 'range', label: messages.calendar.view.range },
+      { value: 'agenda', label: messages.calendar.view.agenda },
+    ] as const
+    const weekLabel = formatCalendarWeekLabel(new Date(2026, 7, 31), new Date(2026, 8, 6), locale)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><main style={{ height: 915, overflowY: 'auto', scrollbarGutter: 'stable' }}>
       <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-30" previousMonthLabel="Previous month" nextMonthLabel="Next month"
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
         periodNavigation={<CalendarWeekNav weekLabel={weekLabel} previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} />}
-        viewSelector={<SegmentedControl fullWidth options={options} value="week" onChange={vi.fn()} label={ptBR.calendar.view.switchLabel} />} />
-    </NextIntlClientProvider>)
+        viewSelector={<SegmentedControl fullWidth options={viewOptions} value="week" onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
+    </main></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -335,11 +341,18 @@ describe('Calendar header geometry in Chromium', () => {
           const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
           const controls = [...document.querySelectorAll('[data-testid="calendar-week-navigation"] button')].map((button) => {
             const box = button.getBoundingClientRect()
-            return { left: box.left, right: box.right, bottom: box.bottom, width: box.width, height: box.height, overflow: button.scrollWidth > button.clientWidth }
+            const content = document.createRange(); content.selectNodeContents(button)
+            const contentBox = content.getBoundingClientRect()
+            return { left: box.left, right: box.right, bottom: box.bottom, width: box.width, height: box.height, overflow: contentBox.left < box.left || contentBox.right > box.right }
           })
-          return { selectorTop: selector.top, selectorBottom: selector.bottom, controls, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }
+          const navigation = document.querySelector('[data-testid="calendar-week-navigation"]')!
+          const title = navigation.querySelectorAll('button')[1]!
+          const range = document.createRange(); range.selectNodeContents(title.querySelector('span') ?? title)
+          return { navigationHeight: navigation.getBoundingClientRect().height, titleLines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, titleRadius: Number.parseFloat(getComputedStyle(title).borderRadius), titleHeight: title.getBoundingClientRect().height, selectorTop: selector.top, selectorBottom: selector.bottom, controls, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }
         })
         expect(geometry.controls).toHaveLength(3)
+        if (scale === 1) { expect(geometry.navigationHeight).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
+        expect(geometry.titleRadius).toBeGreaterThanOrEqual(geometry.titleHeight / 2)
         expect(geometry.overflow).toBe(false)
         for (const control of geometry.controls) {
           expect(control.bottom).toBeLessThanOrEqual(geometry.selectorTop)
@@ -362,7 +375,12 @@ describe('Calendar header geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
-      const geometry = await page.evaluate(() => ({ page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, buttons: [...document.querySelectorAll('button')].map((button) => ({ left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, overflow: button.scrollWidth > button.clientWidth })) }))
+      const geometry = await page.evaluate(() => ({ page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, buttons: [...document.querySelectorAll('button')].map((button) => {
+        const box = button.getBoundingClientRect()
+        const content = document.createRange(); content.selectNodeContents(button)
+        const contentBox = content.getBoundingClientRect()
+        return { left: box.left, right: box.right, width: box.width, height: box.height, overflow: contentBox.left < box.left || contentBox.right > box.right }
+      }) }))
       expect(geometry.scroll, JSON.stringify(geometry)).toBe(geometry.page)
       for (const button of geometry.buttons) { expect(button.left).toBeGreaterThanOrEqual(16); expect(button.right).toBeLessThanOrEqual(304); expect(button.width).toBeGreaterThanOrEqual(48); expect(button.height).toBeGreaterThanOrEqual(48); expect(button.overflow).toBe(false) }
     } finally { await page.close() }

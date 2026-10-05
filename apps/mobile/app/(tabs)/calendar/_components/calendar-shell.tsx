@@ -85,7 +85,7 @@ export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, c
   const styles = createStyles(tokens)
   return <View testID="calendar-week-navigation" style={styles.navigation}>
     <Pressable accessibilityRole="button" accessibilityLabel={previousWeekLabel} onPress={onPreviousWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel={`${weekLabel}, ${currentWeekLabel}`} onPress={onCurrentWeek} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}><Text style={[styles.label, styles.weekLabel]}>{weekLabel}</Text></Pressable>
+    <PillButton size="sm" variant="ghost" minimumHeight={48} accessibleName={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</PillButton>
     <Pressable accessibilityRole="button" accessibilityLabel={nextWeekLabel} onPress={onNextWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
   </View>
 }
@@ -121,7 +121,6 @@ function createStyles(tokens: Tokens) {
     title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, color: tokens.fg1 },
     year: { color: tokens.fg2 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
-    weekLabel: { flexShrink: 1, textAlign: 'center' },
     selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },
     picker: { gap: 16, flexShrink: 1, minHeight: 0 },
     months: { flexDirection: 'row', flexWrap: 'wrap' },
