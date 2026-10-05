@@ -97,7 +97,7 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const key = boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today))
 
   return (
-    <div className="flex flex-col gap-6 pb-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
         {...view.nav.dateNav}
