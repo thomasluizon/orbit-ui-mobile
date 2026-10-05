@@ -178,7 +178,8 @@ for (const width of [600, 1352]) {
             await zone.focus()
             await expect(zone).toBeFocused()
             expect(await zone.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
-            expect(await zone.evaluate((element) => getComputedStyle(element).outlineWidth)).toBe('2px')
+            await expect(zone).toHaveCSS('outline-style', 'solid')
+            await expect(zone).toHaveCSS('outline-width', '2px')
           }
         }
         await page.emulateMedia({ forcedColors: 'none' })
