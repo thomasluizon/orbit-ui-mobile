@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
 import { AppSelect } from '@/components/ui/app-select'
 import { Switch } from '@/components/ui/switch'
-import Link from 'next/link'
+import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
 interface ReminderSectionProps {
@@ -105,14 +105,7 @@ export function ReminderSection({
           label={label}
         />
       </div>
-      <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
-        {permission.showNotice ? <>
-          {t('habits.form.reminderPermissionNeeded')}{' '}
-          <Link href="/profile/notifications" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
-            {t('habits.form.reminderSettingsAction')}
-          </Link>
-        </> : null}
-      </p>
+      <ReminderPermissionNotice visible={permission.showNotice} t={t} />
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">

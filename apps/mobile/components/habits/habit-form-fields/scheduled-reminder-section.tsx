@@ -1,3 +1,4 @@
+import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PillButton } from "@/components/ui/pill-button";
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -141,16 +142,7 @@ export function ScheduledReminderSection({
           label={t("habits.form.scheduledReminder")}
         />
       </View>}
-      {!nested && <View style={permission.showNotice ? { gap: 4 } : { position: "absolute" }}>
-          <Text accessibilityLiveRegion="polite" style={sectionStyles.hintText}>
-            {permission.showNotice ? t("habits.form.reminderPermissionNeeded") : ""}
-          </Text>
-          {permission.showNotice && <Pressable accessibilityRole="button" style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: "center", alignSelf: "flex-start" }} onPress={permission.openSettings}>
-            <Text style={[sectionStyles.hintText, { color: tokens.fg2, textDecorationLine: "underline" }]}>
-              {t("common.openSettings")}
-            </Text>
-          </Pressable>}
-      </View>}
+      {!nested && <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />}
       {reminderEnabled && (
         <View style={sectionStyles.body}>
           {(scheduledReminders?.length ?? 0) > 0 && (
