@@ -1085,7 +1085,7 @@
     "profileHint": "Importe eventos como hábitos",
     "fetchingEvents": "Buscando seus eventos...",
     "noEvents": "Nenhum evento",
-    "eventsFound": "{count} evento encontrado | {count} eventos encontrados",
+    "eventsFound": "{count} evento | {count} eventos",
     "selectAll": "Selecionar todos",
     "deselectAll": "Desmarcar todos",
     "importButton": "Importar {count} evento | Importar {count} eventos",

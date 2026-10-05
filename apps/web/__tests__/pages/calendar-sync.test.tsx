@@ -4,11 +4,16 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import { Sheet } from '@/components/ui/sheet'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
+import { plural as resolvePlural } from '@orbit/shared/utils/plural'
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -18,8 +23,11 @@ const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 
 
+let countLocale: 'en' | 'pt-BR' | null = null
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (key === 'calendar.eventsFound' && countLocale) return (countLocale === 'pt-BR' ? ptBR : en).calendar.eventsFound.replaceAll('{count}', String(params?.count))
     if (params) return `${key}:${JSON.stringify(params)}`
     return key
   },
@@ -46,7 +54,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/lib/plural', () => ({
-  plural: (text: string) => text,
+  plural: (text: string, count: number) => resolvePlural(text, count),
 }))
 
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
@@ -249,11 +257,11 @@ function CalendarSyncScreen() {
   </>
 }
 
-function renderPage() {
+function renderPage(inSheet = false) {
   const queryClient = new QueryClient()
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <CalendarSyncScreen />
+      {inSheet ? <Sheet title="calendar.calendars.title" onClose={() => {}}><CalendarSyncScreen /></Sheet> : <CalendarSyncScreen />}
     </QueryClientProvider>,
   )
   return { ...view, queryClient }
@@ -268,6 +276,7 @@ function setNavigatorOnline(value: boolean) {
 
 describe('CalendarSyncPage', () => {
   beforeEach(() => {
+    countLocale = null
     mockProfile = { id: 'u1', hasProAccess: true }
     mockHasProAccess = true
     mockPush.mockClear()
@@ -331,6 +340,35 @@ describe('CalendarSyncPage', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each((['pt-BR', 'en'] as const).flatMap((locale) => [2, 20, 100].map((count) => ({ locale, count }))))('keeps $count events on one line beside select all in $locale at 320', async ({ locale, count }) => {
+      countLocale = locale
+      const events = Array.from({ length: count }, (_, index) => createMockCalendarSyncEvent({ id: `count-${index}`, title: `Event ${index}`, isRecurring: false, recurrenceRule: null }))
+      mockFetchResponse = { ok: true, status: 200, json: () => Promise.resolve(events) }
+      renderPage(true)
+      await screen.findByText('Event 0')
+      const row = screen.getByTestId('section-heading-row')
+      const expected = `${count} ${locale === 'pt-BR' ? 'eventos' : 'events'}`
+      expect(row.querySelector('h2')?.textContent).toBe(expected)
+      const page = await browser.newPage({ viewport: { width: 320, height: 900 } })
+      try {
+        const portal = document.querySelector('.orbit-sheet-portal')!
+        await page.setContent(`<style>${stylesheet}</style>${portal.outerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.getByTestId('section-heading-row').getByRole('heading').evaluate((element) => {
+          const bounds = element.getBoundingClientRect()
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const fragments = [...range.getClientRects()]
+          return { lines: bounds.height / Number.parseFloat(getComputedStyle(element).lineHeight), textWidth: fragments[0]!.width, measure: bounds.width, contentMeasure: element.parentElement!.getBoundingClientRect().width }
+        })
+        process.stdout.write(`${JSON.stringify({ platform: 'web', locale, count, ...geometry })}\n`)
+        expect(geometry.contentMeasure).toBe(272)
+        expect(geometry.measure).toBe(216)
+        expect(geometry.lines).toBe(1)
+        expect(geometry.textWidth).toBeLessThanOrEqual(geometry.measure)
+      } finally { await page.close() }
+    })
 
     function provideEvents(review: boolean, blocked: boolean, rowEvent: CalendarSyncEvent = longEvent) {
       const event = blocked ? { ...rowEvent, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;COUNT=3', startDate: '2026-01-31', startTime: null } : rowEvent

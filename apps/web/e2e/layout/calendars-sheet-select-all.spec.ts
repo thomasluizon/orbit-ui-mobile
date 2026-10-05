@@ -75,18 +75,22 @@ for (const width of [320, 412, 1352]) {
         }
       })
 
-      test('keeps select all on the first heading line at default and enlarged text sizes', async ({ page }) => {
-        await page.goto('/calendar?import=1')
-        const sheet = page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })
-        const row = sheet.getByTestId('section-heading-row')
-        await expect(row.getByRole('heading')).toBeVisible()
-        await expect(row.getByRole('button', { name: words.calendar.deselectAll, exact: true })).toBeVisible()
-        const body = sheet.locator('[data-slot="sheet-body"]')
-        await expectHeadingAlignment(row, body)
-        expect(await row.getByRole('heading').evaluate((element) => element.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(element).lineHeight))).toBeCloseTo(1, 1)
-        await doubleSheetText(sheet)
-        await expectHeadingAlignment(row, body)
-      })
+      for (const count of [2, 20, 100]) {
+        test(`keeps select all on the first heading line with ${count} events at default and enlarged text sizes`, async ({ context, page }) => {
+          const countedEvents = calendarEventsResponseSchema.parse(Array.from({ length: count }, (_, index) => ({ ...events[index % events.length]!, id: `event-${index}` })))
+          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.calendar.events, (route) => route.fulfill({ json: countedEvents }))
+          await page.goto('/calendar?import=1')
+          const sheet = page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })
+          const row = sheet.getByTestId('section-heading-row')
+          await expect(row.getByRole('heading')).toHaveText(`${count} ${locale === 'pt-BR' ? 'eventos' : 'events'}`)
+          await expect(row.getByRole('button', { name: words.calendar.deselectAll, exact: true })).toBeVisible()
+          const body = sheet.locator('[data-slot="sheet-body"]')
+          await expectHeadingAlignment(row, body)
+          expect(await row.getByRole('heading').evaluate((element) => element.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(element).lineHeight))).toBeCloseTo(1, 1)
+          await doubleSheetText(sheet)
+          await expectHeadingAlignment(row, body)
+        })
+      }
 
       test('omits select all when every event has an import issue', async ({ context, page }) => {
         const blocked = calendarEventsResponseSchema.parse(events.map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' })))
