@@ -4,14 +4,16 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { describe, expect, it, vi } from 'vitest'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { createTokensV2 } from '@/lib/theme'
 import { press, renderNavigation } from '../ui/navigation-render'
 
-const theme = vi.hoisted((): { currentScheme: 'purple'; currentTheme: 'dark' | 'light' } => ({
-  currentScheme: 'purple',
+const theme = vi.hoisted((): { currentScheme: 'orange'; currentTheme: 'dark' | 'light' } => ({
+  currentScheme: 'orange',
   currentTheme: 'dark',
 }))
 
@@ -34,6 +36,55 @@ function getTabChildStyle(tab: { props: { children?: unknown }; parent?: { props
 }
 
 describe('BottomTabBar', () => {
+  it.each(['light', 'dark'].flatMap((mode) => [false, true].map((icons) => ({ mode: mode as 'light' | 'dark', icons }))))('measures selected tab hover and press-only text in $mode with icons=$icons', async ({ mode, icons }) => {
+    theme.currentTheme = mode
+    const tokens = createTokensV2(theme.currentScheme, mode)
+    const onSelect = vi.fn()
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<BottomTabBar items={items.map((item) => ({ ...item, icon: icons ? () => <View /> : undefined }))} activeId="today" onSelect={onSelect} label="Navigation" />) })
+    const tab = () => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'tab-today-current')[0]!
+    const measure = () => {
+      const label = tab().findAll((node) => String(node.type) === 'Text')[0]!
+      const color = StyleSheet.flatten(label.props.style as StyleProp<TextStyle>).color as string
+      const destinations = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'bottom-tab-destinations')[0]!
+      const backgrounds = [destinations, tab(), label].flatMap((node) => {
+        const fill = StyleSheet.flatten<ViewStyle>(node.props.style ?? {}).backgroundColor
+        return typeof fill === 'string' ? [fill] : []
+      })
+      return { color, backgrounds }
+    }
+    try {
+      const resting = measure()
+      const bounds = StyleSheet.flatten(tab().props.style as StyleProp<ViewStyle>)
+      expect(resting.color).toBe(tokens.primarySoft)
+      expect(contrastOnSurface(resting.color, resting.backgrounds)).toBeGreaterThanOrEqual(4.5)
+      await act(() => { (tab().props.onHoverIn as () => void)() })
+      const hovered = measure()
+      expect(hovered.color).toBe(tokens.primaryText)
+      expect(hovered.backgrounds).toEqual([tokens.bg, tokens.bgHover])
+      expect(contrastOnSurface(hovered.color, hovered.backgrounds)).toBeGreaterThanOrEqual(4.5)
+      await act(() => { (tab().props.onPressIn as () => void)() })
+      expect(measure()).toEqual(hovered)
+      await act(() => { (tab().props.onHoverOut as () => void)() })
+      const pressed = measure()
+      expect(pressed.color).toBe(tokens.primaryText)
+      expect(pressed.backgrounds).toEqual([tokens.bg])
+      expect(contrastOnSurface(pressed.color, pressed.backgrounds)).toBeGreaterThanOrEqual(4.5)
+      if (icons) {
+        const indicator = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'tab-indicator-today')[0]!
+        expect(StyleSheet.flatten(indicator.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(tokens.bgHover)
+      }
+      expect(StyleSheet.flatten(tab().props.style as StyleProp<ViewStyle>)).toEqual(bounds)
+      expect(tab().props.accessibilityState).toEqual({ selected: true })
+      expect(onSelect).not.toHaveBeenCalled()
+      await act(() => { (tab().props.onPressOut as () => void)() })
+      expect(measure()).toEqual(resting)
+      await act(() => { (tab().props.onPress as () => void)() })
+      expect(onSelect).toHaveBeenCalledExactlyOnceWith('today')
+      expect(tab().props.accessibilityState).toEqual({ selected: true })
+    } finally { await act(() => { tree.update(<></>) }) }
+  })
+
   it('renders caller words, one current tab and controlled selection without icons', () => {
     const onSelect = vi.fn()
     const tree = renderNavigation(<BottomTabBar items={items} activeId="calendar" onSelect={onSelect} label="Navigation" />)
@@ -125,7 +176,7 @@ describe('BottomTabBar', () => {
     expect(StyleSheet.flatten(getTabChildStyle(inactiveTab, false))).toMatchObject({ color: tokens.fg3 })
     expect(StyleSheet.flatten(getTabChildStyle(inactiveTab, true))).toMatchObject({ color: tokens.fg3 })
     expect(StyleSheet.flatten(getTabChildStyle(activeTab, false))).toMatchObject({ color: tokens.primarySoft })
-    expect(StyleSheet.flatten(getTabChildStyle(activeTab, true))).toMatchObject({ color: tokens.primarySoft })
+    expect(StyleSheet.flatten(getTabChildStyle(activeTab, true))).toMatchObject({ color: tokens.primaryText })
     tree.unmount()
   })
 })
