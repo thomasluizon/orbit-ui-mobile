@@ -76,7 +76,7 @@ for (const width of [320, 360, 384, 412]) {
         await opener.click()
         const conversation = page.locator('[data-shell-conversation="overlay"]')
         const field = conversation.locator('[data-composer-input]')
-        await markRequiredLabels(conversation.getByRole('log').getByText(words.chat.empty.title, { exact: true }))
+        await markRequiredLabels(conversation.getByRole('feed').getByText(words.chat.empty.title, { exact: true }))
         await expectLabelsFit(page, conversation)
         for (const fontScale of [1, 1.5, 2]) {
           await page.evaluate(scale => { document.documentElement.style.fontSize = `${16 * scale}px` }, fontScale)

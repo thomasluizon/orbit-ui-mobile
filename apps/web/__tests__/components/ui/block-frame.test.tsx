@@ -35,7 +35,7 @@ describe('BlockFrame on web', () => {
 
   it('renders a busy loading skeleton without row labels', () => {
     const { container } = render(<BlockFrame {...resting({ state: 'loading', actions: <button>Save</button> })} />)
-    expect(container.querySelector('[data-state="loading"]')).toHaveAttribute('aria-busy', 'true')
+    expect(container.querySelector('[data-state="loading"]')).not.toHaveAttribute('aria-busy')
     expect(container.querySelector('[data-loading-skeleton]')).toBeInTheDocument()
     expect(screen.queryByText('First row')).not.toBeInTheDocument()
   })
@@ -194,13 +194,13 @@ describe('BlockFrame on web', () => {
     expect(screen.queryByRole('button', { name: 'Apply' })).not.toBeInTheDocument()
   })
 
-  it('keeps announcements local and exposes busy state only while working', () => {
+  it('keeps announcements local without owning feed busy state', () => {
     const { container, rerender } = render(<BlockFrame {...resting()} />)
     expect(container.querySelector('[aria-live="polite"]')).toBeInTheDocument()
     expect(container.querySelector('[data-state="resting"]')).not.toHaveAttribute('aria-busy')
 
     rerender(<BlockFrame {...resting({ state: 'acting' })} />)
-    expect(container.querySelector('[data-state="acting"]')).toHaveAttribute('aria-busy', 'true')
+    expect(container.querySelector('[data-state="acting"]')).not.toHaveAttribute('aria-busy')
     expect(screen.getAllByText('In progress')).toHaveLength(items.length)
   })
 })

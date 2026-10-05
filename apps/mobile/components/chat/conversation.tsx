@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
-import { chatTraceLabelKey } from "@orbit/shared/chat";
+import { chatTraceLabelKey, stripChatDirectives } from "@orbit/shared/chat";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
@@ -67,6 +67,25 @@ function ThinkingTrace({ steps, running }: Readonly<{
   </View>;
 }
 
+function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: Readonly<{
+  content: string;
+  complete: boolean;
+  messageId: string;
+  claimAnnouncement: (messageId: string) => boolean;
+}>) {
+  const [announcement, setAnnouncement] = useState('');
+  useEffect(() => {
+    if (!complete || !content) return;
+    let mounted = true;
+    void Promise.resolve().then(() => {
+      if (!mounted || !claimAnnouncement(messageId)) return;
+      setAnnouncement(stripChatDirectives(content));
+    });
+    return () => { mounted = false; };
+  }, [complete, content, messageId, claimAnnouncement]);
+  return <Text accessibilityLiveRegion="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{announcement}</Text>;
+}
+
 export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -110,6 +129,25 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const keyboardScroll = useConversationKeyboardScroll(flatListRef);
 
 
+  const announcedMessageIds = useRef(new Set<string>());
+  const claimAnnouncement = useCallback((messageId: string) => {
+    if (announcedMessageIds.current.has(messageId)) return false;
+    announcedMessageIds.current.add(messageId);
+    return true;
+  }, []);
+
+  const [batchCount, setBatchCount] = useState(0);
+  const executeBatch = useCallback(async (...args: Parameters<typeof confirmAndExecutePendingOperation>) => {
+    setBatchCount((count) => count + 1);
+    try { return await confirmAndExecutePendingOperation(...args); }
+    finally { setBatchCount((count) => count - 1); }
+  }, [confirmAndExecutePendingOperation]);
+  const verifyBatch = useCallback(async (...args: Parameters<typeof verifyStepUpForBubble>) => {
+    setBatchCount((count) => count + 1);
+    try { return await verifyStepUpForBubble(...args); }
+    finally { setBatchCount((count) => count - 1); }
+  }, [verifyStepUpForBubble]);
+
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
@@ -144,6 +182,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
     ({ item }) => (
       <View style={{ gap: 16 }}>
+      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={!initialMessageIds.has(item.id) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
         animateEntry={!initialMessageIds.has(item.id)}
@@ -152,16 +191,17 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         onActionChipClick={handleActionChipClick}
         onPendingOperationRevise={revisePendingOperationForBubble}
         onPendingOperationRefresh={refreshPendingOperationForBubble}
-        onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
+        onPendingOperationConfirmExecute={executeBatch}
         onPendingOperationPrepareStepUp={prepareStepUpForBubble}
-        onPendingOperationVerifyStepUp={verifyStepUpForBubble}
+        onPendingOperationVerifyStepUp={verifyBatch}
       />
       {item.toolSteps?.length ? <ThinkingTrace steps={item.toolSteps} running={false} /> : null}
       {item.role === 'ai' && item.id === messages.at(-1)?.id && canShowFollowUps && item.followUps ? <FollowUpChips followUps={item.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
       </View>
     ),
     [
-      confirmAndExecutePendingOperation,
+      executeBatch,
+      claimAnnouncement,
       handleActionChipClick,
       handleBreakdownConfirmed,
       initialMessageIds,
@@ -172,7 +212,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       refreshPendingOperationForBubble,
       prepareStepUpForBubble,
       streamingMessageId,
-      verifyStepUpForBubble,
+      isTyping,
+      verifyBatch,
     ],
   );
 
@@ -224,8 +265,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               onLayout={keyboardScroll.onLayout}
               ListFooterComponent={activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
               accessibilityLabel={t("chat.title")}
-              accessibilityLiveRegion={activeSteps.length > 0 ? "none" : "polite"}
-              accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 }}
+              accessibilityState={{ busy: isTyping || streamingMessageId !== null || activeSteps.length > 0 || batchCount > 0 }}
             />
           </View>
         )}
