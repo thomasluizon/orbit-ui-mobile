@@ -96,6 +96,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
+    isPendingOperationBusy = false,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -112,18 +113,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     announcedMessageIds.current.add(messageId)
     return true
   }, [])
-
-  const [batchCount, setBatchCount] = useState(0)
-  const executeBatch = useCallback(async (...args: Parameters<typeof confirmAndExecutePendingOperation>) => {
-    setBatchCount((count) => count + 1)
-    try { return await confirmAndExecutePendingOperation(...args) }
-    finally { setBatchCount((count) => count - 1) }
-  }, [confirmAndExecutePendingOperation])
-  const verifyBatch = useCallback(async (...args: Parameters<typeof verifyStepUpForBubble>) => {
-    setBatchCount((count) => count + 1)
-    try { return await verifyStepUpForBubble(...args) }
-    finally { setBatchCount((count) => count - 1) }
-  }, [verifyStepUpForBubble])
 
   const [initialMessageIds] = useAccountScopedState(() => new Set(messages.map((message) => message.id)))
 
@@ -200,7 +189,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
         style={{ padding: 16 }}
         role="feed"
-        aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || batchCount > 0}
+        aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
         {showSuggestions && <ChatEmptyState
@@ -230,9 +219,9 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             onActionChipClick={handleActionChipClick}
             onPendingOperationRevise={revisePendingOperationForBubble}
             onPendingOperationRefresh={refreshPendingOperationForBubble}
-            onPendingOperationConfirmExecute={executeBatch}
+            onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
             onPendingOperationPrepareStepUp={prepareStepUpForBubble}
-            onPendingOperationVerifyStepUp={verifyBatch}
+            onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
           {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}

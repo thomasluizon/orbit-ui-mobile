@@ -5,12 +5,16 @@ import { FlatList, type FlatListProps, type View } from 'react-native'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { MessageBubbleProps } from '@orbit/shared/chat'
 import { AstraConversation } from '@/components/chat/conversation'
+import { usePendingOperationExecution } from '@/hooks/use-pending-operation-execution'
 import { renderedText } from '../../support/react-test-renderer'
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'pt-BR' } }),
 }))
+const api = vi.hoisted(() => ({ request: vi.fn() }))
+vi.mock('@/lib/api-client', () => ({ apiClient: api.request }))
+
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
@@ -131,23 +135,44 @@ it('mounts final-only replies with an empty region before announcing', async () 
   expect(renderedText(politeRegions()[0]!.props.children)).toBe('Final only')
 })
 
-it.each(['onPendingOperationConfirmExecute', 'onPendingOperationVerifyStepUp'] as const)(
-  'keeps the list busy through %s and clears it after failure', async (callback) => {
-    const chat = buildChat()
-    chat.messages = [{ id: 'reply', role: 'ai', content: 'Preview', timestamp: new Date() }]
-    let finish!: (result: { ok: false; error: string; stale: undefined }) => void
-    const pending = new Promise<{ ok: false; error: string; stale: undefined }>((resolve) => { finish = resolve })
-    chat.confirmAndExecutePendingOperation = vi.fn(() => pending)
-    chat.verifyStepUpForBubble = vi.fn(() => pending)
-    mount(chat)
-    const bubble = tree.root.findAll(node => node.type === 'MessageBubbleStub')[0]!
-    let execution: Promise<unknown>
-    void act(() => { execution = (bubble.props[callback] as (...args: string[]) => Promise<unknown>)('operation', 'challenge', '123456', 'token') })
-    expect(list().props.accessibilityState).toEqual({ busy: true })
-    await act(async () => { finish({ ok: false, error: 'Failed', stale: undefined }); await execution })
-    expect(list().props.accessibilityState).toEqual({ busy: false })
-  },
-)
+const onExecuted = () => Promise.resolve()
+function BatchConversation({ open = true }: { open?: boolean }) {
+  const operations = usePendingOperationExecution({ handleExecutedOperation: onExecuted })
+  const chat = buildChat()
+  chat.messages = [{ id: 'preview', role: 'ai', content: 'Preview', timestamp: new Date() }]
+  return open ? <AstraConversation chat={{ ...chat, ...operations }} /> : null
+}
+
+const batchCallbacks = ['onPendingOperationConfirmExecute', 'onPendingOperationPrepareStepUp', 'onPendingOperationVerifyStepUp'] as const
+function startBatch(callback: typeof batchCallbacks[number]) {
+  const bubble = tree.root.findAll(node => node.type === 'MessageBubbleStub')[0]!
+  return (bubble.props[callback] as (...args: string[]) => Promise<unknown>)('operation', 'challenge', '123456', 'token')
+}
+
+it.each(batchCallbacks)('keeps the list busy through %s and clears it after failure', async (callback) => {
+  let fail!: (error: Error) => void
+  api.request.mockReturnValue(new Promise((_, reject) => { fail = reject }))
+  void act(() => { tree = create(<BatchConversation />) })
+  let execution!: Promise<unknown>
+  void act(() => { execution = startBatch(callback) })
+  expect(list().props.accessibilityState).toEqual({ busy: true })
+  await act(async () => { fail(new Error('Failed')); await execution })
+  expect(list().props.accessibilityState).toEqual({ busy: false })
+})
+
+it.each(batchCallbacks)('keeps a reopened conversation busy during %s', async (callback) => {
+  let fail!: (error: Error) => void
+  api.request.mockReturnValue(new Promise((_, reject) => { fail = reject }))
+  void act(() => { tree = create(<BatchConversation />) })
+  let execution!: Promise<unknown>
+  void act(() => { execution = startBatch(callback) })
+  void act(() => { tree.update(<BatchConversation open={false} />) })
+  void act(() => { tree.update(<BatchConversation />) })
+  expect(list().props.accessibilityState).toEqual({ busy: true })
+  await act(async () => { fail(new Error('Failed')); await execution })
+  expect(list().props.accessibilityState).toEqual({ busy: false })
+})
+
 
 it('does not repeat a completed reply when its row remounts', async () => {
   const chat = buildChat()

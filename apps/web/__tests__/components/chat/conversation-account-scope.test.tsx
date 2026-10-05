@@ -3,8 +3,17 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'pt-BR',
   useTranslations: () => (key: string, values?: { count?: number }) =>
     key === 'chat.trace.steps' ? `${values?.count} steps` : key,
+}))
+
+const operationsApi = vi.hoisted(() => ({ confirm: vi.fn(), verify: vi.fn() }))
+vi.mock('@/app/actions/chat', () => ({
+  confirmPendingOperation: operationsApi.confirm,
+  verifyPendingOperationStepUp: operationsApi.verify,
+  executePendingOperation: vi.fn(), issuePendingOperationStepUp: vi.fn(),
+  revisePendingOperation: vi.fn(), refreshPendingOperation: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -33,17 +42,20 @@ vi.mock('@/components/chat/message-bubble', () => ({
     onActionChipClick,
     onPendingOperationConfirmExecute,
     onPendingOperationVerifyStepUp,
+    onPendingOperationPrepareStepUp,
   }: {
     message: { id: string; role: string }
     senderLabelId?: string
     onActionChipClick: (entityId: string, actionType: string) => void
     onPendingOperationConfirmExecute: (id: string) => Promise<unknown>
+    onPendingOperationPrepareStepUp: (id: string) => Promise<unknown>
     onPendingOperationVerifyStepUp: (id: string, challenge: string, code: string, token: string) => Promise<unknown>
   }) => (
     <div>
       <span id={senderLabelId}>{message.role === 'user' ? 'chat.senderYou' : 'chat.senderOrbit'}</span>
       <button type="button" onClick={() => onActionChipClick('goal-1', 'UpdateGoal')}>open {message.id}</button>
       <button type="button" onClick={() => void onPendingOperationConfirmExecute('operation')}>Apply batch</button>
+      <button type="button" onClick={() => void onPendingOperationPrepareStepUp('operation')}>Prepare batch</button>
       <button type="button" onClick={() => void onPendingOperationVerifyStepUp('operation', 'challenge', '123456', 'token')}>Verify batch</button>
     </div>
   ),
@@ -56,6 +68,7 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({
 }))
 
 import { AstraConversation } from '@/components/chat/conversation'
+import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -248,20 +261,44 @@ it('keeps final-only reply regions empty on insertion before announcing', async 
   await vi.waitFor(() => expect(region).toHaveTextContent('Final only'))
 })
 
-it.each(['Apply batch', 'Verify batch'])('keeps the feed busy through %s and clears it after failure', async (label) => {
-  const chat = buildChat()
-  let finish!: (result: { ok: false; error: string }) => void
-  const pending = new Promise<{ ok: false; error: string }>((resolve) => { finish = resolve })
-  chat.confirmAndExecutePendingOperation = vi.fn(() => pending)
-  chat.verifyStepUpForBubble = vi.fn(() => pending)
-  render(<AstraConversation chat={chat} />)
+const onExecuted = () => Promise.resolve()
+function BatchConversation({ open = true }: { open?: boolean }) {
+  const operations = useChatPendingOperations(onExecuted)
+  return open ? <AstraConversation chat={{ ...buildChat(), ...operations }} /> : null
+}
+
+const batchLabels = ['Apply batch', 'Prepare batch', 'Verify batch'] as const
+function deferBatch() {
+  let finish!: (result: { ok: false; error: string; status: number }) => void
+  const pending = new Promise<{ ok: false; error: string; status: number }>((resolve) => { finish = resolve })
+  operationsApi.confirm.mockReturnValue(pending)
+  operationsApi.verify.mockReturnValue(pending)
+  return { pending, finish }
+}
+
+it.each(batchLabels)('keeps the feed busy through %s and clears it after failure', async (label) => {
+  const { pending, finish } = deferBatch()
+  render(<BatchConversation />)
   const feed = screen.getByRole('feed')
   expect(feed).toHaveAttribute('aria-busy', 'false')
   fireEvent.click(screen.getByRole('button', { name: label }))
   expect(feed).toHaveAttribute('aria-busy', 'true')
-  await act(async () => { finish({ ok: false, error: 'Failed' }); await pending })
+  await act(async () => { finish({ ok: false, error: 'Failed', status: 500 }); await pending })
   expect(feed).toHaveAttribute('aria-busy', 'false')
 })
+
+it.each(batchLabels)('keeps a reopened conversation busy during %s', async (label) => {
+  const { pending, finish } = deferBatch()
+  const view = render(<BatchConversation />)
+  fireEvent.click(screen.getByRole('button', { name: label }))
+  view.rerender(<BatchConversation open={false} />)
+  view.rerender(<BatchConversation />)
+  const feed = screen.getByRole('feed')
+  expect(feed).toHaveAttribute('aria-busy', 'true')
+  await act(async () => { finish({ ok: false, error: 'Failed', status: 500 }); await pending })
+  expect(feed).toHaveAttribute('aria-busy', 'false')
+})
+
 
 it('does not repeat a completed reply when its article remounts', async () => {
   const chat = buildChat()

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import type { RevisePendingOperationRequest } from '@orbit/shared/types/ai'
@@ -63,6 +63,12 @@ export function useChatPendingOperations(
 ) {
   const t = useTranslations()
   const locale = useLocale()
+  const [batchCount, setBatchCount] = useState(0)
+  const trackBatch = useCallback(async <Result,>(operation: () => Promise<Result>) => {
+    setBatchCount((count) => count + 1)
+    try { return await operation() }
+    finally { setBatchCount((count) => count - 1) }
+  }, [])
 
   const revisePendingOperationForBubble = useCallback(async (id: string, request: RevisePendingOperationRequest) => {
     const intendedAccountId = getHeldAccountId()
@@ -186,11 +192,19 @@ export function useChatPendingOperations(
     [onExecuted, t],
   )
 
+  const trackedExecute = useCallback((...args: Parameters<typeof confirmAndExecutePendingOperation>) =>
+    trackBatch(() => confirmAndExecutePendingOperation(...args)), [confirmAndExecutePendingOperation, trackBatch])
+  const trackedPrepare = useCallback((...args: Parameters<typeof prepareStepUpForBubble>) =>
+    trackBatch(() => prepareStepUpForBubble(...args)), [prepareStepUpForBubble, trackBatch])
+  const trackedVerify = useCallback((...args: Parameters<typeof verifyStepUpForBubble>) =>
+    trackBatch(() => verifyStepUpForBubble(...args)), [verifyStepUpForBubble, trackBatch])
+
   return {
+    isPendingOperationBusy: batchCount > 0,
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
-    confirmAndExecutePendingOperation,
-    prepareStepUpForBubble,
-    verifyStepUpForBubble,
+    confirmAndExecutePendingOperation: trackedExecute,
+    prepareStepUpForBubble: trackedPrepare,
+    verifyStepUpForBubble: trackedVerify,
   }
 }
