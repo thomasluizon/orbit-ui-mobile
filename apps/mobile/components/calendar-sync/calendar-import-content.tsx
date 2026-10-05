@@ -510,7 +510,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                   <View style={{ minWidth: 0, flex: 1, paddingTop: Math.max(0, (TOUCH_TARGET_MIN - 24 * fontScale) / 2) }}>
                     <Text
                       accessibilityRole="header"
-                      style={{ fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24, letterSpacing: -0.2, color: tokens.fg1 }}
+                      style={{ fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24, letterSpacing: -0.2, fontVariant: ['tabular-nums'], color: tokens.fg1 }}
                     >
                       {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
                     </Text>

@@ -398,7 +398,7 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 data-testid="section-heading-row"
                 className="flex items-start gap-2 pt-6 pb-3 font-sans text-[20px] leading-[1.2]"
               >
-                <h2 className="min-w-0 flex-1 font-medium tracking-[-0.01em] text-[var(--fg-1)]">
+                <h2 className="min-w-0 flex-1 font-medium tabular-nums text-balance tracking-[-0.01em] text-[var(--fg-1)]">
                   {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
                 </h2>
                 {importableEvents.length > 0 && (

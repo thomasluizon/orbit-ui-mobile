@@ -34,7 +34,7 @@ async function expectHeadingAlignment(row: Locator, body: Locator) {
     const bounds = element.getBoundingClientRect()
     return {
       start: bounds.left + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft),
-      end: bounds.right - Number.parseFloat(style.borderRightWidth) - Number.parseFloat(style.paddingRight),
+      end: bounds.left + element.clientLeft + element.clientWidth - Number.parseFloat(style.paddingRight),
     }
   })
   const bounds = await toggle.boundingBox()

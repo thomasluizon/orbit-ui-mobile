@@ -1,4 +1,5 @@
 import React from "react";
+import * as ReactNative from 'react-native';
 import { StyleSheet, type ViewStyle } from 'react-native';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
@@ -311,7 +312,7 @@ vi.mock("react-native", async (importOriginal) => {
 });
 
 describe("CalendarSyncScreen", () => {
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
   beforeEach(() => {
     mocks.reducedMotion = false;
     mocks.realPressTokens = false;
@@ -349,7 +350,8 @@ describe("CalendarSyncScreen", () => {
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
   });
 
-  it('keeps select all after the heading in one row', async () => {
+  it.each([1, 2])('keeps select all after the first heading line at font scale %s', async (fontScale) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 320, height: 915, scale: 1, fontScale });
     mocks.eventsQuery.data = { status: 'connected', events: buildEvents(2) };
     let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
@@ -361,6 +363,14 @@ describe("CalendarSyncScreen", () => {
     expect(content.indexOf(heading)).toBeLessThan(content.indexOf(toggle));
     expect(toggle.props.disabled).toBeUndefined();
     expect(toggle.props.accessibilityState).toEqual({ selected: true });
+    const headingContainer = row.findAll((node) => node.type === 'View' && node.findAll((child) => child === heading).length > 0).at(-1)!;
+    const toggleContainer = row.findAll((node) => node.type === 'View' && node.findAll((child) => child === toggle).length > 0).at(-1)!;
+    const headingStyle = StyleSheet.flatten(heading.props.style as ViewStyle & { lineHeight: number });
+    const headingContainerStyle = StyleSheet.flatten(headingContainer.props.style as ViewStyle);
+    const toggleContainerStyle = StyleSheet.flatten(toggleContainer.props.style as ViewStyle);
+    expect(toggleContainerStyle.height).toBeGreaterThanOrEqual(48);
+    expect((headingContainerStyle.paddingTop as number) + headingStyle.lineHeight * fontScale / 2).toBe((toggleContainerStyle.height as number) / 2);
+    dimensions.mockRestore();
   });
 
   it.each([false, true])('omits select all when every event has an import issue, review: %s', async (review) => {
