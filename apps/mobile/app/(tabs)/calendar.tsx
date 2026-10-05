@@ -89,7 +89,7 @@ import { plural } from '@/lib/plural';
 import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarEntryDetails } from './calendar/_components/calendar-entry-details';
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
-import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
+import { CalendarRangeNavigation, CalendarRangeView } from "./calendar/_components/calendar-range-view";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 import { useCurrentDate } from "./use-today-date";
 import { useUIStore } from "@/stores/ui-store";
@@ -353,7 +353,6 @@ function CalendarProfileState({
               onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
               onSelectMonth={(month, year) => setSelectedDay(formatAPIDate(new Date(year, month, 1)))}
               tokens={tokens}
-              showMonthNavigation={view === 'month'}
               viewSelector={<SegmentedControl<CalendarView> fullWidth options={[
                 { value: 'month', label: t('calendar.view.month') },
                 { value: 'week', label: t('calendar.view.week') },
@@ -447,6 +446,7 @@ function CalendarScreenContent({
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
+  const [agendaOffset, setAgendaOffset] = useState(0);
   const [rangeOffset, setRangeOffset] = useState(0);
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
@@ -529,7 +529,7 @@ function CalendarScreenContent({
     return { lo: addDays(rangeEnd, -(MAX_RANGE_DAYS - 1)), hi: rangeEnd };
   }, [rangeEnd]);
 
-  const agendaStart = useMemo(() => parseAPIDate(todayKey), [todayKey]);
+  const agendaStart = useMemo(() => addDays(parseAPIDate(todayKey), agendaOffset * 7), [agendaOffset, todayKey]);
   const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart]);
 
   let gridStartDate = rangeBounds.lo;
@@ -818,8 +818,7 @@ function CalendarScreenContent({
         onCurrentMonth={goToCurrentMonth}
         onSelectMonth={selectMonth}
         tokens={tokens}
-        showMonthNavigation={view === 'month'}
-        periodNavigation={view === 'week' && <CalendarWeekNav
+        periodNavigation={{ month: undefined, week: <CalendarWeekNav
           weekLabel={weekLabel}
           previousWeekLabel={t('common.previousWeek')}
           nextWeekLabel={t('common.nextWeek')}
@@ -828,7 +827,24 @@ function CalendarScreenContent({
           onNextWeek={nextWeek}
           onCurrentWeek={goToCurrentWeek}
           tokens={tokens}
-        />}
+        />, range: <CalendarRangeNavigation
+        rangeLabel={rangeLabel}
+        previousRangeLabel={t('calendar.range.previous')}
+        nextRangeLabel={t('calendar.range.next')}
+        onPreviousRange={previousRange}
+        onNextRange={nextRange}
+        nextRangeDisabled={rangeOffset === 0}
+        tokens={tokens}
+      />, agenda: <CalendarWeekNav
+        weekLabel={formatCalendarWeekLabel(agendaStart, agendaEnd, i18n.language)}
+        previousWeekLabel={t('common.previousWeek')}
+        nextWeekLabel={t('common.nextWeek')}
+        currentWeekLabel={t('dates.today')}
+        onPreviousWeek={() => setAgendaOffset((offset) => offset - 1)}
+        onNextWeek={() => setAgendaOffset((offset) => offset + 1)}
+        onCurrentWeek={() => setAgendaOffset(0)}
+        tokens={tokens}
+      /> }[view]}
         viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
       />
   );
@@ -965,17 +981,11 @@ function CalendarScreenContent({
               model={rangeModel}
               weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
               rangeLabel={rangeLabel}
-              previousRangeLabel={t("calendar.range.previous")}
-              nextRangeLabel={t("calendar.range.next")}
-              onPreviousRange={previousRange}
-              onNextRange={nextRange}
-              nextRangeDisabled={rangeOffset === 0}
               isLoading={rangeLoading}
               loadingLabel={t("common.loading")}
               stats={rangeStatTiles}
               language={i18n.language}
               t={t}
-              tokens={tokens}
             />
           ) : (
             <CalendarAgendaView
@@ -1086,7 +1096,7 @@ function createStyles() {
 
     errorWrap: {
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingBottom: 12,
     },
     profileStateWrap: {
       flex: 1,

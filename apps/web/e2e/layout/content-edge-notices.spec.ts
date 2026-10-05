@@ -12,9 +12,8 @@ const notification = createMockNotification({ title: 'Layout notification' })
 const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
 
 async function expectContentEdges(surface: Locator, reference: 'shell-column' | 'notice-column') {
-  const gutter = reference === 'shell-column'
-    ? await surface.locator('xpath=ancestor::*[@data-shell-scroller]').evaluate(measureScrollbarGutter)
-    : 0
+  const gutter = await surface.locator('xpath=ancestor::*[@data-shell-column]')
+    .locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
   const geometry = await surface.evaluate((element, { reference, gutter }) => {
     const contentColumn = reference === 'shell-column'
       ? element.closest('[data-shell-column]')

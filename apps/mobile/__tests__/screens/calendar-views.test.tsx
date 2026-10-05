@@ -388,9 +388,68 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  it.each([320, 412, 600, 840])('keeps all view switches aligned with 24 dp body clearance at %i dp', (width) => {
+    __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
+    type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
+    let tree!: Tree & { toJSON: () => Host | Host[]; unmount: () => void };
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    state.language = 'pt-BR';
+    state.periodGeometry = true;
+    TestRenderer.act(() => tree.update(<CalendarScreen />));
+    let switchTop: number | undefined;
+    try {
+      for (const view of ['month', 'week', 'range', 'agenda'] as const) {
+        if (view !== 'month') pressView(tree, view);
+        const month = view === 'month' ? renderMonthHeader(tree) as unknown as Tree & { toJSON: () => Host | Host[] } : undefined;
+        const hosts = [(month ?? tree).toJSON()].flat();
+        const findBand = (children: Host[]): Host[] | undefined => {
+          const index = children.findIndex((host) => host.props.testID === 'calendar-header-group');
+          if (index >= 0) return children.slice(index, index + 2);
+          return children.map((host) => findBand((host.children ?? []).filter((child): child is Host => typeof child !== 'string'))).find(Boolean);
+        };
+        const band = findBand(hosts)!;
+        const measured = measureProfileRow({ type: 'View', props: {}, children: band }, width, 1);
+        const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
+        const top = Math.min(...segments.map((segment) => segment.top));
+        const bottom = Math.max(...segments.map((segment) => segment.bottom));
+        if (switchTop === undefined) switchTop = top;
+        expect.soft(top, view).toBe(switchTop);
+        const firstBodyText = measured.texts.filter((text) => text.top >= bottom).sort((a, b) => a.top - b.top)[0]!;
+        expect.soft(firstBodyText.top - bottom, `${view} body clearance`).toBe(24);
+        if (month) TestRenderer.act(() => month.update(<></>));
+      }
+    } finally { TestRenderer.act(() => tree.unmount()); }
+  });
+
+  it('pages the agenda query and restores the days ahead from its header', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    pressView(tree, 'agenda');
+    const initial = state.calendarRangeCalls.mock.lastCall!;
+    const press = (label: string) => {
+      const button = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0];
+      expect(button).toBeDefined();
+      TestRenderer.act(() => button!.props.onPress());
+    };
+    press('common.nextWeek');
+    expect(differenceInCalendarDays(state.calendarRangeCalls.mock.lastCall![0], initial[0])).toBe(7);
+    expect(differenceInCalendarDays(state.calendarRangeCalls.mock.lastCall![1], initial[1])).toBe(7);
+    press('common.previousWeek');
+    expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2)).toEqual(initial.slice(0, 2));
+    press('common.previousWeek');
+    const today = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', Today'))[0];
+    expect(today).toBeDefined();
+    TestRenderer.act(() => today!.props.onPress());
+    expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2)).toEqual(initial.slice(0, 2));
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it.each([1, 2])('keeps the week pager above the selector at 320 dp and font scale %i', (scale) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 4, 12));
     __setWindowDimensions({ width: 320, height: 900, scale: 1, fontScale: scale });
     state.language = 'pt-BR';
+    state.periodGeometry = true;
     type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
     let tree!: Tree & { toJSON: () => Host | Host[]; unmount: () => void };
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
@@ -411,6 +470,15 @@ describe("CalendarScreen views (mobile)", () => {
         expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
       }
+      const title = measured.texts.find((text) => text.label === pager.find((control) => control.labels.length)!.labels[0])!;
+      expect.soft(title.clipped).toBe(false);
+      if (scale === 1) {
+        expect.soft(new Set(pager.map((control) => control.top)).size).toBe(1);
+        expect.soft(Math.min(...segments.map((segment) => segment.top))).toBe(76);
+        expect.soft(title.lines).toBe(1);
+      }
+      const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', calendar.goToCurrentWeek'))[0]!;
+      expect(StyleSheet.flatten(titleControl.props.style({ pressed: true })).borderRadius).toBeGreaterThanOrEqual(pager.find((control) => control.labels.length)!.height / 2);
       const initial = pager.find((control) => control.labels.length)!.labels[0];
       for (const label of ['common.nextWeek', 'common.previousWeek']) {
         const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
@@ -418,7 +486,7 @@ describe("CalendarScreen views (mobile)", () => {
         expect(tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.checked)).toHaveLength(1);
       }
       expect(hostTexts(tree)).toContain(initial);
-    } finally { TestRenderer.act(() => tree.unmount()); }
+    } finally { TestRenderer.act(() => tree.unmount()); vi.useRealTimers(); }
   });
 
   it.each([1, 2])('keeps the range label beside both 48 dp targets at 320 dp and font scale %i', (scale) => {
@@ -432,7 +500,9 @@ describe("CalendarScreen views (mobile)", () => {
     try {
       const findRange = (host: Host): Host | undefined => (host.children ?? []).some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('30 ago a 12 set')) ? host :
         (host.children ?? []).filter((child): child is Host => typeof child !== 'string').map(findRange).find(Boolean);
-      const header = [tree.toJSON()].flat().map(findRange).find(Boolean)!;
+      const navigation = [tree.toJSON()].flat().map(findRange).find(Boolean)!;
+      const header = { type: 'View', props: { style: { paddingHorizontal: 16 } }, children: [navigation] };
+      expect(navigation).toBeDefined();
 
       expect(header).toBeDefined();
       const measured = measureProfileRow(header, 320, scale);

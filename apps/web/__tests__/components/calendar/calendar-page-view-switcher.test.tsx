@@ -218,7 +218,7 @@ vi.mock('@/app/(app)/calendar/_components/calendar-shell', async (importOriginal
   return {
     ...actual,
     CalendarHeader: (props: React.ComponentProps<typeof actual.CalendarHeader>) => <actual.CalendarHeader {...props}
-      viewSelector={<>{props.showMonthNavigation ? <button type="button" data-testid="calendar-header" onClick={props.onNextMonth} /> : null}{props.viewSelector}</>} />,
+      viewSelector={<>{!props.periodNavigation ? <button type="button" data-testid="calendar-header" onClick={props.onNextMonth} /> : null}{props.viewSelector}</>} />,
     CalendarLegend: () => <div data-testid="calendar-legend" />,
   }
 })
@@ -296,6 +296,7 @@ vi.mock('@/components/calendar/calendar-week-view', async (importOriginal) => {
 vi.mock('@/components/calendar/calendar-range-view', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/calendar/calendar-range-view')>()
   return {
+    ...actual,
     CalendarRangeView: (props: React.ComponentProps<typeof actual.CalendarRangeView>) => {
       calendarRangeViewProps.current = props
       return (
@@ -810,6 +811,17 @@ describe('CalendarPage view switcher', () => {
     expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 9, 1))
     expect(calendarGridProps.selectedDateStr).toBe('2026-10-08')
     expect(calendarDayDetailProps.dateStr).toBe('2026-10-08')
+  })
+
+  it.each(['month', 'week', 'range', 'agenda'] as const)('keeps a working first navigation line in %s', (view) => {
+    render(<CalendarPage />)
+    if (view !== 'month') fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+    const header = screen.getByTestId('calendar-header-group')
+    const pager = header.querySelector('[data-testid$="-navigation"]')
+    expect(pager).not.toBeNull()
+    const previousLabel = view === 'month' ? 'common.previousMonth' : view === 'range' ? 'calendar.range.previous' : 'common.previousWeek'
+    expect(header.querySelector(`button[aria-label="${previousLabel}"]`)).not.toBeNull()
+    expect(header.querySelector('[role="radiogroup"]')).not.toBeNull()
   })
 
   it('shows only the range navigation in range view', () => {

@@ -62,7 +62,7 @@ import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
-import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarRangeNavigation, CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
@@ -228,7 +228,6 @@ function CalendarProfileState({
               onNextMonth={() => setSelectedDay(formatAPIDate(addMonths(currentMonth, 1)))}
               onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
               onSelectMonth={(month, year) => setSelectedDay(formatAPIDate(new Date(year, month, 1)))}
-              showMonthNavigation={view === 'month'}
               viewSelector={<SegmentedControl<CalendarView> fullWidth options={[
                 { value: 'month', label: t('calendar.view.month') },
                 { value: 'week', label: t('calendar.view.week') },
@@ -305,6 +304,7 @@ function CalendarPageContent({
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
+  const [agendaOffset, setAgendaOffset] = useState(0)
   const [rangeOffset, setRangeOffset] = useState(0)
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
@@ -395,7 +395,7 @@ function CalendarPageContent({
     return { lo: addDays(rangeEnd, -(MAX_RANGE_DAYS - 1)), hi: rangeEnd }
   }, [rangeEnd])
 
-  const agendaStart = useMemo(() => parseAPIDate(todayKey), [todayKey])
+  const agendaStart = useMemo(() => addDays(parseAPIDate(todayKey), agendaOffset * 7), [agendaOffset, todayKey])
   const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart])
 
   const [gridStartDate, gridEndDate] =
@@ -666,8 +666,7 @@ function CalendarPageContent({
       onCurrentMonth={goToCurrentMonth}
       onSelectMonth={selectMonth}
       viewSelector={viewSelector}
-      showMonthNavigation={view === 'month'}
-      periodNavigation={view === 'week' && <CalendarWeekNav
+      periodNavigation={{ month: undefined, week: <CalendarWeekNav
         weekLabel={weekLabel}
         previousWeekLabel={t('common.previousWeek')}
         nextWeekLabel={t('common.nextWeek')}
@@ -675,7 +674,22 @@ function CalendarPageContent({
         onPreviousWeek={prevWeek}
         onNextWeek={nextWeek}
         onCurrentWeek={goToCurrentWeek}
-      />}
+      />, range: <CalendarRangeNavigation
+        rangeLabel={rangeLabel}
+        previousRangeLabel={t('calendar.range.previous')}
+        nextRangeLabel={t('calendar.range.next')}
+        onPreviousRange={previousRange}
+        onNextRange={nextRange}
+        nextRangeDisabled={rangeOffset === 0}
+      />, agenda: <CalendarWeekNav
+        weekLabel={formatCalendarWeekLabel(agendaStart, agendaEnd, locale)}
+        previousWeekLabel={t('common.previousWeek')}
+        nextWeekLabel={t('common.nextWeek')}
+        currentWeekLabel={t('dates.today')}
+        onPreviousWeek={() => setAgendaOffset((offset) => offset - 1)}
+        onNextWeek={() => setAgendaOffset((offset) => offset + 1)}
+        onCurrentWeek={() => setAgendaOffset(0)}
+      /> }[view]}
     />
   )
 
@@ -687,7 +701,7 @@ function CalendarPageContent({
         {calendarHeader}
 
         {activeError ? (
-          <div style={{ padding: '12px 16px 16px' }}>
+          <div style={{ padding: '0 16px 16px' }}>
             <CalendarLoadError onRetry={() => void activeRefresh()} />
           </div>
         ) : (
@@ -769,11 +783,6 @@ function CalendarPageContent({
                 model={rangeModel}
                 weekdayLabels={weekdayLabels}
                 rangeLabel={rangeLabel}
-                previousRangeLabel={t('calendar.range.previous')}
-                nextRangeLabel={t('calendar.range.next')}
-                onPreviousRange={previousRange}
-                onNextRange={nextRange}
-                nextRangeDisabled={rangeOffset === 0}
                 isLoading={rangeLoading}
                 loadingLabel={t('common.loading')}
                 stats={rangeStatTiles}

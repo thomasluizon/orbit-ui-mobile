@@ -53,6 +53,7 @@ import { useChatStore } from "@/stores/chat-store";
 import { useUIStore } from "@/stores/ui-store";
 import { useResetOnAccountChange } from "@/hooks/use-session-reset";
 import { getAccountGeneration } from "@/lib/session-epoch";
+import { usePrefersReducedMotion } from "@/lib/motion";
 
 let nextChatMessageSequence = 0;
 
@@ -184,6 +185,11 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   } = useSpeechToText();
 
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const prefersReducedMotionRef = useRef(prefersReducedMotion);
+  useEffect(() => {
+    prefersReducedMotionRef.current = prefersReducedMotion;
+  }, [prefersReducedMotion]);
   const pendingVoiceCommit = useRef(false);
 
   const [sendError, setSendError] = useState<string | null>(null);
@@ -269,7 +275,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
+      flatListRef.current?.scrollToEnd({ animated: !prefersReducedMotionRef.current });
     }, 100);
   }, []);
 
