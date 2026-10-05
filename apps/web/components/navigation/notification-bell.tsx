@@ -29,7 +29,7 @@ export function NotificationBellDisplay({ count, onClick, countPlacement = 'inli
       <Bell size={24} strokeWidth={1.8} aria-hidden="true" />
       {count > 0 ? <span aria-hidden="true" data-notification-count=""
         className={`pointer-events-none min-h-[20px] min-w-[20px] shrink-0 bg-[var(--fg-1)] text-center font-mono text-xs tabular-nums text-[var(--bg)] ${corner ? 'absolute right-0 top-0' : ''}`}
-        style={{ borderRadius: 8, paddingInline: 4, lineHeight: '1.667em', boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>
+        style={{ borderRadius: 8, paddingInline: 4, lineHeight: corner ? '1.667em' : 20 / 12, boxShadow: corner ? '0 0 0 3px var(--bg)' : undefined }}>
         {count > 9 ? '9+' : count}
       </span> : null}
   </>

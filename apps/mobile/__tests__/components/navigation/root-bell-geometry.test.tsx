@@ -53,6 +53,7 @@ function applyFlexStyle(node: YogaNode, style: ViewStyle) {
   if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
   if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.alignSelf === 'center') node.setAlignSelf(Yoga.ALIGN_CENTER)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
@@ -97,7 +98,8 @@ function measureBell(host: Host, width: number, fontScale: number) {
   const rows: YogaNode[] = []
   const glyphs: YogaNode[] = []
   const counts: YogaNode[] = []
-  function build(host: Host): YogaNode {
+  const controls: YogaNode[] = []
+  function build(host: Host, inHeader = false): YogaNode {
     const node = Yoga.Node.create()
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
@@ -109,7 +111,9 @@ function measureBell(host: Host, width: number, fontScale: number) {
     }
     if (host.props.testID === 'notification-count') counts.push(node)
     if (host.props.accessibilityRole === 'button' && host.props.accessibilityLabel?.startsWith('notifications.bell')) bells.push(node)
+    const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')
     if (['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')) rows.push(node)
+    if (header && host.props.accessibilityRole === 'button') controls.push(node)
     if (host.type === 'Text') {
       const text = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
       const intrinsicWidth = text.length * (style.fontSize ?? 14) * 0.5 * fontScale
@@ -126,7 +130,7 @@ function measureBell(host: Host, width: number, fontScale: number) {
       applyStyle(owner, StyleSheet.flatten(host.props.contentContainerStyle))
       node.insertChild(owner, 0)
     }
-    ;(host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(build(child), index))
+    ;(host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(build(child, header), index))
     return node
   }
   const layout = build(host)
@@ -134,7 +138,7 @@ function measureBell(host: Host, width: number, fontScale: number) {
     layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
     expect(bells).toHaveLength(1)
     expect(rows).toHaveLength(1)
-    return { bell: bounds(bells[0]!), row: bounds(rows[0]!), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
+    return { bell: bounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(bounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
   } finally { layout.freeRecursive() }
 }
 
@@ -232,6 +236,10 @@ it.each([320, 600, 840].flatMap((width) => [1, 2].flatMap((fontScale) => [5, 12]
         trailingEdge ??= bell.right
         expect(bell.right).toBe(trailingEdge)
         expect(bell.right).toBe(row.right - 16)
+        for (const control of geometry.controls) {
+          expect(control.left).toBeGreaterThanOrEqual(row.left + 16)
+          expect(control.right).toBeLessThanOrEqual(row.right - 16)
+        }
       } finally { await renderer.act(() => tree.unmount()) }
     }
   },
