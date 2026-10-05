@@ -35,11 +35,11 @@ describe('getNativePushStatusTone', () => {
 
   it('keeps failures critical and permission boundaries muted', () => {
     expect(getNativePushStatusPresentation(snapshot({ registrationStatus: 'idle', permissionStatus: 'denied' })).tone).toBe('muted')
-    expect(getNativePushStatusTone('permission-denied')).toBe('muted')
-    expect(getNativePushStatusTone('sync-failed')).toBe('critical')
-    expect(getNativePushStatusTone('token-missing')).toBe('critical')
-    expect(getNativePushStatusTone('registered')).toBe('muted')
-    expect(getNativePushStatusTone('idle')).toBe('muted')
+    expect(getNativePushStatusTone('permission-denied', null)).toBe('muted')
+    expect(getNativePushStatusTone('sync-failed', 'granted')).toBe('critical')
+    expect(getNativePushStatusTone('token-missing', 'granted')).toBe('critical')
+    expect(getNativePushStatusTone('registered', 'granted')).toBe('muted')
+    expect(getNativePushStatusTone('idle', 'undetermined')).toBe('muted')
   })
 })
 

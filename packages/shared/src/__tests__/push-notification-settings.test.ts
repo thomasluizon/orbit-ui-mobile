@@ -52,7 +52,7 @@ describe('push notification settings presenters', () => {
         isRegistered: false,
       }),
     ).toBe('settings.notifications.deniedNative')
-    expect(getNativePushStatusTone('permission-denied')).toBe('muted')
+    expect(getNativePushStatusTone('permission-denied', null)).toBe('muted')
     expect(getNativePushStatusPresentation({
       permissionStatus: 'denied',
       registrationStatus: 'idle',

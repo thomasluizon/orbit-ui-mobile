@@ -30,30 +30,32 @@ afterEach(() => {
 describe.each(['dark', 'light'] as const)('push device feedback in %s mode', (mode) => {
   const tokens = createTokensV2('orange', mode)
 
-  it('uses muted text for a denied permission and opens settings', () => {
-    const onOpenSettings = vi.fn()
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<PushDevicesRow
-        tokens={tokens} count={0} max={5} currentDeviceRegistered={false}
-        supported loading={false} error={false} permissionStatus="denied" registrationStatus="idle"
-        onToggle={vi.fn()} onOpenSettings={onOpenSettings} onRetry={vi.fn()}
-      />)
-    })
-    const status = tree.root.findAllByType(Text).find(
-      (node: { props: { children: string } }) => node.props.children === ptBr.settings.notifications.deniedNative,
-    )!
-    expect(StyleSheet.flatten(status.props.style).color).toBe(tokens.fg3)
-    expect(status.props.accessibilityLiveRegion).toBe('polite')
-    const action = tree.root.findAllByType(Pressable).find(
-      (node: { props: { accessibilityRole?: string }; findAllByType: typeof tree.root.findAllByType }) =>
-        node.props.accessibilityRole === 'button' && node.findAllByType(Text).some(
-          (text: { props: { children: string } }) => text.props.children === ptBr.settings.notifications.openSettings,
-        ),
-    )!
-    expect(action).toBeDefined()
-    TestRenderer.act(() => action.props.onPress())
-    expect(onOpenSettings).toHaveBeenCalledOnce()
-  })
+  it.each(['idle', 'permission-denied', 'sync-failed', 'token-missing'] as const)(
+    'uses muted text for denied permission with %s and opens settings', (registrationStatus) => {
+      const onOpenSettings = vi.fn()
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<PushDevicesRow
+          tokens={tokens} count={0} max={5} currentDeviceRegistered={false}
+          supported loading={false} error={false} permissionStatus="denied" registrationStatus={registrationStatus}
+          onToggle={vi.fn()} onOpenSettings={onOpenSettings} onRetry={vi.fn()}
+        />)
+      })
+      const status = tree.root.findAllByType(Text).find(
+        (node: { props: { children: string } }) => node.props.children === ptBr.settings.notifications.deniedNative,
+      )!
+      expect(StyleSheet.flatten(status.props.style).color).toBe(tokens.fg3)
+      expect(status.props.accessibilityLiveRegion).toBe('polite')
+      const action = tree.root.findAllByType(Pressable).find(
+        (node: { props: { accessibilityRole?: string }; findAllByType: typeof tree.root.findAllByType }) =>
+          node.props.accessibilityRole === 'button' && node.findAllByType(Text).some(
+            (text: { props: { children: string } }) => text.props.children === ptBr.settings.notifications.openSettings,
+          ),
+      )!
+      expect(action).toBeDefined()
+      TestRenderer.act(() => action.props.onPress())
+      expect(onOpenSettings).toHaveBeenCalledOnce()
+    },
+  )
 
   it.each([
     ['sync-failed', ptBr.settings.notifications.syncFailed],

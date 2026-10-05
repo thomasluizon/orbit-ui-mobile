@@ -80,7 +80,12 @@ export function getWebPushStatusMessageKey(
 
 export function getNativePushStatusTone(
   registrationStatus: NativePushRegistrationStatus,
+  permissionStatus: NativePushPermissionStatus,
 ): PushStatusTone {
+  if (permissionStatus === 'denied' || registrationStatus === 'permission-denied') {
+    return 'muted'
+  }
+
   if (
     registrationStatus === 'sync-failed' ||
     registrationStatus === 'token-missing'
@@ -133,7 +138,7 @@ export function getNativePushStatusPresentation(
 ): PushStatusPresentation {
   return {
     messageKey: getNativePushStatusMessageKey(snapshot),
-    tone: getNativePushStatusTone(snapshot.registrationStatus),
+    tone: getNativePushStatusTone(snapshot.registrationStatus, snapshot.permissionStatus),
   }
 }
 
