@@ -981,7 +981,7 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **8**, one worktree
+**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **10**, one worktree
 each. Each worktree is a full install, build and test run plus its own model session, so the cap is a
 resource decision, not a preference.
 
