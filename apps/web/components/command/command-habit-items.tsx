@@ -22,6 +22,7 @@ function habitLeading(habit: NormalizedHabit): ReactNode {
 }
 
 interface CommandHabitItemsProps {
+  disclose: boolean
   disabled?: boolean
   query?: string
   entries: readonly CommandHabitEntry[]
@@ -30,7 +31,7 @@ interface CommandHabitItemsProps {
 
 /** Renders the habit rows shared by the search/jump, log, and skip palette pages.
  *  Sub-habits show a "Parent · Child" label so they read distinctly in the flat list. */
-export function CommandHabitItems({ entries, onSelectHabit, query = '', disabled = false }: Readonly<CommandHabitItemsProps>) {
+export function CommandHabitItems({ entries, onSelectHabit, disclose, query = '', disabled = false }: Readonly<CommandHabitItemsProps>) {
   return (
     <>
       {entries.map((entry) => {
@@ -39,6 +40,7 @@ export function CommandHabitItems({ entries, onSelectHabit, query = '', disabled
           <CommandRow
             key={habit.id}
             textMode="personal"
+            disclose={disclose}
             disabled={disabled}
             leading={habitLeading(habit)}
             description={<HabitMatchLine habit={habit} query={query} />}

@@ -59,7 +59,7 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
     <View style={styles.content}><PersonalText style={[styles.name, { color: tokens.fg1, lineHeight: 23.8 }]}>{habit.title}</PersonalText>
       {matches.map((match) => <Text key={match.id} numberOfLines={1} style={[styles.match, { color: hoverForeground(currentTheme, tokens.fg3, pressed) }]}>{match.label}{match.fragment !== null && <> <Text style={{ color: tokens.fg2 }}>{match.fragment}</Text></>}</Text>)}
     </View><ChevronRight size={20} color={tokens.fg3} />
-  </Pressable><PersonalTextDetails iconOnly>{habit.title}</PersonalTextDetails></View>
+  </Pressable>{actionLabel ? <PersonalTextDetails iconOnly>{habit.title}</PersonalTextDetails> : null}</View>
 }
 
 const styles = StyleSheet.create({

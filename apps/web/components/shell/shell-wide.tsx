@@ -1,6 +1,5 @@
 'use client'
 
-import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PersonalText } from '@/components/ui/personal-text'
 
 import Link from 'next/link'
@@ -160,7 +159,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
               <PersonalText data-shell-account-name="">{props.account}</PersonalText>{' '}
               {props.accountEmail ? <PersonalText data-shell-account-email="" className="text-[12px] font-normal text-[var(--fg-3)]">{props.accountEmail}</PersonalText> : null}
             </span>
-          </Link><PersonalTextDetails iconOnly>{[props.account, props.accountEmail].filter(Boolean).join(', ')}</PersonalTextDetails></div>
+          </Link></div>
         ) : (
           <div data-shell-account="" data-loading="true" aria-hidden="true" className="min-h-[var(--touch-min)]" />
         )}

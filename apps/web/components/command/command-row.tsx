@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { CommandItem } from 'cmdk'
 
 interface CommandRowProps {
+  disclose?: boolean
   textMode?: 'personal'
   leading: ReactNode
   label: string
@@ -19,7 +20,7 @@ interface CommandRowProps {
  * A single command-palette row: a leading glyph slot plus a label inside a touch-floor
  * hit target styled to the Orbit token system. The active row is primary-tinted.
  */
-export function CommandRow({ leading, label, value, onSelect, description, textMode, disabled = false }: Readonly<CommandRowProps>) {
+export function CommandRow({ leading, label, value, onSelect, description, textMode, disclose = false, disabled = false }: Readonly<CommandRowProps>) {
   return (
     <div data-command-result="" className="flex min-w-0 items-center"><CommandItem
       value={value}
@@ -30,6 +31,6 @@ export function CommandRow({ leading, label, value, onSelect, description, textM
     >
       <span className="grid size-6 shrink-0 place-items-center">{leading}</span>
       <span className="min-w-0 flex-1">{textMode === 'personal' ? <PersonalText className="leading-[1.4]">{label}</PersonalText> : <span className="block truncate leading-tight">{label}</span>}{description}</span>
-    </CommandItem>{textMode === 'personal' ? <PersonalTextDetails iconOnly>{label}</PersonalTextDetails> : null}</div>
+    </CommandItem>{textMode === 'personal' && disclose ? <PersonalTextDetails iconOnly>{label}</PersonalTextDetails> : null}</div>
   )
 }

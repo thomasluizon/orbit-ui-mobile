@@ -20,6 +20,7 @@ export async function markUserText(page: Page, values: readonly string[]) {
     while (walker.nextNode()) nodes.push(walker.currentNode as Text)
     for (const node of nodes) {
       const owner = node.parentElement!
+      if (owner.closest('[data-layout-text-origin="user"]')) continue
       const bounds = owner.getBoundingClientRect()
       if (owner.closest('svg, [aria-hidden="true"]') || getComputedStyle(owner).visibility !== 'visible'
         || !bounds.width || !bounds.height || bounds.width <= 1) continue
@@ -125,7 +126,7 @@ export async function expectLabelsFit(page: Page, surface: Page | Locator = page
       if (!node.textContent.trim() || owner.closest('svg, [aria-hidden="true"]')) continue
       const geometry = measureNode(node)
       if (!geometry) continue
-      const userElement = owner.closest('[data-layout-text-origin="user"]')
+      const userElement = owner.closest('[data-layout-text-origin="user"], [data-personal-text]')
       if (userElement) {
         const typed = userText.get(userElement) ?? { text: [], fragments: [], clipped: false, ellipsized: false, brokenWords: [] }
         typed.text.push(node.textContent.trim())

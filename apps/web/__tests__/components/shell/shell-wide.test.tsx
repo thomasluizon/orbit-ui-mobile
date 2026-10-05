@@ -185,6 +185,7 @@ describe('ShellWide', () => {
     expect(within(account).getByText('ada@example.com')).toBeInTheDocument()
     expect(account.querySelector('[aria-hidden="true"]')).toHaveTextContent('A')
     expect(within(account).queryByRole('button')).not.toBeInTheDocument()
+    expect(account.nextElementSibling).toBeNull()
   })
 
   it('reserves the account row while its profile loads', () => {

@@ -75,6 +75,8 @@ describe('habit search', () => {
     expect(screen.getByRole('option', { name: locale === 'en' ? 'Open Walk in the name' : 'Abrir Walk no nome' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: locale === 'en' ? 'Open Run in the description' : 'Abrir Run na descrição' })).toBeInTheDocument()
     expect(screen.getAllByRole('option')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Walk' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Run' })).toBeNull()
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'ArrowUp' })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -381,6 +383,17 @@ describe('habit search', () => {
     expect(screen.getByRole('option', { name: 'Walk' })).not.toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
     expect(mocks.skip).toHaveBeenCalledTimes(2)
+  })
+
+  it('opens a full habit title from the palette without a separate disclosure button', () => {
+    const title = 'Walk ' + 'unbrokentoken'.repeat(8) + ' every morning'
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title })]))
+    mount()
+    expect(screen.queryByRole('button', { name: title })).toBeNull()
+    fireEvent.click(screen.getByRole('option', { name: title }))
+    expect(mocks.push).toHaveBeenCalledWith('/habits/habit')
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(mocks.skip).not.toHaveBeenCalled()
   })
 
   it.each(['log', 'skip'] as const)('discloses a full title by keyboard on the %s page without mutating', async (page) => {

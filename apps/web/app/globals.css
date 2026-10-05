@@ -261,6 +261,10 @@
   text-decoration-thickness: from-font;
 }
 
+.orbit-sheet-typed-title > span {
+  text-decoration: inherit;
+}
+
 .orbit-sheet-title-button:active {
   background: var(--bg-hover);
 }

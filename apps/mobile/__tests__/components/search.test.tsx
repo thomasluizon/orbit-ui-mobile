@@ -195,6 +195,7 @@ describe('mobile search', () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'walk', title: 'Walk', emoji: null })]))
     await mount()
     const resultRow = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Open Walk')[0]!
+    expect(tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded !== undefined)).toHaveLength(0)
     expect(resultRow.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')).toHaveLength(1)
     expect(resultRow.findAll((node) => node.type === Circle)).toHaveLength(0)
   })
@@ -311,6 +312,21 @@ describe('mobile search', () => {
     expect(text()).not.toContain('Create habit')
     await pressLabel('Walk')
     expect(mocks.skip).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['log', 'skip'] as const)('discloses the full title on the %s page without mutating', async (page) => {
+    const title = 'Walk ' + 'unbrokentoken'.repeat(8) + ' every morning'
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title, isOverdue: true })]))
+    await mount()
+    await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
+    const disclosure = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded === false)[0]!
+    expect(disclosure.props.accessibilityLabel).toBe(title)
+    await TestRenderer.act(() => { (disclosure.props.onPress as () => void)() })
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
+    expect(text()).toContain(title)
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(mocks.skip).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it.each(['log', 'skip'] as const)('opens the %s page, performs the selected action, and backs out first', async (page) => {
