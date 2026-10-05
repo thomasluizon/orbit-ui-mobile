@@ -309,7 +309,7 @@ describe('HabitDetailScreen', () => {
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
     expect(headings[0]).not.toHaveFocus()
-    expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
+    expect(headings[0]!.querySelector('button')).toHaveAccessibleName(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
@@ -1911,7 +1911,7 @@ describe('HabitDetailScreen', () => {
           const offset = Number.parseFloat(style.outlineOffset)
           const outerEdge = offset + Number.parseFloat(style.outlineWidth)
           const range = document.createRange()
-          range.selectNodeContents(heading.querySelector('button')!)
+          range.selectNodeContents(heading.querySelector('[data-personal-text]')!)
           const text = range.getBoundingClientRect()
           return {
             glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
@@ -1939,11 +1939,11 @@ describe('HabitDetailScreen', () => {
           const row = heading.closest('[data-habit-detail-header-row]')!
           const controls = row.firstElementChild!
           const range = document.createRange()
-          range.selectNodeContents(button)
+          range.selectNodeContents(heading.querySelector('[data-personal-text]')!)
           const text = range.getBoundingClientRect()
           const style = getComputedStyle(button)
           const lineHeight = Number.parseFloat(style.lineHeight)
-          const lines = button.querySelector('[data-personal-text]')!.getBoundingClientRect().height / lineHeight
+          const lines = heading.querySelector('[data-personal-text]')!.getBoundingClientRect().height / lineHeight
           return {
             titleX: text.left,
             summaryX: summary.getBoundingClientRect().left,
@@ -2006,20 +2006,21 @@ describe('HabitDetailScreen', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
           const button = element.querySelector('button')!
-          const style = getComputedStyle(button)
+          const content = element.querySelector('[data-personal-text-content]') as HTMLElement
+          const style = getComputedStyle(content)
           const fontSize = parseFloat(style.fontSize) * 2
           const lineHeight = parseFloat(style.lineHeight) * 2
-          button.style.fontSize = `${fontSize}px`
-          button.style.lineHeight = `${lineHeight}px`
+          content.style.fontSize = `${fontSize}px`
+          content.style.lineHeight = `${lineHeight}px`
           const range = document.createRange()
-          range.selectNodeContents(button)
+          range.selectNodeContents(element.querySelector('[data-personal-text]')!)
           const text = range.getBoundingClientRect()
           const bounds = button.getBoundingClientRect()
           const column = element.closest('[data-habit-detail-content]')!
           const columnStyle = getComputedStyle(column)
           return { whiteSpace: style.whiteSpace, textOverflow: style.textOverflow,
             lines: range.getClientRects().length, inside: text.right <= bounds.right + 1 && text.bottom <= bounds.bottom + 1,
-            width: bounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
+            width: bounds.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 8, available: column.getBoundingClientRect().width - parseFloat(columnStyle.paddingLeft) - parseFloat(columnStyle.paddingRight), leading: lineHeight / fontSize }
         })
         expect(geometry.whiteSpace).toBe('normal')
         expect(geometry.textOverflow).not.toBe('ellipsis')

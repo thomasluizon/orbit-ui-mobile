@@ -135,5 +135,5 @@ it('keeps complete successful proposal names reachable without editing', async (
   expect(disclosure).toHaveAttribute('aria-expanded', 'false')
   fireEvent.click(disclosure)
   expect(disclosure).toHaveAttribute('aria-expanded', 'true')
-  expect(disclosure).toHaveTextContent(title)
+  expect(disclosure.parentElement).toHaveTextContent(title)
 })

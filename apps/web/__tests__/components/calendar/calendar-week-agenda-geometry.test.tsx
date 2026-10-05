@@ -184,7 +184,7 @@ describe('Week and agenda geometry in Chromium', () => {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         const geometry = await page.evaluate(() => {
           const row = document.querySelector<HTMLButtonElement>('.orbit-list-row-body')!
-          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          const title = row.parentElement!.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
           const metadata = title.nextElementSibling!
           const heading = document.querySelector('h2')!
           const range = document.createRange(); range.selectNodeContents(heading)

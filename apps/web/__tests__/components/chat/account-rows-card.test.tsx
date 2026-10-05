@@ -47,7 +47,7 @@ describe('Astra account rows on web', () => {
       expect(text).toBeInTheDocument()
       fireEvent.click(disclosure)
       expect(disclosure).toHaveAttribute('aria-expanded', 'true')
-      expect(text).toHaveClass('overflow-x-auto')
+      expect(container.querySelector(`[data-personal-text-expanded][aria-label="${value}"]`)).toBeInTheDocument()
     }
     expect(mocks.push).not.toHaveBeenCalled()
   })

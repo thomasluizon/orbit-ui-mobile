@@ -323,9 +323,10 @@ describe('ProfilePage', () => {
               return { word: element.textContent, tops: Array.from(range.getClientRects()).map((rect) => rect.top) }
             })
             const emailRange = document.createRange()
-            emailRange.selectNodeContents(description)
+            const scroller = description.querySelector('[data-personal-text]') ?? description
+            emailRange.selectNodeContents(scroller.firstElementChild ?? scroller)
             const titleStyle = getComputedStyle(title)
-            return { words, titleHeight: title.getBoundingClientRect().height, lineHeight: parseFloat(titleStyle.lineHeight), clamp: titleStyle.webkitLineClamp, email: description.textContent, emailLines: new Set(Array.from(emailRange.getClientRects()).map((rect) => rect.top)).size, emailOverflow: description.scrollWidth > description.clientWidth, pageOverflow: document.documentElement.scrollWidth > innerWidth }
+            return { words, titleHeight: title.getBoundingClientRect().height, lineHeight: parseFloat(titleStyle.lineHeight), clamp: titleStyle.webkitLineClamp, email: description.textContent, emailLines: new Set(Array.from(emailRange.getClientRects()).map((rect) => rect.top)).size, emailOverflow: scroller.scrollWidth > scroller.clientWidth, pageOverflow: document.documentElement.scrollWidth > innerWidth }
           }, { name, email, textScale })
           for (const word of geometry.words) expect(new Set(word.tops).size, `${surface}: ${word.word}`).toBe(1)
           if (surface === 'profile') {

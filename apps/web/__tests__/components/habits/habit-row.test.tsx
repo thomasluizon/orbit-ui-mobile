@@ -279,7 +279,7 @@ describe('HabitRow canonical content', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Parent' })} structuralColumn selectMode selected
       hasChildren expanded childProgress={{ done: 1, total: 2 }} actions={{ onToggleExpand, onToggleSelection }} />)
     const row = screen.getByTestId('habit-row')
-    expect(row.children[0]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[0]!.querySelector('button')).toHaveAttribute('data-habit-row-body')
     expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'selection')
     expect(row.children[2]).toHaveAttribute('data-habit-row-control', 'disclosure')
     expect(row.children[1]!.querySelector('span[aria-hidden="true"]')).toHaveStyle({ background: 'var(--status-done)' })
@@ -294,7 +294,7 @@ describe('HabitRow canonical content', () => {
   it('keeps selection and a named status glyph without a leaf gutter', () => {
     render(<HabitRow habit={createMockHabit({ title: 'Leaf' })} structuralColumn selectMode completionReadOnly />)
     const row = screen.getByTestId('habit-row')
-    expect(row.children[0]).toHaveAttribute('data-habit-row-body')
+    expect(row.children[0]!.querySelector('button')).toHaveAttribute('data-habit-row-body')
     expect(row.children[1]).toHaveAttribute('data-habit-row-control', 'selection')
     expect(row.querySelector('[data-habit-row-control="disclosure"]')).toBeNull()
     expect(within(row).getByRole('img', { name: 'habits.statusDot.empty' })).toBeInTheDocument()
@@ -589,7 +589,7 @@ describe('HabitRow large text placement', () => {
       render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren
         childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} selectMode={selectMode}
         actions={{ onDetail, onToggleSelection }} />)
-      fireEvent.click(screen.getByText('0 of 2'))
+      fireEvent.click(document.querySelector('[data-habit-row-body]')!)
       expect(selectMode ? onToggleSelection : onDetail).toHaveBeenCalledExactlyOnceWith()
       expect(selectMode ? onDetail : onToggleSelection).not.toHaveBeenCalled()
     },
@@ -610,7 +610,7 @@ describe('HabitRow large text placement', () => {
     render(<HabitRow habit={habit} hasChildren childProgress={{ done: 0, total: 2 }}
       meta={['0 of 2', { kind: 'future', label: hint }]} />)
     expect(screen.getByText('0 of 2').textContent).toBe('0 of 2')
-    expect(screen.getByText(hint).closest('[data-habit-row-body]')).not.toBeNull()
+    expect(screen.getByText(hint).closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     expect(screen.getByText('0 of 2').textContent).not.toContain(hint)
   })
 
@@ -618,18 +618,18 @@ describe('HabitRow large text placement', () => {
     document.documentElement.style.fontSize = '20.8px'
     render(<HabitRow habit={createMockHabit({ title: 'Parent' })} hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2']} selectMode={selectMode} />)
     const progress = screen.getByText('0 of 2')
-    expect(progress.closest('[data-habit-row-body]')).not.toBeNull()
+    expect(progress.closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
     document.documentElement.style.fontSize = '21px'
     await waitFor(() => {
       expect(document.querySelector('[data-habit-row-heading]')).not.toBeNull()
       expect(screen.getByText('0 of 2').closest('[data-habit-row-heading]')).toBeNull()
-      expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     })
     document.documentElement.style.fontSize = '16px'
     await waitFor(() => {
       expect(document.querySelector('[data-habit-row-heading]')).toBeNull()
-      expect(screen.getByText('0 of 2').closest('[data-habit-row-body]')).not.toBeNull()
+      expect(screen.getByText('0 of 2').closest('[data-habit-row-body], [data-personal-text-action]')).not.toBeNull()
     })
   })
 })

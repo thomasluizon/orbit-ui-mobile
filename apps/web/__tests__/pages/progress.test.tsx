@@ -988,10 +988,11 @@ describe('ProgressContent', () => {
           return { text: element.textContent, lines: range.getClientRects().length, inside: bounds.left >= tile.left && bounds.right <= tile.right }
         }))
         const habit = await page.locator('[data-testid="progress-top-habit"]').evaluate((element) => {
-          const title = element.querySelector('[title]')!
+          const content = element.closest('[data-personal-text-action]') ?? element
+          const title = content.querySelector('[title]')!
           const style = getComputedStyle(title)
           const bounds = title.getBoundingClientRect()
-          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: element.matches('a'), href: element.getAttribute('href'), labelLines: (() => { const range = document.createRange(); range.selectNodeContents(element.firstElementChild!.firstElementChild!); return range.getClientRects().length })() }
+          return { full: title.textContent, emoji: title.querySelector('[aria-hidden]')?.textContent, lines: bounds.height / parseFloat(style.lineHeight), title: title.getAttribute('title'), width: bounds.width, rowWidth: element.getBoundingClientRect().width, interactive: element.matches('a'), href: element.getAttribute('href'), labelLines: (() => { const range = document.createRange(); const visible = content.querySelector('[data-personal-text-content]') ?? content; range.selectNodeContents(visible.firstElementChild!.firstElementChild!); return range.getClientRects().length })() }
         })
         expect(habit.full).toContain(habitName)
         expect(habit.emoji).toContain('📚')
@@ -1042,7 +1043,7 @@ describe('ProgressContent', () => {
     expect(windowSection.querySelectorAll('[data-state="default"]')).toHaveLength(3)
     expect(within(windowSection).getByText('dates.daysAbbreviated.thursday')).toBeInTheDocument()
     const habit = within(windowSection).getByTestId('progress-top-habit')
-    expect(habit).toHaveTextContent('Read')
+    expect(habit).toHaveAccessibleName('progressScreen.window.topHabit, Read')
     expect(habit).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('progressScreen.streak.active')).not.toBeInTheDocument()
     const entry = screen.getByRole('button', { name: 'progressScreen.streak.legend' })
@@ -1052,7 +1053,7 @@ describe('ProgressContent', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(entry).toHaveFocus()
-    expect(habit).toHaveTextContent('Read')
+    expect(habit).toHaveAccessibleName('progressScreen.window.topHabit, Read')
   })
 
   it('renders pay-gate refusals as the three locked sections', async () => {

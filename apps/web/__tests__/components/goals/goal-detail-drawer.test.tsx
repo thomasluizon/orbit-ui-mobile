@@ -176,8 +176,8 @@ describe('GoalDetailDrawer', () => {
 
     const readRow = screen.getByRole('link', { name: 'Read every night, goals.detail.linkedHabitStreak:{"count":12}' })
     const stretchRow = screen.getByRole('link', { name: 'Stretch, goals.detail.linkedHabitStreak:{"count":4}' })
-    expect(readRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
-    expect(stretchRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
+    expect(readRow.parentElement).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
+    expect(stretchRow.parentElement).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
     expect(readRow).toHaveAttribute('href', '/habits/habit-read')
     expect(stretchRow).toHaveAttribute('href', '/habits/habit-stretch')
   })

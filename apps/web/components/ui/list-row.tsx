@@ -5,6 +5,7 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useId, useState, type MouseEventHandler, type ReactNode } from 'react'
 import Link from 'next/link'
 import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
@@ -109,23 +110,30 @@ function useRowDisclosure(original: Readonly<WebListRowProps>) {
   return { props, Chevron, contentId }
 }
 
+function rowControl(props: WebListRowProps, children: ReactNode, bodyStyle: ReturnType<typeof getBodyStyle>) {
+  const { readOnly, href, onClick, disabled, accessibilityLabel, expanded, controls } = props
+  return (readOnly || (!href && !onClick) ? (
+        <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{children}</div>
+      ) : href && !disabled ? (
+        <Link href={href} aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] text-left no-underline" style={bodyStyle}>{children}</Link>
+      ) : (
+        <button type="button" aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{children}</button>
+      ))
+}
+
 export function ListRow(original: Readonly<WebListRowProps>) {
   const { props, Chevron, contentId } = useRowDisclosure(original)
-  const { accessibilityLabel, expanded, controls, action, chevron = true, compact = !props.description, inset = true, disabled = false, href, inForm = false, onClick, readOnly = false } = props
+  const { accessibilityLabel, action, chevron = true, compact = !props.description, inset = true, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const content = <span id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm, !!props.trailing)
 
+  const actionBody = rowControl(props, content, bodyStyle)
+
   return (
     <div className={`orbit-list-row-shell flex items-stretch ${inForm ? 'orbit-list-row-form' : ''}`} style={{ minHeight: 52 }}>
-      {readOnly || (!href && !onClick) ? (
-        <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
-      ) : href && !disabled ? (
-        <Link href={href} aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] text-left no-underline" style={bodyStyle}>{content}</Link>
-      ) : (
-        <button type="button" aria-label={accessibilityLabel} aria-expanded={expanded} aria-controls={controls} onClick={onClick} disabled={disabled} className="orbit-list-row-body flex min-w-0 flex-1 cursor-pointer items-center rounded-[12px] border-0 bg-transparent text-left disabled:cursor-default disabled:opacity-50" style={bodyStyle}>{content}</button>
-      )}
+      {(props.textMode === 'personal' || props.valueTextMode === 'personal') && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? [props.title, props.description, props.value].filter(Boolean).join(', ')} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
         <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(compact, inset, compactForm, !!props.description)}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}>

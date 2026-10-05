@@ -11,7 +11,7 @@ describe.each([['SettingsRow', SettingsRow], ['SettingsGroupRow', SettingsGroupR
     expect(row).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'true')
-    expect(row.querySelector('[data-slot="settings-row-label"]')).toHaveTextContent(title)
+    expect(row.parentElement!.querySelector('[data-slot="settings-row-label"]')).toHaveTextContent(title)
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'false')
   })

@@ -1,6 +1,7 @@
 'use client'
 
 import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
 
 import { resolveSettingsRowText } from '@orbit/shared/hooks'
 
@@ -136,7 +137,7 @@ export function SettingsGroupRow({
   const content = <SettingsGroupRowContent icon={icon} label={label} textMode={textMode} hint={hint} trailing={trailing} resolvedAccessory={resolvedAccessory} expanded={expanded} labelId={labelId} />
 
   if (handleClick) {
-    return (
+    const control = (
       <button
         type="button"
         onClick={handleClick}
@@ -156,6 +157,7 @@ export function SettingsGroupRow({
         {content}
       </button>
     )
+    return textMode === 'personal' ? <PersonalTextAction label={ariaLabel ?? label} contentClassName="w-full text-left flex items-stretch justify-between rounded-[12px]" contentStyle={{ ...SETTINGS_ROW_STYLE, flexDirection: 'column' }} control={control} /> : control
   }
 
   return (

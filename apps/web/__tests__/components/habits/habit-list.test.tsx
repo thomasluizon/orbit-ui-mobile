@@ -457,8 +457,9 @@ describe('HabitList', () => {
           await page.setContent(`<style>${stylesheet.css}:root{font-size:${16 * textScale}px}</style>${markup}`)
           const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
             const body = row.querySelector('[data-habit-row-body]')!
-            const title = (row.querySelector('[data-habit-row-heading] > div') ?? body.querySelector(':scope > div'))!
-            const well = body.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+            const content = row.querySelector('[data-personal-text-content]') ?? body
+            const title = (row.querySelector('[data-habit-row-heading] > div') ?? content.querySelector(':scope > div'))!
+            const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
             return {
               inset: row.getBoundingClientRect().left,
               textEdge: title.getBoundingClientRect().left,

@@ -93,10 +93,10 @@ describe('SupportPage', () => {
     fireEvent.change(messageField(), { target: { value: 'Saved message' } })
     const reply = screen.getByRole('button', { name: /^profile\.support\.email(?: |$)/ })
     expect(reply).toHaveAttribute('aria-expanded', 'false')
-    expect(reply).toHaveTextContent(email)
+    expect(reply.parentElement).toHaveTextContent(email)
     fireEvent.click(reply)
     expect(reply).toHaveAttribute('aria-expanded', 'true')
-    expect(reply).toHaveTextContent(email)
+    expect(reply.parentElement).toHaveTextContent(email)
     fireEvent.click(reply)
     expect(reply).toHaveAttribute('aria-expanded', 'false')
     expect(messageField()).toHaveValue('Saved message')
@@ -265,7 +265,7 @@ describe('SupportPage', () => {
 
     expect(messageField()).toHaveAttribute('rows', '6')
     expect(messageField().closest('[data-multiline]')).toHaveAttribute('data-multiline', '')
-    expect(emailField()).toHaveTextContent('orbit@example.com')
+    expect(emailField().parentElement).toHaveTextContent('orbit@example.com')
     expect(emailField()).toBeEnabled()
     const lockedReason = screen.getByText('profile.support.emailLockedReason')
     expect(lockedReason).toBeInTheDocument()
@@ -377,7 +377,7 @@ describe('SupportPage', () => {
 
     mockProfile = { name: 'Profile User', email: 'profile@example.com' }
     view.rerender(<SupportPage />)
-    expect(emailField()).toHaveTextContent('profile@example.com')
+    expect(emailField().parentElement).toHaveTextContent('profile@example.com')
     expect(emailField()).toBeEnabled()
     fireEvent.click(sendButton())
 

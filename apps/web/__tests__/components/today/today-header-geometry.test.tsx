@@ -207,7 +207,7 @@ describe('Hoje header geometry', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await page.evaluate(async (scale) => {
           document.documentElement.style.fontSize = `${16 * scale}px`
-          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, .today-astra-sentence')
+          const labels = document.querySelectorAll<HTMLElement>('[data-habit-row-body] > span > span, [data-personal-text-content] > span > span, .today-astra-sentence')
           for (const label of labels) {
             const size = Number.parseFloat(getComputedStyle(label).fontSize)
             label.style.fontSize = `${size * scale}px`
@@ -222,7 +222,7 @@ describe('Hoje header geometry', () => {
           const progress = parent.querySelector('.habit-row-meta')!
           const progressText = document.createRange()
           progressText.selectNodeContents(progress)
-          const title = (parent.querySelector('[data-habit-row-heading] > div > span') ?? parent.querySelector('[data-habit-row-body] > div > span'))!
+          const title = (parent.querySelector('[data-habit-row-heading] > div > span') ?? parent.querySelector('[data-habit-row-body] > div > span, [data-personal-text-content] > div > span'))!
           const titleText = document.createRange()
           titleText.selectNodeContents(title)
           const firstTitleLine = titleText.getClientRects()[0]!
@@ -238,18 +238,20 @@ describe('Hoje header geometry', () => {
               top: progress.getBoundingClientRect().top, titleBottom: title.getBoundingClientRect().bottom },
             parentControls: Array.from(parent.querySelectorAll('[data-habit-row-control]')).map((control) => {
               const bounds = control.getBoundingClientRect()
-              const wrapper = body.nextElementSibling!.getBoundingClientRect()
+              const action = body.closest('[data-personal-text-action]') ?? body
+              const wrapper = action.nextElementSibling!.getBoundingClientRect()
               const centerX = bounds.left + bounds.width / 2
               return { top: bounds.top, bottom: bounds.bottom, firstLineCenter: (firstTitleLine.top + firstTitleLine.bottom) / 2,
                 controlHit: document.elementFromPoint(centerX, bounds.top + bounds.height / 2)?.closest('[data-habit-row-control]') === control,
                 emptyBandHeight: wrapper.bottom - bounds.bottom,
                 emptyBandHitsBody: document.elementFromPoint(centerX, (bounds.bottom + wrapper.bottom) / 2)?.closest('button') === body }
             }),
-            contentEdges: [date, sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div'))!)].map((element) => element.getBoundingClientRect().left),
+            contentEdges: [date, sentence, ...rows.map((row) => (row.querySelector('[data-habit-row-heading] > div') ?? row.querySelector('[data-habit-row-body] > div, [data-personal-text-content] > div'))!)].map((element) => element.getBoundingClientRect().left),
             insetEdges: rows.map((row) => row.getBoundingClientRect().left),
             wellInsets: rows.map((row) => {
               const body = row.querySelector('[data-habit-row-body]')!
-              const well = body.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+              const content = row.querySelector('[data-personal-text-content]') ?? body
+              const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
               return well.getBoundingClientRect().left - body.getBoundingClientRect().left
             }),
             leafBody: rows[0]!.querySelector('[data-habit-row-body]')!.getBoundingClientRect().left,

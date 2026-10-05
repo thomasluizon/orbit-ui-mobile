@@ -58,7 +58,7 @@ describe('select-check RadioRow group', () => {
       <RadioRow label="Second" onSelect={() => onChange('second')} />
     </RadioGroup>)
     const selected = screen.getByRole('radio', { name: label })
-    const text = selected.querySelector<HTMLElement>('[data-personal-text]')!
+    const text = selected.parentElement!.querySelector<HTMLElement>('[data-personal-text]')!
 
     for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) fireEvent.keyDown(text, { key })
 
@@ -81,7 +81,7 @@ describe('select-check RadioRow group', () => {
       ? <RadioRow label={label} textMode="personal" selected disabled reason="Sending" />
       : <RadioGroup aria-label="Subjects"><RadioRow label={label} textMode="personal" selected onSelect={vi.fn()} /></RadioGroup>)
     if (disabled) fireEvent.click(screen.getByRole('button', { name: label }))
-    const text = screen.getByRole('radio').querySelector<HTMLElement>('[data-personal-text]')!
+    const text = screen.getByRole('radio').parentElement!.querySelector<HTMLElement>('[data-personal-text]')!
     document.addEventListener('keydown', onKeyDown)
     try {
       fireEvent.keyDown(text, { key: 'Escape' })

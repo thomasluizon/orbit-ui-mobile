@@ -1,6 +1,7 @@
 'use client'
 
 import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
 
 import { resolveSettingsRowText } from '@orbit/shared/hooks'
 
@@ -104,7 +105,7 @@ export function SettingsRow({
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
 
-  return (
+  const control = (
     <RootTag
       type={interactive ? 'button' : undefined}
       onClick={handleClick}
@@ -164,4 +165,5 @@ export function SettingsRow({
       <SettingsRowTrailing value={value} valueColor={valueColor} accessory={accessory} mono={mono}>{children}</SettingsRowTrailing>
     </RootTag>
   )
+  return textMode === 'personal' && interactive ? <PersonalTextAction label={ariaLabel ?? label} contentClassName="flex items-center w-full rounded-[12px]" contentStyle={settingsRowStyle(textMode, divider)} control={control} /> : control
 }

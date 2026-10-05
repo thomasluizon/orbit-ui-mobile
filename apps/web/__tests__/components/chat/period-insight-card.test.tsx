@@ -69,6 +69,6 @@ describe('period insight card on web', () => {
     expect(disclosure).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(disclosure)
     expect(disclosure).toHaveAttribute('aria-expanded', 'true')
-    expect(disclosure).toHaveTextContent(name)
+    expect(disclosure.parentElement).toHaveTextContent(name)
   })
 })

@@ -3,6 +3,7 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useCallback, useId, useState } from 'react'
 import { GripHorizontal, ChevronDown, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
@@ -385,7 +386,9 @@ function InteractiveChecklistItem({
     borderBottom: index < itemsLength - 1 ? '1px solid var(--hairline)' : 'none',
   }
 
-  const itemText = <button type="button" aria-label={item.text} aria-expanded={expanded} aria-controls={textId} onClick={() => setExpanded(!expanded)} className="orbit-hover-text flex items-center gap-2 min-h-12 min-w-0 w-full rounded-[12px] px-2 py-1 text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><PersonalText id={textId} expanded={expanded} className="flex-1" style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16 }}>{item.text}</PersonalText><ChevronDown aria-hidden="true" size={20} strokeWidth={1.5} className={`shrink-0 ${expanded ? 'rotate-180' : ''}`} /></button>
+  const textControl = <button type="button" aria-label={item.text} aria-expanded={expanded} aria-controls={textId} onClick={() => setExpanded(!expanded)} className="orbit-hover-text flex items-center gap-2 min-h-12 min-w-0 w-full rounded-[12px] px-2 py-1 text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><PersonalText id={textId} expanded={expanded} className="flex-1" style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16 }}>{item.text}</PersonalText><ChevronDown aria-hidden="true" size={20} strokeWidth={1.5} className={`shrink-0 ${expanded ? 'rotate-180' : ''}`} /></button>
+
+  const itemText = <PersonalTextAction className="flex-1" label={item.text} contentClassName="flex items-center gap-2 min-h-12 w-full rounded-[12px] px-2 py-1 text-start" control={textControl} />
 
   if (!interactive) {
     return (
