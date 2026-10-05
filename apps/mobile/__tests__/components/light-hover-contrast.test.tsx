@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
-import { StyleSheet, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { neutralColors } from '@orbit/shared/theme'
+import { HabitRow } from '@/components/habits/habit-row'
 import { HabitLogButton } from '@/components/habits/habit-log-button'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
@@ -15,8 +16,15 @@ import { SettingsGroup } from '@/components/ui/settings-group-list'
 import { Menu } from '@/components/ui/menu'
 import { SearchResult } from '@/components/search/search-results'
 
+const themeMock = vi.hoisted((): { currentTheme: 'light' | 'dark' } => ({ currentTheme: 'light' }))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+}))
+vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
+
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'light' }),
+  useAppTheme: () => ({ currentScheme: 'orange', currentTheme: themeMock.currentTheme }),
 }))
 
 const cases: { name: string; role: string; element: ReactElement }[] = [
@@ -93,6 +101,48 @@ describe('light hover text on Android', () => {
       await act(() => { (control.props.onPressOut as (() => void) | undefined)?.() })
     } finally {
       await act(() => { tree.update(<></>) })
+    }
+  })
+})
+
+describe('habit monogram contrast on Android', () => {
+  it.each((['light', 'dark'] as const).flatMap((mode) =>
+    ([0, 1] as const).map((depth) => ({ mode, depth })),
+  ))('keeps the monogram readable at rest and on press in $mode, depth=$depth', async ({ mode, depth }) => {
+    themeMock.currentTheme = mode
+    const colors = neutralColors[mode]
+    let tree!: ReactTestRenderer
+    await act(() => {
+      tree = create(<View style={{ backgroundColor: colors.bg }}><View style={{ backgroundColor: colors.bgCard }}>
+        <HabitRow habit={createMockHabit({ title: 'Walking', emoji: '' })} depth={depth} />
+      </View></View>)
+    })
+    const body = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && typeof node.props.onPressIn === 'function')[0]!
+    const measure = () => {
+      const monogram = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')[0]!
+      const canvas = tree.root.findAll((node) => String(node.type) === 'View')[0]!
+      const card = canvas.findAll((node) => String(node.type) === 'View')[1]!
+      const well = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityElementsHidden === true)[0]!
+      return {
+        color: StyleSheet.flatten(monogram.props.style as StyleProp<TextStyle>).color as string,
+        well: StyleSheet.flatten(well.props.style as StyleProp<ViewStyle>).backgroundColor as string,
+        canvas: StyleSheet.flatten(canvas.props.style as StyleProp<ViewStyle>).backgroundColor as string,
+        card: StyleSheet.flatten(card.props.style as StyleProp<ViewStyle>).backgroundColor as string,
+      }
+    }
+    try {
+      const resting = measure()
+      expect(contrastOnSurface(resting.color, [resting.canvas, resting.card, resting.well])).toBeGreaterThanOrEqual(4.5)
+      await act(() => { (body().props.onPressIn as () => void)() })
+      const pressed = measure()
+      const fill = pressedFill(body())
+      expect(contrastOnSurface(pressed.color, [pressed.canvas, pressed.card, fill, pressed.well])).toBeGreaterThanOrEqual(4.5)
+      expect(pressed.color).toBe(colors.fg2)
+      await act(() => { (body().props.onPressOut as () => void)() })
+      expect(measure()).toEqual(resting)
+    } finally {
+      await act(() => { tree.update(<></>) })
+      themeMock.currentTheme = 'light'
     }
   })
 })

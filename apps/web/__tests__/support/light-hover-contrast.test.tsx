@@ -4,6 +4,8 @@ import { render, fireEvent } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { HabitRow } from '@/components/habits/habit-row'
 import { neutralColors } from '@orbit/shared/theme'
 import { contrastOnSurface, controlContrast } from '@orbit/shared/__tests__/contrast'
 import { ShellWide } from '@/components/shell/shell-wide'
@@ -81,6 +83,43 @@ describe('rendered light hover contrast', () => {
       }
       await page.mouse.up()
       await page.mouse.move(0, 0)
+      await page.waitForTimeout(300)
+      expect(await measure()).toEqual(resting)
+    } finally { await page.close(); unmount() }
+  })
+
+  it.each((['light', 'dark'] as const).flatMap((mode) =>
+    ['hover', 'press'].flatMap((phase) => [600, 1352].flatMap((width) =>
+      ([0, 1] as const).map((depth) => ({ mode, phase, width, depth })))),
+  ))('keeps the habit monogram readable in $mode on $phase at $width, depth=$depth', async ({ mode, phase, width, depth }) => {
+    const { container, unmount } = render(<HabitRow habit={createMockHabit({ title: 'Walking', emoji: '' })} depth={depth} meta={['Daily']} />)
+    const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce', hasTouch: phase === 'press' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)"><div style="background:var(--bg-card)">${container.innerHTML}</div></body></html>`)
+      const body = page.locator('[data-habit-row-body]')
+      const measure = () => body.evaluate((control) => {
+        const well = [...control.querySelectorAll('span')].find((node) => node.childElementCount === 0 && node.textContent === 'W')!
+        return {
+          color: getComputedStyle(well).color,
+          well: getComputedStyle(well).backgroundColor,
+          fill: getComputedStyle(control).backgroundColor,
+          card: getComputedStyle(control.parentElement!.parentElement!).backgroundColor,
+          canvas: getComputedStyle(document.body).backgroundColor,
+          meta: getComputedStyle(control.querySelector('.habit-row-meta')!).color,
+        }
+      })
+      const resting = await measure()
+      expect(contrastOnSurface(resting.color, [resting.canvas, resting.card, resting.fill, resting.well])).toBeGreaterThanOrEqual(4.5)
+      await body.hover()
+      if (phase === 'press') await page.mouse.down()
+      await page.waitForTimeout(300)
+      const painted = await measure()
+      expect(contrastOnSurface(painted.color, [painted.canvas, painted.card, painted.fill, painted.well])).toBeGreaterThanOrEqual(4.5)
+      expect(painted.color).toBe(painted.meta)
+      expect(painted.fill).not.toBe(resting.fill)
+      await page.mouse.move(0, 0)
+      await page.mouse.up()
       await page.waitForTimeout(300)
       expect(await measure()).toEqual(resting)
     } finally { await page.close(); unmount() }
