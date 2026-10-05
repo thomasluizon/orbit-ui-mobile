@@ -240,7 +240,10 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
       const el = chatContainerRef.current
-      if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      if (el) el.scrollTo({
+        top: el.scrollHeight,
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      })
     })
   }, [])
 
