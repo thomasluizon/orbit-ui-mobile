@@ -509,7 +509,7 @@ export function CanvasIcon(){return <View style={styles.canvas}><X color={tokens
   const badDeadline = stageProducerRepository("producer-deadline-fg4", deadlinePaths, deadlineViolation)
   check("check-surface-scope.mjs", "rejects the deadline dismiss icon on its caller sheet", ["--root", badDeadline], {
     status: 1,
-    stderr: /apps\/mobile\/components\/habits\/create-goal-from-habit\/goal-deadline-field\.tsx:46: --fg-4 on overlay, dark ratio 2\.593, GRAPHIC floor 3\.00/,
+    stderr: /apps\/mobile\/components\/habits\/create-goal-from-habit\/goal-deadline-field\.tsx:48: --fg-4 on overlay, dark ratio 2\.593, GRAPHIC floor 3\.00/,
   })
   const goodDeadline = stageProducerRepository("producer-deadline-fg3", deadlinePaths)
   check("check-surface-scope.mjs", "accepts the deadline dismiss icon in both modes", ["--root", goodDeadline], {
