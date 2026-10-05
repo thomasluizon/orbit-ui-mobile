@@ -84,6 +84,7 @@ type ExpectedComposerSuggestion = {
 }
 type ExpectedComposerSuggestions =
   | readonly []
+  | readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion]
   | readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion]
   | readonly [
       ExpectedComposerSuggestion,
@@ -216,6 +217,7 @@ export type ComposerContractWidthAssertions = [
   Assert<IsExactWidth<Project<NoAttachmentTrayVariant, 'attachments' | 'onAttachRemove'>, { attachments?: never; onAttachRemove?: never }>>,
   Assert<IsExactWidth<Project<RetryVariant, 'words' | 'onRetry'>, { words: ExpectedComposerWords & { retry: string }; onRetry: () => void }>>,
   Assert<IsExactWidth<Project<NoRetryVariant, 'words' | 'onRetry'>, { words: ExpectedComposerWords; onRetry?: never }>>,
+  Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown]>, readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion]>>,
   Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown]>, readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion]>>,
   Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown, unknown]>, readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion]>>,
   Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown, unknown, unknown]>, readonly [ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion, ExpectedComposerSuggestion]>>,
@@ -381,7 +383,6 @@ const missingAttachmentName: ComposerAttachment = { id: 'image', kind: 'image' }
 const videoAttachment: ComposerAttachment = { id: 'video', kind: 'video', name: 'video.mp4' }
 void [missingAttachmentId, missingAttachmentKind, missingAttachmentName, videoAttachment]
 
-// @ts-expect-error two suggestions are below the contract minimum
 const suggestions2: ComposerSuggestions = [chip, chip]
 // @ts-expect-error one suggestion is below the contract minimum
 const suggestions1: ComposerSuggestions = [chip]
