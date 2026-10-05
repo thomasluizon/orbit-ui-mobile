@@ -172,6 +172,7 @@ describe('Calendar shell helpers', () => {
     })
     for (const outcome of ['full', 'partial', 'none', 'loggable']) {
       expect(document.querySelector(`[data-legend-outcome="${outcome}"]`)).toHaveStyle({ width: '14px', height: '14px' })
+      expect(document.querySelector(`[data-legend-outcome="${outcome}"]`)?.parentElement).toHaveStyle({ gap: '8px' })
     }
   })
 })

@@ -132,7 +132,7 @@ function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
 
 function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
   return (
-    <span className="inline-flex items-center" style={{ gap: 12 }}>
+    <span className="inline-flex items-center" style={{ gap: 8 }}>
       <LegendSwatch outcome={outcome} />
       <span
         style={{

@@ -290,6 +290,9 @@ describe("CalendarLegend (mobile)", () => {
     }
     const partialMark = tree!.root.findAll((node) => node.type === "Svg" && node.props.testID === "calendar-legend-partial")[0];
     expect(partialMark?.props).toMatchObject({ width: 14, height: 14 });
+    const legendRows = tree!.root.findAll((node) => node.type === "View" && React.Children.toArray(node.props.children).some((child) => React.isValidElement<{ testID?: string }>(child) && String(child.props.testID ?? "").startsWith("calendar-legend-")));
+    expect(legendRows).toHaveLength(4);
+    for (const row of legendRows) expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: "row", gap: 8 });
   });
 });
 
