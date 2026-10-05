@@ -12,9 +12,12 @@ test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
 const today = '2026-09-04'
 const habit = habitDetailSchema.parse(makeHabitDetail())
-const schedule = makeHabitScheduleItem({ scheduledDates: [today], children: [], hasSubHabits: false })
+const schedules = Array.from({ length: 20 }, (_, position) => makeHabitScheduleItem({
+  id: position === 0 ? habit.id : `habit-column-${position}`, title: `Read ${position + 1}`,
+  position, scheduledDates: [today], children: [], hasSubHabits: false,
+}))
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
-  items: [schedule], page: 1, pageSize: 200, totalCount: 1, totalPages: 1,
+  items: schedules, page: 1, pageSize: 200, totalCount: schedules.length, totalPages: 1,
 })
 const metrics = habitMetricsSchema.parse({
   currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100,
@@ -40,13 +43,15 @@ for (const width of [600, 1100]) {
         test('keeps Hoje and habit detail on the habit column edge', async ({ page, context }) => {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
             (route) => route.fulfill({ json: habits }))
-          await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 2 } }))
+          await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: schedules.length + habit.children.length } }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
           await page.goto('/')
+          await expect(page.getByTestId('habit-row')).toHaveCount(schedules.length)
           const row = page.getByTestId('habit-row').first()
           await expect(row).toBeVisible()
+          expect(await page.locator('[data-shell-scroller]').evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
           await page.evaluate(() => document.fonts.ready)
           const rowRight = await row.evaluate((element) => element.getBoundingClientRect().right)
 
