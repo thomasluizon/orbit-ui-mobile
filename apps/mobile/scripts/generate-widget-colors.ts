@@ -49,8 +49,8 @@ const PALETTES = {
     fg2: ['#C9C9CC', '--fg-2'],
     fg3: ['#8F8F93', '--fg-3'],
     fg4: ['#5D5D60', '--fg-4'],
-    trackEmpty: ['#7A7A7D', '--track-empty'],
-    primaryText: ['#E16D33', '--primary-text'],
+    trackEmpty: ['#8B8B8E', '--track-empty'],
+    primaryText: ['#ED773E', '--primary-text'],
     overdue: ['#FE9A00', '--status-overdue'],
   },
   light: {

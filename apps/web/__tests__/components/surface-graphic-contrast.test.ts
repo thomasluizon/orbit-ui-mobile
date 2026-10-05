@@ -60,7 +60,7 @@ const findings = result.stderr.split('\n')
 describe('raised-surface graphic contrast', () => {
   it('checks the full source tree without a scanner error', () => {
     expect(result.error).toBeUndefined()
-    expect([0, 1]).toContain(result.status)
+    expect(result.status, result.stderr).toBe(0)
     expect(findings.filter((line) => line.includes('GRAPHIC floor 3.00'))).toEqual([])
   })
 

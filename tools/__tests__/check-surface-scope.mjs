@@ -1,9 +1,14 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
+import { contrastOnSurface } from "../../packages/shared/src/__tests__/contrast.ts"
+import { neutralColors } from "../../packages/shared/src/theme/neutral-ramp.ts"
+import { widgetColorPalette } from "../../apps/mobile/lib/widget-colors.generated.ts"
+
 import { T, check, root, toolPath } from "./_harness.mjs"
 
-const declarations = `# Design\n\n<!-- surface-scope:start -->\n| on | role | scope | canvas | card | field | well | elev-2 | hover | overlay | widget card | widget well |\n|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n| dark \`--fg-3\` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.175 | 5.760 | 5.557 | 5.281 | 4.688 | 4.567 | 5.281 | 5.760 | 5.224 |\n| light \`--fg-3\` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.691 | - | 5.542 | 4.909 |\n| dark \`--fg-4\` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |\n| light \`--fg-4\` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.950 | - | 3.485 | 3.087 |\n| dark \`--primary-soft\` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |\n| light \`--primary-soft\` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.996 | - | 4.721 | 4.182 |\n| dark \`--status-bad-text\` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |\n| light \`--status-bad-text\` | text | text: canvas, card, well, hover, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.566 | - | 5.394 | 4.779 |\n| dark \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |\n| light \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |\n<!-- surface-scope:end -->\n`
+const undeclaredRows = `| dark \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |
+| light \`--ambiguous\` | undeclared | undeclared | - | - | - | - | - | - | - | - | - |`
 
 /** Gives a motion paragraph opening tag one style attribute whose last member, and so its effective colour, is `color`. */
 function withParagraphColor(openingTag, color) {
@@ -32,6 +37,7 @@ function stageRepository(label, { web = "", mobile = "" }) {
     "packages/shared/src/theme/color-schemes.ts",
     "packages/shared/src/theme/types.ts",
     "apps/mobile/scripts/generate-widget-colors.ts",
+
   ]) {
     const target = join(repository, path)
     mkdirSync(dirname(target), { recursive: true })
@@ -39,9 +45,10 @@ function stageRepository(label, { web = "", mobile = "" }) {
   }
   mkdirSync(join(repository, "apps/web"), { recursive: true })
   mkdirSync(join(repository, "apps/mobile"), { recursive: true })
-  const raisedTextDeclarations = readFileSync(join(actualRoot, "DESIGN.md"), "utf8").split(/\r?\n/)
-    .filter((line) => /^\|\s*(?:dark|light)\s+`--primary-text`/.test(line)).join("\n")
-  writeFileSync(join(repository, "DESIGN.md"), declarations.replace("<!-- surface-scope:end -->", `${raisedTextDeclarations}\n<!-- surface-scope:end -->`))
+  const design = readFileSync(join(actualRoot, "DESIGN.md"), "utf8")
+  writeFileSync(join(repository, "DESIGN.md"), design.replace("<!-- surface-scope:end -->", `${undeclaredRows}\n<!-- surface-scope:end -->`))
+  mkdirSync(join(repository, "apps/web/app"), { recursive: true })
+  cpSync(join(actualRoot, "apps/web/app/globals.css"), join(repository, "apps/web/app/globals.css"))
   writeFileSync(join(repository, "apps/web/example.tsx"), web)
   writeFileSync(join(repository, "apps/mobile/example.tsx"), mobile)
   return repository
@@ -50,7 +57,7 @@ function stageRepository(label, { web = "", mobile = "" }) {
 function stageProducerRepository(label, paths, violation) {
   const repository = stageRepository(label, {})
   const actualRoot = join(dirname(toolPath("check-surface-scope.mjs")), "..")
-  for (const path of paths) {
+  for (const path of [...paths, ...(paths.some((path) => path.startsWith("apps/mobile/")) ? ["apps/mobile/lib/theme.ts"] : [])]) {
     const target = join(repository, path)
     mkdirSync(dirname(target), { recursive: true })
     const source = readFileSync(join(actualRoot, path), "utf8")
@@ -64,11 +71,184 @@ function stageProducerRepository(label, paths, violation) {
   return repository
 }
 
+function stageUnsafeEmptyTrack(repository) {
+  const themePath = join(repository, "packages/shared/src/theme/neutral-ramp.ts")
+  writeFileSync(themePath, readFileSync(themePath, "utf8").replace("trackEmpty: '#7E7E82'", "trackEmpty: '#7F7F83'"))
+  const neutral = neutralColors.light
+  const layers = new Map([
+    ["canvas", [neutral.bg]], ["card", [neutral.bg, neutral.bgCard]], ["well", [neutral.bg, neutral.bgWell]],
+    ["hover", [neutral.bg, neutral.bgHover]], ["widget card", [widgetColorPalette.light.card]], ["widget well", [widgetColorPalette.light.well]],
+  ])
+  const ratios = new Map([...layers].map(([surface, stack]) => [surface, contrastOnSurface("#7F7F83", stack)]))
+  const scope = [...ratios].filter(([, ratio]) => ratio >= 3).map(([surface]) => surface).join(", ")
+  const columns = ["canvas", "card", null, "well", null, "hover", null, "widget card", "widget well"].map((surface) => surface ? ratios.get(surface).toFixed(3) : "-").join(" | ")
+  const row = `| light \`--track-empty\` | graphic | graphic: ${scope} | ${columns} |`
+  const designPath = join(repository, "DESIGN.md")
+  writeFileSync(designPath, readFileSync(designPath, "utf8").replace(/^\| light `--track-empty`.*$/m, row))
+}
+
 export const cases = () => {
+  for (const [label, style] of [
+    ["inline-composed-style", "{{ backgroundColor: 'var(--bg-well)', color: 'var(--fg-3)' }}"],
+    ["named-composed-style", "captionStyle"],
+  ]) {
+    const repository = stageRepository(label, { web: `export function Screen() {
+      const captionStyle = { backgroundColor: 'var(--bg-well)', color: 'var(--fg-3)' }
+      return <div className="bg-[var(--bg-elev)]"><p style=${style === "captionStyle" ? "{captionStyle}" : style}>Copy</p></div>
+    }` })
+    check("check-surface-scope.mjs", `retains ordered named style ancestry: ${label}`, ["--root", repository], {
+      status: 1, stderr: /--fg-3 on overlay \+ well, dark ratio 4\.206/,
+    })
+  }
+  for (const [label, props, status] of [
+    ["false-promotion", "promoted={false}", 1],
+    ["true-promotion", "promoted={true}", 0],
+    ["unknown-promotion", "promoted={flag}", 1],
+  ]) {
+    const repository = stageRepository(label, { web: `function Item({ promoted }) {
+      return <button className={promoted ? 'orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]' : 'bg-[var(--bg)] hover:bg-[var(--bg-hover)]'}><span className="text-[var(--fg-3)]">Item</span></button>
+    } export function Screen({flag}) { return <Item ${props} /> }` })
+    check("check-surface-scope.mjs", `matches conditional classes in caller state: ${label}`, ["--root", repository], {
+      status, ...(status ? { stderr: /--fg-3 on hover, light ratio 4\.161/ } : {}),
+    })
+  }
+  for (const [label, props, status] of [
+    ["true-unsafe-override", "unsafe={true}", 1],
+    ["false-unsafe-override", "unsafe={false}", 0],
+    ["unknown-unsafe-override", "unsafe={flag}", 1],
+  ]) {
+    const repository = stageRepository(label, { web: `function Item({ unsafe }) {
+      return <button className={unsafe
+        ? 'orbit-hover-text unsafe-hover bg-[var(--bg)] hover:bg-[var(--bg-hover)]'
+        : 'orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]'}>
+        <span className="text-[var(--fg-3)]">Item</span>
+      </button>
+    } export function Screen({ flag }) { return <Item ${props} /> }` })
+    const cssPath = join(repository, "apps/web/app/globals.css")
+    writeFileSync(cssPath, readFileSync(cssPath, "utf8") + '\n.light .unsafe-hover:hover { --fg-3: var(--fg-4) !important; }')
+    check("check-surface-scope.mjs", `keeps reachable conditional cascade overrides: ${label}`, ["--root", repository], {
+      status, ...(status ? { stderr: /--fg-3 on hover, light ratio 2\.617, TEXT floor 4\.50/ } : {}),
+    })
+  }
+  for (const [label, props, status] of [
+    ["later-spread-copy", 'body="" {...props}', 1],
+    ["earlier-spread-copy", '{...props} body=""', 0],
+  ]) {
+    const repository = stageRepository(label, { web: `function Notice({body}) { return <div className="bg-[var(--bg-well)]">{body && <p className="text-[var(--fg-3)]">{body}</p>}</div> }
+    export function Screen() { const props = { body: 'Copy' }; return <section className="bg-[var(--bg-elev)]"><Notice ${props} /></section> }` })
+    check("check-surface-scope.mjs", `honors JSX spread order: ${label}`, ["--root", repository], {
+      status, ...(status ? { stderr: /--fg-3 on overlay \+ well, dark ratio 4\.206/ } : {}),
+    })
+  }
+  for (const [label, override] of [
+    ["important-promotion", '.light .orbit-hover-text:hover { --fg-3: var(--fg-4) !important; }'],
+    ["specific-promotion", '.light button.orbit-hover-text:hover:not(:disabled) { --fg-3: var(--fg-4); }'],
+  ]) {
+    const repository = stageRepository(label, { web: `<button className="orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>` })
+    const cssPath = join(repository, "apps/web/app/globals.css")
+    writeFileSync(cssPath, readFileSync(cssPath, "utf8") + override + '\n.light .orbit-hover-text:hover { --fg-3: var(--fg-2); }')
+    check("check-surface-scope.mjs", `uses winning cascade declaration: ${label}`, ["--root", repository], {
+      status: 1, stderr: /--fg-3 on hover, light ratio 2\.617/,
+    })
+  }
+  for (const [label, style] of [["inline-ground", "{{ backgroundColor: 'var(--bg)', color: 'var(--primary-soft)' }}"], ["named-ground", "{captionStyle}"]]) {
+    const repository = stageRepository(label, { web: `export function Screen() {
+      const captionStyle = { backgroundColor: 'var(--bg)', color: 'var(--primary-soft)' }
+      return <div className="bg-[var(--bg-elev)]"><p style=${style}>Copy</p></div>
+    }` })
+    check("check-surface-scope.mjs", `keeps opaque replacements above caller fills: ${label}`, ["--root", repository], { status: 0 })
+  }
+  const namedGroup = stageRepository("named-group-word-class", { web: `<div className="group/actions bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Icon className="stroke-[var(--fg-4)] group-hover/actions:stroke-[var(--fg-3)]"></Icon></div>` })
+  check("check-surface-scope.mjs", "recognizes word characters in named group utilities", ["--root", namedGroup], { status: 0 })
+  const selfClosingGroup = stageRepository("self-closing-named-group", { web: `<div className="group/actions bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Icon className="stroke-[var(--fg-4)] group-hover/actions:stroke-[var(--fg-3)]" /></div>` })
+  check("check-surface-scope.mjs", "retains the group parent of a self-closing graphic", ["--root", selfClosingGroup], { status: 0 })
+  for (const [label, props, status] of [["personal-return", 'mode="personal" onOpen={() => {}}', 0], ["generic-return", 'mode="generic" onOpen={() => {}}', 1], ["unknown-return", 'mode={mode} onOpen={() => {}}', 1]]) {
+    const repository = stageRepository(label, { web: `function Item({mode, onOpen}) {
+      if (mode === 'personal' && onOpen) return <p className="text-[var(--fg-1)]">Copy</p>
+      return <p className="bg-[var(--bg-well)] text-[var(--fg-3)]">Copy</p>
+    } export function Screen({mode}) { return <section className="bg-[var(--bg-elev)]"><Item ${props} /></section> }` })
+    check("check-surface-scope.mjs", `retains only reachable component returns: ${label}`, ["--root", repository], { status, ...(status ? { stderr: /--fg-3 on overlay \+ well, dark ratio 4\.206/ } : {}) })
+  }
+  const forwardedCopy = stageRepository("forwarded-absent-copy", { web: `function Notice({body}) { return <div className="bg-[var(--bg-well)]">{body && <p className="text-[var(--fg-3)]">{body}</p>}</div> }
+    function Forward({body}) { return <Notice body={body} /> }
+    export function Screen() { return <section className="bg-[var(--bg-elev)]"><Forward /></section> }` })
+  check("check-surface-scope.mjs", "forwards optional copy constraints across callers", ["--root", forwardedCopy], { status: 0 })
+  for (const [label, props, status] of [["absent-copy", "", 0], ["present-copy", 'body="Copy"', 1]]) {
+    const repository = stageRepository(label, { web: `function Notice({body}) { return <div className="bg-[var(--bg-well)]">{body && <p className="text-[var(--fg-3)]">{body}</p>}</div> }
+export function Screen() { return <section className="bg-[var(--bg-elev)]"><Notice ${props} /></section> }` })
+    check("check-surface-scope.mjs", `checks only rendered optional copy: ${label}`, ["--root", repository], { status })
+  }
+  const scopedCases = [
+    ["promoted-text", `<button className="orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>`, 0],
+    ["unpromoted-text", `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>`, 1],
+    ["sibling-chart", `export function Chart(){return <span className="text-[var(--fg-3)]">Axis</span>} export function Screen(){const content = <><button className="hover:bg-[var(--bg-hover)]">Control</button><Chart /></>; return <div className="bg-[var(--bg)]">{content}</div>}`, 0],
+    ["optional-track", `export function Ring({ trackColor }){return <svg><circle stroke={trackColor ?? 'var(--fg-4)'} /></svg>} export function Screen(){return <button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Ring trackColor="var(--fg-3)" /></button>}`, 0],
+    ["unpromoted-track", `export function Ring({ trackColor }){return <svg><circle stroke={trackColor ?? 'var(--fg-4)'} /></svg>} export function Screen(){return <button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Ring /></button>}`, 1],
+  ]
+  for (const [label, web, status] of scopedCases) {
+    const repository = stageRepository(label, { web })
+    check("check-surface-scope.mjs", `resolves paint ancestry and scoped foreground: ${label}`, ["--root", repository], { status })
+  }
+  for (const [label, paths] of [
+    ["partial-day", ["apps/web/components/dates/day-cell.tsx"]],
+    ["habit-logging", ["apps/web/components/habits/habit-log-button.tsx", "apps/web/components/ui/progress-ring.tsx", "apps/web/components/ui/status-ring.tsx"]],
+  ]) {
+    for (const promoted of [true, false]) {
+      const repository = stageProducerRepository(`unsafe-${label}-${promoted}`, paths)
+      stageUnsafeEmptyTrack(repository)
+      const cssPath = join(repository, "apps/web/app/globals.css")
+      if (promoted) writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n.light button:hover { --track-empty: var(--fg-3); --status-empty: var(--track-empty); }")
+      check("check-surface-scope.mjs", `measures the real ${label} canvas hover with promotion ${promoted}`, ["--root", repository], {
+        status: promoted ? 0 : 1,
+        ...(promoted ? {} : { stderr: /--track-empty on hover, light ratio 2\.995, GRAPHIC floor 3\.00/ }),
+      })
+    }
+  }
+  const producerCases = [
+    { label: "partial-day", paths: ["apps/web/components/dates/day-cell.tsx"], path: "apps/web/components/dates/day-cell.tsx", before: 'stroke="var(--status-empty)"', after: 'stroke="var(--fg-4)"' },
+    { label: "habit-track", paths: ["apps/web/components/habits/habit-log-button.tsx", "apps/web/components/ui/progress-ring.tsx", "apps/web/components/ui/status-ring.tsx"], path: "apps/web/components/ui/progress-ring.tsx", before: 'stroke="var(--track-empty)"', after: 'stroke="var(--fg-4)"' },
+    { label: "native-promotion", paths: ["apps/mobile/components/navigation/bottom-tab-bar.tsx"], path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: 'hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)', after: 'tokens.fg3' },
+  ]
+  for (const producer of producerCases) {
+    const good = stageProducerRepository(`actual-${producer.label}`, producer.paths)
+    check("check-surface-scope.mjs", `accepts the shipped composition: ${producer.label}`, ["--root", good], { status: 0 })
+    const bad = stageProducerRepository(`broken-${producer.label}`, producer.paths, producer)
+    check("check-surface-scope.mjs", `rejects a removed foreground correction: ${producer.label}`, ["--root", bad], {
+      status: 1, stderr: producer.label === "native-promotion" ? /--fg-3 on hover, light ratio/ : /--fg-4 on hover, .*GRAPHIC floor 3\.00/,
+    })
+  }
+  const producerText = stageProducerRepository("actual-text-promotion", ["apps/web/components/navigation/bottom-tab-bar.tsx"])
+  const producerCss = join(producerText, "apps/web/app/globals.css")
+  writeFileSync(producerCss, readFileSync(producerCss, "utf8").replaceAll("--fg-3: var(--fg-2);", ""))
+  check("check-surface-scope.mjs", "rejects the shipped inactive tab when its CSS promotion is removed", ["--root", producerText], {
+    status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
+  })
+  const aliasSource = `<div className="alias-owner bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><svg className="track-owner"><circle stroke="var(--status-empty)" /></svg></div>`
+  for (const [label, css, status] of [
+    ["inherited-alias", ".alias-owner { --status-empty: var(--fg-4); } .track-owner { --fg-4: var(--fg-3); }", 1],
+    ["rebound-alias", ".alias-owner { --status-empty: var(--fg-4); } .track-owner { --fg-4: var(--fg-3); --status-empty: var(--fg-4); }", 0],
+  ]) {
+    const repository = stageRepository(label, { web: aliasSource })
+    const cssPath = join(repository, "apps/web/app/globals.css")
+    writeFileSync(cssPath, readFileSync(cssPath, "utf8") + css)
+    check("check-surface-scope.mjs", `resolves aliases at their defining scope: ${label}`, ["--root", repository], { status })
+  }
+  for (const [label, promotion, status] of [["imported-style", "", 1], ["promoted-imported-style", "orbit-hover-text", 0]]) {
+    const repository = stageRepository(label, { web: `import { captionStyle } from './caption'
+export function Screen(){return <button className="${promotion} bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span style={captionStyle}>Caption</span></button>}` })
+    writeFileSync(join(repository, "apps/web/caption.ts"), `export const captionStyle = { color: 'var(--fg-3)' }`)
+    check("check-surface-scope.mjs", `follows an imported foreground to its painted caller: ${label}`, ["--root", repository], { status })
+  }
+  const promoted = stageRepository("removed-promotion", { web: scopedCases[0][1] })
+  const cssPath = join(promoted, "apps/web/app/globals.css")
+  writeFileSync(cssPath, readFileSync(cssPath, "utf8").replaceAll("--fg-3: var(--fg-2);", ""))
+  check("check-surface-scope.mjs", "rejects text when its shipped CSS promotion is removed", ["--root", promoted], {
+    status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
+  })
   const interactionOwners = [
     { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: " group-hover:text-[var(--primary-text)]", after: "" },
     { path: "apps/web/components/shell/shell-wide.tsx", before: " hover:text-[var(--primary-text)]", after: "" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3", after: "active ? tokens.primarySoft : tokens.fg3" },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)", after: "active ? tokens.primarySoft : tokens.fg3" },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])
@@ -100,7 +280,7 @@ export const cases = () => {
     ["bad-hover-override", { web: `<button className="bg-[var(--bg)] hover:bg-[var(--bg-hover)] text-[var(--primary-text)] hover:text-[var(--primary-soft)]">Item</button>` }, 1],
     ["reversed-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primarySoft : tokens.primaryText }}>Item</Text>}</Pressable></View>` }, 1],
     ["direct-press", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>{({ pressed }) => <Text style={{ color: pressed ? tokens.primaryText : tokens.primarySoft }}>Item</Text>}</Pressable></View>` }, 0],
-    ["native-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : tokens.fg3 }}>Item</Text></Pressable></View>` }, 0],
+    ["native-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? (hoveredId === item.id ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id) }}>Item</Text></Pressable></View>` }, 0],
     ["native-unpaired-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === item.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: active ? tokens.primarySoft : tokens.fg3 }}>Item</Text></Pressable></View>` }, 1],
     ["native-wrong-hover-owner", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hoveredId === other.id && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hoveredId === item.id ? tokens.primaryText : tokens.primarySoft }}>Item</Text></Pressable></View>` }, 1],
     ["native-reversed-hover", { mobile: `<View style={{ backgroundColor: tokens.bg }}><Pressable style={[hovered && { backgroundColor: tokens.bgHover }]}><Text style={{ color: hovered ? tokens.primarySoft : tokens.primaryText }}>Item</Text></Pressable></View>` }, 1],
@@ -142,7 +322,7 @@ export const cases = () => {
     })
     if (status === 1) {
       T(`independent hover bindings report both contrast violations: ${label}`,
-        /--primary-soft on hover, light ratio 3\.996, TEXT floor 4\.50/.test(result.stderr), result.stderr)
+        /--primary-soft on hover, light ratio 3\.545, TEXT floor 4\.50/.test(result.stderr), result.stderr)
     }
   }
   for (const [label, parameter, status] of [
@@ -329,7 +509,7 @@ export function CanvasIcon(){return <View style={styles.canvas}><X color={tokens
   const badDeadline = stageProducerRepository("producer-deadline-fg4", deadlinePaths, deadlineViolation)
   check("check-surface-scope.mjs", "rejects the deadline dismiss icon on its caller sheet", ["--root", badDeadline], {
     status: 1,
-    stderr: /apps\/mobile\/components\/habits\/create-goal-from-habit\/goal-deadline-field\.tsx:46: --fg-4 on overlay, dark ratio 2\.593, GRAPHIC floor 3\.00/,
+    stderr: /apps\/mobile\/components\/habits\/create-goal-from-habit\/goal-deadline-field\.tsx:48: --fg-4 on overlay, dark ratio 2\.593, GRAPHIC floor 3\.00/,
   })
   const goodDeadline = stageProducerRepository("producer-deadline-fg3", deadlinePaths)
   check("check-surface-scope.mjs", "accepts the deadline dismiss icon in both modes", ["--root", goodDeadline], {

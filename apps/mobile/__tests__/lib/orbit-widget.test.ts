@@ -60,8 +60,8 @@ describe('toWidgetColors', () => {
       border: '#2B2B2D',
       borderMuted: '#2B2B2D',
       overdue: '#FE9A00',
-      streakText: '#E16D33',
-      statusEmpty: '#7A7A7D',
+      streakText: '#ED773E',
+      statusEmpty: '#8B8B8E',
     })
     expect(toWidgetColors(createTokensV2('purple', 'light'), 'light')).toEqual({
       background: '#FFFFFF',
@@ -99,7 +99,7 @@ describe('toWidgetColors', () => {
     expect(preferences.dark_surface).toBe('#1D1D1F')
     expect(preferences.light_background).toBe('#FFFFFF')
     expect(preferences.light_surface).toBe('#F1F1F2')
-    expect(preferences.dark_streakText).toBe('#E16D33')
+    expect(preferences.dark_streakText).toBe('#ED773E')
     expect(preferences.light_streakText).toBe('#A63A00')
     expect(Object.keys(preferences)).toHaveLength(22)
   })
@@ -150,7 +150,7 @@ describe('toWidgetColors', () => {
     expect(widgetLayout).not.toContain('widget_flame')
 
     expect(lightResources).toContain('<color name="widget_streak_text">#A63A00</color>')
-    expect(darkResources).toContain('<color name="widget_streak_text">#E16D33</color>')
+    expect(darkResources).toContain('<color name="widget_streak_text">#ED773E</color>')
   })
 
   it('carries both night modes through the full widget layout and collection rows', () => {

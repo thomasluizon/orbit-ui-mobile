@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { hoverForeground } from '@orbit/shared/theme'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
 import { StyleSheet, Text, View } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
@@ -51,7 +50,7 @@ export function CheckRow({
         <Text
           style={[
             styles.label,
-            { color: checked ? hoverForeground(currentTheme, tokens.fg3, pressed) : tokens.fg1 },
+            { color: checked ? (pressed ? tokens.fg2 : tokens.fg3) : tokens.fg1 },
           ]}
         >
           {label}

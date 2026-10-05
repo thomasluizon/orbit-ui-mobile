@@ -42,7 +42,7 @@ export const neutralColors: Record<SchemeMode, NeutralColors> = {
     fg2: '#C9C9CC',
     fg3: '#8F8F93',
     fg4: '#5D5D60',
-    trackEmpty: '#7A7A7D',
+    trackEmpty: '#8B8B8E',
     scrim: 'rgba(0,0,0,0.55)',
   },
   light: {

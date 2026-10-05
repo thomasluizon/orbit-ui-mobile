@@ -62,7 +62,7 @@ for (const mode of ['dark', 'light'] as const) {
         expect(panel.above).toBeCloseTo(panel.below, 1)
       }
       const parentTrack = geometry.find((panel) => panel.track !== null)!
-      expect(parentTrack.track).toBe(mode === 'dark' ? 'rgb(122, 122, 125)' : 'rgb(126, 126, 130)')
+      expect(parentTrack.track).toBe(mode === 'dark' ? 'rgb(139, 139, 142)' : 'rgb(126, 126, 130)')
       expect(contrastOnSurface(parentTrack.track!, [parentTrack.canvas, parentTrack.card])).toBeGreaterThanOrEqual(3)
     })
   }

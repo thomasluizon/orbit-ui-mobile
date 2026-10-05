@@ -81,8 +81,8 @@ describe('widget color generator', () => {
   })
 
   it.each([
-    ['dark', '#E16D33', 'widget_card'],
-    ['dark', '#E16D33', 'widget_well'],
+    ['dark', '#ED773E', 'widget_card'],
+    ['dark', '#ED773E', 'widget_well'],
     ['light', '#A63A00', 'widget_card'],
     ['light', '#A63A00', 'widget_well'],
   ] as const)(

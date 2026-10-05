@@ -12,8 +12,8 @@ internal object WidgetColorFallbacks {
         "border" to "#2B2B2D", // WHY: --hairline-ghost flattened over --bg-card.
         "borderMuted" to "#2B2B2D", // WHY: --hairline-ghost flattened over --bg-card.
         "overdue" to "#FE9A00", // WHY: --status-overdue.
-        "streakText" to "#E16D33", // WHY: --primary-text.
-        "statusEmpty" to "#7A7A7D", // WHY: --track-empty.
+        "streakText" to "#ED773E", // WHY: --primary-text.
+        "statusEmpty" to "#8B8B8E", // WHY: --track-empty.
     )
 
     val light = mapOf(
