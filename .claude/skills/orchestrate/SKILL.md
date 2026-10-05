@@ -573,6 +573,13 @@ The order also requires `.claude/cloud-handoff.json` in the committed diff, with
 
 ## Steps 5 and 6. Spawn the worker
 
+New ticket work atomically claims capacity in `launch-worker.mjs` before spawn. It refuses when
+the claim would put open pull requests and live claims above `caps.maxOpenPullRequests`, or queued
+Actions runs from the last 24 hours and live claims above `caps.maxQueuedRuns`, across configured
+repositories. A branch with an open pull
+request is exempt. Claims end when the launcher exits or its branch gains an open pull request. A GitHub read error
+refuses admission with exit 8 and `ADMISSION_REFUSED` JSON. Do not retry by changing flags.
+
 ### Cloud execution
 
 `--cloud` is available only when `.claude/orchestrator.json` sets `cloud.enabled` to `true`, and only
@@ -1599,7 +1606,7 @@ THIS session. That part is still yours, which is why the invariant says to name 
 A no-flag single ticket still runs locally. Cloud remains bound to `ui` through
 `cloud.repositoryKey`, so `orbit-api` and `orbit-landing-page` tickets use the small local pool:
 **`--parallel` runs up to `caps.parallelTickets`
-local tickets at once**, using the current config, one worktree each.
+local tickets at once**, currently **10**, one worktree each.
 
 Size that pool against the serial materialization lane. `materialize-cloud-result.mjs` is serial
 across the whole fleet: local test, build, signed commit, push and pull request run on this laptop,
