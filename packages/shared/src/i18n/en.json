@@ -2284,7 +2284,7 @@
     "flow": {
       "completionFailed": "Onboarding could not finish. Try again.",
       "trial": {
-        "title": "Your Orbit Pro trial is on.",
+        "title": "Orbit Pro, 7 free days",
         "body": "Everything in Pro is on during the free trial. If you do not subscribe, your account returns to the free plan."
       },
       "step": "{current} of {total}",

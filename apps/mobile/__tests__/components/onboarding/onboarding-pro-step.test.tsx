@@ -218,7 +218,7 @@ it.each(geometryCases)('fits the owning Android final-step heading at $width in 
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="100"><text y="50" font-family="Space Grotesk" font-size="${style.fontSize}" letter-spacing="${style.letterSpacing}">${escaped}</text></svg>`
     const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!
     process.stdout.write(`${JSON.stringify({ width, locale, trial, measure, textWidth: bounds.x + bounds.width })}\n`)
-    if (!trial) expect(bounds.x + bounds.width).toBeLessThanOrEqual(measure)
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(measure)
     expect(measure).toBe(Math.min(width, width >= 1024 ? 560 : 440) - 32)
   } finally { await act(() => tree.update(<></>)) }
 })
