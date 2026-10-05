@@ -26,6 +26,7 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24Ho
 
 const surfaces = ['input', 'multiline', 'time', 'goal', 'command', 'composer', 'habit', 'code'] as const
 type Surface = (typeof surfaces)[number]
+type RingTransition = { type: string; propertyName: string; elapsedTime: number }
 const noop = () => {}
 
 async function markup(surface: Surface, focused = false, disabled = false, error?: string) {
@@ -78,6 +79,23 @@ async function paint(page: Page) {
   }))
 }
 
+async function captureRingTransitions(page: Page) {
+  return page.evaluateHandle(() => Array.from(document.querySelectorAll('[data-focus-perimeter], [data-otp-cell]'), (perimeter) => {
+    const transitions: RingTransition[] = []
+    for (const type of ['transitionrun', 'transitionend']) perimeter.addEventListener(type, (event) => {
+      if (event instanceof TransitionEvent && event.target === perimeter) transitions.push({ type: event.type, propertyName: event.propertyName, elapsedTime: event.elapsedTime })
+    })
+    return transitions
+  }))
+}
+
+async function expectRingTransitions(observation: Awaited<ReturnType<typeof captureRingTransitions>>, perimeterCount: number) {
+  await expect.poll(() => observation.evaluate((transitions) => transitions)).toEqual(Array.from({ length: perimeterCount }, () => [
+    { type: 'transitionrun', propertyName: 'box-shadow', elapsedTime: 0 },
+    { type: 'transitionend', propertyName: 'box-shadow', elapsedTime: 0.24 },
+  ]))
+}
+
 async function forceAutofill(page: Page) {
   const session = await page.context().newCDPSession(page)
   await session.send('DOM.enable')
@@ -113,9 +131,9 @@ describe.each(['dark', 'light'] as const)('field hover in Chromium, %s', (mode) 
     const page = await open(surface)
     try {
       const rest = await paint(page)
+      const transitions = await captureRingTransitions(page)
       await page.locator('input, textarea').first().hover()
-      const transitions = await page.locator('[data-focus-perimeter], [data-otp-cell]').evaluateAll((perimeters) => perimeters.flatMap((perimeter) => perimeter.getAnimations({ subtree: true }).map((animation) => animation instanceof CSSTransition ? animation.transitionProperty : 'animation')))
-      expect(transitions).toContain('box-shadow')
+      await expectRingTransitions(transitions, rest.length)
       await expect.poll(async () => (await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.hover, width: 1 }])
       for (const perimeter of await paint(page)) {
         expect(perimeter.rings).toEqual([{ color: perimeter.colors.hover, width: 1 }])
@@ -125,9 +143,44 @@ describe.each(['dark', 'light'] as const)('field hover in Chromium, %s', (mode) 
         expect(perimeter.property).toBe('box-shadow')
         expect(perimeter.easing).toBe('cubic-bezier(0.2, 0, 0, 1)')
       }
+      await transitions.evaluate((recorded) => { for (const events of recorded) events.length = 0 })
       await page.mouse.move(0, 0)
+      await expectRingTransitions(transitions, rest.length)
       await expect.poll(async () => (await paint(page))[0]!.rings).toEqual([{ color: rest[0]!.colors.rest, width: 1 }])
       expect((await paint(page))[0]!.duration).toBe('0.24s')
+    } finally { await page.close() }
+  })
+
+  it.each(['input', 'time', 'code'] as const)('retains %s transition evidence after inspection is delayed beyond its duration', async (surface) => {
+    const page = await open(surface)
+    try {
+      const rest = await paint(page)
+      const transitions = await captureRingTransitions(page)
+      await page.locator('input, textarea').first().hover()
+      await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 500)))
+      expect(await page.locator('[data-focus-perimeter], [data-otp-cell]').evaluateAll((perimeters) => perimeters.flatMap((perimeter) => perimeter.getAnimations({ subtree: true })))).toEqual([])
+      await expectRingTransitions(transitions, rest.length)
+      for (const perimeter of await paint(page)) {
+        expect(perimeter.rings).toEqual([{ color: perimeter.colors.hover, width: 1 }])
+        expect(perimeter.fill).toBe(rest[0]!.fill)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each(['input', 'time', 'code'] as const)('rejects static %s hover color changes without a real transition', async (surface) => {
+    const page = await open(surface)
+    try {
+      await page.evaluate(() => {
+        const override = document.createElement('style')
+        override.textContent = '[data-focus-perimeter], [data-focus-perimeter]::after, [data-otp-cell] { transition: none !important; }'
+        document.head.append(override)
+      })
+      const rest = await paint(page)
+      const transitions = await captureRingTransitions(page)
+      await page.locator('input, textarea').first().hover()
+      for (const perimeter of await paint(page)) expect(perimeter.rings).toEqual([{ color: perimeter.colors.hover, width: 1 }])
+      expect(await transitions.evaluate((recorded) => recorded)).toEqual(rest.map(() => []))
+      await expect(expectRingTransitions(transitions, rest.length)).rejects.toThrowError('to deeply equal')
     } finally { await page.close() }
   })
 
