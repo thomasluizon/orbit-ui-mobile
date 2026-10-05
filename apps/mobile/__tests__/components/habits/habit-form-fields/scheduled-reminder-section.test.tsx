@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, type ViewStyle } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_SCHEDULED_REMINDERS } from "@orbit/shared/validation";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
@@ -103,11 +103,32 @@ function texts(tree: TestTree): unknown[] {
 }
 
 describe("ScheduledReminderSection", () => {
-  it("shows the settings action for a blocked scheduled reminder", () => {
+  it("makes the blocked permission sentence one padded settings control", () => {
     pushPermission.status = "denied";
     const { tree } = render({ reminderEnabled: true });
-    expect(texts(tree)).toContain("habits.form.reminderPermissionNeeded");
-    expect(texts(tree)).toContain("common.openSettings");
+    const controls = tree.root.findAll((node) => node.type === "Pressable" && node.props.accessibilityLabel === "habits.form.reminderPermissionNeeded");
+    expect(controls).toHaveLength(1);
+    const control = controls[0]!;
+    expect(control.props.accessibilityRole).toBe("button");
+    expect(control.props.accessibilityHint).toBe("habits.form.reminderSettingsHint");
+    const liveText = control.findAll((node) => node.type === "Text" && node.props.accessibilityLiveRegion === "polite");
+    expect(liveText).toHaveLength(1);
+    expect(liveText[0]!.props.children).toBe(control.props.accessibilityLabel);
+    const styles = control.props.style as (state: { pressed: boolean }) => ViewStyle[];
+    const resting = StyleSheet.flatten(styles({ pressed: false }));
+    const pressed = StyleSheet.flatten(styles({ pressed: true }));
+    expect(resting.minHeight).toBe(48);
+    expect(pressed.backgroundColor).toBe(tokens.bgHover);
+    expect(pressed.paddingHorizontal).toBeGreaterThanOrEqual(8);
+    expect(pressed.paddingVertical).toBeGreaterThanOrEqual(4);
+    TestRenderer.act(() => (control.props.onHoverIn as () => void)());
+    const hovered = StyleSheet.flatten((control.props.style as typeof styles)({ pressed: false }));
+    expect(hovered).toMatchObject({ backgroundColor: tokens.bgHover, paddingHorizontal: 8, paddingVertical: 8 });
+    TestRenderer.act(() => (control.props.onHoverOut as () => void)());
+    TestRenderer.act(() => (control.props.onFocus as () => void)());
+    expect(StyleSheet.flatten((control.props.style as typeof styles)({ pressed: false }))).toMatchObject({ outlineWidth: 2, outlineColor: tokens.fg1 });
+    TestRenderer.act(() => (control.props.onBlur as () => void)());
+    expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === "common.openSettings")).toHaveLength(0);
   });
 
   it("hides the body while reminders are disabled", () => {

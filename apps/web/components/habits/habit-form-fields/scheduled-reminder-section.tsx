@@ -8,7 +8,7 @@ import { MAX_SCHEDULED_REMINDERS, validateScheduledReminders } from '@orbit/shar
 import { TimeField } from '@/components/ui/time-field'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import { Switch } from '@/components/ui/switch'
-import Link from 'next/link'
+import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 
@@ -109,14 +109,7 @@ export function ScheduledReminderSection({
           label={t('habits.form.scheduledReminder')}
         />
       </div>}
-      {!nested && <p role="status" className="text-xs leading-[1.5] text-[var(--fg-3)] empty:hidden">
-        {permission.showNotice ? <>
-          {t('habits.form.reminderPermissionNeeded')}{' '}
-          <Link href="/profile/notifications" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--fg-2)]">
-            {t('habits.form.reminderSettingsAction')}
-          </Link>
-        </> : null}
-      </p>}
+      {!nested && <ReminderPermissionNotice visible={permission.showNotice} t={t} />}
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
           {(scheduledReminders?.length ?? 0) > 0 && (
