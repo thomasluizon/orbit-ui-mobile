@@ -3,6 +3,7 @@ import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { __setScrollToImpl } from '../../test-mocks/react-native'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import Yoga from 'yoga-layout'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
@@ -550,6 +551,48 @@ function findButtonByText(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfileScreen', () => {
+  it.each([412, 840].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
+    .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
+    const tree = await renderProfileSubscreen(screen)
+    const column = Yoga.Node.create()
+    const scroller = Yoga.Node.create()
+    const content = Yoga.Node.create()
+    const firstRow = Yoga.Node.create()
+    try {
+      const group = tree.root.findByProps({ testID: `profile-settings-group-${screen}` })
+      const style = StyleSheet.flatten(group.props.contentContainerStyle) as ViewStyle
+      const scrollerStyle = StyleSheet.flatten(group.props.style) as ViewStyle
+      column.setWidth(width)
+      column.setHeight(915)
+      scroller.setFlex(scrollerStyle.flex)
+      scroller.setMinWidth(scrollerStyle.minWidth as number)
+      if (style.width === '100%') content.setWidthPercent(100)
+      if (typeof style.maxWidth === 'number') content.setMaxWidth(style.maxWidth)
+      if (style.alignSelf) content.setAlignSelf({
+        auto: Yoga.ALIGN_AUTO, 'flex-start': Yoga.ALIGN_FLEX_START, center: Yoga.ALIGN_CENTER,
+        'flex-end': Yoga.ALIGN_FLEX_END, stretch: Yoga.ALIGN_STRETCH, baseline: Yoga.ALIGN_BASELINE,
+      }[style.alignSelf])
+      if (typeof style.paddingHorizontal === 'number') content.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+      firstRow.setHeight(48)
+      column.insertChild(scroller, 0)
+      scroller.insertChild(content, 0)
+      content.insertChild(firstRow, 0)
+      column.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
+      expect(scroller.getComputedLeft() + content.getComputedLeft() + firstRow.getComputedLeft()).toBe(16)
+      expect(content.getComputedWidth()).toBe(Math.min(width, 560))
+      expect(firstRow.getComputedWidth()).toBe(content.getComputedWidth() - 32)
+      const back = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+        node.type === 'Pressable' && node.props.accessibilityLabel === 'common.backToProfile')[0]!
+      let header = back.parent!
+      while (StyleSheet.flatten(header.props.style)?.paddingLeft === undefined) header = header.parent!
+      const headerStyle = StyleSheet.flatten(header.props.style)
+      expect(headerStyle).toMatchObject({ paddingLeft: 8, paddingRight: 16 })
+    } finally {
+      column.freeRecursive()
+      TestRenderer.act(() => tree.unmount())
+    }
+  })
+
   it('scrolls the Perfil root on tab reselect without changing settings', async () => {
     const scrollTo = vi.fn()
     __setScrollToImpl(scrollTo)
