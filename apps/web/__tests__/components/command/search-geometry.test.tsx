@@ -103,6 +103,53 @@ describe('search result geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each((['light', 'dark'] as const).flatMap((theme) =>
+    (['outside', 'inactive', 'active'] as const).map((pointer) => ({ theme, pointer })),
+  ))('keeps keyboard selection visible with pointer $pointer in $theme', async ({ theme, pointer }) => {
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'description', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Open Run/ })
+    const page = await browser.newPage({ viewport: { width: 840, height: 915 } })
+    try {
+      for (const selectedIndex of [0, 1]) {
+        if (selectedIndex === 1) fireEvent.keyDown(input, { key: 'ArrowDown' })
+        expect(screen.getAllByRole('option')[selectedIndex]).toHaveAttribute('aria-selected', 'true')
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((variables) => {
+          for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+          document.body.style.backgroundColor = 'var(--bg)'
+        }, resolveWebThemeVariables('orange', theme))
+        await page.mouse.move(0, 0)
+        if (pointer !== 'outside') await page.getByRole('option').nth(pointer === 'active' ? selectedIndex : 1 - selectedIndex).hover()
+        for (const index of [0, 1]) {
+          const selected = index === selectedIndex
+          const hovered = pointer === 'active' ? selected : pointer === 'inactive' && !selected
+          const row = page.getByRole('option').nth(index)
+          const paint = await row.evaluate((element, state) => {
+            const probe = document.createElement('span')
+            probe.style.backgroundColor = state.selected ? 'var(--primary-dim)' : state.hovered ? 'var(--bg-hover)' : 'var(--bg-card)'
+            probe.style.boxShadow = state.selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline-ghost)'
+            element.append(probe)
+            const expected = getComputedStyle(probe)
+            const actual = getComputedStyle(element)
+            const measured = { background: actual.backgroundColor, shadow: actual.boxShadow.split(/, (?=rgba?\()/).filter((layer) => !layer.startsWith('rgba(0, 0, 0, 0) ')), expectedBackground: expected.backgroundColor, expectedShadow: expected.boxShadow }
+            probe.remove()
+            return measured
+          }, { selected, hovered })
+          expect.soft(paint.background, JSON.stringify({ theme, pointer, selectedIndex, index, paint })).toBe(paint.expectedBackground)
+          expect.soft(paint.shadow).toEqual([paint.expectedShadow])
+          expect(await row.getAttribute('aria-selected')).toBe(String(selected))
+        }
+      }
+    } finally { await page.close() }
+  })
+
   it.each(cases)('aligns $count result rows with the field at $width in $locale', async ({ width, locale, count }) => {
     mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
     const habits = Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))

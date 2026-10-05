@@ -151,7 +151,6 @@ export function buildComposerChips(state: ComposerChipState): ComposerChip[] {
     case 'habitDetail': {
       if (state.status !== 'success' || !state.detailHabit) return []
       return [
-        { ...chip('habitDetail.askAstra'), params: { title: state.detailHabit.title }, promptKey: state.detailHabit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault' },
         chip('habitDetail.pauseThisWeek', { title: state.detailHabit.title }), chip('habitDetail.rename', { title: state.detailHabit.title }),
       ]
     }

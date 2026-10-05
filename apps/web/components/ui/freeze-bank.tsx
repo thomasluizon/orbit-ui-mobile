@@ -9,9 +9,9 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
   const protectedEmpty = props.protectedDays.length === 0
 
   return (
-    <div data-component="freeze-bank" data-bank-state={atCeiling ? 'at-ceiling' : 'banked'} data-progress-state={atCeiling ? 'resting' : 'earning'} data-protected-state={protectedEmpty ? 'empty' : 'protected'} className="flex flex-col gap-3">
+    <div data-component="freeze-bank" data-bank-state={atCeiling ? 'at-ceiling' : 'banked'} data-progress-state={atCeiling ? 'resting' : 'earning'} data-protected-state={protectedEmpty ? 'empty' : 'protected'} className="flex flex-col gap-4">
       <StreakLegend words={props.words} />
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4">
         <StatTile value={props.longestValue} label={props.longestLabel} />
         <StatTile value={props.tierValue} label={props.tierLabel} />
       </div>

@@ -2,8 +2,8 @@ import { StyleSheet, View } from 'react-native'
 import type { ReactNode } from 'react'
 import { NotificationBell } from './notification-bell'
 
-export function DestinationHeaderRow({ children, testID, gap = 8 }: Readonly<{ children: ReactNode; testID: string; gap?: number }>) {
-  return <View testID={testID} style={[styles.row, { gap }]}>{children}</View>
+export function DestinationHeaderRow({ children, testID, gap = 8, wrap = false }: Readonly<{ children: ReactNode; testID: string; gap?: number; wrap?: boolean }>) {
+  return <View testID={testID} style={[styles.row, { gap, flexWrap: wrap ? 'wrap' : 'nowrap' }]}>{children}</View>
 }
 
 export function RootNotificationHeader() {

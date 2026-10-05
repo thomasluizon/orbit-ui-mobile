@@ -4,6 +4,7 @@
 > - A script lives here when it is worth running more than once. Throwaways go to the scratchpad, never here; `check-root-allowlist.mjs` enforces that boundary.
 > - Every tool is non-interactive, supports `--help`, and returns meaningful exit codes (see `CONVENTIONS.md`).
 > - `test-tools.mjs` EXECUTES every script here. A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
+> - The `Tool and Hook Tests` CI job runs both harness suites on every PR to `main` and `redesign/main`, including changes to their UI producers.
 > - The orchestration core includes queue planning, prompt/worker isolation, delivery verification,
 >   final-head readiness receipts, ticket synchronization, review-thread handling, and teardown.
 > - `verify-delivery.mjs` is the SOLE authority for the word "delivered". A worker's exit code is never evidence.
@@ -147,6 +148,11 @@ is what makes landing on login a positive claim.
 
 Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the nine session hooks block and allow
 as specified, and that every hook wired in `.claude/settings.json` exists on disk and vice versa.
+
+The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs `npm ci` and both commands on every
+PR to `main` and `redesign/main`. Each harness has a separate step whose exit code determines success;
+the hooks step also runs after a tools failure. There is no changed-path filter, so producer-only UI
+changes exercise the fixtures too. Run both commands locally after changing `tools/**` or `.claude/**`.
 
 ## Fixtures
 

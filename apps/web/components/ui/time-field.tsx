@@ -58,13 +58,12 @@ function TimeOption({
       type="button"
       role="radio"
       aria-checked={selected}
-      data-focus-on-primary={selected ? '' : undefined}
       tabIndex={tabIndex}
       onClick={onActivate}
       onKeyDown={onKeyDown}
       className={`w-full min-h-[var(--touch-min)] rounded-[12px] py-2 text-center text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
         selected
-          ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)]'
+          ? 'bg-[var(--bg-hover)] text-[var(--fg-1)] shadow-[inset_0_0_0_2px_var(--primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]'
           : 'text-[var(--fg-1)] hover:bg-[var(--bg-hover)]'
       }`}
       style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}

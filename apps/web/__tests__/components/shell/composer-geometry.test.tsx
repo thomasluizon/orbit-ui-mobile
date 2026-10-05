@@ -321,10 +321,11 @@ describe('Composer compact geometry in Chromium', () => {
 
   it('releases chip allocation when a mounted habit detail strip grows and shrinks', async () => {
     const { suggestions } = liveChipSuggestions('habitDetail', en)
+    expect(suggestions.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
     const configuration = { state: 'idle', value: '', suggestions, words: en.shell.composer }
     const page = await browser.newPage({ viewport: { width: 600, height: 740 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style><div id="root" style="width:320px"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
+      await page.setContent(`<style>${stylesheet}</style><div id="root" style="width:208px"></div><script id="configuration" type="application/json">${JSON.stringify(configuration)}</script>`)
       await page.addScriptTag({ content: composerScript })
       await loadAppFonts(page)
       const strip = page.getByRole('group', { name: en.shell.composer.suggestionsLabel })
@@ -340,7 +341,7 @@ describe('Composer compact geometry in Chromium', () => {
           available: element.parentElement!.getBoundingClientRect().width,
           chips, peek: partial ? bounds.width - partial.left : 0 }
       })
-      for (const width of [320, 459, 320, 459]) {
+      for (const width of [208, 459, 208, 459]) {
         await page.locator('#root').evaluate((element, nextWidth) => { element.style.width = `${nextWidth}px` }, width)
         await vi.waitFor(async () => {
           const measured = await measure()

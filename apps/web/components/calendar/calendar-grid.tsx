@@ -2,7 +2,7 @@
 
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useMemo } from 'react'
+import { useMemo, useState, type KeyboardEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   buildCalendarMonthModel,
@@ -51,6 +51,8 @@ interface CalendarGridDayProps {
   label: string
   interaction: 'write-window' | 'range-picker'
   todayKey: string
+  tabIndex: 0 | -1
+  onKeyDown: (dateStr: string, event: KeyboardEvent<HTMLButtonElement>) => void
 }
 
 type CalendarFutureDayProps = {
@@ -95,6 +97,8 @@ function CalendarGridDayBody({
   onSelectDay,
   selected,
   today,
+  tabIndex,
+  onKeyDown,
 }: Readonly<{
   accessibleName: string
   cell: CalendarMonthDay
@@ -103,6 +107,8 @@ function CalendarGridDayBody({
   onSelectDay: (dateStr: string) => void
   selected: boolean
   today: boolean
+  tabIndex: 0 | -1
+  onKeyDown: CalendarGridDayProps['onKeyDown']
 }>) {
   const contents = future && cell.isCurrentMonth
     ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} />
@@ -113,6 +119,8 @@ function CalendarGridDayBody({
       {cell.isCurrentMonth ? (
         <button
           type="button"
+          tabIndex={tabIndex}
+          onKeyDown={(event) => onKeyDown(cell.dateStr, event)}
           aria-current={today ? 'date' : undefined}
           aria-label={accessibleName}
           aria-pressed={selected}
@@ -137,6 +145,8 @@ function CalendarGridDay({
   label,
   interaction,
   todayKey,
+  tabIndex,
+  onKeyDown,
 }: Readonly<CalendarGridDayProps>) {
   const writable = interaction === 'write-window'
     && cell.isCurrentMonth
@@ -184,9 +194,48 @@ function CalendarGridDay({
         onSelectDay={onSelectDay}
         selected={selected}
         today={today}
+        tabIndex={tabIndex}
+        onKeyDown={onKeyDown}
       />
     </span>
   )
+}
+
+function useMonthGridFocus(gridDays: CalendarMonthDay[], selectedDateStr: string | null, todayKey: string) {
+  const monthDays = gridDays.filter((cell) => cell.isCurrentMonth)
+  const firstDay = monthDays[0]!.dateStr
+  const entryDate = monthDays.find((cell) => cell.dateStr === selectedDateStr)?.dateStr
+    ?? monthDays.find((cell) => cell.dateStr === todayKey)?.dateStr
+    ?? firstDay
+  const selectionKey = `${firstDay}:${selectedDateStr}:${todayKey}`
+  const [focus, setFocus] = useState({ selectionKey, dateStr: entryDate })
+  if (focus.selectionKey !== selectionKey) {
+    setFocus({ selectionKey, dateStr: entryDate })
+  }
+  const focusedDate = focus.selectionKey === selectionKey ? focus.dateStr : entryDate
+  const moveTabStop = (dateStr: string) => setFocus({ selectionKey, dateStr })
+  const onKeyDown = (dateStr: string, event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return
+    const index = gridDays.findIndex((cell) => cell.dateStr === dateStr)
+    let targetIndex: number
+    switch (event.key) {
+      case 'ArrowLeft': targetIndex = index - 1; break
+      case 'ArrowRight': targetIndex = index + 1; break
+      case 'ArrowUp': targetIndex = index - 7; break
+      case 'ArrowDown': targetIndex = index + 7; break
+      case 'Home': targetIndex = index - index % 7; break
+      case 'End': targetIndex = index + 6 - index % 7; break
+      default: return
+    }
+    event.preventDefault()
+    const firstIndex = gridDays.findIndex((cell) => cell.isCurrentMonth)
+    const lastIndex = firstIndex + monthDays.length - 1
+    const targetDate = gridDays[Math.max(firstIndex, Math.min(lastIndex, targetIndex))]!.dateStr
+    moveTabStop(targetDate)
+    event.currentTarget.closest('[data-testid="month-grid-days"]')
+      ?.querySelector<HTMLButtonElement>(`[data-testid="calendar-day-select-${targetDate}"]`)?.focus()
+  }
+  return { focusedDate, moveTabStop, onKeyDown }
 }
 
 export function CalendarGrid({
@@ -211,6 +260,12 @@ export function CalendarGrid({
     () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
     [currentMonth, dayMap, weekStartsOn, todayKey],
   )
+
+  const { focusedDate, moveTabStop, onKeyDown } = useMonthGridFocus(gridDays, selectedDateStr, todayKey)
+  const selectDay = (dateStr: string) => {
+    moveTabStop(dateStr)
+    onSelectDay(dateStr)
+  }
 
   const words: DayCellWords = {
     none: t('calendar.dayCell.none'),
@@ -263,7 +318,9 @@ export function CalendarGrid({
                 cell={cell}
                 future={future}
                 inRange={inRange}
-                onSelectDay={onSelectDay}
+                onSelectDay={selectDay}
+                tabIndex={cell.dateStr === focusedDate ? 0 : -1}
+                onKeyDown={onKeyDown}
                 selected={selected}
                 words={words}
                 futureWord={t('calendar.dayCell.future')}

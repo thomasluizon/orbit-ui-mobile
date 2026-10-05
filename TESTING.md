@@ -8,7 +8,7 @@
 > - Label guard regressions run in Vitest Chromium against the actual helpers, including composed labels, partial painted fills and press-opened popup cleanup.
 > - The compact label guard covers app-authored labels and interaction fills at 320, 360, 384 and 412px in both locales. Native Android label geometry remains an open risk; its only instrumented host belongs to the widget module.
 > - Ten suites: web / mobile / shared unit, the local Android widget host instrumented gate, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
-> - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The harness suites do not run in CI.
+> - The `Tool and Hook Tests` job in `.github/workflows/test.yml` runs both harness suites on every PR to `main` and `redesign/main`, including producer-only changes. Also run `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` locally after changing `tools/**` or `.claude/**`.
 > - There is no visual regression gate and no screenshot anywhere: #422 deleted it. The hermetic harness remains and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it.
 > - The authed-Today Lighthouse job (`perf.yml`) uses a hermetic mock-api + fake-JWT harness on the signed-in Today surface at PR time (web-only, no prod, no secrets). It enforces median TBT and script-bundle-size budgets and reports LCP without gating because runner noise obscures regressions at that size. Its interactive twin is the `/profile` skill.
 > - orbit-api has its own xUnit suite, documented in that repo.
@@ -87,8 +87,8 @@ Workers compile these specs and run the repository's Vitest suites, including th
 
 ## CI mapping
 
-- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test -- --coverage`), type-check, lint, dependency-audit, design-guard, and contract-drift, on PRs to `main`.
-- **The two harness suites** - `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. RUN BOTH BY HAND after touching `tools/**` or `.claude/**`. They do not run in CI.
+- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test -- --coverage`), `Tool and Hook Tests`, type-check, lint, dependency-audit, design-guard, and contract-drift, on PRs to `main` and `redesign/main`.
+- **`Tool and Hook Tests`** - runs `npm ci`, then `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs` as separate steps, each judged by exit code. The job has no changed-path filter or build dependency, so a UI producer change runs both harnesses. The hooks step also runs after a tools failure. Run both locally after touching `tools/**` or `.claude/**`.
 - **`.github/workflows/mutation.yml`** - PR-incremental Stryker run on `packages/shared`, report-only.
 - **`.github/workflows/smoke-prod.yml`** - the Playwright smoke suite, post-deploy against the live production deployment.
 - **`.github/workflows/layout.yml`** - builds the production web app and runs the hermetic `layout` Playwright project on PRs to `main` and `redesign/main`. Chromium is pinned through `package-lock.json`; the project owns both local servers and its session setup. Measures text geometry without screenshots and uploads failure diagnostics.

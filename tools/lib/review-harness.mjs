@@ -152,3 +152,77 @@ export const isUiReviewPath = (path) => UI_SCOPE.test(path)
 export const composedOrderNeedsUiReview = (repositoryKey, baseBranch) => (
   repositoryKey === REVIEW_HARNESS_REPOSITORY && baseBranch === REDESIGN_BASE
 )
+
+/**
+ * A closed set, checked lowercased after punctuation is stripped. An open "looks empty" heuristic
+ * would guess; this refuses only what somebody typed to fill the line.
+ */
+const PLACEHOLDERS = new Set(["", "todo", "tbd", "na", "n a", "none", "pending", "wip", "x", "y", "yes", "no", "done", "ok", "a confirmar"])
+
+export const reviewHarnessSectionLines = (source) => {
+  const lines = source.split(/\r?\n/)
+  const headingIndex = lines.findIndex((line) => /^#{2,}\s+review\s+harness\s*$/i.test(line.trim()))
+  if (headingIndex === -1) return null
+
+  const headingLevel = lines[headingIndex].trim().match(/^#+/)[0].length
+  const sectionLines = []
+  for (let index = headingIndex + 1; index < lines.length; index++) {
+    const heading = lines[index].trim().match(/^(#+)\s+\S/)
+    if (heading && heading[1].length <= headingLevel) break
+    sectionLines.push(lines[index])
+  }
+  return sectionLines
+}
+
+const normalizeEvidence = (value) => value
+  .toLowerCase()
+  .replaceAll(/[`*_~[\]()<>./\\|,;:!?"'-]/g, " ")
+  .replaceAll(/\s+/g, " ")
+  .trim()
+
+export const reviewEvidenceProblem = (sectionLines) => {
+  const evidenceOf = (skill) => {
+    const pattern = new RegExp(`${skill}\\b[^:\\n]*:(.*)$`, "i")
+    for (const line of sectionLines) {
+      const match = line.match(pattern)
+      if (match) return match[1]
+    }
+    return null
+  }
+
+  const missing = []
+  const empty = []
+  const invalidConditional = []
+  for (const requirement of REQUIRED_REVIEW_EVIDENCE) {
+    const raw = evidenceOf(requirement.name)
+    if (raw === null) {
+      missing.push(requirement.name)
+      continue
+    }
+    const normalized = normalizeEvidence(raw)
+    const templateAnswer = normalizeEvidence(reviewEvidenceTemplateAnswer(requirement))
+    if (PLACEHOLDERS.has(normalized) || normalized.length < 8 || normalized === templateAnswer) {
+      empty.push(requirement.name)
+      continue
+    }
+    const notApplicable = requirement.notApplicable
+      ? `not applicable ${requirement.notApplicable}`
+      : null
+    if (normalized.startsWith("not applicable") && normalized !== notApplicable) {
+      invalidConditional.push(requirement.name)
+    }
+  }
+
+  if (missing.length > 0 || empty.length > 0 || invalidConditional.length > 0) {
+    return [
+      missing.length > 0 ? `no line for: ${missing.join(", ")}` : null,
+      empty.length > 0 ? `empty or placeholder evidence for: ${empty.join(", ")}` : null,
+      invalidConditional.length > 0
+        ? `invalid not-applicable statement for: ${invalidConditional.join(", ")}; use "not applicable: no changed animation" only for the motion lane`
+        : null,
+    ]
+      .filter(Boolean)
+      .join("; ")
+  }
+  return null
+}

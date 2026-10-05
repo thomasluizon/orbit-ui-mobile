@@ -30,8 +30,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
     <span>{t(chatTraceLabelKey(step.domain, step.access))}</span>
     {running && index === steps.length - 1 ? <WorkingMark /> : null}
   </div>)
-  if (running) return <div className="flex flex-col gap-1 px-4 py-2" aria-live="off">{lines}</div>
-  return <div className="px-4 py-2">
+  if (running) return <div className="flex flex-col gap-1 py-2" aria-live="off">{lines}</div>
+  return <div className="py-2">
     <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded(!expanded)} className="flex min-h-[var(--touch-min)] items-center gap-2 text-sm text-[var(--fg-3)] hover:text-[var(--fg-2)] focus-visible:outline-2 focus-visible:outline-[var(--fg-1)]">
       {t('chat.trace.steps', { count: steps.length })}
       <ChevronDown aria-hidden="true" size={16} strokeWidth={1.5} className={expanded ? 'rotate-180' : undefined} />
@@ -161,7 +161,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
         <div className="flex flex-col gap-4">
         {messages.map((msg) => (
-          <div key={msg.id}>
+          <div key={msg.id} className="flex min-w-0 flex-col gap-[16px]">
           <MessageBubble
             message={msg}
             animateEntry={!initialMessageIds.has(msg.id)}

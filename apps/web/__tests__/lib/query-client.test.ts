@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { createQueryClient, getQueryClient } from '@/lib/query-client'
+import { ApiError } from '@/lib/api-fetch'
+import { gamificationKeys, habitKeys } from '@orbit/shared/query'
 
 describe('createQueryClient', () => {
   it('returns a QueryClient instance', () => {
@@ -38,6 +40,30 @@ describe('createQueryClient', () => {
     expect(defaults.queries?.refetchOnReconnect).toBe(true)
   })
 
+  it.each([
+    habitKeys.retrospective('month'),
+    gamificationKeys.profile(),
+  ])('settles a gated query on the first response: %s', async (...queryKey) => {
+    vi.useFakeTimers()
+    const client = createQueryClient()
+    const error = new ApiError(403, 'Forbidden', { error: 'Pro access required', errorCode: 'PAY_GATE' })
+    const queryFn = vi.fn().mockRejectedValue(error)
+    const result = client.fetchQuery({ queryKey, queryFn }).catch((failure: unknown) => failure)
+
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.getQueryState(queryKey)?.status).toBe('error')
+      expect(client.getQueryState(queryKey)?.error).toBe(error)
+      await vi.advanceTimersByTimeAsync(8000)
+      expect(queryFn).toHaveBeenCalledTimes(1)
+      expect(await result).toBe(error)
+    } finally {
+      client.clear()
+      await vi.advanceTimersByTimeAsync(8000)
+      vi.useRealTimers()
+    }
+  })
+
   describe('retry logic', () => {
     it('retries up to 3 times normally', () => {
       const client = createQueryClient()
@@ -59,7 +85,27 @@ describe('createQueryClient', () => {
         error: Error
       ) => boolean
 
-      expect(retryFn(0, new Error('Request failed with status 401'))).toBe(false)
+      expect(retryFn(0, new ApiError(401, 'Unauthorized', { error: 'Unauthorized' }))).toBe(false)
+    })
+
+    it('does not retry a Pro gate', () => {
+      const retry = createQueryClient().getDefaultOptions().queries?.retry as (
+        failureCount: number,
+        error: Error
+      ) => boolean
+
+      expect(retry(0, new ApiError(403, 'Forbidden', {
+        error: 'Pro access required', errorCode: 'PAY_GATE',
+      }))).toBe(false)
+    })
+
+    it('does not retry a rate limit', () => {
+      const retry = createQueryClient().getDefaultOptions().queries?.retry as (
+        failureCount: number,
+        error: Error
+      ) => boolean
+
+      expect(retry(0, new ApiError(429, 'Too many requests', {}))).toBe(false)
     })
 
     it('does not retry when offline', () => {

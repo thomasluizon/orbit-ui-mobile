@@ -1,6 +1,12 @@
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 let uses24HourClock = true
 
@@ -28,26 +34,78 @@ function pickOption(columnLabel: string, label: string) {
 }
 
 describe('TimeField', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  let stylesheet: string
+
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  beforeAll(async () => {
+    const source = resolve(process.cwd(), 'app/globals.css')
+    stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+  }, 30_000)
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
   beforeEach(() => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   })
   afterEach(() => vi.unstubAllGlobals())
-  it('paints the option hover fill on the whole row at the enumerated radius', () => {
-    uses24HourClock = true
-    render(<TimeField value="14:30" onChange={vi.fn()} />)
-
+  it.each([
+    { mode: 'dark', hourCycle: 'h23' },
+    { mode: 'light', hourCycle: 'h23' },
+    { mode: 'dark', hourCycle: 'h12' },
+    { mode: 'light', hourCycle: 'h12' },
+  ] as const)('keeps selected values tinted and ringed at rest, hover and press in $mode ($hourCycle)', async ({ mode, hourCycle }) => {
+    uses24HourClock = hourCycle === 'h23'
+    const { container } = render(<TimeField value="21:00" onChange={vi.fn()} />)
     openPicker()
-    const hours = screen.getByRole('radiogroup', { name: 'common.hours' })
-    const selected = within(hours).getByRole('radio', { name: '14' })
-    const unselected = within(hours).getByRole('radio', { name: '07' })
-
-    for (const option of [selected, unselected]) {
-      expect(option.className).toContain('rounded-[12px]')
-      expect(option.className).toContain('min-h-[var(--touch-min)]')
-      expect(option.className).not.toContain('rounded-[10px]')
-    }
-    expect(unselected.className).toContain('hover:bg-[var(--bg-hover)]')
-    expect(selected.className).toContain('hover:bg-[var(--primary-hover)]')
+    const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value};`).join('')
+    const page = await browser.newPage({ reducedMotion: 'reduce' })
+    try {
+      await page.setContent(`<style>${stylesheet} :root { ${variables} }</style>${container.innerHTML}`)
+      const expected = await page.evaluate(() => {
+        const probe = document.createElement('span')
+        document.body.append(probe)
+        probe.style.backgroundColor = 'var(--bg-hover)'
+        probe.style.color = 'var(--fg-1)'
+        const background = getComputedStyle(probe).backgroundColor
+        const color = getComputedStyle(probe).color
+        const primaryProbe = document.createElement('span')
+        primaryProbe.style.color = 'var(--primary)'
+        document.body.append(primaryProbe)
+        const primary = getComputedStyle(primaryProbe).color
+        primaryProbe.remove()
+        probe.remove()
+        return { background, color, primary }
+      })
+      const selected = page.locator('[role="radio"][aria-checked="true"]')
+      expect(await selected.count()).toBe(hourCycle === 'h23' ? 2 : 3)
+      for (const option of await selected.all()) {
+        const readStyle = () => option.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return { background: style.backgroundColor, color: style.color, shadow: style.boxShadow, radius: style.borderRadius, height: element.getBoundingClientRect().height }
+        })
+        const rest = await readStyle()
+        expect(rest).toMatchObject({ background: expected.background, color: expected.color, radius: '12px' })
+        expect(rest.height).toBeGreaterThanOrEqual(48)
+        expect(rest.shadow).toContain(`${expected.primary} 0px 0px 0px 2px inset`)
+        expect(await option.getAttribute('data-focus-on-primary')).toBeNull()
+        await option.hover()
+        await expect.poll(readStyle).toEqual(rest)
+        await page.mouse.down()
+        try { expect(await readStyle()).toEqual(rest) } finally { await page.mouse.up() }
+        await page.keyboard.press('Tab')
+        await option.focus()
+        expect(await option.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return { color: style.outlineColor, width: style.outlineWidth, offset: style.outlineOffset }
+        })).toEqual({ color: expected.color, width: '2px', offset: '-4px' })
+        await page.mouse.move(0, 0)
+      }
+      const unselected = page.getByRole('radiogroup', { name: 'common.hours' }).getByRole('radio', { name: '07', exact: true })
+      await unselected.hover()
+      await expect.poll(() => unselected.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(expected.background)
+      expect(await unselected.evaluate((element) => getComputedStyle(element).boxShadow)).toBe('none')
+    } finally { await page.close() }
   })
 
   it('offers every minute, so an odd minute like 07:13 is selectable in a 24-hour locale', () => {

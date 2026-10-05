@@ -2060,3 +2060,21 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     --fg-3: var(--fg-2);
   }
 }
+
+.orbit-calendar-figures {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.orbit-calendar-figure-caption {
+  white-space: nowrap;
+}
+
+@container calendar-figures (width < 20em) {
+  .orbit-calendar-figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .orbit-calendar-figure-caption {
+    white-space: normal;
+  }
+}

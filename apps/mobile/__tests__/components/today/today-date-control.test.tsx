@@ -210,8 +210,10 @@ describe('Today date control feedback (mobile)', () => {
         expect(bounds.left + bounds.width).toBeLessThanOrEqual(rowWidth)
       }
       expect(layout.getChild(2).getComputedLayout().left).toBe(48 + Math.max(dayWidth, numericWidth) + 24)
-      const header = button(renderer, 'Search')!.parent
-      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 48, gap: 4 })
+      const header = renderer.root.find((node: { type: unknown; props: Record<string, unknown> }) => typeof node.type === 'string' && node.props.testID === 'today-header-actions')
+      expect(StyleSheet.flatten(header.props.style)).toMatchObject({ minHeight: 48, gap: 4, flexWrap: 'wrap' })
+      const cluster = button(renderer, 'Search')!.parent
+      expect(StyleSheet.flatten(cluster.props.style)).toMatchObject({ flexDirection: 'row', gap: 4, flexShrink: 0 })
       const jumpWidth = measuredTextWidth('Hoje', 'Geist', BUTTON_SIZES.sm.fontSize,
         require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')) * fontScale + BUTTON_SIZES.sm.paddingX * 2
       expect(jumpWidth + 3 * 48 + 4 * 4).toBeLessThanOrEqual(rowWidth)

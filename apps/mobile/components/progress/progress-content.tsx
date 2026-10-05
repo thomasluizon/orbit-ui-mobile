@@ -529,7 +529,7 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
       <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </View>
-      <View style={styles.loadingRows} importantForAccessibility="no-hide-descendants">
+      <View style={styles.loadingTileGrid} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: Math.ceil(4 / columns) }, (_, row) => (
           <View key={row} style={styles.loadingTileRow}>
             {Array.from({ length: columns }, (_, column) => (
@@ -619,11 +619,11 @@ export function ProgressContent() {
 const styles = StyleSheet.create({
   screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   root: { flex: 1 }, content: { gap: 32 }, sections: { gap: 32, paddingHorizontal: 16, paddingTop: 16 },
-  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
-  loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },
+  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingTileGrid: { gap: 16 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
+  loadingTileRow: { flexDirection: 'row', gap: 16 }, loadingTile: { flex: 1, minWidth: 0 },
   error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 },
-  streakSection: { width: '100%', maxWidth: 560, gap: 12 },
+  streakSection: { width: '100%', maxWidth: 560, gap: 16 },
   streakFigure: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   streakLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
   frozenBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 12, padding: 12 },
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   topHabitLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   topHabitChevron: { width: 24, height: 24, flexShrink: 0 },
   topHabitName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24 },
-  windowGrid: { gap: 12 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 12 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
+  windowGrid: { gap: 16 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 16 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },

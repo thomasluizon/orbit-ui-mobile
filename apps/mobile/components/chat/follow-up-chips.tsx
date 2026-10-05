@@ -12,20 +12,20 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   if (followUps.length < 2) return null
-  return <View style={{ gap: 8, paddingHorizontal: 16, paddingBottom: 12 }}>
+  return <View style={{ gap: 8, paddingBottom: 12 }}>
     <Text style={{ color: tokens.fg3, fontSize: 12 }}>{t('chat.followUps.label')}</Text>
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+    <View style={{ gap: 8 }}>
       {followUps.slice(0, 3).map((text) => <Pressable
         key={text}
         accessibilityRole="button"
         accessibilityLabel={text}
         onPress={() => onSelect(text)}
         style={({ pressed }) => ({
-          minHeight: TOUCH_TARGET_MIN, maxWidth: '100%', justifyContent: 'center', paddingHorizontal: 16, borderRadius: 999, overflow: 'hidden',
+          minHeight: TOUCH_TARGET_MIN, width: '100%', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden',
           backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
           borderWidth: 1, borderColor: tokens.hairline,
         })}
-      ><Text numberOfLines={1} ellipsizeMode="tail" style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{text}</Text></Pressable>)}
+      ><Text style={{ color: tokens.fg2, fontSize: 14, lineHeight: 20, fontFamily: 'Geist_500Medium' }}>{text}</Text></Pressable>)}
     </View>
   </View>
 }

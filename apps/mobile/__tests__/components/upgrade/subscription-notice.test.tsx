@@ -2,10 +2,11 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
+import { UsageCard } from '@/components/upgrade/usage-card'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
 import { createTokensV2 } from '@/lib/theme'
 
-vi.mock('@/components/upgrade/usage-card', () => ({ UsageCard: () => null }))
+vi.mock('@/components/upgrade/usage-card', () => ({ UsageCard: vi.fn(() => null) }))
 vi.mock('@/hooks/use-subscription-plans', () => ({ formatPrice: vi.fn(), monthlyEquivalent: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')
@@ -29,6 +30,15 @@ function noticeText(nextStatus: SubscriptionStatus) {
 }
 
 describe('lapsed subscription notice (mobile)', () => {
+  it.each([0, 4, 5])('never renders UsageCard at %i of 5 messages', (aiMessagesUsed) => {
+    vi.mocked(UsageCard).mockClear()
+    const text = noticeText({ ...status, aiMessagesUsed, aiMessagesLimit: 5 })
+    expect(text).toContain('upgrade.billing.lapsed.title')
+    expect(text).toContain('upgrade.billing.lapsed.lostMessages:')
+    expect(text).toContain('limit\\":5')
+    expect(UsageCard).not.toHaveBeenCalled()
+  })
+
   it('lists each lost entitlement separately with the current message allowance', () => {
     const text = noticeText(status)
     expect(text).toContain('upgrade.billing.lapsed.lostMessages:')

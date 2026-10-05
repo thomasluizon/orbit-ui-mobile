@@ -787,7 +787,7 @@ describe('ProgressContent', () => {
     mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null as string | null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false, habitId: undefined }]
   })
 
-  it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', (query) => {
+  it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
     mocks[query].isLoading = true
     const { container } = render(<ProgressPage />)
     expect(screen.getAllByRole('progressbar')).toHaveLength(1)
@@ -797,6 +797,19 @@ describe('ProgressContent', () => {
     ])
     expect(screen.queryByRole('button', { name: 'profile.wrappedTitle' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+    for (const width of [320, 412, 840]) {
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const spacing = await page.locator('[data-variant="stat-tile"]').first().evaluate((tile) => {
+          const style = getComputedStyle(tile.parentElement!)
+          return { row: style.rowGap, column: style.columnGap }
+        })
+        expect(spacing).toEqual({ row: '16px', column: '16px' })
+      } finally {
+        await page.close()
+      }
+    }
   })
 
   it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', (state) => {

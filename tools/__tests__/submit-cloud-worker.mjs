@@ -207,16 +207,20 @@ export const cases = async () => {
     enabled.stdout || enabled.stderr,
   )
   const admissionFixture = fixture("admission-refusal")
+  const pullRequestCap = admissionFixture.config.caps.maxOpenPullRequests
+  const repositoryCount = Object.keys(admissionFixture.config.repos).length
+  const pullsPerRepository = Math.floor(pullRequestCap / repositoryCount) + 1
+  const aboveCapPulls = Array.from({ length: pullsPerRepository }, (_, index) => ({ number: index + 1 }))
   const admissionEnvironment = orcaEnv([
     { match: "remote get-url origin", stdout: "https://github.com/test-owner/cloud.git" },
     { match: "auth token --user test-owner", stdout: "test-github-token" },
     { match: "pulls?head=", stdout: "[]" },
-    { match: "pulls?state=open", stdout: JSON.stringify([1, 2, 3, 4].map((number) => ({ number }))) },
+    { match: "pulls?state=open", stdout: JSON.stringify(aboveCapPulls) },
     { match: "actions/runs?status=queued", stdout: JSON.stringify({ total_count: 0, workflow_runs: [] }) },
   ])
   const admissionRefusal = run(TOOL, argvOf(admissionFixture), { path: admissionFixture.path, env: { ...admissionEnvironment, ORBIT_FAKE_CODEX_LOG: admissionFixture.log } })
   const admissionResult = JSON.parse(admissionRefusal.stdout)
-  T(`${TOOL}: admission refuses before Cloud reservation or submission`, admissionRefusal.status === 8 && admissionResult.reason === "ADMISSION_REFUSED" && admissionResult.counts.openPullRequests === 12 && !existsSync(join(cloudStateRoot(admissionFixture.repo.path), "reservations")) && readFileSync(admissionFixture.log, "utf8") === "", JSON.stringify(admissionResult))
+  T(`${TOOL}: admission refuses before Cloud reservation or submission`, admissionRefusal.status === 8 && admissionResult.reason === "ADMISSION_REFUSED" && admissionResult.counts.openPullRequests === pullsPerRepository * repositoryCount && admissionResult.limits.maxOpenPullRequests === pullRequestCap && !existsSync(join(cloudStateRoot(admissionFixture.repo.path), "reservations")) && readFileSync(admissionFixture.log, "utf8") === "", JSON.stringify(admissionResult))
 
   const legacyRoot = join(stage("submit-cloud/legacy-replacement/fixture", ""), "..")
   const legacyDirectory = join(legacyRoot, "submit.lock")

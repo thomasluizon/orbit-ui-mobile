@@ -180,7 +180,7 @@ describe('habit search', () => {
     await waitFor(() => expect(screen.getByRole('option', { name: 'Walk' })).toHaveAttribute('data-selected', 'true'))
   })
 
-  it('selects the first habit when the compact search page loads', async () => {
+  it('keeps pointer movement separate from keyboard selection when search results load', async () => {
     mocks.query.mockReturnValue(result([], true))
     const view = render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
     const input = screen.getByRole('combobox', { name: en.habits.search.title })
@@ -191,9 +191,23 @@ describe('habit search', () => {
       createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'description', value: null }] }),
     ]))
     view.rerender(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Open Walk in the name' })).toHaveAttribute('data-selected', 'true'))
+    const first = await screen.findByRole('option', { name: 'Open Walk in the name' })
+    const second = screen.getByRole('option', { name: 'Open Run in the description' })
+    await waitFor(() => expect(first).toHaveAttribute('aria-selected', 'true'))
+    fireEvent.pointerMove(second)
+    expect(first).toHaveAttribute('aria-selected', 'true')
+    expect(second).toHaveAttribute('aria-selected', 'false')
     fireEvent.keyDown(input, { key: 'Enter' })
-    expect(mocks.push).toHaveBeenCalledWith('/habits/walk')
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/walk')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(first).toHaveAttribute('aria-selected', 'false')
+    expect(second).toHaveAttribute('aria-selected', 'true')
+    fireEvent.pointerMove(first)
+    expect(second).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/run')
+    fireEvent.click(first)
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/walk')
   })
 
   it('does not offer destinations on the compact search page', async () => {

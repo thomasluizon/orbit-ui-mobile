@@ -103,9 +103,9 @@ export function CalendarLegend({ loggableLabel, fullLabel, partialLabel, noneLab
   const styles = createStyles(tokens)
   return <View style={styles.legend}>
     <View style={styles.legendItem}><View testID="calendar-legend-full" style={styles.legendFull} /><Text style={styles.legendLabel}>{fullLabel}</Text></View>
-    <View style={styles.legendItem}><Svg testID="calendar-legend-partial" width={12} height={12}>
-      <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.statusEmpty} strokeWidth={1.5} />
-      <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.primary} strokeDasharray={[Math.PI * 5, Math.PI * 10]} strokeWidth={1.5} rotation={-135} origin="6, 6" />
+    <View style={styles.legendItem}><Svg testID="calendar-legend-partial" width={14} height={14}>
+      <Circle cx={7} cy={7} r={6.25} fill="none" stroke={tokens.statusEmpty} strokeWidth={1.5} />
+      <Circle cx={7} cy={7} r={6.25} fill="none" stroke={tokens.primary} strokeDasharray={[Math.PI * 6.25, Math.PI * 12.5]} strokeWidth={1.5} rotation={-135} origin="7, 7" />
     </Svg><Text style={styles.legendLabel}>{partialLabel}</Text></View>
     <View style={styles.legendItem}><View testID="calendar-legend-none" style={styles.legendNone} /><Text style={styles.legendLabel}>{noneLabel}</Text></View>
     <View style={styles.legendItem}><View testID="calendar-legend-loggable" style={styles.legendLoggable} /><Text style={styles.legendLabel}>{loggableLabel}</Text></View>
@@ -128,10 +128,10 @@ function createStyles(tokens: Tokens) {
     months: { flexDirection: 'row', flexWrap: 'wrap' },
     month: { minHeight: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: tokens.bgField },
     legend: { gap: 16 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     legendLabel: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16, color: tokens.fg2 },
-    legendFull: { width: 12, height: 12, borderRadius: 999, backgroundColor: tokens.fg1 },
-    legendNone: { width: 12, height: 12, borderRadius: 999, borderWidth: 2, borderColor: tokens.statusEmpty },
-    legendLoggable: { width: 12, height: 12, borderRadius: 999, borderWidth: 2, borderColor: tokens.fg3, backgroundColor: tokens.bgWell },
+    legendFull: { width: 14, height: 14, borderRadius: 999, backgroundColor: tokens.fg1 },
+    legendNone: { width: 14, height: 14, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.statusEmpty },
+    legendLoggable: { width: 14, height: 14, borderRadius: 999, borderWidth: 1, borderColor: tokens.hairline, backgroundColor: tokens.bgWell },
   })
 }

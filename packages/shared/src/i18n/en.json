@@ -291,7 +291,6 @@
           "exportData": "Export my data"
         },
         "habitDetail": {
-          "askAstra": "Ask Astra",
           "pauseThisWeek": "Pause this week",
           "rename": "Rename"
         }
@@ -845,7 +844,8 @@
       "removeReminder": "Remove reminder",
       "reminderLastRequired": "The last reminder stays. For none, turn reminders off.",
       "reminderPermissionNeeded": "Reminders will not arrive on this device until notifications are on.",
-      "reminderSettingsAction": "See how to turn on notifications in a new tab",
+      "reminderSettingsDescription": "Opens notification settings in a new tab, keeping your form draft.",
+      "reminderSettingsHint": "Opens Orbit's page in system settings.",
       "removeScheduledReminder": "Remove reminder",
       "removeSubHabit": "Remove sub-habit",
       "editTag": "Edit tag",
@@ -881,7 +881,6 @@
       "daysFree": "Days free",
       "reminders": "Reminders",
       "linkedGoal": "Linked goal",
-      "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
       "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
       "copyDescription": "Copy description",
       "copyFailed": "We could not copy the description. Select the text and copy it by hand.",

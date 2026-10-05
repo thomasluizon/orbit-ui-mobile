@@ -76,8 +76,12 @@ async function assertSubscriptionOutcome(upgradeScreen: Locator, state: string, 
     await expect(upgradeScreen.getByText(messages.upgrade.billing.plan.canceledBody, { exact: true })).toBeVisible()
   }
   if (state === 'lapsed') {
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.title, { exact: true })).toBeVisible()
     await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.lostCalendar, { exact: true })).toBeVisible()
     await expect(upgradeScreen.getByText(messages.upgrade.billing.lapsed.lostRetrospective, { exact: true })).toBeVisible()
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toHaveCount(0)
+  } else {
+    await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
   }
 }
 
@@ -177,7 +181,6 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           } else if (subscriptionState === 'loadFailed') {
             await expect(upgradeScreen.getByText(messages.upgrade.billing.error, { exact: true })).toBeVisible({ timeout: 15000 })
           } else {
-            await expect(upgradeScreen.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
             await assertSubscriptionOutcome(upgradeScreen, subscriptionState, messages)
             await page.evaluate(() => document.fonts.ready)
             if (subscriptionState === 'offline') {
@@ -195,7 +198,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           expect(overflows, `subscription copy stays inside the layout at ${width}px`).toEqual([])
 
           const usageLines = await renderedLineCounts(page, messages.upgrade.billing.usage.aiMessages)
-          if (subscriptionState !== 'loading' && subscriptionState !== 'loadFailed') {
+          if (subscriptionState === 'lapsed') {
+            expect(usageLines).toEqual([])
+          } else if (subscriptionState !== 'loading' && subscriptionState !== 'loadFailed') {
             expect(usageLines.length).toBeGreaterThan(0)
             expect(usageLines.every((count) => count === 1)).toBe(true)
           }

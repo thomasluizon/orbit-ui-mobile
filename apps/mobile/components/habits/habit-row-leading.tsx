@@ -10,6 +10,7 @@ interface HabitRowLeadingProps {
   emojiSize: number
   wellSize: number
   wellRadius: number
+  monogramColor: string
   tokens: ReturnType<typeof createTokensV2>
 }
 
@@ -20,6 +21,7 @@ export function HabitRowLeading({
   wellSize,
   wellRadius,
   tokens,
+  monogramColor,
 }: Readonly<HabitRowLeadingProps>) {
   return (
     <View style={{ width: 48, flexShrink: 0 }}>
@@ -43,7 +45,7 @@ export function HabitRowLeading({
               style={{
                 fontSize: emojiSize === 16 ? 12 : 17,
                 lineHeight: emojiSize + 2,
-                color: tokens.fg3,
+                color: monogramColor,
                 fontFamily: 'Geist_500Medium',
               }}
             >

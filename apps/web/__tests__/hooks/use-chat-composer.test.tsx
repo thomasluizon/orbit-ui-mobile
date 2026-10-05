@@ -1721,7 +1721,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.state.detail = makeHabitDetail()
     const { result } = renderHook(() => useChatComposer({ pathname: '/habits/habit-1' }))
     expect(result.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
-      'habitDetail.askAstra', 'habitDetail.pauseThisWeek', 'habitDetail.rename',
+      'habitDetail.pauseThisWeek', 'habitDetail.rename',
     ])
   })
 
@@ -1747,18 +1747,18 @@ describe('web useChatComposer streaming send', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
-  it('sends the habit detail seed prompt', async () => {
+  it('sends the first habit detail chip as a pause request', async () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     mocks.state.detail = makeHabitDetail()
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
     const { result } = renderHook(() => useChatComposer({ pathname: '/habits/habit-1' }))
     const suggestion = result.current.composerProps.suggestions[0]!
-    expect(suggestion.id).toBe('habitDetail.askAstra')
+    expect(suggestion.id).toBe('habitDetail.pauseThisWeek')
     act(() => suggestion.onSelect())
     await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
     const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
-    expect(requestBody.get('message')).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
+    expect(requestBody.get('message')).toBe('shell.composer.prompts.habitDetail.pauseThisWeek:{"title":"Read"}')
   })
 
   it('refreshes every affected list after successful live actions', async () => {
