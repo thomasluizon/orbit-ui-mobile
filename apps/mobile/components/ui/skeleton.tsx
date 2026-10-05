@@ -76,6 +76,8 @@ function StatTileSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; o
   return (
     <View
       testID="skeleton-stat-tile-shape"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
       style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
     >
       <View style={styles.statValue}>

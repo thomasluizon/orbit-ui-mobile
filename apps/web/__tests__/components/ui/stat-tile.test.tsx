@@ -7,6 +7,7 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { skeletonPulseIterations } from '@orbit/shared/theme'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
@@ -37,6 +38,23 @@ describe('StatTile', () => {
       stylesheet = compiled.css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it('settles both loading bars and suppresses their pulse under reduced motion', async () => {
+      const { container, unmount } = render(<StatTile state="loading" loadingLabel="Loading" label="Logs" />)
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((iterations) => document.documentElement.style.setProperty('--skeleton-pulse-iterations', String(iterations)), skeletonPulseIterations)
+        const bars = page.locator('[aria-hidden="true"] > span:last-child, [data-state="loading"] > span > span:last-child[aria-hidden="true"]')
+        const normal = await bars.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).animationIterationCount))
+        expect(normal).toEqual([String(skeletonPulseIterations), String(skeletonPulseIterations)])
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        const reduced = await bars.evaluateAll((elements) => elements.map((element) => ({
+          duration: getComputedStyle(element).animationDuration, iterations: getComputedStyle(element).animationIterationCount,
+        })))
+        expect(reduced).toEqual([{ duration: '1e-05s', iterations: '1' }, { duration: '1e-05s', iterations: '1' }])
+      } finally { await page.close(); unmount() }
+    })
 
     it.each([320, 412, 1280].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))('holds the drawn start edge and exact height across states at $width and text scale $fontScale', async ({ width, fontScale }) => {
       for (const catalog of [en, ptBR]) {

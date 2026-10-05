@@ -52,7 +52,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
         />
       )}
       {state === 'loading' ? (
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.loadingLabel}>
           <Text style={[styles.label, { opacity: 0 }]}>{label}</Text>
           <View style={[styles.labelSkeleton, { backgroundColor: tokens.bgElev2 }]} />
         </View>
@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     textAlign: 'auto',
   },
   loadingValue: { width: '100%', maxWidth: 64, justifyContent: 'center' },
+  loadingLabel: { maxWidth: '100%' },
   labelSkeleton: { position: 'absolute', width: '66%', height: '100%', borderRadius: 8 },
   valueSkeleton: {
     width: '100%',

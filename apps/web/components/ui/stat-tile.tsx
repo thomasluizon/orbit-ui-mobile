@@ -20,7 +20,7 @@ function TileValue({ shownValue, isEmpty }: Readonly<{
         fontSize: isEmpty ? 12 : 22,
         fontWeight: isEmpty ? 500 : 600,
         fontVariantNumeric: 'tabular-nums',
-        lineHeight: '30.8px',
+        lineHeight: isEmpty ? (22 * 1.4) / 12 : 1.4,
         whiteSpace: 'nowrap',
       }}
     >
@@ -47,7 +47,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
     >
       {isLoading ? (
         <span aria-hidden="true" className="relative" style={{ width: '100%', maxWidth: 64, fontFamily: 'var(--font-display)', fontSize: 22, lineHeight: 1.4 }}>
-          <span className="invisible">0</span><span className="absolute inset-x-0 top-1/2 h-[22px] -translate-y-1/2 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
+          <span className="invisible">0</span><span className="absolute inset-x-0 top-1/2 h-[22px] -translate-y-1/2 skeleton-pulse rounded-[8px] bg-[var(--bg-elev-2)]" />
         </span>
       ) : (
         <TileValue shownValue={shownValue} isEmpty={isEmpty} />
@@ -62,7 +62,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           whiteSpace: 'nowrap',
         }}
       >
-        {isLoading ? <><span className="invisible" aria-hidden="true">{label}</span><span aria-hidden="true" className="absolute inset-y-0 start-0 w-2/3 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" /></> : label}
+        {isLoading ? <><span className="invisible" aria-hidden="true">{label}</span><span aria-hidden="true" className="absolute inset-y-0 start-0 w-2/3 skeleton-pulse rounded-[8px] bg-[var(--bg-elev-2)]" /></> : label}
       </span>
     </div>
   )
