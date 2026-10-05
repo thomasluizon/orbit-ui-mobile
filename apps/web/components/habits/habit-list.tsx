@@ -63,7 +63,6 @@ import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -73,7 +72,6 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
@@ -344,7 +342,7 @@ export function HabitList({
 
   const data = habitsQuery.data
   const habitsById = data?.habitsById ?? EMPTY_HABITS_BY_ID
-  const dragAccessibility = useDragAccessibility(t, (id) => habitsById.get(String(id))?.title)
+  const dragAccessibility = useDragAccessibility(t, (id) => habitsById.get(String(id))?.title, t('dragAndDrop.habitInstructions'))
   const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
@@ -617,12 +615,33 @@ export function HabitList({
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: { delay: 300, tolerance: 5 },
   })
-  const keyboardSensor = useSensor(KeyboardSensor, {
-    coordinateGetter: sortableKeyboardCoordinates,
-  })
-  const sensors = useSensors(pointerSensor, touchSensor, keyboardSensor)
+  const sensors = useSensors(pointerSensor, touchSensor)
 
   const isDndEnabled = !isSelectMode
+
+  const reorderInstructionsId = `${dndContextId}-habit-reorder-instructions`
+  const [reorderAnnouncements, setReorderAnnouncements] = useAccountScopedState<readonly [string, string]>(['', ''])
+  function announceReorder(message: string) {
+    setReorderAnnouncements(([first]) => first === '' ? [message, ''] : ['', message])
+  }
+
+  function moveHabitByKeyboard(habit: NormalizedHabit, direction: -1 | 1) {
+    if (reorderHabitsMut.isPending || isDragging) return
+    const siblings = Array.from(habitsById.values())
+      .filter((sibling) => (sibling.parentId ?? null) === (habit.parentId ?? null))
+      .sort((first, second) => (first.position ?? Number.MAX_SAFE_INTEGER) - (second.position ?? Number.MAX_SAFE_INTEGER))
+    const currentIndex = siblings.findIndex((sibling) => sibling.id === habit.id)
+    const targetIndex = currentIndex + direction
+    if (targetIndex < 0 || targetIndex >= siblings.length) {
+      announceReorder(t('habits.reorderBoundary', { title: habit.title, position: currentIndex + 1, total: siblings.length }))
+      return
+    }
+    const positions = computeHabitReorderPositions(siblings, currentIndex, targetIndex, habitsById, getChildren)
+    if (positions.length === 0) return
+    reorderHabitsMut.mutate({ positions }, {
+      onSuccess: () => announceReorder(t('habits.reorderMoved', { title: habit.title, position: targetIndex + 1, total: siblings.length })),
+    })
+  }
 
   function handleDragStart(event: DragStartEvent) {
     setIsDragging(true)
@@ -1183,7 +1202,7 @@ export function HabitList({
       if (event.key !== 'Home' && event.key !== 'End') return
 
       const rows = Array.from(
-        container.querySelectorAll<HTMLElement>(':scope [role="button"][tabindex="0"]'),
+        container.querySelectorAll<HTMLElement>(':scope [data-habit-row-body]'),
       )
       const activeElement = document.activeElement
       if (!(activeElement instanceof HTMLElement) || !rows.includes(activeElement)) return
@@ -1236,6 +1255,8 @@ export function HabitList({
       isDrillCard?: boolean
       isDraggingList?: boolean
       childPanelId?: string
+      reorderInstructionsId?: string
+      onReorder?: (direction: -1 | 1) => void
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : undefined
@@ -1252,6 +1273,7 @@ export function HabitList({
       <Fragment key={habit.id}>
       <HabitRow
         habit={habit}
+        reorderInstructionsId={options?.reorderInstructionsId}
         structuralColumn
         state={state}
         meta={meta}
@@ -1271,6 +1293,7 @@ export function HabitList({
         childProgress={progress}
         showLinkedGoalDot={hasLinkedGoal}
         actions={{
+          onReorder: options?.onReorder,
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
           onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
           onSkip: completionReadOnly ? undefined : () => { void skipFromRow(habit) },
@@ -1335,7 +1358,12 @@ export function HabitList({
       item.depth,
       item.hasChildren,
       item.hasSubHabits,
-      { isDraggingList: isDragging, childPanelId },
+      {
+        isDraggingList: isDragging,
+        childPanelId,
+        reorderInstructionsId: sortable ? reorderInstructionsId : undefined,
+        onReorder: sortable ? (direction) => moveHabitByKeyboard(item.habit, direction) : undefined,
+      },
     )
     return (
       <Fragment key={item.id}>
@@ -1419,9 +1447,13 @@ export function HabitList({
   return (
     <div
       ref={listContainerRef}
+      data-habit-list=""
       tabIndex={-1}
       className="min-w-0 px-[16px]"
     >
+      <div id={reorderInstructionsId} className="sr-only">{t('dragAndDrop.habitInstructions')}</div>
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">{reorderAnnouncements[0]}</div>
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">{reorderAnnouncements[1]}</div>
       <div className="flex min-w-0 flex-col gap-6">
         {!drill.currentParent && showAllDone ? <HabitListAllDone onSeeUpcoming={onSeeUpcoming} /> : null}
         {renderMainContent()}

@@ -1,6 +1,7 @@
 {
   "dragAndDrop": {
     "instructions": "Para mover um item, pressione a barra de espaço. Use as setas para mudar a posição. Pressione espaço novamente para soltar ou Escape para cancelar.",
+    "habitInstructions": "Para mover um hábito, segure Alt e pressione a seta para cima ou para baixo.",
     "goalInstructions": "Para mover uma meta, segure Alt e pressione a seta para cima ou para baixo.",
     "roleDescription": "item reordenável",
     "handle": "Mover {name}",
@@ -499,6 +500,8 @@
     }
   },
   "habits": {
+    "reorderMoved": "{title} foi movido para a posição {position} de {total}",
+    "reorderBoundary": "{title} já está na posição {position} de {total}",
     "listOptions": "Opções da lista",
     "todayBoundary": {
       "lastLoggable": "Este é o dia mais antigo que você pode registrar.",
