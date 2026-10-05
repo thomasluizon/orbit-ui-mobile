@@ -1,4 +1,6 @@
 import React from "react";
+import { Resvg } from "@resvg/resvg-js";
+import * as ReactNative from 'react-native';
 import { StyleSheet, type ViewStyle } from 'react-native';
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockProfile } from "@orbit/shared/__tests__/factories";
@@ -129,7 +131,7 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: mocks.language },
     t: (key: string, params?: Record<string, unknown>) =>
-      key === 'calendar.calendars.title' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : params ? `${key}(${JSON.stringify(params)})` : key,
+      key === 'calendar.calendars.title' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.calendars.title : key === 'calendar.eventsFound' ? (mocks.language === 'pt-BR' ? ptBR : en).calendar.eventsFound.replaceAll('{count}', String(params?.count)) : params ? `${key}(${JSON.stringify(params)})` : key,
   }),
 }));
 
@@ -311,7 +313,7 @@ vi.mock("react-native", async (importOriginal) => {
 });
 
 describe("CalendarSyncScreen", () => {
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
   beforeEach(() => {
     mocks.reducedMotion = false;
     mocks.realPressTokens = false;
@@ -347,6 +349,75 @@ describe("CalendarSyncScreen", () => {
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
+  });
+
+  it.each([{ fontScale: 1, height: 24, y: 0 }, { fontScale: 2, height: 36, y: 0 }, { fontScale: 2, height: 60, y: 3 }])('keeps select all centred on the measured first line: %j', async ({ fontScale, height, y }) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 320, height: 915, scale: 1, fontScale });
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(2) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ flexDirection: 'row', alignItems: 'flex-start' });
+    const heading = row.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0]!;
+    const toggle = row.findAll((node) => node.type === 'Pressable' && typeof node.props.onPress === 'function')[0]!;
+    const content = row.findAll((node) => node.type === 'Text' || node.type === 'Pressable');
+    expect(content.indexOf(heading)).toBeLessThan(content.indexOf(toggle));
+    expect(toggle.props.disabled).toBeUndefined();
+    expect(toggle.props.accessibilityState).toEqual({ selected: true });
+    const headingContainer = row.findAll((node) => node.type === 'View' && node.findAll((child) => child === heading).length > 0).at(-1)!;
+    const toggleContainer = row.findAll((node) => node.type === 'View' && node.findAll((child) => child === toggle).length > 0).at(-1)!;
+    expect(heading.props.allowFontScaling).not.toBe(false);
+    expect(heading.props.numberOfLines).toBeUndefined();
+    const onTextLayout = heading.props.onTextLayout as (event: { nativeEvent: { lines: unknown[] } }) => void;
+    expect(onTextLayout).toBeTypeOf('function');
+    await TestRenderer.act(() => onTextLayout({ nativeEvent: { lines: [
+      { x: 0, y, width: 180, height, text: '100', ascender: 28, descender: 8, capHeight: 26, xHeight: 20 },
+      { x: 0, y: y + height, width: 180, height, text: 'events', ascender: 28, descender: 8, capHeight: 26, xHeight: 20 },
+    ] } }));
+    const headingContainerStyle = StyleSheet.flatten(headingContainer.props.style as ViewStyle);
+    const toggleContainerStyle = StyleSheet.flatten(toggleContainer.props.style as ViewStyle);
+    expect(toggleContainerStyle.height).toBeGreaterThanOrEqual(48);
+    expect((headingContainerStyle.paddingTop as number) + y + height / 2).toBe((toggleContainerStyle.height as number) / 2);
+    dimensions.mockRestore();
+  });
+
+  it.each([['pt-BR', '100 eventos'], ['en', '100 events']])('fits the three-digit count beside select all in %s', async (language, expected) => {
+    mocks.language = language;
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(100) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const heading = tree.root.find((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && typeof node.props.children === 'string' && node.props.children.startsWith('100'));
+    expect(heading.props.children).toBe(expected);
+    const style = StyleSheet.flatten(heading.props.style as ReactNative.TextStyle);
+    const font = require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="288" height="100"><text y="50" font-family="Geist" font-size="${style.fontSize}" letter-spacing="${style.letterSpacing}">${expected}</text></svg>`;
+    const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!;
+    const textWidth = bounds.x + bounds.width;
+    const body = tree.root.findAll((node) => node.props.testID === 'sheet-body-scroll' && node.props.contentContainerStyle != null)[0]!;
+    const bodyStyle = StyleSheet.flatten(body.props.contentContainerStyle as ViewStyle);
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    const toggle = row.findAll((node) => node.type === 'Pressable')[0]!;
+    const toggleStyle = (toggle.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed: false });
+    const contentMeasure = 320 - 2 * Number(bodyStyle.paddingHorizontal);
+    const headingMeasure = contentMeasure - Number(StyleSheet.flatten(toggleStyle).width) - Number(StyleSheet.flatten(row.props.style as ViewStyle).gap);
+    process.stdout.write(`${JSON.stringify({ platform: 'Android font proxy', language, text: expected, textWidth, headingMeasure, contentMeasure, measurementCanvasWidth: 288 })}\n`);
+    expect(contentMeasure).toBe(272);
+    expect(headingMeasure).toBe(216);
+    expect(textWidth).toBeLessThanOrEqual(headingMeasure);
+  });
+
+  it.each([false, true])('omits select all when every event has an import issue, review: %s', async (review) => {
+    const events = buildEvents(2).map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' }));
+    mocks.eventsQuery.data = { status: 'connected', events };
+    if (review) {
+      mocks.searchParams = { mode: 'review' };
+      mocks.suggestions = events.map((event) => ({ id: `suggestion-${event.id}`, event }));
+    }
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    expect(row.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.importIssue.ordinalWeekday')).toHaveLength(2);
   });
 
   it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', async (language, expected) => {
