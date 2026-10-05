@@ -347,7 +347,7 @@ describe('CalendarSyncPage', () => {
       const events = Array.from({ length: count }, (_, index) => createMockCalendarSyncEvent({ id: `count-${index}`, title: `Event ${index}`, isRecurring: false, recurrenceRule: null }))
       mockFetchResponse = { ok: true, status: 200, json: () => Promise.resolve(events) }
       renderPage(true)
-      await screen.findByText('Event 0')
+      await screen.findByText(personalText('Event 0'))
       const row = screen.getByTestId('section-heading-row')
       const expected = `${count} ${locale === 'pt-BR' ? 'eventos' : 'events'}`
       expect(row.querySelector('h2')?.textContent).toBe(expected)

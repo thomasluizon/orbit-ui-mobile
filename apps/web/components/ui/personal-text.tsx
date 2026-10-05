@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useCallback, useState, type ComponentProps } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState, type ComponentProps } from 'react'
 
 type PersonalTextProps = Omit<ComponentProps<'span'>, 'children'> & {
   children: string
@@ -10,7 +10,9 @@ type PersonalTextProps = Omit<ComponentProps<'span'>, 'children'> & {
 
 function ScrollableToken({ children, accessibleName, className = '', ...props }: Readonly<Omit<PersonalTextProps, 'expanded' | 'unclamped'> & { accessibleName: string }>) {
   const [overflowing, setOverflowing] = useState(false)
-  const measureOverflow = useCallback((element: HTMLSpanElement | null) => {
+  const scrollerRef = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    const element = scrollerRef.current
     if (!element) return
     const measure = () => setOverflowing(element.scrollWidth > element.clientWidth)
     measure()
@@ -19,7 +21,7 @@ function ScrollableToken({ children, accessibleName, className = '', ...props }:
     observer.observe(element.firstElementChild!)
     return () => observer.disconnect()
   }, [])
-  return <span {...props} ref={measureOverflow} tabIndex={overflowing ? 0 : undefined} role={overflowing ? 'region' : undefined} aria-label={accessibleName} className={`overflow-x-auto ${overflowing ? 'pointer-events-auto' : ''} ${className}`}><span className="inline-block">{children}</span></span>
+  return <span {...props} ref={scrollerRef} tabIndex={overflowing ? 0 : undefined} role={overflowing ? 'region' : undefined} aria-label={accessibleName} className={`overflow-x-auto ${overflowing ? 'pointer-events-auto' : ''} ${className}`}><span className="inline-block">{children}</span></span>
 }
 
 export function PersonalText({ children, expanded = false, unclamped = false, className = '', style, ...props }: Readonly<PersonalTextProps>) {
