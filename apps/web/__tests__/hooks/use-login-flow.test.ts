@@ -620,13 +620,68 @@ it.each([
   if (mixed) await waitFor(() => expect(input).toHaveAccessibleDescription('Field failure'))
   else await waitFor(() => expect(screen.getByText('Other failure', { exact: false })).toBeInTheDocument())
   expect(screen.getByText('Other failure', { exact: false })).toHaveTextContent('Other failure Second failure')
-  if (mixed) expect(input).toHaveFocus()
+  if (mixed) await waitFor(() => expect(input).toHaveFocus())
   expect(input).toHaveValue(step === 'email' ? 'user@test.com' : '123456')
   fetchMock.mockResolvedValue(jsonResponse({ errors: { [other]: ['Unknown first', 'Unknown second'] } }, 400))
   fireEvent.change(input, { target: { value: step === 'email' ? 'corrected@test.com' : '123457' } })
   if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
   await waitFor(() => expect(screen.getByText('Unknown first', { exact: false })).toHaveTextContent('Unknown first Unknown second'))
   expect(input).not.toHaveAttribute('aria-invalid')
+})
+
+
+it.each([
+  { step: 'email', mixed: true }, { step: 'code', mixed: true },
+  { step: 'email', mixed: false }, { step: 'code', mixed: false },
+])('recovers from pending validation in the owning $step form (mixed: $mixed)', async ({ step, mixed }) => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
+  render(React.createElement(React.Fragment, {}, React.createElement(LoginContent), React.createElement('button', {}, 'Another action')))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  if (step === 'code') {
+    fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+    await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
+  }
+  const field = step === 'email' ? 'Email' : 'Code'
+  const value = step === 'email' ? 'user@test.com' : '123456'
+  const correctedValue = step === 'email' ? 'corrected@test.com' : '123457'
+  const intermediateValue = step === 'email' ? 'corrected@test.com' : '12345'
+  const errors = { ...(mixed ? { [field]: ['Field failure'] } : {}), Other: ['Other failure', 'Second failure'] }
+  const input = screen.getByRole('textbox')
+  const away = screen.getByRole('button', { name: 'Another action' })
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let resolveValidation!: (response: Response) => void
+    fetchMock.mockImplementationOnce(() => new Promise((resolve) => { resolveValidation = resolve }))
+    fireEvent.change(input, { target: { value } })
+    if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+    await waitFor(() => expect(input).toBeDisabled())
+    away.focus()
+    expect(away).toHaveFocus()
+    resolveValidation(jsonResponse({ errors }, 400))
+    await waitFor(() => expect(input).toBeEnabled())
+    if (mixed) {
+      await waitFor(() => expect(input).toHaveAccessibleDescription('Field failure'))
+      await waitFor(() => expect(input).toHaveFocus())
+    } else {
+      expect(input).not.toHaveAttribute('aria-invalid')
+      expect(away).toHaveFocus()
+    }
+    expect(screen.getByText('Other failure', { exact: false })).toHaveTextContent('Other failure Second failure')
+    expect(screen.getByText('Other failure', { exact: false })).toHaveAttribute('role', 'status')
+    expect(input).toHaveValue(value)
+    if (attempt === 0) {
+      fireEvent.change(input, { target: { value: intermediateValue } })
+      expect(input).not.toHaveAttribute('aria-invalid')
+      expect(screen.queryByText('Other failure', { exact: false })).not.toBeInTheDocument()
+    }
+  }
+  fetchMock.mockResolvedValueOnce(jsonResponse({ errors: { Other: ['Unknown first', 'Unknown second'] } }, 400))
+  fireEvent.change(input, { target: { value: correctedValue } })
+  if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+  await waitFor(() => expect(screen.getByText('Unknown first', { exact: false })).toHaveTextContent('Unknown first Unknown second'))
+  expect(input).not.toHaveAttribute('aria-invalid')
+  expect(input).toHaveValue(correctedValue)
 })
 
 

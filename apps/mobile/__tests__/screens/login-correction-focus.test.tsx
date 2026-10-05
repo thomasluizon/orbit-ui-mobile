@@ -131,3 +131,63 @@ it('returns focus to the editable OTP after a pending wrong-code rejection', asy
   expect(__getFocusedNativeTag()).toBe(code.props.__nativeTag)
   TestRenderer.act(() => tree.update(<></>))
 })
+
+it.each([
+  { step: 'email', mixed: true }, { step: 'code', mixed: true },
+  { step: 'email', mixed: false }, { step: 'code', mixed: false },
+])('recovers from pending validation in the owning $step form (mixed: $mixed)', async ({ step, mixed }) => {
+  mocks.apiClient.mockReset()
+  mocks.getStoredReferralCode.mockResolvedValue(undefined)
+  if (step === 'code') mocks.apiClient.mockResolvedValueOnce({})
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  await TestRenderer.act(() => { tree = TestRenderer.create(<><LoginContent /><TextInput accessibilityLabel="Another field" /></>); return Promise.resolve() })
+  const input = (label: string) => tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === label)[0]!
+  const label = step === 'email' ? 'auth.email' : 'auth.verificationCode'
+  const change = (value: string) => (input(label).props.onChangeText as (value: string) => void)(value)
+  const submitEmail = () => (input('auth.email').props.onSubmitEditing as () => void)()
+  const field = step === 'email' ? 'Email' : 'Code'
+  const value = step === 'email' ? 'user@test.com' : '123456'
+  try {
+    await TestRenderer.act(() => Promise.resolve((input('auth.email').props.onChangeText as (value: string) => void)('user@test.com')))
+    if (step === 'code') await TestRenderer.act(() => Promise.resolve(submitEmail()))
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let rejectValidation!: (error: unknown) => void
+      mocks.apiClient.mockImplementationOnce(() => new Promise((_, reject) => { rejectValidation = reject }))
+      await TestRenderer.act(() => { change(value); if (step === 'email') submitEmail(); return Promise.resolve() })
+      const control = input(label)
+      expect(control.props.editable).toBe(false)
+      __setTouchMode(false)
+      const away = input('Another field')
+      TestRenderer.act(() => __focusHost(away.props.__nativeTag as number))
+      expect(__getFocusedNativeTag()).toBe(away.props.__nativeTag)
+      await TestRenderer.act(() => {
+        rejectValidation(createApiClientError(400, {
+          errors: { ...(mixed ? { [field]: ['Field failure'] } : {}), Other: ['Other failure', 'Second failure'] },
+        }, 'Validation failed'))
+        return Promise.resolve()
+      })
+      expect(control.props.editable).toBe(true)
+      if (mixed) expect(control.props.accessibilityHint).toBe('Field failure')
+      else expect(control.props.accessibilityHint ?? '').not.toContain('Field failure')
+      expect(__getFocusedNativeTag()).toBe(mixed ? control.props.__nativeTag : away.props.__nativeTag)
+      expect(control.props.value).toBe(value)
+      expect(tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLiveRegion === 'polite')
+        .some((region) => region.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Other failure\nSecond failure').length > 0)).toBe(true)
+      if (attempt === 0) {
+        await TestRenderer.act(() => Promise.resolve(change(step === 'email' ? 'corrected@test.com' : '12345')))
+        expect(control.props.accessibilityHint ?? '').not.toContain('Field failure')
+        expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Other failure\nSecond failure')).toHaveLength(0)
+      }
+    }
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(400, {
+      errors: { Other: ['Unknown first', 'Unknown second'] },
+    }, 'Validation failed'))
+    await TestRenderer.act(() => { change(step === 'email' ? 'corrected@test.com' : '123457'); if (step === 'email') submitEmail(); return Promise.resolve() })
+    const control = input(label)
+    expect(control.props.accessibilityHint ?? '').not.toContain('Field failure')
+    expect(control.props.value).toBe(step === 'email' ? 'corrected@test.com' : '123457')
+    expect(tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Unknown first\nUnknown second')).toHaveLength(1)
+  } finally {
+    TestRenderer.act(() => tree.update(<></>))
+  }
+})
