@@ -401,11 +401,12 @@ describe('Composer (mobile)', () => {
   it('releases chip allocation through narrow wide narrow layout callbacks', () => {
     const chips = buildComposerChips({ surface: 'habitDetail', status: 'success', habits: [], totalHabitCount: 1,
       detailHabit: { title: 'Reading', checklistItems: [] }, profile: createMockProfile() })
+    expect(chips.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
     const labels = en.shell.composer.chips.habitDetail
     const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
       label: labels[id.replace('habitDetail.', '') as keyof typeof labels], icon: <Square size={20} />, onSelect: vi.fn() })))
     const tree = renderComposer(props({ suggestions, words: en.shell.composer }))
-    const naturalWidths = [111, 154, 105]
+    const naturalWidths = [154, 105]
     const layoutAt = (mounted: typeof tree, width: number) => {
       const host = mounted.root.findAllByType('View').find((node: { props: Record<string, unknown> }) => node.props.testID === 'composer-suggestions-layout')!
       TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height: 48 } } }))
@@ -420,13 +421,13 @@ describe('Composer (mobile)', () => {
       return StyleSheet.flatten(byLabel(mounted.root, suggestions[0]!.label)[0].props.style).minWidth
     }
     try {
-      for (const width of [288, 427, 288, 427]) {
+      for (const width of [176, 427, 176, 427]) {
         const allocated = layoutAt(tree, width)
         const fresh = renderComposer(props({ suggestions, words: en.shell.composer }))
         try { expect(allocated).toBe(layoutAt(fresh, width)) }
         finally { TestRenderer.act(() => fresh.unmount()) }
-        expect(allocated).toBe(width === 427 ? 0 : 256)
-        if (width === 288) expect(width - allocated - 8).toBe(24)
+        expect(allocated).toBe(width === 427 ? 0 : 144)
+        if (width === 176) expect(width - allocated - 8).toBe(24)
       }
     } finally { TestRenderer.act(() => tree.unmount()) }
   })

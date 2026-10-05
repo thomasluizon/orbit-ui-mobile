@@ -1766,7 +1766,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.detail = makeHabitDetail()
     const composer = await renderComposer({ pathname: '/habits/habit-1' })
     expect(composer.current.composerProps.suggestions.map((chip) => chip.id)).toEqual([
-      'habitDetail.askAstra', 'habitDetail.pauseThisWeek', 'habitDetail.rename',
+      'habitDetail.pauseThisWeek', 'habitDetail.rename',
     ])
   })
 
@@ -1794,17 +1794,17 @@ describe('mobile useChatComposer', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
-  it('sends the habit detail seed prompt', async () => {
+  it('sends the first habit detail chip as a pause request', async () => {
     mocks.state.profile = createMockProfile({ lastCompletionDate: null })
     mocks.state.detail = makeHabitDetail()
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const appendFormPart = vi.spyOn(FormData.prototype, 'append')
     const composer = await renderComposer({ pathname: '/habits/habit-1' })
     const suggestion = composer.current.composerProps.suggestions[0]!
-    expect(suggestion.id).toBe('habitDetail.askAstra')
+    expect(suggestion.id).toBe('habitDetail.pauseThisWeek')
     TestRenderer.act(() => suggestion.onSelect())
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
-    expect(appendFormPart).toHaveBeenCalledWith('message', 'habits.detail.askAstraSeedDefault:{"title":"Read"}')
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'shell.composer.prompts.habitDetail.pauseThisWeek:{"title":"Read"}')
     appendFormPart.mockRestore()
   })
 
