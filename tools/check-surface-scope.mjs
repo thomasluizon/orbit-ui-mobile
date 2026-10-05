@@ -1032,6 +1032,47 @@ function readAttributeText(opening, name, syntax) {
   return attribute.initializer.getText(syntax).replace(/^["']|["']$/g, "")
 }
 
+function classAssignments(expression, state, seen = new Set()) {
+  expression = unwrapExpression(expression)
+  if (ts.isJsxExpression(expression)) return expression.expression ? classAssignments(expression.expression, state, seen) : state.assignments
+  if (ts.isIdentifier(expression)) {
+    const declaration = visibleDeclaration(expression, expression.getSourceFile(), expression.text)
+    return declaration && !seen.has(declaration)
+      ? classAssignments(declaration.initializer, state, new Set([...seen, declaration])) : state.assignments
+  }
+  if (ts.isConditionalExpression(expression)) {
+    return [[true, expression.whenTrue], [false, expression.whenFalse]].flatMap(([expected, branch]) => {
+      const assignments = state.assignments.flatMap((values) => booleanAssignments(expression.condition, expected, state, values))
+      return assignments.length ? classAssignments(branch, { ...state, assignments }, seen) : []
+    })
+  }
+  if (ts.isBinaryExpression(expression)
+    && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken].includes(expression.operatorToken.kind)) {
+    const expected = expression.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+    const present = state.assignments.flatMap((values) => booleanAssignments(expression.left, expected, state, values))
+    const absent = state.assignments.flatMap((values) => booleanAssignments(expression.left, !expected, state, values))
+    return [...absent, ...(present.length ? classAssignments(expression.right, { ...state, assignments: present }, seen) : [])]
+  }
+  const children = ts.isBinaryExpression(expression) ? [expression.left, expression.right]
+    : ts.isArrayLiteralExpression(expression) ? expression.elements
+    : ts.isTemplateExpression(expression) ? expression.templateSpans.map((span) => span.expression)
+    : ts.isCallExpression(expression) ? (ts.isPropertyAccessExpression(expression.expression) && expression.expression.name.text === "join"
+      ? [expression.expression.expression] : expression.arguments) : []
+  let assignments = state.assignments
+  for (const child of children) assignments = classAssignments(child, { ...state, assignments }, seen)
+  return uniqueAssignments(assignments)
+}
+
+function reachableClassStates(openings, state) {
+  if (!state.cssRules.length) return [state]
+  let assignments = state.assignments
+  for (const opening of openings) {
+    const attribute = opening.attributes.properties.find((property) => ts.isJsxAttribute(property) && propertyName(property.name) === "className")
+    if (attribute?.initializer) assignments = classAssignments(attribute.initializer, { ...state, assignments })
+  }
+  return uniqueAssignments(assignments).map((values) => ({ ...state, assignments: [values] }))
+}
+
 function hasClassInState(expression, name, state, seen = new Set()) {
   expression = unwrapExpression(expression)
   if (ts.isJsxExpression(expression)) return expression.expression ? hasClassInState(expression.expression, name, state, seen) : false
@@ -1534,38 +1575,39 @@ function inspectSources(repositoryRoot, declarations) {
             inheritedPaintContexts(site, state, calls).map((context) => ({ ...context, site, localOpenings }))))
           for (const context of contexts) {
             const openings = [...context.openings, ...context.localOpenings]
-            const state = callerState(openings, node, initialState)
-            if (state.assignments.length === 0 || !reachableInState(context.site, state)) continue
-            const surfaces = new Set()
-            for (const [index, opening] of openings.entries()) {
-              for (const surface of foregroundSiteSurfaces(opening, context, node, state)) surfaces.add(surface)
-              for (const surface of projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)) surfaces.add(surface)
-              for (const surface of coveringPaint(opening, state)) surfaces.add(surface)
-            }
-            if (surfaces.size === 0 && (path.startsWith("apps/web/") ? canvasPainted : nativeCanvasPainted)) surfaces.add("canvas")
-            const stack = []
-            for (const [index, opening] of openings.entries()) {
-              const paints = [...foregroundSiteSurfaces(opening, context, node, state), ...projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)]
-              if (paints.includes("hover")) stack.push("hover")
-              else if (paints.length > 0) {
-                if (paints[0] === "canvas") stack.length = 0
-                stack.push(paints[0])
+            for (const state of reachableClassStates(openings, callerState(openings, node, initialState))) {
+              if (state.assignments.length === 0 || !reachableInState(context.site, state)) continue
+              const surfaces = new Set()
+              for (const [index, opening] of openings.entries()) {
+                for (const surface of foregroundSiteSurfaces(opening, context, node, state)) surfaces.add(surface)
+                for (const surface of projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)) surfaces.add(surface)
+                for (const surface of coveringPaint(opening, state)) surfaces.add(surface)
               }
-              stack.push(...coveringPaint(opening, state))
-            }
-            if (stack.length > 0 && stack[0] !== "canvas") stack.unshift("canvas")
-            const supplied = optionalForeground(node, context)
-            const suppliedToken = supplied && tokenMatches(supplied)[0]?.rawToken
-            const suppliedLiteral = supplied?.replace(/^["']|["']$/g, "")
-            const rawToken = suppliedToken ?? (/^(?:#[\da-f]{6}|rgba?\([^)]*\))$/i.test(suppliedLiteral ?? "") ? suppliedLiteral : match.rawToken)
-            let effective = path.startsWith("apps/web/") ? scopedForeground(rawToken, openings, state)
-              : promotedNativeForeground(node, match.token, state)
-            if (!supplied && effective === rawToken && rawToken !== match.token) effective = match.token
-            if (path.startsWith("apps/web/")) effective = inheritedGroupForeground(node, effective, openings, state)
-            for (const role of roles) {
-              usages.push({ path, line, token: match.token, effective, role, mode, stack, surfaces: [...surfaces] })
-              if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
-                usages.push({ path, line, token: match.token, effective, role: "graphic", mode, stack, surfaces: [...surfaces] })
+              if (surfaces.size === 0 && (path.startsWith("apps/web/") ? canvasPainted : nativeCanvasPainted)) surfaces.add("canvas")
+              const stack = []
+              for (const [index, opening] of openings.entries()) {
+                const paints = [...foregroundSiteSurfaces(opening, context, node, state), ...projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)]
+                if (paints.includes("hover")) stack.push("hover")
+                else if (paints.length > 0) {
+                  if (paints[0] === "canvas") stack.length = 0
+                  stack.push(paints[0])
+                }
+                stack.push(...coveringPaint(opening, state))
+              }
+              if (stack.length > 0 && stack[0] !== "canvas") stack.unshift("canvas")
+              const supplied = optionalForeground(node, context)
+              const suppliedToken = supplied && tokenMatches(supplied)[0]?.rawToken
+              const suppliedLiteral = supplied?.replace(/^["']|["']$/g, "")
+              const rawToken = suppliedToken ?? (/^(?:#[\da-f]{6}|rgba?\([^)]*\))$/i.test(suppliedLiteral ?? "") ? suppliedLiteral : match.rawToken)
+              let effective = path.startsWith("apps/web/") ? scopedForeground(rawToken, openings, state)
+                : promotedNativeForeground(node, match.token, state)
+              if (!supplied && effective === rawToken && rawToken !== match.token) effective = match.token
+              if (path.startsWith("apps/web/")) effective = inheritedGroupForeground(node, effective, openings, state)
+              for (const role of roles) {
+                usages.push({ path, line, token: match.token, effective, role, mode, stack, surfaces: [...surfaces] })
+                if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
+                  usages.push({ path, line, token: match.token, effective, role: "graphic", mode, stack, surfaces: [...surfaces] })
+                }
               }
             }
           }

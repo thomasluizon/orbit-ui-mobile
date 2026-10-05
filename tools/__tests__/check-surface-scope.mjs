@@ -113,6 +113,24 @@ export const cases = () => {
     })
   }
   for (const [label, props, status] of [
+    ["true-unsafe-override", "unsafe={true}", 1],
+    ["false-unsafe-override", "unsafe={false}", 0],
+    ["unknown-unsafe-override", "unsafe={flag}", 1],
+  ]) {
+    const repository = stageRepository(label, { web: `function Item({ unsafe }) {
+      return <button className={unsafe
+        ? 'orbit-hover-text unsafe-hover bg-[var(--bg)] hover:bg-[var(--bg-hover)]'
+        : 'orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]'}>
+        <span className="text-[var(--fg-3)]">Item</span>
+      </button>
+    } export function Screen({ flag }) { return <Item ${props} /> }` })
+    const cssPath = join(repository, "apps/web/app/globals.css")
+    writeFileSync(cssPath, readFileSync(cssPath, "utf8") + '\n.light .unsafe-hover:hover { --fg-3: var(--fg-4) !important; }')
+    check("check-surface-scope.mjs", `keeps reachable conditional cascade overrides: ${label}`, ["--root", repository], {
+      status, ...(status ? { stderr: /--fg-3 on hover, light ratio 2\.617, TEXT floor 4\.50/ } : {}),
+    })
+  }
+  for (const [label, props, status] of [
     ["later-spread-copy", 'body="" {...props}', 1],
     ["earlier-spread-copy", '{...props} body=""', 0],
   ]) {
