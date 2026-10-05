@@ -680,6 +680,54 @@ describe('mobile useChatComposer', () => {
     expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: !reducedMotion })
   })
 
+  it('uses the latest motion setting for queued scrolls and active streaming deltas', async () => {
+    vi.useFakeTimers()
+    const listeners = new Set<(enabled: boolean) => void>()
+    const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+      if (event === 'reduceMotionChanged') listeners.add(listener)
+      return { remove: () => { listeners.delete(listener) } }
+    })
+    onTestFinished(() => {
+      subscription.mockRestore()
+      vi.useRealTimers()
+    })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+    const scrollToEnd = vi.fn()
+    composer.current.flatListRef.current = { scrollToEnd } as unknown as FlatList<ChatMessage>
+    TestRenderer.act(() => { for (const listener of listeners) listener(false) })
+
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => { for (const listener of listeners) listener(true) })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: true })
+    scrollToEnd.mockClear()
+    TestRenderer.act(() => { for (const listener of listeners) listener(false) })
+    TestRenderer.act(() => stream.enqueue(frame('{"type":"delta","text":"First"}')))
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: true })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: false })
+
+    scrollToEnd.mockClear()
+    TestRenderer.act(() => { for (const listener of listeners) listener(true) })
+    TestRenderer.act(() => stream.enqueue(frame('{"type":"delta","text":" second"}')))
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: true })
+
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await send
+      await vi.advanceTimersByTimeAsync(100)
+    })
+  })
+
   it('sends Support entry intent on the first and later requests of that conversation', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()

@@ -186,6 +186,10 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const prefersReducedMotionRef = useRef(prefersReducedMotion);
+  useEffect(() => {
+    prefersReducedMotionRef.current = prefersReducedMotion;
+  }, [prefersReducedMotion]);
   const pendingVoiceCommit = useRef(false);
 
   const [sendError, setSendError] = useState<string | null>(null);
@@ -271,9 +275,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: !prefersReducedMotion });
+      flatListRef.current?.scrollToEnd({ animated: !prefersReducedMotionRef.current });
     }, 100);
-  }, [prefersReducedMotion]);
+  }, []);
 
   const handleExecutedOperation = useCallback(
     async (response: AgentExecuteOperationResponse) => {
