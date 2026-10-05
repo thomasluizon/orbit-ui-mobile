@@ -25,7 +25,7 @@ export function ProPitch({ profile, trialDaysLeft, t, focusOnMount = false, titl
         <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <Heading translate={titleKey ? 'no' : undefined} id={headingId} ref={headingRef} tabIndex={-1} className="t-display-heading text-pretty">
+        <Heading translate={titleKey ? 'no' : undefined} id={headingId} ref={headingRef} tabIndex={-1} className="t-display-heading text-balance">
           {heading}
         </Heading>
         <p className="t-body max-w-[46ch] text-pretty" style={{ color: 'var(--fg-2)' }}>

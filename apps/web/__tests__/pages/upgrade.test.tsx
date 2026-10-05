@@ -1,4 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { loadAppFonts } from '@/__tests__/support/app-fonts'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, render as renderComponent, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
@@ -176,6 +182,69 @@ import UpgradePage from '@/app/(app)/upgrade/page'
 import { holdAccount } from '@/__tests__/support/account-change'
 
 describe('UpgradePage', () => {
+  describe('pitch heading geometry', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+    registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    const cases = [320, 360, 384, 412, 640, 1440].flatMap((width) => (['pt-BR', 'en'] as const)
+      .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))
+    it.each(cases)('keeps the heading whole at $width in $locale, trial=$trial', async ({ width, locale, trial }) => {
+      mockLocale.value = locale
+      mockHasProAccess = trial
+      mockProfile = createMockProfile({ isTrialActive: trial, trialEndsAt: trial ? new Date(Date.now() + 5 * 86400000).toISOString() : null })
+      const { container } = render(
+        <main data-shell-scroller="" style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable' }}>
+          <UpgradePage />
+        </main>,
+      )
+      const page = await browser.newPage({ viewport: { width, height: 1400 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const heading = page.locator('[data-upgrade-screen] h2').first()
+        const geometry = await heading.evaluate((element) => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const fragments = [...range.getClientRects()]
+          const bounds = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          const probe = element.cloneNode(true) as HTMLElement
+          probe.style.width = 'max-content'
+          document.body.append(probe)
+          const textWidth = probe.getBoundingClientRect().width
+          probe.remove()
+          return {
+            lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+            outside: fragments.some((fragment) => fragment.left < bounds.left - 0.5 || fragment.right > bounds.right + 0.5),
+            ellipsis: style.textOverflow === 'ellipsis' || Number.parseInt(style.webkitLineClamp) > 0,
+            fontSize: Number.parseFloat(style.fontSize),
+            fontWeight: style.fontWeight,
+            letterSpacing: Number.parseFloat(style.letterSpacing),
+            measure: bounds.width,
+            scrollerMeasure: element.closest('[data-shell-scroller]')!.clientWidth,
+            textWidth,
+          }
+        })
+        process.stdout.write(`${JSON.stringify({ width, locale, trial, geometry })}\n`)
+        expect(geometry.lines).toBe(1)
+        expect(geometry.outside).toBe(false)
+        expect(geometry.ellipsis).toBe(false)
+        expect(geometry.fontSize).toBe(width < 640 ? 28 : 34)
+        expect(geometry.fontWeight).toBe('500')
+        expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
+        expect(geometry.scrollerMeasure).toBe(width - 4)
+        expect(geometry.measure).toBe(Math.min(geometry.scrollerMeasure - 32, 620))
+      } finally { await page.close() }
+    })
+  })
+
   beforeEach(() => {
     mockLocale.value = null
     holdAccount('u1')
@@ -219,8 +288,8 @@ describe('UpgradePage', () => {
   })
 
   describe.each([
-    { locale: 'en', messages: en, trialHeading: 'The 50 a day stay, or go back to 5.' },
-    { locale: 'pt-BR', messages: ptBR, trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.' },
+    { locale: 'en', messages: en, trialHeading: '50 a day or back to 5.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 ficam ou 5 por dia.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
     it('returns a directly linked Astra upgrade to its originating sub-screen', () => {
       mockLocale.value = locale

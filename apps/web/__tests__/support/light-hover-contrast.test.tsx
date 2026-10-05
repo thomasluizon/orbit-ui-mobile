@@ -191,10 +191,24 @@ describe('rendered light hover contrast', () => {
           .map((element) => getComputedStyle(element).color))
         expect(pressedColors).toEqual(expected)
         await page.mouse.move(0, 0)
+        const expectedPressOnly = resting.map((color) => color === rgb(neutralColors.light.fg3) ? rgb(neutralColors.light.fg2) : color)
+        await page.waitForFunction(({ selector, colors }) => {
+          const button = document.querySelector(selector)!
+          const painted = [...button.querySelectorAll<HTMLElement>('*'), button]
+            .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
+            .map((element) => getComputedStyle(element).color)
+          return !button.matches(':hover') && painted.length === colors.length && painted.every((color, index) => color === colors[index])
+        }, { selector, colors: expectedPressOnly })
         const pressOnly = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
-        expect(pressOnly).toEqual(expected)
+        expect(pressOnly).toEqual(expectedPressOnly)
+        const pressedBackground = await control.evaluate((button) => getComputedStyle(button).backgroundColor)
+        for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {
+          for (const color of pressOnly) {
+            expect(contrastOnSurface(color, [surface, pressedBackground])).toBeGreaterThanOrEqual(4.5)
+          }
+        }
         await page.mouse.up()
         expect(colors.length).toBeGreaterThan(0)
         for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {

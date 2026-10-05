@@ -86,12 +86,12 @@ function useRowDisclosure(original: Readonly<ListRowProps & { ref?: Ref<View> }>
   const [disclosed, setDisclosed] = useState(false)
   const ownsDisclosure = ownsPersonalDisclosure(original)
   const props = ownsDisclosure ? { ...original, accessibilityLabel: original.accessibilityLabel ?? [original.title, original.description, original.value].filter(Boolean).join(', '), expanded: disclosed, personalExpanded: disclosed, onClick: () => setDisclosed(!disclosed), chevron: true } : original
-  const Chevron = ownsDisclosure ? ChevronDown : ChevronRight
-  return { props, Chevron }
+  const ChevronIcon = ownsDisclosure ? ChevronDown : ChevronRight
+  return { props, ChevronIcon }
 }
 
 export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) {
-  const { props, Chevron } = useRowDisclosure(original)
+  const { props, ChevronIcon } = useRowDisclosure(original)
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -109,7 +109,7 @@ export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) 
       ) : null}
       <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
       {trailing && props.textMode !== 'label' ? <View style={styles.trailing}>{trailing}</View> : null}
-      {!readOnly && chevron ? <View importantForAccessibility="no-hide-descendants" style={chevronStyle(props.textMode)}><Chevron size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
+      {!readOnly && chevron ? <View importantForAccessibility="no-hide-descendants" style={chevronStyle(props.textMode)}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
   )
 

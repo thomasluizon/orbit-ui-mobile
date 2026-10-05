@@ -586,7 +586,7 @@ describe('HabitList', () => {
           }
         }))
         expect(panels).toHaveLength(2)
-        expect(panels[0]?.track).toBe(mode === 'dark' ? 'rgb(122, 122, 125)' : 'rgb(126, 126, 130)')
+        expect(panels[0]?.track).toBe(mode === 'dark' ? 'rgb(139, 139, 142)' : 'rgb(126, 126, 130)')
         for (const panel of panels) {
           expect(panel.height).toBe(68)
           expect(panel.top).toBeCloseTo(panel.bottom, 1)

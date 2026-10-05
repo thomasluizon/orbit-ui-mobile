@@ -483,11 +483,11 @@ function TopHabitRow({ habit }: Readonly<{ habit?: { name: string; emoji: string
   const t = useTranslations()
   const [expanded, setExpanded] = useState(false)
   const titleId = useId()
-  const Chevron = habit?.habitId ? ChevronRight : ChevronDown
+  const ChevronIcon = habit?.habitId ? ChevronRight : ChevronDown
   const content = <>
     <span className="flex items-center justify-between gap-3">
       <span className="whitespace-nowrap text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.window.topHabit')}</span>
-      {habit ? <Chevron size={24} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-[var(--fg-3)]" /> : null}
+      {habit ? <ChevronIcon size={24} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-[var(--fg-3)]" /> : null}
     </span>
     {habit ? <span title={habit.name} className="flex min-w-0 items-start gap-1 text-[17px] leading-[1.4] text-[var(--fg-1)]">
       {habit.emoji ? <span aria-hidden="true">{habit.emoji}</span> : null}<PersonalText id={titleId} expanded={expanded}>{habit.name}</PersonalText>

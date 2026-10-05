@@ -248,7 +248,7 @@ export default function UpgradePage() {
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />
-      <div data-upgrade-screen="" className="mx-auto w-full max-w-[620px] flex-1 px-4 pt-4" data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div data-upgrade-screen="" className="mx-auto w-full max-w-[652px] flex-1 px-4 pt-4" data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>

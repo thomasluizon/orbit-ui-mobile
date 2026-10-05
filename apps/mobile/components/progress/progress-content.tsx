@@ -407,11 +407,11 @@ function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji
   const [hovered, setHovered] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const habitId = habit?.habitId
-  const Chevron = habitId ? ChevronRight : ChevronDown
+  const ChevronIcon = habitId ? ChevronRight : ChevronDown
   const content = <>
     <View style={styles.topHabitLabelRow}>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
-      {habit ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><Chevron size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
+      {habit ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><ChevronIcon size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
     </View>
     {habit ? <View style={{ flexDirection: 'row', gap: 4, minWidth: 0 }}>{habit.emoji ? <Text accessible={false} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.emoji}</Text> : null}<View style={{ flex: 1, minWidth: 0 }}><PersonalText expanded={expanded} selectable={!habitId} accessibilityLabel={habit.name} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.name}</PersonalText></View></View>
       : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}

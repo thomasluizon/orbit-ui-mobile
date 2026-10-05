@@ -18,9 +18,9 @@
     <!-- WHY: fg-4. -->
     <color name="widget_fg_4">#5D5D60</color>
     <!-- WHY: track-empty. -->
-    <color name="widget_track_empty">#7A7A7D</color>
+    <color name="widget_track_empty">#8B8B8E</color>
     <!-- WHY: primary-text. -->
-    <color name="widget_streak_text">#E16D33</color>
+    <color name="widget_streak_text">#ED773E</color>
     <!-- WHY: status-overdue. -->
     <color name="widget_overdue">#FE9A00</color>
 </resources>

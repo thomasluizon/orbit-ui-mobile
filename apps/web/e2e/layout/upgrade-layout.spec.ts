@@ -31,7 +31,7 @@ function singleLineLabels(messages: typeof en, trial: boolean): string[] {
   ]
 }
 
-async function assertHeadingLeading(heading: Locator, context: string): Promise<void> {
+async function assertSingleLineHeading(heading: Locator, context: string, width: number): Promise<void> {
   await expect(heading, `${context}: heading was not found or is not visible`).toBeVisible({ timeout: 5000 })
   const metrics = await heading.evaluate((element) => {
     const range = document.createRange()
@@ -43,12 +43,10 @@ async function assertHeadingLeading(heading: Locator, context: string): Promise<
       lineHeight: Number.parseFloat(style.lineHeight),
     }
   })
-  expect(metrics.lines, `${context} heading has rendered lines`).toBeGreaterThan(0)
+  expect(metrics.lines, `${context} heading stays on one rendered line`).toBe(1)
   const leading = metrics.lineHeight / metrics.fontSize
   process.stdout.write(`${context} heading: lines=${metrics.lines}, font-size=${metrics.fontSize}px, line-height=${metrics.lineHeight}px, leading=${leading}\n`)
-  if (metrics.lines >= 3) {
-    expect(leading, `${context} heading wraps to ${metrics.lines} lines and needs leading >= 1.4`).toBeGreaterThanOrEqual(1.4)
-  }
+  expect(metrics.fontSize, `${context} heading keeps the drawn type size`).toBe(width < 640 ? 28 : 34)
 }
 
 async function renderedLineCounts(page: Page, label: string): Promise<number[]> {
@@ -123,8 +121,8 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
               .toEqual([])
           }
 
-          await assertHeadingLeading(pitchHeading,
-            `${locale} ${subscriptionState} at ${width}px`)
+          await assertSingleLineHeading(pitchHeading,
+            `${locale} ${subscriptionState} at ${width}px`, width)
 
           for (const label of singleLineLabels(messages, subscriptionState === 'trial')) {
             const lines = await renderedLineCounts(page, label)
