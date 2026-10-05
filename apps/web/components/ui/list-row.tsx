@@ -74,7 +74,7 @@ function getContentStyle(textMode: WebListRowProps['textMode'], hasWrappedContro
 }
 
 function RowBody(props: Readonly<WebListRowProps>) {
-  const { textMode, icon, wrapValue, danger, trailing } = props
+  const { textMode, icon, danger, trailing } = props
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const rowValue = <RowValue {...props} />
   const rowTrailing = trailing ? <span className="flex shrink-0 items-center px-2">{trailing}</span> : null
@@ -85,10 +85,15 @@ function RowBody(props: Readonly<WebListRowProps>) {
           {typeof icon === 'string' ? <Icon name={icon} size={24} color={rowColors.iconColor} /> : icon}
         </span>
       ) : null}
-      {wrapValue || textMode === 'label' ? <span className={`flex min-w-0 flex-1 items-center ${props.readOnly && textMode === 'label' && trailing && !props.value ? '' : 'flex-wrap'}`} style={{ gap: 12, ...(textMode === 'label' ? { alignItems: 'flex-start' } : {}) }}>{<RowText {...props} />}{rowValue}{textMode === 'label' ? rowTrailing : null}</span> : <>{<RowText {...props} />}{rowValue}</>}
+      <RowTextAndValue {...props} rowValue={rowValue} rowTrailing={rowTrailing} />
       {textMode !== 'label' ? rowTrailing : null}
     </>
   )
+}
+
+function RowTextAndValue(props: Readonly<WebListRowProps & { rowValue: ReactNode; rowTrailing: ReactNode }>) {
+  const { textMode, wrapValue, trailing, rowValue, rowTrailing } = props
+  return <>{textMode === 'personal' ? <span className="flex min-w-0 flex-1 flex-col gap-1"><RowText {...props} />{rowValue}</span> : wrapValue || textMode === 'label' ? <span className={`flex min-w-0 flex-1 items-center ${props.readOnly && textMode === 'label' && trailing && !props.value ? '' : 'flex-wrap'}`} style={{ gap: 12, ...(textMode === 'label' ? { alignItems: 'flex-start' } : {}) }}>{<RowText {...props} />}{rowValue}{textMode === 'label' ? rowTrailing : null}</span> : <>{<RowText {...props} />}{rowValue}</>}</>
 }
 
 function ownsPersonalDisclosure(original: Readonly<WebListRowProps>) {

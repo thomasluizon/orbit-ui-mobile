@@ -101,11 +101,10 @@ describe('Astra list cards on web', () => {
     const original = render(<GoalListCard goalList={goals} />)
     const oldRow = original.container.innerHTML
     expect(oldRow).not.toContain('badge')
-    original.unmount()
     const explicitMissing = { items: goals.items.map((item) => ({ ...item, trackingStatus: undefined, projectedCompletionDate: undefined })) }
-    const missingRow = render(<GoalListCard goalList={explicitMissing} />)
-    expect(missingRow.container.innerHTML).toBe(oldRow)
-    missingRow.unmount()
+    original.rerender(<GoalListCard goalList={explicitMissing} />)
+    expect(original.container.innerHTML).toBe(oldRow)
+    original.unmount()
     mocks.locale = 'pt-BR'
     render(<GoalListCard goalList={{ items: [{ id: 'goal-1', title: 'Run 10 km', current: 4, target: 10, unit: 'km', trackingStatus: 'at_risk', projectedCompletionDate: '2026-10-12' }] }} />)
     expect(screen.getByText('goals.metrics.atRisk')).toBeInTheDocument()

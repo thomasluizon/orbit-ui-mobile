@@ -198,7 +198,7 @@ export function HabitRow({
         wellRadius={wellRadius}
       />
 
-      <HabitRowContent
+      <HabitRowContent expanded={selectMode && selected}
         habit={habit}
         titleSize={titleSize}
         titleColor={getTitleColor()}

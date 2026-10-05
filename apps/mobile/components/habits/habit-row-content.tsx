@@ -16,6 +16,7 @@ interface HabitRowContentProps {
   habit: NormalizedHabit
   titleSize: number
   titleColor: string
+  expanded?: boolean
   metaColor: string
   metaParts: HabitRowMetaPart[]
   tokens: ReturnType<typeof createTokensV2>
@@ -26,6 +27,7 @@ export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
+  expanded = false,
   metaColor,
   metaParts,
   tokens,
@@ -33,7 +35,7 @@ export function HabitRowContent({
 }: Readonly<HabitRowContentProps>) {
   return (
     <View style={styles.titleBlock}>
-      <PersonalText
+      <PersonalText expanded={expanded}
         style={[
           styles.title,
           {

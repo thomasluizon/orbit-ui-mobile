@@ -397,7 +397,7 @@ function InteractiveChecklistItem({
 
   return (
     <div style={rowStyle}>
-      <div className="flex min-w-0 items-start gap-2">{itemText}<Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /></div>
+      <div className="flex min-w-0 items-start gap-2 p-1">{itemText}<Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /></div>
     </div>
   )
 }

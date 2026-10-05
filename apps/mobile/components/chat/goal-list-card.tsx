@@ -1,3 +1,5 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { PersonalText } from '@/components/ui/personal-text'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
@@ -29,7 +31,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     const tracking = getGoalMetricsStatusPresentation(item.trackingStatus)
     return {
       id: item.id,
-      label: tracking ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center', flex: 1 }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable><Badge variant="outline">{t(tracking.labelKey)}</Badge></View> : <Pressable accessibilityRole="button" onPress={() => onOpenGoal?.(item.id)} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' }}><Text numberOfLines={1} style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 }}>{item.title}</Text></Pressable>,
+      label: <View style={{ minWidth: 0, gap: 8, alignItems: 'flex-start' }}>{onOpenGoal ? <Pressable accessibilityRole="button" accessibilityLabel={item.title} onPress={() => onOpenGoal(item.id)} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, width: '100%', minWidth: 0, justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><PersonalText style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{item.title}</PersonalText></Pressable> : <PersonalTextDetails>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}</View>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
       wrapMeta: projected != null,
       control: value === 100

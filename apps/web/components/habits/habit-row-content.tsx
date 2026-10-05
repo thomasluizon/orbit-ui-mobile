@@ -14,6 +14,7 @@ interface HabitRowContentProps {
   habit: NormalizedHabit
   titleSize: number
   titleColor: string
+  expanded?: boolean
   meta: HabitRowMetaToken[]
 }
 
@@ -22,13 +23,14 @@ export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
+  expanded = false,
   meta,
 }: Readonly<HabitRowContentProps>) {
   const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
   const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
     <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
-      <TitleText title={habit.title} size={titleSize} color={titleColor} />
+      <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
       {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>
@@ -43,14 +45,15 @@ const TITLE_TEXT_STYLE_BASE = {
 } as const
 
 interface TitleTextProps {
+  expanded?: boolean
   title: string
   size: number
   color: string
 }
 
-export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
+export function TitleText({ title, size, color, expanded }: Readonly<TitleTextProps>) {
   return (
-    <PersonalText
+    <PersonalText expanded={expanded}
       className="flex-shrink min-w-0"
       style={{
         ...TITLE_TEXT_STYLE_BASE,

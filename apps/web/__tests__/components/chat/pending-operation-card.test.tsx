@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -102,7 +103,7 @@ describe('PendingOperationCard', () => {
       { ...item.fields[0]!, field: 'emoji', newValue: '📚' },
     ]
     render(<PendingOperationCard pendingOperation={{ ...operation, changes: fields, items: [{ ...item, fields }] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
-    expect(screen.getAllByText('Beber água')).toHaveLength(1)
+    expect(screen.getAllByText(personalText('Beber água'))).toHaveLength(1)
     expect(screen.getByText(/habits.frequency.everyDay/)).toBeInTheDocument()
     expect(screen.queryByText('Day')).not.toBeInTheDocument()
     expect(screen.queryByText(/chat.operation.field/)).not.toBeInTheDocument()
@@ -195,7 +196,7 @@ describe('PendingOperationCard', () => {
       confirmationRequirement: 'None', status: 'Succeeded', targetId: 'habit-created', targetName: 'Beber água',
     } } })
     render(<PendingOperationCard pendingOperation={pendingOperation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} onOpenTarget={onOpenTarget} />)
-    expect(screen.getByText('Beber água')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Beber água'))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.edit' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeInTheDocument()
     expect(screen.queryByText(/chat.operation.risk/)).not.toBeInTheDocument()
@@ -750,4 +751,20 @@ describe('PendingOperationCard', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'chat.operation.refresh' })).toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
   })
+})
+
+it('discloses full intact names independently of preview mutations', () => {
+  confirm.mockClear()
+  revise.mockClear()
+  const title = 'Ler ' + 'palavralonga'.repeat(12) + ' todos os dias'
+  const operation = makeHeldHabitMessage().pendingOperations![0]!
+  const item = operation.items![0]!
+  const fields = item.fields.map((field) => field.field === 'title' ? { ...field, newValue: title } : field)
+  render(<PendingOperationCard pendingOperation={{ ...operation, changes: fields, items: [{ ...item, fields }] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+  const disclosure = screen.getByRole('button', { name: title })
+  expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+  fireEvent.click(disclosure)
+  expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+  expect(confirm).not.toHaveBeenCalled()
+  expect(revise).not.toHaveBeenCalled()
 })

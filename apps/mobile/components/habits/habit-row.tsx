@@ -359,7 +359,7 @@ export const HabitRow = memo(function HabitRow({
         tokens={tokens}
       />
 
-      <HabitRowContent
+      <HabitRowContent expanded={isSelectMode && isSelected}
         habit={habit}
         titleSize={titleSize}
         titleColor={titleColor}

@@ -160,7 +160,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
             {...motionProps(1, reducedMotion)}
             style={topHabitTitleStyle}
           >
-            <button type="button" aria-label={slide.habit.name} aria-expanded={titleExpanded} aria-controls={titleId} onClick={() => setTitleExpanded(!titleExpanded)} className="px-2 py-1 underline decoration-from-font min-h-12 w-full min-w-0 rounded-[12px] text-center touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><PersonalText id={titleId} expanded={titleExpanded}>{slide.habit.name}</PersonalText></button>
+            <button type="button" aria-label={slide.habit.name} aria-expanded={titleExpanded} aria-controls={titleId} onClick={() => setTitleExpanded(!titleExpanded)} className="px-2 py-1 underline decoration-from-font min-h-12 w-full min-w-0 rounded-[12px] text-center touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><PersonalText id={titleId} expanded={titleExpanded} style={titleExpanded ? { lineHeight: 1.4 } : undefined}>{slide.habit.name}</PersonalText></button>
           </motion.h2>
           <motion.span data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={labelStyle}>
             {t('wrapped.slides.topHabit.label')}

@@ -611,7 +611,7 @@ describe('MessageBubble', () => {
     first.unmount()
     render(<StoredBubble />)
     expect(screen.getByText(/chat.operation.edited/)).toBeInTheDocument()
-    expect(screen.getByText('Drink water')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Drink water' })).toBeInTheDocument()
   })
 
   it('keeps a clarification preview in the message after remount', async () => {

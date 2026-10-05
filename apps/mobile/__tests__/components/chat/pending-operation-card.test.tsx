@@ -83,7 +83,7 @@ describe('PendingOperationCard (mobile)', () => {
       const operation = makePendingWriteSummaryOperation(scenario)
       const expected = locale === 'en' ? scenario.english : scenario.portuguese
       const { tree } = renderCard(operation)
-      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === expected)).toHaveLength(1)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
       expect(renderedText(tree.toJSON())).not.toContain(operation.items![0]!.entityId!)
     })
 
@@ -93,7 +93,7 @@ describe('PendingOperationCard (mobile)', () => {
       const operation = makePartialScheduleSummaryOperation(scenario)
       const expected = locale === 'en' ? scenario.english : scenario.portuguese
       const { tree } = renderCard(operation)
-      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === expected)).toHaveLength(1)
+      expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === expected)).toHaveLength(1)
     })
   })
 
@@ -111,7 +111,7 @@ describe('PendingOperationCard (mobile)', () => {
     expect(text).toContain('habits.frequency.everyDay')
     expect(text).not.toContain('chat.operation.field')
     expect(text).not.toContain('from ')
-    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === 'Beber água')).toHaveLength(1)
+    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === 'Beber água' && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
   })
 
   const firstItem = {
@@ -343,8 +343,8 @@ describe('PendingOperationCard (mobile)', () => {
     const { tree } = renderCard(preview, vi.fn())
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'Read' }).props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'Run' }).props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'radio', accessibilityLabel: 'Read' }).props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'radio', accessibilityLabel: 'Run' }).props.onPress())
     expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
     expect(tree.root.findAllByProps({ accessibilityLabel: 'common.search' })).toHaveLength(0)
   })
@@ -382,7 +382,7 @@ describe('PendingOperationCard (mobile)', () => {
     TestRenderer.act(() => focusHost(tree, read!))
     expect(run!.props.accessibilityState).toMatchObject({ checked: true })
     expect(read!.props.accessibilityState).toMatchObject({ checked: false })
-    expect(focused).toHaveBeenCalledWith(expect.objectContaining({ accessibilityLabel: 'Run' }))
+    expect(focused).toHaveBeenCalledWith(expect.objectContaining({ accessibilityRole: 'radio', accessibilityLabel: 'Run' }))
     TestRenderer.act(() => focusHost(tree, run!))
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
     TestRenderer.act(() => focusHost(tree, read!))
@@ -427,7 +427,7 @@ describe('PendingOperationCard (mobile)', () => {
     const revise = vi.fn<RevisePendingOperation>(() => new Promise((resolve) => { finishRevision = resolve }))
     const { tree } = renderCard(preview, revise, undefined, undefined, true)
     TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
-    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'Read' }).props.onPress())
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityRole: 'radio', accessibilityLabel: 'Read' }).props.onPress())
     TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.onChangeText('2026-09-30'))
     TestRenderer.act(() => press(tree, 'common.save').props.onPress())
     expect(revise).toHaveBeenCalledWith('pending-1', {

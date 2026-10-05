@@ -1,3 +1,5 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { PersonalText } from '@/components/ui/personal-text'
 import { hoverForeground, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useState } from 'react'
 import { Animated, StyleSheet, Text, View, Pressable } from 'react-native'
@@ -52,12 +54,12 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
   const [pressed, setPressed] = useState(false)
   const matches = buildSearchMatchLines(query, habit, t)
   const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) => match.text)].join(' ')
-  return <Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
+  return <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} style={({ pressed }) => [styles.row, { flex: 1, minWidth: 0 }, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
     <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Text style={[styles.initial, { color: tokens.fg2 }]}>{habitInitial(habit.title)}</Text>}</View>
-    <View style={styles.content}><Text numberOfLines={1} style={[styles.name, { color: tokens.fg1 }]}>{habit.title}</Text>
+    <View style={styles.content}><PersonalText style={[styles.name, { color: tokens.fg1, lineHeight: 23.8 }]}>{habit.title}</PersonalText>
       {matches.map((match) => <Text key={match.id} numberOfLines={1} style={[styles.match, { color: hoverForeground(currentTheme, tokens.fg3, pressed) }]}>{match.label}{match.fragment !== null && <> <Text style={{ color: tokens.fg2 }}>{match.fragment}</Text></>}</Text>)}
     </View><ChevronRight size={20} color={tokens.fg3} />
-  </Pressable>
+  </Pressable><PersonalTextDetails iconOnly>{habit.title}</PersonalTextDetails></View>
 }
 
 const styles = StyleSheet.create({

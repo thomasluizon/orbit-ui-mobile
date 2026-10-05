@@ -6,7 +6,8 @@ export function EventRow(props: Readonly<EventRowProps>) {
   const accessibleLabel = [timeLabel, props.title, props.source].filter(Boolean).join(', ')
   const content = <>
     <PersonalText style={{ color: 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: '1rem', lineHeight: 1.4 }}>{props.title}</PersonalText>
-    <PersonalText style={{ color: props.onClick ? 'var(--fg-2)' : 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4, fontVariantNumeric: 'tabular-nums' }}>{[timeLabel, props.source].filter(Boolean).join(' · ')}</PersonalText>
+    <span style={{ color: props.onClick ? 'var(--fg-2)' : 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4, fontVariantNumeric: 'tabular-nums' }}>{timeLabel}</span>
+    {props.source ? <PersonalText style={{ color: props.onClick ? 'var(--fg-2)' : 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4 }}>{props.source}</PersonalText> : null}
   </>
   const style = { gap: 4, minHeight: 68, paddingBlock: 8 }
   return props.onClick ? <button

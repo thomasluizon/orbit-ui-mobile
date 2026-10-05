@@ -12,8 +12,7 @@ import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import {
   ProfileSettingsFrame,
 } from '@/components/profile/profile-settings-frame'
-import { PersonalText } from '@/components/ui/personal-text'
-import { Sheet } from '@/components/ui/sheet'
+import { AccountNavigationRow } from './account-navigation-row'
 import { ListRow } from '@/components/ui/list-row'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { useAuthStore } from '@/stores/auth-store'
@@ -100,16 +99,5 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
   return <>
     <ProfileSettingsFrame isLoading={isLoading} loadingLabel={t('profile.loading')} labels={{ more: t('profile.groups.more') }} rows={rows} />
       <WidgetInfoOverlay open={showWidgetInfo} onOpenChange={setShowWidgetInfo} t={t} />
-  </>
-}
-
-function AccountNavigationRow({ profile, submenu }: Readonly<{ profile: Profile | undefined; submenu: typeof PROFILE_SUBMENUS[number] }>) {
-  const [expanded, setExpanded] = useState(false)
-  const t = useTranslations()
-  const name = profile?.name ?? t(submenu.labelKey)
-  const label = t('profile.submenus.accountLabel', { name, email: profile?.email ?? '' })
-  return <>
-    <ListRow compact icon={<ProfileNavIcon iconKey={submenu.iconKey} />} textMode="personal" title={name} description={profile?.email} accessibilityLabel={label} href={submenu.route} action={profile?.email ? { icon: 'chevron-down', label: `${t('contextMenu.viewDetails')}, ${label}`, onPress: () => setExpanded(true) } : undefined} />
-    {expanded ? <Sheet onClose={() => setExpanded(false)} title={t('contextMenu.viewDetails')}><PersonalText expanded>{name}</PersonalText>{profile?.email ? <PersonalText expanded>{profile.email}</PersonalText> : null}</Sheet> : null}
   </>
 }

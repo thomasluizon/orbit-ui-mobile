@@ -117,7 +117,7 @@ describe('search result geometry in Chromium', () => {
         const input = document.querySelector('[cmdk-input]')!.getBoundingClientRect()
         return {
           field: { left: input.left, right: input.right },
-          rows: [...document.querySelectorAll('[cmdk-item]')].map((row) => {
+          rows: [...document.querySelectorAll('[data-command-result]')].map((row) => {
             const bounds = row.getBoundingClientRect()
             return { left: bounds.left, right: bounds.right, height: bounds.height }
           }),

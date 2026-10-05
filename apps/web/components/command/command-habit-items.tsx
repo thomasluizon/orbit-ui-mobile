@@ -38,6 +38,7 @@ export function CommandHabitItems({ entries, onSelectHabit, query = '', disabled
         return (
           <CommandRow
             key={habit.id}
+            textMode="personal"
             disabled={disabled}
             leading={habitLeading(habit)}
             description={<HabitMatchLine habit={habit} query={query} />}

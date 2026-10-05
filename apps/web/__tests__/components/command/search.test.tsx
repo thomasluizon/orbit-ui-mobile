@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -380,6 +381,19 @@ describe('habit search', () => {
     expect(screen.getByRole('option', { name: 'Walk' })).not.toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
     expect(mocks.skip).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['log', 'skip'] as const)('discloses a full title by keyboard on the %s page without mutating', async (page) => {
+    const title = 'Walk ' + 'unbrokentoken'.repeat(12) + ' every morning'
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title, isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
+    mount()
+    fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
+    const disclosure = screen.getByRole('button', { name: title })
+    disclosure.focus()
+    await userEvent.keyboard('{Enter}')
+    expect(mocks[page]).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument()
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
   })
 
   it.each(['log', 'skip'] as const)('selects a habit only after opening the %s page', async (page) => {

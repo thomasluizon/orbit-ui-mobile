@@ -63,7 +63,11 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
-  return wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
+  return arrangeRowText({ textMode, wrapValue, trailing }, text, rowValue, keepsControlInline)
+}
+
+function arrangeRowText({ textMode, wrapValue, trailing }: Readonly<Pick<ListRowProps, 'textMode' | 'wrapValue' | 'trailing'>>, text: ReactNode, rowValue: ReactNode, keepsControlInline: boolean) {
+  return textMode === 'personal' ? <View style={{ flex: 1, minWidth: 0, gap: 4 }}>{text}{rowValue}</View> : wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {

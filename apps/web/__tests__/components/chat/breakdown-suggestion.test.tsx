@@ -122,3 +122,18 @@ describe('BreakdownSuggestion', () => {
     expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Laundry' }] })
   })
 })
+
+it('keeps complete successful proposal names reachable without editing', async () => {
+  const title = 'Ler ' + 'palavralonga'.repeat(12) + ' todos os dias'
+  bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success']))
+  render(<BreakdownSuggestion {...defaultProps} subHabits={[{ title, frequencyUnit: 'Day' }]} />)
+  expect(screen.getByRole('button', { name: title })).toHaveStyle({ color: 'var(--fg-3)' })
+  fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+  fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
+  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalled())
+  const disclosure = screen.getByRole('button', { name: title })
+  expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+  fireEvent.click(disclosure)
+  expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+  expect(disclosure).toHaveTextContent(title)
+})

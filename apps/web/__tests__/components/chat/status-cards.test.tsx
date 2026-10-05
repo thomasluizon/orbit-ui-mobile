@@ -58,7 +58,8 @@ describe('Astra status cards on web', () => {
   it('renders all ten calendar events without an omitted sync row', () => {
     render(<CalendarCard calendarCard={{ events: Array.from({ length: 10 }, (_, index) => ({ title: `Event ${index}`, start: '2026-09-26', end: null, isAllDay: true })), surfaceId: 'calendar' }} />)
     expect(screen.getAllByTestId('card-row')).toHaveLength(10)
-    expect(screen.getByText('Event 0chat.calendarCard.allDay')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Event 0' })).toBeInTheDocument()
+    expect(screen.getAllByTestId('card-row')[0]).toHaveTextContent('chat.calendarCard.allDay')
     expect(screen.queryByText('chat.calendarCard.sync')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'chat.calendarCard.open' }))
     expect(mocks.push).toHaveBeenCalledWith('/calendar')

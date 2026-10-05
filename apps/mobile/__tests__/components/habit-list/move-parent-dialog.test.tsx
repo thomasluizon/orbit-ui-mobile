@@ -46,6 +46,7 @@ function flattenRenderedText(node: unknown): string {
 function flattenInstanceText(node: unknown): string {
   if (node == null) return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (typeof node === 'object' && 'props' in node && (node as { props: { importantForAccessibility?: string } }).props.importantForAccessibility === 'no-hide-descendants') return ''
   if (typeof node === 'object' && 'children' in node) {
     const children = (node as { children: unknown[] }).children
     return children.map(flattenInstanceText).join('')
@@ -168,12 +169,15 @@ describe('MoveParentDialog', () => {
     ).toBe(true)
   })
 
-  it('pins Cancel and Move in the sheet footer, never in the scrolling body', () => {
+  it('pins Cancel and Move in the sheet footer, never in the scrolling body', async () => {
     const { tree } = renderDialog()
 
     expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual(['common.cancel', 'habits.moveParent.confirm'])
     expectSmallSheetActions(tree.root)
-    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual([])
+    expect(sheetSlotButtons(tree.root, 'SheetBody')).toEqual(['Blocked branch'])
+    const disclosure = tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityLabel === 'Blocked branch')[0]!
+    await TestRenderer.act(() => { (disclosure.props.onPress as () => void)() })
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
   })
 
   it('confirms the move from the footer pill', () => {
@@ -290,7 +294,7 @@ describe('MoveParentDialog', () => {
       (row) => row.type === Pressable && flattenInstanceText(row).includes('Zeta'),
     )
     expect(rows.map(flattenInstanceText)).toEqual(
-      Array.from({ length: 9 }, (_, index) => `⭐️Zeta ${index}`),
+      Array.from({ length: 9 }, (_, index) => `Zeta ${index}`),
     )
     expect(rows.every((row) => row.props.focusable === true)).toBe(true)
     expect(rows.every((row) => row.props.onKeyDown === undefined)).toBe(true)

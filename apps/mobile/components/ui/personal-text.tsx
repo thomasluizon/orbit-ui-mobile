@@ -22,6 +22,8 @@ function wordLines(text: string, measuredLines: readonly string[]) {
 
 export function PersonalText({ children, expanded = false, accessibilityRef, style, ...props }: Readonly<PersonalTextProps>) {
   const [measurement, setMeasurement] = useState<{ text: string; lines: string[] }>()
+  const expandedStyle = StyleSheet.flatten(style ?? {})
+  const visibleStyle = expanded ? [style, { lineHeight: Math.max(expandedStyle.lineHeight ?? 0, (expandedStyle.fontSize ?? 14) * 1.4) }] : style
   const singleToken = !/\s/u.test(children.trim())
   const lines = measurement?.text === children ? measurement.lines : [children]
   const visibleLines = expanded ? lines : lines.length > 1 ? [lines[0], lines.slice(1).join(' ')] : lines
@@ -32,8 +34,8 @@ export function PersonalText({ children, expanded = false, accessibilityRef, sty
       setMeasurement((current) => current?.text === children && current.lines.join('\n') === nextLines.join('\n') ? current : { text: children, lines: nextLines })
     }}>{children}</Text> : null}
     {visibleLines.map((line, index) => expanded
-      ? <ScrollView key={index} horizontal><Text {...props} accessible={false} style={style} numberOfLines={1}>{line}</Text></ScrollView>
-      : <Text {...props} key={index} accessible={false} style={style} numberOfLines={1} ellipsizeMode="tail">{line}</Text>)}
+      ? <ScrollView key={index} horizontal><Text {...props} accessible={false} style={visibleStyle} numberOfLines={1}>{line}</Text></ScrollView>
+      : <Text {...props} key={index} accessible={false} style={visibleStyle} numberOfLines={1} ellipsizeMode="tail">{line}</Text>)}
   </View>
 }
 
