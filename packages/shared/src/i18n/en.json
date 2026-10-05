@@ -846,7 +846,7 @@
       "reminderLastRequired": "The last reminder stays. For none, turn reminders off.",
       "reminderPermissionNeeded": "Reminders will not arrive on this device until notifications are on.",
       "reminderSettingsDescription": "Opens notification settings in a new tab, keeping your form draft.",
-      "reminderSettingsHint": "Opens system notification settings.",
+      "reminderSettingsHint": "Opens Orbit's page in system settings.",
       "removeScheduledReminder": "Remove reminder",
       "removeSubHabit": "Remove sub-habit",
       "editTag": "Edit tag",

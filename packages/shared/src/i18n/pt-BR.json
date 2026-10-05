@@ -846,7 +846,7 @@
       "reminderLastRequired": "O último lembrete fica. Para nenhum, desligue os lembretes.",
       "reminderPermissionNeeded": "Os lembretes não chegarão neste dispositivo até que as notificações sejam ativadas.",
       "reminderSettingsDescription": "Abre as configurações de notificações em uma nova aba, mantendo o rascunho do formulário.",
-      "reminderSettingsHint": "Abre as configurações de notificações do sistema.",
+      "reminderSettingsHint": "Abre a página do Orbit nas configurações do sistema.",
       "removeScheduledReminder": "Remover lembrete",
       "removeSubHabit": "Remover sub-hábito",
       "editTag": "Editar tag",
