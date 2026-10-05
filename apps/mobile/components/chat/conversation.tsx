@@ -57,8 +57,8 @@ function ThinkingTrace({ steps, running }: Readonly<{
       {[0, 1, 2].map((dot) => <View key={dot} style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tokens.fg2 }} />)}
     </View> : null}
   </View>);
-  if (running) return <View accessibilityLiveRegion="none" style={{ gap: 4, paddingHorizontal: 16, paddingVertical: 8 }}>{lines}</View>;
-  return <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+  if (running) return <View accessibilityLiveRegion="none" style={{ gap: 4, paddingVertical: 8 }}>{lines}</View>;
+  return <View style={{ paddingVertical: 8 }}>
     <Pressable accessibilityRole="button" aria-expanded={expanded} accessibilityLabel={t('chat.trace.steps', { count: steps.length })} onPress={() => setExpanded(!expanded)} style={{ minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.trace.steps', { count: steps.length })}</Text>
       <ChevronDown size={16} color={tokens.fg3} strokeWidth={1.5} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} />
@@ -143,7 +143,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
     ({ item }) => (
-      <View>
+      <View style={{ gap: 16 }}>
       <MessageBubble
         message={item}
         animateEntry={!initialMessageIds.has(item.id)}
