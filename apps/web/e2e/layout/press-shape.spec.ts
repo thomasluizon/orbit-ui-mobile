@@ -241,7 +241,7 @@ for (const width of [412, 1280] as const) {
       const yearTitle = monthPicker.getByRole('button', { name: new RegExp(`, ${ptBr.common.selectYear}$`) })
       await expectFullTouchTarget(yearTitle, 12, '--bg-hover')
       await yearTitle.click()
-      await expectHoverOnHitArea(monthPicker.getByRole('button', { pressed: false }).first(), 'pill')
+      await expectHoverOnHitArea(monthPicker.getByRole('button', { pressed: false, name: /^\d{4}$/ }).first(), 'pill')
       await monthPicker.getByRole('button', { pressed: true }).click()
       await monthPicker.getByRole('button', { name: ptBr.calendar.thisMonth, exact: true }).click()
       await expectHoverOnHitArea(page.locator('[role="radio"]:not([data-selected])').first(), 8)
