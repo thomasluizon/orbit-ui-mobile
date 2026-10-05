@@ -203,7 +203,7 @@ function CalendarGridDay({
 
 function useMonthGridFocus(gridDays: CalendarMonthDay[], selectedDateStr: string | null, todayKey: string) {
   const monthDays = gridDays.filter((cell) => cell.isCurrentMonth)
-  const firstDay = monthDays[0].dateStr
+  const firstDay = monthDays[0]!.dateStr
   const entryDate = monthDays.find((cell) => cell.dateStr === selectedDateStr)?.dateStr
     ?? monthDays.find((cell) => cell.dateStr === todayKey)?.dateStr
     ?? firstDay
@@ -230,7 +230,7 @@ function useMonthGridFocus(gridDays: CalendarMonthDay[], selectedDateStr: string
     event.preventDefault()
     const firstIndex = gridDays.findIndex((cell) => cell.isCurrentMonth)
     const lastIndex = firstIndex + monthDays.length - 1
-    const targetDate = gridDays[Math.max(firstIndex, Math.min(lastIndex, targetIndex))].dateStr
+    const targetDate = gridDays[Math.max(firstIndex, Math.min(lastIndex, targetIndex))]!.dateStr
     moveTabStop(targetDate)
     event.currentTarget.closest('[data-testid="month-grid-days"]')
       ?.querySelector<HTMLButtonElement>(`[data-testid="calendar-day-select-${targetDate}"]`)?.focus()

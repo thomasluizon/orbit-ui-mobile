@@ -44,7 +44,7 @@ for (const width of [412, 1352]) {
         ['ArrowDown', '2026-09-12'],
         ['Home', '2026-09-07'],
         ['End', '2026-09-13'],
-      ]) {
+      ] as const) {
         await page.keyboard.press(key)
         const focusedDay = grid.getByTestId(`calendar-day-select-${date}`)
         await expect(focusedDay).toBeFocused()
