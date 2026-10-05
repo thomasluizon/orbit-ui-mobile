@@ -7,7 +7,6 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
-  useWindowDimensions,
 } from "react-native";
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import {
