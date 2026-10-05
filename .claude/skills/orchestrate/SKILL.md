@@ -493,8 +493,9 @@ Write it to the scratchpad. A prompt file inside the worktree gets committed by 
 ## Steps 5 and 6. Spawn the worker
 
 New ticket work atomically claims capacity in `launch-worker.mjs` before spawn. It refuses when
-the claim would put open pull requests and live claims above 10, or queued Actions runs from the
-last 24 hours and live claims above 30 across configured repositories. A branch with an open pull
+the claim would put open pull requests and live claims above `caps.maxOpenPullRequests`, or queued
+Actions runs from the last 24 hours and live claims above `caps.maxQueuedRuns`, across configured
+repositories. A branch with an open pull
 request is exempt. Claims end when the launcher exits or its branch gains an open pull request. A GitHub read error
 refuses admission with exit 8 and `ADMISSION_REFUSED` JSON. Do not retry by changing flags.
 
