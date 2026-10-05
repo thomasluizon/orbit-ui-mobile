@@ -213,6 +213,28 @@ function CalendarGridDay({
   )
 }
 
+function CalendarGridLoading({ gridDays, gap, label }: Readonly<{ gridDays: GridDay[]; gap: 0 | 4; label: string }>) {
+  const columns = CALENDAR_MONTH_GRID_GEOMETRY.columns
+  const rows = Array.from({ length: Math.ceil(gridDays.length / columns) }, (_, index) =>
+    gridDays.slice(index * columns, (index + 1) * columns),
+  )
+  return (
+    <View style={styles.loadingGrid}>
+      <View accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={{ rowGap: gap }}>
+        {rows.map((row, index) => (
+          <View key={index} style={[styles.loadingRow, { columnGap: gap }]}>
+            {row.map((cell) => (
+              <View key={cell.dateStr} style={styles.loadingSlot}>
+                <View style={styles.loadingCell}><Skeleton variant="grid" rows={1} cols={1} cell={CALENDAR_MONTH_GRID_GEOMETRY.cell} gap={0} grouped /></View>
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
 export function CalendarGrid({
   gridDays,
   weekdayHeaders,
@@ -248,16 +270,7 @@ export function CalendarGrid({
   if (isLoading) {
     const loadingGrid = (
       <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
-        <View style={styles.loadingGrid}>
-          <Skeleton
-            variant="grid"
-            rows={Math.ceil(gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns)}
-            cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
-            cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-            gap={gridGap}
-            label={t('calendar.loading')}
-          />
-        </View>
+        <CalendarGridLoading gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
       </View>
     )
     return swipeGesture
@@ -322,6 +335,9 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
+  loadingRow: { flexDirection: 'row' },
+  loadingSlot: { flex: 1, minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
+  loadingCell: { width: MONTH_GRID_TARGET_MIN },
   daySlot: {
     position: 'relative',
     width: '100%',

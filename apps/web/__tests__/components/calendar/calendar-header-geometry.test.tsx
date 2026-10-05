@@ -262,11 +262,22 @@ describe('Calendar header geometry in Chromium', () => {
         gridScroll: document.querySelector('[data-testid="calendar-grid"]')!.scrollWidth,
         gridWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth,
         contentWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth - 8,
+        placeholders: [...document.querySelectorAll<HTMLElement>('[data-variant="grid"] span')].map((placeholder, index) => {
+          const grid = document.querySelector<HTMLElement>('[data-cols="7"]')!
+          const style = getComputedStyle(grid)
+          const columnWidths = style.gridTemplateColumns.split(' ').map((track) => Number.parseFloat(track))
+          const column = index % 7
+          const precedingWidth = columnWidths.slice(0, column).reduce((total, track) => total + track, 0)
+          const bounds = placeholder.getBoundingClientRect()
+          return { center: bounds.left + bounds.width / 2, columnCenter: grid.getBoundingClientRect().left + precedingWidth + column * Number.parseFloat(style.columnGap) + columnWidths[column]! / 2 }
+        }),
         targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, columnWidth: button.parentElement!.getBoundingClientRect().width })),
       }))
       expect(geometry.scroll).toBe(geometry.page)
       expect(geometry.gridScroll).toBeLessThanOrEqual(geometry.gridWidth)
       expect(geometry.card).toBe(geometry.contentWidth)
+      expect(geometry.placeholders).toHaveLength(isLoading ? 28 : 0)
+      for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 1)
       expect(geometry.targets).toHaveLength(isLoading ? 0 : 28)
       for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
     } finally { await page.close() }

@@ -86,11 +86,11 @@ export function CalendarRangeView({
           <View style={styles.grid}><MonthGrid weekdayLabels={[...weekdayLabels]} gap={gridGap} label={rangeLabel}>
             {Array.from({ length: gridCellCount }, (_, index) => (
               <View key={index} style={styles.daySlot}>
-                {index === 0 ? (
+                <View style={styles.loadingCell}>{index === 0 ? (
                   <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
                 ) : (
                   <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
-                )}
+                )}</View>
               </View>
             ))}
           </MonthGrid></View>
@@ -137,5 +137,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
-  daySlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN },
+  daySlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
+  loadingCell: { width: MONTH_GRID_TARGET_MIN },
 })

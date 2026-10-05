@@ -91,17 +91,22 @@ function applyGridStyle(node: YogaNode, style: ViewStyle) {
 function measureGrid(host: GeometryHost, width: number, view: 'month' | 'range', isLoading: boolean) {
   const selected = new Map<string, YogaNode>()
   const targets: YogaNode[] = []
-  function build(current: GeometryHost): YogaNode {
+  const placeholders: { node: YogaNode; column: YogaNode; ancestors: YogaNode[] }[] = []
+  function build(current: GeometryHost, column?: YogaNode, ancestors: YogaNode[] = []): YogaNode {
     const node = Yoga.Node.create()
     const declared = current.props.style
-    applyGridStyle(node, StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}))
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+    applyGridStyle(node, style)
+    const currentColumn = style.flex === 1 ? node : column
+    const currentAncestors = style.flex === 1 ? [] : [...ancestors, node]
+    if (current.props.testID === 'skeleton-grid-shape') placeholders.push({ node, column: currentColumn!, ancestors: currentAncestors })
     if (current.props.testID) {
       selected.set(current.props.testID, node)
       const prefix = view === 'month' ? 'calendar-day-select-' : 'day-cell-'
       if (current.props.testID.startsWith(prefix)) targets.push(node)
     }
     for (const child of current.children ?? []) {
-      if (typeof child !== 'string') node.insertChild(build(child), node.getChildCount())
+      if (typeof child !== 'string') node.insertChild(build(child, currentColumn, currentAncestors), node.getChildCount())
     }
     return node
   }
@@ -109,12 +114,17 @@ function measureGrid(host: GeometryHost, width: number, view: 'month' | 'range',
   try {
     root.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
     const card = view === 'range' ? selected.get('month-grid-7-columns')!.getParent()!
-      : isLoading ? selected.get('skeleton-unit-grid')!.getParent()! : selected.get('calendar-grid-card')!
+      : selected.get('calendar-grid')!.getChild(0)
     const frame = view === 'range' ? card : selected.get('calendar-grid')!
     return {
       cardWidth: card.getComputedWidth() - (view === 'range' ? 8 : 0),
       contentWidth: width - 8,
       frameWidth: frame.getComputedWidth(),
+      loadingRowWidth: isLoading && view === 'month' ? card.getChild(0).getChild(0).getComputedWidth() : undefined,
+      placeholders: placeholders.map(({ node, column, ancestors }) => ({
+        center: ancestors.reduce((offset, ancestor) => offset + ancestor.getComputedLeft(), 0) + node.getComputedWidth() / 2,
+        columnCenter: column.getComputedWidth() / 2,
+      })),
       targets: targets.map((node) => ({ width: node.getComputedWidth(), height: node.getComputedHeight(), columnWidth: node.getParent()!.getComputedWidth() })),
     }
   } finally { root.freeRecursive() }
@@ -151,6 +161,8 @@ describe('CalendarGrid (mobile)', () => {
       const geometry = measureGrid(tree.toJSON(), width, view, isLoading)
       expect(geometry.frameWidth).toBe(width)
       expect(geometry.cardWidth).toBe(geometry.contentWidth)
+      if (isLoading && view === 'month') expect(geometry.loadingRowWidth).toBe(geometry.contentWidth)
+      for (const placeholder of geometry.placeholders) expect(Math.abs(placeholder.center - placeholder.columnCenter)).toBeLessThanOrEqual(0.5)
       expect(geometry.targets).toHaveLength(isLoading ? 0 : view === 'month' ? 30 : 14)
       for (const target of geometry.targets) {
         expect(target.width).toBeCloseTo(target.columnWidth, 1)
@@ -200,8 +212,10 @@ describe('CalendarGrid (mobile)', () => {
       )
     })
 
-    const shape = tree.root.findByProps({ testID: 'skeleton-grid-shape' })
-    expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 332, height: 284, gap: 4 })
+    const shapes = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape')
+    expect(shapes).toHaveLength(days.length)
+    for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44, gap: 0 })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
     expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')).toHaveLength(0)
   })
