@@ -4,7 +4,7 @@ import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@o
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 
-import { useCallback, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useController } from 'react-hook-form'
@@ -265,6 +265,7 @@ export function HabitFormFields({
   const slipAlertEnabled = watch('slipAlertEnabled') ?? false
   const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', habitFeaturePlan(hasProAccess))
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
+  const detailsId = useId()
   const [detailsOpen, setDetailsOpen] = useAccountScopedState(defaultExpanded)
   const [detailsPresented, setDetailsPresented] = useAccountScopedState(defaultExpanded)
   const newTagErrors = useBackendFieldErrors({ name: tags.newTagName }, { name: 'Name' })
@@ -413,6 +414,8 @@ export function HabitFormFields({
         <ListRow
           icon={detailsOpen ? 'chevron-down' : 'chevron-right'}
           title={t('habits.form.moreDetails')}
+          expanded={detailsOpen}
+          controls={detailsPresented ? detailsId : undefined}
           inset={false}
           chevron={false}
           onClick={() => {
@@ -427,6 +430,7 @@ export function HabitFormFields({
 
         {detailsPresented ? (
           <div
+            id={detailsId}
             className="habit-form-disclosure flex flex-col px-4"
             data-open={detailsOpen}
             inert={!detailsOpen ? true : undefined}

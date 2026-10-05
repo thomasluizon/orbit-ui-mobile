@@ -10,6 +10,7 @@ import { __getFocusedNativeTag, __setFocusImpl } from '@/test-mocks/react-native
 import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
+import { ListRow } from '@/components/ui/list-row'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormProposal } from '@orbit/shared/utils'
 
@@ -91,6 +92,23 @@ function createTags(): TagSelectionState {
 }
 
 describe('HabitFormFields mobile', () => {
+  it('announces the details expanded state across toggles', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={createFormHelpers()} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />)
+    })
+    const disclosure = () => tree!.root.findAllByType(ListRow)
+      .find((node: { props: { title: string } }) => node.props.title === 'habits.form.moreDetails')
+      .find((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')
+
+    expect(disclosure().props.accessibilityState.expanded).toBe(false)
+    await TestRenderer.act(() => disclosure().props.onPress())
+    expect(disclosure().props.accessibilityState.expanded).toBe(true)
+    await TestRenderer.act(() => disclosure().props.onPress())
+    expect(disclosure().props.accessibilityState.expanded).toBe(false)
+    await TestRenderer.act(() => tree!.unmount())
+  })
+
   it('renders disclosure headings with the field label role and no additional start inset', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
