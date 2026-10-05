@@ -23,8 +23,9 @@ for (const width of [320, 360, 384, 412]) {
           await markRequiredLabels(subjects.getByRole('radio', { name: option.label, exact: true }))
         }
         await markRequiredLabels(form.getByText(words.subject, { exact: true }))
-        const reply = form.getByRole('button', { name: `${words.email} ${replyEmail}`, exact: true })
-        const replyRow = form.locator('[data-personal-text-action]').filter({ has: reply })
+        const replyName = { name: `${words.email} ${replyEmail}`, exact: true }
+        const reply = form.getByRole('button', replyName)
+        const replyRow = form.locator('[data-personal-text-action]').filter({ has: page.getByRole('button', replyName) })
         const emailText = replyRow.getByText(replyEmail, { exact: true })
         await expect(emailText).toBeVisible()
         await expect(reply).toHaveAttribute('aria-expanded', 'false')
