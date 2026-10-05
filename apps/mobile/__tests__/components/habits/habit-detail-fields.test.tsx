@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
-import { describe, expect, it, vi } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { HabitDetailFields, HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
 import { createTokensV2 } from '@/lib/theme'
@@ -10,7 +12,23 @@ vi.mock('@/hooks/use-time-format', () => ({
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: true } }) }))
+const preferences = vi.hoisted(() => ({ weekStartDay: 1, locale: 'keys' }))
+
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: true, weekStartDay: preferences.weekStartDay } }) }))
+
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => {} },
+  useTranslation: () => ({ t: translate, i18n: { language: preferences.locale } }),
+}))
+
+function translate(key: string) {
+  const messages = preferences.locale === 'pt-BR' ? ptBR : en
+  if (preferences.locale === 'keys') return key
+  const translated = key.split('.').reduce<unknown>((value, segment) => typeof value === 'object' && value !== null ? Reflect.get(value, segment) : undefined, messages)
+  return typeof translated === 'string' ? translated : key
+}
+
+beforeEach(() => { preferences.weekStartDay = 1; preferences.locale = 'keys' })
 
 vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => null }))
 
@@ -123,5 +141,29 @@ describe('HabitDetailFields disclosure labels', () => {
     for (const heading of headings) {
       expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ fontSize: 14, fontFamily: 'Geist_500Medium', color: tokens.fg2 })
     }
+  })
+})
+
+
+describe.each(['en', 'pt-BR'])('HabitDetailSchedule weekday preference in %s', (locale) => {
+  it.each([0, 1].flatMap((weekStartDay) => [false, true].flatMap((open) => [[], ['Monday']].map((days) => ({ weekStartDay, open, days })))))('orders and saves weekdays with week start $weekStartDay, editor $open and selected $days', async ({ weekStartDay, open, days }) => {
+    preferences.weekStartDay = weekStartDay
+    preferences.locale = locale
+    const onSave = vi.fn()
+    let tree!: TestTree
+    renderer.act(() => {
+      tree = renderer.create(<HabitDetailSchedule habit={{ ...makeHabitDetailScopedChild('2026-09-29'), frequencyQuantity: 1, days }} summary="Every day" open={open} tokens={tokens} onSave={onSave} onToggle={vi.fn()} onCancel={vi.fn()} />)
+    })
+    const orderedDays = weekStartDay === 1
+      ? ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+      : ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const labels = orderedDays.map((day) => translate(`dates.daysLong.${day}`))
+    const chips = tree.root.findAllByType(Pressable).filter((node) => labels.includes(node.props.accessibilityLabel ?? ''))
+    expect(chips.map((node) => node.props.accessibilityLabel)).toEqual(labels)
+    expect(chips.map((node) => node.props.accessibilityState?.selected)).toEqual(orderedDays.map((day) => days.length === 0 || day === 'monday'))
+    renderer.act(() => control(tree, translate('dates.daysLong.monday')).props.onPress())
+    if (open) renderer.act(() => tree.root.findByProps({ children: translate('common.save'), variant: 'secondary' }).props.onClick())
+    await renderer.act(async () => { await Promise.resolve() })
+    expect(onSave).toHaveBeenCalledWith({ frequencyUnit: 'Day', frequencyQuantity: 1, days: days.length === 0 ? ['Sunday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] : [] })
   })
 })
