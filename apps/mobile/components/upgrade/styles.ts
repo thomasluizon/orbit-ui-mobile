@@ -12,6 +12,9 @@ export const styles = StyleSheet.create({
   billingMeta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'] },
   billingHeading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 27, letterSpacing: -0.44, flexShrink: 0 },
   pricingSections: {
+    alignSelf: 'center',
+    maxWidth: 652,
+    width: '100%',
     gap: 32,
   },
   purchaseGroup: {
