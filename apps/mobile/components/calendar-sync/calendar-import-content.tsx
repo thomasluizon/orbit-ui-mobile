@@ -8,6 +8,7 @@ import {
   Pressable,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -18,6 +19,7 @@ import {
   WifiOff,
 } from '@/components/ui/icons'
 import { calendarKeys } from '@orbit/shared/query'
+import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
@@ -93,6 +95,7 @@ interface ImportResult {
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CalendarImportContent({ reviewMode, initialEventId, onClose, onGoToHabits, actionRef, onActionStateChange }: Readonly<{ reviewMode: boolean; initialEventId: string | null; onClose: () => void; onGoToHabits: () => void; actionRef: Ref<CalendarImportActionHandle>; onActionStateChange: (state: CalendarImportActionState | null) => void }>) {
+  const { fontScale } = useWindowDimensions()
   const prefersReducedMotion = usePrefersReducedMotion()
   const router = useRouter()
   const isReviewMode = reviewMode
@@ -500,21 +503,30 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
               />
             ) : (
               <>
-                <View testID="section-heading-row" style={{ alignItems: 'stretch' }}>
-                  <View style={{ minWidth: 0 }}>
-                    <SectionLabel inset={false}>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
+                <View
+                  testID="section-heading-row"
+                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingTop: 12, paddingBottom: 12 }}
+                >
+                  <View style={{ minWidth: 0, flex: 1, paddingTop: Math.max(0, (TOUCH_TARGET_MIN - 24 * fontScale) / 2) }}>
+                    <Text
+                      accessibilityRole="header"
+                      style={{ fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24, letterSpacing: -0.2, color: tokens.fg1 }}
+                    >
+                      {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
+                    </Text>
                   </View>
-                  <View style={{ alignSelf: 'flex-end', paddingBottom: 12 }}>
-                    <SelectAllToggle
-                      allSelected={allSelected}
-                      onToggle={toggleAll}
-                      selectAllLabel={t('calendar.selectAll')}
-                      deselectAllLabel={t('calendar.deselectAll')}
-                      disabled={importableEvents.length === 0}
-                      tokens={tokens}
-                      tintStyle={chipTint}
-                    />
-                  </View>
+                  {importableEvents.length > 0 && (
+                    <View style={{ height: Math.max(TOUCH_TARGET_MIN, 24 * fontScale), flexShrink: 0, justifyContent: 'center' }}>
+                      <SelectAllToggle
+                        allSelected={allSelected}
+                        onToggle={toggleAll}
+                        selectAllLabel={t('calendar.selectAll')}
+                        deselectAllLabel={t('calendar.deselectAll')}
+                        tokens={tokens}
+                        tintStyle={chipTint}
+                      />
+                    </View>
+                  )}
                 </View>
                 {events.slice(0, visibleCount).map((event) => (
                   <CalendarSyncEventRow

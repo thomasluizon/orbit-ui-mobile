@@ -349,6 +349,34 @@ describe("CalendarSyncScreen", () => {
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
   });
 
+  it('keeps select all after the heading in one row', async () => {
+    mocks.eventsQuery.data = { status: 'connected', events: buildEvents(2) };
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    expect(StyleSheet.flatten(row.props.style as ViewStyle)).toMatchObject({ flexDirection: 'row', alignItems: 'flex-start' });
+    const heading = row.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0]!;
+    const toggle = row.findAll((node) => node.type === 'Pressable' && typeof node.props.onPress === 'function')[0]!;
+    const content = row.findAll((node) => node.type === 'Text' || node.type === 'Pressable');
+    expect(content.indexOf(heading)).toBeLessThan(content.indexOf(toggle));
+    expect(toggle.props.disabled).toBeUndefined();
+    expect(toggle.props.accessibilityState).toEqual({ selected: true });
+  });
+
+  it.each([false, true])('omits select all when every event has an import issue, review: %s', async (review) => {
+    const events = buildEvents(2).map((event) => ({ ...event, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' }));
+    mocks.eventsQuery.data = { status: 'connected', events };
+    if (review) {
+      mocks.searchParams = { mode: 'review' };
+      mocks.suggestions = events.map((event) => ({ id: `suggestion-${event.id}`, event }));
+    }
+    let tree!: CalendarSyncTree;
+    await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
+    const row = tree.root.find((node) => node.type === 'View' && node.props.testID === 'section-heading-row');
+    expect(row.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.importIssue.ordinalWeekday')).toHaveLength(2);
+  });
+
   it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', async (language, expected) => {
     vi.stubEnv('TZ', 'America/Los_Angeles');
     expect(new Date(2026, 9, 16).getTimezoneOffset()).toBeGreaterThan(0);

@@ -604,7 +604,7 @@ describe('CalendarSyncPage', () => {
     const issue = await screen.findByText('calendar.importIssue.ordinalWeekday')
     expect(screen.getByText('Second Monday review').closest('button')).toBeDisabled()
     expect(issue).toBeVisible()
-    expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
+    expect(screen.queryByLabelText('calendar.selectAll')).not.toBeInTheDocument()
     expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
 
     const row = screen.getByText('Second Monday review').closest('button')?.parentElement
@@ -665,7 +665,7 @@ describe('CalendarSyncPage', () => {
 
     expect((await screen.findByText('Unsupported training')).closest('button')).toBeDisabled()
     expect(screen.getByText('calendar.importIssue.unsupportedWeekdayRecurrence')).toBeVisible()
-    expect(screen.getByLabelText('calendar.selectAll')).toBeDisabled()
+    expect(screen.queryByLabelText('calendar.selectAll')).not.toBeInTheDocument()
     expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
   })
 
