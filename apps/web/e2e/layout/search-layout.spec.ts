@@ -78,6 +78,98 @@ for (const width of [412, 840, 1440]) {
         await surface.getByRole('option').first().click()
         await expect(page).toHaveURL(/\/habits\/walk$/)
       })
+      for (const theme of ['light', 'dark'] as const) {
+        test(`keeps pointer hover neutral and preserves keyboard selection in ${theme}`, async ({ page, context }) => {
+          const profile = profileSchema.parse({ ...profileFixture, language: locale, themePreference: theme })
+          await setLayoutProfileSession(context, profile)
+          await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+          await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+          await page.goto('/search')
+          const surface = page.locator('#orbit-main')
+          const input = surface.getByRole('combobox', { name: messages.habits.search.title })
+          await input.fill('walk')
+          const options = surface.getByRole('option')
+          await expect(options).toHaveCount(3)
+          await expect(surface.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+          await input.press('Home')
+          await expect(options.first()).toHaveAttribute('aria-selected', 'true')
+          await options.nth(1).hover()
+          await expect(options.first()).toHaveAttribute('aria-selected', 'true')
+          await expect(options.nth(1)).toHaveAttribute('aria-selected', 'false')
+          const paint = await options.nth(1).evaluate(async (element) => {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+            await Promise.all(element.getAnimations().map((animation) => animation.finished))
+            const probe = document.createElement('span')
+            probe.style.backgroundColor = 'var(--bg-hover)'
+            probe.style.boxShadow = 'inset 0 0 0 1px var(--hairline-ghost)'
+            element.append(probe)
+            const expected = getComputedStyle(probe)
+            const actual = getComputedStyle(element)
+            const measured = {
+              background: actual.backgroundColor,
+              shadow: actual.boxShadow.split(/, (?=rgba?\()/).filter((layer) => !layer.startsWith('rgba(0, 0, 0, 0) ')),
+              hover: expected.backgroundColor,
+              hairline: expected.boxShadow,
+            }
+            probe.remove()
+            return measured
+          })
+          expect(paint.background).toBe(paint.hover)
+          expect(paint.shadow).toEqual([paint.hairline])
+          await input.press('Enter')
+          await expect(page).toHaveURL(/\/habits\/walk$/)
+        })
+        for (const pointer of ['result 0', 'outside the list', 'the active result'] as const) {
+          test(`keeps the keyboard indicator with pointer on ${pointer} in ${theme}`, async ({ page, context }) => {
+            const profile = profileSchema.parse({ ...profileFixture, language: locale, themePreference: theme })
+            await setLayoutProfileSession(context, profile)
+            await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+            await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+            await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+            await page.goto('/search')
+            const surface = page.locator('#orbit-main')
+            const input = surface.getByRole('combobox', { name: messages.habits.search.title })
+            await input.fill('walk')
+            const options = surface.getByRole('option')
+            await expect(options).toHaveCount(3)
+            await expect(surface.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+            await input.press('Home')
+            if (pointer === 'result 0') await options.first().hover()
+            if (pointer === 'outside the list') await input.hover()
+            await input.press('ArrowDown')
+            if (pointer === 'the active result') await options.nth(1).hover()
+            await expect(input).toBeFocused()
+            for (const index of [0, 1, 2]) {
+              const selected = index === 1
+              const hovered = index === 0 && pointer === 'result 0'
+              await expect(options.nth(index)).toHaveAttribute('aria-selected', String(selected))
+              const paint = await options.nth(index).evaluate(async (element, state) => {
+                await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+                await Promise.all(element.getAnimations().map((animation) => animation.finished))
+                const probe = document.createElement('span')
+                probe.style.backgroundColor = state.selected ? 'var(--primary-dim)' : state.hovered ? 'var(--bg-hover)' : 'var(--bg-card)'
+                probe.style.boxShadow = state.selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline-ghost)'
+                element.append(probe)
+                const expected = getComputedStyle(probe)
+                const actual = getComputedStyle(element)
+                const measured = {
+                  background: actual.backgroundColor,
+                  shadow: actual.boxShadow.split(/, (?=rgba?\()/).filter((layer) => !layer.startsWith('rgba(0, 0, 0, 0) ')),
+                  expectedBackground: expected.backgroundColor,
+                  expectedShadow: expected.boxShadow,
+                }
+                probe.remove()
+                return measured
+              }, { selected, hovered })
+              expect(paint.background).toBe(paint.expectedBackground)
+              expect(paint.shadow).toEqual([paint.expectedShadow])
+            }
+            await input.press('Enter')
+            await expect(page).toHaveURL(/\/habits\/park$/)
+          })
+        }
+      }
     })
   }
 }
