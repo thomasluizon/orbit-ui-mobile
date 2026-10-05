@@ -56,11 +56,18 @@ vi.mock('@/components/calendar/calendar-grid', () => ({
   CalendarGrid: ({ isLoading }: { isLoading: boolean }) =>
     <div data-testid="calendar-grid">{isLoading ? 'calendar.loading' : 'calendar.ready'}</div>,
 }))
-vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({ CalendarHeader: () => null, CalendarLegend: () => null }))
+vi.mock('@/app/(app)/calendar/_components/calendar-shell', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/app/(app)/calendar/_components/calendar-shell')>(),
+  CalendarHeader: () => null,
+  CalendarLegend: () => null,
+}))
 vi.mock('@/components/calendar/calendar-stats', () => ({ CalendarStats: () => null }))
 vi.mock('@/components/calendar/calendar-day-detail', () => ({ CalendarDayDetail: () => null }))
 vi.mock('@/components/calendar/calendar-week-view', () => ({ CalendarWeekView: () => null }))
-vi.mock('@/components/calendar/calendar-range-view', () => ({ CalendarRangeView: () => null }))
+vi.mock('@/components/calendar/calendar-range-view', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/calendar/calendar-range-view')>(),
+  CalendarRangeView: () => null,
+}))
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({ CalendarAgendaView: () => null }))
 vi.mock('@/components/calendar/calendar-load-error', () => ({ CalendarLoadError: () => null }))
 vi.mock('@/components/calendar/show-recurring-toggle', () => ({ ShowRecurringToggle: () => null }))
