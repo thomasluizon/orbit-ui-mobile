@@ -58,7 +58,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
       for (const panel of await groups.locator('.orbit-row-list').all()) await assertRowEdge(panel, todayLeft)
       if (width === 600 || width === 840) {
         const bellInset = await page.locator('[data-root-notification-header]').evaluate((element) =>
-          element.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(element).paddingInlineStart))
+          element.getBoundingClientRect().left + 16)
         expect(Math.abs(bellInset - todayLeft)).toBeLessThanOrEqual(0.5)
         await assertRowEdge(accountRow, bellInset)
       }
