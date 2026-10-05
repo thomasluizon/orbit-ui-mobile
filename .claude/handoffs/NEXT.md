@@ -10,45 +10,49 @@ Read `.claude/specs/orbit-prod-release.md` before anything else, then, through t
 
 The owner is reviewing staging himself and reporting defects with screenshots. Each report becomes one ticket per root cause, fixed on both platforms and for every surface that shares the pattern, with a mechanical guard. His reports outrank everything below except merging pull requests that are already approved on a green head. The spec's Batch R lists the tickets and `## Current state` holds every open pull request's exact state and next step.
 
-1. Drive the open work to merge, each on the bar (green checks at the exact head, a Pullfrog approval of that head submitted after its push, zero unresolved threads; read every check, because Pullfrog approves red heads and SonarCloud's quality gate is a check). Before each merge run `d115.sh`, then `d115-check.sh` when the base's newer commits share none of its files, otherwise a full combined check (`full-mc-gated.sh`) or a base merge into the branch (the i18n JSON files, `DESIGN.md` and `CLAUDE.md` count as shared). Copy every SHA you pass to `--match-head-commit` from this run's output. Close each ticket with `complete-ticket.mjs` and record the merge with `mark-merged.mjs`. Order:
-   - `ui#1576` (`#1209`): head `fdc8234f` pushed with the thread resolved and the full local layout project green (1174 of 1174). Start a waiter, then approval, merge bar, merge, close `#1209`.
-   - `ui#1577` (`#1207`): head `8a634213`, Pullfrog APPROVED, every check green except SonarCloud (61% new-code coverage, 80% required). Compose review batch 2 with `compose-rb.sh 1207 ticket-1207-completion-ring-pressed-contrast rb2` (the note `note-1207-rb2.md` is ready with the per-file branch list), launch it (`--allow-subagents --hard-ceiling-minutes 75`), then push, waiter, approval, merge, close `#1207`, and launch `#1211` (it shares the Android composer).
-   - `ui#1578` (`#1206`): review batch commit `95079ea7` is unpushed in `ticket-1206-surface-scope-hover-overrides`. Read the worker report (log `#1206-32337-1791160162435.log` in the worker log directory), run `node tools/check-surface-scope.mjs` (exit 0, no baseline) and both harness suites on it, merge the report into the body without the `/tmp` evidence path, reply to and resolve the four P2 threads (list them fresh with `list-bot-threads.mjs`), push, waiter, approval, merge, close `#1206`.
-   - `orbit-api#701` (`#1216`): waiter, approval, merge to `orbit-api` `redesign/main`, release the staging API, close `#1216`, then launch `#1217`.
-   - `ui#1579` (`#1212`) and `ui#1580` (`#1210`): diff read for gate edits and off-token values, `/second-opinion` on every changed string, each added or edited layout case green on a head build then red on the unfixed base, waiter, approval, merge bar (the two share `DESIGN.md` and `CLAUDE.md`), merge, close `#1212` and `#1210`.
-   - `#1215` (`repo:api`, `main`, shipped defect): launch the recomposed `order-1215.md` in the existing `orbit-api` worktree `ticket-1215-bulk-create-quantity` (second launch; the decision is on the ticket). After it merges to `main`, release production API through `/release` and carry it into `redesign/main` through `#746`; then `#1218` may launch.
-2. Then the sweep's tickets in Batch R order: `#1220`, `#1219`, then `#1221` to `#1230`, then `#1231`, `#1213`, `#1214`. Check each ticket's files against open pull requests and running workers before launch. `#1226` and `#1230` change copy: approve it with `/second-opinion` (framed as a claimed copy defect) and post the verdict before merge.
-3. Release `redesign/main` web to staging after each batch of merges and ship Orbit Staging 1.3.67 (126) and later builds the same way.
+
+1. Drive the open work to merge, each on the bar (green checks at the exact head, a Pullfrog approval of that head submitted after its push, zero unresolved threads; read every check, because Pullfrog approves red heads and SonarCloud's quality gate is a check). Before each merge run `d115.sh`, then `d115-check.sh` when the base's newer commits share none of its files, otherwise a full combined check (`full-mc-gated.sh`) or a base merge into the branch (the i18n JSON files, `DESIGN.md` and `CLAUDE.md` count as shared). Copy every SHA you pass to `--match-head-commit` from this run's output. Close each ticket with `complete-ticket.mjs` and record the merge with `mark-merged-repo.mjs <repo key> <pr> <sha> <issue>`. A spec a worker wrote has never run: prove it green on a local head build before trusting it. Order:
+   - `ui#1577` (`#1207`): head `2e0e1dbc` (test-only review batch 2 answering the SonarCloud coverage gate) is pushed. Waiter, fresh approval, SonarCloud gate read from the check run, merge bar, merge, close `#1207`, then launch `#1211`.
+   - `ui#1578` (`#1206`): head `44563a1a` pushed with the four threads resolved and its layout proof posted. Waiter, fresh approval, merge bar, merge, close `#1206`.
+   - `ui#1581` (`#1219`, APPROVED) and `ui#1582` (`#1221`, APPROVED): waiter, merge bar, merge, close.
+   - `orbit-api#702` (`#1215`, `main`): launch the composed `order-1215-rb1.md` in `ticket-1215-bulk-create-quantity` (`--repo api --hard-ceiling-minutes 75 --relaunch-reason`, SonarCloud reliability C), then push, waiter, approval, merge to `main`, production API release through `/release`, carry into `redesign/main` through `#746`, close `#1215`; then `#1218` may launch.
+   - `ui#1580` (`#1210`): compose and launch review batch 1 (`compose-rb.sh 1210 ticket-1210-unbroken-token-ellipsis rb1`, note ready: the fill guard measures unclipped text, plus two P2 threads in `select-check.tsx`), then rerun the three label-fit specs green on a head build and red on the base, full layout run, resolve threads, push, waiter, merge, close `#1210`; then launch `#1217`.
+   - `ui#1579` (`#1212`): push the unpushed `8e43cb71` only after the Wrapped zone `outlineWidth` red at `wayfinding-focus.spec.ts:181` is diagnosed and fixed (spec `## Current state`), the spec is green on a head build, and the full layout project has run; then waiter, approval, merge, close `#1212`.
+   - `ui#1583` (`#1222`): read its layout spec changes, prove them, waiter, approval, merge bar, merge, close `#1222`.
+2. Then the sweep's tickets in Batch R order: `#1220` (free now), then `#1223` to `#1230`, then `#1231`, `#1213`, `#1214`, `#1232`. Check each ticket's files against open pull requests and running workers before launch. `#1226` and `#1230` change copy: approve it with `/second-opinion` (framed as a claimed copy defect) and post the verdict before merge.
+3. Release `redesign/main` web to staging after each batch of merges (owed now: `5da76282` or later) and ship Orbit Staging 1.3.67 (126) and later builds the same way.
+
 4. Every fix lands on Android and web. A layout spec a pull request adds or edits is proven red locally on the unfixed base before merge, and only after it is green on the head. Every review batch commit stays unpushed until its specs are proven and the full local layout project has run on it (a batch that changes only a test file outside UI scope needs no layout run; log why). A layout red that needs diagnosis goes to one background subagent with diagnostic spec copies under the Playwright lock, which returns findings only.
 5. Then repeat rendered sweeps (phone, foldable, desktop) through one background subagent with `probe.js`, covering what the last pass missed (spec `## Current state`, "Owed from a visible window"), until a full pass finds nothing. The sweep subagent opens and sizes its own Chrome window and never resizes or touches the owner's tabs. Verify a sweep's leads with a read-only subagent against the tree and the drawings before filing, then spot-check its claims with `git show`.
+
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| `ui#1576` (`#1209`) head `fdc8234f`, thread resolved, layout 1174/1174 | waiter, approval, merge, close |
-| `ui#1577` (`#1207`) head `8a634213`, approved, SonarCloud red | review batch 2 (note ready), push, waiter, merge, close, then launch `#1211` |
-| `ui#1578` (`#1206`) head `8eb0619f`, commit `95079ea7` unpushed | read report, scanner exit 0, body, resolve four threads, push, merge, close |
-| `ui#1579` (`#1212`) delivered, decision posted | diff read, red proof of `wayfinding-focus.spec.ts`, waiter, merge, close |
-| `ui#1580` (`#1210`) delivered, 156 files | diff read, copy approval, red proofs of the four edited label-fit files, waiter, merge, close |
-| `orbit-api#701` (`#1216`) delivered | waiter, approval, merge, staging API release, close, then launch `#1217` |
-| `#1215` worktree `orbit-api` `ticket-1215-bulk-create-quantity`, clean, no commits, decision posted | launch the recomposed order |
-| `#1211`, `#1217`, `#1218` | queued behind `ui#1577`, `orbit-api#701` and `#1215` |
-| `#1219`, `#1220`, `#1221` to `#1231`, `#1213`, `#1214` | filed and placed in Batch R, not launched |
-| Merged this relay | none |
-| Closed this relay | `#1020` (staging checkout `success_url` read back from Stripe test mode) |
-| Released this relay | none |
-| Staging | API `8841c8a9`, web `afeffe51`, landing `a50de090`, Orbit Staging 1.3.66 (125) |
+| `ui#1577` (`#1207`) head `2e0e1dbc`, test-only batch pushed | waiter, approval, merge, close, then launch `#1211` |
+| `ui#1578` (`#1206`) head `44563a1a`, threads resolved, proof posted | waiter, approval, merge, close |
+| `ui#1579` (`#1212`) remote `ae3832ec` APPROVED; local `8e43cb71` unpushed | diagnose the `:181` outline red, prove, push, merge, close |
+| `ui#1580` (`#1210`) `5890d21a` CHANGES_REQUESTED, own specs red 16/39 | review batch 1 from `note-1210-rb1.md`, prove, push, merge, close, then `#1217` |
+| `ui#1581` (`#1219`) `4a0b1a7d` APPROVED | waiter, merge bar, merge, close |
+| `ui#1582` (`#1221`) `e50b6d2d` APPROVED | waiter, merge bar, merge, close |
+| `ui#1583` (`#1222`) `58c6f2e5` no review, behind base | prove its specs, waiter, approval, merge, close |
+| `orbit-api#702` (`#1215`) `82226cc4` APPROVED, SonarCloud reliability C | launch `order-1215-rb1.md`, push, merge to `main`, production release, carry via `#746`, close, then `#1218` |
+| Merged this relay | `orbit-api#701` (`#1216`, `f44cf273`), `ui#1576` (`#1209`, `5da76282`) |
+| Closed this relay | `#1216`, `#1209` |
+| Filed this relay | `#1232` (by the `#1207` worker; placed in Batch R harness follow-ups) |
+| Released this relay | staging API `f44cf273` (Healthy) |
+| Staging | API `f44cf273`, web `afeffe51`, landing `a50de090`, Orbit Staging 1.3.66 (125) |
 | Production | API `822f3038`, web `b84bdc9e`, landing `ebbebb2a`, Android 1.3.57 (116) open |
-| Open pull requests | `orbit-ui-mobile` `ui#1576` to `ui#1580`; `orbit-api` `#701`; `orbit-landing-page` none |
+| Open pull requests | `orbit-ui-mobile` `ui#1577` to `ui#1583`; `orbit-api` `#702`; `orbit-landing-page` none |
 | Stashes | none in the three repositories |
 | Uncommitted work | none outside this handoff commit; every ticket worktree is clean |
-| Unpushed commits | `ticket-1206-surface-scope-hover-overrides` (`95079ea7`, keep) |
-| Branches with no pull request | `fix/ticket-1215-bulk-create-quantity` (no commits yet) |
-| Detached HEADs | scratch worktrees under this session's scratchpad: `base` (`afeffe51`, web build) and `mc-1576` (`fdc8234f`, web build). Move both into the new scratchpad with `git worktree move` and link each old path to the new one (`ln -s`) |
-| Running workers | none (all six exited) |
-| Waiters and local checks | none live: start one waiter for `ui#1576` and `orbit-api#701` (`wait-loop.sh` with several `--pr` flags only within one repository; use one waiter per repository) |
-| Ignored files | this session's scratchpad: `sleep-decisions.md` (copy unmodified as `prev-sleep-decisions-520ff569.md`), the older `prev-sleep-decisions-*.md`, orders, notes (`note-1207-rb2.md`), ticket drafts, `sweep-1151-afeffe51.md`, `sweep-1151-verified.md`, `astra-503-verified.md`, `newcov-1577-8a634213.txt`, `probe.js`, `linuxprobe/`, `reconcile.mjs`, `make-sweep-drafts.py` and the helpers. Copy them with a fresh copy of `carry-next8.sh` saved under a name the old scratchpad does not hold (for example `carry-next9.sh`), set its two session ids and the `prev-sleep-decisions` suffix, run it with `bash`, then `chmod +x` the scripts and fix any absolute old-session path inside `linuxprobe/*.py` and `linuxprobe/*.sh` |
+| Unpushed commits | `ticket-1212-wayfinding-focus-ring` (`8e43cb71`, keep; no upstream configured) |
+| Branches with no pull request | none |
+| Detached HEADs | scratch worktrees under this session's scratchpad: `base` (`afeffe51`, web build), `mc-1206` (`95079ea7` with the pinned spec copied in), `mc-1576`, `mc-1579`, `mc-1580` (head web builds), `mc-d1576` (merged check tree). Move `base`, `mc-1579` and `mc-1580` into the new scratchpad with `git worktree move` and link each old path to the new one (`ln -s`); remove the others with `git worktree remove --force` |
+| Running workers | none (all drained) |
+| Waiters and local checks | the relay tool stops this session's waiters; start one waiter per repository again |
+| Ignored files | this session's scratchpad: `sleep-decisions.md` (copy unmodified as `prev-sleep-decisions-ba7e954a.md`), the older `prev-sleep-decisions-*.md`, orders and notes (`order-1215-rb1.md`, `note-1215-rb1.md`, `note-1210-rb1.md`), bodies, `probe.js`, `linuxprobe/`, `reconcile.mjs`, `red-multi.sh`, `compose-note.sh`, `mark-merged-repo.mjs` and the helpers. Copy them with a fresh copy of `carry-next9.sh` saved as `carry-next10.sh`, set its two session ids and the `prev-sleep-decisions` suffix, run it with `bash`, then `chmod +x` the scripts and fix any absolute old-session path inside `linuxprobe/*.py` and `linuxprobe/*.sh` |
 | Throwaway AVD | none |
 | Session chain | open; this is an automatic relay |
 | Owner questions | none |
@@ -62,6 +66,7 @@ Workers launched by a session die when it ends: read each worktree before relaun
 3. When the redesign is done, tell the owner (instruction 1) and stop the redesign at THE REDESIGN GATE.
 4. Then the spec's order: Batch 0c, Batch E, Batch 0b. Free worker slots may take independent tickets from later batches when every Batch R ticket is blocked on an open pull request.
 
+
 ## Sleep
 
 This is an unattended run. Nobody is awake to answer: never ask the owner, take every decision with the best approach, and log each one in the session scratchpad the moment it is made (take the time from `date`, never estimate it). Keep a live wake source at the end of every turn, and keep going until the goal below is met or an external cause stops the run. The owner may still send screenshots while the run works: each one is a new report under Priority, filed and fixed, never a question back to him.
@@ -71,6 +76,7 @@ Start every worker, waiter, release waiter and local check as a harness backgrou
 The owner's written authorization overrides the sleep skill's generic hard stops on `main`, on releases and on infrastructure for this run: merge to `main` every pull request that belongs there once its exact head has green checks, a Pullfrog approval of that head and zero unresolved threads (ordinary `gh pr merge --squash --match-head-commit`, never `--admin`); merge redesign fixes into `redesign/main` on the same bar with no screenshot gate, then release `redesign/main` to staging. The run may create and change Render, AWS, Cloudflare, Stripe test mode, Google Play Console, Google Cloud Pub/Sub, Firebase and GitHub resources through Terraform, CLIs, APIs and MCPs; deploy production and staging through the release workflows; upload builds to every Play track through `android-release.yml`; operate the Google OAuth client, the Play Console and the Pullfrog console through `claude-in-chrome` (run `list_connected_browsers`, `select_browser` the macOS one, and bring the window in front with `orca computer get-app-state --app com.google.Chrome --restore-window --no-screenshot --json` whenever a page reports `visibilityState` hidden), mirroring production's facts honestly; create, log and delete test habits and send Astra messages in the owner's staging account for sweeps (never in production); and reproduce device bugs and capture store screenshots on a separate throwaway AVD (never the owner's `Orbit_Pixel_9_API_35`, no personal account, deleted after). Never create an account, enter a password or payment detail, read or type a credential, or permanently delete a project or its data. Never merge `redesign/main` to `main`. Never read a live secret into the transcript.
 
 The context relay is live: when the Stop hook reports the threshold, launch nothing, drain the workers, run `/handoff --relay --sleep`, then `node tools/relay-session.mjs`, exactly as its message says. The relay waits for this session's background Workflow runs and subagents too.
+
 
 ## Owner instructions for this run
 
@@ -87,23 +93,22 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 11. The owner's mobile review comes first: every defect fixed on Android and web, `DESIGN.md` corrected, every screen swept and fixed.
 12. Where a control sits on a screen is the run's decision for the end user, never an owner question.
 
+
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's reports (`#1206`, `#1207`, `#1209`, `#1210`, `#1211`, `#1212` merged and closed on both platforms), the Astra batch create defect (`#1215` shipped to production and carried, then `#1216` to `#1220`), the sweep's tickets `#1221` to `#1230`, a staging release and the next internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 151 open tickets, 151 placed, 0 unplaced (`#1215` to `#1231` filed this relay and placed in Batch R; `#1020` closed); placed twice was not re-derived beyond the lines this relay edited, and earlier relays found 0.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's reports (`#1206`, `#1207`, `#1210`, `#1211`, `#1212` merged and closed on both platforms), the Astra batch create defect (`#1215` shipped to production and carried, then `#1217` to `#1220`), the sweep's tickets `#1222` to `#1230`, a staging release and the next internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 150 open tickets, 150 placed, 0 unplaced (`#1232` filed and placed; `#1209` and `#1216` closed); placed twice was not re-derived beyond the lines this relay edited, and earlier relays found 0.
 
 ## Previous prompt, disposition
 
 - Opening reading list, Entry point, the authorization paragraph, Then 1 to 4, Sleep and owner instructions 1 to 12: carried (all brain notes, `DESIGN.md`, `BRAND.md` and the canvas README were read this relay).
-- Priority 1, `ui#1577`: Unit Tests red proven real (shared coverage), fixed by review batch 1 (`8a634213`, approved); now SonarCloud red, carried as review batch 2.
-- Priority 1, `ui#1576`: thread fixed in `fdc8234f`, resolved, pushed after the full local layout project passed; carried for the merge.
-- Priority 1, `#1210`: relaunched from its tree, delivered as `ui#1580`; carried for review and merge.
-- Priority 1, `ui#1578`: relaunched with the decision plus four P2 threads and the CodeQL red; commit `95079ea7` carried unpushed.
-- Priority 1, launch `#1212`: done, delivered as `ui#1579`, its `NEEDS_DECISION` answered on the ticket; carried for review and merge.
-- Priority 2, the sweep report: done: verified by two read-only subagents and spot-checked, filed as `#1215` to `#1230` (the 503 and destructive copy first), Busca truncation added to `#1210`.
-- Priority 3 (staging release, Orbit Staging 1.3.67): carried; nothing merged this relay.
-- Priorities 4 and 5: carried.
-- In flight `#1020`: done, closed after the Stripe test-mode read-back.
-- In flight teardown of merged worktrees: done (`ticket-1186`, `ticket-1205` and eleven `orbit-api` `ticket-746-carry-*`).
+- Priority 1, `ui#1576`: done, merged `5da76282` under D115 with a forced type check of the combined tree, `#1209` closed.
+- Priority 1, `ui#1577`: review batch 2 done and pushed (`2e0e1dbc`); merge carried.
+- Priority 1, `ui#1578`: done up to the push (`44563a1a`: scanner exit 0, both harness suites green, report merged without the machine path, four threads resolved, one stale spec pin fixed and proven); merge carried.
+- Priority 1, `orbit-api#701`: done, review batch 1 fixed the SonarCloud coverage gate and a real defect, merged `f44cf273`, staging API released and verified, `#1216` closed. Launching `#1217` is superseded: it waits for `ui#1580`, which rewrites the same pending operation card.
+- Priority 1, `ui#1579` and `ui#1580`: diff reads done (no gate edits, no new off-token values; `ui#1580` changes no i18n string, so no copy approval); the layout proofs found both pull requests' own specs red on their heads; carried with fixes in progress.
+- Priority 1, `#1215`: launched, delivered as `orbit-api#702`; its SonarCloud review batch is carried.
+- Priority 2: `#1219`, `#1221` and `#1222` launched and delivered (`ui#1581` to `ui#1583`); `#1220` and `#1223` onward carried.
+- Priorities 3 to 5: carried (the staging web release waits for the next merges).
 - In flight table, scratch worktrees, waiters and carry instructions: superseded by this prompt's In flight table.
 
 Every identifier here came from a previous session: treat each as a lead to verify.
