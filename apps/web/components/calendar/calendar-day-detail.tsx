@@ -313,7 +313,7 @@ export function CalendarDayDetail({
     >
       {body}
       {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
-        <PersonalText expanded className="text-base text-[var(--fg-1)] ">{expandedTitle}</PersonalText>
+        <PersonalText expanded className="text-base text-[var(--fg-1)]">{expandedTitle}</PersonalText>
       </Sheet> : null}
     </section>
   )

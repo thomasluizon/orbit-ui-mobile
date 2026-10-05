@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -638,7 +639,7 @@ describe('HabitDetailScreen', () => {
     vi.setSystemTime(new Date(2026, 8, 28, 12))
     mocks.language = 'pt-BR'
     render(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByText('Setembro de 2026')).toBeVisible()
+    expect(screen.getByText(personalText('Setembro de 2026'))).toBeVisible()
     expect(screen.getByLabelText('Atividade do hábito em setembro de 2026')).toBeInTheDocument()
   })
 
@@ -863,7 +864,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedHabits = normalized.habitsById
     render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
 
-    expect(screen.getByText('Nested focus')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Nested focus'))).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
     expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
@@ -908,7 +909,7 @@ describe('HabitDetailScreen', () => {
     const previousMonth = screen.getByRole('button', { name: 'previousMonth' })
     for (let index = 0; index < 13; index += 1) fireEvent.click(previousMonth)
 
-    expect(screen.getByText('July 2025')).toBeInTheDocument()
+    expect(screen.getByText(personalText('July 2025'))).toBeInTheDocument()
     expect(screen.queryByText('olderHistoryUnavailable')).not.toBeInTheDocument()
   })
 
@@ -1287,7 +1288,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), reminderEnabled: true, reminderTimes: [10, 30], scheduledReminders: [{ when: 'same_day', time: '08:00' }] }
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByText('habits.detail.reminders')).toBeInTheDocument()
-    expect(screen.getByText('8:00 AM').parentElement).toHaveTextContent('habits.detail.reminderSameDay')
+    expect(screen.getByText(personalText('8:00 AM')).parentElement).toHaveTextContent('habits.detail.reminderSameDay')
   })
   it('orders the open sections like the canvas and swaps checklist logging for editing', () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -1940,7 +1941,7 @@ describe('HabitDetailScreen', () => {
           const text = range.getBoundingClientRect()
           const style = getComputedStyle(button)
           const lineHeight = Number.parseFloat(style.lineHeight)
-          const lines = range.getClientRects().length
+          const lines = button.querySelector('[data-personal-text]')!.getBoundingClientRect().height / lineHeight
           return {
             titleX: text.left,
             summaryX: summary.getBoundingClientRect().left,

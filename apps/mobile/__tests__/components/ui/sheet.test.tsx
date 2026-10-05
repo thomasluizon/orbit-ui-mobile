@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { expectPressFill } from '../../support/press-feedback'
 import { createTokensV2 } from '@/lib/theme'
 import React from 'react'
@@ -155,7 +156,7 @@ describe('Sheet (mobile)', () => {
       expect(style.paddingHorizontal).toBeGreaterThanOrEqual(8)
       expect(style.minHeight).toBe(48)
     }
-    expect(heading.props.children.props.numberOfLines).toBe(2)
+    expect(heading.props.children.type.name).toBe('PersonalText')
     await TestRenderer.act(() => tree.unmount())
   })
 
@@ -177,14 +178,14 @@ describe('Sheet (mobile)', () => {
     const header = tree.root.findByType(TrueSheet).props.header
     const heading = header.props.children[0]
     const titleText = heading.type === Text ? heading : heading.props.children
-    expect(titleText.props.numberOfLines).toBe(titleMode === 'typed' ? 2 : undefined)
+    expect(titleText.props.numberOfLines).toBeUndefined()
     if (titleMode === 'label') {
       expect(heading.props.accessibilityRole).toBe('header')
       expect(StyleSheet.flatten(heading.props.style)).toMatchObject({ minHeight: 48, textAlignVertical: 'center' })
       expect(StyleSheet.flatten(header.props.style).alignItems).toBe('flex-start')
     }
     if (titleMode === 'typed') {
-      expect(titleText.props.ellipsizeMode).toBe('tail')
+      expect(titleText.type.name).toBe('PersonalText')
       expect(StyleSheet.flatten(heading.props.style({ pressed: false })).minHeight).toBe(48)
       expect(heading.props.accessibilityRole).toBe('button')
       const scroller = tree.root.findAllByProps({ testID: 'sheet-body-scroll' }).find((node: { type: unknown }) => String(node.type) === 'ScrollView')
@@ -193,8 +194,9 @@ describe('Sheet (mobile)', () => {
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 0, animated: false })
       const sheets = tree.root.findAllByType(TrueSheet)
       expect(sheets).toHaveLength(1)
-      const fullTitle = sheets[0].findAllByType(Text).find((node: { props: { children?: string } }) => node.props.children === title)
-      expect(fullTitle.props.numberOfLines).toBeUndefined()
+      const fullTitle = sheets[0].findAllByType(Text).find((node: { props: { children?: string; importantForAccessibility?: string } }) => node.props.children === title && node.props.importantForAccessibility !== 'no-hide-descendants')
+      expect(fullTitle.props.numberOfLines).toBe(1)
+      expect(sheets[0].findAllByType(PersonalText).some((node: { props: { expanded?: boolean } }) => node.props.expanded)).toBe(true)
       expect(fullTitle.props.selectable).toBe(true)
       expect(tree.root.findByType(TrueSheet).props.header.props.children[0].props.accessibilityState.expanded).toBe(true)
       await TestRenderer.act(() => tree.root.findByType(TrueSheet).props.header.props.children[0].props.onPress())
@@ -220,7 +222,7 @@ describe('Sheet (mobile)', () => {
       expect(title).toContain(namedKey.name)
       const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
       expect(heading.props.accessibilityRole).toBe('button')
-      expect(heading.props.children.props.numberOfLines).toBe(2)
+      expect(heading.props.children.type.name).toBe('PersonalText')
       await TestRenderer.act(() => heading.props.onPress())
       expect(tree.root.findAllByType('Text').some(
         (node: { props: { children?: string; selectable?: boolean } }) => node.props.selectable && node.props.children === title,
@@ -272,8 +274,8 @@ describe('Sheet (mobile)', () => {
         )
         expect(StyleSheet.flatten(body.props.style).maxHeight).toBeGreaterThan(0)
         const heading = tree.root.findByType(TrueSheet).props.header.props.children[0]
-        expect(heading.props.children.props.numberOfLines).toBe(2)
-        expect(heading.props.children.props.ellipsizeMode).toBe('tail')
+        expect(heading.props.children.type.name).toBe('PersonalText')
+        expect(heading.props.children.type.name).toBe('PersonalText')
         const items = body.findAllByType('Pressable').filter(
           (node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'menuitem',
         )

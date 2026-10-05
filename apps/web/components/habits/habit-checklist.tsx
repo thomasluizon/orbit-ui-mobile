@@ -2,7 +2,8 @@
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useCallback, useId } from 'react'
+import { PersonalText } from '@/components/ui/personal-text'
+import { useCallback, useId, useState } from 'react'
 import { GripHorizontal, X, Copy, Plus, RotateCcw } from '@/components/ui/icons'
 import { useDragAccessibility } from '@/components/ui/drag-accessibility'
 import { useTranslations } from 'next-intl'
@@ -28,7 +29,7 @@ import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 import { useChecklistItemKeys } from '@/hooks/use-checklist-item-keys'
 import { ProgressBar } from '@/components/ui/progress-bar'
-import { CheckRow } from '@/components/ui/check-row'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Proposed } from '@/components/ui/proposed'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 
@@ -378,22 +379,12 @@ function InteractiveChecklistItem({
   interactive: boolean
   onToggle: (index: number) => void
 }>) {
+  const [expanded, setExpanded] = useState(false)
   const rowStyle: React.CSSProperties = {
     borderBottom: index < itemsLength - 1 ? '1px solid var(--hairline)' : 'none',
   }
 
-  const itemText = (
-    <span
-      className={`flex-1 min-w-0 transition-colors ${
-        item.isChecked
-          ? 'text-[var(--fg-3)]'
-          : 'text-[var(--fg-1)]'
-      }`}
-      style={{ fontFamily: 'var(--font-sans)', fontSize: 16 }}
-    >
-      {item.text}
-    </span>
-  )
+  const itemText = <button type="button" aria-label={item.text} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="min-h-12 min-w-0 w-full rounded-[12px] px-2 text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><PersonalText expanded={expanded} style={{ color: item.isChecked ? 'var(--fg-3)' : 'var(--fg-1)', fontFamily: 'var(--font-sans)', fontSize: 16 }}>{item.text}</PersonalText></button>
 
   if (!interactive) {
     return (
@@ -405,11 +396,7 @@ function InteractiveChecklistItem({
 
   return (
     <div style={rowStyle}>
-      <CheckRow
-        label={item.text}
-        checked={item.isChecked}
-        onChange={() => onToggle(index)}
-      />
+      <div className="flex min-w-0 items-start gap-2">{itemText}<Checkbox label={item.text} checked={item.isChecked} onChange={() => onToggle(index)} /></div>
     </div>
   )
 }

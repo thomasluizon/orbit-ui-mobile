@@ -162,7 +162,7 @@ export function Sheet({
   const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
     styles, titleExpanded, t, closeButton, onToggleTitle: toggleTitle,
     onLayout: (event) => setHeaderHeight(event.nativeEvent.layout.height) })
-  const expandedTitle = titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title!}</PersonalText> : null
+  const expandedTitle = title && titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title}</PersonalText> : null
 
   const showSheetToast = topOverlayId === sheetId && currentToast !== null
   const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, bottomInset, setFooterHeight)

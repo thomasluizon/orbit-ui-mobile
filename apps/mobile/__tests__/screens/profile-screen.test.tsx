@@ -653,10 +653,10 @@ describe('ProfileScreen', () => {
       try {
         const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
         const description = geometry.texts.find(({ label }) => label === email)!
-        expect(geometry.texts[0]!.lines).toBeGreaterThanOrEqual(3)
+        expect(geometry.texts[0]!.lines).toBeLessThanOrEqual(2)
         expect(geometry.texts[0]!.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
-        expect(description.clipped).toBe(false)
-        expect(description.lines).toBeGreaterThan(2)
+        expect(description.clipped).toBe(true)
+        expect(description.lines).toBe(1)
         expect(description.right).toBeLessThanOrEqual(288)
       } finally { TestRenderer.act(() => rowTree.unmount()) }
     } finally { TestRenderer.act(() => destination.unmount()) }

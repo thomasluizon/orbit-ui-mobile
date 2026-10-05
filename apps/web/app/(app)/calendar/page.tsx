@@ -850,6 +850,6 @@ function ExpandedHabitTitleSheet({ title, onClose }: Readonly<{ title: string | 
   const t = useTranslations()
   if (!title) return null
   return <Sheet open title={t('habits.form.title')} onClose={onClose}>
-    <PersonalText expanded className="text-base text-[var(--fg-1)] ">{title}</PersonalText>
+    <PersonalText expanded className="text-base text-[var(--fg-1)]">{title}</PersonalText>
   </Sheet>
 }

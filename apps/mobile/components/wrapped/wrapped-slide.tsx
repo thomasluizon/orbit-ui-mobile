@@ -1,4 +1,6 @@
-import { useEffect, type Ref } from 'react'
+import { PersonalText } from '@/components/ui/personal-text'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { useEffect, useState, type Ref } from 'react'
 import { View, useWindowDimensions } from 'react-native'
 import Animated, {
   Easing,
@@ -61,6 +63,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
   const { t } = useTranslation()
   const { profile, isError: isProfileError, refetch: refetchProfile } = useProfile()
   const reducedMotion = useReducedMotion()
+  const [titleExpanded, setTitleExpanded] = useState(false)
   const { width } = useWindowDimensions()
 
   switch (slide.id) {
@@ -142,15 +145,9 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
           <Animated.View testID="wrapped-figure" nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={[styles.habitWell, motionFinalStyle, { backgroundColor: tokens.bgWell }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
             <Animated.Text style={[slide.habit.emoji ? styles.habitEmoji : styles.habitInitial, { color: tokens.fg3 }]}>{slide.habit.emoji || slide.habit.name.charAt(0).toLocaleUpperCase()}</Animated.Text>
           </Animated.View>
-          <Animated.Text
-            nativeID="wrapped-motion-part-1"
-            entering={enter(1, reducedMotion)}
-            accessibilityRole="header"
-            numberOfLines={2}
-            style={[styles.topHabitTitle, motionFinalStyle, { color: tokens.fg1 }]}
-          >
-            {slide.habit.name}
-          </Animated.Text>
+          <Animated.View nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} style={[{ width: '100%', minWidth: 0 }, motionFinalStyle]}>
+            <InsetFocusPressable accessibilityRole="button" accessibilityLabel={slide.habit.name} accessibilityState={{ expanded: titleExpanded }} onPress={() => setTitleExpanded(!titleExpanded)} style={({ pressed }) => ({ minHeight: 48, minWidth: 0, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><PersonalText expanded={titleExpanded} accessibilityRole="header" style={[styles.topHabitTitle, { color: tokens.fg1, textDecorationLine: 'underline' }]}>{slide.habit.name}</PersonalText></InsetFocusPressable>
+          </Animated.View>
           <Animated.Text nativeID="wrapped-motion-part-2" entering={enter(2, reducedMotion)} style={[styles.label, motionFinalStyle, { color: tokens.fg2 }]}>{t('wrapped.slides.topHabit.label')}</Animated.Text>
           <Animated.Text nativeID="wrapped-motion-part-3" entering={enter(3, reducedMotion)} style={[styles.caption, motionFinalStyle, { color: tokens.fg3 }]}>
             {t('wrapped.slides.topHabit.caption', {

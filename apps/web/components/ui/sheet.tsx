@@ -159,7 +159,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                   ...(boundedBody ? { display: 'flex', flexDirection: 'column', minHeight: 0 } as const : {}),
                   ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
                 }}>
-                  {titleMode === 'typed' ? <div id={`${overlayId}-full-title`} hidden={!titleExpanded}><PersonalText expanded className="orbit-sheet-full-title">{title!}</PersonalText></div> : null}
+                  <ExpandedSheetTitle title={title} titleMode={titleMode} expanded={titleExpanded} id={`${overlayId}-full-title`} />
                   {children}
                 </div>
               </>
@@ -178,6 +178,11 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
       </Dialog.Portal>
     </Dialog.Root>
   )
+}
+
+function ExpandedSheetTitle({ title, titleMode, expanded, id }: Readonly<Pick<SheetProps, 'title' | 'titleMode'> & { expanded: boolean; id: string }>) {
+  if (!title || titleMode !== 'typed') return null
+  return <div id={id} hidden={!expanded}><PersonalText expanded className="orbit-sheet-full-title">{title}</PersonalText></div>
 }
 
 function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onToggle, fullTitleId }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle'> & {

@@ -47,7 +47,7 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -405,13 +405,15 @@ function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji
   const { t } = useTranslation()
   const router = useRouter()
   const [hovered, setHovered] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const habitId = habit?.habitId
+  const Chevron = habitId ? ChevronRight : ChevronDown
   const content = <>
     <View style={styles.topHabitLabelRow}>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
-      {habitId ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
+      {habit ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><Chevron size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
     </View>
-    {habit ? <View style={{ flexDirection: 'row', gap: 4, minWidth: 0 }}>{habit.emoji ? <Text accessible={false} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.emoji}</Text> : null}<View style={{ flex: 1, minWidth: 0 }}><PersonalText selectable={!habitId} accessibilityLabel={habit.name} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.name}</PersonalText></View></View>
+    {habit ? <View style={{ flexDirection: 'row', gap: 4, minWidth: 0 }}>{habit.emoji ? <Text accessible={false} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.emoji}</Text> : null}<View style={{ flex: 1, minWidth: 0 }}><PersonalText expanded={expanded} selectable={!habitId} accessibilityLabel={habit.name} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.name}</PersonalText></View></View>
       : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}
   </>
   return habitId
@@ -419,7 +421,7 @@ function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji
         onPress={() => router.push({ pathname: '/habits/[id]', params: { id: habitId } })}
         onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
         style={({ pressed }) => [styles.topHabit, { backgroundColor: pressed || hovered ? tokens.bgHover : 'transparent' }]}>{content}</InsetFocusPressable>
-    : <View testID="progress-top-habit" style={styles.topHabit}>{content}</View>
+    : habit ? <InsetFocusPressable testID="progress-top-habit" accessibilityRole="button" accessibilityLabel={`${t('progressScreen.window.topHabit')}, ${habit.name}`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.topHabit, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</InsetFocusPressable> : <View testID="progress-top-habit" style={styles.topHabit}>{content}</View>
 }
 
 function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; hasGoals: boolean }>) {

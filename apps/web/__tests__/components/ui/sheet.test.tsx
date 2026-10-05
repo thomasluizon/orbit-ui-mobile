@@ -131,7 +131,7 @@ describe('Sheet', () => {
         expect(headingStyle.flexGrow).toBe('1')
         expect(Number.parseFloat(headingStyle.minWidth)).toBe(0)
         expect(headingStyle.width).toBe('100%')
-        expect(getComputedStyle(heading.firstElementChild!).getPropertyValue('-webkit-line-clamp')).toBe('2')
+        expect(heading.firstElementChild).toHaveClass('line-clamp-2')
         const items = screen.getAllByRole('menuitem')
         expect(items.map((item) => item.textContent)).toEqual(labels)
         for (const item of items) {

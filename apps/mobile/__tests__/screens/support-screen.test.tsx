@@ -129,7 +129,7 @@ function findInputByLabel(root: TestNode, label: string) {
 }
 
 function findReplyEmail(root: TestNode) {
-  return root.findAll((node) => node.type === Pressable && node.props.accessibilityLabel === 'profile.support.email')[0]
+  return root.findAll((node) => node.type === Pressable && String(node.props.accessibilityLabel).startsWith('profile.support.email'))[0]
 }
 
 function findSendButton(root: TestNode) {
@@ -168,7 +168,7 @@ describe('SupportScreen', () => {
       const rows = findSubjectChoices(tree.root)
       expect(rows).toHaveLength(4)
       for (const [index, words] of Object.values(messages.profile.support.subjects).entries()) {
-        const label = rows[index]!.findAll((node) => node.type === Text && node.props.children === words.label)[0]!
+        const label = rows[index]!.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === words.label)[0]!
         expect(label.props.numberOfLines).toBeUndefined()
         expect(label.props.ellipsizeMode).toBeUndefined()
         expect(label.props.allowFontScaling).not.toBe(false)
@@ -179,12 +179,12 @@ describe('SupportScreen', () => {
         expect(style.paddingVertical).toBe(8)
         expect(style.paddingRight).toBe(16)
         expect(style.gap).toBe(12)
-        expect(rows[index]!.findAll((node) => node.type === Text)).toHaveLength(1)
+        expect(rows[index]!.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
       }
     })
   }
 
-  it('gives the reply email two lines and discloses it without changing the draft', async () => {
+  it('keeps the reply email intact and discloses it without changing the draft', async () => {
     const email = `${'a'.repeat(48)}@example.com`
     mocks.profile = createMockProfile({ email })
     const tree = await renderScreen()
@@ -194,10 +194,10 @@ describe('SupportScreen', () => {
       ;(message.props.onChangeText as (value: string) => void)('Saved message')
       await Promise.resolve()
     })
-    const reply = () => tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityLabel === 'profile.support.email')[0]!
-    const text = () => tree.root.findAll((node) => node.type === Text && node.props.children === email)[0]!
+    const reply = () => tree.root.findAll((node) => node.type === Pressable && String(node.props.accessibilityLabel).startsWith('profile.support.email'))[0]!
+    const text = () => tree.root.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === email)[0]!
     expect(reply()).toBeDefined()
-    expect(text().props.numberOfLines).toBe(2)
+    expect(text().props.numberOfLines).toBe(1)
     expect(text().props.ellipsizeMode).toBe('tail')
     const resolveStyle = reply().props.style as (state: { pressed: boolean }) => Parameters<typeof StyleSheet.flatten>[0]
     const style = StyleSheet.flatten<ViewStyle>(resolveStyle({ pressed: false }) as ViewStyle)
@@ -209,13 +209,13 @@ describe('SupportScreen', () => {
       ;(reply().props.onPress as () => void)()
       await Promise.resolve()
     })
-    expect(text().props.numberOfLines).toBeUndefined()
+    expect(text().props.numberOfLines).toBe(1)
     expect(reply().props.accessibilityState).toMatchObject({ expanded: true })
     await TestRenderer.act(async () => {
       ;(reply().props.onPress as () => void)()
       await Promise.resolve()
     })
-    expect(text().props.numberOfLines).toBe(2)
+    expect(text().props.numberOfLines).toBe(1)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('Saved message')
     expect(findSubjectChoices(tree.root)[0]!.props.accessibilityState).toMatchObject({ checked: true })
   })
@@ -296,7 +296,7 @@ describe('SupportScreen', () => {
     const tree = await renderScreen()
     const controls = tree.root.findAll((node) =>
       node.props.accessibilityRole === 'radiogroup'
-      || (node.type === Pressable && node.props.accessibilityLabel === 'profile.support.email')
+      || (node.type === Pressable && String(node.props.accessibilityLabel).startsWith('profile.support.email'))
       || (typeof node.props.onChangeText === 'function' && [
         'profile.support.message', 'profile.support.email',
       ].includes(node.props.accessibilityLabel as string)),
@@ -304,7 +304,7 @@ describe('SupportScreen', () => {
     const labels = controls.map((node) => node.props.accessibilityLabel)
       .filter((label, index, all) => index === 0 || label !== all[index - 1])
     expect(labels).toEqual([
-      'profile.support.subject', 'profile.support.message', 'profile.support.email',
+      'profile.support.subject', 'profile.support.message', `profile.support.email ${mocks.profile?.email ?? ''}`,
     ])
     expect(findReplyEmail(tree.root)!.props.disabled).toBe(false)
   })
@@ -353,7 +353,7 @@ describe('SupportScreen', () => {
       tree.root.findAll((node) => node.props['data-multiline'] === '').length,
     ).toBeGreaterThan(0)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.numberOfLines).toBe(6)
-    expect(tree.root.findAll((node) => node.type === Text && node.props.children === 'alex@example.com')).not.toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'alex@example.com')).not.toHaveLength(0)
     expect(findReplyEmail(tree.root)!.props.disabled).toBe(false)
     expect(
       findReplyEmail(tree.root)!.props.accessibilityHint,
@@ -642,7 +642,7 @@ describe('SupportScreen', () => {
       tree.update(withFocusProvenance(<SupportScreen />))
       await Promise.resolve()
     })
-    expect(tree.root.findAll((node) => node.type === Text && node.props.children === 'profile@example.com')).not.toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'profile@example.com')).not.toHaveLength(0)
     expect(findReplyEmail(tree.root)!.props.disabled).toBe(false)
     await TestRenderer.act(async () => {
       ;(findSendButton(tree.root)!.props.onPress as () => void)()
@@ -724,20 +724,20 @@ describe('SupportScreen', () => {
     ).toBeGreaterThan(0)
     expect(
       tree.root.findAll(
-        (node) => node.type === Text
+        (node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants'
           && node.props.accessibilityRole === 'header'
           && node.props.children === 'profile.support.success',
       ),
     ).toHaveLength(1)
     expect(
       tree.root.findAll(
-        (node) => node.type === Text
+        (node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants'
           && node.props.children === 'profile.support.successHint({"email":"alex@example.com"})',
       ),
     ).toHaveLength(1)
     expect(
       tree.root.findAll(
-        (node) => node.type === Text
+        (node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants'
           && node.props.children === 'profile.support.backToAbout',
       ),
     ).toHaveLength(1)
@@ -797,7 +797,7 @@ describe('SupportScreen', () => {
     ).not.toHaveLength(0)
     expect(
       tree.root.findAll(
-        (node) => node.type === Text && node.props.children === 'profile.support.retry',
+        (node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'profile.support.retry',
       ),
     ).toHaveLength(1)
     expect(mocks.setItem).toHaveBeenLastCalledWith(

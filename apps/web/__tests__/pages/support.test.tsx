@@ -71,7 +71,7 @@ function messageField() {
   return screen.getByRole('textbox', { name: 'profile.support.message' })
 }
 function emailField() {
-  return screen.getByRole('button', { name: 'profile.support.email' })
+  return screen.getByRole('button', { name: /^profile\.support\.email(?: |$)/ })
 }
 function sendButton() {
   return screen.getByRole('button', { name: 'profile.support.send' })
@@ -91,7 +91,7 @@ describe('SupportPage', () => {
     render(<SupportPage />)
     fireEvent.click(screen.getAllByRole('radio')[0]!)
     fireEvent.change(messageField(), { target: { value: 'Saved message' } })
-    const reply = screen.getByRole('button', { name: 'profile.support.email' })
+    const reply = screen.getByRole('button', { name: /^profile\.support\.email(?: |$)/ })
     expect(reply).toHaveAttribute('aria-expanded', 'false')
     expect(reply).toHaveTextContent(email)
     fireEvent.click(reply)

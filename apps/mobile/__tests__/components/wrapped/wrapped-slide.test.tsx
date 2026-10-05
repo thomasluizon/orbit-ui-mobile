@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import { StyleSheet } from 'react-native'
@@ -276,17 +277,17 @@ describe('mobile WrappedSlide', () => {
     expect(parts.map((part) => part.props.nativeID)).toEqual([
       'wrapped-motion-part-0', 'wrapped-motion-part-1', 'wrapped-motion-part-2', 'wrapped-motion-part-3',
     ])
-    expect(parts.slice(1).map((part) => part.props.children)).toEqual([
+    expect(parts.slice(1).map((part, index) => index === 0 ? part.findAll((node) => node.type === PersonalText)[0]!.props.children : part.props.children)).toEqual([
       topHabit.habit.name,
       'wrapped.slides.topHabit.label',
       'wrapped.slides.topHabit.caption:{"rate":"95%"}',
     ])
     expect(parts[0]!.props.importantForAccessibility).toBe('no-hide-descendants')
     expect(parts[0]!.props.accessibilityElementsHidden).toBe(true)
-    expect(parts[1]!.props.accessibilityRole).toBe('header')
+    expect(parts[1]!.findAll((node) => node.type === PersonalText)[0]!.props.accessibilityRole).toBe('header')
     expect(tree.root.findAll((node) => node.props.children === topHabit.habit.emoji).length).toBeGreaterThan(0)
     expect(parts.filter((part) => part.props.importantForAccessibility !== 'no-hide-descendants')
-      .map((part) => part.props.children)).toEqual([
+      .map((part) => part.props.nativeID === 'wrapped-motion-part-1' ? part.findAll((node) => node.type === PersonalText)[0]!.props.children : part.props.children)).toEqual([
       topHabit.habit.name,
       'wrapped.slides.topHabit.label',
       'wrapped.slides.topHabit.caption:{"rate":"95%"}',

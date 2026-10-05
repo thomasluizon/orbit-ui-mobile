@@ -1,6 +1,7 @@
 'use client'
 
-import type { ReactNode, Ref } from 'react'
+import { PersonalText } from '@/components/ui/personal-text'
+import { useState, type ReactNode, type Ref } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -61,6 +62,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
   const t = useTranslations()
   const { profile, isError: isProfileError, refetch: refetchProfile } = useProfile()
   const reducedMotion = Boolean(useReducedMotion())
+  const [titleExpanded, setTitleExpanded] = useState(false)
 
   switch (slide.id) {
     case 'intro':
@@ -155,15 +157,9 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
           <motion.h2
             data-testid="wrapped-motion-part"
             {...motionProps(1, reducedMotion)}
-            style={{
-              ...topHabitTitleStyle,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
+            style={topHabitTitleStyle}
           >
-            {slide.habit.name}
+            <button type="button" aria-label={slide.habit.name} aria-expanded={titleExpanded} onClick={() => setTitleExpanded(!titleExpanded)} className="underline decoration-from-font min-h-12 w-full min-w-0 rounded-[12px] text-center touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><PersonalText expanded={titleExpanded}>{slide.habit.name}</PersonalText></button>
           </motion.h2>
           <motion.span data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={labelStyle}>
             {t('wrapped.slides.topHabit.label')}

@@ -25,13 +25,13 @@ export function PersonalText({ children, expanded = false, style, ...props }: Re
   const lines = measurement?.text === children ? measurement.lines : [children]
   const visibleLines = expanded ? lines : lines.length > 1 ? [lines[0], lines.slice(1).join(' ')] : lines
   if (singleToken && !expanded) return <Text {...props} style={style} numberOfLines={1} ellipsizeMode="tail">{children}</Text>
-  return <View style={styles.container} accessible accessibilityLabel={props.accessibilityLabel ?? children}>
+  return <View style={styles.container} accessible accessibilityRole={props.accessibilityRole} accessibilityLanguage={props.accessibilityLanguage} accessibilityHint={props.accessibilityHint} accessibilityLabel={props.accessibilityLabel ?? children}>
     {!singleToken ? <Text {...props} accessible={false} importantForAccessibility="no-hide-descendants" style={[style, styles.measurement]} numberOfLines={undefined} ellipsizeMode="clip" textBreakStrategy="simple" android_hyphenationFrequency="none" onTextLayout={(event) => {
       const nextLines = wordLines(children, event.nativeEvent.lines.map((line) => line.text))
       setMeasurement((current) => current?.text === children && current.lines.join('\n') === nextLines.join('\n') ? current : { text: children, lines: nextLines })
     }}>{children}</Text> : null}
     {visibleLines.map((line, index) => expanded
-      ? <ScrollView key={index} horizontal showsHorizontalScrollIndicator={false}><Text {...props} accessible={false} style={style} numberOfLines={1}>{line}</Text></ScrollView>
+      ? <ScrollView key={index} horizontal><Text {...props} accessible={false} style={style} numberOfLines={1}>{line}</Text></ScrollView>
       : <Text {...props} key={index} accessible={false} style={style} numberOfLines={1} ellipsizeMode="tail">{line}</Text>)}
   </View>
 }

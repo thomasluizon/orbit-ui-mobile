@@ -52,7 +52,7 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -481,19 +481,21 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
 
 function TopHabitRow({ habit }: Readonly<{ habit?: { name: string; emoji: string | null; habitId?: string | null } }>) {
   const t = useTranslations()
+  const [expanded, setExpanded] = useState(false)
+  const Chevron = habit?.habitId ? ChevronRight : ChevronDown
   const content = <>
     <span className="flex items-center justify-between gap-3">
       <span className="whitespace-nowrap text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.window.topHabit')}</span>
-      {habit?.habitId ? <ChevronRight size={24} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-[var(--fg-3)]" /> : null}
+      {habit ? <Chevron size={24} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-[var(--fg-3)]" /> : null}
     </span>
     {habit ? <span title={habit.name} className="flex min-w-0 items-start gap-1 text-[17px] leading-[1.4] text-[var(--fg-1)]">
-      {habit.emoji ? <span aria-hidden="true">{habit.emoji}</span> : null}<PersonalText>{habit.name}</PersonalText>
+      {habit.emoji ? <span aria-hidden="true">{habit.emoji}</span> : null}<PersonalText expanded={expanded}>{habit.name}</PersonalText>
     </span> : <span className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.window.topHabitEmpty')}</span>}
   </>
   const rowClass = 'flex min-h-[68px] min-w-0 flex-col gap-1 rounded-[12px] p-4'
   return habit?.habitId
     ? <Link href={`/habits/${habit.habitId}`} data-testid="progress-top-habit" className={`${rowClass} touch-manipulation transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}>{content}</Link>
-    : <div data-testid="progress-top-habit" className={rowClass}>{content}</div>
+    : habit ? <button type="button" aria-label={`${t('progressScreen.window.topHabit')}, ${habit.name}`} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} data-testid="progress-top-habit" className={`${rowClass} w-full text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}>{content}</button> : <div data-testid="progress-top-habit" className={rowClass}>{content}</div>
 }
 
 function WindowSection({ hasGoals }: Readonly<{ hasGoals: boolean }>) {

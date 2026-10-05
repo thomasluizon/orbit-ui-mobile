@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
@@ -174,10 +175,10 @@ describe('CalendarDayDetail', () => {
       detailLocale.language = locale
       try {
         const view = renderDetail()
-        expect(screen.getByText(todayTitle)).toBeDefined()
+        expect(screen.getByText(personalText(todayTitle))).toBeDefined()
         view.unmount()
         const otherView = renderDetail({ dateStr: '2025-06-14' })
-        expect(screen.getByText(otherTitle)).toBeDefined()
+        expect(screen.getByText(personalText(otherTitle))).toBeDefined()
         otherView.unmount()
       } finally {
         detailLocale.language = 'en'
@@ -194,8 +195,8 @@ describe('CalendarDayDetail', () => {
 
   it('keeps the summary and its own no-habits line when the day is empty', () => {
     renderDetail()
-    expect(screen.getByText('nothing due')).toBeInTheDocument()
-    expect(screen.getByText('No habit was scheduled on this day.')).toBeInTheDocument()
+    expect(screen.getByText(personalText('nothing due'))).toBeInTheDocument()
+    expect(screen.getByText(personalText('No habit was scheduled on this day.'))).toBeInTheDocument()
   })
 
   it('uses the selected-day card surface from the calendar canvas', () => {
@@ -229,11 +230,11 @@ describe('CalendarDayDetail', () => {
     const sheet = screen.getByRole('dialog')
     const search = within(sheet).getByRole('textbox', { name: 'calendar.dayDetail.searchEvents' })
     fireEvent.change(search, { target: { value: 'Event 20' } })
-    expect(within(sheet).getByText('Event 20')).toBeInTheDocument()
+    expect(within(sheet).getByText(personalText('Event 20'))).toBeInTheDocument()
     fireEvent.change(search, { target: { value: 'No such event' } })
     expect(within(sheet).getByText('calendar.dayDetail.noMatchingEvents')).toBeInTheDocument()
     fireEvent.click(within(sheet).getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
-    expect(within(sheet).getByText('Event 0')).toBeInTheDocument()
+    expect(within(sheet).getByText(personalText('Event 0'))).toBeInTheDocument()
   })
 
   it('renders a failed events request instead of the empty result', () => {
@@ -274,7 +275,7 @@ describe('CalendarDayDetail', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
 
     expect(
-      screen.getByText('No Google Calendar events on this day.'),
+      screen.getByText(personalText('No Google Calendar events on this day.')),
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
@@ -588,8 +589,8 @@ describe('CalendarDayDetail', () => {
       showRecurring: false,
       entries: [makeEntry({ title: 'Recurring', isOneTime: false })],
     })
-    expect(screen.getByText('nothing due')).toBeInTheDocument()
-    expect(screen.getByText('No habit was scheduled on this day.')).toBeInTheDocument()
+    expect(screen.getByText(personalText('nothing due'))).toBeInTheDocument()
+    expect(screen.getByText(personalText('No habit was scheduled on this day.'))).toBeInTheDocument()
     expect(screen.queryByText('Recurring')).not.toBeInTheDocument()
   })
 
@@ -599,7 +600,7 @@ describe('CalendarDayDetail', () => {
       'href',
       '/?date=2025-06-15',
     )
-    expect(screen.getByText('Open this day on Today')).toHaveClass('break-words')
+    expect(screen.getByText(personalText('Open this day on Today'))).toHaveClass('break-words')
   })
 
   it('keeps the title, summary and route within a 24px inset card', () => {
@@ -607,7 +608,7 @@ describe('CalendarDayDetail', () => {
     const card = container.querySelector('section') as HTMLElement
     expect(card.style.paddingBlock).toBe('24px')
     expect(card).toContainElement(screen.getByRole('heading', { level: 2 }))
-    expect(card).toContainElement(screen.getByText('1 of 1 logged'))
+    expect(card).toContainElement(screen.getByText(personalText('1 of 1 logged')))
     expect(card).toContainElement(screen.getByRole('link', { name: 'Open this day on Today' }))
     expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '16px' })
     expect(screen.getByRole('button', { name: 'Meditate, done' })).toBeInTheDocument()
@@ -652,10 +653,10 @@ describe('CalendarDayDetail mixed-type family carry', () => {
     const dayMap = buildCalendarDayMap(badParentWithGoodChildLog(),
       { from: '2026-09-01', to: '2026-09-30' }, new Date('2026-09-29T12:00:00'))
     renderDetail({ dateStr: loggedDate, entries: dayMap.get(loggedDate) ?? [] })
-    expect(screen.getByText('Good child')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Good child'))).toBeInTheDocument()
     expect(screen.getByLabelText(en.calendar.status.completed)).toBeInTheDocument()
     expect(screen.queryByLabelText(en.calendar.status.indulged)).not.toBeInTheDocument()
-    expect(screen.queryByText('Bad parent')).not.toBeInTheDocument()
+    expect(screen.queryByText(personalText('Bad parent'))).not.toBeInTheDocument()
   })
 })
 
@@ -667,7 +668,7 @@ describe('day card disclosure regression', () => {
       description: null, startDate: '2025-06-15', startTime: '09:00', endTime: null,
       isRecurring: false, recurrenceRule: null, reminders: [],
     })) })
-    expect(screen.queryByText('Preview 3')).not.toBeInTheDocument()
+    expect(screen.queryByText(personalText('Preview 3'))).not.toBeInTheDocument()
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     expect(screen.queryByText('calendar.dayDetail.importEvents')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /1:1 FutureProofing Engineering/ }))

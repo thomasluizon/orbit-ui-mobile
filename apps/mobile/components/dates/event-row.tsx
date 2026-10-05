@@ -1,6 +1,6 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import type { EventRowProps } from '@orbit/shared/contracts/dates'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -12,7 +12,7 @@ export function EventRow(props: Readonly<EventRowProps>) {
   const accessibleLabel = [timeLabel, props.title, props.source].filter(Boolean).join(', ')
   const content = <>
     <PersonalText style={[styles.title, { color: tokens.fg1 }]}>{props.title}</PersonalText>
-    <Text style={[styles.support, { color: props.onClick ? tokens.fg2 : tokens.fg3 }]}>{[timeLabel, props.source].filter(Boolean).join(' · ')}</Text>
+    <PersonalText style={[styles.support, { color: props.onClick ? tokens.fg2 : tokens.fg3 }]}>{[timeLabel, props.source].filter(Boolean).join(' · ')}</PersonalText>
   </>
   return props.onClick ? <Pressable
     accessibilityRole="button" accessibilityLabel={accessibleLabel} onPress={props.onClick}

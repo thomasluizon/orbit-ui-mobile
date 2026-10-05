@@ -87,6 +87,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
     const node = Yoga.Node.create()
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
+    if (style.opacity === 0) { node.setWidth(0); node.setHeight(0); return node }
     applyStyle(node, style)
     if (host.type === 'Pressable') controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel })
     const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')

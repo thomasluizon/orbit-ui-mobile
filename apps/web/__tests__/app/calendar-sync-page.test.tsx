@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import React, { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -108,7 +109,7 @@ function buildEvents(count: number): CalendarSyncEvent[] {
 }
 
 function countEventRows(): number {
-  return screen.getAllByText(/^Event \d+$/).length
+  return screen.getAllByText(personalText(/^Event \d+$/)).length
 }
 
 describe('CalendarSyncPage pagination', () => {
@@ -161,7 +162,7 @@ describe('CalendarSyncPage pagination', () => {
     pageState.initialEventId = 'ev-0'
     useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events: [{ ...buildEvents(2)[0]!, title, isImported: true }, buildEvents(2)[1]!] }, isLoading: false, isError: false })
     renderPage()
-    expect(screen.getByText(title.trim())).toBeInTheDocument()
+    expect(screen.getByText(personalText(title.trim()))).toBeInTheDocument()
     expect(screen.getByText('calendar.importButton({"count":0})')).toBeDisabled()
     expect(bulkMutateMock).not.toHaveBeenCalled()
   })
@@ -195,13 +196,13 @@ describe('CalendarSyncPage pagination', () => {
     }))
 
     renderPage()
-    expect(screen.getByText('Account A event')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Account A event'))).toBeInTheDocument()
 
     currentEvents = [{ ...currentEvents[0]!, title: 'Account B event' }]
     await replaceAccountWith('calendar-account-b')
 
-    expect(screen.queryByText('Account A event')).not.toBeInTheDocument()
-    expect(screen.getByText('Account B event')).toBeInTheDocument()
+    expect(screen.queryByText(personalText('Account A event'))).not.toBeInTheDocument()
+    expect(screen.getByText(personalText('Account B event'))).toBeInTheDocument()
   })
 
   it('renders only the first page of events and reveals more on demand', () => {
@@ -245,7 +246,7 @@ describe('CalendarSyncPage pagination', () => {
     renderPage()
 
     expect(countEventRows()).toBe(7)
-    expect(screen.queryByText('Event 0')).not.toBeInTheDocument()
+    expect(screen.queryByText(personalText('Event 0'))).not.toBeInTheDocument()
     expect(screen.queryByText('calendar.showMore')).not.toBeInTheDocument()
   })
 

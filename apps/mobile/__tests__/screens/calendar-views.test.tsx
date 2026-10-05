@@ -308,7 +308,7 @@ function makeEntry(overrides: Partial<CalendarDayEntry>): CalendarDayEntry {
 
 function hostTexts(tree: Tree): unknown[] {
   return tree.root
-    .findAll((node) => typeof node.type === "string" && node.type === "Text")
+    .findAll((node) => typeof node.type === "string" && node.type === "Text" && node.props.importantForAccessibility !== 'no-hide-descendants')
     .flatMap((node) => {
       const children = node.props.children;
       const list = Array.isArray(children) ? children : [children];
@@ -470,11 +470,11 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
     const headerTree = renderMonthHeader(tree);
     const monthHeader = headerTree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'month-grid-header')[0]!;
-    expect(monthHeader.findAll((node: TestNode) => node.type === 'Text').map((node) => node.props.children)).toEqual(labels);
+    expect(monthHeader.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants').map((node) => node.props.children)).toEqual(labels);
     TestRenderer.act(() => { headerTree.update(<></>); });
     pressView(tree, 'range');
     const rangeHeader = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'month-grid-header')[0]!;
-    expect(rangeHeader.findAll((node: TestNode) => node.type === 'Text').map((node) => node.props.children)).toEqual(labels);
+    expect(rangeHeader.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants').map((node) => node.props.children)).toEqual(labels);
     TestRenderer.act(() => { tree.update(<></>); });
   });
 
@@ -631,8 +631,8 @@ describe("CalendarScreen views (mobile)", () => {
       expect(buttons.some((node) => node.props.accessibilityLabel === `${title}, ${language === 'en' ? '9:00 AM' : '09:00'}`)).toBe(true);
       expect(buttons.some((node) => node.props.accessibilityLabel === 'Untimed')).toBe(true);
       expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0);
-      const preview = tree.root.findAll((node) => node.type === 'Text' && node.props.children === title)[0]!;
-      expect(preview.props.numberOfLines).toBe(2);
+      const preview = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!;
+      expect(preview.props.numberOfLines).toBe(1);
     } finally { TestRenderer.act(() => tree.update(<></>)); }
   });
 

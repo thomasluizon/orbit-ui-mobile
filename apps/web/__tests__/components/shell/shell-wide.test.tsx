@@ -180,7 +180,7 @@ describe('ShellWide', () => {
       />,
     )
 
-    const account = screen.getByRole('link', { name: 'Ada Lovelace ada@example.com' })
+    const account = screen.getByRole('link', { name: 'Ada Lovelace, ada@example.com' })
     expect(account).toHaveAttribute('href', '/profile')
     expect(within(account).getByText('ada@example.com')).toBeInTheDocument()
     expect(account.querySelector('[aria-hidden="true"]')).toHaveTextContent('A')

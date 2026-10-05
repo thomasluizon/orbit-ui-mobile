@@ -99,7 +99,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
               onChange={(checked) => void handleToggle(calendar.id, checked)}
             />
             <div id={`${disclosureId}-${calendar.id}`} hidden={openedCalendarId !== calendar.id}>
-              {openedCalendarId === calendar.id ? <PersonalText expanded className="m-0 px-4 pb-3 text-sm text-[var(--fg-1)] ">{calendar.name}</PersonalText> : null}
+              {openedCalendarId === calendar.id ? <PersonalText expanded className="m-0 px-4 pb-3 text-sm text-[var(--fg-1)]">{calendar.name}</PersonalText> : null}
             </div>
           </div>
         ))}

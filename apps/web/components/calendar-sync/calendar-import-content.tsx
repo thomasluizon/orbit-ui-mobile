@@ -579,5 +579,5 @@ function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled }
   if (!enabled || reviewMode || eventsResult?.status !== 'connected') return null
   const event = eventsResult.events.find((candidate) => candidate.id === eventId)
   if (!event) return null
-  return <PersonalText expanded className="py-6 text-base text-[var(--fg-1)] ">{event.title}</PersonalText>
+  return <PersonalText expanded className="py-6 text-base text-[var(--fg-1)]">{event.title}</PersonalText>
 }

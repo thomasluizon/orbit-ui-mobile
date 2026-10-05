@@ -7,7 +7,8 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
-import { Bell, X } from '@/components/ui/icons'
+import { useId, useState } from 'react'
+import { Bell, ChevronDown, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { Badge } from '@/components/ui/badge'
@@ -42,6 +43,10 @@ export function CalendarSyncEventRow({
   onDismiss,
   t,
 }: Readonly<CalendarSyncEventRowProps>) {
+  const [expanded, setExpanded] = useState(false)
+  const titleId = useId()
+  const calendarNameId = `${titleId}-calendar`
+  const descriptionIds = [titleId, event.calendarName ? calendarNameId : null].filter(Boolean).join(' ')
   const { displayTime } = useTimeFormat()
   const { displayDate } = useDateFormat()
   const importIssue = getCalendarSyncImportIssue(
@@ -59,7 +64,7 @@ export function CalendarSyncEventRow({
 
   return (
     <div
-      className="flex items-start"
+      className="flex flex-wrap items-start"
       style={{
         borderBottom: '1px solid var(--hairline)',
         background: importIssue
@@ -85,8 +90,7 @@ export function CalendarSyncEventRow({
           <RadioGlyph selected={selected} size={24} />
         </span>
         <span className="flex-1 min-w-0 block">
-          <PersonalText
-            className=""
+          <PersonalText id={titleId}
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 17,
@@ -146,8 +150,8 @@ export function CalendarSyncEventRow({
               </span>
             )}
             {event.calendarName && (
-              <PersonalText
-                className="min-w-0 "
+              <PersonalText id={calendarNameId}
+                className="min-w-0"
                 style={{
                   fontFamily: 'var(--font-sans)',
                   fontSize: 12,
@@ -186,6 +190,7 @@ export function CalendarSyncEventRow({
         </span>
       </button>
 
+      <button type="button" aria-label={t('contextMenu.viewDetails')} aria-describedby={descriptionIds} aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="icon-btn touch-target shrink-0" style={{ minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, color: 'var(--fg-3)' }}><ChevronDown size={20} strokeWidth={1.5} aria-hidden="true" /></button>
       {isReviewMode && suggestionId && (
         <button
           type="button"
@@ -198,6 +203,7 @@ export function CalendarSyncEventRow({
           <X size={20} strokeWidth={1.8} aria-hidden className="transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/dismiss:text-[var(--status-bad)]" />
         </button>
       )}
+      {expanded ? <div className="min-w-0 w-full" data-calendar-event-disclosure=""><PersonalText expanded>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded>{event.calendarName}</PersonalText> : null}</div> : null}
     </div>
   )
 }

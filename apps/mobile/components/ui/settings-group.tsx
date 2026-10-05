@@ -59,7 +59,6 @@ function SettingsGroupRowText({ label, textMode, hint, expanded, color, hintColo
           <Label
             expanded={textMode === 'personal' ? expanded : undefined}
             style={[styles.label, textMode === 'label' || expanded ? styles.wrappedLabel : null, { color: color }]}
-            
             ellipsizeMode="tail"
           >
             {label}

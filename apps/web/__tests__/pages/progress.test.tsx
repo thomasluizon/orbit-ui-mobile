@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -358,14 +359,14 @@ describe('ProgressContent', () => {
           const style = getComputedStyle(title)
           return { height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(style.lineHeight),
             clamp: style.webkitLineClamp, overflow: style.overflow,
-            clipped: title.scrollHeight > title.clientHeight,
+            clipped: title.scrollHeight > title.clientHeight || title.scrollWidth > title.clientWidth,
             overflowWidth: card.scrollWidth > card.clientWidth,
             metadataBelow: metadata.getBoundingClientRect().top >= title.getBoundingClientRect().bottom }
         }))
         expect(geometry).toHaveLength(2)
-        for (const title of geometry) {
-          expect(title.height).toBeCloseTo(title.lineHeight * 2, 0)
-          expect(title.clamp).toBe('2')
+        for (const [index, title] of geometry.entries()) {
+          expect(title.height).toBeCloseTo(title.lineHeight * (index === 0 ? 2 : 1), 0)
+          expect(title.clamp).toBe(index === 0 ? '2' : 'none')
           expect(title.overflow).toBe('hidden')
           expect(title.overflowWidth).toBe(false)
           expect(title.metadataBelow).toBe(true)
@@ -995,7 +996,7 @@ describe('ProgressContent', () => {
         expect(habit.full).toContain(habitName)
         expect(habit.emoji).toContain('📚')
         expect(habit.title).toBe(habitName)
-        expect(habit.lines).toBeCloseTo(2, 1)
+        expect(habit.lines).toBeLessThanOrEqual(2.1)
         expect(habit.width).toBe(habit.rowWidth - 32)
         expect(habit.interactive).toBe(!!habitId)
         expect(habit.href).toBe(habitId ? `/habits/${habitId}` : null)
@@ -1029,8 +1030,9 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
     const row = screen.getByTestId('progress-top-habit')
     expect(row).not.toHaveAttribute('href')
-    expect(row).not.toHaveAttribute('tabindex')
+    expect(row).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(row)
+    expect(row).toHaveAttribute('aria-expanded', 'true')
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
@@ -1041,7 +1043,7 @@ describe('ProgressContent', () => {
     expect(within(windowSection).getByText('dates.daysAbbreviated.thursday')).toBeInTheDocument()
     const habit = within(windowSection).getByTestId('progress-top-habit')
     expect(habit).toHaveTextContent('Read')
-    expect(habit.querySelector('button, a')).toBeNull()
+    expect(habit).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('progressScreen.streak.active')).not.toBeInTheDocument()
     const entry = screen.getByRole('button', { name: 'progressScreen.streak.legend' })
     entry.focus()
@@ -1226,12 +1228,12 @@ describe('ProgressContent', () => {
 
     render(<ProgressContent />)
 
-    const action = screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}').closest('button')
+    const action = screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')
     expect(action).toHaveAttribute('data-variant', 'secondary')
     expect(action).toHaveAttribute('data-size', 'sm')
     fireEvent.click(action!)
     expect(mocks.repair.mutate).not.toHaveBeenCalled()
-    expect(screen.getByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')).toBeInTheDocument()
+    expect(screen.getByText(personalText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}'))).toBeInTheDocument()
     fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
   })
@@ -1245,7 +1247,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     expect(screen.getByRole('button', { name: 'progressScreen.goals.createAction' })).toHaveAttribute('data-variant', 'primary')
-    expect(screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}').closest('button')).toHaveAttribute('data-variant', 'secondary')
+    expect(screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')).closest('button')).toHaveAttribute('data-variant', 'secondary')
   })
 
   it('closes the goal detail when another account replaces the tab', async () => {
@@ -1273,16 +1275,16 @@ describe('ProgressContent', () => {
 
     render(<ProgressContent />)
     fireEvent.click(
-      screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}'),
+      screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')),
     )
     expect(
-      screen.getByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}'),
+      screen.getByText(personalText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')),
     ).toBeInTheDocument()
 
     await replaceAccountWith('user-2')
 
     expect(
-      screen.queryByText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}'),
+      screen.queryByText(personalText('progressScreen.streak.repairConfirmTitle:{"dates":"Wednesday, Sep 9"}')),
     ).not.toBeInTheDocument()
     expect(mocks.repair.mutate).not.toHaveBeenCalled()
     vi.unstubAllGlobals()
@@ -1294,7 +1296,7 @@ describe('ProgressContent', () => {
 
     render(<ProgressPage />)
 
-    expect(screen.getByText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')).toBeInTheDocument()
+    expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
   })
 
   it('names automatic coverage, then keeps a confirmed manual repair source-neutral', () => {
@@ -1302,7 +1304,7 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.freezeBankRemaining = 2
     Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
     const view = render(<ProgressPage />)
-    expect(screen.getByText('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')).toBeInTheDocument()
+    expect(screen.getByText(personalText('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}'))).toBeInTheDocument()
 
     mocks.freeze.streakInfo.currentStreak = 0
     mocks.freeze.streakInfo.isRepairAvailable = true
@@ -1316,12 +1318,12 @@ describe('ProgressContent', () => {
       })
     })
     view.rerender(<ProgressPage />)
-    fireEvent.click(screen.getByText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}'))
+    fireEvent.click(screen.getByText(personalText('progressScreen.streak.repairAction:{"dates":"Wednesday, Sep 9"}')))
     fireEvent.click(screen.getByText('progressScreen.streak.repairConfirmAction'))
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
 
     view.rerender(<ProgressPage />)
-    expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
+    expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/progressScreen\.streak\.automaticCovered/)).not.toBeInTheDocument()
   })
 
@@ -1333,7 +1335,7 @@ describe('ProgressContent', () => {
 
     render(<ProgressPage />)
 
-    expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
+    expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
   })
 
@@ -1346,7 +1348,7 @@ describe('ProgressContent', () => {
 
     render(<ProgressPage />)
 
-    expect(screen.getByText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}')).toBeInTheDocument()
+    expect(screen.getByText(personalText('progressScreen.streak.covered:{"date":"Wednesday, Sep 9","count":1}'))).toBeInTheDocument()
     expect(screen.queryByText(/automaticCovered/)).not.toBeInTheDocument()
   })
 
@@ -1603,7 +1605,7 @@ describe('ProgressContent', () => {
     } else {
       expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
     }
-    expect(screen.getByText('Sep 8')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Sep 8'))).toBeInTheDocument()
   })
 
   it('announces frozen today above the strip and includes its protected date', async () => {
