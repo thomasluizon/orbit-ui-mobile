@@ -356,6 +356,7 @@ export const HabitRow = memo(function HabitRow({
         emojiSize={emojiSize}
         wellSize={wellSize}
         wellRadius={wellRadius}
+        monogramColor={bodyPressFeedback.metaColor}
         tokens={tokens}
       />
 
