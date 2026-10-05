@@ -192,8 +192,8 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
           <div data-shell-tab-bar="" className="shrink-0 lg:hidden">{props.tabBar}</div>
         ) : null}
         {props.fab !== undefined ? (
-          <div data-shell-fab="" className="pointer-events-none absolute inset-x-0 flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
-            <div className="pointer-events-auto">{props.fab}</div>
+          <div className="pointer-events-none absolute inset-x-0 flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 py-2 lg:hidden" style={{ bottom: 'calc(100% + 8px)' }}>
+            <div data-shell-fab="" className="pointer-events-auto">{props.fab}</div>
           </div>
         ) : null}
       </div>

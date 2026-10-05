@@ -8,6 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { Composer } from '@/components/shell/composer'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { Toast } from '@/components/ui/toast'
+import { Fab } from '@/components/ui/fab'
 import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -39,7 +40,7 @@ describe('Shell bottom column geometry', () => {
         value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       notice={<Toast kind="neutral" message="Habit saved" />}
       tabBar={<nav style={{ height: 80 }}>Tabs</nav>}
-      fab={<button type="button" style={{ width: 48, height: 48 }}>Create</button>}>
+      fab={<Fab label="Create" onClick={vi.fn()}><span aria-hidden="true">+</span></Fab>}>
       <div className="px-4"><div data-column-reference="" style={{ height: 1600 }}>Habits</div></div>
     </ShellWide>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -52,13 +53,15 @@ describe('Shell bottom column geometry', () => {
         const tabs = document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect()
         const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
         const fab = document.querySelector('[data-shell-fab] button')!.getBoundingClientRect()
+        const fabClip = document.querySelector('[data-shell-fab]')!.closest('.overflow-y-auto')!.getBoundingClientRect()
         return {
           reference: right('[data-column-reference]'),
           pill: right('[data-shell-pinned-slot] [data-composer-input-row]'),
           note: document.querySelector('[data-shell-pinned-slot] [data-composer-root] p')?.getBoundingClientRect().right,
           notice: right('[data-shell-notice] [data-kind]'),
           fab: { right: fab.right, top: fab.top, bottom: fab.bottom,
-            hit: document.elementFromPoint(fab.x + fab.width / 2, fab.y + fab.height / 2)?.closest('button')?.textContent },
+            hit: document.elementFromPoint(fab.x + fab.width / 2, fab.y + fab.height / 2)?.closest('button')?.getAttribute('aria-label'),
+            topClearance: fab.top - fabClip.top, bottomClearance: fabClip.bottom - fab.bottom },
           bottomTop: document.querySelector('[data-shell-bottom]')!.getBoundingClientRect().top,
           tabs: { left: tabs.left, right: tabs.right },
           column: { left: column.left, right: column.right },
@@ -71,6 +74,8 @@ describe('Shell bottom column geometry', () => {
         expect.soft(Math.abs(geometry.fab.right - geometry.reference), 'create target').toBeLessThanOrEqual(0.5)
         expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.bottomTop - 16)
         expect(geometry.fab.hit).toBe('Create')
+        expect(geometry.fab.topClearance).toBeGreaterThanOrEqual(8)
+        expect(geometry.fab.bottomClearance).toBeGreaterThanOrEqual(8)
         expect(geometry.tabs).toEqual(geometry.column)
       }
     } finally { await page.close(); view.unmount() }

@@ -228,7 +228,6 @@ describe('Foldable shell geometry', () => {
           return { left: box.left, right: box.right }
         }
         return {
-          content: { left: rectangle.left + 16, right: rectangle.right - 16 },
           scrollContent: { left: rectangle.left + 16, right: rectangle.left + scroller.clientWidth - 16 },
           composerCount: document.querySelectorAll('[data-composer-root]').length,
           pinnedCount: document.querySelectorAll('[data-shell-pinned-slot]').length,

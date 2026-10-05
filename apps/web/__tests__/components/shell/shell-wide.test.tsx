@@ -87,7 +87,7 @@ describe('ShellWide', () => {
     const fab = container.querySelector<HTMLElement>('[data-shell-fab]')
     expect(fab).toContainElement(screen.getByRole('button', { name: 'Create' }))
     expect(container.querySelector('[data-shell-scroller]')).not.toContainElement(fab)
-    expect(fab).toHaveStyle({ bottom: 'calc(100% + 16px)' })
+    expect(bottom).toContainElement(fab)
   })
 
   it('owns the 232px navigation, 740px canvas, notice, and pinned composer', () => {
