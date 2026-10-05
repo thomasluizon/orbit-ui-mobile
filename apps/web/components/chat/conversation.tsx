@@ -1,10 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useId, useState, type ReactNode } from 'react'
+import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
+
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
-import { chatTraceLabelKey } from '@orbit/shared/chat'
+import { chatTraceLabelKey, stripChatDirectives } from '@orbit/shared/chat'
 import { APP_BAR_CONTROL_CLASS, AppBar } from '@/components/ui/app-bar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
@@ -45,6 +47,39 @@ type ChatController = Omit<
   'fileInputRef' | 'textFileInputRef' | 'handleFileSelect' | 'handleTextFileSelect'
 >
 
+function TurnAnnouncement({ content, complete, messageId, claimAnnouncement }: Readonly<{
+  content: string
+  complete: boolean
+  messageId: string
+  claimAnnouncement: (messageId: string) => boolean
+}>) {
+  const [announcement, setAnnouncement] = useState('')
+  useEffect(() => {
+    if (!complete || !content) return
+    let mounted = true
+    void Promise.resolve().then(() => {
+      if (!mounted || !claimAnnouncement(messageId)) return
+      setAnnouncement(stripChatDirectives(content))
+    })
+    return () => { mounted = false }
+  }, [complete, content, messageId, claimAnnouncement])
+  return <span aria-live="polite" className="sr-only">{announcement}</span>
+}
+
+function moveBetweenTurns(event: KeyboardEvent, feed: HTMLDivElement | null) {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+  if (event.key !== 'PageDown' && event.key !== 'PageUp') return
+  const target = event.target
+  if (!(target instanceof Element)) return
+  const article = target.closest('article')
+  if (!article || !feed?.contains(article)) return
+  const next = event.key === 'PageDown' ? article.nextElementSibling : article.previousElementSibling
+  if (next instanceof HTMLElement && next.tagName === 'ARTICLE') {
+    event.preventDefault()
+    next.focus()
+  }
+}
+
 export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatController; notice?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
@@ -63,6 +98,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
+    isPendingOperationBusy = false,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -72,7 +108,16 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     chatContainerRef.current = element
   }, [chatContainerRef])
 
+  const senderIdPrefix = useId()
+  const announcedMessageIds = useRef(new Set<string>())
+  const claimAnnouncement = useCallback((messageId: string) => {
+    if (announcedMessageIds.current.has(messageId)) return false
+    announcedMessageIds.current.add(messageId)
+    return true
+  }, [])
+
   const [initialMessageIds] = useAccountScopedState(() => new Set(messages.map((message) => message.id)))
+  const [initialStreamingMessageId] = useAccountScopedState(() => streamingMessageId)
 
   const [selectedGoalId, setSelectedGoalId] = useAccountScopedState<string | null>(null)
 
@@ -99,6 +144,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
   useEffect(() => {
     function handleKeydown(event: KeyboardEvent) {
+      moveBetweenTurns(event, chatContainerRef.current)
       if (event.key !== 'Escape' || event.defaultPrevented) return
 
       const target = event.target
@@ -119,9 +165,10 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
     document.addEventListener('keydown', handleKeydown)
     return () => document.removeEventListener('keydown', handleKeydown)
-  }, [close])
+  }, [chatContainerRef, close])
 
   return (
+    <ChatCardOperationContext.Provider value={chat.trackCardOperation}>
     <div className="relative flex h-full flex-col">
       <div className="relative z-10 shrink-0">
         <AppBar
@@ -145,11 +192,8 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         ref={registerChatContainer}
         className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
         style={{ padding: 16 }}
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions text"
-        aria-atomic="false"
-        aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0}
+        role="feed"
+        aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
         {showSuggestions && <ChatEmptyState
@@ -160,9 +204,18 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         />}
 
         <div className="flex flex-col gap-4">
-        {messages.map((msg) => (
-          <div key={msg.id} className="flex min-w-0 flex-col gap-[16px]">
+        {messages.map((msg, index) => (
+          <article
+            key={msg.id}
+            tabIndex={-1}
+            aria-labelledby={`${senderIdPrefix}-${msg.id}`}
+            aria-posinset={index + 1}
+            aria-setsize={messages.length}
+            className="flex min-w-0 flex-col gap-[16px]"
+          >
+          {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
+            senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}
             animateEntry={!initialMessageIds.has(msg.id)}
             isStreaming={msg.id === streamingMessageId}
@@ -176,7 +229,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
           />
           {msg.toolSteps?.length ? <ThinkingTrace steps={msg.toolSteps} running={false} /> : null}
           {msg.role === 'ai' && msg.id === messages.at(-1)?.id && canShowFollowUps && msg.followUps ? <FollowUpChips followUps={msg.followUps} onSelect={(text) => void sendMessage(text, 'followUp')} /> : null}
-          </div>
+          </article>
         ))}
         {activeSteps.length > 0 ? <ThinkingTrace steps={activeSteps} running /> : null}
         </div>
@@ -197,5 +250,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         />
       )}
     </div>
+    </ChatCardOperationContext.Provider>
   )
 }

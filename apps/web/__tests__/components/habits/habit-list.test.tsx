@@ -13,8 +13,8 @@ import { launchChrome, closeChrome } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate, formatAPIDateInTimeZone, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { Toast } from '@/components/ui/toast'
 import { habitScheduleItemSchema, skipHabitRequestSchema } from '@orbit/shared/types/habit'
@@ -77,6 +77,8 @@ const mockHabitsData = {
   totalCount: 0,
 }
 const logHabitMutateAsync = vi.fn()
+const reorderHabitsMutate = vi.fn()
+
 const habitListRefetch = vi.fn()
 const skipHabitMutateAsync = vi.fn()
 const deleteHabitMutateAsync = vi.fn()
@@ -157,7 +159,7 @@ vi.mock('@/hooks/use-habits', async (importOriginal) => {
   useSkipHabit: () => skipFlow.active ? actual.useSkipHabit() : ({ mutateAsync: skipHabitMutateAsync, isPending: false }),
   useDeleteHabit: () => ({ mutateAsync: deleteHabitMutateAsync, isPending: false }),
   useDuplicateHabit: () => ({ mutateAsync: duplicateHabitMutateAsync, isPending: false }),
-  useReorderHabits: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useReorderHabits: () => ({ mutate: reorderHabitsMutate, isPending: false }),
   useMoveHabitParent: () => ({ mutateAsync: vi.fn(), isPending: false }),
 })
 })
@@ -487,67 +489,266 @@ describe('HabitList', () => {
       await closeChrome(launch)
     }
   }, 45_000)
-  function renderPortugueseDragList() {
-    dragLocale.portuguese = true
-    const habit = createMockHabit({ title: 'Ler um livro', scheduledDates: [TODAY] })
-    mockHabitsData.habitsById = new Map([[habit.id, habit]])
-    mockHabitsData.topLevelHabits = [habit]
-    return renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
-  }
-
-  it('localizes the habit drag instructions in Portuguese', () => {
-    const { container } = renderPortugueseDragList()
-    const sortable = container.querySelector('[aria-roledescription]')!
-    const instructions = document.getElementById(sortable.getAttribute('aria-describedby')!)!
-    expect(instructions).toHaveTextContent('barra de espaço')
-    expect(instructions).not.toHaveTextContent('To pick up')
-  })
-
-  it('localizes each sortable habit role in Portuguese', () => {
-    const { container } = renderPortugueseDragList()
-    const sortables = container.querySelectorAll('[aria-roledescription]')
-    expect(sortables).toHaveLength(1)
-    for (const sortable of sortables) expect(sortable).toHaveAttribute('aria-roledescription', 'item reordenável')
-  })
-
-  it('names the habit in a Portuguese keyboard drag announcement', async () => {
-    const { container } = renderPortugueseDragList()
-    const sortable = container.querySelector<HTMLElement>('[aria-roledescription]')!
-    sortable.focus()
-    fireEvent.keyDown(sortable, { key: ' ', code: 'Space' })
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Ler um livro selecionado para mover.'))
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
-    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Movimento de Ler um livro cancelado.'))
-  })
-
-  it.each(['en', 'pt-BR'])('announces a keyboard return and unchanged drop in %s after an owner render', async (language) => {
+  function renderKeyboardHabitList(language = 'pt-BR') {
+    rowImplementation.actual = true
     dragLocale.portuguese = language === 'pt-BR'
     dragLocale.english = language === 'en'
-    const first = createMockHabit({ id: 'first', title: 'Ler um livro', scheduledDates: [TODAY] })
-    const second = createMockHabit({ id: 'second', title: 'Caminhar', scheduledDates: [TODAY] })
-    mockHabitsData.habitsById = new Map([[first.id, first], [second.id, second]])
-    mockHabitsData.topLevelHabits = [first, second]
+    const first = createMockHabit({ id: 'first', title: 'Ler um livro', position: 0, scheduledDates: [TODAY] })
+    const second = createMockHabit({ id: 'second', title: 'Caminhar', position: 1, scheduledDates: [TODAY] })
+    const parent = createMockHabit({ id: 'parent', title: 'Rotina', position: 2, hasSubHabits: true, scheduledDates: [TODAY] })
+    const children = [0, 1].map((position) => createMockHabit({
+      id: `child-${position}`, title: `Child ${position}`, position, parentId: parent.id, scheduledDates: [TODAY],
+    }))
+    for (const habit of [first, second, parent, ...children]) mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [first, second, parent]
+    mockHabitsData.childrenByParent.set(parent.id, children.map((child) => child.id))
+    reorderHabitsMutate.mockImplementation((_request, options) => options?.onSuccess?.())
     const filters = { dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }
-    const { container, rerenderWithProviders } = renderWithProviders(<HabitList view="today" filters={filters} />)
-    const rows = container.querySelectorAll<HTMLElement>('[aria-roledescription]')
-    vi.spyOn(rows[0]!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 80))
-    vi.spyOn(rows[1]!, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 200, 80))
-    const live = screen.getByRole('status')
-    rows[0]!.focus()
-    fireEvent.keyDown(rows[0]!, { key: ' ', code: 'Space' })
-    await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${first.title} selecionado para mover.` : `${first.title} picked up to move.`))
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
-    fireEvent.keyDown(document, { code: 'ArrowDown' })
-    const previous = language === 'pt-BR' ? `${first.title} movido sobre ${second.title}.` : `${first.title} moved over ${second.title}.`
-    await waitFor(() => expect(live).toHaveTextContent(previous))
-    rerenderWithProviders(<HabitList view="today" filters={{ ...filters }} />)
-    fireEvent.keyDown(document, { code: 'ArrowUp' })
-    await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${first.title} voltou para a posição inicial.` : `${first.title} is back in its starting position.`))
-    expect(live).not.toHaveTextContent(previous)
-    fireEvent.keyDown(document, { code: 'Space' })
-    await waitFor(() => expect(live).toHaveTextContent(language === 'pt-BR' ? `${first.title} solto na posição inicial.` : `${first.title} dropped in its starting position.`))
-    expect(Array.from(container.querySelectorAll('[aria-roledescription]'))).toEqual(Array.from(rows))
+    return renderWithProviders(<HabitList view="today" filters={filters} />)
+  }
+
+  it('localizes the habit keyboard instructions in Portuguese on each body', () => {
+    const { container } = renderKeyboardHabitList()
+    const bodies = container.querySelectorAll('[data-habit-row-body]')
+    expect(bodies).toHaveLength(5)
+    for (const body of bodies) {
+      expect(body).toHaveAttribute('aria-roledescription', 'item reordenável')
+      expect(body).toHaveAttribute('aria-keyshortcuts', 'Alt+ArrowUp Alt+ArrowDown')
+      const instructions = document.getElementById(body.getAttribute('aria-describedby')!)!
+      expect(instructions).toHaveTextContent('Alt')
+      expect(instructions).not.toHaveTextContent('barra de espaço')
+    }
+  })
+
+  it('keeps sortable wrappers out of semantics and the tab sequence for roots and inline children', async () => {
+    const user = userEvent.setup()
+    const { container } = renderKeyboardHabitList()
+    for (const button of within(container).getAllByRole('button')) {
+      expect(button.querySelector('button, [role="button"]')).toBeNull()
+    }
+    const rows = screen.getAllByTestId('habit-row')
+    const firstBody = rows[0]!.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+    firstBody.focus()
+    for (const target of [within(rows[0]!).getByRole('button', { name: /Registrar/ }),
+      within(rows[0]!).getByRole('button', { name: ptBR.habits.actions.more }),
+      rows[1]!.querySelector('[data-habit-row-body]')!]) {
+      await user.tab()
+      expect(target).toHaveFocus()
+    }
+    const childBody = rows[3]!.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+    childBody.focus()
+    await user.tab()
+    expect(within(rows[3]!).getByRole('button', { name: /Registrar/ })).toHaveFocus()
+    await user.tab()
+    expect(within(rows[3]!).getByRole('button', { name: ptBR.habits.actions.more })).toHaveFocus()
+    await user.tab()
+    expect(rows[4]!.querySelector('[data-habit-row-body]')).toHaveFocus()
+  })
+
+  it.each(['{Enter}', ' '])('lets real sensors preserve ring, menu, body and disclosure activation with %s', async (key) => {
+    const user = userEvent.setup()
+    renderKeyboardHabitList()
+    const rows = screen.getAllByTestId('habit-row')
+    within(rows[0]!).getByRole('button', { name: /Registrar/ }).focus()
+    await user.keyboard(key)
+    expect(logHabitMutateAsync).toHaveBeenCalledWith(expect.objectContaining({ habitId: 'first' }))
+    within(rows[1]!).getByRole('button', { name: ptBR.habits.actions.more }).focus()
+    await user.keyboard(key)
+    expect(await screen.findByRole('menuitem', { name: ptBR.common.edit })).toBeVisible()
+    await user.keyboard('{Escape}')
+    rows[1]!.querySelector<HTMLButtonElement>('[data-habit-row-body]')!.focus()
+    await user.keyboard(key)
+    expect(routerPush).toHaveBeenCalledWith(`/habits/second?date=${TODAY}&from=today`)
+    const disclosure = within(rows[2]!).getByRole('button', { name: ptBR.common.collapse })
+    disclosure.focus()
+    await user.keyboard(key)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+    expect(reorderHabitsMutate).not.toHaveBeenCalled()
+  })
+
+  it.each(['en', 'pt-BR'])('moves a sibling and repeats boundary announcements in %s after an owner render', async (language) => {
+    const user = userEvent.setup()
+    const { container, rerenderWithProviders } = renderKeyboardHabitList(language)
+    const body = container.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+    body.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'second', position: 0 }, { habitId: 'first', position: 1 }, { habitId: 'parent', position: 2 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    const moved = language === 'pt-BR' ? 'Ler um livro foi movido para a posição 2 de 3' : 'Ler um livro moved to position 2 of 3'
+    expect(container.querySelector('[aria-live="polite"]')).toBeInTheDocument()
+    expect(container).toHaveTextContent(moved)
+    const filters = { dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }
+    rerenderWithProviders(<HabitList view="today" filters={filters} />)
+    reorderHabitsMutate.mockClear()
+    const boundary = language === 'pt-BR' ? 'Ler um livro já está na posição 1 de 3' : 'Ler um livro is already at position 1 of 3'
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
+    expect(container).toHaveTextContent(boundary)
+    const previousRegion = Array.from(container.querySelectorAll('[role="status"]')).find((region) => region.textContent === boundary)!
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
+    expect(previousRegion).toBeEmptyDOMElement()
+    expect(container).toHaveTextContent(boundary)
+    expect(body).toHaveFocus()
+    expect(reorderHabitsMutate).not.toHaveBeenCalled()
+  })
+
+  function renderVisibleSiblingKeyboardList(
+    surface: 'roots' | 'children',
+    hiddenReason: 'another day' | 'completed' | 'search',
+    storedOrder: string[],
+  ) {
+    rowImplementation.actual = true
+    dragLocale.english = true
+    useActualHabitVisibility = true
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
+    const siblings = storedOrder.map((id, position) => {
+      const hidden = id.startsWith('hidden')
+      return createMockHabit({
+        id, title: id, position, parentId: surface === 'children' ? parent.id : null,
+        scheduledDates: hidden && hiddenReason === 'another day' ? [TOMORROW] : [TODAY],
+        isCompleted: hidden && hiddenReason === 'completed',
+        searchMatches: hidden ? [] : [{ field: 'title', value: id }],
+      })
+    })
+    for (const habit of siblings) mockHabitsData.habitsById.set(habit.id, habit)
+    if (surface === 'children') {
+      mockHabitsData.habitsById.set(parent.id, parent)
+      mockHabitsData.topLevelHabits = [parent]
+      mockHabitsData.childrenByParent.set(parent.id, storedOrder)
+    } else {
+      mockHabitsData.topLevelHabits = hiddenReason === 'search'
+        ? siblings.filter((habit) => !habit.id.startsWith('hidden')) : siblings
+    }
+    reorderHabitsMutate.mockImplementation((_request, options) => options?.onSuccess?.())
+    const filters = { dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }
+    return renderWithProviders(<HabitList view="today" filters={filters} showCompleted={false}
+      searchQuery={hiddenReason === 'search' ? 'title' : ''} />)
+  }
+
+  const hiddenSiblingCases = (['roots', 'children'] as const).flatMap((surface) =>
+    (['another day', 'completed', 'search'] as const).map((hiddenReason) => ({ surface, hiddenReason })))
+
+  it.each(hiddenSiblingCases)('moves down past a visible neighbour in $surface with $hiddenReason siblings', async ({ surface, hiddenReason }) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, hiddenReason, ['first', 'hidden-one', 'hidden-two', 'second'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    expect(bodies).toHaveLength(surface === 'roots' ? 2 : 3)
+    expect(within(container).queryByText('hidden-one')).not.toBeInTheDocument()
+    expect(within(container).queryByText('hidden-two')).not.toBeInTheDocument()
+    bodies[surface === 'roots' ? 0 : 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'hidden-one', position: 0 }, { habitId: 'hidden-two', position: 1 },
+      { habitId: 'second', position: 2 }, { habitId: 'first', position: 3 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(container).toHaveTextContent('first moved to position 2 of 2')
+    expect(document.activeElement).toBe(bodies[surface === 'roots' ? 0 : 1])
+  })
+
+  it.each(hiddenSiblingCases)('moves up past a visible neighbour in $surface with $hiddenReason siblings', async ({ surface, hiddenReason }) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, hiddenReason, ['first', 'hidden-one', 'hidden-two', 'second'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    expect(bodies).toHaveLength(surface === 'roots' ? 2 : 3)
+    bodies[bodies.length - 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'second', position: 0 }, { habitId: 'first', position: 1 },
+      { habitId: 'hidden-one', position: 2 }, { habitId: 'hidden-two', position: 3 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(container).toHaveTextContent('second moved to position 1 of 2')
+  })
+
+  it.each(hiddenSiblingCases)('announces visible boundaries in $surface with $hiddenReason siblings', async ({ surface, hiddenReason }) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, hiddenReason, ['hidden-one', 'first', 'second', 'hidden-two'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    expect(bodies).toHaveLength(surface === 'roots' ? 2 : 3)
+    bodies[surface === 'roots' ? 0 : 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
+    expect(reorderHabitsMutate).not.toHaveBeenCalled()
+    expect(container).toHaveTextContent('first is already at position 1 of 2')
+    bodies[bodies.length - 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).not.toHaveBeenCalled()
+    expect(container).toHaveTextContent('second is already at position 2 of 2')
+  })
+
+  it.each(['roots', 'children'] as const)('lands immediately after the visible neighbour in %s', async (surface) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, 'another day', ['first', 'hidden-one', 'second', 'hidden-two', 'third'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    bodies[surface === 'roots' ? 0 : 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'hidden-one', position: 0 }, { habitId: 'second', position: 1 },
+      { habitId: 'first', position: 2 }, { habitId: 'hidden-two', position: 3 }, { habitId: 'third', position: 4 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(container).toHaveTextContent('first moved to position 2 of 3')
+  })
+
+  it('keeps Home and End navigation on row bodies', async () => {
+    const user = userEvent.setup()
+    const { container } = renderKeyboardHabitList()
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    bodies[1]!.focus()
+    await user.keyboard('{End}')
+    expect(bodies[4]).toHaveFocus()
+    await user.keyboard('{Home}')
+    expect(bodies[0]).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: ptBR.common.collapse }))
+    bodies[1]!.focus()
+    await user.keyboard('{End}')
+    expect(bodies[2]).toHaveFocus()
+  })
+
+  it('moves inline children only among their own siblings', async () => {
+    const user = userEvent.setup()
+    renderKeyboardHabitList()
+    const body = screen.getAllByTestId('habit-row')[3]!.querySelector<HTMLButtonElement>('[data-habit-row-body]')!
+    body.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'child-1', position: 0 }, { habitId: 'child-0', position: 1 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(screen.getByText('Child 0 foi movido para a posição 2 de 2')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['roots', null, false], ['roots', 0, false], ['children', null, false], ['children', 0, false],
+    ['roots', null, true], ['roots', 0, true], ['children', null, true], ['children', 0, true],
+  ] as const)('matches rendered %s order for tied positions %s and creation ties %s from the API producer', async (scope, position, creationTied) => {
+    rowImplementation.actual = true
+    dragLocale.portuguese = true
+    const entries = [
+      { id: 'newer', title: 'Newer', createdAtUtc: '2026-09-02T00:00:00Z', position, scheduledDates: [TODAY] },
+      { id: 'latest', title: 'Latest', createdAtUtc: '2026-09-03T00:00:00Z', position, scheduledDates: [TODAY] },
+      { id: 'older', title: 'Older', createdAtUtc: '2026-09-01T00:00:00Z', position, scheduledDates: [TODAY] },
+    ]
+    if (creationTied) {
+      entries.unshift(entries.pop()!)
+      for (const entry of entries) entry.createdAtUtc = '2026-09-01T00:00:00Z'
+    }
+    const items = scope === 'roots'
+      ? entries.map((entry) => createMockHabitScheduleItem(entry))
+      : [createMockHabitScheduleItem({ id: 'parent', hasSubHabits: true, scheduledDates: [TODAY],
+        children: entries.map((entry) => createMockHabitScheduleChild(entry)),
+      })]
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items.map((item) => habitScheduleItemSchema.parse(item))))
+    reorderHabitsMutate.mockImplementation((_request, options) => options?.onSuccess?.())
+    const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    const bodies = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]'))
+      .filter((body) => ['Older', 'Newer', 'Latest'].some((title) => body.textContent.includes(title)))
+    expect(bodies.map((body) => body.textContent)).toEqual([
+      expect.stringContaining('Older'), expect.stringContaining('Newer'), expect.stringContaining('Latest'),
+    ])
+    bodies[0]!.focus()
+    await userEvent.setup().keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'newer', position: 0 }, { habitId: 'older', position: 1 }, { habitId: 'latest', position: 2 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(screen.getByText('Older foi movido para a posição 2 de 3')).toBeInTheDocument()
+    expect(bodies[0]).toHaveFocus()
   })
 
   it('centres Hoje rows in 68px panels with a contrasting parent track in both modes', async () => {
@@ -898,6 +1099,7 @@ describe('HabitList', () => {
   })
 
   it('keeps sortable descriptions stable through hydration', async () => {
+    rowImplementation.actual = true
     const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
     mockHabitsData.habitsById.set(habit.id, habit)
     mockHabitsData.topLevelHabits = [habit]

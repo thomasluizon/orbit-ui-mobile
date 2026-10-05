@@ -25,7 +25,9 @@ function SortableMenu({ presentation }: Readonly<{ presentation: 'sheet' | 'anch
     <DndContext sensors={sensors}>
       <SortableContext items={['habit-1']}>
         <SortableHabitItem id="habit-1">
-          <span>Habit row</span>
+          <button type="button" onKeyDown={(event) => {
+            if (event.altKey && event.key === 'ArrowDown') setSelected('moved')
+          }}>Habit row</button>
           <button type="button" ref={anchorRef}>More</button>
           <Menu open={open} {...menuPresentation} title="Habit actions" onSelect={setSelected} onClose={() => setOpen(false)}
             items={[{ id: 'delete', label: 'Delete', destructive: true }]} />
@@ -77,11 +79,13 @@ describe('Menu inside a sortable habit', () => {
     await userEvent.setup().keyboard(' ')
     await waitFor(() => expect(screen.getByLabelText('Selected action')).toHaveTextContent('delete'))
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
-    row.focus()
-    fireEvent.keyDown(row, { key: ' ', code: 'Space' })
-    await waitFor(() => expect(row).toHaveStyle({ opacity: '0.5' }))
-    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
-    await waitFor(() => expect(row).toHaveStyle({ opacity: '1' }))
+    expect(row).not.toHaveAttribute('role')
+    expect(row).not.toHaveAttribute('tabindex')
+    const body = screen.getByRole('button', { name: 'Habit row' })
+    body.focus()
+    await userEvent.setup().keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(screen.getByLabelText('Selected action')).toHaveTextContent('moved')
+    expect(row).toHaveStyle({ opacity: '1' })
   })
 
   it.each(['sheet', 'anchored'] as const)('keeps a held %s menu touch outside the row drag gesture', async (presentation) => {

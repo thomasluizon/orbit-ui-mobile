@@ -36,7 +36,6 @@ const cases = [
   { name: 'settings row', element: <SettingsRow label="Delete" danger desc="Description" value="Value" onClick={() => {}} /> },
   { name: 'settings group row', element: <SettingsGroupRow label="Preferences" hint="Value" onClick={() => {}} /> },
   { name: 'settings group value', element: <SettingsGroup items={[{ label: 'Preferences', value: 'Value', onClick: () => {} }]} /> },
-  { name: 'inactive tab', element: <BottomTabBar label="Navigation" activeId="other" items={[{ id: 'today', label: 'Today' }]} onSelect={() => {}} /> },
 ]
 
 describe('rendered light hover contrast', () => {
@@ -87,9 +86,9 @@ describe('rendered light hover contrast', () => {
     } finally { await page.close(); unmount() }
   })
 
-  it.each(['light', 'dark'].flatMap((mode) => [600, 1352].flatMap((width) => [false, true].map((icons) => ({ mode: mode as 'light' | 'dark', width, icons })))))('keeps selected tab hover and press-only text readable in $mode at $width with icons=$icons', async ({ mode, width, icons }) => {
+  it.each(['light', 'dark'].flatMap((mode) => [600, 1352].flatMap((width) => [false, true].flatMap((icons) => [true, false].map((active) => ({ mode: mode as 'light' | 'dark', width, icons, active }))))))('keeps canvas tab hover and press-only text readable in $mode at $width with icons=$icons, active=$active', async ({ mode, width, icons, active }) => {
     const items = ['today', 'calendar', 'progress', 'profile'].map((id) => ({ id, label: id, icon: icons ? () => <svg aria-hidden="true" width="24" height="24" /> : undefined }))
-    const { container, unmount } = render(<BottomTabBar label="Navigation" activeId="today" items={items} onSelect={() => {}} />)
+    const { container, unmount } = render(<BottomTabBar label="Navigation" activeId={active ? "today" : "calendar"} items={items} onSelect={() => {}} />)
     const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
@@ -101,8 +100,7 @@ describe('rendered light hover contrast', () => {
         for (let node: Element | null = label; node; node = node.parentElement) backgrounds.unshift(getComputedStyle(node).backgroundColor)
         return {
           color: getComputedStyle(label).color, backgrounds,
-          raisedAccent: getComputedStyle(button).getPropertyValue('--primary-text').trim(),
-          restingAccent: getComputedStyle(button).getPropertyValue('--primary-soft').trim(),
+          restingToken: getComputedStyle(button).getPropertyValue(button.hasAttribute('aria-current') ? '--primary-soft' : '--fg-3').trim(),
           hover: button.matches(':hover'), active: button.matches(':active'),
           current: button.getAttribute('aria-current'),
           fill: getComputedStyle(button).backgroundColor,
@@ -111,7 +109,7 @@ describe('rendered light hover contrast', () => {
       })
       const rgb = (hex: string) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`
       const resting = await measure()
-      expect(resting.color).toBe(rgb(resting.restingAccent))
+      expect(resting.color).toBe(rgb(resting.restingToken))
       expect(contrastOnSurface(resting.color, resting.backgrounds)).toBeGreaterThanOrEqual(4.5)
       const bounds = await tab.boundingBox()
       expect(bounds!.width).toBeGreaterThanOrEqual(48)
@@ -120,28 +118,29 @@ describe('rendered light hover contrast', () => {
       await tab.hover()
       await page.waitForTimeout(300)
       const hovered = await measure()
-      expect(hovered).toMatchObject({ hover: true, active: false, current: 'page' })
-      expect(hovered.color).toBe(rgb(hovered.raisedAccent))
-      expect(hovered.fill.replaceAll(' ', '')).toBe(neutralColors[mode].bgHover.replaceAll(' ', ''))
+      expect(hovered).toMatchObject({ hover: true, active: false, current: active ? 'page' : null })
+      expect(hovered.color).toBe(resting.color)
+      expect(hovered.fill).toBe('rgba(0, 0, 0, 0)')
+      if (icons) expect(hovered.indicatorFill!.replaceAll(' ', '')).toBe(neutralColors[mode].bgHover.replaceAll(' ', ''))
       expect(contrastOnSurface(hovered.color, hovered.backgrounds)).toBeGreaterThanOrEqual(4.5)
       await page.mouse.down()
-      expect(await measure()).toMatchObject({ color: hovered.color, backgrounds: hovered.backgrounds, hover: true, active: true, current: 'page' })
+      expect(await measure()).toMatchObject({ color: hovered.color, backgrounds: hovered.backgrounds, indicatorFill: hovered.indicatorFill, hover: true, active: true, current: active ? 'page' : null })
       await page.mouse.move(width - 1, 850)
       await page.waitForFunction(() => {
-        const button = document.querySelector('[aria-current="page"]')!
+        const button = document.querySelector('button')!
         return button.matches(':active') && !button.matches(':hover')
       })
       await page.waitForTimeout(300)
       const pressed = await measure()
-      expect(pressed).toMatchObject({ hover: false, active: true, current: 'page' })
-      expect(pressed.color).toBe(rgb(pressed.raisedAccent))
+      expect(pressed).toMatchObject({ hover: false, active: true, current: active ? 'page' : null })
+      expect(pressed.color).toBe(resting.color)
       expect(pressed.fill).toBe('rgba(0, 0, 0, 0)')
       if (icons) expect(pressed.indicatorFill!.replaceAll(' ', '')).toBe(neutralColors[mode].bgHover.replaceAll(' ', ''))
       expect(contrastOnSurface(pressed.color, pressed.backgrounds)).toBeGreaterThanOrEqual(4.5)
       expect(await tab.boundingBox()).toEqual(bounds)
       await page.mouse.up()
       await page.waitForTimeout(300)
-      expect(await measure()).toMatchObject({ color: resting.color, active: false, hover: false, current: 'page' })
+      expect(await measure()).toMatchObject({ color: resting.color, active: false, hover: false, current: active ? 'page' : null })
     } finally { await page.close(); unmount() }
   })
 
