@@ -41,10 +41,13 @@ for (const width of [412, 840]) {
       test.use({ appLocale: 'pt-BR', layoutProfile: { themePreference: mode }, viewport: { width, height: 915 } })
       test('keeps active and inactive labels on the canvas and fills only the indicator', async ({ page }) => {
         await page.goto('/profile')
+        await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${mode}\\b`))
         const navigation = page.getByRole('navigation', { name: ptBR.nav.mainNavigation, exact: true })
-        for (const name of [ptBR.nav.profile, ptBR.nav.calendar]) {
+        for (const [name, active] of [[ptBR.nav.profile, true], [ptBR.nav.calendar, false]] as const) {
           const tab = navigation.getByRole('button', { name, exact: true })
           await expect(tab).toBeVisible()
+          if (active) await expect(tab).toHaveAttribute('aria-current', 'page')
+          else await expect(tab).not.toHaveAttribute('aria-current')
           await page.mouse.move(0, 0)
           const resting = await measureTab(tab)
           expect(resting.label).toBe(resting.labelToken)
