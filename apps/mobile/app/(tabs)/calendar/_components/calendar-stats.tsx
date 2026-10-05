@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,12 +19,15 @@ interface CalendarStatsProps {
 export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLabel }: Readonly<CalendarStatsProps>) {
   const theme = useAppTheme()
   const tokens = createTokensV2(theme.currentScheme, theme.currentTheme)
-  const { fontScale } = useWindowDimensions()
+  const { width, fontScale } = useWindowDimensions()
+  const [groupWidth, setGroupWidth] = useState(width)
+  const stacked = groupWidth - 32 < 20 * 14 * fontScale || fontScale > 1.3
   const isLoading = state === 'loading'
   return (
     <View testID="calendar-stats" accessibilityElementsHidden={isLoading || undefined}
       importantForAccessibility={isLoading ? 'no-hide-descendants' : undefined}
-      style={[styles.row, fontScale > 1.3 ? styles.stacked : undefined]}>
+      onLayout={(event) => setGroupWidth(event.nativeEvent.layout.width)}
+      style={[styles.row, stacked ? styles.stacked : undefined]}>
       {stats.map((stat) => (
         <View key={stat.key} testID={`calendar-figure-${state}`} style={styles.figure}>
           {isLoading ? <View accessibilityRole="progressbar" accessibilityLabel={loadingLabel} style={styles.loadingValue}>
@@ -38,12 +42,12 @@ export function CalendarStats({ stats, state = 'default', loadingLabel, emptyLab
 }
 
 const styles = StyleSheet.create({
-  loadingValue: { minWidth: 64, alignItems: 'center', justifyContent: 'center' },
+  loadingValue: { minWidth: 64, alignItems: 'flex-start', justifyContent: 'center' },
   skeleton: { width: 64, height: 24, borderRadius: 8 },
-  row: { flexDirection: 'row', gap: 12, paddingHorizontal: 16 },
+  row: { flexDirection: 'row', gap: 16, paddingHorizontal: 16 },
   stacked: { flexDirection: 'column' },
-  figure: { flex: 1, minWidth: 0, minHeight: 88, paddingVertical: 16, gap: 4, alignItems: 'center', justifyContent: 'center' },
-  value: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 22 * 1.4, textAlign: 'center', fontVariant: ['tabular-nums'] },
-  empty: { fontFamily: 'GeistMono_500Medium', fontSize: 12, lineHeight: 22 * 1.4, textAlign: 'center' },
-  label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  figure: { flex: 1, minWidth: 0, gap: 8, alignItems: 'flex-start' },
+  value: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 22 * 1.4, textAlign: 'left', fontVariant: ['tabular-nums'] },
+  empty: { fontFamily: 'GeistMono_500Medium', fontSize: 12, lineHeight: 22 * 1.4, textAlign: 'left' },
+  label: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'left' },
 })

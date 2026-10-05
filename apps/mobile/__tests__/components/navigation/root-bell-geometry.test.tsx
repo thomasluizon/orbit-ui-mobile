@@ -11,13 +11,13 @@ import { createTokensV2 } from '@/lib/theme'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
-const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }))
+const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), count: 0 }))
 vi.mock('expo-router', () => ({ useRouter: () => navigation, usePathname: () => '/', useLocalSearchParams: () => ({}) }))
 vi.mock('react-native-safe-area-context', async () => ({
   SafeAreaView: (await import('react-native')).View,
   useSafeAreaInsets: () => ({ top: 24, bottom: 0, left: 0, right: 0 }),
 }))
-vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
+vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: navigation.count }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: undefined, isLoading: true, refetch: vi.fn(), patchProfile: vi.fn() }) }))
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isLoading: true }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useGamificationProfile: () => ({ isLoading: true }) }))
@@ -31,6 +31,7 @@ interface Host {
     accessibilityLabel?: string
     accessibilityRole?: string
     testID?: string
+    size?: number
   }
   children: (Host | string)[] | null
 }
@@ -52,6 +53,7 @@ function applyFlexStyle(node: YogaNode, style: ViewStyle) {
   if (style.flexGrow !== undefined) node.setFlexGrow(style.flexGrow)
   if (style.flexShrink !== undefined) node.setFlexShrink(style.flexShrink)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.alignSelf === 'center') node.setAlignSelf(Yoga.ALIGN_CENTER)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
@@ -78,6 +80,8 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (typeof style.paddingStart === 'number') node.setPadding(Yoga.EDGE_START, style.paddingStart)
   if (typeof style.borderWidth === 'number') node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
   if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+  if (typeof style.top === 'number') node.setPosition(Yoga.EDGE_TOP, style.top)
+  if (typeof style.right === 'number') node.setPosition(Yoga.EDGE_RIGHT, style.right)
   if (style.display === 'none') node.setDisplay(Yoga.DISPLAY_NONE)
 }
 
@@ -86,19 +90,30 @@ function bounds(node: YogaNode) {
   let top = 0
   let ancestor: YogaNode | null = node
   while (ancestor) { left += ancestor.getComputedLeft(); top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
-  return { right: left + node.getComputedWidth(), centerY: top + node.getComputedHeight() / 2, width: node.getComputedWidth(), height: node.getComputedHeight() }
+  return { left, top, bottom: top + node.getComputedHeight(), right: left + node.getComputedWidth(), centerY: top + node.getComputedHeight() / 2, width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
 function measureBell(host: Host, width: number, fontScale: number) {
   const bells: YogaNode[] = []
   const rows: YogaNode[] = []
-  function build(host: Host): YogaNode {
+  const glyphs: YogaNode[] = []
+  const counts: YogaNode[] = []
+  const controls: YogaNode[] = []
+  function build(host: Host, inHeader = false): YogaNode {
     const node = Yoga.Node.create()
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
     applyStyle(node, style)
-    if (host.props.accessibilityRole === 'button' && host.props.accessibilityLabel === 'notifications.bell') bells.push(node)
+    if (host.type === 'Bell') {
+      node.setWidth(host.props.size)
+      node.setHeight(host.props.size)
+      glyphs.push(node)
+    }
+    if (host.props.testID === 'notification-count') counts.push(node)
+    if (host.props.accessibilityRole === 'button' && host.props.accessibilityLabel?.startsWith('notifications.bell')) bells.push(node)
+    const header = inHeader || ['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')
     if (['today-header-actions', 'calendar-shell-header', 'root-notification-header'].includes(host.props.testID ?? '')) rows.push(node)
+    if (header && host.props.accessibilityRole === 'button') controls.push(node)
     if (host.type === 'Text') {
       const text = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
       const intrinsicWidth = text.length * (style.fontSize ?? 14) * 0.5 * fontScale
@@ -115,7 +130,7 @@ function measureBell(host: Host, width: number, fontScale: number) {
       applyStyle(owner, StyleSheet.flatten(host.props.contentContainerStyle))
       node.insertChild(owner, 0)
     }
-    ;(host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(build(child), index))
+    ;(host.children ?? []).filter((child): child is Host => typeof child !== 'string').forEach((child, index) => owner.insertChild(build(child, header), index))
     return node
   }
   const layout = build(host)
@@ -123,7 +138,7 @@ function measureBell(host: Host, width: number, fontScale: number) {
     layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
     expect(bells).toHaveLength(1)
     expect(rows).toHaveLength(1)
-    return { bell: bounds(bells[0]!), row: bounds(rows[0]!) }
+    return { bell: bounds(bells[0]!), row: bounds(rows[0]!), controls: controls.map(bounds), glyph: glyphs[0] ? bounds(glyphs[0]) : undefined, count: counts[0] ? bounds(counts[0]) : undefined }
   } finally { layout.freeRecursive() }
 }
 
@@ -134,7 +149,7 @@ const today = <TodayDateControl dayName="Wednesday" numericDate="08/04/2026" isT
   showCompleted={false} isFetching={false} searchLabel="Search" onSearch={noop} onToggleSelect={noop}
   onToggleCollapse={noop} onRefresh={noop} onToggleCompleted={noop} onGoToPreviousDay={noop} onGoToToday={noop} onGoToNextDay={noop} />
 
-afterEach(() => { __resetTestHostConfig(); vi.clearAllMocks() })
+afterEach(() => { __resetTestHostConfig(); navigation.count = 0; vi.clearAllMocks() })
 
 it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => ({ width, fontScale }))))(
   'aligns all four root bells at $width with text scale $fontScale and opens Avisos', async ({ width, fontScale }) => {
@@ -186,6 +201,44 @@ it.each([320, 360, 384, 412, 840].flatMap((width) => [1, 2].map((fontScale) => (
           let ancestor = bell.parent
           while (ancestor && ancestor.type !== 'ScrollView' && ancestor.type !== 'NestableScrollContainer') ancestor = ancestor.parent
           expect(ancestor, `${name} scrolling bell row`).not.toBeNull()
+        }
+      } finally { await renderer.act(() => tree.unmount()) }
+    }
+  },
+)
+
+it.each([320, 600, 840].flatMap((width) => [1, 2].flatMap((fontScale) => [5, 12].map((count) => ({ width, fontScale, count })))))(
+  'centres $count unread inside every root bell at $width with text scale $fontScale', async ({ width, fontScale, count }) => {
+    navigation.count = count
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
+    const surfaces = [today, <CalendarOptions key="calendar" tokens={createTokensV2('purple', 'dark')} />,
+      <ProgressScreen key="progress" />, <ProfileScreen key="profile" />]
+    let trailingEdge: number | undefined
+    for (const surface of surfaces) {
+      let tree!: Tree
+      await renderer.act(() => { tree = renderer.create(<Shell412 tabBar={null}>{surface}</Shell412>) as Tree })
+      try {
+        const geometry = measureBell(tree.toJSON(), width, fontScale)
+        const { bell, row, glyph, count: marker } = geometry
+        expect(glyph).toBeDefined()
+        expect(marker).toBeDefined()
+        expect(Math.abs(marker!.centerY - glyph!.centerY)).toBeLessThanOrEqual(1)
+        expect(marker!.top - row.top).toBeGreaterThanOrEqual(4)
+        expect(marker!.left - glyph!.right).toBe(4)
+        for (const content of [glyph!, marker!]) {
+          expect(content.left - bell.left).toBeGreaterThanOrEqual(8)
+          expect(bell.right - content.right).toBeGreaterThanOrEqual(8)
+          expect(content.top - bell.top).toBeGreaterThanOrEqual(4)
+          expect(bell.bottom - content.bottom).toBeGreaterThanOrEqual(4)
+        }
+        expect(bell.width).toBeGreaterThan(48)
+        expect(bell.height).toBeGreaterThanOrEqual(48)
+        trailingEdge ??= bell.right
+        expect(bell.right).toBe(trailingEdge)
+        expect(bell.right).toBe(row.right - 16)
+        for (const control of geometry.controls) {
+          expect(control.left).toBeGreaterThanOrEqual(row.left + 16)
+          expect(control.right).toBeLessThanOrEqual(row.right - 16)
         }
       } finally { await renderer.act(() => tree.unmount()) }
     }
