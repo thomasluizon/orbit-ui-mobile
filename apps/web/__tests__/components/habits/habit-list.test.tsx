@@ -13,8 +13,8 @@ import { launchChrome, closeChrome } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { formatAPIDate, formatAPIDateInTimeZone, normalizeHabitQueryData } from '@orbit/shared/utils'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { Toast } from '@/components/ui/toast'
 import { habitScheduleItemSchema, skipHabitRequestSchema } from '@orbit/shared/types/habit'
@@ -617,6 +617,35 @@ describe('HabitList', () => {
       { habitId: 'child-1', position: 0 }, { habitId: 'child-0', position: 1 },
     ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
     expect(screen.getByText('Child 0 foi movido para a posição 2 de 2')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['roots', null], ['roots', 0], ['children', null], ['children', 0],
+  ] as const)('matches rendered %s order for tied positions %s from the API producer', async (scope, position) => {
+    rowImplementation.actual = true
+    dragLocale.portuguese = true
+    const entries = [
+      { id: 'newer', title: 'Newer', createdAtUtc: '2026-09-02T00:00:00Z', position, scheduledDates: [TODAY] },
+      { id: 'older', title: 'Older', createdAtUtc: '2026-09-01T00:00:00Z', position, scheduledDates: [TODAY] },
+    ]
+    const items = scope === 'roots'
+      ? entries.map((entry) => createMockHabitScheduleItem(entry))
+      : [createMockHabitScheduleItem({ id: 'parent', hasSubHabits: true, scheduledDates: [TODAY],
+        children: entries.map((entry) => createMockHabitScheduleChild(entry)),
+      })]
+    Object.assign(mockHabitsData, normalizeHabitQueryData(items.map((item) => habitScheduleItemSchema.parse(item))))
+    reorderHabitsMutate.mockImplementation((_request, options) => options?.onSuccess?.())
+    const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
+    const bodies = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]'))
+      .filter((body) => body.textContent.includes('Older') || body.textContent.includes('Newer'))
+    expect(bodies.map((body) => body.textContent)).toEqual([expect.stringContaining('Older'), expect.stringContaining('Newer')])
+    bodies[0]!.focus()
+    await userEvent.setup().keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'newer', position: 0 }, { habitId: 'older', position: 1 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(screen.getByText('Older foi movido para a posição 2 de 2')).toBeInTheDocument()
+    expect(bodies[0]).toHaveFocus()
   })
 
   it('centres Hoje rows in 68px panels with a contrasting parent track in both modes', async () => {

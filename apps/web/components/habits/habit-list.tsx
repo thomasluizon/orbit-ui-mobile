@@ -20,6 +20,7 @@ import {
   hasAncestorInSet,
   hasHabitScheduleOnDate,
   isHabitDoneForRange,
+  sortNormalizedHabits,
   type HabitResolution,
   type HabitResolutionMode,
 } from '@orbit/shared/utils'
@@ -629,7 +630,7 @@ export function HabitList({
     if (reorderHabitsMut.isPending || isDragging) return
     const siblings = Array.from(habitsById.values())
       .filter((sibling) => (sibling.parentId ?? null) === (habit.parentId ?? null))
-      .sort((first, second) => (first.position ?? Number.MAX_SAFE_INTEGER) - (second.position ?? Number.MAX_SAFE_INTEGER))
+      .sort(sortNormalizedHabits)
     const currentIndex = siblings.findIndex((sibling) => sibling.id === habit.id)
     const targetIndex = currentIndex + direction
     if (targetIndex < 0 || targetIndex >= siblings.length) {
