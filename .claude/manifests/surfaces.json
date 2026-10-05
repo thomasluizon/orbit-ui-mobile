@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 218,
-  "cellCount": 928,
+  "surfaceCount": 216,
+  "cellCount": 920,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -3305,62 +3305,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "block-chat-suggestion-chips",
-      "platform": "web",
-      "kind": "block",
-      "sourceFile": "apps/web/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "route-chat",
-      "ownedFiles": [
-        "apps/web/components/chat/suggestion-chips.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "block-chat-composer",
       "platform": "web",
       "kind": "block",
@@ -9447,62 +9391,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/streak-card.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-block-chat-suggestion-chips",
-      "platform": "mobile",
-      "kind": "block",
-      "sourceFile": "apps/mobile/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "m-route-chat",
-      "ownedFiles": [
-        "apps/mobile/components/chat/suggestion-chips.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-block-chat-suggestion-chips",
-      "platform": "mobile",
-      "kind": "block",
-      "sourceFile": "apps/mobile/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "m-route-chat",
-      "ownedFiles": [
-        "apps/mobile/components/chat/suggestion-chips.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-block-chat-suggestion-chips",
-      "platform": "mobile",
-      "kind": "block",
-      "sourceFile": "apps/mobile/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "m-route-chat",
-      "ownedFiles": [
-        "apps/mobile/components/chat/suggestion-chips.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-block-chat-suggestion-chips",
-      "platform": "mobile",
-      "kind": "block",
-      "sourceFile": "apps/mobile/components/chat/suggestion-chips.tsx",
-      "href": "/chat",
-      "parentSurfaceId": "m-route-chat",
-      "ownedFiles": [
-        "apps/mobile/components/chat/suggestion-chips.tsx"
       ],
       "state": "default",
       "theme": "dark",
