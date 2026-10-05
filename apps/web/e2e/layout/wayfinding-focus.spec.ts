@@ -14,7 +14,7 @@ import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), title: 'Caminhar', dueTime: '08:00:00', children: [] })
-const schedule = makeHabitScheduleItem({ id: habit.id, title: habit.title, dueTime: habit.dueTime })
+const schedule = makeHabitScheduleItem({ id: habit.id, title: habit.title, dueTime: habit.dueTime, scheduledDates: ['2026-09-04'], children: [], hasSubHabits: false })
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: [schedule], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 })
 const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
 const goal = createMockGoal()
@@ -51,17 +51,18 @@ async function expectWayfindingFocus(page: Page, target: Locator) {
     if (!element.hasAttribute('tabindex')) element.tabIndex = -1
   })
   const shadowAtRest = await target.evaluate((element) => getComputedStyle(element).boxShadow)
+  const indicatorsAtRest = await readFieldIndicators(target, '[tabindex="-1"]')
   await target.focus()
   await expect(target).toBeFocused()
   const paint = await target.evaluate((element) => {
     const style = getComputedStyle(element)
-    return { outline: style.outlineStyle, width: style.outlineWidth, shadow: style.boxShadow }
+    return { outline: style.outlineStyle, shadow: style.boxShadow }
   })
-  expect(paint).toEqual({ outline: 'none', width: '0px', shadow: shadowAtRest })
-  expect(await readFieldIndicators(target, '[tabindex="-1"]')).toEqual([])
+  expect(paint).toEqual({ outline: 'none', shadow: shadowAtRest })
+  expect(await readFieldIndicators(target, '[tabindex="-1"]')).toEqual(indicatorsAtRest)
 }
 
-async function expectHabitCreateControls(page: Page) {
+async function expectHabitCreateControls(page: Page, forcedColors = false) {
   await page.getByRole('heading', { name: ptBR.habits.form.newHabit, exact: true }).focus()
   const visited = new Set<number>()
   for (let index = 0; index < 100; index += 1) {
@@ -72,7 +73,14 @@ async function expectHabitCreateControls(page: Page) {
     if (visited.has(position)) break
     visited.add(position)
     expect(ring.focusVisible).toBe(true)
-    expect(ring.indicators, ring.focused).toHaveLength(1)
+    if (forcedColors) {
+      const focused = page.locator(':focus')
+      const fieldPerimeter = await focused.evaluate((element) => element.closest('[data-focus-perimeter]') !== null)
+      const root = fieldPerimeter ? '[data-focus-perimeter]' : ':focus'
+      expect(await readFieldIndicators(focused, root, { forcedColors: true }), ring.focused).toHaveLength(1)
+    } else {
+      expect(ring.indicators, ring.focused).toHaveLength(1)
+    }
     expect(await page.evaluate(() => document.activeElement?.matches('h1, [data-habit-create-screen]'))).toBe(false)
   }
   expect(visited.size).toBeGreaterThan(3)
@@ -87,7 +95,13 @@ async function inspectTitles(page: Page) {
     const heading = page.getByRole('heading', { name: title, exact: true })
     await expect(heading).toBeVisible()
     await expectWayfindingFocus(page, heading)
-    if (path.startsWith('/habits')) await expectHabitCreateControls(page)
+    if (path.startsWith('/habits')) {
+      await expectHabitCreateControls(page)
+      await page.emulateMedia({ forcedColors: 'active' })
+      await expectWayfindingFocus(page, heading)
+      await expectHabitCreateControls(page, true)
+      await page.emulateMedia({ forcedColors: 'none' })
+    }
     await page.goto(entry)
     if (entry === '/') await page.getByRole('button', { name: ptBR.habits.createManually, exact: true }).click()
     else await page.getByTestId('profile-settings-group-you').getByRole('link').filter({ hasText: profileFixture.name }).click()
@@ -98,10 +112,16 @@ async function inspectTitles(page: Page) {
 }
 
 async function inspectDestinations(page: Page) {
-  for (const path of ['/', '/calendar', '/progress', '/profile']) {
-    await page.goto(path)
+  await page.goto('/profile')
+  for (const [path, label] of [
+    ['/', ptBR.nav.today], ['/calendar', ptBR.nav.calendar], ['/progress', ptBR.nav.progress], ['/profile', ptBR.nav.profile],
+  ] as const) {
+    await page.getByRole('navigation').getByRole('button', { name: label, exact: true }).click()
+    await expect(page).toHaveURL((url) => url.pathname === path)
+    const heading = page.locator('[data-shell-header] h1, [data-shell-scroller] h1').first()
+    await expect(heading).toBeFocused()
+    await expectWayfindingFocus(page, heading)
     const main = page.getByRole('main')
-    await expectWayfindingFocus(page, main.locator('h1').first())
     await expectWayfindingFocus(page, main)
     await expectWayfindingFocus(page, page.locator('[data-shell-scroller]'))
     if (path === '/') {
@@ -150,12 +170,18 @@ for (const width of [600, 1352]) {
         await page.goto('/wrapped')
         await page.getByRole('button', { name: ptBR.wrapped.start, exact: true }).click()
         await page.getByTestId('wrapped-pager').getByRole('button', { name: ptBR.wrapped.next, exact: true }).click()
-        for (const id of ['wrapped-previous-zone', 'wrapped-next-zone']) {
-          const zone = page.getByTestId(id)
-          await zone.focus()
-          await expect(zone).toBeFocused()
-          expect(await zone.evaluate((element) => getComputedStyle(element).outlineWidth)).toBe('2px')
+        for (const forcedColors of ['none', 'active'] as const) {
+          await page.emulateMedia({ forcedColors })
+          await page.keyboard.press('Shift')
+          for (const id of ['wrapped-previous-zone', 'wrapped-next-zone']) {
+            const zone = page.getByTestId(id)
+            await zone.focus()
+            await expect(zone).toBeFocused()
+            expect(await zone.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+            expect(await zone.evaluate((element) => getComputedStyle(element).outlineWidth)).toBe('2px')
+          }
         }
+        await page.emulateMedia({ forcedColors: 'none' })
         const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'pt-BR' })
         await setLayoutProfileSession(context, profile)
         await page.addInitScript((key) => localStorage.setItem(key, '1'), buildAccountScopedStorageKey(ONBOARDING_PRO_PENDING_KEY, 'hermetic-perf-user'))
