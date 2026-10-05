@@ -73,7 +73,8 @@ for (const width of [320, 1280]) {
         await toast.getByRole('button', { name: words.notifications.deleteUndo, exact: true }).click()
         await expect(toast).toHaveCount(0)
         await expect(page.getByText(notification.title, { exact: true })).toBeVisible()
-        expect(await page.locator('[data-shell-notice]').evaluate((slot) => slot.getBoundingClientRect().height)).toBe(0)
+        const slot = page.locator('[data-shell-notice]')
+        await expect.poll(() => slot.evaluate((element) => element.getBoundingClientRect().height), { timeout: 3000 }).toBe(0)
       })
     })
   }

@@ -56,7 +56,9 @@ for (const width of [412, 600] as const) {
         close.style.cssText = 'width:48px;height:48px'
         close.addEventListener('click', () => { close.dataset.clicked = 'true' })
         panel.append(close)
-        slot.append(panel)
+        const host = slot.firstElementChild
+        if (!host) throw new Error('Notice host missing')
+        host.append(panel)
         const fab = document.querySelector('[data-shell-fab]')?.getBoundingClientRect()
         if (!fab) throw new Error('Compact FAB missing')
         const panelBox = panel.getBoundingClientRect()
