@@ -592,6 +592,101 @@ describe('HabitList', () => {
     expect(reorderHabitsMutate).not.toHaveBeenCalled()
   })
 
+  function renderVisibleSiblingKeyboardList(
+    surface: 'roots' | 'children',
+    hiddenReason: 'another day' | 'completed' | 'search',
+    storedOrder: string[],
+  ) {
+    rowImplementation.actual = true
+    dragLocale.english = true
+    useActualHabitVisibility = true
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
+    const siblings = storedOrder.map((id, position) => {
+      const hidden = id.startsWith('hidden')
+      return createMockHabit({
+        id, title: id, position, parentId: surface === 'children' ? parent.id : null,
+        scheduledDates: hidden && hiddenReason === 'another day' ? [TOMORROW] : [TODAY],
+        isCompleted: hidden && hiddenReason === 'completed',
+        searchMatches: hidden ? [] : [{ field: 'title', value: id }],
+      })
+    })
+    for (const habit of siblings) mockHabitsData.habitsById.set(habit.id, habit)
+    if (surface === 'children') {
+      mockHabitsData.habitsById.set(parent.id, parent)
+      mockHabitsData.topLevelHabits = [parent]
+      mockHabitsData.childrenByParent.set(parent.id, storedOrder)
+    } else {
+      mockHabitsData.topLevelHabits = hiddenReason === 'search'
+        ? siblings.filter((habit) => !habit.id.startsWith('hidden')) : siblings
+    }
+    reorderHabitsMutate.mockImplementation((_request, options) => options?.onSuccess?.())
+    const filters = { dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }
+    return renderWithProviders(<HabitList view="today" filters={filters} showCompleted={false}
+      searchQuery={hiddenReason === 'search' ? 'title' : ''} />)
+  }
+
+  const hiddenSiblingCases = (['roots', 'children'] as const).flatMap((surface) =>
+    (['another day', 'completed', 'search'] as const).map((hiddenReason) => ({ surface, hiddenReason })))
+
+  it.each(hiddenSiblingCases)('moves down past a visible neighbour in $surface with $hiddenReason siblings', async ({ surface, hiddenReason }) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, hiddenReason, ['first', 'hidden-one', 'hidden-two', 'second'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    expect(bodies).toHaveLength(surface === 'roots' ? 2 : 3)
+    expect(within(container).queryByText('hidden-one')).not.toBeInTheDocument()
+    expect(within(container).queryByText('hidden-two')).not.toBeInTheDocument()
+    bodies[surface === 'roots' ? 0 : 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'hidden-one', position: 0 }, { habitId: 'hidden-two', position: 1 },
+      { habitId: 'second', position: 2 }, { habitId: 'first', position: 3 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(container).toHaveTextContent('first moved to position 2 of 2')
+    expect(document.activeElement).toBe(bodies[surface === 'roots' ? 0 : 1])
+  })
+
+  it.each(hiddenSiblingCases)('moves up past a visible neighbour in $surface with $hiddenReason siblings', async ({ surface, hiddenReason }) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, hiddenReason, ['first', 'hidden-one', 'hidden-two', 'second'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    expect(bodies).toHaveLength(surface === 'roots' ? 2 : 3)
+    bodies[bodies.length - 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'second', position: 0 }, { habitId: 'first', position: 1 },
+      { habitId: 'hidden-one', position: 2 }, { habitId: 'hidden-two', position: 3 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(container).toHaveTextContent('second moved to position 1 of 2')
+  })
+
+  it.each(hiddenSiblingCases)('announces visible boundaries in $surface with $hiddenReason siblings', async ({ surface, hiddenReason }) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, hiddenReason, ['hidden-one', 'first', 'second', 'hidden-two'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    expect(bodies).toHaveLength(surface === 'roots' ? 2 : 3)
+    bodies[surface === 'roots' ? 0 : 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowUp}{/Alt}')
+    expect(reorderHabitsMutate).not.toHaveBeenCalled()
+    expect(container).toHaveTextContent('first is already at position 1 of 2')
+    bodies[bodies.length - 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).not.toHaveBeenCalled()
+    expect(container).toHaveTextContent('second is already at position 2 of 2')
+  })
+
+  it.each(['roots', 'children'] as const)('lands immediately after the visible neighbour in %s', async (surface) => {
+    const user = userEvent.setup()
+    const { container } = renderVisibleSiblingKeyboardList(surface, 'another day', ['first', 'hidden-one', 'second', 'hidden-two', 'third'])
+    const bodies = container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]')
+    bodies[surface === 'roots' ? 0 : 1]!.focus()
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}')
+    expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
+      { habitId: 'hidden-one', position: 0 }, { habitId: 'second', position: 1 },
+      { habitId: 'first', position: 2 }, { habitId: 'hidden-two', position: 3 }, { habitId: 'third', position: 4 },
+    ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(container).toHaveTextContent('first moved to position 2 of 3')
+  })
+
   it('keeps Home and End navigation on row bodies', async () => {
     const user = userEvent.setup()
     const { container } = renderKeyboardHabitList()

@@ -628,16 +628,19 @@ export function HabitList({
 
   function moveHabitByKeyboard(habit: NormalizedHabit, direction: -1 | 1) {
     if (reorderHabitsMut.isPending || isDragging) return
-    const siblings = Array.from(habitsById.values())
-      .filter((sibling) => (sibling.parentId ?? null) === (habit.parentId ?? null))
-      .sort(sortNormalizedHabits)
+    const siblings = dragItems.filter((sibling) => sibling.parentId === (habit.parentId ?? null))
     const currentIndex = siblings.findIndex((sibling) => sibling.id === habit.id)
     const targetIndex = currentIndex + direction
     if (targetIndex < 0 || targetIndex >= siblings.length) {
       announceReorder(t('habits.reorderBoundary', { title: habit.title, position: currentIndex + 1, total: siblings.length }))
       return
     }
-    const positions = computeHabitReorderPositions(siblings, currentIndex, targetIndex, habitsById, getChildren)
+    const storedSiblings = Array.from(habitsById.values())
+      .filter((sibling) => (sibling.parentId ?? null) === (habit.parentId ?? null))
+      .sort(sortNormalizedHabits)
+    const storedIndex = storedSiblings.findIndex((sibling) => sibling.id === habit.id)
+    const storedTargetIndex = storedSiblings.findIndex((sibling) => sibling.id === siblings[targetIndex]!.id)
+    const positions = computeHabitReorderPositions(storedSiblings, storedIndex, storedTargetIndex, habitsById, getChildren)
     if (positions.length === 0) return
     reorderHabitsMut.mutate({ positions }, {
       onSuccess: () => announceReorder(t('habits.reorderMoved', { title: habit.title, position: targetIndex + 1, total: siblings.length })),
