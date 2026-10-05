@@ -1,6 +1,7 @@
 {
   "dragAndDrop": {
     "instructions": "To pick up an item, press the space bar. While dragging, use the arrow keys to move it. Press space again to drop it, or Escape to cancel.",
+    "habitInstructions": "To move a habit, hold Alt and press the up or down arrow key.",
     "goalInstructions": "To move a goal, hold Alt and press the up or down arrow key.",
     "roleDescription": "sortable item",
     "handle": "Move {name}",
@@ -498,6 +499,8 @@
     }
   },
   "habits": {
+    "reorderMoved": "{title} moved to position {position} of {total}",
+    "reorderBoundary": "{title} is already at position {position} of {total}",
     "listOptions": "List options",
     "todayBoundary": {
       "lastLoggable": "This is the oldest day you can log.",

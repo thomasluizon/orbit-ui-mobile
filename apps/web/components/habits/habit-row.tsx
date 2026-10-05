@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -33,6 +33,7 @@ export interface HabitRowActions {
   onAddSubHabit?: () => void
   onToggleExpand?: () => void
   onEnterSelectMode?: () => void
+  onReorder?: (direction: -1 | 1) => void
 }
 
 /** Canonical two-level habit row. List grouping owns its surrounding panel. */
@@ -70,6 +71,7 @@ interface HabitRowProps {
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
   showLinkedGoalDot?: boolean
   hasProAccess?: boolean
+  reorderInstructionsId?: string
   actions?: HabitRowActions
 }
 
@@ -146,6 +148,7 @@ export function HabitRow({
   childPanelId,
   childProgress,
   hasProAccess = true,
+  reorderInstructionsId,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
@@ -250,7 +253,8 @@ export function HabitRow({
   const rowContents = (
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta}>
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta}
+        onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
       {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
@@ -265,19 +269,31 @@ export function HabitRow({
   )
 }
 
-function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, children }: Readonly<{
+function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children }: Readonly<{
   onClick: () => void
   supportingMeta: boolean
   largeText: boolean
   isChild: boolean
   rowPadding: number
   meta: HabitRowMetaToken[]
+  onReorder?: (direction: -1 | 1) => void
+  reorderInstructionsId?: string
   children: ReactNode
 }>) {
+  const t = useTranslations()
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (!onReorder || !event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+    event.preventDefault()
+    onReorder(event.key === 'ArrowUp' ? -1 : 1)
+  }
   return (
       <button
         type="button"
         onClick={onClick}
+        onKeyDown={onReorder ? handleKeyDown : undefined}
+        aria-roledescription={onReorder ? t('dragAndDrop.roleDescription') : undefined}
+        aria-keyshortcuts={onReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
+        aria-describedby={onReorder ? reorderInstructionsId : undefined}
         data-habit-row-body=""
         className={`${supportingMeta ? 'grid col-start-1 col-span-full row-start-1 row-span-2 grid-cols-subgrid grid-rows-subgrid' : 'flex'} min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
         style={{ gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 8, alignItems: largeText ? 'flex-start' : undefined }}
