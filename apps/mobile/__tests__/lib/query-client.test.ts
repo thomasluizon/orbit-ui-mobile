@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { configKeys } from '@orbit/shared/query'
+import { configKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
+import { createApiClientError } from '@orbit/shared/utils'
 
 import {
   queryClient,
@@ -45,9 +46,45 @@ describe('mobile query client', () => {
     expect(defaults.mutations?.retry).toBe(false)
     expect(defaults.queries?.refetchOnWindowFocus).toBe(true)
     expect(defaults.queries?.refetchOnReconnect).toBe(true)
-    expect(retry(0, new Error('status 401'))).toBe(false)
     expect(retry(2, new Error('network'))).toBe(true)
     expect(retry(3, new Error('network'))).toBe(false)
+  })
+
+  it.each([
+    createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized'),
+    createApiClientError(403, { error: 'Pro access required', errorCode: 'PAY_GATE' }, 'Forbidden'),
+    createApiClientError(429, { error: 'Too many requests' }, 'Too many requests'),
+  ])('does not retry a final response with status $status', (error) => {
+    const retry = queryClient.getDefaultOptions().queries?.retry as (
+      failureCount: number,
+      error: Error
+    ) => boolean
+
+    expect(retry(0, error)).toBe(false)
+  })
+
+  it.each([
+    habitKeys.retrospective('month'),
+    gamificationKeys.profile(),
+  ])('settles a gated query on the first response: %s', async (...queryKey) => {
+    vi.useFakeTimers()
+    const client = queryClient
+    const error = createApiClientError(403, { error: 'Pro access required', errorCode: 'PAY_GATE' }, 'Forbidden')
+    const queryFn = vi.fn().mockRejectedValue(error)
+    const result = client.fetchQuery({ queryKey, queryFn }).catch((failure: unknown) => failure)
+
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      expect(client.getQueryState(queryKey)?.status).toBe('error')
+      expect(client.getQueryState(queryKey)?.error).toBe(error)
+      await vi.advanceTimersByTimeAsync(8000)
+      expect(queryFn).toHaveBeenCalledTimes(1)
+      expect(await result).toBe(error)
+    } finally {
+      client.clear()
+      await vi.advanceTimersByTimeAsync(8000)
+      vi.useRealTimers()
+    }
   })
 
   it('persists only successful query results under the active account scope', async () => {
