@@ -12,6 +12,7 @@ import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { tagListSchema } from '@orbit/shared/types/tag'
@@ -25,6 +26,8 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitRowContent } from '@/components/habits/habit-row-content'
 import { EventRow } from '@/components/dates/event-row'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { loadAppFonts } from './app-fonts'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { expectLabelsFit, expectLegendFits, markUserText } from '@/e2e/layout/label-fit-contract'
@@ -136,6 +139,37 @@ describe('label and interaction fill guards in Chromium', () => {
   })
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 840].flatMap((width) => (['dark', 'light'] as const).map((mode) => ({ width, mode }))))(
+    'measures tab indicator interaction fills at $width px in $mode mode',
+    async ({ width, mode }) => {
+      const tabs = renderToStaticMarkup(createElement(BottomTabBar, {
+        label: en.nav.mainNavigation, activeId: 'hoje', onSelect: () => {},
+        items: SHELL_DESTINATION_IDS.map((id) => ({
+          id, label: en.nav[DESTINATION_ICONS[id].commandId],
+          icon: ({ active }: { active: boolean }) => createElement(DestinationIcon, {
+            destination: id, active, color: active ? 'var(--primary)' : 'var(--fg-3)',
+          }),
+        })),
+      }))
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const variables = Object.entries(resolveWebThemeVariables('orange', mode))
+          .map(([name, value]) => `${name}: ${value};`).join(' ')
+        await page.setContent(`<!doctype html><html class="${mode}"><style>${stylesheet}
+          :root { ${variables} }
+        </style>${tabs}</html>`)
+        await loadAppFonts(page)
+        const indicators = page.locator('nav > button [data-tab-indicator]')
+        expect(await indicators.count()).toBe(SHELL_DESTINATION_IDS.length)
+        for (const indicator of await indicators.all()) {
+          await expectInteractionFill(indicator)
+        }
+      } finally {
+        await page.close()
+      }
+    },
+  )
 
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     it.each([320, 600].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(

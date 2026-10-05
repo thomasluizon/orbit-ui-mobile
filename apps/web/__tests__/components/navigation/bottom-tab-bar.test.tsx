@@ -53,7 +53,7 @@ describe('BottomTabBar', () => {
     expect(onTab).toHaveBeenCalledWith('calendario')
   })
 
-  it.each(['dark', 'light'])('uses the raised-surface selected label role on hover in %s mode', (mode) => {
+  it.each(['dark', 'light'])('keeps canvas label roles on hover and press in %s mode', (mode) => {
     document.documentElement.dataset.theme = mode
     render(
       <BottomTabBar
@@ -67,7 +67,7 @@ describe('BottomTabBar', () => {
     const activeLabel = screen.getByText('Calendário')
     const inactiveLabel = screen.getByText('Hoje')
     expect(activeLabel).toHaveClass('text-[var(--primary-soft)]')
-    expect(activeLabel).toHaveClass('group-hover:text-[var(--primary-text)]')
+    expect(activeLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]', 'group-active:text-[var(--primary-text)]')
     expect(inactiveLabel).toHaveClass('text-[var(--fg-3)]')
     expect(inactiveLabel).not.toHaveClass('group-hover:text-[var(--primary-text)]')
     delete document.documentElement.dataset.theme

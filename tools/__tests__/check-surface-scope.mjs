@@ -207,21 +207,20 @@ export function Screen() { return <section className="bg-[var(--bg-elev)]"><Noti
   const producerCases = [
     { label: "partial-day", paths: ["apps/web/components/dates/day-cell.tsx"], path: "apps/web/components/dates/day-cell.tsx", before: 'stroke="var(--status-empty)"', after: 'stroke="var(--fg-4)"' },
     { label: "habit-track", paths: ["apps/web/components/habits/habit-log-button.tsx", "apps/web/components/ui/progress-ring.tsx", "apps/web/components/ui/status-ring.tsx"], path: "apps/web/components/ui/progress-ring.tsx", before: 'stroke="var(--track-empty)"', after: 'stroke="var(--fg-4)"' },
-    { label: "native-promotion", paths: ["apps/mobile/components/navigation/bottom-tab-bar.tsx"], path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: 'hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)', after: 'tokens.fg3' },
   ]
   for (const producer of producerCases) {
     const good = stageProducerRepository(`actual-${producer.label}`, producer.paths)
     check("check-surface-scope.mjs", `accepts the shipped composition: ${producer.label}`, ["--root", good], { status: 0 })
     const bad = stageProducerRepository(`broken-${producer.label}`, producer.paths, producer)
     check("check-surface-scope.mjs", `rejects a removed foreground correction: ${producer.label}`, ["--root", bad], {
-      status: 1, stderr: producer.label === "native-promotion" ? /--fg-3 on hover, light ratio/ : /--fg-4 on hover, .*GRAPHIC floor 3\.00/,
+      status: 1, stderr: /--fg-4 on hover, .*GRAPHIC floor 3\.00/,
     })
   }
   const producerText = stageProducerRepository("actual-text-promotion", ["apps/web/components/navigation/bottom-tab-bar.tsx"])
   const producerCss = join(producerText, "apps/web/app/globals.css")
   writeFileSync(producerCss, readFileSync(producerCss, "utf8").replaceAll("--fg-3: var(--fg-2);", ""))
-  check("check-surface-scope.mjs", "rejects the shipped inactive tab when its CSS promotion is removed", ["--root", producerText], {
-    status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
+  check("check-surface-scope.mjs", "accepts canvas tab labels without CSS promotion", ["--root", producerText], {
+    status: 0, stdout: /Surface scope guard passed/,
   })
   const aliasSource = `<div className="alias-owner bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><svg className="track-owner"><circle stroke="var(--status-empty)" /></svg></div>`
   for (const [label, css, status] of [
@@ -246,9 +245,9 @@ export function Screen(){return <button className="${promotion} bg-[var(--bg)] h
     status: 1, stderr: /--fg-3 on hover, light ratio 4\.161, TEXT floor 4\.50/,
   })
   const interactionOwners = [
-    { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: " group-hover:text-[var(--primary-text)]", after: "" },
+    { path: "apps/web/components/navigation/bottom-tab-bar.tsx", before: "group rounded-full", after: "group rounded-full hover:bg-[var(--bg-hover)]" },
     { path: "apps/web/components/shell/shell-wide.tsx", before: " hover:text-[var(--primary-text)]", after: "" },
-    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "active ? (hoveredId === item.id || pressed ? tokens.primaryText : tokens.primarySoft) : hoverForeground(currentTheme, tokens.fg3, hoveredId === item.id)", after: "active ? tokens.primarySoft : tokens.fg3" },
+    { path: "apps/mobile/components/navigation/bottom-tab-bar.tsx", before: "styles.tab,", after: "styles.tab, hoveredId === item.id && { backgroundColor: tokens.bgHover }," },
   ]
   for (const [index, owner] of interactionOwners.entries()) {
     const paired = stageProducerRepository(`paired-owner-${index}`, [owner.path])

@@ -224,7 +224,7 @@ for (const width of [320, 360, 384, 412]) {
         for (const label of [words.dates.previousDay, words.dates.nextDay, words.habits.listOptions]) {
           await expectInteractionFill(page.getByRole('button', { name: label, exact: true }))
         }
-        await expectInteractionFill(tabBar.locator('nav > button').last())
+        await expectInteractionFill(tabBar.locator('nav > button').last().locator('[data-tab-indicator]'))
         await page.getByRole('button', { name: words.habits.listOptions, exact: true }).click()
         await expectInteractionFill(page.getByRole('menu', { name: words.habits.listOptions })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }))
