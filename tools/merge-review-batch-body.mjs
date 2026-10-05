@@ -71,7 +71,7 @@ try {
   }
   if (uiScope) {
     const incoming = section(report, "Review harness")
-    if (!incoming?.body) throw new Error("missing ## Review harness in UI review report")
+    if (!incoming) throw new Error("missing ## Review harness in UI review report")
     const detail = reviewEvidenceProblem(reviewHarnessSectionLines(`## Review harness\n\n${incoming.body}`))
     if (detail) throw new Error(`incomplete ## Review harness in UI review report: ${detail}`)
     const existing = section(body, "Review harness")

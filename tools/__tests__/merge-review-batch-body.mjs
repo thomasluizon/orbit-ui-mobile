@@ -33,6 +33,7 @@ export const cases = () => {
   })
   T(`${TOOL}: incomplete evidence writes no output file`, !existsSync(path("one-line-out.md")))
   const invalidBlocks = [
+    ["empty-block", "## Review harness", /no line for: execution lane, motion lane, gates lane, interface-review, better-interface, design-reviewer, completeness-critic/],
     ["placeholder", completeBlock.replace("- execution lane: no findings", "- execution lane: TBD"), /empty or placeholder evidence for: execution lane/],
     ["template", renderReviewEvidenceBlock(), /empty or placeholder evidence for: execution lane, motion lane, gates lane, interface-review, better-interface, design-reviewer, completeness-critic/],
     ["invalid-motion", completeBlock.replace("- motion lane: no findings", "- motion lane: not applicable: skipped animation"), /invalid not-applicable statement for: motion lane/],
