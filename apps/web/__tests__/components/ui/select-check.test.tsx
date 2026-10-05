@@ -48,6 +48,61 @@ function CommitRows({
 }
 
 describe('select-check RadioRow group', () => {
+  it('scrolls expanded personal text without changing or committing the selection', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const onCommit = vi.fn()
+    const label = `${'longaddress'.repeat(12)}@example.com`
+    render(<RadioGroup aria-label="Subjects" onCommit={onCommit}>
+      <RadioRow label={label} textMode="personal" selected onSelect={() => onChange('first')} />
+      <RadioRow label="Second" onSelect={() => onChange('second')} />
+    </RadioGroup>)
+    const selected = screen.getByRole('radio', { name: label })
+    const text = selected.querySelector<HTMLElement>('[data-personal-text]')!
+
+    for (const key of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']) fireEvent.keyDown(text, { key })
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onCommit).not.toHaveBeenCalled()
+    expect(selected).toHaveAttribute('aria-checked', 'true')
+    const navigation = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })
+    fireEvent(text, navigation)
+    expect(navigation.defaultPrevented).toBe(false)
+
+    selected.focus()
+    await user.keyboard('{ArrowRight}')
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('second')
+  })
+
+  it.each([false, true])('lets disclosure dismissal and tab keys reach the owner when disabled=%s', (disabled) => {
+    const label = `${'longaddress'.repeat(12)}@example.com`
+    const onKeyDown = vi.fn()
+    render(disabled
+      ? <RadioRow label={label} textMode="personal" selected disabled reason="Sending" />
+      : <RadioGroup aria-label="Subjects"><RadioRow label={label} textMode="personal" selected onSelect={vi.fn()} /></RadioGroup>)
+    if (disabled) fireEvent.click(screen.getByRole('button', { name: label }))
+    const text = screen.getByRole('radio').querySelector<HTMLElement>('[data-personal-text]')!
+    document.addEventListener('keydown', onKeyDown)
+    try {
+      fireEvent.keyDown(text, { key: 'Escape' })
+      fireEvent.keyDown(text, { key: 'Tab' })
+      expect(onKeyDown.mock.calls.map(([event]) => event.key)).toEqual(['Escape', 'Tab'])
+    } finally {
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  })
+
+  it.each([false, true])('announces personal text and supporting metadata when disabled=%s', (disabled) => {
+    const label = 'A title written by a person'
+    render(disabled
+      ? <RadioRow label={label} textMode="personal" description="Details" meta="3" tag="Current" disabled reason="Sending" />
+      : <RadioRow label={label} textMode="personal" description="Details" meta="3" tag="Current" onSelect={vi.fn()} />)
+
+    expect(screen.getByRole('radio')).toHaveAccessibleName(disabled
+      ? `${label}, Details, 3, Current, Sending`
+      : `${label}, Details, 3, Current`)
+  })
+
   it('uses the selected row tint and the empty track ring', () => {
     render(<RadioRows onChange={vi.fn()} />)
     const selected = screen.getByRole('radio', { name: 'First' })
@@ -153,6 +208,22 @@ describe('RadioRow secondary text contrast', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it('keeps the expanded personal text natively focusable and scrollable', async () => {
+    const label = `${'longaddress'.repeat(12)}@example.com`
+    const { container } = render(<RadioGroup aria-label="Subjects">
+      <RadioRow label={label} textMode="personal" selected onSelect={vi.fn()} />
+    </RadioGroup>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<!doctype html><style>${stylesheet}</style>${container.innerHTML}`)
+      const text = page.locator('[data-personal-text]')
+      await text.focus()
+      expect(await text.evaluate((element) => document.activeElement === element)).toBe(true)
+      await page.keyboard.press('ArrowRight')
+      await expect.poll(() => text.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
+    } finally { await page.close() }
+  })
 
   const pressStates = (['no-preference', 'reduce'] as const).flatMap((reducedMotion) =>
     [false, true].flatMap((selected) => [false, true].map((disabled) => ({ reducedMotion, selected, disabled }))),

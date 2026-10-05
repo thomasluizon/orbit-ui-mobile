@@ -25,6 +25,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitRowContent } from '@/components/habits/habit-row-content'
 import { EventRow } from '@/components/dates/event-row'
+import { PersonalText } from '@/components/ui/personal-text'
 import { loadAppFonts } from './app-fonts'
 import { expectFillShape, expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { expectLabelsFit, expectLegendFits, markUserText } from '@/e2e/layout/label-fit-contract'
@@ -323,6 +324,46 @@ describe('label and interaction fill guards in Chromium', () => {
     } finally {
       await page.close()
     }
+  })
+
+  it('measures painted ellipsized text and still rejects a touching fill', async () => {
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    const text = renderToStaticMarkup(createElement(PersonalText, null, email))
+    const page = await browser.newPage()
+    try {
+      await page.bringToFront()
+      await page.setContent(`<!doctype html><style>${stylesheet}
+        button { width: 200px; min-height: 48px; padding: 8px 16px; border: 0; border-radius: 12px;
+          background: rgb(220, 220, 220); }
+        button:hover { background: rgb(180, 180, 180); }
+        button:active { background: rgb(140, 140, 140); }
+      </style><button>${text}</button>`)
+      await loadAppFonts(page)
+      const rawOverflow = await page.locator('[data-personal-text]').evaluate((element) => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        return range.getBoundingClientRect().right - element.getBoundingClientRect().right
+      })
+      expect(rawOverflow).toBeGreaterThan(100)
+      await expectInteractionFill(page.locator('button'))
+
+      await page.locator('button').evaluate((element) => { element.style.paddingInline = '0' })
+      await expect(expectFillShape(page.locator('button'), 'touching')).rejects.toThrow('fill has inline breathing room')
+      await page.locator('button').evaluate((element) => { element.style.paddingInline = '16px' })
+      await expectFillShape(page.locator('button'), 'restored')
+    } finally { await page.close() }
+  })
+
+  it('excludes text fully clipped by an ancestor', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>
+        button { width: 120px; min-height: 48px; padding: 8px 16px; border: 0; border-radius: 12px;
+          background: rgb(220, 220, 220); }
+        .clip { display: block; height: 0; overflow: hidden; }
+      </style><button>Options<span class="clip"><span>Unpainted text that exceeds the fill</span></span></button>`)
+      await expectFillShape(page.locator('button'), 'clipped')
+    } finally { await page.close() }
   })
 
   it.each([

@@ -11,6 +11,19 @@ async function settleFillTransitions(control: Locator) {
 
 async function readFill(control: Locator) {
   return control.evaluate((element) => {
+    function clipTextRect(rect: DOMRect, parent: Element | null) {
+      let { left, right, top, bottom } = rect
+      for (let ancestor = parent; ancestor; ancestor = ancestor.parentElement) {
+        const ancestorStyle = getComputedStyle(ancestor)
+        const clipsInline = ancestorStyle.overflowX !== 'visible' || ancestorStyle.textOverflow === 'ellipsis'
+        const clipsBlock = ancestorStyle.overflowY !== 'visible'
+        if (!clipsInline && !clipsBlock) continue
+        const clip = ancestor.getBoundingClientRect()
+        if (clipsInline) { left = Math.max(left, clip.left); right = Math.min(right, clip.right) }
+        if (clipsBlock) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom) }
+      }
+      return right > left && bottom > top ? new DOMRect(left, top, right - left, bottom - top) : null
+    }
     const fill = element.querySelector<HTMLElement>('[data-press-fill]') ?? element
     const bounds = fill.getBoundingClientRect()
     const style = getComputedStyle(fill)
@@ -27,7 +40,10 @@ async function readFill(control: Locator) {
       if (!node.textContent?.trim() || node.parentElement!.closest('svg, [aria-hidden="true"]')) continue
       const range = document.createRange()
       range.selectNodeContents(node)
-      content.push(...range.getClientRects())
+      for (const rect of range.getClientRects()) {
+        const clipped = clipTextRect(rect, node.parentElement)
+        if (clipped) content.push(clipped)
+      }
     }
     const pixels = (value: string) => Number.parseFloat(value) || 0
     const radius = (value: string, width: number, height: number) => Math.min(pixels(value), width / 2, height / 2)
