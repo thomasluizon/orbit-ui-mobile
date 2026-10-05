@@ -40,7 +40,7 @@ for (const width of [320, 1024, 1352]) {
           expect(geometry.clipped).toBe(true)
         }
         await markUserText(page, [email])
-        await expectLabelsFit(page, account, [email])
+        await expectLabelsFit(page, page, [email])
         await account.click()
         await expect(page).toHaveURL(`${LAYOUT_ORIGIN}${accountRoute}`)
         const editor = page.getByRole('button').filter({ has: page.getByText(email, { exact: true }) })
