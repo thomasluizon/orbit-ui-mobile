@@ -113,15 +113,15 @@ describe('habit monogram contrast on Android', () => {
     const colors = neutralColors[mode]
     let tree!: ReactTestRenderer
     await act(() => {
-      tree = create(<View style={{ backgroundColor: colors.bg }}><View style={{ backgroundColor: colors.bgCard }}>
+      tree = create(<View style={{ backgroundColor: colors.bg }}>
         <HabitRow habit={createMockHabit({ title: 'Walking', emoji: '' })} depth={depth} />
-      </View></View>)
+      </View>)
     })
     const body = () => tree.root.findAll((node) => String(node.type) === 'Pressable' && typeof node.props.onPressIn === 'function')[0]!
     const measure = () => {
       const monogram = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === 'W')[0]!
       const canvas = tree.root.findAll((node) => String(node.type) === 'View')[0]!
-      const card = canvas.findAll((node) => String(node.type) === 'View')[1]!
+      const card = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-row')[0]!
       const well = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityElementsHidden === true)[0]!
       return {
         color: StyleSheet.flatten(monogram.props.style as StyleProp<TextStyle>).color as string,
