@@ -26,7 +26,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     const result = await build({
       stdin: {
-        contents: `import React, { useState } from 'react';
+        contents: `import React, { useLayoutEffect, useState } from 'react';
           import { createRoot } from 'react-dom/client';
           import { RadioGroup } from './components/ui/radio-row';
           import { RadioRow } from './components/ui/select-check';
@@ -41,6 +41,14 @@ describe('expanded RadioRow personal text in Chromium', () => {
             const [selected, select] = useState(0);
             const label = document.getElementById('root').dataset.label;
             const composition = document.getElementById('root').dataset.composition;
+            useLayoutEffect(() => {
+              requestAnimationFrame(() => {
+                const root = document.getElementById('root');
+                const scroller = [...root.querySelectorAll('[data-personal-text], [data-personal-text] > span')].find(element => element.scrollWidth > element.clientWidth);
+                root.dataset.firstFrameOverflow = String(Boolean(scroller));
+                root.dataset.firstFrameTabIndex = scroller?.getAttribute('tabindex') ?? 'missing';
+              });
+            }, []);
             if (composition === 'support') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><SupportReplyEmail email={label} /></NextIntlClientProvider>;
             if (composition === 'disabledList') return <ListRow title={label} textMode="personal" personalExpanded disabled />;
             if (composition === 'list') return <ListRow title={label} textMode="personal" />;
@@ -107,6 +115,14 @@ describe('expanded RadioRow personal text in Chromium', () => {
       expect(outline.style).toBe('solid')
       expect(outline.shadow).toBe('none')
       expect(outline.clips).toEqual([])
+    } finally { await page.close() }
+  })
+
+  it.each(labels)('makes overflowing text keyboard reachable on its first frame for %s', async (label) => {
+    const page = await mount(label)
+    try {
+      expect(await page.locator('#root').getAttribute('data-first-frame-overflow')).toBe('true')
+      expect(await page.locator('#root').getAttribute('data-first-frame-tab-index')).toBe('0')
     } finally { await page.close() }
   })
 

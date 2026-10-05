@@ -317,11 +317,17 @@ describe('ProfilePage', () => {
             const title = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')).find((element) => element.textContent === name)!
             const description = title.nextElementSibling!
             for (const element of [title, description] as HTMLElement[]) element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * textScale}px`
-            const words = Array.from(title.querySelectorAll<HTMLElement>('span')).map((element) => {
-              const range = document.createRange()
-              range.selectNodeContents(element)
-              return { word: element.textContent, tops: Array.from(range.getClientRects()).map((rect) => rect.top) }
-            })
+            const words: { word: string; tops: number[] }[] = []
+            const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT)
+            let text = walker.nextNode()
+            while (text) {
+              if (text.textContent?.trim()) {
+                const range = document.createRange()
+                range.selectNodeContents(text)
+                words.push({ word: text.textContent, tops: Array.from(range.getClientRects()).map((rect) => rect.top) })
+              }
+              text = walker.nextNode()
+            }
             const emailRange = document.createRange()
             const scroller = description.querySelector('[data-personal-text]') ?? description
             emailRange.selectNodeContents(scroller.firstElementChild ?? scroller)
