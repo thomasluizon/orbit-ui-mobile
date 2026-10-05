@@ -59,7 +59,7 @@ export function ProfileSettingsFrame({
   return (
     <div
       data-testid="profile-settings-groups"
-      className="mx-auto flex w-full max-w-[560px] flex-col px-4"
+      className="flex w-full max-w-[560px] flex-col px-4"
       style={{ gap: 32 }}
     >
       {PROFILE_SETTINGS_GROUPS.map((group) => (
