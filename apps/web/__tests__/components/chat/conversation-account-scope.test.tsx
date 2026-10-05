@@ -314,3 +314,16 @@ it('does not repeat a completed reply when its article remounts', async () => {
   await act(async () => { await Promise.resolve() })
   expect(screen.getByRole('article').querySelector('[aria-live="polite"]')).toBeEmptyDOMElement()
 })
+
+it('announces a reply already streaming when the conversation mounts', async () => {
+  const chat = buildChat()
+  chat.messages = [...chat.messages, { id: 'reply', role: 'ai', content: 'Partial', timestamp: new Date() }]
+  chat.streamingMessageId = 'reply'
+  const view = render(<AstraConversation chat={chat} />)
+  const region = screen.getAllByRole('article')[1]!.querySelector('[aria-live="polite"]')!
+  expect(region).toBeEmptyDOMElement()
+  chat.messages[1] = { ...chat.messages[1]!, content: 'Completed reply' }
+  chat.streamingMessageId = null
+  view.rerender(<AstraConversation chat={chat} />)
+  await vi.waitFor(() => expect(region).toHaveTextContent('Completed reply'))
+})

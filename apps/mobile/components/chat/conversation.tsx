@@ -138,6 +138,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   }, []);
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
+  const [initialStreamingMessageId] = useState(() => streamingMessageId);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
   const closeConversation = useCallback(() => {
@@ -171,7 +172,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
     ({ item }) => (
       <View style={{ gap: 16 }}>
-      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={!initialMessageIds.has(item.id) && item.id !== streamingMessageId && !isTyping} /> : null}
+      {item.role === 'ai' ? <TurnAnnouncement messageId={item.id} claimAnnouncement={claimAnnouncement} content={item.content} complete={(!initialMessageIds.has(item.id) || item.id === initialStreamingMessageId) && item.id !== streamingMessageId && !isTyping} /> : null}
       <MessageBubble
         message={item}
         animateEntry={!initialMessageIds.has(item.id)}
@@ -194,6 +195,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       handleActionChipClick,
       handleBreakdownConfirmed,
       initialMessageIds,
+      initialStreamingMessageId,
       messages,
       canShowFollowUps,
       sendMessage,

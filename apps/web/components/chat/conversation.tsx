@@ -115,6 +115,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   }, [])
 
   const [initialMessageIds] = useAccountScopedState(() => new Set(messages.map((message) => message.id)))
+  const [initialStreamingMessageId] = useAccountScopedState(() => streamingMessageId)
 
   const [selectedGoalId, setSelectedGoalId] = useAccountScopedState<string | null>(null)
 
@@ -209,7 +210,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
             aria-setsize={messages.length}
             className="flex min-w-0 flex-col gap-[16px]"
           >
-          {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={!initialMessageIds.has(msg.id) && msg.id !== streamingMessageId && !isTyping} /> : null}
+          {msg.role === 'ai' ? <TurnAnnouncement messageId={msg.id} claimAnnouncement={claimAnnouncement} content={msg.content} complete={(!initialMessageIds.has(msg.id) || msg.id === initialStreamingMessageId) && msg.id !== streamingMessageId && !isTyping} /> : null}
           <MessageBubble
             senderLabelId={`${senderIdPrefix}-${msg.id}`}
             message={msg}

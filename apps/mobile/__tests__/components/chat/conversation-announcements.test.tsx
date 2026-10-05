@@ -187,3 +187,15 @@ it('does not repeat a completed reply when its row remounts', async () => {
   await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
   expect(renderedText(politeRegions()[0]!.props.children)).toBe('')
 })
+
+it('announces a reply already streaming when the conversation mounts', async () => {
+  const chat = buildChat()
+  chat.messages = [{ id: 'reply', role: 'ai', content: 'Partial', timestamp: new Date() }]
+  chat.streamingMessageId = 'reply'
+  mount(chat)
+  expect(renderedText(politeRegions()[0]!.props.children)).toBe('')
+  chat.messages[0] = { ...chat.messages[0]!, content: 'Completed reply' }
+  chat.streamingMessageId = null
+  await act(async () => { tree.update(<AstraConversation chat={chat} />); await Promise.resolve() })
+  expect(renderedText(politeRegions()[0]!.props.children)).toBe('Completed reply')
+})
