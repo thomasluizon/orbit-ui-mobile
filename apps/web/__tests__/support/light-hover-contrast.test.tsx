@@ -35,7 +35,6 @@ const cases = [
   { name: 'settings group row', element: <SettingsGroupRow label="Preferences" hint="Value" onClick={() => {}} /> },
   { name: 'settings group value', element: <SettingsGroup items={[{ label: 'Preferences', value: 'Value', onClick: () => {} }]} /> },
   { name: 'inactive tab', element: <BottomTabBar label="Navigation" activeId="other" items={[{ id: 'today', label: 'Today' }]} onSelect={() => {}} /> },
-  { name: 'active tab', element: <BottomTabBar label="Navigation" activeId="today" items={[{ id: 'today', label: 'Today' }]} onSelect={() => {}} /> },
 ]
 
 describe('rendered light hover contrast', () => {
@@ -83,6 +82,64 @@ describe('rendered light hover contrast', () => {
       await page.mouse.move(0, 0)
       await page.waitForTimeout(300)
       expect(await measure()).toEqual(resting)
+    } finally { await page.close(); unmount() }
+  })
+
+  it.each(['light', 'dark'].flatMap((mode) => [600, 1352].flatMap((width) => [false, true].map((icons) => ({ mode: mode as 'light' | 'dark', width, icons })))))('keeps selected tab hover and press-only text readable in $mode at $width with icons=$icons', async ({ mode, width, icons }) => {
+    const items = ['today', 'calendar', 'progress', 'profile'].map((id) => ({ id, label: id, icon: icons ? () => <svg aria-hidden="true" width="24" height="24" /> : undefined }))
+    const { container, unmount } = render(<BottomTabBar label="Navigation" activeId="today" items={items} onSelect={() => {}} />)
+    const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<!doctype html><html class="${mode}" style="${variables}"><style>${stylesheet}</style><body style="background:var(--bg)">${container.innerHTML}</body></html>`)
+      const tab = page.getByRole('button', { name: 'today', exact: true })
+      const measure = () => tab.evaluate((button) => {
+        const label = button.lastElementChild!
+        const backgrounds: string[] = []
+        for (let node: Element | null = label; node; node = node.parentElement) backgrounds.unshift(getComputedStyle(node).backgroundColor)
+        return {
+          color: getComputedStyle(label).color, backgrounds,
+          raisedAccent: getComputedStyle(button).getPropertyValue('--primary-text').trim(),
+          restingAccent: getComputedStyle(button).getPropertyValue('--primary-soft').trim(),
+          hover: button.matches(':hover'), active: button.matches(':active'),
+          current: button.getAttribute('aria-current'),
+          fill: getComputedStyle(button).backgroundColor,
+          indicatorFill: button.querySelector('[data-tab-indicator]') ? getComputedStyle(button.querySelector('[data-tab-indicator]')!).backgroundColor : null,
+        }
+      })
+      const rgb = (hex: string) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`
+      const resting = await measure()
+      expect(resting.color).toBe(rgb(resting.restingAccent))
+      expect(contrastOnSurface(resting.color, resting.backgrounds)).toBeGreaterThanOrEqual(4.5)
+      const bounds = await tab.boundingBox()
+      expect(bounds!.width).toBeGreaterThanOrEqual(48)
+      expect(bounds!.height).toBeGreaterThanOrEqual(48)
+      await page.bringToFront()
+      await tab.hover()
+      await page.waitForTimeout(300)
+      const hovered = await measure()
+      expect(hovered).toMatchObject({ hover: true, active: false, current: 'page' })
+      expect(hovered.color).toBe(rgb(hovered.raisedAccent))
+      expect(hovered.fill.replaceAll(' ', '')).toBe(neutralColors[mode].bgHover.replaceAll(' ', ''))
+      expect(contrastOnSurface(hovered.color, hovered.backgrounds)).toBeGreaterThanOrEqual(4.5)
+      await page.mouse.down()
+      expect(await measure()).toMatchObject({ color: hovered.color, backgrounds: hovered.backgrounds, hover: true, active: true, current: 'page' })
+      await page.mouse.move(width - 1, 850)
+      await page.waitForFunction(() => {
+        const button = document.querySelector('[aria-current="page"]')!
+        return button.matches(':active') && !button.matches(':hover')
+      })
+      await page.waitForTimeout(300)
+      const pressed = await measure()
+      expect(pressed).toMatchObject({ hover: false, active: true, current: 'page' })
+      expect(pressed.color).toBe(rgb(pressed.raisedAccent))
+      expect(pressed.fill).toBe('rgba(0, 0, 0, 0)')
+      if (icons) expect(pressed.indicatorFill!.replaceAll(' ', '')).toBe(neutralColors[mode].bgHover.replaceAll(' ', ''))
+      expect(contrastOnSurface(pressed.color, pressed.backgrounds)).toBeGreaterThanOrEqual(4.5)
+      expect(await tab.boundingBox()).toEqual(bounds)
+      await page.mouse.up()
+      await page.waitForTimeout(300)
+      expect(await measure()).toMatchObject({ color: resting.color, active: false, hover: false, current: 'page' })
     } finally { await page.close(); unmount() }
   })
 
