@@ -165,10 +165,14 @@ describe('Calendar shell helpers', () => {
     expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-left-color: var(--status-empty)')
     expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-top-color: var(--primary)')
     expect(document.querySelector('[data-legend-outcome="partial"]')?.getAttribute('style')).toContain('border-right-color: var(--primary)')
-    expect(document.querySelector('[data-legend-outcome="none"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--status-empty)' })
+    expect(document.querySelector('[data-legend-outcome="none"]')).toHaveStyle({ background: '', boxShadow: 'inset 0 0 0 1.5px var(--status-empty)' })
     expect(document.querySelector('[data-legend-outcome="loggable"]')).toHaveStyle({
       background: 'var(--bg-well)',
-      boxShadow: 'inset 0 0 0 2px var(--fg-3)',
+      boxShadow: 'inset 0 0 0 1px var(--hairline)',
     })
+    for (const outcome of ['full', 'partial', 'none', 'loggable']) {
+      expect(document.querySelector(`[data-legend-outcome="${outcome}"]`)).toHaveStyle({ width: '14px', height: '14px' })
+      expect(document.querySelector(`[data-legend-outcome="${outcome}"]`)?.parentElement).toHaveStyle({ gap: '8px' })
+    }
   })
 })

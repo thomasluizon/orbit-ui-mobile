@@ -119,20 +119,20 @@ interface LegendItemProps {
 
 function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
   if (outcome === 'partial') {
-    return <span aria-hidden="true" data-legend-outcome="partial" className="shrink-0 rounded-full" style={{ width: 12, height: 12, borderWidth: 1.5, borderStyle: 'solid', borderTopColor: 'var(--primary)', borderRightColor: 'var(--primary)', borderBottomColor: 'var(--status-empty)', borderLeftColor: 'var(--status-empty)' }} />
+    return <span aria-hidden="true" data-legend-outcome="partial" className="shrink-0 rounded-full" style={{ width: 14, height: 14, borderWidth: 1.5, borderStyle: 'solid', borderTopColor: 'var(--primary)', borderRightColor: 'var(--primary)', borderBottomColor: 'var(--status-empty)', borderLeftColor: 'var(--status-empty)' }} />
   }
 
   const style = outcome === 'full'
     ? { background: 'var(--fg-1)' }
     : outcome === 'loggable'
-      ? { background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 2px var(--fg-3)' }
-      : { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
-  return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 12, height: 12, ...style }} />
+      ? { background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }
+      : { boxShadow: 'inset 0 0 0 1.5px var(--status-empty)' }
+  return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 14, height: 14, ...style }} />
 }
 
 function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
   return (
-    <span className="inline-flex items-center" style={{ gap: 12 }}>
+    <span className="inline-flex items-center" style={{ gap: 8 }}>
       <LegendSwatch outcome={outcome} />
       <span
         style={{
