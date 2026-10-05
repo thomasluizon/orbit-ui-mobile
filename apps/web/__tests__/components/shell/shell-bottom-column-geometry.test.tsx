@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
@@ -9,6 +9,10 @@ import { Composer } from '@/components/shell/composer'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { Toast } from '@/components/ui/toast'
 import { Fab } from '@/components/ui/fab'
+import { Button } from '@/components/ui/pill-button'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { measureChromePaint } from '@/e2e/layout/composer-column-paint'
 import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -24,8 +28,57 @@ describe('Shell bottom column geometry', () => {
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    const theme = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
+    stylesheet += `:root{${theme}}`
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 1280])('preserves notice shadow paint and pointer access at %ipx', async (width) => {
+    const view = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+      composer={<Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
+      notice={<><UpdateAvailableBanner /><Toast kind="neutral" message="Habit saved" actionLabel="Undo" onAction={vi.fn()} /></>}
+      tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
+      <div style={{ height: 1600 }}>Habits</div>
+    </ShellWide>)
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      const paint = await page.locator('[data-shell-notice] [data-kind]').evaluate(measureChromePaint)
+      expect(paint.extent.top).toBeGreaterThan(0)
+      for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+        expect.soft(paint.clearance[side], `${side} shadow clearance`).toBeGreaterThanOrEqual(paint.extent[side] - 0.5)
+      }
+      expect.soft(paint.clipPointerEvents).toBe('none')
+      await page.getByRole('button', { name: 'Undo' }).click()
+      const paddingHit = await page.locator('[data-shell-notice]').evaluate((clip) => {
+        const bounds = clip.getBoundingClientRect()
+        return clip.contains(document.elementFromPoint(bounds.left + 8, bounds.top + 1))
+      })
+      expect(paddingHit).toBe(false)
+      await page.locator('[data-shell-notice] [data-kind]').evaluate((toast) => toast.remove())
+      expect(await page.locator('[data-shell-notice] [data-update-live-region]').count()).toBe(1)
+      expect(await page.locator('[data-shell-notice]').evaluate((clip) => clip.getBoundingClientRect().height)).toBe(0)
+    } finally { await page.close(); view.unmount() }
+  })
+
+  it.each([320, 1280])('keeps a pinned flow action focus perimeter whole at %ipx', async (width) => {
+    const view = render(<ShellWide nav={false} action={<div className="flex justify-end px-4">
+      <Button size="md" onClick={vi.fn()}>Continue</Button>
+    </div>}><div style={{ height: 1600 }}>Form</div></ShellWide>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      await page.keyboard.press('Tab')
+      await page.getByRole('button', { name: 'Continue' }).focus()
+      const paint = await page.getByRole('button', { name: 'Continue' }).evaluate(measureChromePaint)
+      expect(paint.outlineWidth).toBeGreaterThan(0)
+      for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+        expect.soft(paint.clearance[side], `${side} focus clearance`).toBeGreaterThanOrEqual(paint.extent[side] - 0.5)
+      }
+      expect(paint.hit).toBe(true)
+    } finally { await page.close(); view.unmount() }
+  })
 
   it.each([320, 600, 840, 1100].flatMap((width) =>
     (['idle', 'atLimit', 'offline'] as const).map((state) => ({ width, state })),
@@ -53,7 +106,7 @@ describe('Shell bottom column geometry', () => {
         const tabs = document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect()
         const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
         const fab = document.querySelector('[data-shell-fab] button')!.getBoundingClientRect()
-        const fabClip = document.querySelector('[data-shell-fab]')!.closest('.overflow-y-auto')!.getBoundingClientRect()
+        const fabClip = document.querySelector('[data-shell-fab-clip]')!.getBoundingClientRect()
         return {
           reference: right('[data-column-reference]'),
           pill: right('[data-shell-pinned-slot] [data-composer-input-row]'),
@@ -71,6 +124,11 @@ describe('Shell bottom column geometry', () => {
       expect.soft(Math.abs(geometry.notice - geometry.reference), 'shell notice').toBeLessThanOrEqual(0.5)
       if (state !== 'idle') expect.soft(Math.abs(geometry.note! - geometry.reference), 'composer note').toBeLessThanOrEqual(0.5)
       if (width < 1024) {
+        const fabPaint = await page.locator('[data-shell-fab] button').evaluate(measureChromePaint)
+        expect(fabPaint.extent.top).toBeGreaterThan(0)
+        for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+          expect(fabPaint.clearance[side], `${side} FAB paint clearance`).toBeGreaterThanOrEqual(fabPaint.extent[side] - 0.5)
+        }
         expect.soft(Math.abs(geometry.fab.right - geometry.reference), 'create target').toBeLessThanOrEqual(0.5)
         expect(geometry.fab.bottom).toBeLessThanOrEqual(geometry.bottomTop - 16)
         expect(geometry.fab.hit).toBe('Create')

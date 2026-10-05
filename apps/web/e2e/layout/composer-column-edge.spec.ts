@@ -4,9 +4,12 @@ import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-suppo
 import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
+import { measureChromePaint } from './composer-column-paint'
 
 test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
@@ -30,6 +33,50 @@ async function expectRightEdge(surface: Locator, rowRight: number) {
     const right = await surface.evaluate((element) => element.getBoundingClientRect().right)
     expect(Math.abs(right - rowRight)).toBeLessThanOrEqual(0.5)
   }).toPass({ timeout: 5000 })
+}
+
+for (const width of [320, 1280]) {
+  for (const locale of ['en', 'pt-BR'] as const) {
+    test.describe(`hosted notice paint at ${width}px in ${locale}`, () => {
+      test.use({ appLocale: locale, viewport: { width, height: 915 } })
+      const words = locale === 'en' ? en : ptBR
+
+      test('keeps the toast shadow inside the native gutter clip and Undo reachable', async ({ page, context }) => {
+        const notification = createMockNotification({ title: 'Column notice' })
+        const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
+        await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({ json: notifications }))
+        await page.goto('/notifications')
+        await page.getByRole('button', {
+          name: words.notifications.deleteNotification.replace('{title}', notification.title), exact: true,
+        }).click()
+        const toast = page.locator('[data-shell-notice] [data-kind="neutral"]')
+          .filter({ hasText: words.notifications.deleteQueued })
+        await expect(toast).toBeVisible()
+        await page.clock.pauseAt(new Date(`${today}T12:00:00Z`))
+        await page.evaluate(() => document.fonts.ready)
+        const scroller = page.locator('[data-shell-scroller]')
+        const gutter = await scroller.evaluate(measureScrollbarGutter)
+        expect(gutter).toBeGreaterThan(0)
+        const paint = await toast.evaluate(measureChromePaint)
+        expect(paint.extent.top).toBeGreaterThan(0)
+        for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+          expect(paint.clearance[side], `${side} shadow clearance`).toBeGreaterThanOrEqual(paint.extent[side] - 0.5)
+        }
+        expect(paint.clipPointerEvents).toBe('none')
+        const edges = await toast.evaluate((element, gutter) => {
+          const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
+          const bounds = element.getBoundingClientRect()
+          return { left: bounds.left - column.left, right: column.right - gutter - bounds.right }
+        }, gutter)
+        expect(edges.left).toBeCloseTo(16, 1)
+        expect(edges.right).toBeCloseTo(16, 1)
+        await toast.getByRole('button', { name: words.notifications.deleteUndo, exact: true }).click()
+        await expect(toast).toHaveCount(0)
+        await expect(page.getByText(notification.title, { exact: true })).toBeVisible()
+        expect(await page.locator('[data-shell-notice]').evaluate((slot) => slot.getBoundingClientRect().height)).toBe(0)
+      })
+    })
+  }
 }
 
 for (const width of [600, 1100]) {
