@@ -493,8 +493,9 @@ Write it to the scratchpad. A prompt file inside the worktree gets committed by 
 ## Steps 5 and 6. Spawn the worker
 
 New ticket work atomically claims capacity in `launch-worker.mjs` before spawn. It refuses when
-the claim would put open pull requests and live claims above 10, or queued Actions runs from the
-last 24 hours and live claims above 30 across configured repositories. A branch with an open pull
+the claim would put open pull requests and live claims above `caps.maxOpenPullRequests`, or queued
+Actions runs from the last 24 hours and live claims above `caps.maxQueuedRuns`, across configured
+repositories. A branch with an open pull
 request is exempt. Claims end when the launcher exits or its branch gains an open pull request. A GitHub read error
 refuses admission with exit 8 and `ADMISSION_REFUSED` JSON. Do not retry by changing flags.
 
@@ -981,7 +982,7 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **8**, one worktree
+**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **10**, one worktree
 each. Each worktree is a full install, build and test run plus its own model session, so the cap is a
 resource decision, not a preference.
 
