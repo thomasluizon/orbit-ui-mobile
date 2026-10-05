@@ -103,7 +103,7 @@ async function inspectTitles(page: Page) {
       await page.emulateMedia({ forcedColors: 'none' })
     }
     await page.goto(entry)
-    if (entry === '/') await page.getByRole('button', { name: ptBR.habits.createManually, exact: true }).click()
+    if (entry === '/') await page.getByRole('button', { name: ptBR.nav.createHabit, exact: true }).click()
     else await page.getByTestId('profile-settings-group-you').getByRole('link').filter({ hasText: profileFixture.name }).click()
     await expect(page).toHaveURL((url) => url.pathname === path.split('?')[0])
     await expect(heading).toBeFocused()
