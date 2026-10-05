@@ -64,9 +64,16 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
-  if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
-  if (typeof style.paddingVertical === 'number') node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical)
-  if (typeof style.paddingEnd === 'number') node.setPadding(Yoga.EDGE_END, style.paddingEnd)
+  for (const [property, edge] of [
+    ['paddingHorizontal', Yoga.EDGE_HORIZONTAL],
+    ['paddingVertical', Yoga.EDGE_VERTICAL],
+    ['paddingTop', Yoga.EDGE_TOP],
+    ['paddingBottom', Yoga.EDGE_BOTTOM],
+    ['paddingEnd', Yoga.EDGE_END],
+  ] as const) {
+    const padding = style[property]
+    if (typeof padding === 'number') node.setPadding(edge, padding)
+  }
 }
 
 function position(node: YogaNode): { left: number; top: number; right: number; bottom: number; width: number; height: number } {

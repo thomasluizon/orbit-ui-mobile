@@ -5,7 +5,7 @@ import { buildCalendarDayMap } from '../utils/habits'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from './factories'
 import type { CalendarMonthResponse, HabitScheduleChild } from '../types/habit'
 import { formatAPIDate } from '../utils/dates'
-import { resolveCalendarMonthDisplayState } from '../utils/calendar-month-state'
+import { formatCalendarWeekLabel, resolveCalendarMonthDisplayState } from '../utils/calendar-month-state'
 
 function entry(status: CalendarDayEntry['status'], habitId = 'h'): CalendarDayEntry {
   return { habitId, title: 't', status, isBadHabit: false, dueTime: null, isOneTime: false }
@@ -204,5 +204,18 @@ describe("buildCalendarMonthModel with sub-habit logs (shared)", () => {
     expect(loggedDay?.completedCount).toBe(2)
     expect(loggedDay?.totalCount).toBe(2)
     expect(monthStats).toEqual({ totalLogs: 2, missed: 0, bestStreak: 1, hasEntries: true })
+  })
+})
+
+describe('formatCalendarWeekLabel', () => {
+  it.each([
+    ['pt-BR', new Date(2026, 7, 31), new Date(2026, 8, 6), '31 ago - 6 set'],
+    ['en', new Date(2026, 7, 31), new Date(2026, 8, 6), 'Aug 31 - Sep 6'],
+    ['pt-BR', new Date(2026, 8, 7), new Date(2026, 8, 13), '7 set - 13'],
+    ['en', new Date(2026, 8, 7), new Date(2026, 8, 13), 'Sep 7 - 13'],
+    ['pt-BR', new Date(2026, 11, 28), new Date(2027, 0, 3), '28 dez - 3 jan'],
+    ['en', new Date(2026, 11, 28), new Date(2027, 0, 3), 'Dec 28 - Jan 3'],
+  ] as const)('keeps %s week labels compact while identifying both months', (locale, start, end, label) => {
+    expect(formatCalendarWeekLabel(start, end, locale)).toBe(label)
   })
 })

@@ -12,21 +12,45 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
 
-interface CalendarRangeViewProps {
-  model: CalendarRangeModel
-  weekdayLabels: readonly string[]
+interface CalendarRangeNavigationProps {
   rangeLabel: string
   previousRangeLabel: string
   nextRangeLabel: string
   onPreviousRange: () => void
   onNextRange: () => void
   nextRangeDisabled: boolean
+  tokens: AppTokensV2
+}
+
+export function CalendarRangeNavigation({ rangeLabel, previousRangeLabel, nextRangeLabel, onPreviousRange, onNextRange, nextRangeDisabled, tokens }: Readonly<CalendarRangeNavigationProps>) {
+  return (
+    <View testID="calendar-range-navigation" style={styles.header}>
+      <Text style={[styles.rangeLabel, { color: tokens.fg2 }]}>
+        {rangeLabel}
+      </Text>
+      <View style={styles.controls}>
+        <Pressable accessibilityRole="button" accessibilityLabel={previousRangeLabel} onPress={onPreviousRange}
+          style={({ pressed }) => [styles.iconButton, { borderColor: tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
+          <ChevronLeft size={20} strokeWidth={2} color={tokens.fg2} />
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={nextRangeLabel} onPress={onNextRange} disabled={nextRangeDisabled} accessibilityState={{ disabled: nextRangeDisabled }}
+          style={({ pressed }) => [styles.iconButton, { borderColor: tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : 'transparent' }, nextRangeDisabled && { opacity: 0.4 }]}>
+          <ChevronRight size={20} strokeWidth={2} color={tokens.fg2} />
+        </Pressable>
+      </View>
+    </View>
+  )
+}
+
+interface CalendarRangeViewProps {
+  model: CalendarRangeModel
+  weekdayLabels: readonly string[]
+  rangeLabel: string
   isLoading: boolean
   loadingLabel: string
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
   language: string
   t: TFunction
-  tokens: AppTokensV2
 }
 
 /** A fixed fourteen-day, read-only orientation view with span-level figures. */
@@ -34,17 +58,11 @@ export function CalendarRangeView({
   model,
   weekdayLabels,
   rangeLabel,
-  previousRangeLabel,
-  nextRangeLabel,
-  onPreviousRange,
-  onNextRange,
-  nextRangeDisabled,
   isLoading,
   loadingLabel,
   stats,
   language,
   t,
-  tokens,
 }: Readonly<CalendarRangeViewProps>) {
   const { width } = useWindowDimensions()
   const gridGap = width < 340 ? 0 : 4
@@ -66,21 +84,6 @@ export function CalendarRangeView({
       accessibilityState={{ busy: isLoading }}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Text style={[styles.rangeLabel, { color: tokens.fg2 }]}>
-          {rangeLabel}
-        </Text>
-        <View style={styles.controls}>
-          <Pressable accessibilityRole="button" accessibilityLabel={previousRangeLabel} onPress={onPreviousRange}
-            style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }]}>
-            <ChevronLeft size={20} strokeWidth={2} color={tokens.fg2} />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel={nextRangeLabel} onPress={onNextRange} disabled={nextRangeDisabled} accessibilityState={{ disabled: nextRangeDisabled }}
-            style={({ pressed }) => [styles.iconButton, { backgroundColor: pressed ? tokens.bgHover : tokens.bgField }, nextRangeDisabled && { opacity: 0.4 }]}>
-            <ChevronRight size={20} strokeWidth={2} color={tokens.fg2} />
-          </Pressable>
-        </View>
-      </View>
       {isLoading ? (
         <>
           <View style={styles.grid}><MonthGrid weekdayLabels={[...weekdayLabels]} gap={gridGap} label={rangeLabel}>
@@ -123,11 +126,11 @@ export function CalendarRangeView({
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 16, paddingTop: 12 },
-  header: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  container: { gap: 16 },
+  header: { minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   controls: { flexDirection: 'row', flexShrink: 0, gap: 12 },
   grid: { width: '100%', alignSelf: 'center', paddingHorizontal: 4 },
-  iconButton: { minHeight: 48, minWidth: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  iconButton: { minHeight: 48, minWidth: 48, borderWidth: 1.5, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   rangeLabel: {
     flex: 1,
     minWidth: 0,
