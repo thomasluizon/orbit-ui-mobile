@@ -241,8 +241,8 @@ describe('UpgradeScreen', () => {
   })
 
   describe.each([
-    { locale: 'en', messages: en, trialHeading: 'The 50 a day stay, or go back to 5.' },
-    { locale: 'pt-BR', messages: ptBR, trialHeading: 'As 50 por dia ficam, ou voltam a ser 5.' },
+    { locale: 'en', messages: en, trialHeading: '50 a day, or back to 5.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 ficam, ou 5 por dia.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
     beforeEach(async () => {
       mocks.renderComposition = true
