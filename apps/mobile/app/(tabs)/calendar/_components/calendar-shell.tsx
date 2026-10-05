@@ -22,7 +22,6 @@ interface CalendarHeaderProps {
   onSelectMonth: (month: number, year: number) => void
   periodNavigation?: ReactNode
   viewSelector?: ReactNode
-  showMonthNavigation?: boolean
   tokens: Tokens
 }
 
@@ -43,7 +42,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   </View>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, periodNavigation, viewSelector, showMonthNavigation = true, tokens }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, periodNavigation, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
   const { t, i18n } = useTranslation()
   const styles = createStyles(tokens)
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
@@ -53,7 +52,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
   const { sheetRef, closeSheet } = useSheetHost()
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <View testID="calendar-header-group" style={styles.header}>
-    {showMonthNavigation ? <View testID="calendar-month-navigation" style={styles.navigation}>
+    {!periodNavigation ? <View testID="calendar-month-navigation" style={styles.navigation}>
       <Pressable accessibilityRole="button" accessibilityLabel={previousMonthLabel} onPress={onPreviousMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}>
         <Text style={styles.title} numberOfLines={1}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>
@@ -114,10 +113,10 @@ export function CalendarLegend({ loggableLabel, fullLabel, partialLabel, noneLab
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
-    header: { gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
-    navigation: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
-    iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: tokens.bgField },
-    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 999, overflow: 'hidden', backgroundColor: tokens.bgField },
+    header: { gap: 16, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
+    navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' },
+    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
     pressed: { backgroundColor: tokens.bgHover },
     title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, color: tokens.fg1 },
     year: { color: tokens.fg2 },

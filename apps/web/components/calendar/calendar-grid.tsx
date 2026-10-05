@@ -279,7 +279,7 @@ export function CalendarGrid({
 
   if (isLoading) {
     return (
-      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '16px 4px 8px' }}>
+      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '0 4px 8px' }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <div role="progressbar" aria-label={t('calendar.loading')} aria-busy="true" data-rows={Math.ceil(gridDays.length / 7)} data-cols={7}
             style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(var(--month-grid-touch-min), 1fr))', gap: 'var(--calendar-grid-gap)', justifyItems: 'center' }}>
@@ -293,7 +293,7 @@ export function CalendarGrid({
   return (
     <div
       data-testid="calendar-grid"
-      className="orbit-calendar-grid-frame" style={{ padding: '16px 4px 8px' }}
+      className="orbit-calendar-grid-frame" style={{ padding: '0 4px 8px' }}
     >
       <div
         data-testid="calendar-grid-card"

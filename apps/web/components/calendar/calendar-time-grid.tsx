@@ -222,7 +222,7 @@ export function CalendarTimeGrid({
     perColumn.every(({ allDay, timed }) => allDay.length === 0 && timed.length === 0)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 16px 16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 16px 16px' }}>
       <span
         data-testid="time-grid-any-time-label"
         style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', color: 'var(--fg-2)' }}

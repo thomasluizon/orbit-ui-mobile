@@ -326,7 +326,7 @@ export function CalendarGrid({
 }
 
 const styles = StyleSheet.create({
-  calendarGrid: { paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8 },
+  calendarGrid: { paddingHorizontal: 4, paddingTop: 0, paddingBottom: 8 },
   gridCard: {
     width: '100%',
     alignSelf: 'center',

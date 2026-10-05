@@ -127,11 +127,27 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
       tree = mount(<CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08"
         previousMonthLabel="Previous month" nextMonthLabel="Next month"
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={onCurrentMonth}
-        onSelectMonth={onSelectMonth} tokens={tokens} showMonthNavigation={showMonthNavigation}
+        onSelectMonth={onSelectMonth} tokens={tokens} periodNavigation={showMonthNavigation ? undefined : <CalendarWeekNav weekLabel="Apr 6 to 12" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} tokens={tokens} />}
         viewSelector={<View testID="calendar-view-selector" />} />);
     });
     return tree;
   }
+
+  it.each(['light', 'dark'] as const)('paints ghost header controls in %s mode', (mode) => {
+    const themedTokens = createTokensV2('purple', mode);
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = mount(<CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={themedTokens} />);
+    });
+    for (const label of ['Previous', 'Next']) {
+      const control = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
+      expect(StyleSheet.flatten(control.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', borderWidth: 1.5, borderColor: themedTokens.hairlineStrong });
+      expectPressFill(tree, label, themedTokens.bgHover, 999);
+    }
+    const title = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'April, calendar.monthPicker')[0]!;
+    expect(StyleSheet.flatten(title.props.style({ pressed: false }))).toMatchObject({ backgroundColor: 'transparent', borderRadius: 12 });
+    expectPressFill(tree, 'April, calendar.monthPicker', themedTokens.bgHover, 12);
+  });
 
   it("removes the month navigation row in the other views", () => {
     const tree = renderHeader(vi.fn(), vi.fn(), false);
@@ -146,7 +162,8 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     expect(hostTextValues(tree)).not.toContain(2026);
     const title = tree.root.findAll((node) => node.type === "Text" && Array.isArray(node.props.children) && node.props.children[0] === "April")[0];
     expect(StyleSheet.flatten(title?.props.style).fontSize).toBe(22);
-    for (const label of ['Previous month', 'Next month', 'April, calendar.monthPicker']) expectPressFill(tree, label, tokens.bgHover, 999);
+    for (const label of ['Previous month', 'Next month']) expectPressFill(tree, label, tokens.bgHover, 999);
+    expectPressFill(tree, 'April, calendar.monthPicker', tokens.bgHover, 12);
   });
 
   it("keeps year browsing local and reports a chosen month after native dismissal", () => {
@@ -209,7 +226,8 @@ describe("CalendarWeekNav (mobile)", () => {
     });
 
     expect(hostTextValues(tree!)).toContain("Apr 6 – 12");
-    for (const label of ['Previous week', 'Next week', 'Apr 6 – 12, Go to current week']) expectPressFill(tree!, label, tokens.bgHover, 999);
+    for (const label of ['Previous week', 'Next week']) expectPressFill(tree!, label, tokens.bgHover, 999);
+    expectPressFill(tree!, 'Apr 6 – 12, Go to current week', tokens.bgHover, 12);
     pressByAccessibilityLabel(tree!, "Previous week");
     pressByAccessibilityLabel(tree!, "Next week");
     pressByAccessibilityLabel(tree!, "Apr 6 – 12, Go to current week");

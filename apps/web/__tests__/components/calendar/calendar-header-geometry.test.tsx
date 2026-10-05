@@ -13,10 +13,11 @@ import { buildYearRange } from '@orbit/shared/utils'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarHeader, CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
 import { buildCalendarRangeModel, formatCalendarWeekLabel } from '@orbit/shared/utils'
-import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarRangeNavigation, CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -54,6 +55,39 @@ describe('Calendar header geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each(['light', 'dark'] as const)('paints ghost chevrons and a transparent month title in %s mode', async (mode) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-04" previousMonthLabel="Previous" nextMonthLabel="Next"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate(({ mode, variables }) => {
+        document.documentElement.className = mode
+        for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+      }, { mode, variables: resolveWebThemeVariables('orange', mode) })
+      await loadAppFonts(page)
+      for (const label of ['Previous', 'Next']) {
+        const control = page.getByRole('button', { name: label, exact: true })
+        const resting = await control.evaluate((button) => {
+          const style = getComputedStyle(button)
+          return { background: style.backgroundColor, ring: style.boxShadow, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height }
+        })
+        expect(resting.background).toBe('rgba(0, 0, 0, 0)')
+        expect(resting.ring).toContain('1.5px')
+        expect(resting.ring).toContain('inset')
+        expect(resting.width).toBeGreaterThanOrEqual(48)
+        expect(resting.height).toBeGreaterThanOrEqual(48)
+        await control.hover()
+        await expect.poll(() => control.evaluate((button) => getComputedStyle(button).backgroundColor)).not.toBe(resting.background)
+        await page.mouse.move(0, 0)
+      }
+      const title = page.getByRole('button', { name: `September, ${en.calendar.monthPicker}` })
+      expect(await title.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, radius: getComputedStyle(button).borderRadius }))).toEqual({ background: 'rgba(0, 0, 0, 0)', radius: '12px' })
+    } finally { await page.close() }
+  })
 
   it.each([320, 412])('contains the year viewport and reaches both ends at 640x%i', async (height) => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
@@ -287,7 +321,7 @@ describe('Calendar header geometry in Chromium', () => {
     const weekLabel = formatCalendarWeekLabel(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
       <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-30" previousMonthLabel="Previous month" nextMonthLabel="Next month"
-        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} showMonthNavigation={false}
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
         periodNavigation={<CalendarWeekNav weekLabel={weekLabel} previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} />}
         viewSelector={<SegmentedControl fullWidth options={options} value="week" onChange={vi.fn()} label={ptBR.calendar.view.switchLabel} />} />
     </NextIntlClientProvider>)
@@ -338,7 +372,8 @@ describe('Calendar header geometry in Chromium', () => {
     const model = buildCalendarRangeModel(new Date(2026, 9, 6), seededDayMap('2026-10'), 1, '2026-10-06')
     const rangeLabel = ptBR.calendar.range.label.replace('{start}', format(model.start, 'd MMM', { locale: dateLocale })).replace('{end}', format(model.end, 'd MMM', { locale: dateLocale }))
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
-      <CalendarRangeView model={model} weekdayLabels={['S', 'T', 'Q', 'Q', 'S', 'S', 'D']} rangeLabel={rangeLabel} previousRangeLabel="Previous range" nextRangeLabel="Next range" onPreviousRange={vi.fn()} onNextRange={vi.fn()} nextRangeDisabled={false} isLoading={isLoading} loadingLabel={ptBR.calendar.loading}
+      <div style={{ paddingInline: 16 }}><CalendarRangeNavigation rangeLabel={rangeLabel} previousRangeLabel="Previous range" nextRangeLabel="Next range" onPreviousRange={vi.fn()} onNextRange={vi.fn()} nextRangeDisabled={false} /></div>
+      <CalendarRangeView model={model} weekdayLabels={['S', 'T', 'Q', 'Q', 'S', 'S', 'D']} rangeLabel={rangeLabel} isLoading={isLoading} loadingLabel={ptBR.calendar.loading}
         stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: ptBR.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: ptBR.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: ptBR.calendar.missedCount }]} />
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })

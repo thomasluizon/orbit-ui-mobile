@@ -13,7 +13,7 @@ vi.mock('@/hooks/use-date-format', () => ({
   }),
 }))
 
-import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarRangeNavigation, CalendarRangeView } from '@/components/calendar/calendar-range-view'
 
 function entry(status: CalendarDayEntry['status'], habitId = 'habit'): CalendarDayEntry {
   return { habitId, title: 'Habit', status, isBadHabit: false, dueTime: null, isOneTime: false }
@@ -34,15 +34,12 @@ function renderRange(isLoading = false) {
   )
 
   const view = render(
+    <>
+      <CalendarRangeNavigation rangeLabel="Jun 1 to Jun 14" previousRangeLabel="Previous range" nextRangeLabel="Next range" onPreviousRange={onPreviousRange} onNextRange={onNextRange} nextRangeDisabled={false} />
     <CalendarRangeView
       model={model}
       weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
       rangeLabel="Jun 1 to Jun 14"
-      previousRangeLabel="Previous range"
-      nextRangeLabel="Next range"
-      onPreviousRange={onPreviousRange}
-      onNextRange={onNextRange}
-      nextRangeDisabled={false}
       isLoading={isLoading}
       loadingLabel="Loading range"
       stats={[
@@ -50,7 +47,7 @@ function renderRange(isLoading = false) {
         { key: 'totalLogs', value: model.stats.totalLogs, label: 'Logs' },
         { key: 'missed', value: model.stats.missed, label: 'Missed' },
       ]}
-    />,
+    /></>,
   )
   return { onPreviousRange, onNextRange, ...view }
 }
@@ -100,11 +97,6 @@ describe('CalendarRangeView', () => {
         )}
         weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
         rangeLabel="Jun 1 to Jun 14"
-        previousRangeLabel="Previous range"
-        nextRangeLabel="Next range"
-        onPreviousRange={vi.fn()}
-        onNextRange={vi.fn()}
-        nextRangeDisabled={false}
         isLoading={false}
         loadingLabel="Loading range"
         stats={[
