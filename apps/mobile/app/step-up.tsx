@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
@@ -449,6 +450,7 @@ function MobileStepUpResend({ cooldownSeconds, onResend, requesting, t, tokens }
 }
 
 function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () => void }>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
@@ -456,7 +458,7 @@ function QuietAction({ label, onPress }: Readonly<{ label: string; onPress: () =
       onPress={onPress}
       accessibilityRole="link"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.quietAction, pressed ? styles.quietPressed : null]}
+      style={({ pressed }) => [styles.quietAction, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null]}
     >
       <Text style={[styles.quietLabel, { color: tokens.fg2 }]}>{label}</Text>
     </Pressable>
@@ -515,11 +517,11 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   quietAction: {
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: 12,
     minHeight: TOUCH_TARGET_MIN,
     justifyContent: 'center',
-  },
-  quietPressed: {
-    opacity: 0.75,
   },
   quietLabel: {
     fontFamily: 'Geist_400Regular',

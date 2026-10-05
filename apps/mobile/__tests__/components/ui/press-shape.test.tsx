@@ -9,11 +9,17 @@ import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
+import { MotionPressable } from '@/components/ui/motion-pressable'
 import { ListRow } from '@/components/ui/list-row'
 import { SettingsGroupRow } from '@/components/ui/settings-group'
 import { createTokensV2, radius } from '@/lib/theme'
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+const motion = vi.hoisted(() => ({ reduced: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/motion')>(),
+  usePrefersReducedMotion: () => motion.reduced,
+}))
 
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time, uses24HourClock: true }),
@@ -89,6 +95,23 @@ function numeralColor(node: StyledNode) {
 }
 
 describe('pressed hit area shapes', () => {
+  it.each([false, true])('keeps the fill available with reduced motion: %s', (reduced) => {
+    motion.reduced = reduced
+    try {
+      withTree(<MotionPressable accessibilityLabel="Retry" style={({ pressed }) => ({ backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>Retry</MotionPressable>, (tree) => {
+        renderer.act(() => findPressable(tree, 'Retry').props.onPressIn?.())
+        const control = findPressable(tree, 'Retry')
+        expect(StyleSheet.flatten(control.props.style as StyleProp<ViewStyle>)).toMatchObject({
+          backgroundColor: tokens.bgHover,
+          transform: [{ scale: reduced ? 1 : 0.96 }],
+          ...(reduced ? { transition: 'none' } : {}),
+        })
+        renderer.act(() => control.props.onPressOut?.())
+        expect(StyleSheet.flatten(findPressable(tree, 'Retry').props.style as StyleProp<ViewStyle>)).toMatchObject({ backgroundColor: 'transparent', transform: [{ scale: 1 }] })
+      })
+    } finally { motion.reduced = false }
+  })
+
   it('paints the chip target in a real 44px box without invisible slop', () => {
     withTree(<Chip onPress={() => {}} accessibilityLabel="Filter">Filter</Chip>, (tree) => {
       const control = findPressable(tree, 'Filter')
