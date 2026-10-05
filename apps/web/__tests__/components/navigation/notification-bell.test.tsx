@@ -286,10 +286,12 @@ describe('alerts', () => {
     const { container } = render(<NotificationBell />)
     expect(screen.getByText(count > 9 ? '9+' : String(count))).toBeInTheDocument()
     expect(screen.getByRole('button', { name: `Alerts, ${count} unread` })).toBeInTheDocument()
-    const badge = container.querySelector('[data-notification-count]')!
+    const badge = container.querySelector<HTMLElement>('[data-notification-count]')!
     expect(badge.outerHTML).not.toMatch(/--primary/)
     expect(badge.outerHTML).toContain('--fg-1')
     expect(getComputedStyle(badge).borderRadius).toBe('8px')
+    expect(badge).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('button', { name: `Alerts, ${count} unread` })).toContainElement(badge)
   })
 
   it('renders an empty inbox without an action and returns through the back affordance', () => {
