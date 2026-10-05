@@ -457,14 +457,14 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
   )
 }
 
-function AchievementTile({ achievement, tokens, wide }: Readonly<{ achievement: Achievement; tokens: AppTokensV2; wide: boolean }>) {
+function AchievementTile({ achievement, tokens, width }: Readonly<{ achievement: Achievement; tokens: AppTokensV2; width: number | '100%' }>) {
   const { t } = useTranslation()
   const current = achievement.progressCurrent
   const target = achievement.progressTarget
   const hasProgress = current != null && target != null
   const name = t(`gamification.achievements.${achievement.id}.name`)
   return (
-    <View style={[styles.achievement, wide ? styles.achievementWide : undefined, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]} testID={`achievement-tile-${achievement.id}`}>
+    <View style={[styles.achievement, { width, backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]} testID={`achievement-tile-${achievement.id}`}>
       <View style={styles.achievementHeader}>
         <AchievementMark achievement={achievement} name={name} tokens={tokens} />
         <View style={styles.achievementCopy}>
@@ -486,6 +486,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
 }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
+  const [gridWidth, setGridWidth] = useState(0)
   if (!gamificationAvailable) {
     return (
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
@@ -504,7 +505,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
   const levelTitle = t(getGamificationLevelTitleKey(profile.level))
-  const wide = width >= 768
+  const tileWidth = width >= 768 && gridWidth > 0 ? (gridWidth - styles.achievementGrid.gap) / 2 : '100%'
   return (
     <>
       <View style={styles.xpSummary} testID="progress-xp-summary">
@@ -512,7 +513,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </View>
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} wide={wide} />)}</View></View>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={tileWidth} />)}</View></View>)}
       </Section>
     </>
   )
@@ -639,7 +640,7 @@ const styles = StyleSheet.create({
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', gap: 12, paddingVertical: 24 },
-  achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: 16, width: '100%' }, achievementWide: { width: '48%' },
+  achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: 16 },
   achievementCategory: { gap: 12 }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: 4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   achievementHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 }, achievementCopy: { flex: 1, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
