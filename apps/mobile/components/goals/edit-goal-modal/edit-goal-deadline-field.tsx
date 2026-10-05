@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { Pressable, Text, View } from 'react-native'
 import { Plus, X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +20,7 @@ export function EditGoalDeadlineField({
   deadline,
   onChangeDeadline,
 }: Readonly<EditGoalDeadlineFieldProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   return (
     <View>
@@ -37,7 +39,7 @@ export function EditGoalDeadlineField({
             <Pressable
               style={({ pressed }) => [
                 styles.removeDeadlineButton,
-                pressed && { opacity: 0.7 },
+                pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
               ]}
               onPress={() => onChangeDeadline('')}
               accessibilityRole="button"
@@ -56,7 +58,7 @@ export function EditGoalDeadlineField({
         <Pressable
           style={({ pressed }) => [
             styles.addDeadlineButton,
-            pressed && { opacity: 0.7 },
+            pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
           ]}
           onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
           hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}

@@ -64,20 +64,21 @@ function flattenText(node: unknown): string {
   return ''
 }
 
-function renderModal() {
+function renderModal(onClose = vi.fn()) {
   let tree: any
-  TestRenderer.act(() => { tree = TestRenderer.create(<EditGoalModal open onClose={vi.fn()} goal={goal} />) })
+  TestRenderer.act(() => { tree = TestRenderer.create(<EditGoalModal open onClose={onClose} goal={goal} />) })
   const input = (label: string) => tree.root.findAll((node: any) => node.type === 'BottomSheetAppTextInput' && node.props.accessibilityLabel === label)[0]
   const save = () => tree.root.findAll((node: any) => typeof node.props.onPress === 'function' && flattenText(node) === 'common.save')[0]
   return { tree, input, save }
 }
 
+beforeEach(() => {
+  mocks.focus.mockReset()
+  mocks.mutateAsync.mockReset()
+  mocks.showError.mockReset()
+})
+
 describe('EditGoalModal helpers', () => {
-  beforeEach(() => {
-    mocks.focus.mockReset()
-    mocks.mutateAsync.mockReset()
-    mocks.showError.mockReset()
-  })
 
   it('keeps the written description when editing a goal', () => {
     expect(buildGoalTitle('Run daily', '12', 'km')).toBe('Run daily')
@@ -177,4 +178,32 @@ it('places legacy server validation beside each edited goal field and clears onl
   expect(input('goals.form.description').props.accessibilityHint).toBeUndefined()
   expect(input('goals.form.unit').props.accessibilityHint).toContain('Server unit failure')
   TestRenderer.act(() => tree.unmount())
+})
+
+
+it('focuses the mapped goal field while retaining general failures in a mixed response', async () => {
+  mocks.mutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Unit: ['Server unit failure'], HabitIds: ['Server linked habit failure'] } }, 'Fallback'))
+  const onClose = vi.fn()
+  const { tree, input, save } = renderModal(onClose)
+  try {
+    await TestRenderer.act(async () => { await save().props.onPress() })
+    expect(input('goals.form.unit').props.value).toBe('km')
+    expect(input('goals.form.unit').props.accessibilityHint).toBe('common.required. Server unit failure')
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.unit', 'common.required. Server unit failure')
+    expect(mocks.showError).toHaveBeenCalledWith(expect.stringContaining('Server linked habit failure'))
+    expect(tree.root.findByType('Sheet').props.open).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    mocks.focus.mockClear()
+    await TestRenderer.act(async () => { await save().props.onPress() })
+    expect(mocks.mutateAsync).toHaveBeenCalledTimes(2)
+    expect(mocks.focus).toHaveBeenLastCalledWith('goals.form.unit', 'common.required. Server unit failure')
+    await TestRenderer.act(() => input('goals.form.unit').props.onChangeText('miles'))
+    expect(input('goals.form.unit').props.accessibilityHint).toBe('common.required')
+    mocks.mutateAsync.mockResolvedValueOnce(undefined)
+    await TestRenderer.act(async () => { await save().props.onPress() })
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(mocks.mutateAsync).toHaveBeenLastCalledWith({ goalId: 'g1', data: expect.objectContaining({ unit: 'miles' }) })
+  } finally {
+    await TestRenderer.act(() => tree.unmount())
+  }
 })

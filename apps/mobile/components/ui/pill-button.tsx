@@ -49,13 +49,14 @@ export function Button({
   }
 
   const ghostPressedFill = elevated ? tokens.bgElevHover : quiet ? tokens.bgHoverOpaque : tokens.bgHover
+  const ghostFill = elevated ? tokens.bgElev : 'transparent'
   const variantStyle = (pressed: boolean): ViewStyle => {
     if (variant === 'secondary') {
-      return { backgroundColor: tokens.fg1 }
+      return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
     }
     if (variant === 'ghost') {
       return {
-        backgroundColor: pressed ? ghostPressedFill : elevated ? tokens.bgElev : 'transparent',
+        backgroundColor: pressed ? ghostPressedFill : ghostFill,
         borderWidth: 1.5,
         borderColor: tokens.hairlineStrong,
       }
@@ -75,8 +76,6 @@ export function Button({
     }
   }
 
-  const quietsOnPress = variant === 'secondary'
-
   return (
     <Pressable
       hitSlop={size === 'sm' ? SMALL_PILL_HIT_PADDING : undefined}
@@ -94,7 +93,6 @@ export function Button({
           : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed && !disabled && !loading),
         disabled && !loading ? styles.disabled : null,
-        pressed && !disabled && !loading && quietsOnPress ? styles.pressedQuiet : null,
         pressed && !disabled && !loading && !prefersReducedMotion ? styles.pressedScale : null,
       ]}
     >
@@ -133,9 +131,6 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
-  },
-  pressedQuiet: {
-    opacity: 0.85,
   },
   pressedScale: {
     transform: [{ scale: 0.96 }],

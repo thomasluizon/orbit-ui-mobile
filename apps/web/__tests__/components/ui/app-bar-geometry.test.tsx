@@ -7,6 +7,9 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { AppBar, APP_BAR_CONTROL_CLASS } from '@/components/ui/app-bar'
+import { PageHeader } from '@/components/ui/page-header'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { inspectFocusedRing } from '@/e2e/layout/focus-indicators'
 import { Badge } from '@/components/ui/badge'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -49,6 +52,49 @@ describe('Closed header and badge typography in Chromium', () => {
         for (const box of boxes) { expect(box!.width).toBeGreaterThanOrEqual(48); expect(box!.height).toBeGreaterThanOrEqual(48) }
         expect(boxes[0]!.x + boxes[0]!.width).toBeLessThan(boxes[1]!.x)
         unmount()
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([600, 1352].flatMap((width) => ['dark', 'light'].map((mode) => ({ width, mode: mode as 'dark' | 'light' }))))('keeps wayfinding targets focused without rings at $width in $mode', async ({ width, mode }) => {
+    const { container } = render(<>
+      <AppBar title={ptBR.habits.form.newHabit} onBack={vi.fn()} backLabel={ptBR.common.back} />
+      <PageHeader title={ptBR.profile.submenus.account} backLabel={ptBR.common.backToProfile} onBack={vi.fn()} />
+      <main tabIndex={-1}><section tabIndex={-1} className="orbit-focus-inset"><ul tabIndex={-1}><li tabIndex={-1}><div tabIndex={-1} role="group">Wayfinding</div></li></ul></section></main>
+      <aside tabIndex={-1} className="shadow-[inset_1px_0_0_var(--hairline)]">Panel</aside>
+      <div role="dialog" tabIndex={-1} className="focus-visible:outline-2">Conversation</div>
+      <button tabIndex={-1}>Button</button><a tabIndex={-1} href="#target">Link</a>
+      <input tabIndex={-1} aria-label="Field" /><textarea tabIndex={-1} aria-label="Message" />
+      <select tabIndex={-1} aria-label="Choice"><option>Choice</option></select>
+      <div role="button" tabIndex={-1}>Action</div><div role="menuitem" tabIndex={-1}>Menu item</div>
+      <div role="switch" aria-checked="false" tabIndex={-1}>Switch</div>
+      <div contentEditable suppressContentEditableWarning tabIndex={-1}>Editable</div>
+    </>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}: ${value};`).join(' ')
+      await page.setContent(`<style>${stylesheet}:root {${variables}}</style>${container.innerHTML}`)
+      await page.keyboard.press('Tab')
+      for (const forcedColors of ['none', 'active'] as const) {
+        await page.emulateMedia({ forcedColors })
+        const targets = page.locator('h1, main, section, ul, li, [role="group"], aside, [role="dialog"]')
+        for (const target of await targets.all()) {
+          await page.getByRole('button', { name: ptBR.common.back, exact: true }).focus()
+          const shadow = await target.evaluate((element) => getComputedStyle(element).boxShadow)
+          await target.focus()
+          expect(await target.evaluate((element) => ({ active: element === document.activeElement, outline: getComputedStyle(element).outlineStyle, shadow: getComputedStyle(element).boxShadow })))
+            .toEqual({ active: true, outline: 'none', shadow })
+        }
+        const controls = page.locator('button, a[href], input, textarea, select, [role="button"], [role="menuitem"], [role="switch"], [contenteditable]')
+        for (const control of await controls.all()) {
+          await control.focus()
+          expect(await control.evaluate((element) => ({ active: element === document.activeElement, visible: element.matches(':focus-visible'), outline: getComputedStyle(element).outlineWidth })))
+            .toEqual({ active: true, visible: true, outline: '2px' })
+          expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+        }
+        await page.getByRole('heading', { name: ptBR.habits.form.newHabit }).focus()
+        await page.keyboard.press('Tab')
+        expect(await page.getByRole('button', { name: ptBR.common.backToProfile }).evaluate((element) => element === document.activeElement)).toBe(true)
       }
     } finally { await page.close() }
   })

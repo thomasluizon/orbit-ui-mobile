@@ -6,7 +6,7 @@ import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { ReminderSection } from '@/components/habits/habit-form-fields/reminder-section'
 import { useTranslations } from 'next-intl'
 import { AppSelect } from '@/components/ui/app-select'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -201,5 +201,40 @@ describe('interaction fill parity in Chromium', () => {
       expect(await save.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(162, 71, 22)')
       await page.mouse.up()
     } finally { await page.close() }
+  })
+})
+
+function dimmingClasses(contents: string): string[] {
+  return [...contents.matchAll(/[\w:[\]&()/.-]*(?:hover|active)[\w:[\]&()/.-]*:opacity-(\d+(?:\.\d+)?|\[[\d.]+\])/g)]
+    .filter(([className, value]) => !className.replaceAll('not-disabled', 'enabled').replaceAll('not(:disabled)', 'enabled').includes('disabled') && (value!.startsWith('[') ? Number(value!.slice(1, -1)) < 1 : Number(value) < 100))
+    .map(([className]) => className)
+}
+
+function controlSources(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name)
+    return entry.isDirectory() ? controlSources(path) : /\.tsx?$/.test(entry.name) ? [path] : []
+  })
+}
+
+describe('enabled web control feedback', () => {
+  it.each(['hover:opacity-80', 'enabled:active:opacity-85', 'group-hover:opacity-80', 'group-active:opacity-70', 'md:[&_button:enabled:active]:opacity-85', 'hover:opacity-[0.8]', 'not-disabled:hover:opacity-80', '[&:not(:disabled):' + 'hover]:opacity-80'])('rejects content dimming in %s', (className) => {
+    expect(dimmingClasses(className)).toEqual([className])
+  })
+
+  it('retains disabled dimming and a separate fill reveal', () => {
+    expect(dimmingClasses('disabled:opacity-40 disabled:hover:opacity-40 opacity-0 group-hover:opacity-100 group-active:opacity-100')).toEqual([])
+  })
+
+  it('keeps every enabled hover and press free of content dimming', () => {
+    const failures = ['app', 'components'].flatMap((directory) => controlSources(resolve(directory)))
+      .flatMap((path) => dimmingClasses(readFileSync(path, 'utf8')).map((className) => `${path}: ${className}`))
+    expect(failures).toEqual([])
+    const failuresInCss: string[] = []
+    postcss.parse(readFileSync(resolve('app/globals.css'), 'utf8')).walkRules((rule) => {
+      if (!/:(hover|active)\b/.test(rule.selector) || /:disabled/.test(rule.selector.replaceAll(':not(:disabled)', ':enabled'))) return
+      rule.walkDecls('opacity', (declaration) => { if (Number(declaration.value) < 1) failuresInCss.push(`${rule.selector}: ${declaration.value}`) })
+    })
+    expect(failuresInCss).toEqual([])
   })
 })

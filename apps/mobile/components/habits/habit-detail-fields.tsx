@@ -4,10 +4,11 @@ import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
 import type { HabitDetailPatch, ReminderChanges } from '@orbit/shared/hooks'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitReminderLabel, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
+import { buildHabitDaysList, buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitReminderLabel, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
 import { ListRow } from '@/components/ui/list-row'
@@ -62,8 +63,29 @@ function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof
 
 function WeekdayChips({ days, tokens, onChange }: Readonly<{ days: string[]; tokens: Tokens; onChange: (days: string[]) => void }>) {
   const { t } = useTranslation()
+  const { profile } = useProfile()
+  const daysList = buildHabitDaysList({
+    monday: t('dates.daysShort.monday'),
+    tuesday: t('dates.daysShort.tuesday'),
+    wednesday: t('dates.daysShort.wednesday'),
+    thursday: t('dates.daysShort.thursday'),
+    friday: t('dates.daysShort.friday'),
+    saturday: t('dates.daysShort.saturday'),
+    sunday: t('dates.daysShort.sunday'),
+    mondayLong: t('dates.daysLong.monday'),
+    tuesdayLong: t('dates.daysLong.tuesday'),
+    wednesdayLong: t('dates.daysLong.wednesday'),
+    thursdayLong: t('dates.daysLong.thursday'),
+    fridayLong: t('dates.daysLong.friday'),
+    saturdayLong: t('dates.daysLong.saturday'),
+    sundayLong: t('dates.daysLong.sunday'),
+    unitDay: t('habits.form.unitDay'),
+    unitWeek: t('habits.form.unitWeek'),
+    unitMonth: t('habits.form.unitMonth'),
+    unitYear: t('habits.form.unitYear'),
+  }, profile?.weekStartDay)
   const toggle = (day: string) => onChange(toggleHabitDaySelection(days, day, HABIT_DETAIL_WEEKDAYS, days.length === 0))
-  return <View style={styles.days}>{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={t(`dates.daysLong.${day.toLowerCase()}`)} accessibilityState={{ selected }} style={({ pressed }) => [styles.dayChip, { borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</Text></Pressable> })}</View>
+  return <View style={styles.days}>{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={accessibleLabel} accessibilityState={{ selected }} style={({ pressed }) => [styles.dayChip, { borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{label.charAt(0)}</Text></Pressable> })}</View>
 }
 
 function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {

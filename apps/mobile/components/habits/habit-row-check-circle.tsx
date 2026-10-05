@@ -61,7 +61,6 @@ export function CheckCircle({
       accessibilityHint={disabled ? accessibilityHint : undefined}
       accessibilityState={{ disabled }}
       style={({ pressed }) => {
-        const pressedOpacity = pressed ? 0.85 : 1
         return {
           width: 48,
           minHeight: 48,
@@ -70,8 +69,8 @@ export function CheckCircle({
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: pressed && !disabled ? tokens.bgHover : 'transparent',
-          opacity: disabled ? 0.4 : pressedOpacity,
-          transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
+          opacity: disabled ? 0.4 : 1,
+          transform: [{ scale: pressed && !disabled && !prefersReducedMotion ? 0.96 : 1 }],
         }
       }}
     >

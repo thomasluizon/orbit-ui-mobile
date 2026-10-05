@@ -19,7 +19,7 @@ import {
   parseAPIDate,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { useUIStore } from '@/stores/ui-store';
 import CalendarScreen from "@/app/(tabs)/calendar";
@@ -1026,7 +1026,8 @@ describe("CalendarScreen views (mobile)", () => {
     }
   });
 
-  it('loads calendar data concurrently while the profile resolves', () => {
+  it.each([320, 600, 840])('loads calendar data concurrently with the shared loading grid at %i while the profile resolves', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 });
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 8, 11));
     state.profile = undefined;
@@ -1034,15 +1035,14 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
 
     expect(state.calendarDataCalls).toHaveBeenCalledTimes(1);
+    expect(calendarGridProps.current).toMatchObject({ isLoading: true, selectedDay: null });
     expect(tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-grid',
-    )).toHaveLength(1);
-    const gridShape = tree.root.findAll(
+    )).toHaveLength(35);
+    const gridShapes = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
-    )[0];
-    expect(gridShape?.props.style).toEqual(expect.arrayContaining([
-      expect.objectContaining({ width: 332, height: 236 }),
-    ]));
+    );
+    for (const shape of gridShapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44 });
   });
 
   it.each([
@@ -1055,12 +1055,11 @@ describe("CalendarScreen views (mobile)", () => {
     state.profile = undefined;
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
-    const loadingShape = tree.root.findAll(
-      (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
+    const loadingRegion = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar' && typeof StyleSheet.flatten(node.props.style)?.rowGap === 'number',
     )[0]!;
-    const loadingHeight = loadingShape.props.style
-      .flat(Infinity)
-      .find((style: Record<string, unknown>) => typeof style.height === 'number')?.height;
+    expect(loadingRegion).toBeDefined();
+    const loadingRowsRendered = React.Children.count(loadingRegion.props.children);
 
     state.profile = { weekStartDay, timeZone: "UTC", hasProAccess: false };
     TestRenderer.act(() => { tree.update(<CalendarScreen />); });
@@ -1085,7 +1084,7 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(loadedRows).toBe(expectedRows);
     const loadingRows = buildCalendarMonthModel(new Date(now.getFullYear(), now.getMonth(), 1), new Map(), 1, formatAPIDate(now)).gridDays.length / 7;
-    expect(loadingHeight).toBe(loadingRows * 44 + (loadingRows - 1) * 4);
+    expect(loadingRowsRendered).toBe(loadingRows);
     expect(loadedHeight).toBeUndefined();
     TestRenderer.act(() => gridTree.update(<></>));
   });

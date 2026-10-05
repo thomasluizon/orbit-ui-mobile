@@ -86,11 +86,11 @@ export function CalendarRangeView({
           <View style={styles.grid}><MonthGrid weekdayLabels={[...weekdayLabels]} gap={gridGap} label={rangeLabel}>
             {Array.from({ length: gridCellCount }, (_, index) => (
               <View key={index} style={styles.daySlot}>
-                {index === 0 ? (
+                <View style={styles.loadingCell}>{index === 0 ? (
                   <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
                 ) : (
                   <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
-                )}
+                )}</View>
               </View>
             ))}
           </MonthGrid></View>
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   container: { gap: 16, paddingTop: 12 },
   header: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   controls: { flexDirection: 'row', flexShrink: 0, gap: 12 },
-  grid: { width: '100%', maxWidth: 340, alignSelf: 'center', paddingHorizontal: 4 },
+  grid: { width: '100%', alignSelf: 'center', paddingHorizontal: 4 },
   iconButton: { minHeight: 48, minWidth: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   rangeLabel: {
     flex: 1,
@@ -137,5 +137,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
-  daySlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN },
+  daySlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
+  loadingCell: { width: MONTH_GRID_TARGET_MIN },
 })

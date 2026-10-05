@@ -1887,7 +1887,7 @@ describe('HabitDetailScreen', () => {
     it.each([
       [320, 'dark'], [412, 'dark'], [1100, 'dark'],
       [320, 'light'], [412, 'light'], [1100, 'light'],
-    ] as const)('keeps one clear, unclipped indicator for each title focus target at %ipx in %s mode', async (width, mode) => {
+    ] as const)('keeps the title quiet and its button indicator clear at %ipx in %s mode', async (width, mode) => {
       vi.useRealTimers()
       const { container } = render(<HabitDetailScreen habitId="habit-1" />)
       const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -1899,29 +1899,31 @@ describe('HabitDetailScreen', () => {
         expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toEqual([])
         await page.locator('[data-habit-detail-header-row] > div').first().getByRole('button').last().focus()
         await page.keyboard.press('Tab')
-        for (const target of [button, title]) {
-          if (target === title) await title.focus()
-          expect(await target.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
-          expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toHaveLength(1)
-          expect(await readOutlineVisibility(target)).toMatchObject({ width: 2, visible: true, clippedBy: [] })
-          const clearance = await target.evaluate((element) => {
-            const heading = element.closest('h1')!
-            const style = getComputedStyle(element)
-            const bounds = element.getBoundingClientRect()
-            const summary = heading.nextElementSibling!.getBoundingClientRect()
-            const offset = Number.parseFloat(style.outlineOffset)
-            const outerEdge = offset + Number.parseFloat(style.outlineWidth)
-            const range = document.createRange()
-            range.selectNodeContents(heading.querySelector('button')!)
-            const text = range.getBoundingClientRect()
-            return {
-              glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
-              summaryGap: summary.top - bounds.bottom - outerEdge,
-            }
-          })
-          expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
-          expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
-        }
+        const target = button
+        expect(await target.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
+        expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toHaveLength(1)
+        expect(await readOutlineVisibility(target)).toMatchObject({ width: 2, visible: true, clippedBy: [] })
+        const clearance = await target.evaluate((element) => {
+          const heading = element.closest('h1')!
+          const style = getComputedStyle(element)
+          const bounds = element.getBoundingClientRect()
+          const summary = heading.nextElementSibling!.getBoundingClientRect()
+          const offset = Number.parseFloat(style.outlineOffset)
+          const outerEdge = offset + Number.parseFloat(style.outlineWidth)
+          const range = document.createRange()
+          range.selectNodeContents(heading.querySelector('button')!)
+          const text = range.getBoundingClientRect()
+          return {
+            glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
+            summaryGap: summary.top - bounds.bottom - outerEdge,
+          }
+        })
+        expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
+        expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
+        await title.focus()
+        expect(await title.evaluate((element) => element === document.activeElement)).toBe(true)
+        expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toEqual([])
+        expect(await readOutlineVisibility(title)).toMatchObject({ visible: false, clippedBy: [] })
       } finally { await page.close() }
     })
 

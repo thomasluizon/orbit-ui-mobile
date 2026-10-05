@@ -134,6 +134,7 @@ export function createStyles() {
       flexShrink: 0,
     },
     quietAction: {
+      overflow: 'hidden',
       minHeight: TOUCH_TARGET_MIN,
       minWidth: TOUCH_TARGET_MIN,
       flexDirection: 'row',

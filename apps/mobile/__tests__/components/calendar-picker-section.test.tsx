@@ -6,6 +6,7 @@ import { ApiClientError } from '@orbit/shared'
 
 import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 import { createStyles } from '@/components/calendar-sync/calendar-import-styles'
+import { expectPressPaint } from '@/__tests__/support/press-feedback'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   isError: false,
   mutate: vi.fn(),
   showError: vi.fn(),
+  reducedMotion: false,
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -29,7 +31,7 @@ vi.mock('@/lib/theme', () => ({
 }))
 
 vi.mock('@/lib/motion', () => ({
-  usePrefersReducedMotion: () => false,
+  usePrefersReducedMotion: () => mocks.reducedMotion,
   toAnimatedEasing: () => (value: number) => value,
 }))
 
@@ -94,6 +96,20 @@ beforeEach(() => {
 })
 
 describe('mobile CalendarPickerSection', () => {
+  it.each([false, true])('paints retry and restores its resting fill (reduced motion: %s)', async (reducedMotion) => {
+    mocks.reducedMotion = reducedMotion
+    mocks.isError = true
+    const { createTokensV2 } = await vi.importActual<typeof import('@/lib/theme')>('@/lib/theme')
+    const palette = createTokensV2('purple', 'dark')
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarPickerSection styles={styles} tokens={palette} t={t} enabled />)
+    })
+    const retry = tree.root.findByType('Pressable')
+    expectPressPaint(retry, { fill: palette.bgHoverOpaque, restFill: palette.bgElev, overlay: true, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    TestRenderer.act(() => tree.unmount())
+    mocks.reducedMotion = false
+  })
   it('renders nothing when disabled', () => {
     mocks.calendars = [buildCalendar()]
     const tree = render(false)

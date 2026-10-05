@@ -1,4 +1,5 @@
 import { PersonalText } from '@/components/ui/personal-text'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useState, useCallback, useMemo } from 'react'
@@ -213,6 +214,7 @@ function ChecklistAddRow({
   tokens,
   disabled,
 }: Readonly<ChecklistAddRowProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   return (
     <View style={styles.addItemRow}>
@@ -234,7 +236,7 @@ function ChecklistAddRow({
         style={({ pressed }) => [
           styles.addItemButton,
           (disabled || !value.trim()) && styles.addItemButtonDisabled,
-          pressed && !!value.trim() ? { opacity: 0.7 } : null,
+          pressed && !disabled && !!value.trim() ? { backgroundColor: tokens.primaryPressed, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] } : null,
         ]}
         disabled={disabled || !value.trim()}
         onPress={onAdd}
@@ -602,6 +604,7 @@ function createStyles(tokens: AppTokens) {
     borderRadius: 12,
   },
   addItemButton: {
+    overflow: 'hidden',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,

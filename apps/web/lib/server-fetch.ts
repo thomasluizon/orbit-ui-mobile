@@ -5,6 +5,7 @@ import { createApiClientError } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
 import { z, type ZodType } from 'zod'
+import { observeProxyFailure, type RecordProxyUpstream } from './proxy-failure-log'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 const accountIntentSchema = z.object({
@@ -78,6 +79,7 @@ async function fetchWithSession<T>(
   init: RequestInit,
   schema: ZodType<T> | undefined,
   intendedAccountId: string | null,
+  recordUpstream?: RecordProxyUpstream,
 ): Promise<T> {
   const accountIntent = intendedAccountId?.startsWith('{')
     ? accountIntentSchema.parse(JSON.parse(intendedAccountId) as unknown)
@@ -103,6 +105,7 @@ async function fetchWithSession<T>(
     ...init,
     headers: buildHeaders(session.token),
   })
+  recordUpstream?.(res)
 
   if (res.status === 401 && path !== API.auth.refresh) {
     session = await resolveServerSession({ forceRefresh: true })
@@ -112,6 +115,7 @@ async function fetchWithSession<T>(
         ...init,
         headers: buildHeaders(session.token),
       })
+      recordUpstream?.(res)
     } else if (session.refreshFailed) {
       throw unauthorizedError(true)
     }
@@ -150,6 +154,12 @@ export async function serverAuthMutate<T = unknown>(
   intendedAccountId: string | null,
   schema?: ZodType<T>,
 ): Promise<T> {
+  const astraAction = /^\/api\/ai\/pending-operations\/[^/]+\/(confirm|execute)$/.exec(path)
+  if (astraAction) {
+    return observeProxyFailure(`/api/ai/pending-operations/:id/${astraAction[1]}`, (recordUpstream) =>
+      fetchWithSession(path, init, schema, intendedAccountId, recordUpstream),
+    )
+  }
   return fetchWithSession(path, init, schema, intendedAccountId)
 }
 

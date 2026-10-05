@@ -29,6 +29,14 @@ function seededDayMap(prefix: string) {
   return new Map([[`${prefix}-02`, [completed]], [`${prefix}-03`, [completed, missed]], [`${prefix}-04`, [missed]]])
 }
 
+function expectFullColumnDays(days: { width: number; height: number; columnWidth: number }[], expectedCount: number) {
+  expect(days).toHaveLength(expectedCount)
+  for (const day of days) {
+    expect(day.width).toBeCloseTo(day.columnWidth, 1)
+    expect(day.height).toBeGreaterThanOrEqual(44)
+  }
+}
+
 const options = [
   { value: 'month', label: ptBR.calendar.view.month },
   { value: 'week', label: ptBR.calendar.view.week },
@@ -239,11 +247,11 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([false, true])('fits a seven-column month grid at 320 (loading=%s)', async (isLoading) => {
+  it.each([320, 600, 840, 1100, 1352].flatMap((width) => [false, true].map((isLoading) => ({ width, isLoading }))))('fills a seven-column month grid at $width (loading=$isLoading)', async ({ width, isLoading }) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
       <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
     </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
@@ -253,11 +261,24 @@ describe('Calendar header geometry in Chromium', () => {
         card: document.querySelector('[data-testid="calendar-grid-card"]')!.getBoundingClientRect().width,
         gridScroll: document.querySelector('[data-testid="calendar-grid"]')!.scrollWidth,
         gridWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth,
+        contentWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth - 8,
+        placeholders: [...document.querySelectorAll<HTMLElement>('[data-variant="grid"] span')].map((placeholder, index) => {
+          const grid = document.querySelector<HTMLElement>('[data-cols="7"]')!
+          const style = getComputedStyle(grid)
+          const columnWidths = style.gridTemplateColumns.split(' ').map((track) => Number.parseFloat(track))
+          const column = index % 7
+          const precedingWidth = columnWidths.slice(0, column).reduce((total, track) => total + track, 0)
+          const bounds = placeholder.getBoundingClientRect()
+          return { center: bounds.left + bounds.width / 2, columnCenter: grid.getBoundingClientRect().left + precedingWidth + column * Number.parseFloat(style.columnGap) + columnWidths[column]! / 2 }
+        }),
         targets: [...document.querySelectorAll('button')].map((button) => ({ width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, columnWidth: button.parentElement!.getBoundingClientRect().width })),
       }))
       expect(geometry.scroll).toBe(geometry.page)
       expect(geometry.gridScroll).toBeLessThanOrEqual(geometry.gridWidth)
-      expect(geometry.card).toBeLessThanOrEqual(312)
+      expect(geometry.card).toBe(geometry.contentWidth)
+      expect(geometry.placeholders).toHaveLength(isLoading ? 28 : 0)
+      for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 1)
+      expect(geometry.targets).toHaveLength(isLoading ? 0 : 28)
       for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
     } finally { await page.close() }
   })
@@ -348,6 +369,9 @@ describe('Calendar header geometry in Chromium', () => {
             return new Set([...range.getClientRects()].map((box) => box.top)).size > 1
           }).map((word) => word[0])
           return { pageWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
+            cardWidth: frame.firstElementChild!.getBoundingClientRect().width, frameContentWidth: frame.clientWidth - 8,
+            frameWidth: frame.getBoundingClientRect().width, sectionContentWidth: frame.parentElement!.clientWidth,
+            days: [...frame.querySelectorAll<HTMLElement>('[data-outcome]')].map((day) => ({ width: day.getBoundingClientRect().width, height: day.getBoundingClientRect().height, columnWidth: Number.parseFloat(getComputedStyle(day.parentElement!).gridTemplateColumns.split(' ')[0]!) })),
             splitWords,
             statsLeft: stats.getBoundingClientRect().left, statsRight: stats.getBoundingClientRect().right,
             placeholders: [...stats.querySelectorAll<HTMLElement>('[role="status"]')].map((value) => {
@@ -367,6 +391,10 @@ describe('Calendar header geometry in Chromium', () => {
           expect(placeholder.width).toBeLessThanOrEqual(64)
           expect(placeholder.fontSize).toBe(22 * scale)
         }
+        expect(geometry.cardWidth).toBe(geometry.frameContentWidth)
+        expect(geometry.frameWidth).toBe(geometry.sectionContentWidth)
+        expect(geometry.frameWidth).toBe(width)
+        expectFullColumnDays(geometry.days, isLoading ? 0 : model.days.length)
         expect(geometry.gridScroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.gridWidth)
         expect(geometry.label).toBe(16)
         expect(geometry.labelOverflow).toBe(false)
