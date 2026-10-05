@@ -6,6 +6,25 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { StatusDot } from '@/components/ui/status-dot'
 
 describe('StatusDot', () => {
+  it('retains disabled dimming and blocks toggles while preserving the enabled fill and scale', () => {
+    const onToggle = vi.fn()
+    const { rerender } = render(<StatusDot state="empty" onToggle={onToggle} ariaLabel="run" disabled />)
+    const button = screen.getByRole('button', { name: 'run' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-disabled', 'true')
+    expect(button).toHaveStyle({ opacity: '0.4' })
+    expect(button).toHaveClass('cursor-default')
+    expect(button.firstElementChild).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--status-empty)' })
+    fireEvent.click(button)
+    expect(onToggle).not.toHaveBeenCalled()
+    rerender(<StatusDot state="empty" onToggle={onToggle} ariaLabel="run" />)
+    expect(button).toBeEnabled()
+    expect(button).toHaveStyle({ opacity: '1' })
+    expect(button).toHaveClass('enabled:hover:bg-[var(--bg-hover)]', 'enabled:active:bg-[var(--bg-hover)]', 'motion-safe:enabled:active:scale-[var(--status-dot-press-scale)]')
+    expect(button.firstElementChild).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--status-empty)' })
+    fireEvent.click(button)
+    expect(onToggle).toHaveBeenCalledOnce()
+  })
   it('renders a labelled toggle button', () => {
     render(<StatusDot state="empty" onToggle={() => {}} ariaLabel="Morning run" />)
     expect(screen.getByRole('button', { name: 'Morning run' })).toBeInTheDocument()
@@ -25,7 +44,7 @@ describe('StatusDot', () => {
     expect(button).toHaveStyle('--status-dot-press-scale: 0.96')
     expect(button).toHaveStyle('--status-dot-press-duration: 150ms')
     expect(button).toHaveClass(
-      'enabled:active:scale-[var(--status-dot-press-scale)]',
+      'motion-safe:enabled:active:scale-[var(--status-dot-press-scale)]',
     )
   })
 

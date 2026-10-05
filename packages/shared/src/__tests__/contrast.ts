@@ -53,3 +53,18 @@ export function contrastOnSurface(foreground: string, layers: readonly string[])
     (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
   )
 }
+
+export function controlContrast(foreground: string, fill: string, layers: readonly string[], opacity = 1, foregroundOpacity = 1): { graphic: number; step: number } {
+  const surface = layers.reduce<Rgb>((below, layer) => composite(layer, below), [0, 0, 0])
+  const ink = parseColor(foreground)
+  const background = parseColor(fill)
+  const inkAlpha = ink.alpha * foregroundOpacity
+  const groupAlpha = inkAlpha + background.alpha * (1 - inkAlpha)
+  const graphicChannel = (index: number) => Math.round(
+    opacity * (ink.channels[index]! * inkAlpha + background.channels[index]! * background.alpha * (1 - inkAlpha)) + surface[index]! * (1 - opacity * groupAlpha),
+  )
+  const graphic: Rgb = [graphicChannel(0), graphicChannel(1), graphicChannel(2)]
+  const paintedFill = composite(withAlpha(fill, background.alpha * opacity), surface)
+  const ratio = (left: Rgb, right: Rgb) => (Math.max(luminance(left), luminance(right)) + 0.05) / (Math.min(luminance(left), luminance(right)) + 0.05)
+  return { graphic: ratio(graphic, paintedFill), step: ratio(paintedFill, surface) }
+}

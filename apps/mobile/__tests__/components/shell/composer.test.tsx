@@ -12,6 +12,13 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import Yoga, { type Config, type Node as YogaNode } from 'yoga-layout'
+import { expectPressPaint } from '@/__tests__/support/press-feedback'
+
+const motionState = vi.hoisted(() => ({ reducedMotion: false }))
+vi.mock('@/lib/motion', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/motion')>()),
+  usePrefersReducedMotion: () => motionState.reducedMotion,
+}))
 
 vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
@@ -193,6 +200,25 @@ function composerLayout(host: ComposerHost, config: Config, nodes: Map<string, Y
 }
 
 describe('Composer (mobile)', () => {
+  it.each([false, true])('paints both recovery controls and invokes their actions (reduced motion: %s)', (reducedMotion) => {
+    motionState.reducedMotion = reducedMotion
+    const tokens = createTokensV2('purple', 'dark')
+    const onSelect = vi.fn()
+    const onRetry = vi.fn()
+    const recovery = renderComposer(props({ errorRecovery: { label: 'Recover', onSelect } }))
+    const recoveryControl = byLabel(recovery.root, 'Recover')[0]
+    expectPressPaint(recoveryControl, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    pressControl(recoveryControl)
+    expect(onSelect).toHaveBeenCalledOnce()
+
+    const retry = renderComposer(props({ words: { ...words, retry: 'Retry' }, onRetry }))
+    const retryControl = retry.root.findAllByType('Pressable').find((node: { props: { accessibilityRole?: string }; findAllByType: (type: string) => { props: { children?: unknown } }[] }) => node.props.accessibilityRole === 'button' && node.findAllByType('Text').some((text) => text.props.children === 'Retry'))!
+    expectPressPaint(retryControl, { fill: tokens.bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    pressControl(retryControl)
+    expect(onRetry).toHaveBeenCalledOnce()
+    TestRenderer.act(() => { recovery.unmount(); retry.unmount() })
+    motionState.reducedMotion = false
+  })
   it.each(['idle', 'offline', 'atLimit'] as const)('aligns the %s placeholder with the padded caret', state => {
     const tree = renderComposer(props({ state, limitReason: 'limit sentinel' }))
     try {

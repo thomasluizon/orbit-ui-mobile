@@ -7,7 +7,6 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
-  useWindowDimensions,
 } from "react-native";
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import {
@@ -47,7 +46,6 @@ import {
   formatLocaleDate,
   formatWeekdayLabels,
   resolveCalendarRangeEnd,
-  CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
@@ -320,8 +318,7 @@ function CalendarProfileState({
   view,
   setView,
 }: Readonly<{ failed: boolean; onRetry: () => void; currentMonth: Date; setSelectedDay: Dispatch<SetStateAction<string>>; view: CalendarView; setView: Dispatch<SetStateAction<CalendarView>> }>) {
-  const { width } = useWindowDimensions();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -364,16 +361,17 @@ function CalendarProfileState({
                 { value: 'agenda', label: t('calendar.view.agenda') },
               ]} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
             />
-            <View style={styles.profileGrid}>
-              <Skeleton
-                variant="grid"
-                rows={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns}
-                cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
-                cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
-                gap={width < 340 ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap}
-                label={t('calendar.loading')}
-              />
-            </View>
+            <CalendarGrid
+              gridDays={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays}
+              weekdayHeaders={[]}
+              selectedDay={null}
+              isLoading
+              onSelectDay={() => undefined}
+              language={i18n.language}
+              t={t}
+              tokens={tokens}
+              todayKey={formatAPIDate(new Date())}
+            />
             <CalendarInlineDaySlot loading selected={false} label={t('calendar.loading')} tokens={tokens}>{null}</CalendarInlineDaySlot>
             <View style={styles.listFooter}><CalendarStats
               stats={[
@@ -1098,11 +1096,6 @@ function createStyles() {
     },
     profileLoading: {
       gap: 0,
-    },
-    profileGrid: {
-      alignSelf: 'center',
-      paddingTop: 16,
-      paddingBottom: 8,
     },
     emptyMonth: {
       alignItems: 'flex-start',

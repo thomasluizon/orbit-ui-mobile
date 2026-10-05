@@ -112,14 +112,17 @@ for (const width of [412, 1100]) {
       expect(geometry.rowHeight).toBeCloseTo(geometry.baseHeight, 1)
     })
 
-    test('draws one clear indicator after Tab from the controls and after heading focus', async ({ page }) => {
+    test('draws one clear indicator after Tab from the controls and none after heading focus', async ({ page }) => {
       const heading = page.getByRole('heading', { level: 1, name: habit.title })
       const button = heading.getByRole('button')
       await page.locator('[data-habit-detail-header-row] > div').first().getByRole('button').last().focus()
       await page.keyboard.press('Tab')
       await expectClearTitleIndicator(page, heading, button)
       await heading.focus()
-      await expectClearTitleIndicator(page, heading, heading)
+      await finishAnimations(page)
+      await expect(heading).toBeFocused()
+      await expect(heading).toHaveCSS('outline-style', 'none')
+      expect(await readFieldIndicators(heading, 'h1', { includeDescendants: true })).toEqual([])
     })
   })
 }

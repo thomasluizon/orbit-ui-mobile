@@ -189,7 +189,7 @@ describe('PillButton', () => {
     expect(screen.getByRole('link', { name: 'Secondary' })).toHaveClass(
       'hover:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
       'active:scale-[0.96]',
-      'active:opacity-85',
+      'active:bg-[color-mix(in_srgb,var(--fg-1)_90%,var(--bg))]',
     )
     expect(screen.getByRole('link', { name: 'Ghost' })).toHaveAttribute('href', '/ghost')
     expect(screen.getByRole('link', { name: 'Primary' })).toHaveStyle({

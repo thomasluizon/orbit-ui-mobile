@@ -4,6 +4,8 @@ type HostProps = Readonly<{
   children?: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode)
   onFocus?: (event: { nativeEvent: { target: number } }) => void
   onBlur?: (event: { nativeEvent: { target: number } }) => void
+  onPressIn?: () => void
+  onPressOut?: () => void
   [key: string]: unknown
 }>
 
@@ -118,6 +120,7 @@ function createHostComponent(name: string) {
     ref,
   ) {
     const [nativeTag] = React.useState(() => nextNativeTag++)
+    const [pressed, setPressed] = React.useState(false)
     const ancestors = React.useContext(HostAncestors)
     React.useLayoutEffect(() => {
       const existing = nativeHosts.get(nativeTag)
@@ -156,8 +159,21 @@ function createHostComponent(name: string) {
     }), [nativeTag])
 
     return React.createElement(HostAncestors.Provider, { value: [...ancestors, nativeTag] },
-      React.createElement(name, { ...props, __nativeTag: nativeTag },
-        typeof children === 'function' && name === 'Pressable' ? children({ pressed: false }) : children as React.ReactNode),
+      React.createElement(name, {
+        ...props,
+        __nativeTag: nativeTag,
+        ...(name === 'Pressable' ? {
+          onPressIn: () => {
+            setPressed(true)
+            if (typeof props.onPressIn === 'function') props.onPressIn()
+          },
+          onPressOut: () => {
+            setPressed(false)
+            if (typeof props.onPressOut === 'function') props.onPressOut()
+          },
+        } : {}),
+      },
+        typeof children === 'function' && name === 'Pressable' ? children({ pressed }) : children as React.ReactNode),
     )
   })
 

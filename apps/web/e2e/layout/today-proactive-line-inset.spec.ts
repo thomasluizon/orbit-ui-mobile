@@ -10,11 +10,12 @@ import { inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
 
 const selectedDate = '2026-09-04'
 
+for (const locale of ['en', 'pt-BR'] as const) {
 for (const mode of ['dark', 'light'] as const) {
-  test.describe(`Hoje proactive line in ${mode}`, () => {
-    test.use({ appLocale: 'pt-BR', layoutProfile: { themePreference: mode } })
+  test.describe(`Hoje proactive line in ${mode} and ${locale}`, () => {
+    test.use({ appLocale: locale, layoutProfile: { themePreference: mode } })
 
-    for (const width of [320, 600, 840]) {
+    for (const width of [320, 412, 600, 840, 1024, 1352]) {
       for (const textScale of width === 320 ? [1, 2] : [1]) {
         test(`keeps the fill inset and the focus ring visible at ${width}px with ${textScale} text scale`, async ({ page, context }) => {
           await page.setViewportSize({ width, height: 915 })
@@ -63,19 +64,22 @@ for (const mode of ['dark', 'light'] as const) {
             const extent = Number.parseFloat(style.outlineWidth) + Number.parseFloat(style.outlineOffset)
             const sentence = element.querySelector<HTMLElement>('.today-astra-sentence')!
             const sentenceBounds = sentence.getBoundingClientRect()
-            const date = document.querySelector('[data-today-date-row] [title] p')!
+            const dateRow = document.querySelector('[data-today-date-row]')!
+            const date = dateRow.querySelector('[title] p')!
             const title = document.querySelector('[data-habit-row-heading] > div > span, [data-habit-row-body] > div > span')!
             return {
               client: { left, right: left + scroller.clientWidth, top, bottom: top + scroller.clientHeight },
               line: { left: bounds.left, right: bounds.right, height: bounds.height },
               outline: { left: bounds.left - extent, right: bounds.right + extent,
                 top: bounds.top - extent, bottom: bounds.bottom + extent },
+              lineToDate: dateRow.getBoundingClientRect().top - bounds.bottom,
               sentenceLeft: sentenceBounds.left, dateLeft: date.getBoundingClientRect().left,
               titleLeft: title.getBoundingClientRect().left,
               sentenceHeight: sentenceBounds.height,
               lineHeight: Number.parseFloat(getComputedStyle(sentence).lineHeight),
             }
           })
+          expect(geometry.lineToDate).toBeCloseTo(24 * textScale, 1)
           expect.soft(geometry.line.left - geometry.client.left).toBeCloseTo(16, 1)
           expect.soft(geometry.client.right - geometry.line.right).toBeCloseTo(16, 1)
           expect.soft(geometry.outline.left).toBeGreaterThanOrEqual(geometry.client.left)
@@ -90,4 +94,5 @@ for (const mode of ['dark', 'light'] as const) {
       }
     }
   })
+}
 }

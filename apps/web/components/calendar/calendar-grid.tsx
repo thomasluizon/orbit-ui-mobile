@@ -227,8 +227,8 @@ export function CalendarGrid({
       <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '16px 4px 8px' }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <div role="progressbar" aria-label={t('calendar.loading')} aria-busy="true" data-rows={Math.ceil(gridDays.length / 7)} data-cols={7}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(var(--month-grid-touch-min), 1fr))', gap: 'var(--calendar-grid-gap)' }}>
-            {gridDays.map((cell) => <Skeleton key={cell.dateStr} variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />)}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(var(--month-grid-touch-min), 1fr))', gap: 'var(--calendar-grid-gap)', justifyItems: 'center' }}>
+            {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: MONTH_GRID_TARGET_MIN, minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
           </div>
         </div>
       </div>

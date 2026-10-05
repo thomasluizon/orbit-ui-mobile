@@ -8,6 +8,8 @@ import {
 import { API } from '@orbit/shared/api'
 import StepUpScreen from '@/app/step-up'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
+import { expectPressPaint } from '@/__tests__/support/press-feedback'
+import { createTokensV2 } from '@/lib/theme'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -17,6 +19,7 @@ afterEach(() => vi.useRealTimers())
 const TestRenderer = require('react-test-renderer')
 
 type TestNode = {
+  type: unknown
   props: Record<string, unknown>
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
@@ -44,7 +47,10 @@ const mocks = vi.hoisted(() => ({
   router: { replace: vi.fn() },
   sessionPhase: 'signed-in',
   userId: 'user-1',
+  reducedMotion: false,
 }))
+
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => mocks.reducedMotion }))
 
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ operation: mocks.operation }),
@@ -187,6 +193,13 @@ async function confirm(tree: TestTree) {
 }
 
 describe('mobile step up screen', () => {
+  it.each([false, true])('paints the cancellation link while pressed (reduced motion: %s)', async (reducedMotion) => {
+    mocks.reducedMotion = reducedMotion
+    const tree = await renderScreen()
+    const cancel = tree.root.findAll((node) => node.props.accessibilityRole === 'link' && node.props.accessibilityLabel === 'stepUp.cancel')[0]!
+    expectPressPaint(cancel, { fill: createTokensV2('purple', 'dark').bgHover, borderRadius: 999, scale: reducedMotion ? 1 : 0.96 })
+    mocks.reducedMotion = false
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.sessionPhase = 'signed-in'

@@ -1,3 +1,5 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
+import { PressFill } from '@/components/ui/press-fill'
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
@@ -30,6 +32,7 @@ export function CalendarPickerSection({
   t,
   enabled,
 }: Readonly<CalendarPickerSectionProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
   const [saveError, setSaveError] = useAccountScopedState<string | null>(null)
@@ -74,13 +77,14 @@ export function CalendarPickerSection({
             style={({ pressed }) => [
               styles.quietAction,
               { backgroundColor: tokens.bgElev, borderColor: tokens.hairline },
-              pressed && styles.quietActionDim,
+              pressed && { transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] },
             ]}
-          >
+          >{({ pressed }) => <>
+            <PressFill pressed={pressed} color={tokens.bgHoverOpaque} />
             <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
               {t('calendar.retry')}
             </Text>
-          </Pressable>
+          </>}</Pressable>
         </View>
       ) : null}
 

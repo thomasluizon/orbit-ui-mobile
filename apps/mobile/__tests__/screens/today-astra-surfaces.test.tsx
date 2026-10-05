@@ -1,6 +1,8 @@
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationItem } from '@orbit/shared/types/notification'
+import { View } from 'react-native'
 import React from 'react'
+import { measureSafeArea, type GeometryTree } from '../support/safe-area-geometry'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import TodayScreen from '@/app/(tabs)/index'
@@ -13,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   lastCompletionDate: undefined as string | null | undefined,
   noHabits: false,
+  geometry: false,
+  profileReady: true,
   timeZone: 'UTC',
   today: '2026-08-29',
   notifications: [] as NotificationItem[],
@@ -41,7 +45,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => ({
   parseShowGeneralOnTodayPreference: () => false,
 }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate } }),
+  useProfile: () => ({ profile: mocks.profileReady ? { timeZone: mocks.timeZone, lastCompletionDate: mocks.lastCompletionDate } : undefined }),
 }))
 vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: mocks.notifications }),
@@ -72,14 +76,19 @@ vi.mock('@/components/habit-list', () => ({
 }))
 vi.mock('@/components/habits/selection-tray', () => ({ SelectionTray: () => null }))
 vi.mock('@/components/ui/capacity-notice', () => ({ CapacityNotice: () => null }))
-vi.mock('@/components/today/today-date-control', () => ({ TodayDateControl: () => React.createElement('TodayDate', { date: mocks.today }) }))
+vi.mock('@/components/today/today-date-control', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/today/today-date-control')>()
+  return { TodayDateControl: (props: React.ComponentProps<typeof original.TodayDateControl>) => mocks.geometry
+    ? <original.TodayDateControl {...props} /> : React.createElement('TodayDate', { date: mocks.today }) }
+})
+vi.mock('@/components/shell/shell-header-slot', () => ({ useShellHeaderSlot: () => true }))
 vi.mock('@/components/today/today-modals', () => ({ TodayModals: () => null }))
 vi.mock('@/components/today/today-astra', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/today/today-astra')>()
   return {
     TodayAstra: (props: { today: string; isTodaySelected: boolean; suppressed: boolean }) =>
       React.createElement(React.Fragment, null,
-        React.createElement('TodayAstraMock', { suppressed: props.suppressed }),
+        React.createElement('TodayAstraMock', { suppressed: props.suppressed, style: { display: 'none' } }),
         React.createElement(original.TodayAstra, props),
       ),
   }
@@ -141,6 +150,8 @@ describe('mobile Today Astra owned surfaces', () => {
     mocks.routerPush.mockReset()
     mocks.lastCompletionDate = undefined
     mocks.noHabits = false
+    mocks.geometry = false
+    mocks.profileReady = true
     mocks.timeZone = 'UTC'
     mocks.today = '2026-08-29'
     mocks.notifications = []
@@ -230,4 +241,38 @@ describe('mobile Today Astra owned surfaces', () => {
     })
     expect(isSuppressed(tree)).toBe(false)
   })
+  it('keeps 24 between the proactive line and date control and clears the absent line', async () => {
+    mocks.geometry = true
+    mocks.notifications = [createMockNotification({ url: '/chat', body: 'Check in', createdAtUtc: '2026-08-29T12:00:00Z' })]
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<View><TodayScreen /></View>) as GeometryTree })
+    const measure = () => measureSafeArea(tree.toJSON(), (host) => host.props.testID === 'today-date-row'
+      ? 'date' : host.props.accessibilityLabel === 'Check in' ? 'line'
+        : host.children?.some((child) => typeof child !== 'string' && child.props.testID === 'today-date-row') ? 'header' : undefined)
+    try {
+      const visible = measure()
+      expect(visible.get('date')!.top - visible.get('line')!.bottom).toBe(24)
+      mocks.notifications = []
+      await TestRenderer.act(() => { tree.update(<TodayScreen />) })
+      expect(measure().has('line')).toBe(false)
+      const absent = measure()
+      expect(absent.get('date')!.top - absent.get('header')!.top).toBe(0)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('separates the profile date placeholder from the habit placeholders by 24', async () => {
+    mocks.profileReady = false
+    let tree!: GeometryTree
+    await TestRenderer.act(() => { tree = TestRenderer.create(<View><TodayScreen /></View>) as GeometryTree })
+    try {
+      let firstHabitFound = false
+      const firstLayout = measureSafeArea(tree.toJSON(), (host) => {
+        if (host.props.testID === 'skeleton-unit-settings') return 'date'
+        if (host.props.testID === 'skeleton-unit-habit-row' && !firstHabitFound) { firstHabitFound = true; return 'habit' }
+        return undefined
+      })
+      expect(firstLayout.get('habit')!.top - firstLayout.get('date')!.bottom).toBe(24)
+    } finally { await TestRenderer.act(() => tree.unmount()) }
+  })
+
 })

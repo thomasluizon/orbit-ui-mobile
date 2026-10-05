@@ -4,10 +4,13 @@ import { ActionRow } from '@/components/ui/action-row'
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
 import type { HabitDetailPatch, ReminderChanges } from '@orbit/shared/hooks'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import {
+  buildHabitDaysList,
+  type HabitDayOption,
   buildHabitDetailSchedulePatch,
   buildHabitDetailTimePatch,
   canInlineEditHabitSchedule,
@@ -59,7 +62,7 @@ function FrequencyUnitOption({ label, selected, onSelect }: Readonly<{ label: st
   return <button ref={elementRef} type="button" role="radio" aria-checked={selected} tabIndex={tabIndex} className={`chip focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${selected ? 'chip-active' : ''}`} onClick={onActivate} onKeyDown={onKeyDown}>{label}</button>
 }
 
-function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
+function ScheduleEditor({ habit, daysList, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; daysList: HabitDayOption[]; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const t = useTranslations()
   const { showError } = useAppToast()
   const [unit, setUnit] = useState<(typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]>(habit.frequencyUnit ?? 'Day')
@@ -73,7 +76,7 @@ function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: Normalize
           {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <FrequencyUnitOption key={value} label={t(`habits.form.unit${value}`)} selected={unit === value} onSelect={() => setUnit(value)} />)}
         </RadioGroup>
       </div>
-      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-1">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.length === 0 || days.includes(day); return <button key={day} type="button" aria-label={t(`dates.daysLong.${day.toLowerCase()}`)} aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => toggleHabitDaySelection(current, day, HABIT_DETAIL_WEEKDAYS, current.length === 0))}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
+      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-1">{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = days.length === 0 || days.includes(day); return <button key={day} type="button" aria-label={accessibleLabel} aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => toggleHabitDaySelection(current, day, HABIT_DETAIL_WEEKDAYS, current.length === 0))}>{label.charAt(0)}</button> })}</div> : null}
       <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, quantity, days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
     </FieldWell>
   )
@@ -81,10 +84,31 @@ function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: Normalize
 
 export function HabitDetailSchedule({ habit, summary, open, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const t = useTranslations()
+  const { profile } = useProfile()
+  const daysList = buildHabitDaysList({
+    monday: t('dates.daysShort.monday'),
+    tuesday: t('dates.daysShort.tuesday'),
+    wednesday: t('dates.daysShort.wednesday'),
+    thursday: t('dates.daysShort.thursday'),
+    friday: t('dates.daysShort.friday'),
+    saturday: t('dates.daysShort.saturday'),
+    sunday: t('dates.daysShort.sunday'),
+    mondayLong: t('dates.daysLong.monday'),
+    tuesdayLong: t('dates.daysLong.tuesday'),
+    wednesdayLong: t('dates.daysLong.wednesday'),
+    thursdayLong: t('dates.daysLong.thursday'),
+    fridayLong: t('dates.daysLong.friday'),
+    saturdayLong: t('dates.daysLong.saturday'),
+    sundayLong: t('dates.daysLong.sunday'),
+    unitDay: t('habits.form.unitDay'),
+    unitWeek: t('habits.form.unitWeek'),
+    unitMonth: t('habits.form.unitMonth'),
+    unitYear: t('habits.form.unitYear'),
+  }, profile?.weekStartDay)
   const editable = canInlineEditHabitSchedule(habit)
   if (!editable && !summary) return null
-  const dailyPills = !open && editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1 ? <section className="flex flex-col gap-2"><div className="flex flex-wrap gap-1">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = habit.days.length === 0 || habit.days.includes(day); return <button key={day} type="button" aria-label={t(`dates.daysLong.${day.toLowerCase()}`)} aria-pressed={selected} className={`${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)]'} size-[var(--touch-min)] shrink-0 rounded-full text-sm font-medium transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]`} style={{ boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' }} onClick={() => { const patch = buildHabitDetailSchedulePatch('Day', 1, toggleHabitDaySelection(habit.days, day, HABIT_DETAIL_WEEKDAYS, habit.days.length === 0)); if (patch) onSave(patch) }}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div></section> : null
-  return <><ListRow inset={false} title={t('habits.detail.schedule')} expanded={editable ? open : undefined} controls={editable ? 'habit-detail-schedule-editor' : undefined} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{dailyPills}<div id="habit-detail-schedule-editor" hidden={!open}>{open ? <ScheduleEditor habit={habit} onCancel={onCancel} onSave={onSave} /> : null}</div></>
+  const dailyPills = !open && editable && habit.frequencyUnit === 'Day' && habit.frequencyQuantity === 1 ? <section className="flex flex-col gap-2"><div className="flex flex-wrap gap-1">{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = habit.days.length === 0 || habit.days.includes(day); return <button key={day} type="button" aria-label={accessibleLabel} aria-pressed={selected} className={`${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)]'} size-[var(--touch-min)] shrink-0 rounded-full text-sm font-medium transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]`} style={{ boxShadow: selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline)' }} onClick={() => { const patch = buildHabitDetailSchedulePatch('Day', 1, toggleHabitDaySelection(habit.days, day, HABIT_DETAIL_WEEKDAYS, habit.days.length === 0)); if (patch) onSave(patch) }}>{label.charAt(0)}</button> })}</div></section> : null
+  return <><ListRow inset={false} title={t('habits.detail.schedule')} expanded={editable ? open : undefined} controls={editable ? 'habit-detail-schedule-editor' : undefined} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{dailyPills}<div id="habit-detail-schedule-editor" hidden={!open}>{open ? <ScheduleEditor habit={habit} daysList={daysList} onCancel={onCancel} onSave={onSave} /> : null}</div></>
 }
 
 function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {

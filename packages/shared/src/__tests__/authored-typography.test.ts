@@ -1,9 +1,16 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { tmpdir } from 'node:os'
 import { resolve, relative } from 'node:path'
+import libCoverage from 'istanbul-lib-coverage'
+import libReport from 'istanbul-lib-report'
+import reports from 'istanbul-reports'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const root = resolve(import.meta.dirname, '../../../..')
+const gitExecutable = resolve(createRequire(import.meta.url)('which').sync('git'))
 const scale = new Set([12, 14, 16, 17, 20, 22, 28, 34, 44, 60])
 const widgetDrawing = 'design/canvas/Orbit Widget Android.dc.html'
 const exceptions = [
@@ -22,11 +29,12 @@ const exceptions = [
 type AuthoredSize = { size: number; element: string }
 
 function authoredFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    if (['node_modules', '__tests__', 'test-mocks', 'test-support', 'e2e', '.next', '.expo', 'build', '.gradle'].includes(entry.name)) return []
-    const path = resolve(directory, entry.name)
-    return entry.isDirectory() ? authoredFiles(path) : /\.(?:tsx?|jsx?|css|xml|svg)$/.test(entry.name) && !/\.(?:test|type-test)\./.test(entry.name) ? [path] : []
-  })
+  return execFileSync(gitExecutable, ['ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', '.'], { cwd: directory, encoding: 'utf8' })
+    .split('\0')
+    .filter((path) => /\.(?:tsx?|jsx?|css|xml|svg)$/.test(path) && !/\.(?:test|type-test)\./.test(path))
+    .filter((path) => !path.split('/').slice(0, -1).some((segment) => ['node_modules', '__tests__', 'test-mocks', 'test-support', 'e2e', '.next', '.expo', 'build', '.gradle'].includes(segment)))
+    .map((path) => resolve(directory, path))
+    .filter(existsSync)
 }
 
 function literalSizes(expression: ts.Expression): number[] {
@@ -128,6 +136,41 @@ function drawingSizes(source: string): AuthoredSize[] {
 }
 
 describe('authored app typography', () => {
+  it.each(['mobile', 'web'])('excludes ignored %s reports produced by the coverage reporter while retaining authored files', (platform) => {
+    const repository = mkdtempSync(resolve(tmpdir(), 'authored-typography-'))
+    try {
+      execFileSync(gitExecutable, ['init', '--quiet', repository])
+      const directory = resolve(repository, 'apps', platform)
+      mkdirSync(resolve(directory, 'components'), { recursive: true })
+      const tracked = resolve(directory, 'components', 'label.tsx')
+      const untracked = resolve(directory, 'components', 'new label.tsx')
+      const deleted = resolve(directory, 'components', 'deleted.tsx')
+      writeFileSync(tracked, 'export const style = { fontSize: 10 }')
+      writeFileSync(deleted, 'export const style = { fontSize: 10 }')
+      execFileSync(gitExecutable, ['add', '--', tracked, deleted], { cwd: repository })
+      rmSync(deleted)
+      writeFileSync(untracked, 'export const style = { fontSize: 11 }')
+      mkdirSync(resolve(directory, '__tests__'))
+      writeFileSync(resolve(directory, '__tests__', 'label.tsx'), 'export const style = { fontSize: 10 }')
+      writeFileSync(resolve(repository, '.gitignore'), `${readFileSync(resolve(root, '.gitignore'), 'utf8')}\nlabel.tsx\n`)
+      reports.create('lcov').execute(libReport.createContext({
+        dir: resolve(directory, 'coverage'),
+        coverageMap: libCoverage.createCoverageMap(),
+      }))
+      const stylesheet = resolve(directory, 'coverage', 'lcov-report', 'base.css')
+      expect(violations(readFileSync(stylesheet, 'utf8'), stylesheet)).toContainEqual({ size: 10, element: '.fraction' })
+      const files = authoredFiles(directory).sort((left, right) => left.localeCompare(right))
+      expect(files).toEqual([tracked, untracked].sort((left, right) => left.localeCompare(right)))
+      expect(files).not.toContain(stylesheet)
+      expect(files.flatMap((file) => violations(readFileSync(file, 'utf8'), file))).toEqual([
+        { size: 10, element: 'style.fontSize' },
+        { size: 11, element: 'style.fontSize' },
+      ])
+    } finally {
+      rmSync(repository, { recursive: true, force: true })
+    }
+  })
+
   it('rejects a widget children badge at the habit title exception size', () => {
     const path = 'apps/mobile/modules/orbit-widget/android/src/main/res/layout/widget_item.xml'
     const source = readFileSync(resolve(root, path), 'utf8')

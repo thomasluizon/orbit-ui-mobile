@@ -53,6 +53,7 @@ export function createStyles(tokens: EditGoalTokens) {
       flex: 1,
     },
     removeDeadlineButton: {
+      overflow: 'hidden',
       width: TOUCH_TARGET_MIN,
       height: TOUCH_TARGET_MIN,
       borderRadius: 999,
@@ -66,6 +67,9 @@ export function createStyles(tokens: EditGoalTokens) {
       marginTop: 8,
     },
     addDeadlineButton: {
+      borderRadius: 999,
+      overflow: 'hidden',
+      paddingHorizontal: 12,
       minHeight: TOUCH_TARGET_MIN,
       flexDirection: 'row',
       alignItems: 'center',

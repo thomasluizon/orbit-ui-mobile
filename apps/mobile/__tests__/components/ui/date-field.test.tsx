@@ -3,7 +3,8 @@ import { Pressable } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { DateField } from '@/components/ui/date-field'
 import { Calendar } from '@/components/ui/icons'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
+import { expectPressPaint } from '@/__tests__/support/press-feedback'
 
 /** The global setup stubs DateField away; this suite tests the real one. */
 vi.unmock('@/components/ui/date-field')
@@ -12,12 +13,16 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 0 } }),
 }))
 
-const themeState = vi.hoisted(() => ({ mode: 'dark' }))
+const themeState = vi.hoisted(() => ({ mode: 'dark', reducedMotion: false }))
+vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => themeState.reducedMotion }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: themeState.mode }),
 }))
 
 const TestRenderer = require('react-test-renderer')
+const pressCases = (['dark', 'light'] as const).flatMap((mode) =>
+  [false, true].flatMap((reducedMotion) =>
+    ['', '2025-06-15'].map((value) => ({ mode, reducedMotion, value }))))
 
 function flatten(style: unknown): Record<string, unknown> {
   if (Array.isArray(style)) return Object.assign({}, ...style.map(flatten))
@@ -40,6 +45,38 @@ function dayTargets(tree: any) {
 }
 
 describe('DateField (mobile)', () => {
+  it.each(pressCases)('paints trigger and days in $mode (reduced motion: $reducedMotion, value: $value)', ({ mode, reducedMotion, value }) => {
+    themeState.mode = mode
+    themeState.reducedMotion = reducedMotion
+    const tokens = createTokensV2('purple', mode)
+    const tree = render(<DateField value={value} onChange={vi.fn()} />)
+    const trigger = tree.root.findByType('Pressable')
+    expectPressPaint(trigger, { fill: tokens.bgHoverOpaque, restFill: tokens.bgField, overlay: true, borderRadius: radius.md, scale: reducedMotion ? 1 : 0.96 })
+    if (!value) {
+      const text = trigger.findAllByType('Text')[0]
+      expect(flatten(text.props.style).color).toBe(tokens.fg3)
+      TestRenderer.act(() => trigger.props.onPressIn())
+      expect(flatten(text.props.style).color).toBe(tokens.fg2)
+      TestRenderer.act(() => trigger.props.onPressOut())
+      expect(flatten(text.props.style).color).toBe(tokens.fg3)
+    }
+    TestRenderer.act(() => trigger.props.onPress())
+    const days = tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean } } }) => typeof node.props.accessibilityState?.selected === 'boolean')
+    expect(days.length).toBeGreaterThanOrEqual(28)
+    for (const day of days) {
+      const text = day.findAllByType('Text')[0]
+      const restingText = flatten(text.props.style)
+      expectPressPaint(day, { fill: tokens.bgHover, borderRadius: radius.full, scale: reducedMotion ? 1 : 0.96 })
+      expect(flatten(day.props.style({ pressed: false })).minHeight).toBe(44)
+      TestRenderer.act(() => day.props.onPressIn())
+      expect(flatten(text.props.style).color).toBe(restingText.color === tokens.fg3 ? tokens.fg2 : restingText.color)
+      TestRenderer.act(() => day.props.onPressOut())
+      expect(flatten(text.props.style)).toEqual(restingText)
+    }
+    TestRenderer.act(() => tree.unmount())
+    themeState.mode = 'dark'
+    themeState.reducedMotion = false
+  })
   it.each(['dark', 'light'] as const)('paints month and year controls with the hover role in %s', (mode) => {
     themeState.mode = mode
     const tokens = createTokensV2('purple', mode)
@@ -98,7 +135,7 @@ describe('DateField (mobile)', () => {
       expect(targetStyle.width).toBe(`${100 / 7}%`)
       expect(targetStyle.minHeight).toBe(44)
 
-      const circle = target.props.children
+      const circle = target.props.children({ pressed: false })
       const circleStyle = flatten(circle.props.style)
       expect(circleStyle.width).toBe(36)
       expect(circleStyle.height).toBe(36)
