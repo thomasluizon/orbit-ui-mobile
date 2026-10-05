@@ -111,6 +111,19 @@ function liveChipSuggestions(scenario: typeof chipScenarios[number], messages: t
   }) }
 }
 
+it.each([
+  { locale: 'pt-BR', messages: ptBR, name: 'Abrir conversa' },
+  { locale: 'en', messages: en, name: 'Open the conversation' },
+])('names the conversation glyph in $locale', ({ messages, name }) => {
+  const onOpenConversation = vi.fn()
+  const view = render(<Composer {...geometryProps('idle', messages, true)} onOpenConversation={onOpenConversation} />)
+  try {
+    fireEvent.click(screen.getByRole('button', { name }))
+    expect(onOpenConversation).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Abrir a conversa' })).not.toBeInTheDocument()
+  } finally { view.unmount() }
+})
+
 describe('Composer compact geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
