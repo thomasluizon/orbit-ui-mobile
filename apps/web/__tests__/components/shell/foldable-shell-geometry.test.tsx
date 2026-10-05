@@ -244,8 +244,8 @@ describe('Foldable shell geometry', () => {
       expect(bounds.pinnedCount).toBe(0)
       expect(bounds.padding).toBe(32)
       expect(bounds.clearance).toBeGreaterThanOrEqual(31)
-      expect.soft(bounds.toast).toEqual(bounds.content)
-      expect.soft(bounds.celebration).toEqual(bounds.content)
+      expect.soft(bounds.toast).toEqual(bounds.scrollContent)
+      expect.soft(bounds.celebration).toEqual(bounds.scrollContent)
       expect.soft(bounds.title).toEqual(bounds.scrollContent)
       expect(bounds.documentWidth).toBe(width)
     } finally { await page.close() }

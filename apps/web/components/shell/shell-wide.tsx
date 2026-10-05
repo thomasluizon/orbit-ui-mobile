@@ -182,9 +182,9 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + var(--safe-bottom))` }}
     >
       <div className="relative mx-auto flex min-h-0 w-full flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH, minHeight: actionMinimum }}>
-        {props.notice !== undefined ? <div data-shell-notice="" className="px-4">{props.notice}</div> : null}
+        {props.notice !== undefined ? <div data-shell-notice="" className="overflow-y-auto [scrollbar-gutter:stable] px-4">{props.notice}</div> : null}
         {pinnedSlot !== undefined ? (
-          <div data-shell-pinned-slot="" hidden={conversationOpen} className="min-h-0 overflow-y-auto overscroll-contain lg:pb-4" style={{ minHeight: actionMinimum }}>
+          <div data-shell-pinned-slot="" hidden={conversationOpen} className="min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] lg:pb-4" style={{ minHeight: actionMinimum }}>
             {pinnedSlot}
           </div>
         ) : null}
@@ -192,8 +192,8 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
           <div data-shell-tab-bar="" className="shrink-0 lg:hidden">{props.tabBar}</div>
         ) : null}
         {props.fab !== undefined ? (
-          <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
-            {props.fab}
+          <div data-shell-fab="" className="pointer-events-none absolute inset-x-0 flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
+            <div className="pointer-events-auto">{props.fab}</div>
           </div>
         ) : null}
       </div>

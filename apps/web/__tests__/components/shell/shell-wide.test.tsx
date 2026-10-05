@@ -85,7 +85,8 @@ describe('ShellWide', () => {
     const bottom = container.querySelector('[data-shell-bottom]')
     expect(bottom).not.toHaveClass('shadow-[inset_0_1px_0_var(--hairline)]')
     const fab = container.querySelector('[data-shell-fab]')
-    expect(fab).toHaveClass('absolute', 'right-4')
+    expect(fab).toContainElement(screen.getByRole('button', { name: 'Create' }))
+    expect(container.querySelector('[data-shell-scroller]')).not.toContainElement(fab)
     expect(fab).toHaveStyle({ bottom: 'calc(100% + 16px)' })
   })
 
