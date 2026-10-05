@@ -199,7 +199,11 @@ describe('UpgradePage', () => {
       mockLocale.value = locale
       mockHasProAccess = trial
       mockProfile = createMockProfile({ isTrialActive: trial, trialEndsAt: trial ? new Date(Date.now() + 5 * 86400000).toISOString() : null })
-      const { container } = render(<UpgradePage />)
+      const { container } = render(
+        <main data-shell-scroller="" style={{ overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable' }}>
+          <UpgradePage />
+        </main>,
+      )
       const page = await browser.newPage({ viewport: { width, height: 1400 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -224,6 +228,7 @@ describe('UpgradePage', () => {
             fontWeight: style.fontWeight,
             letterSpacing: Number.parseFloat(style.letterSpacing),
             measure: bounds.width,
+            scrollerMeasure: element.closest('[data-shell-scroller]')!.clientWidth,
             textWidth,
           }
         })
@@ -234,7 +239,8 @@ describe('UpgradePage', () => {
         expect(geometry.fontSize).toBe(width < 640 ? 28 : 34)
         expect(geometry.fontWeight).toBe('500')
         expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
-        expect(geometry.measure).toBe(Math.min(width - 32, 620))
+        expect(geometry.scrollerMeasure).toBe(width - 4)
+        expect(geometry.measure).toBe(Math.min(geometry.scrollerMeasure - 32, 620))
       } finally { await page.close() }
     })
   })
@@ -282,8 +288,8 @@ describe('UpgradePage', () => {
   })
 
   describe.each([
-    { locale: 'en', messages: en, trialHeading: '50 a day, or back to 5.' },
-    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 ficam, ou 5 por dia.' },
+    { locale: 'en', messages: en, trialHeading: '50 a day or back to 5.' },
+    { locale: 'pt-BR', messages: ptBR, trialHeading: '50 ficam ou 5 por dia.' },
   ] as const)('paywall composition in $locale', ({ locale, messages, trialHeading }) => {
     it('returns a directly linked Astra upgrade to its originating sub-screen', () => {
       mockLocale.value = locale
