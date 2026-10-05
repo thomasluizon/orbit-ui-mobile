@@ -378,7 +378,7 @@ const GRANTED_ACCENTS = {
     primaryHover: '#B74E12',
     primaryPressed: '#A24716',
     primarySoft: '#C85716',
-    primaryText: '#E16D33',
+    primaryText: '#ED773E',
     primaryDim: '#261611',
     primaryRgb: '196,83,15',
   },
@@ -526,7 +526,7 @@ describe('byte-exact mode colors', () => {
       fg2: '#C9C9CC',
       fg3: '#8F8F93',
       fg4: '#5D5D60',
-      trackEmpty: '#7A7A7D',
+      trackEmpty: '#8B8B8E',
       scrim: 'rgba(0,0,0,0.55)',
     })
   })
@@ -576,6 +576,18 @@ describe('byte-exact mode colors', () => {
       expect(contrastOnSurface(color, layers)).toBeGreaterThanOrEqual(4.5)
     })
   }
+
+  it('keeps dark accent text AA on the pressed calendar card', () => {
+    const neutral = neutralColors.dark
+    expect(contrastOnSurface(schemes.orange.accent.dark.primaryText, [neutral.bg, neutral.bgCard, neutral.bgHover]))
+      .toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('keeps the dark empty track visible on the calendar card inside a sheet', () => {
+    const neutral = neutralColors.dark
+    expect(contrastOnSurface(neutral.trackEmpty, [neutral.bg, neutral.bgElev, neutral.bgCard, neutral.bgHover]))
+      .toBeGreaterThanOrEqual(3)
+  })
 
   for (const mode of ['dark', 'light'] as const) {
     for (const surface of BAD_TEXT_SURFACES[mode]) {

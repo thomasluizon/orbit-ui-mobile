@@ -14,7 +14,7 @@
   --p-hair:rgba(255,255,255,0.08);
   --p-hair-ghost:rgba(255,255,255,0.10);
   --p-hair-strong:rgba(255,255,255,0.16);
-  --p-fg1:#F4F4F6; --p-fg2:#C9C9CC; --p-fg3:#8F8F93; --p-fg4:#5D5D60; --p-track-empty:#7A7A7D;
+  --p-fg1:#F4F4F6; --p-fg2:#C9C9CC; --p-fg3:#8F8F93; --p-fg4:#5D5D60; --p-track-empty:#8B8B8E;
 
   /* primitives: light (not dark reversed; every pair remeasured) */
   --p-l-canvas:#FAFAFA; --p-l-card:#FFFFFF; --p-l-field:#FFFFFF;
@@ -25,7 +25,7 @@
 
   /* primitives: THE accent, warm orange, the only one. Granted by Thomas 2026-08-16.
      Rose is retired. Treatment is always a dark fill with #FFFFFF on it. */
-  --p-orange-dark:#C4530F; --p-orange-text:#C85716; --p-orange-raised-text:#E16D33; --p-orange-rgb:196,83,15; /* @kind color */
+  --p-orange-dark:#C4530F; --p-orange-text:#C85716; --p-orange-raised-text:#ED773E; --p-orange-rgb:196,83,15; /* @kind color */
   --p-orange-lmtext:#C15109; --p-orange-lm-raised-text:#A63A00; /* 4.522:1 on light well hover */
   --p-on-fill:#FFFFFF;
 

@@ -382,6 +382,13 @@ function booleanAssignments(expression, expected, state, assignments) {
   }
   if (ts.isBinaryExpression(expression)) {
     const operator = expression.operatorToken.kind
+    const left = literalValue(expression.left, state)
+    const right = literalValue(expression.right, state)
+    if (left !== undefined && right !== undefined
+      && [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(operator)) {
+      const truth = (left === right) === (operator === ts.SyntaxKind.EqualsEqualsEqualsToken)
+      if (truth !== expected) return []
+    }
     const conjunction = operator === ts.SyntaxKind.AmpersandAmpersandToken
     if (conjunction || operator === ts.SyntaxKind.BarBarToken) {
       if (expected === conjunction) {
@@ -417,6 +424,43 @@ function booleanAssignments(expression, expected, state, assignments) {
   return [new Map([...assignments, [key, expected]])]
 }
 
+function knownTruth(expression, state, values) {
+  expression = unwrapExpression(expression)
+  const assigned = values.get(state.conditionKey(expression))
+  if (assigned !== undefined) return assigned
+  const truth = literalTruth(expression)
+  if (truth !== undefined) return truth
+  if (ts.isPrefixUnaryExpression(expression) && expression.operator === ts.SyntaxKind.ExclamationToken) {
+    const operand = knownTruth(expression.operand, state, values)
+    return operand === undefined ? undefined : !operand
+  }
+  if (ts.isBinaryExpression(expression)) {
+    const operator = expression.operatorToken.kind
+    if ([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(operator)) {
+      const left = literalValue(expression.left, state)
+      const right = literalValue(expression.right, state)
+      return left === undefined || right === undefined ? undefined : (left === right) === (operator === ts.SyntaxKind.EqualsEqualsEqualsToken)
+    }
+    const left = knownTruth(expression.left, state, values)
+    const right = knownTruth(expression.right, state, values)
+    if (operator === ts.SyntaxKind.AmpersandAmpersandToken) return left === false || right === false ? false : left === true && right === true ? true : undefined
+    if (operator === ts.SyntaxKind.BarBarToken) return left === true || right === true ? true : left === false && right === false ? false : undefined
+  }
+  return undefined
+}
+
+function uniqueAssignments(assignments) {
+  const unique = new Map()
+  for (const values of assignments) {
+    const identity = [...values].map(([condition, value]) => {
+      if (!surfaceConditionIds.has(condition)) surfaceConditionIds.set(condition, surfaceConditionIds.size)
+      return [surfaceConditionIds.get(condition), value]
+    }).sort(([left], [right]) => left - right)
+    unique.set(JSON.stringify(identity), values)
+  }
+  return [...unique.values()]
+}
+
 function branchAssignments(node, state) {
   let assignments = state.assignments ?? [new Map()]
   for (let current = node; current.parent; current = current.parent) {
@@ -430,8 +474,28 @@ function branchAssignments(node, state) {
       && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken].includes(parent.operatorToken.kind)) {
       condition = parent.left
       expected = parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+    } else if (ts.isIfStatement(parent) && current !== parent.expression) {
+      condition = parent.expression
+      expected = current === parent.thenStatement
+    } else if (ts.isBlock(parent)) {
+      const index = parent.statements.indexOf(current)
+      for (const previous of parent.statements.slice(0, Math.max(0, index))) {
+        if (ts.isIfStatement(previous) && (ts.isReturnStatement(previous.thenStatement) || (ts.isBlock(previous.thenStatement) && ts.isReturnStatement(previous.thenStatement.statements.at(-1)))) && !previous.elseStatement) {
+          assignments = assignments.flatMap((values) => {
+            const truth = knownTruth(previous.expression, state, values)
+            if (truth === true) return []
+            if (truth === false) return [values]
+            const condition = unwrapExpression(previous.expression)
+            if (ts.isIdentifier(condition) || (ts.isPrefixUnaryExpression(condition) && ts.isIdentifier(condition.operand))) {
+              return booleanAssignments(condition, false, state, values)
+            }
+            return [values]
+          })
+        }
+      }
+      continue
     } else continue
-    assignments = assignments.flatMap((values) => booleanAssignments(condition, expected, state, values))
+    assignments = uniqueAssignments(assignments.flatMap((values) => booleanAssignments(condition, expected, state, values)))
     if (assignments.length === 0) break
   }
   return assignments
@@ -460,7 +524,8 @@ function expressionSurfaces(expression, sourceFile, state) {
 
 function outermostGroup(node) {
   let group
-  for (let current = openingElement(node)?.parent?.parent; current; current = current.parent) {
+  const opening = openingElement(node)
+  for (let current = opening && ts.isJsxSelfClosingElement(opening) ? opening.parent : opening?.parent?.parent; current; current = current.parent) {
     if (!ts.isJsxElement(current)) continue
     const className = current.openingElement.attributes.properties.find((attribute) =>
       ts.isJsxAttribute(attribute) && propertyName(attribute.name) === "className")
@@ -480,7 +545,7 @@ function webForegroundStates(node, matchIndex, sourceFile, conditionKey) {
   const role = utility.match(/^(text|bg|border|fill|stroke)-/)?.[1]
   if (role && new RegExp(`(?:^|\\s)hover:${role}-\\[var\\(--`).test(literal.text)
     && !ancestorHoverSurface(node, sourceFile, conditionKey)) return ["rest", "pressed"]
-  if (role && group && new RegExp(`(?:^|\\s)group-hover(?:/[\w-]+)?:${role}-\\[var\\(--`).test(literal.text)
+  if (role && group && new RegExp(`(?:^|\\s)group-hover(?:/[\\w-]+)?:${role}-\\[var\\(--`).test(literal.text)
     && !ancestorHoverSurface(group, sourceFile, conditionKey)) return ["rest", "pressed"]
   return ["rest", "hover", "pressed"]
 }
@@ -649,6 +714,26 @@ function selectedObjectMemberReferences(node, sourceFile) {
   return { path, references }
 }
 
+function localMemberValues(expression, sourceFile, seen = new Set()) {
+  expression = unwrapExpression(expression)
+  if (ts.isObjectLiteralExpression(expression)) return [expression]
+  if (ts.isIdentifier(expression)) {
+    const declaration = visibleDeclaration(expression, sourceFile, expression.text)
+    return declaration && !seen.has(declaration) ? localMemberValues(declaration.initializer, sourceFile, new Set([...seen, declaration])) : []
+  }
+  if (ts.isPropertyAccessExpression(expression)) {
+    return localMemberValues(expression.expression, sourceFile, seen).flatMap((object) => {
+      const value = objectProperty(object, expression.name.text)
+      return value ? [value] : []
+    })
+  }
+  if (ts.isElementAccessExpression(expression)) {
+    return localMemberValues(expression.expression, sourceFile, seen).flatMap((object) => object.properties
+      .filter(ts.isPropertyAssignment).flatMap((property) => localMemberValues(property.initializer, sourceFile, seen)))
+  }
+  return []
+}
+
 function localExpressionSurfaces(node, sourceFile, state) {
   const surfaces = new Set()
   const seen = new Set()
@@ -657,7 +742,16 @@ function localExpressionSurfaces(node, sourceFile, state) {
     const visit = (current) => {
       if (!reachableInState(current, state)) return
       if (ts.isPropertyAccessExpression(current) && ts.isIdentifier(current.expression)) {
-        for (const surface of styleMemberSurfaces(current, sourceFile, state) ?? []) surfaces.add(surface)
+        const styled = styleMemberSurfaces(current, sourceFile, state)
+        if (styled !== undefined) {
+          for (const surface of styled) surfaces.add(surface)
+          return
+        }
+        const members = localMemberValues(current, sourceFile)
+        if (members.length) {
+          members.forEach(inspect)
+          return
+        }
       }
       const selectedStyle = ts.isIdentifier(current) && ts.isPropertyAccessExpression(current.parent)
         && current.parent.expression === current
@@ -718,7 +812,11 @@ function surfaceStateKey(state, sourceFile) {
     if (!surfaceConditionIds.has(condition)) surfaceConditionIds.set(condition, surfaceConditionIds.size)
     return [surfaceConditionIds.get(condition), value]
   }).sort(([left], [right]) => left - right))
-  const key = JSON.stringify([state.interaction, state.mode, Boolean(state.cssRules), assignments])
+  const literals = [...(state.literalValues ?? [])].filter(([condition]) => !source || conditionSources.get(condition) === source).map(([condition, value]) => {
+    if (!surfaceConditionIds.has(condition)) surfaceConditionIds.set(condition, surfaceConditionIds.size)
+    return [surfaceConditionIds.get(condition), value]
+  }).sort(([left], [right]) => left - right)
+  const key = JSON.stringify([state.interaction, state.mode, Boolean(state.cssRules), assignments, literals])
   cached.set(source, key)
   surfaceStateKeys.set(state, cached)
   return key
@@ -857,13 +955,41 @@ function componentContentSurfaces(syntaxes, state) {
   return result
 }
 
+function compareSpecificity(left, right) {
+  for (let index = 0; index < left.length; index++) {
+    if (left[index] !== right[index]) return left[index] - right[index]
+  }
+  return 0
+}
+
+function selectorSpecificity(selector) {
+  const specificity = [0, 0, 0]
+  selector = selector.replace(/:(is|not|where)\(([^()]*)\)/g, (_, functionName, choices) => {
+    if (functionName !== "where") {
+      const strongest = choices.split(",").map(selectorSpecificity).sort(compareSpecificity).at(-1)
+      strongest.forEach((value, index) => { specificity[index] += value })
+    }
+    return ""
+  })
+  specificity[0] += (selector.match(/#[\w-]+/g) ?? []).length
+  specificity[1] += (selector.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+(?:\([^()]*\))?/g) ?? []).length
+  selector = selector.replace(/#[\w-]+|\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+(?:\([^()]*\))?/g, "")
+  specificity[2] += (selector.match(/::[\w-]+|(?:^|[\s>+~])[a-zA-Z][\w-]*/g) ?? []).length
+  return specificity
+}
+
 function readCssRules(repositoryRoot) {
   const path = resolve(repositoryRoot, "apps/web/app/globals.css")
   if (!existsSync(path)) return []
   const rules = []
   postcss.parse(readFileSync(path, "utf8")).walkRules((rule) => {
     const properties = new Map()
-    rule.walkDecls((declaration) => { properties.set(declaration.prop, declaration.value) })
+    const important = new Set()
+    rule.walkDecls((declaration) => {
+      if (important.has(declaration.prop) && !declaration.important) return
+      properties.set(declaration.prop, declaration.value)
+      if (declaration.important) important.add(declaration.prop)
+    })
     if (![...properties.keys()].some((name) => name.startsWith("--") || /^background(?:-color)?$/.test(name))) return
     const expanded = rule.selector.replace(/:is\(([^()]*)\)/g, (_, choices) => `{${choices}}`)
     const alternatives = expanded.match(/\{([^}]+)\}/)
@@ -872,9 +998,10 @@ function readCssRules(repositoryRoot) {
       : expanded.split(",")
     for (let selector of selectors) {
       selector = selector.trim()
+      const specificity = selectorSpecificity(alternatives ? rule.selector : selector)
       const mode = selector.startsWith(".light ") ? "light" : selector.startsWith(".dark ") ? "dark" : undefined
       if (mode) selector = selector.slice(mode.length + 2)
-      rules.push({ selector, properties, mode })
+      rules.push({ selector, properties, important, specificity, mode })
     }
   })
   return rules
@@ -905,6 +1032,42 @@ function readAttributeText(opening, name, syntax) {
   return attribute.initializer.getText(syntax).replace(/^["']|["']$/g, "")
 }
 
+function hasClassInState(expression, name, state, seen = new Set()) {
+  expression = unwrapExpression(expression)
+  if (ts.isJsxExpression(expression)) return expression.expression ? hasClassInState(expression.expression, name, state, seen) : false
+  if (ts.isStringLiteralLike(expression)) return expression.text.split(/\s+/).includes(name)
+  if (ts.isIdentifier(expression)) {
+    const declaration = visibleDeclaration(expression, expression.getSourceFile(), expression.text)
+    return declaration && !seen.has(declaration)
+      ? hasClassInState(declaration.initializer, name, state, new Set([...seen, declaration])) : false
+  }
+  if (ts.isConditionalExpression(expression)) {
+    return [[true, expression.whenTrue], [false, expression.whenFalse]].every(([expected, branch]) => {
+      const assignments = (state.assignments ?? [new Map()]).flatMap((values) => booleanAssignments(expression.condition, expected, state, values))
+      return assignments.length === 0 || hasClassInState(branch, name, { ...state, assignments }, seen)
+    })
+  }
+  if (ts.isBinaryExpression(expression)) {
+    const operator = expression.operatorToken.kind
+    if (operator === ts.SyntaxKind.PlusToken) return hasClassInState(expression.left, name, state, seen) || hasClassInState(expression.right, name, state, seen)
+    if (operator === ts.SyntaxKind.AmpersandAmpersandToken) {
+      const assignments = state.assignments ?? [new Map()]
+      return assignments.every((values) => booleanAssignments(expression.left, false, state, values).length === 0)
+        && hasClassInState(expression.right, name, state, seen)
+    }
+  }
+  if (ts.isArrayLiteralExpression(expression)) return expression.elements.some((element) => hasClassInState(element, name, state, seen))
+  if (ts.isCallExpression(expression)) {
+    if (ts.isPropertyAccessExpression(expression.expression) && expression.expression.name.text === "join") return hasClassInState(expression.expression.expression, name, state, seen)
+    if (["cn", "clsx", "classNames"].includes(expression.expression.getText())) return expression.arguments.some((argument) => hasClassInState(argument, name, state, seen))
+  }
+  if (ts.isTemplateExpression(expression)) {
+    const chunks = [expression.head.text, ...expression.templateSpans.map((span) => span.literal.text)]
+    return chunks.some((chunk) => chunk.split(/\s+/).includes(name))
+  }
+  return false
+}
+
 function matchesCompound(selector, opening, syntax, state) {
   if (/::|:root|:has\(/.test(selector)) return false
   if (selector.includes(":hover") && state.interaction !== "hover") return false
@@ -918,9 +1081,10 @@ function matchesCompound(selector, opening, syntax, state) {
   const tag = selector.match(/^[\w-]+/)?.[0]
   if (tag && tag !== jsxTag(opening)) return false
   if (selector.includes("#")) return false
-  const classes = attributeText(opening, "className", syntax) ?? ""
+  const className = opening.attributes.properties.find((property) => ts.isJsxAttribute(property) && propertyName(property.name) === "className")
+  const expression = className?.initializer
   for (const match of selector.matchAll(/\.([\w-]+)/g)) {
-    if (!new RegExp(`(?:^|[\\s"'\x60])${match[1]}(?:$|[\\s"'\x60])`).test(classes)) return false
+    if (!expression || !hasClassInState(expression, match[1], state)) return false
   }
   for (const match of selector.matchAll(/\[([^=\]~]+)(?:=["']?([^"'\]]+)["']?)?\]/g)) {
     const value = attributeText(opening, match[1], syntax)
@@ -979,10 +1143,18 @@ function matchingCssProperties(opening, syntax, state) {
   const cached = cssPropertyCache.get(opening) ?? new Map()
   if (cached.has(key)) return cached.get(key)
   const properties = new Map()
+  const winners = new Map()
   for (const rule of state?.cssRules ?? []) {
     if (rule.mode && rule.mode !== state.mode) continue
     if (!selectorMatches(rule.selector, opening, syntax, state)) continue
-    for (const [name, value] of rule.properties) properties.set(name, value)
+    for (const [name, value] of rule.properties) {
+      const winner = winners.get(name)
+      const importance = Number(rule.important.has(name))
+      if (winner && (importance < winner.importance
+        || (importance === winner.importance && compareSpecificity(rule.specificity, winner.specificity) < 0))) continue
+      winners.set(name, { importance, specificity: rule.specificity })
+      properties.set(name, value)
+    }
   }
   cached.set(key, properties)
   cssPropertyCache.set(opening, cached)
@@ -1128,12 +1300,21 @@ function componentDefinitions(syntaxes) {
   return result
 }
 
+function literalValue(expression, state) {
+  if (!expression) return undefined
+  expression = unwrapExpression(expression)
+  if (ts.isStringLiteralLike(expression)) return expression.text
+  if (ts.isNumericLiteral(expression)) return Number(expression.text)
+  return state.literalValues?.get(state.conditionKey(expression))
+}
+
 function literalTruth(expression) {
   if (!expression) return false
   expression = unwrapExpression(expression)
   if (expression.kind === ts.SyntaxKind.TrueKeyword) return true
   if (expression.kind === ts.SyntaxKind.FalseKeyword || expression.kind === ts.SyntaxKind.NullKeyword
     || (ts.isIdentifier(expression) && expression.text === "undefined")) return false
+  if (ts.isArrowFunction(expression) || ts.isFunctionExpression(expression) || ts.isObjectLiteralExpression(expression) || ts.isArrayLiteralExpression(expression)) return true
   if (ts.isStringLiteralLike(expression)) return expression.text.length > 0
   if (ts.isNumericLiteral(expression)) return Number(expression.text) !== 0
   return undefined
@@ -1141,24 +1322,33 @@ function literalTruth(expression) {
 
 function callerState(openings, node, state) {
   let assignments = state.assignments
+  const literalValues = new Map(state.literalValues)
   for (const call of openings) {
+    assignments = branchAssignments(call, { ...state, literalValues, assignments })
     const definition = state.definitions.get(calledComponent(call, call.getSourceFile(), state.syntaxes))
     const binding = definition?.parameters[0]?.name
     if (!binding || !ts.isObjectBindingPattern(binding)) continue
-    const spread = call.attributes.properties.some(ts.isJsxSpreadAttribute)
     for (const element of binding.elements) {
       if (!ts.isIdentifier(element.name) || element.dotDotDotToken) continue
-      const attribute = call.attributes.properties.find((property) => ts.isJsxAttribute(property)
+      const properties = call.attributes.properties
+      const attributeIndex = properties.findLastIndex((property) => ts.isJsxAttribute(property)
         && propertyName(property.name) === propertyName(element.propertyName ?? element.name))
-      if (!attribute && spread) continue
+      if (properties.slice(attributeIndex + 1).some(ts.isJsxSpreadAttribute)) continue
+      const attribute = properties[attributeIndex]
       const expression = attribute?.initializer
-      const value = attribute && !expression ? true : literalTruth(expression && ts.isJsxExpression(expression)
-        ? expression.expression : expression ?? element.initializer)
+      const argument = expression && ts.isJsxExpression(expression) ? expression.expression : expression ?? element.initializer
+      const literal = literalValue(argument, { ...state, literalValues })
+      if (literal !== undefined) literalValues.set(state.conditionKey(element.name), literal)
+      let value = attribute && !expression ? true : literalTruth(argument)
+      if (value === undefined && argument) {
+        const assigned = assignments.map((values) => values.get(state.conditionKey(argument)))
+        if (assigned.length && assigned.every((entry) => entry === assigned[0])) value = assigned[0]
+      }
       if (value === undefined) continue
-      assignments = assignments.flatMap((values) => booleanAssignments(element.name, value, state, values))
+      assignments = uniqueAssignments(assignments.flatMap((values) => booleanAssignments(element.name, value, { ...state, literalValues }, values)))
     }
   }
-  return { ...state, assignments: branchAssignments(node, { ...state, assignments }) }
+  return { ...state, literalValues, assignments: branchAssignments(node, { ...state, literalValues, assignments }) }
 }
 
 function inheritedPaintContexts(node, state, calls, seen = new Set()) {
@@ -1202,6 +1392,9 @@ function localPaintSites(node, syntax, seen = new Set(), importedSites = new Map
   if (openingElement(node)) return [node]
   const variable = ancestor(node, ts.isVariableDeclaration)
   if (!variable || seen.has(variable)) return [node]
+  const selected = selectedObjectMemberReferences(node, syntax)
+  if (selected?.references.length) return selected.references.flatMap((reference) =>
+    localPaintSites(reference, syntax, new Set([...seen, variable]), importedSites))
   const name = propertyName(variable.name)
   const sites = []
   const visit = (current) => {
@@ -1281,6 +1474,19 @@ function promotedNativeForeground(node, token, state) {
   return enabled.length > 0 && disabled.length === 0 ? "--fg-2" : token
 }
 
+function foregroundSiteSurfaces(opening, context, node, state) {
+  const selected = localObjectMemberPath(node, node.getSourceFile())
+  const backgrounds = selected?.object.properties.filter((property) => ts.isPropertyAssignment(property)
+    && /^background(?:Color)?$/.test(propertyName(property.name))) ?? []
+  const references = selectedObjectMemberReferences(node, node.getSourceFile())?.references ?? []
+  const bindings = [selected?.binding, ...references.map((reference) => reference.expression.getText())].filter(Boolean)
+  const text = opening.getText()
+  const usesBackground = bindings.some((binding) => text.includes(`${binding}.background`))
+    || (openingElement(context.site) === opening && bindings.some((binding) => attributeText(opening, "style", opening.getSourceFile()) === binding))
+  return backgrounds.length && usesBackground ? backgrounds.flatMap((property) => expressionSurfaces(property.initializer, node.getSourceFile(), state))
+    : openingSurfaces(opening, opening.getSourceFile(), state)
+}
+
 function inspectSources(repositoryRoot, declarations) {
   const files = ["apps/web", "apps/mobile"].flatMap((path) => collectSourceFiles(resolve(repositoryRoot, path)))
   const program = ts.createProgram(files, { noLib: true, noResolve: true, target: ts.ScriptTarget.Latest, jsx: ts.JsxEmit.Preserve })
@@ -1330,20 +1536,21 @@ function inspectSources(repositoryRoot, declarations) {
             const openings = [...context.openings, ...context.localOpenings]
             const state = callerState(openings, node, initialState)
             if (state.assignments.length === 0 || !reachableInState(context.site, state)) continue
-            const selectedMember = localObjectMemberPath(node, syntax)
-            const ownsBackground = selectedMember && selectedMember.object.properties.some((property) => ts.isPropertyAssignment(property) && /^background(?:Color)?$/.test(propertyName(property.name)))
-            const surfaces = new Set(ownsBackground ? contextSurfaces(node, syntax, contentSurfaces, state) : [])
-            for (const [index, opening] of (ownsBackground ? [] : openings).entries()) {
-              for (const surface of openingSurfaces(opening, opening.getSourceFile(), state)) surfaces.add(surface)
+            const surfaces = new Set()
+            for (const [index, opening] of openings.entries()) {
+              for (const surface of foregroundSiteSurfaces(opening, context, node, state)) surfaces.add(surface)
               for (const surface of projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)) surfaces.add(surface)
               for (const surface of coveringPaint(opening, state)) surfaces.add(surface)
             }
             if (surfaces.size === 0 && (path.startsWith("apps/web/") ? canvasPainted : nativeCanvasPainted)) surfaces.add("canvas")
             const stack = []
-            for (const [index, opening] of (ownsBackground ? [] : openings).entries()) {
-              const paints = [...openingSurfaces(opening, opening.getSourceFile(), state), ...projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)]
+            for (const [index, opening] of openings.entries()) {
+              const paints = [...foregroundSiteSurfaces(opening, context, node, state), ...projectedSurfaces(opening, openings.slice(index + 1), state, contentSurfaces)]
               if (paints.includes("hover")) stack.push("hover")
-              else if (paints.length > 0) stack.push(paints[0])
+              else if (paints.length > 0) {
+                if (paints[0] === "canvas") stack.length = 0
+                stack.push(paints[0])
+              }
               stack.push(...coveringPaint(opening, state))
             }
             if (stack.length > 0 && stack[0] !== "canvas") stack.unshift("canvas")
@@ -1401,7 +1608,7 @@ try {
         violations.push(`${usage.path}:${usage.line}: ${usage.token} on ${painted}, ${usage.mode} ratio ${ratio.toFixed(3)}, ${usage.role.toUpperCase()} floor ${FLOORS[usage.role].toFixed(2)}`)
       }
     }
-    for (const surface of usage.surfaces) {
+    for (const surface of usage.stack.length > 1 ? [] : usage.stack.length === 1 ? usage.stack : usage.surfaces) {
       for (const mode of [usage.mode]) {
         const ratio = themes[mode].get(usage.effective)?.get(surface)
         if (ratio !== undefined && ratio < FLOORS[usage.role]) {

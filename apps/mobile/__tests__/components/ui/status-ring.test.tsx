@@ -49,7 +49,7 @@ describe('StatusRing', () => {
     const ring = renderStatus('empty')
 
     expect(ring.props.style).toEqual(expect.arrayContaining([
-      expect.objectContaining({ borderColor: '#7A7A7D' }),
+      expect.objectContaining({ borderColor: '#8B8B8E' }),
     ]))
   })
 })

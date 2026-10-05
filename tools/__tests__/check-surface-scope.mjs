@@ -88,6 +88,73 @@ function stageUnsafeEmptyTrack(repository) {
 }
 
 export const cases = () => {
+  for (const [label, style] of [
+    ["inline-composed-style", "{{ backgroundColor: 'var(--bg-well)', color: 'var(--fg-3)' }}"],
+    ["named-composed-style", "captionStyle"],
+  ]) {
+    const repository = stageRepository(label, { web: `export function Screen() {
+      const captionStyle = { backgroundColor: 'var(--bg-well)', color: 'var(--fg-3)' }
+      return <div className="bg-[var(--bg-elev)]"><p style=${style === "captionStyle" ? "{captionStyle}" : style}>Copy</p></div>
+    }` })
+    check("check-surface-scope.mjs", `retains ordered named style ancestry: ${label}`, ["--root", repository], {
+      status: 1, stderr: /--fg-3 on overlay \+ well, dark ratio 4\.206/,
+    })
+  }
+  for (const [label, props, status] of [
+    ["false-promotion", "promoted={false}", 1],
+    ["true-promotion", "promoted={true}", 0],
+    ["unknown-promotion", "promoted={flag}", 1],
+  ]) {
+    const repository = stageRepository(label, { web: `function Item({ promoted }) {
+      return <button className={promoted ? 'orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]' : 'bg-[var(--bg)] hover:bg-[var(--bg-hover)]'}><span className="text-[var(--fg-3)]">Item</span></button>
+    } export function Screen({flag}) { return <Item ${props} /> }` })
+    check("check-surface-scope.mjs", `matches conditional classes in caller state: ${label}`, ["--root", repository], {
+      status, ...(status ? { stderr: /--fg-3 on hover, light ratio 4\.161/ } : {}),
+    })
+  }
+  for (const [label, props, status] of [
+    ["later-spread-copy", 'body="" {...props}', 1],
+    ["earlier-spread-copy", '{...props} body=""', 0],
+  ]) {
+    const repository = stageRepository(label, { web: `function Notice({body}) { return <div className="bg-[var(--bg-well)]">{body && <p className="text-[var(--fg-3)]">{body}</p>}</div> }
+    export function Screen() { const props = { body: 'Copy' }; return <section className="bg-[var(--bg-elev)]"><Notice ${props} /></section> }` })
+    check("check-surface-scope.mjs", `honors JSX spread order: ${label}`, ["--root", repository], {
+      status, ...(status ? { stderr: /--fg-3 on overlay \+ well, dark ratio 4\.206/ } : {}),
+    })
+  }
+  for (const [label, override] of [
+    ["important-promotion", '.light .orbit-hover-text:hover { --fg-3: var(--fg-4) !important; }'],
+    ["specific-promotion", '.light button.orbit-hover-text:hover:not(:disabled) { --fg-3: var(--fg-4); }'],
+  ]) {
+    const repository = stageRepository(label, { web: `<button className="orbit-hover-text bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><span className="text-[var(--fg-3)]">Item</span></button>` })
+    const cssPath = join(repository, "apps/web/app/globals.css")
+    writeFileSync(cssPath, readFileSync(cssPath, "utf8") + override + '\n.light .orbit-hover-text:hover { --fg-3: var(--fg-2); }')
+    check("check-surface-scope.mjs", `uses winning cascade declaration: ${label}`, ["--root", repository], {
+      status: 1, stderr: /--fg-3 on hover, light ratio 2\.617/,
+    })
+  }
+  for (const [label, style] of [["inline-ground", "{{ backgroundColor: 'var(--bg)', color: 'var(--primary-soft)' }}"], ["named-ground", "{captionStyle}"]]) {
+    const repository = stageRepository(label, { web: `export function Screen() {
+      const captionStyle = { backgroundColor: 'var(--bg)', color: 'var(--primary-soft)' }
+      return <div className="bg-[var(--bg-elev)]"><p style=${style}>Copy</p></div>
+    }` })
+    check("check-surface-scope.mjs", `keeps opaque replacements above caller fills: ${label}`, ["--root", repository], { status: 0 })
+  }
+  const namedGroup = stageRepository("named-group-word-class", { web: `<div className="group/actions bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Icon className="stroke-[var(--fg-4)] group-hover/actions:stroke-[var(--fg-3)]"></Icon></div>` })
+  check("check-surface-scope.mjs", "recognizes word characters in named group utilities", ["--root", namedGroup], { status: 0 })
+  const selfClosingGroup = stageRepository("self-closing-named-group", { web: `<div className="group/actions bg-[var(--bg)] hover:bg-[var(--bg-hover)]"><Icon className="stroke-[var(--fg-4)] group-hover/actions:stroke-[var(--fg-3)]" /></div>` })
+  check("check-surface-scope.mjs", "retains the group parent of a self-closing graphic", ["--root", selfClosingGroup], { status: 0 })
+  for (const [label, props, status] of [["personal-return", 'mode="personal" onOpen={() => {}}', 0], ["generic-return", 'mode="generic" onOpen={() => {}}', 1], ["unknown-return", 'mode={mode} onOpen={() => {}}', 1]]) {
+    const repository = stageRepository(label, { web: `function Item({mode, onOpen}) {
+      if (mode === 'personal' && onOpen) return <p className="text-[var(--fg-1)]">Copy</p>
+      return <p className="bg-[var(--bg-well)] text-[var(--fg-3)]">Copy</p>
+    } export function Screen({mode}) { return <section className="bg-[var(--bg-elev)]"><Item ${props} /></section> }` })
+    check("check-surface-scope.mjs", `retains only reachable component returns: ${label}`, ["--root", repository], { status, ...(status ? { stderr: /--fg-3 on overlay \+ well, dark ratio 4\.206/ } : {}) })
+  }
+  const forwardedCopy = stageRepository("forwarded-absent-copy", { web: `function Notice({body}) { return <div className="bg-[var(--bg-well)]">{body && <p className="text-[var(--fg-3)]">{body}</p>}</div> }
+    function Forward({body}) { return <Notice body={body} /> }
+    export function Screen() { return <section className="bg-[var(--bg-elev)]"><Forward /></section> }` })
+  check("check-surface-scope.mjs", "forwards optional copy constraints across callers", ["--root", forwardedCopy], { status: 0 })
   for (const [label, props, status] of [["absent-copy", "", 0], ["present-copy", 'body="Copy"', 1]]) {
     const repository = stageRepository(label, { web: `function Notice({body}) { return <div className="bg-[var(--bg-well)]">{body && <p className="text-[var(--fg-3)]">{body}</p>}</div> }
 export function Screen() { return <section className="bg-[var(--bg-elev)]"><Notice ${props} /></section> }` })

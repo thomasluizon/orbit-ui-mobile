@@ -430,17 +430,17 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --hairline-strong rgba(255,255,255,0.16)
 --fg-1 #F4F4F6   /* 18.11:1 */   --fg-2 #C9C9CC   /* 12.04:1 */
 --fg-3 #8F8F93   /*  6.18:1 */   --fg-4 #5D5D60   /*  3.03:1, clears the 3:1 non-text floor */
---track-empty     #7A7A7D                     /* empty UI track. 3.03:1 on a card-child hover */
+--track-empty     #8B8B8E                     /* empty UI track. 3.001:1 on card-child hover inside a sheet */
 --primary         #C4530F                     /* fill and graphic ONLY. hue 45. White on it clears 4.5 */
 --primary-soft    #C85716                     /* accent TEXT on the canvas */
---primary-text    #E16D33                     /* accent TEXT on raised surfaces. 4.51:1 on the worst surface */
+--primary-text    #ED773E                     /* accent TEXT on raised surfaces. 4.518:1 on card-child hover */
 --primary-pressed #A24716                     /* the fill, 16% toward the canvas */
 --primary-hover   #B74E12                     /* the fill, 6% toward the canvas. It DARKENS, see below */
 --primary-rgb     196,83,15
 --primary-dim     #261611                     /* the fill at 18% over the canvas */
 --fg-on-primary   #FFFFFF                     /* always white: the fill is dark in both modes */
 --status-done     var(--fg-1)                 /* UNBOUND from the accent. The brightest neutral */
---status-empty    var(--track-empty)          /* ring track. 3.03:1 on the worst surface */
+--status-empty    var(--track-empty)          /* ring track. 3.001:1 on the worst surface */
 --status-frozen   var(--fg-2)                 /* NEUTRAL. See the note below */
 --status-overdue  #FE9A00                     /* 9.32:1, hue 65.4 */
 --status-bad      #FB2C36                     /* 5.23:1, hue 25.4 */
@@ -527,11 +527,11 @@ Every scope below is derived from those floors and the measured ratios.
 | light `--fg-3` | text + graphic | text: canvas, card, well, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.161 | - | 5.542 | 4.909 |
 | dark `--fg-4` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |
 | light `--fg-4` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.617 | - | 3.485 | 3.087 |
-| dark `--track-empty` | graphic | graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 | 4.336 | 3.933 |
+| dark `--track-empty` | graphic | graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 5.856 | 5.462 | 5.270 | 5.008 | 4.446 | 4.331 | 5.008 | 5.462 | 4.954 |
 | light `--track-empty` | graphic | graphic: canvas, card, well, hover, widget card, widget well | 3.874 | 4.043 | - | 3.548 | - | 3.036 | - | 4.043 | 3.582 |
 | dark `--primary-soft` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |
 | light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.545 | - | 4.721 | 4.182 |
-| dark `--primary-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.098 | 5.688 | 5.487 | 5.215 | 4.630 | 4.510 | 5.215 | 5.688 | 5.159 |
+| dark `--primary-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.925 | 6.459 | 6.231 | 5.922 | 5.257 | 5.121 | 5.922 | 6.459 | 5.858 |
 | light `--primary-text` | text | text: canvas, card, well, hover, widget card, widget well | 6.235 | 6.508 | - | 5.711 | - | 4.887 | - | 6.508 | 5.766 |
 | dark `--status-bad-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |
 | light `--status-bad-text` | text | text: canvas, card, well, hover, widget card, widget well | 6.207 | 6.479 | - | 5.685 | - | 4.865 | - | 6.479 | 5.740 |
@@ -572,9 +572,10 @@ neutral, derived at constant OKLCH hue and chroma from `--fg-4` in each mode. Co
 inside a card and selection tint over both the canvas and a card. Range endpoints now apply that
 selection tint once, at the range slot, while the cell keeps its primary selected ring.
 
-Dark `#7A7A7D` measures 4.649 on canvas, 4.336 on card, 3.976 on well or overlay, 3.439 on a
-replacement hover, 3.034 on a hover child inside a card, 3.325 on selection over canvas, 3.054 on
-selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7E7E82`
+Dark `#8B8B8E` measures 5.856 on canvas, 5.462 on card, 5.008 on well or overlay, 4.331 on a
+replacement hover, 3.821 on a hover child inside a card, 3.001 on a card-child hover inside a sheet,
+4.188 on selection over canvas, 3.847 on selection over card, 5.462 on the widget card and 4.954
+on the widget well. Light `#7E7E82`
 measures 3.874 on canvas, 4.043 on card or overlay, 3.548 on well, 3.036 on replacement hover,
 3.180 on a hover child inside a card, 3.052 on selection over canvas, 3.169 on selection over card,
 4.043 on the widget card and 3.582 on the widget well. It is the first rounded byte along the
@@ -583,7 +584,7 @@ No empty-track consumer sits on `--bg-field`
 or `--bg-elev-2`, and none combines selection with a well, so those candidate stacks are
 unreachable rather than derivation inputs. `--status-empty` resolves through the empty-track role
 at rest and under hover.
-The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2.83; light 17.36,
+The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 5.46 and 2.83; light 17.36,
 9.99, 5.54, 4.04 and 3.48 for done, frozen, skip, empty and `--fg-4`.
 
 **Contrast rule: `--fg-3` on a hovered surface, dark.** `--bg-hover` uses alpha 0.13. The text floor and hover-step floor bound it from opposite sides:
