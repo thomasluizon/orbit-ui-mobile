@@ -1,6 +1,6 @@
 import { createApiClientError } from '@orbit/shared/utils'
 import { afterAll, beforeAll, describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { expectSmallSheetActions, sheetSlotButtons } from '@/__tests__/support/sheet-slots'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -28,8 +28,6 @@ vi.mock('@/hooks/use-app-toast', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
-
 vi.mock('@/components/ui/date-field', () => ({
   DateField: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
     <input data-testid="date-picker" value={value} onChange={(e) => onChange(e.target.value)} />
@@ -55,11 +53,12 @@ const mockGoal: Goal = {
   linkedHabits: [],
 }
 
+beforeEach(() => {
+  mockMutateAsync.mockReset()
+  mockShowError.mockReset()
+})
+
 describe('EditGoalModal', () => {
-  beforeEach(() => {
-    mockMutateAsync.mockReset()
-    mockShowError.mockReset()
-  })
 
   it('renders nothing when closed', () => {
     const { container } = render(
@@ -209,7 +208,10 @@ it('places legacy server validation beside each edited goal field and clears onl
   const title = screen.getByLabelText('goals.form.description')
   const unit = screen.getByLabelText('goals.form.unit')
   fireEvent.submit(title.closest('form')!)
-  await waitFor(() => expect(title).toHaveAccessibleDescription('Server title failure'))
+  await waitFor(() => {
+    expect(title).toHaveAccessibleDescription('Server title failure')
+    expect(title).toHaveFocus()
+  })
   expect(unit).toHaveAccessibleDescription('Server unit failure')
   expect(screen.getByText('Server unit failure').style.color).toBe('var(--status-bad-text)')
   expect(title).toHaveFocus()
@@ -221,10 +223,35 @@ it('places legacy server validation beside each edited goal field and clears onl
 
 it('focuses the mapped goal field while retaining general failures in a mixed response', async () => {
   mockMutateAsync.mockRejectedValue(createApiClientError(400, { errors: { Unit: ['Server unit failure'], HabitIds: ['Server linked habit failure'] } }, 'Fallback'))
-  render(<EditGoalModal open onOpenChange={vi.fn()} goal={mockGoal} />)
+  const onOpenChange = vi.fn()
+  render(<EditGoalModal open onOpenChange={onOpenChange} goal={mockGoal} />)
   const unit = screen.getByLabelText('goals.form.unit')
   fireEvent.submit(unit.closest('form')!)
-  await waitFor(() => expect(unit).toHaveAccessibleDescription('Server unit failure'))
+  await waitFor(() => {
+    expect(unit).toHaveAccessibleDescription('Server unit failure')
+    expect(unit).toHaveFocus()
+  })
+  await act(async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+  })
   expect(unit).toHaveFocus()
   expect(mockShowError).toHaveBeenCalledWith(expect.stringContaining('Server linked habit failure'))
+  expect(unit).toHaveValue('km')
+  expect(unit).toHaveAttribute('aria-invalid', 'true')
+  expect(screen.getByRole('dialog', { name: 'goals.detail.edit' })).toBeInTheDocument()
+  expect(onOpenChange).not.toHaveBeenCalled()
+  const save = screen.getByRole('button', { name: 'common.save' })
+  save.focus()
+  fireEvent.click(save)
+  await waitFor(() => {
+    expect(unit).toHaveFocus()
+    expect(mockMutateAsync).toHaveBeenCalledTimes(2)
+  })
+  fireEvent.change(unit, { target: { value: 'miles' } })
+  expect(unit).toHaveAttribute('aria-invalid', 'false')
+  expect(unit).not.toHaveAccessibleDescription()
+  mockMutateAsync.mockResolvedValueOnce(undefined)
+  fireEvent.click(save)
+  await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
+  expect(mockMutateAsync).toHaveBeenLastCalledWith({ goalId: 'g1', data: expect.objectContaining({ unit: 'miles' }) })
 })

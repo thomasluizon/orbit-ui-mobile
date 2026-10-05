@@ -6,7 +6,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
-import type { TagSelectionState } from '@/hooks/use-tag-selection'
+import { __getFocusedNativeTag, __setFocusImpl } from '@/test-mocks/react-native'
+import { useTagSelection, type TagSelectionState } from '@/hooks/use-tag-selection'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
@@ -14,6 +15,7 @@ import type { HabitFormProposal } from '@orbit/shared/utils'
 
 const TestRenderer = require('react-test-renderer')
 const useWatchMock = vi.fn()
+const tagMutations = vi.hoisted(() => ({ create: vi.fn() }))
 const formLocale = vi.hoisted(() => ({ language: 'en' }))
 const mockProfileState = vi.hoisted(() => ({ aiMessagesUsed: 0, hasProAccess: false }))
 const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHabits: false, checklistItems: 0, subHabitItems: 0 }
@@ -55,7 +57,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
 vi.mock('@/hooks/use-tags', () => ({
-  useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useTags: () => ({ tags: [] }), useCreateTag: () => ({ isPending: false, mutateAsync: tagMutations.create }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }), useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
 }))
 vi.mock('@/components/ui/sheet', async () => {
@@ -728,4 +730,63 @@ it('returns to a weekly target when the last selected day is cleared', () => {
   TestRenderer.act(() => tree.root.findByType(HabitUnderstanding).props.onToggleDay('Monday'))
   expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
   expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 3, { shouldDirty: true })
+})
+
+
+it('keeps rejected tag Name validation beside its input in the owning habit editor', async () => {
+  tagMutations.create.mockReset()
+  tagMutations.create.mockRejectedValue({ errors: { Name: ['Tag must have at most 50 characters'] } })
+  const focus = vi.fn()
+  __setFocusImpl(focus)
+  const helpers = createFormHelpers()
+  function OwningForm() {
+    const tags = useTagSelection()
+    return <HabitFormFields formHelpers={helpers} tags={tags} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />
+  }
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(<OwningForm />) })
+  const press = (label: string) => {
+    let node = tree.root.findAll((candidate: { type: unknown; props: Record<string, unknown> }) => candidate.type === 'Text' && candidate.props.children === label)[0]!
+    while (typeof node.props.onPress !== 'function' && node.parent) node = node.parent
+    node.props.onPress()
+  }
+  const input = () => tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'TextInput' && node.props.accessibilityLabel === 'habits.form.tagName')[0]!
+  try {
+    await TestRenderer.act(() => press('habits.form.tags'))
+    await TestRenderer.act(() => press('habits.form.newTag'))
+    await TestRenderer.act(() => input().props.onChangeText('Health'))
+    await TestRenderer.act(async () => {
+      press('common.add')
+      await Promise.resolve()
+    })
+    expect(input().props.value).toBe('Health')
+    expect(input().props.accessibilityHint).toBe('Tag must have at most 50 characters')
+    expect(__getFocusedNativeTag()).toBe(input().props.__nativeTag)
+    expect(focus).toHaveBeenLastCalledWith(expect.objectContaining({ accessibilityLabel: 'habits.form.tagName', accessibilityHint: 'Tag must have at most 50 characters' }))
+    expect(tree.root.findByType('Sheet').props.open).toBe(true)
+    const caption = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === 'Tag must have at most 50 characters')[0]!
+    expect(caption.props.accessibilityRole).toBeUndefined()
+    expect(caption.props.accessibilityLiveRegion).toBeUndefined()
+    await TestRenderer.act(async () => {
+      press('common.add')
+      await Promise.resolve()
+    })
+    expect(tagMutations.create).toHaveBeenCalledTimes(2)
+    expect(input().props.value).toBe('Health')
+    expect(input().props.accessibilityHint).toBe('Tag must have at most 50 characters')
+    expect(__getFocusedNativeTag()).toBe(input().props.__nativeTag)
+    await TestRenderer.act(() => input().props.onChangeText('Updated'))
+    expect(input().props.accessibilityHint).toBeUndefined()
+    tagMutations.create.mockResolvedValueOnce({ id: 'tag-created', name: 'Updated', color: '#C4530F' })
+    await TestRenderer.act(async () => {
+      press('common.add')
+      await Promise.resolve()
+    })
+    expect(input()).toBeUndefined()
+    expect(tagMutations.create).toHaveBeenLastCalledWith({ name: 'Updated', color: expect.any(String) })
+    expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) => node.type === 'Text' && node.props.children === 'habits.form.selectedCount:{"count":1}')).toHaveLength(1)
+  } finally {
+    await TestRenderer.act(() => tree.unmount())
+    __setFocusImpl(() => {})
+  }
 })
