@@ -1,4 +1,4 @@
-export type PushStatusTone = 'accent' | 'critical' | 'muted'
+export type PushStatusTone = 'critical' | 'muted'
 
 export type WebPushPermission = 'default' | 'denied' | 'granted' | ''
 
@@ -40,15 +40,11 @@ export function getPushStatusToneClass(tone: PushStatusTone): string {
     return 'text-[var(--status-bad-text)]'
   }
 
-  if (tone === 'accent') {
-    return 'text-[var(--primary-soft)]'
-  }
-
   return 'text-[var(--fg-3)]'
 }
 
 export function getWebPushStatusTone(status: WebPushPreferenceStatus): PushStatusTone {
-  if (status === 'denied' || status === 'sync-failed') {
+  if (status === 'sync-failed') {
     return 'critical'
   }
 
@@ -84,11 +80,8 @@ export function getWebPushStatusMessageKey(
 
 export function getNativePushStatusTone(
   registrationStatus: NativePushRegistrationStatus,
-  permissionStatus: NativePushPermissionStatus,
 ): PushStatusTone {
   if (
-    permissionStatus === 'denied' ||
-    registrationStatus === 'permission-denied' ||
     registrationStatus === 'sync-failed' ||
     registrationStatus === 'token-missing'
   ) {
@@ -140,7 +133,7 @@ export function getNativePushStatusPresentation(
 ): PushStatusPresentation {
   return {
     messageKey: getNativePushStatusMessageKey(snapshot),
-    tone: getNativePushStatusTone(snapshot.registrationStatus, snapshot.permissionStatus),
+    tone: getNativePushStatusTone(snapshot.registrationStatus),
   }
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getNativePushStatusMessageKey,
+  getNativePushStatusPresentation,
   getNativePushStatusTone,
   getPushStatusToneClass,
   type NativePushStatusSnapshot,
@@ -19,16 +20,26 @@ function snapshot(overrides: Partial<NativePushStatusSnapshot> = {}): NativePush
 describe('getPushStatusToneClass', () => {
   it('maps each tone to its token class', () => {
     expect(getPushStatusToneClass('critical')).toBe('text-[var(--status-bad-text)]')
-    expect(getPushStatusToneClass('accent')).toBe('text-[var(--primary-soft)]')
     expect(getPushStatusToneClass('muted')).toBe('text-[var(--fg-3)]')
   })
 })
 
 describe('getNativePushStatusTone', () => {
-  it('is critical for denied/failed states, accent when registered, otherwise muted', () => {
-    expect(getNativePushStatusTone('token-missing', 'granted')).toBe('critical')
-    expect(getNativePushStatusTone('registered', 'granted')).toBe('muted')
-    expect(getNativePushStatusTone('idle', 'undetermined')).toBe('muted')
+  it.each(['sync-failed', 'token-missing'] as const)(
+    'keeps the denied message muted alongside %s', (registrationStatus) => {
+      expect(getNativePushStatusPresentation(snapshot({
+        permissionStatus: 'denied', registrationStatus, isEnabled: false, isRegistered: false,
+      }))).toEqual({ messageKey: 'settings.notifications.deniedNative', tone: 'muted' })
+    },
+  )
+
+  it('keeps failures critical and permission boundaries muted', () => {
+    expect(getNativePushStatusPresentation(snapshot({ registrationStatus: 'idle', permissionStatus: 'denied' })).tone).toBe('muted')
+    expect(getNativePushStatusTone('permission-denied')).toBe('muted')
+    expect(getNativePushStatusTone('sync-failed')).toBe('critical')
+    expect(getNativePushStatusTone('token-missing')).toBe('critical')
+    expect(getNativePushStatusTone('registered')).toBe('muted')
+    expect(getNativePushStatusTone('idle')).toBe('muted')
   })
 })
 
