@@ -21,7 +21,7 @@ export function FollowUpChips({ followUps, onSelect }: Readonly<{
         accessibilityLabel={text}
         onPress={() => onSelect(text)}
         style={({ pressed }) => ({
-          minHeight: TOUCH_TARGET_MIN, width: '100%', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12,
+          minHeight: TOUCH_TARGET_MIN, width: '100%', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden',
           backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
           borderWidth: 1, borderColor: tokens.hairline,
         })}
