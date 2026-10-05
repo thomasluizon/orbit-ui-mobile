@@ -82,7 +82,7 @@ function Section({ title, children }: Readonly<{ title: string; children: ReactN
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>) {
-  return <div className="flex flex-wrap gap-3">{children}</div>
+  return <div className="flex flex-wrap gap-4">{children}</div>
 }
 
 /** One busy region covers the figures and the habit row. */
@@ -132,7 +132,7 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
       <div className="flex w-full max-w-[560px] flex-col gap-3" aria-hidden="true">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </div>
-      <div className="flex flex-wrap gap-3" aria-hidden="true">
+      <div className="flex flex-wrap gap-4" aria-hidden="true">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
       </div>
       <div className="flex flex-col gap-3" aria-hidden="true">
@@ -276,7 +276,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
 
   if (canView && freeze.streakQuery.isError) {
     return (
-      <section aria-labelledby={headingId} className="flex w-full flex-col gap-3"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
+      <section aria-labelledby={headingId} className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
         <ErrorState
           message={t('progressScreen.error')}
           action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>}
@@ -287,14 +287,14 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
 
   if (canView && !freeze.streakInfo) {
     return (
-      <section aria-labelledby={headingId} className="flex w-full flex-col gap-3"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
+      <section aria-labelledby={headingId} className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
         <Skeleton variant="habit-row" label={t('progressScreen.loading')} />
       </section>
     )
   }
 
   return (
-    <section aria-labelledby={headingId} className="flex w-full flex-col gap-3"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
+    <section aria-labelledby={headingId} className="flex w-full flex-col gap-4"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
       <div className="flex items-baseline gap-3">
         <p className="font-display text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
         <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
@@ -330,7 +330,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, hasGoals 
             protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday'),
           }}
         />
-      ) : <><div className="flex flex-wrap gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
+      ) : <><div className="flex flex-wrap gap-4"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
       {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} hasGoals={hasGoals} /> : null}
     </section>
   )

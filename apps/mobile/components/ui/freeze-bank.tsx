@@ -21,7 +21,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
         <View style={styles.figureBlock}><StatTile value={props.tierValue} label={props.tierLabel} /></View>
       </View>
       <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
-        <View style={[styles.figureRow, width / fontScale < 360 && styles.stacked]}>
+        <View style={[styles.bookkeepingRow, width / fontScale < 360 && styles.stacked]}>
           <View style={styles.figureBlock}>
             <Text style={[styles.figure, { color: tokens.fg1 }]}>{props.banked} <Text style={[styles.denominator, { fontFamily: 'SpaceGrotesk_500Medium', color: tokens.fg3 }]}>/ {props.ceiling}</Text></Text>
             <Text style={[styles.meta, { color: tokens.fg3 }]}>{props.words.bankedLabel}</Text>
@@ -56,11 +56,12 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
 }
 
 const styles = StyleSheet.create({
-  root: { gap: 12 },
+  root: { gap: 16 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 },
   stacked: { flexDirection: 'column' },
-  figureRow: { flexDirection: 'row', gap: 12 },
+  figureRow: { flexDirection: 'row', gap: 16 },
+  bookkeepingRow: { flexDirection: 'row', gap: 12 },
   figureBlock: { flex: 1, minWidth: 0, gap: 4 },
   figure: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, fontVariant: ['tabular-nums'], lineHeight: 28 },
   denominator: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
