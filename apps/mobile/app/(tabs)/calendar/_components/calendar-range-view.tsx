@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   container: { gap: 16, paddingTop: 12 },
   header: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   controls: { flexDirection: 'row', flexShrink: 0, gap: 12 },
-  grid: { width: '100%', maxWidth: 340, alignSelf: 'center', paddingHorizontal: 4 },
+  grid: { width: '100%', alignSelf: 'center', paddingHorizontal: 4 },
   iconButton: { minHeight: 48, minWidth: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   rangeLabel: {
     flex: 1,

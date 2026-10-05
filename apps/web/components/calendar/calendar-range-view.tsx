@@ -57,7 +57,7 @@ export function CalendarRangeView({
       aria-label={rangeLabel}
       aria-busy={isLoading}
       className="flex flex-col"
-      style={{ gap: 16, maxWidth: 420, padding: '12px 0 24px' }}
+      style={{ gap: 16, padding: '12px 0 24px' }}
     >
       <div className="flex flex-wrap items-start justify-end gap-3" style={{ paddingInline: 16 }}>
         <p

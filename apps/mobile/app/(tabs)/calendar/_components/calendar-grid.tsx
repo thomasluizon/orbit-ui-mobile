@@ -316,14 +316,10 @@ const styles = StyleSheet.create({
   calendarGrid: { paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8 },
   gridCard: {
     width: '100%',
-    maxWidth: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
-      + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
     alignSelf: 'center',
   },
   loadingGrid: {
     width: '100%',
-    maxWidth: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
-      + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
     alignSelf: 'center',
   },
   daySlot: {

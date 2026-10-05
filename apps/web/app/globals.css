@@ -2032,8 +2032,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 .orbit-calendar-grid-card {
   --calendar-grid-gap: 4px;
   width: 100%;
-  max-width: 332px;
-  margin-inline: auto;
 }
 
 @container (max-width: 331px) {
