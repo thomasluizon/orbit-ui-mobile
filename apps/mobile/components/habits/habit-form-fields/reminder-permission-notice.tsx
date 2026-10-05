@@ -36,6 +36,7 @@ export function ReminderPermissionNotice({ visible, tokens, onPress }: Readonly<
             paddingHorizontal: 8,
             paddingVertical: 8,
             borderRadius: 12,
+            overflow: 'hidden',
           },
           (hovered || pressed) && { backgroundColor: tokens.bgHover },
           focused && { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 },
