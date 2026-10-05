@@ -192,6 +192,10 @@ export function useChatPendingOperations(
     [onExecuted, t],
   )
 
+  const trackedRevise = useCallback((...args: Parameters<typeof revisePendingOperationForBubble>) =>
+    trackBatch(() => revisePendingOperationForBubble(...args)), [revisePendingOperationForBubble, trackBatch])
+  const trackedRefresh = useCallback((...args: Parameters<typeof refreshPendingOperationForBubble>) =>
+    trackBatch(() => refreshPendingOperationForBubble(...args)), [refreshPendingOperationForBubble, trackBatch])
   const trackedExecute = useCallback((...args: Parameters<typeof confirmAndExecutePendingOperation>) =>
     trackBatch(() => confirmAndExecutePendingOperation(...args)), [confirmAndExecutePendingOperation, trackBatch])
   const trackedPrepare = useCallback((...args: Parameters<typeof prepareStepUpForBubble>) =>
@@ -201,8 +205,9 @@ export function useChatPendingOperations(
 
   return {
     isPendingOperationBusy: batchCount > 0,
-    revisePendingOperationForBubble,
-    refreshPendingOperationForBubble,
+    trackCardOperation: trackBatch,
+    revisePendingOperationForBubble: trackedRevise,
+    refreshPendingOperationForBubble: trackedRefresh,
     confirmAndExecutePendingOperation: trackedExecute,
     prepareStepUpForBubble: trackedPrepare,
     verifyStepUpForBubble: trackedVerify,

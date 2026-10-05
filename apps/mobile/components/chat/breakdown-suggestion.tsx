@@ -3,6 +3,9 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { ActionRow } from '@/components/ui/action-row'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useCallback } from 'react'
+import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
+import type { BulkCreateRequest } from '@orbit/shared/types/habit'
 import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
 import { getBreakdownCadenceKey } from '@orbit/shared/utils'
@@ -17,9 +20,13 @@ import { useAppTheme } from '@/lib/use-app-theme'
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
   const { t } = useTranslation()
   const bulkCreate = useBulkCreateHabits()
+  const trackCardOperation = useChatCardOperation()
+  const { mutateAsync } = bulkCreate
+  const createHabits = useCallback((request: BulkCreateRequest) =>
+    trackCardOperation(() => mutateAsync(request)), [mutateAsync, trackCardOperation])
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const card = useBreakdownSuggestionState({ subHabits, parentName, onBulkCreate: bulkCreate.mutateAsync, onConfirmed })
+  const card = useBreakdownSuggestionState({ subHabits, parentName, onBulkCreate: createHabits, onConfirmed })
   if (card.rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: 12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
   const rows = card.habits.map((habit) => ({
     id: habit.id,

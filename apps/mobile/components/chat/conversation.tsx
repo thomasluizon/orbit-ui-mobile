@@ -1,3 +1,4 @@
+import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useState, useRef, useCallback, useEffect, useMemo, useId } from "react";
 import { useOverlayBack } from "@/hooks/use-overlay-back";
@@ -211,6 +212,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
   return (
+    <ChatCardOperationContext.Provider value={chat.trackCardOperation}>
     <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <View style={styles.content}>
         <AppBar
@@ -285,5 +287,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         />
       )}
     </View>
+    </ChatCardOperationContext.Provider>
   );
 }

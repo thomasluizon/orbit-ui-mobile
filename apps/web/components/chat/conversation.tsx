@@ -1,5 +1,7 @@
 'use client'
 
+import { ChatCardOperationContext } from '@/hooks/use-chat-card-operation'
+
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -166,6 +168,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   }, [chatContainerRef, close])
 
   return (
+    <ChatCardOperationContext.Provider value={chat.trackCardOperation}>
     <div className="relative flex h-full flex-col">
       <div className="relative z-10 shrink-0">
         <AppBar
@@ -247,5 +250,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         />
       )}
     </div>
+    </ChatCardOperationContext.Provider>
   )
 }
