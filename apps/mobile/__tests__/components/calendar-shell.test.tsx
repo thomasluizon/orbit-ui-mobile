@@ -268,19 +268,28 @@ describe("CalendarLegend (mobile)", () => {
     );
     expect(partialTrack).toHaveLength(1);
     expect(partialArc).toHaveLength(1);
-    expect(partialArc[0]?.props).toMatchObject({ strokeWidth: 1.5, rotation: -135 });
+    expect(partialArc[0]?.props).toMatchObject({ cx: 7, cy: 7, r: 6.25, strokeWidth: 1.5, rotation: -135, origin: "7, 7", strokeDasharray: [Math.PI * 6.25, Math.PI * 12.5] });
+    expect(partialTrack[0]?.props).toMatchObject({ cx: 7, cy: 7, r: 6.25, strokeWidth: 1.5 });
     const noneMark = tree!.root.findAll(
       (node) => node.type === "View" && node.props.testID === "calendar-legend-none",
     )[0];
-    expect(StyleSheet.flatten(noneMark?.props.style).borderColor).toBe(tokens.statusEmpty);
+    expect(StyleSheet.flatten(noneMark?.props.style)).toMatchObject({ borderColor: tokens.statusEmpty, borderWidth: 1.5 });
+    expect(StyleSheet.flatten(noneMark?.props.style).backgroundColor).toBeUndefined();
     const loggableMark = tree!.root.findAll(
       (node) => node.type === "View" && node.props.testID === "calendar-legend-loggable",
     )[0];
     expect(StyleSheet.flatten(loggableMark?.props.style)).toMatchObject({
       backgroundColor: tokens.bgWell,
-      borderColor: tokens.fg3,
-      borderWidth: 2,
+      borderColor: tokens.hairline,
+      borderWidth: 1,
     });
+    for (const outcome of ["full", "none", "loggable"]) {
+      const mark = tree!.root.findAll((node) => node.type === "View" && node.props.testID === `calendar-legend-${outcome}`);
+      expect(mark).toHaveLength(1);
+      expect(StyleSheet.flatten(mark[0]?.props.style)).toMatchObject({ width: 14, height: 14 });
+    }
+    const partialMark = tree!.root.findAll((node) => node.type === "Svg" && node.props.testID === "calendar-legend-partial")[0];
+    expect(partialMark?.props).toMatchObject({ width: 14, height: 14 });
   });
 });
 
