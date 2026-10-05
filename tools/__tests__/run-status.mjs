@@ -42,7 +42,12 @@ export const cases = async () => {
   }
   const snapshot = (extra = {}) => runStatus({ ...options, authenticate, runner, ...extra })
   T("run-status: no record exits without any GitHub calls", (await snapshot()).status === "no run record" && readCalls.length === 0)
-  check("run-status.mjs", "the CLI reports its linked checkout and names the main checkout", [], { status: 0, stdout: /no run record/ })
+  const cliPath = join(repo.path, "tools", "run-status.mjs")
+  mkdirSync(dirname(cliPath), { recursive: true })
+  cpSync(join(TOOLS_DIR, "run-status.mjs"), cliPath)
+  cpSync(join(TOOLS_DIR, "lib"), join(repo.path, "tools", "lib"), { recursive: true })
+  check("run-status.mjs", "the CLI succeeds when its staged checkout has no run record", [],
+    { status: 0, stdout: /no run record/ }, { path: cliPath })
   const linked = dirname(stage("run-status-linked/.git", `gitdir: ${join(repo.path, ".git", "worktrees", "linked")}\n`))
   const linkedStatus = await snapshot({ repoRoot: linked })
   T("run-status: linked worktrees never read the main checkout's run", linkedStatus.mainCheckout === repo.path && linkedStatus.warning.includes("linked worktree"))
@@ -66,6 +71,8 @@ export const cases = async () => {
   }
   const reset = () => { state(); pull = readyPull(); setPull(pull); writeReadinessReceipt(repo.path, receipt(pull)); writeFileSync(launchResultPath, JSON.stringify(launch)); readCalls.length = 0 }
   reset()
+  check("run-status.mjs", "the CLI requires a session when its staged checkout has a run record", [],
+    { status: 2, stderr: /--session is required when a run exists/ }, { path: cliPath })
   T("run-status: foreign sessions have no actions or external reads", (await snapshot({ sessionId: "foreign" })).nextActions.length === 0 && readCalls.length === 0)
   T("run-status: ledger keeps exact command inputs across later sightings", readRunState(repo.path).readinessLedger[0].deliveryPath === row.deliveryPath)
   let report = await snapshot()
