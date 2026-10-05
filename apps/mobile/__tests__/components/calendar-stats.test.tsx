@@ -12,7 +12,10 @@ type TestInstanceWithChildren = TestInstance & {
 
 function measureChildHeight(node: TestInstance): number {
   const style = StyleSheet.flatten(node.props.style) as LayoutStyle | undefined
-  return Math.max(Number(style?.height ?? 0), Number(style?.minHeight ?? 0), Number(style?.lineHeight ?? 0))
+  const childrenHeight = hasChildren(node)
+    ? Math.max(0, ...node.children.filter((child): child is TestInstance => typeof child !== 'string').map(measureChildHeight))
+    : 0
+  return Math.max(Number(style?.height ?? 0), Number(style?.minHeight ?? 0), Number(style?.lineHeight ?? 0), childrenHeight)
 }
 
 function hasChildren(node: TestInstance): node is TestInstanceWithChildren {
@@ -73,7 +76,7 @@ describe('CalendarStats (mobile)', () => {
     )
       .map(measureTileHeight)
 
-    expect(loadedHeights).toHaveLength(3)
+    expect(loadedHeights).toEqual([58.8, 58.8, 58.8])
     expect(pendingHeights).toEqual(loadedHeights)
   })
 
