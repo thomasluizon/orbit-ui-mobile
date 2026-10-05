@@ -12,49 +12,42 @@ The owner is reviewing staging himself and reporting defects with screenshots. E
 
 
 1. Drive the open work to merge, each on the bar (green checks at the exact head, a Pullfrog approval of that head submitted after its push, zero unresolved threads; read every check, because Pullfrog approves red heads and SonarCloud's quality gate is a check). Before each merge run `d115.sh`, then `d115-check.sh` when the base's newer commits share none of its files, otherwise a full combined check (`full-mc-gated.sh`) or a base merge into the branch (the i18n JSON files, `DESIGN.md` and `CLAUDE.md` count as shared). Copy every SHA you pass to `--match-head-commit` from this run's output. Close each ticket with `complete-ticket.mjs` and record the merge with `mark-merged-repo.mjs <repo key> <pr> <sha> <issue>`. A spec a worker wrote has never run: prove it green on a local head build before trusting it. Order:
-   - `ui#1579` (`#1212`): unpushed `8e43cb71` and `2bf70939` (Wrapped zone outline via retrying `toHaveCSS`; `habit-title-focus.spec.ts` expects no ring on the focused h1, per the pull request's own `DESIGN.md` rule). Copy `habit-title-focus.spec.ts` into `mc-1579`, prove it green on the head build and red on the base, post the proof, merge the evidence into the body, push, waiter, fresh approval, merge, close `#1212`.
-   - `ui#1580` (`#1210`): unpushed `ffdbf897` (base merge) and `d5a0e9f0` (review batch 1). Its three label-fit specs are 39/39 on the head build and 22/39 red on the base; read `layout-1580rb1.log` for the full layout run (rerun `layout-only.sh` on `mc-1580` if it was cut). Then post the proof, merge the report into the body, answer and resolve the two `select-check.tsx` threads, push, waiter, approval, merge, close `#1210`, launch `#1217`.
-   - `ui#1578` (`#1206`): head `d52fca7c` pushed (tools-only batch 2, harness suites green, thread resolved). Waiter, fresh approval, merge bar, merge, close `#1206`, then `#1231`.
-   - `ui#1581` (`#1219`), `ui#1582` (`#1221`) and `ui#1584` (`#1232`), all APPROVED: waiter (the edit goal modal focus flake was rerun on the first two; it belongs to `#1214`), merge bar, merge, close. `ui#1584` changes a shared test: run both harness suites on its tree first.
-   - `ui#1583` (`#1222`, APPROVED): it and the merged `ui#1577` both edit `apps/web/app/globals.css`, so run `full-mc-gated.sh` (or send a base-merge order), then merge, close `#1222`.
-   - `ui#1585` (`#1226`, copy change): read its diff, approve the copy with `/second-opinion` (framed as a claimed copy defect) and post the verdict, prove `upgrade-layout.spec.ts` green on a head build and red on the base, waiter, approval, merge, close `#1226`, then `#1233`.
-   - `#746`: carry `orbit-api` `main` `649c9dbe` (`#1215`) into `orbit-api` `redesign/main` with `cherry-pick -x`, merge on the bar, release the staging API, run `complete-ticket.mjs --issue "#1215" --repair-status`, then launch `#1218`.
-   - `#1211`: free now (`ui#1577` merged); launch it.
-2. Then the sweep's tickets in Batch R order: `#1223` to `#1230`, then `#1233`, then `#1231`, `#1213`, `#1214`. Check each ticket's files against open pull requests and running workers before launch (the spec's `## Current state` names which pull request blocks each). `#1230` and `#1233` change copy: approve it with `/second-opinion` (framed as a claimed copy defect) and post the verdict before merge.
-3. Release `redesign/main` web to staging after each batch of merges (owed now: `a168a666` or later) and the staging API after the `#746` carry (`orbit-api` `redesign/main` `7ba05b9c` or later), and ship Orbit Staging 1.3.67 (126) and later builds the same way.
+   - `ui#1580` (`#1210`, the critical path: `#1211`, `#1217`, `#1218`, `#1224`, `#1225`, `#1227`, `#1228`, `#1230` all wait on it): compose review batch 2 from the scratchpad note with `compose-rb.sh 1210 ticket-1210-unbroken-token-ellipsis rb2` and launch it on the existing worktree (its two unpushed commits stay). Then build its commit, run the full local layout project (expect the 41 reds of `layout-1580rb1b.log` gone), prove every edited spec green on the head and red on the base, post the proof, merge `report-1210-rb1.md` and the batch 2 report into the body, post `reply-1580-43.md` and `reply-1580-83.md` on the two `select-check.tsx` threads and resolve them, push, waiter, approval, merge, close `#1210`, then launch `#1217` (then `#1218`) and `#1211`.
+   - `ui#1585` (`#1226`): build unpushed `ac3e1840`, run `upgrade-layout.spec.ts` on it (all green expected; the base red is already proven, 6 trial cases), approve the punctuation change ("50 a day or back to 5." / "50 ficam ou 5 por dia.") with `/second-opinion` framed as a claimed copy defect and post the verdict, merge `report-1226-rb1.md` into the body, push, waiter, approval, merge, close `#1226`, then `#1233`.
+   - `ui#1586` (`#1214`, tests only, APPROVED): waiter, D115 merge bar, merge, close `#1214`.
+   - `ui#1578` (`#1206`), `ui#1579` (`#1212`, needs a fresh approval of `2bf70939`) and `ui#1583` (`#1222`): each shares files with the base, so merge them on one full combined check on the current base (`full-mc-gated.sh`, then `check-harness.sh` on that tree; the harness reds that equal the base's, `#1231` fixtures and `#1206` scanner findings, do not block). `ui#1578`'s rerun of run `37259356094` must be green first. Then close `#1206`, `#1212`, `#1222`, and launch `#1231` and `#1213`.
+2. Then the sweep's tickets in Batch R order: `#1223` to `#1230`, then `#1233`, then `#1231`, `#1213`. Check each ticket's files against open pull requests and running workers before launch (the spec's `## Current state` names which pull request blocks each). `#1230` and `#1233` change copy: approve it with `/second-opinion` (framed as a claimed copy defect) and post the verdict before merge. A one-line web heading or label proves its fit against the 284 web measure at 320 (the shell's stable scrollbar gutter), 288 on Android.
+3. Release `redesign/main` web to staging after each batch of merges (owed now: `3e16ba58` or later), and ship Orbit Staging 1.3.67 (126) and later builds the same way. The staging API is current (`3f82b8d9`).
 
 4. Every fix lands on Android and web. A layout spec a pull request adds or edits is proven red locally on the unfixed base before merge, and only after it is green on the head. Every review batch commit stays unpushed until its specs are proven and the full local layout project has run on it (a batch that changes only a test file outside UI scope needs no layout run; log why). A layout red that needs diagnosis goes to one background subagent with diagnostic spec copies under the Playwright lock, which returns findings only.
 5. Then repeat rendered sweeps (phone, foldable, desktop) through one background subagent with `probe.js`, covering what the last pass missed (spec `## Current state`, "Owed from a visible window"), until a full pass finds nothing. The sweep subagent opens and sizes its own Chrome window and never resizes or touches the owner's tabs. Verify a sweep's leads with a read-only subagent against the tree and the drawings before filing, then spot-check its claims with `git show`.
+
 
 
 ## In flight
 
 | item | disposition |
 |---|---|
-| `ui#1579` (`#1212`) remote `ae3832ec` APPROVED; local `8e43cb71`, `2bf70939` unpushed | prove `habit-title-focus.spec.ts`, push, merge, close |
-| `ui#1580` (`#1210`) remote `5890d21a`; local `ffdbf897`, `d5a0e9f0` unpushed | read the full layout log, push, resolve threads, merge, close, then `#1217` |
-| `ui#1578` (`#1206`) `d52fca7c` pushed, thread resolved | waiter, approval, merge, close, then `#1231` |
-| `ui#1581` (`#1219`) `4a0b1a7d` APPROVED | waiter, merge bar, merge, close |
-| `ui#1582` (`#1221`) `e50b6d2d` APPROVED, unit rerun | waiter, merge bar, merge, close |
-| `ui#1583` (`#1222`) `58c6f2e5` APPROVED, shares `globals.css` with merged `ui#1577` | combined check, merge, close |
-| `ui#1584` (`#1232`) `18b77dbf` APPROVED | harness suites, waiter, merge, close |
-| `ui#1585` (`#1226`) `f48b0bcd`, no review | copy approval, layout proof, approval, merge, close, then `#1233` |
-| `orbit-api` `main` `649c9dbe` (`#1215`) | live in production; carry via `#746`, staging API release, repair `#1215`'s status, then `#1218` |
-| Merged this relay | `ui#1577` (`#1207`, `a168a666`), `orbit-api#702` (`#1215`, `649c9dbe`, `main`), `orbit-api#703` (`#1220`, `7ba05b9c`) |
-| Closed this relay | `#1207`, `#1220`; `#1215` closed by GitHub from the `main` merge (repair after the carry) |
-| Filed this relay | `#1233` (by the `#1226` worker; placed in Batch R after `#1230`); `#1214` scope extended to the edit goal modal focus flake |
-| Released this relay | staging web `5a781aba`; production API `649c9dbe` (Healthy) |
-| Staging | API `f44cf273`, web `5a781aba`, landing `a50de090`, Orbit Staging 1.3.66 (125) |
+| `ui#1580` (`#1210`) remote `5890d21a` CHANGES_REQUESTED; local `ffdbf897`, `d5a0e9f0` unpushed | review batch 2 from `note-1210-rb2.md`, full layout, proof, replies, push, merge, close; then `#1217`, `#1218`, `#1211` |
+| `ui#1585` (`#1226`) remote `f48b0bcd` APPROVED; local `ac3e1840` unpushed | layout spec on a head build, punctuation copy approval, body, push, merge, close; then `#1233` |
+| `ui#1586` (`#1214`) `db7f7bcd` APPROVED, tests only | waiter, D115, merge, close |
+| `ui#1578` (`#1206`) `d52fca7c` APPROVED; Unit Tests rerun of run `37259356094` (flake `#1214`) | combined check, merge, close; then `#1231`, `#1213` |
+| `ui#1579` (`#1212`) `2bf70939` pushed with proof | fresh approval, combined check, merge, close |
+| `ui#1583` (`#1222`) `58c6f2e5` APPROVED, green | combined check, merge, close |
+| Merged this relay | `orbit-api#704` (`#746` carry, `3f82b8d9`), `ui#1581` (`#1219`, `c8e786f6`), `ui#1582` (`#1221`, `420894fb`), `ui#1584` (`#1232`, `3e16ba58`) |
+| Closed this relay | `#1219`, `#1221`, `#1232`; `#1215` status repaired to Done; `#746` stays open as the standing sync |
+| Released this relay | staging API `3f82b8d9` (Healthy) |
+| Staging | API `3f82b8d9`, web `5a781aba`, landing `a50de090`, Orbit Staging 1.3.66 (125) |
 | Production | API `649c9dbe`, web `b84bdc9e`, landing `ebbebb2a`, Android 1.3.57 (116) open |
-| Open pull requests | `orbit-ui-mobile` `ui#1578` to `ui#1585`; `orbit-api` none; `orbit-landing-page` none |
+| Open pull requests | `orbit-ui-mobile` `ui#1578`, `ui#1579`, `ui#1580`, `ui#1583`, `ui#1585`, `ui#1586`; `orbit-api` none; `orbit-landing-page` none |
 | Stashes | none in the three repositories |
 | Uncommitted work | none outside this handoff commit; every ticket worktree is clean |
-| Unpushed commits | `ticket-1212-wayfinding-focus-ring` (`8e43cb71`, `2bf70939`, no upstream; keep), `ticket-1210-unbroken-token-ellipsis` (`ffdbf897`, `d5a0e9f0`; keep) |
+| Unpushed commits | `ticket-1210-unbroken-token-ellipsis` (`ffdbf897`, `d5a0e9f0`; keep), `ticket-1226-pro-heading-one-line` (`ac3e1840`; keep) |
 | Branches with no pull request | none |
-| Detached HEADs | scratch worktrees under this session's scratchpad: `base` (`afeffe51`, web build), `mc-1579` (`ae3832ec` build with the fixed wayfinding spec copied in), `mc-1580` (`d5a0e9f0` build), `mc-d1577` (merged check tree). Move `base`, `mc-1579` and `mc-1580` into the new scratchpad with `git worktree move` and link each old path to the new one (`ln -s`); remove `mc-d1577` (discard its tree changes only after checking `git status`) |
+| Detached HEADs | scratch worktrees under this session's scratchpad: `base` (`afeffe51`, web build), `mc-1580` (`d5a0e9f0` build), `mc-1585` (`f48b0bcd` build), `mc-1579`, `mc-d4`, `mc-c5` (combined check trees). Move `base`, `mc-1580` and `mc-1585` into the new scratchpad with `git worktree move` and link each old path to the new one (`ln -s`); remove `mc-1579`, `mc-d4` and `mc-c5` after checking `git status` (delete their `node_modules` first, then `git worktree remove` without `--force`) |
 | Running workers | none (all drained) |
-| Waiters and local checks | the relay tool stops this session's waiters and the `chain-1580b.sh` layout run; start one waiter per repository again |
-| Ignored files | this session's scratchpad: `sleep-decisions.md` (copy unmodified as `prev-sleep-decisions-846157d7.md`), the older `prev-sleep-decisions-*.md`, orders and notes, bodies, `probe.js`, `linuxprobe/`, `reconcile.mjs`, `red-multi.sh`, `red-multi2.sh`, `check-harness.sh`, `compose-note.sh`, `mark-merged-repo.mjs`, `add-pr.mjs` and the helpers. Copy them with a fresh copy of `carry-next10.sh` saved as `carry-next11.sh`, set its two session ids and the `prev-sleep-decisions` suffix, run it with `bash`, then `chmod +x` the scripts and fix any absolute old-session path inside `linuxprobe/*.py` and `linuxprobe/*.sh` |
+| Waiters and local checks | the relay tool stops this session's waiters (`u1579`, `u1586`, `u1578`) and the `chain-c5.sh` combined check (result in `check-c5/summary.txt` if it finished); start the waiters again |
+| Ignored files | this session's scratchpad: `sleep-decisions.md` (copy unmodified as `prev-sleep-decisions-29a8bfc3.md`), the older `prev-sleep-decisions-*.md`, orders, notes (`note-1210-rb2.md`), reports (`report-1210-rb1.md`, `report-1226-rb1.md`), replies (`reply-1580-43.md`, `reply-1580-83.md`), bodies, `probe.js`, `linuxprobe/`, `measure-heading.cjs`, `reconcile.mjs`, `check-harness.sh`, `mark-merged-repo.mjs`, `add-pr.mjs` and the helpers. Copy them with a fresh copy of `carry-next11.sh` saved as `carry-next12.sh`, set its two session ids and the `prev-sleep-decisions` suffix, run it with `bash`, then `chmod +x` the scripts and fix any absolute old-session path inside `linuxprobe/*.py` and `linuxprobe/*.sh` |
 | Throwaway AVD | none |
 | Session chain | open; this is an automatic relay |
 | Owner questions | none |
@@ -96,22 +89,24 @@ The context relay is live: when the Stop hook reports the threshold, launch noth
 12. Where a control sits on a screen is the run's decision for the end user, never an owner question.
 
 
+
 ## Goal
 
-Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's reports (`#1206`, `#1210`, `#1211`, `#1212` merged and closed on both platforms), the Astra batch create work (`#1215` carried through `#746`, then `#1217` and `#1218`), the sweep's tickets `#1221` to `#1230` and `#1233`, a staging release and the next internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 148 open tickets, 148 placed, 0 unplaced (`#1233` filed and placed; `#1207` and `#1220` closed; `#1215` closed by GitHub and still carried); placed twice was not re-derived beyond the lines this relay edited, and earlier relays found 0.
+Finish the spec: a production release with an empty ticket board and the whole-redesign approval. This run's first goals are the owner's reports (`#1206`, `#1210`, `#1211`, `#1212` merged and closed on both platforms), the Astra batch create UI (`#1217`, `#1218`), the sweep's tickets `#1222` to `#1230` and `#1233`, a staging web release and the next internal build, then the whole redesign done on staging and on an internal build of Orbit Staging, then the owner told (instruction 1). The run ends only when the spec is done or for an external cause (allowance exhausted on both engines, machine stopped, owner says stop). Check what is left with `gh issue list --repo thomasluizon/orbit-tickets --state open --limit 400` (when GraphQL is rate limited, `gh api --paginate "repos/thomasluizon/orbit-tickets/issues?state=open&per_page=100"`). Work order reconciliation against the spec's `## The order`: 145 open tickets, 145 placed, 0 unplaced (`reconcile.mjs`; `#1219`, `#1221`, `#1232` closed, `#1215` repaired); placed twice was not re-derived beyond the lines this relay edited, and earlier relays found 0.
 
 ## Previous prompt, disposition
 
 - Opening reading list, Entry point, the authorization paragraph, Then 1 to 4, Sleep and owner instructions 1 to 12: carried (all brain notes, `DESIGN.md`, `BRAND.md` and the canvas README were read this relay).
-- Priority 1, `ui#1577`: done, merged `a168a666` under D115 with a forced type check of the combined tree, `#1207` closed; launching `#1211` is carried.
-- Priority 1, `ui#1578`: superseded: a new P2 thread at `44563a1a` became review batch 2, pushed as `d52fca7c`; merge carried.
-- Priority 1, `ui#1581` and `ui#1582`: carried (a recurring unrelated focus flake was rerun on both).
-- Priority 1, `orbit-api#702`: done: review batch 1 plus a second batch that restored exception identity inside the transaction, merged `649c9dbe` to `main`, released to production (Healthy). The `#746` carry and the `#1215` close are carried; `#1218` follows.
-- Priority 1, `ui#1580`: review batch 1 done (unpushed `d5a0e9f0` with the base merge `ffdbf897`), specs proven green and red; the full layout run, push and merge are carried.
-- Priority 1, `ui#1579`: the `:181` red was diagnosed (a reduced-motion transition read too early) and fixed; the full layout run then found a stale habit-title spec, fixed in `2bf70939`; its proof, push and merge are carried.
-- Priority 1, `ui#1583`: carried; it now needs a combined check because `ui#1577` merged with `globals.css`.
-- Priority 2, `#1220`: done, merged as `orbit-api#703` (`7ba05b9c`), `#1220` closed. `#1226` and `#1232` launched and delivered (`ui#1585`, `ui#1584`); `#1223` onward carried.
-- Priority 3: staging web released at `5a781aba`; the next staging releases and Orbit Staging 1.3.67 are carried.
+- Priority 1, `ui#1579`: done up to the push: `habit-title-focus.spec.ts` 6 of 6 green on `2bf70939` and its 2 edited cases red on `afeffe51`, proof posted, evidence in the body, pushed; approval, combined check and merge carried.
+- Priority 1, `ui#1580`: superseded: the full layout run on `d5a0e9f0` found 41 reds; review batch 2 (`note-1210-rb2.md`) replaces the push.
+- Priority 1, `ui#1578`: carried (Unit Tests flake rerun; it needs a combined check because it shares two test files with the base).
+- Priority 1, `ui#1581`, `ui#1582`, `ui#1584`: done, merged under D115 (`c8e786f6`, `420894fb`, `3e16ba58`); `#1219`, `#1221`, `#1232` closed; harness suites on the combined tree equal the base's.
+- Priority 1, `ui#1583`: carried (combined check).
+- Priority 1, `ui#1585`: copy approved and posted; the head failed at 320 (284 web measure), so review batch 1 `ac3e1840` replaces the merge; its proof, punctuation approval and push are carried.
+- Priority 1, `#746`: done, `orbit-api#704` merged (`3f82b8d9`), staging API released and Healthy, `#1215` repaired; `#1218` now waits only on `ui#1580` (file overlap).
+- Priority 1, `#1211`: superseded: it overlaps `ui#1580` (composer files on both platforms), so it launches after that merge.
+- Priority 2: carried; `#1214` was taken early and delivered as `ui#1586`.
+- Priority 3: the staging API release is done; the staging web release (now `3e16ba58` or later) and Orbit Staging 1.3.67 are carried.
 - Priorities 4 and 5: carried.
 - In flight table, scratch worktrees, waiters and carry instructions: superseded by this prompt's In flight table.
 
