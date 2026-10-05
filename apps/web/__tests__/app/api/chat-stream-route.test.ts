@@ -6,7 +6,10 @@ import { resolveServerSession } from '@/lib/auth-api'
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
 beforeEach(() => vi.setSystemTime(PINNED_TEST_TIME))
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 vi.mock('@/lib/auth-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/auth-api')>()),
@@ -81,6 +84,11 @@ describe('chat stream route', () => {
 
     expect(response.status).toBe(401)
     expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
+    expect(process.stderr.write).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(vi.mocked(process.stderr.write).mock.calls[0]?.[0] as string)).toEqual({
+      path: '/api/chat/stream', status: 401, upstreamStatus: null,
+      apiRequestId: null, renderRequestId: null, elapsedMs: expect.any(Number),
+    })
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
@@ -94,6 +102,11 @@ describe('chat stream route', () => {
     const response = await POST(request)
 
     expect(response.status).toBe(409)
+    expect(process.stderr.write).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(vi.mocked(process.stderr.write).mock.calls[0]?.[0] as string)).toEqual({
+      path: '/api/chat/stream', status: 409, upstreamStatus: null,
+      apiRequestId: null, renderRequestId: null, elapsedMs: expect.any(Number),
+    })
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
@@ -150,6 +163,46 @@ describe('chat stream route', () => {
         apiRequestId: '0HNP2CCF19CBE:00000001', renderRequestId: '38645fab-293e-4840', elapsedMs: 25,
       }) + '\n')
     }
+  })
+
+
+  it.each([200, 503])('logs only the final outcome after a 401 retry resolves to %i', async (status) => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: true, refreshFailed: false })
+    mockFetch.mockResolvedValueOnce(new Response('unauthorized', { status: 401 }))
+      .mockResolvedValueOnce(new Response('final response', {
+        status, headers: { 'x-orbit-request-id': 'retry-request', 'rndr-id': 'retry-render' },
+      }))
+    const request = new NextRequest('http://localhost:3000/api/chat/stream', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(status)
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(process.stderr.write).toHaveBeenCalledTimes(status === 200 ? 0 : 1)
+    if (status === 503) {
+      expect(JSON.parse(vi.mocked(process.stderr.write).mock.calls[0]?.[0] as string)).toMatchObject({
+        status: 503, upstreamStatus: 503, apiRequestId: 'retry-request', renderRequestId: 'retry-render',
+      })
+    }
+  })
+
+  it('logs a fetch exception without leaking its message and preserves the exception', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: tokenFor('account-a'), expiresAt: null, refreshed: false, refreshFailed: false })
+    const failure = new TypeError('private network details')
+    mockFetch.mockRejectedValue(failure)
+    const request = new NextRequest('http://localhost:3000/api/chat/stream', {
+      method: 'POST', headers: { 'x-orbit-held-account-id': 'account-a' }, body: new FormData(),
+    })
+
+    await expect(POST(request)).rejects.toBe(failure)
+
+    expect(process.stderr.write).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(vi.mocked(process.stderr.write).mock.calls[0]?.[0] as string)).toEqual({
+      path: '/api/chat/stream', status: 500, upstreamStatus: null,
+      apiRequestId: null, renderRequestId: null, elapsedMs: expect.any(Number),
+    })
   })
 
 })

@@ -529,4 +529,66 @@ describe('Astra proxy failure logging through server actions', () => {
       apiRequestId: '0HNP2CCF19CBE:00000001', renderRequestId: '38645fab-293e-4840', elapsedMs: 25,
     }) + '\n')
   })
+
+  it.each(['confirm', 'execute'])('keeps a successful %s action silent', async (action) => {
+    mockFetch.mockResolvedValue(Response.json({ accepted: true }))
+
+    const result = action === 'confirm'
+      ? await confirmPendingOperation('private-operation', 'account-a')
+      : await executePendingOperation('private-operation', 'private-token', 'account-a')
+
+    expect(result).toEqual({ ok: true, data: { accepted: true } })
+    expect(process.stderr.write).not.toHaveBeenCalled()
+  })
+
+  it.each([401, 409])('logs a local %i refusal without an upstream response', async (status) => {
+    if (status === 401) resolveServerSessionMock.mockResolvedValue({ token: null, refreshFailed: false })
+
+    const result = await confirmPendingOperation('private-operation', status === 409 ? 'account-b' : 'account-a')
+
+    expect(result).toMatchObject({ ok: false, status })
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      path: '/api/ai/pending-operations/:id/confirm', status, upstreamStatus: null,
+      apiRequestId: null, renderRequestId: null, elapsedMs: 25,
+    }) + '\n')
+  })
+
+  it.each([200, 503])('logs only the final action outcome after retry returns %i', async (status) => {
+    mockFetch.mockResolvedValueOnce(new Response('unauthorized', { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ accepted: true }, {
+        status, headers: { 'x-orbit-request-id': 'retry-request', 'rndr-id': 'retry-render' },
+      }))
+
+    const result = await executePendingOperation('private-operation', 'private-token', 'account-a')
+
+    expect(result).toMatchObject(status === 200 ? { ok: true } : { ok: false, status })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(process.stderr.write).toHaveBeenCalledTimes(status === 200 ? 0 : 1)
+    if (status === 503) {
+      expect(JSON.parse(vi.mocked(process.stderr.write).mock.calls[0]?.[0] as string)).toMatchObject({
+        status: 503, upstreamStatus: 503, apiRequestId: 'retry-request', renderRequestId: 'retry-render',
+      })
+    }
+  })
+
+  it('logs an edge failure whose response has no correlation headers', async () => {
+    mockFetch.mockResolvedValue(new Response('private edge body', { status: 503 }))
+
+    expect(await confirmPendingOperation('private-operation', 'account-a')).toMatchObject({ ok: false, status: 503 })
+
+    expect(process.stderr.write).toHaveBeenCalledExactlyOnceWith(JSON.stringify({
+      path: '/api/ai/pending-operations/:id/confirm', status: 503, upstreamStatus: 503,
+      apiRequestId: null, renderRequestId: null, elapsedMs: 25,
+    }) + '\n')
+  })
+
+  it('leaves other authenticated mutations outside Astra logging', async () => {
+    mockFetch.mockResolvedValue(new Response('unavailable', { status: 503 }))
+
+    await expect(serverAuthMutate('/api/habits', { method: 'POST' }, 'account-a')).rejects.toMatchObject({ status: 503 })
+
+    expect(process.stderr.write).not.toHaveBeenCalled()
+  })
+
 })
