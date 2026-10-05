@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, type ReactNode } from 'react'
+import { useId, type KeyboardEvent, type ReactNode } from 'react'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
@@ -34,6 +34,7 @@ export interface HabitRowActions {
   onAddSubHabit?: () => void
   onToggleExpand?: () => void
   onEnterSelectMode?: () => void
+  onReorder?: (direction: -1 | 1) => void
 }
 
 /** Canonical two-level habit row. List grouping owns its surrounding panel. */
@@ -71,6 +72,7 @@ interface HabitRowProps {
   /** Whether to render the small linked-goal indicator (5px primary dot before the status). */
   showLinkedGoalDot?: boolean
   hasProAccess?: boolean
+  reorderInstructionsId?: string
   actions?: HabitRowActions
 }
 
@@ -147,6 +149,7 @@ export function HabitRow({
   childPanelId,
   childProgress,
   hasProAccess = true,
+  reorderInstructionsId,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
@@ -251,7 +254,8 @@ export function HabitRow({
   const rowContents = (
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={habit.title}>
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={habit.title}
+        onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
       {supportingMeta ? <div className="pointer-events-none *:pointer-events-auto relative col-start-2 row-start-1 flex items-start gap-[4px]" style={{ paddingBlockStart: isChild ? 4 : 8 }}>{controls}</div> : controls}
@@ -266,7 +270,7 @@ export function HabitRow({
   )
 }
 
-function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, children, independentText, label }: Readonly<{
+function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label }: Readonly<{
   onClick: () => void
   independentText: boolean
   label: string
@@ -275,8 +279,11 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   isChild: boolean
   rowPadding: number
   meta: HabitRowMetaToken[]
+  onReorder?: (direction: -1 | 1) => void
+  reorderInstructionsId?: string
   children: ReactNode
 }>) {
+  const t = useTranslations()
   const contentId = useId()
   const accessibleLabel = [label, meta.map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
   const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
@@ -285,6 +292,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
       <button
         type="button"
         onClick={onClick}
+        {...habitRowReorderProps(onReorder, reorderInstructionsId, t('dragAndDrop.roleDescription'))}
         data-habit-row-body=""
         aria-label={independentText ? accessibleLabel : undefined}
         className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left ${independentText ? 'transition-[background-color]' : 'transition-[background-color,transform] active:scale-[0.96]'} duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
@@ -328,6 +336,20 @@ function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild
       ) : children}
     </div>
   )
+}
+
+function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefined, reorderInstructionsId: string | undefined, roleDescription: string) {
+  if (!onReorder) return {}
+  return {
+    onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+      event.preventDefault()
+      onReorder(event.key === 'ArrowUp' ? -1 : 1)
+    },
+    'aria-roledescription': roleDescription,
+    'aria-keyshortcuts': 'Alt+ArrowUp Alt+ArrowDown',
+    'aria-describedby': reorderInstructionsId,
+  }
 }
 
 function habitRowPadding(isChild: boolean, largeText: boolean): number {

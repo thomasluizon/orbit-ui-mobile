@@ -41,7 +41,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
         const presentation = viewport.width >= 1024 ? 'panel' : 'overlay'
         const conversation = page.locator(`[data-shell-conversation="${presentation}"]`)
         await expect(conversation).toBeVisible()
-        const scroller = conversation.getByRole('log', { name: messages.chat.title })
+        const scroller = conversation.getByRole('feed', { name: messages.chat.title })
         await expect(scroller.getByText(messages.chat.suggestion.prompt, { exact: true })).toBeVisible()
         await expect(scroller.getByRole('button')).toHaveCount(4)
         await page.evaluate(() => document.fonts.ready)

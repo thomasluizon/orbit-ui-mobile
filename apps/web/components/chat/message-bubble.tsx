@@ -51,6 +51,7 @@ function MessageMetricsBlocks({ message, isStreaming }: Readonly<Pick<MessageBub
 
 export function MessageBubble({
   message,
+  senderLabelId,
   animateEntry,
   isStreaming = false,
   onBreakdownConfirmed,
@@ -60,7 +61,7 @@ export function MessageBubble({
   onPendingOperationConfirmExecute,
   onPendingOperationPrepareStepUp,
   onPendingOperationVerifyStepUp,
-}: Readonly<MessageBubbleProps>) {
+}: Readonly<MessageBubbleProps & { senderLabelId?: string }>) {
   const t = useTranslations()
   const router = useRouter()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
@@ -112,7 +113,7 @@ export function MessageBubble({
             : 'flex-1 min-w-0 flex flex-col items-start'
         }
       >
-        <span className="sr-only">
+        <span id={senderLabelId} className="sr-only">
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 

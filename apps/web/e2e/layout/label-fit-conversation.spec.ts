@@ -76,7 +76,7 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         await expect(page.getByTestId('habit-row').getByText(title, { exact: true })).toBeVisible()
         await page.getByRole('button', { name: words.todayAstra.openConversation, exact: true }).click()
         const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
-        const empty = conversation.getByRole('log')
+        const empty = conversation.getByRole('feed')
         await markRequiredLabels(empty.getByText(words.chat.empty.title, { exact: true }))
         for (const label of [words.chat.suggestion.logHabit, words.chat.suggestion.week,
           words.chat.suggestion.splitHabit, words.chat.suggestion.goals]) {

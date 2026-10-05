@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { PillButton } from '@/components/ui/pill-button'
-import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -397,19 +396,23 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
             />
           ) : (
             <>
-              <div data-testid="section-heading-row" className="flex flex-col">
-                <div className="min-w-0">
-                  <SectionLabel inset={false}>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
-                </div>
-                <div className="flex self-end items-center pb-3">
-                  <SelectAllToggle
-                    allSelected={allSelected}
-                    onToggle={toggleAll}
-                    selectAllLabel={t('calendar.selectAll')}
-                    deselectAllLabel={t('calendar.deselectAll')}
-                    disabled={importableEvents.length === 0}
-                  />
-                </div>
+              <div
+                data-testid="section-heading-row"
+                className="flex items-start gap-2 pt-6 pb-3 font-sans text-[20px] leading-[1.2]"
+              >
+                <h2 className="min-w-0 flex-1 font-medium tabular-nums text-balance tracking-[-0.01em] text-[var(--fg-1)]">
+                  {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
+                </h2>
+                {importableEvents.length > 0 && (
+                  <div className="flex h-[1lh] shrink-0 items-center">
+                    <SelectAllToggle
+                      allSelected={allSelected}
+                      onToggle={toggleAll}
+                      selectAllLabel={t('calendar.selectAll')}
+                      deselectAllLabel={t('calendar.deselectAll')}
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

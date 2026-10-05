@@ -82,9 +82,9 @@ describe('Empty conversation geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       await markRequiredLabels(page.getByText(messages.chat.empty.title, { exact: true }))
-      await expectLabelsFit(page, page.getByRole('log'))
+      await expectLabelsFit(page, page.getByRole('feed'))
       const geometry = await page.evaluate((disclosure) => {
-        const scroller = document.querySelector<HTMLElement>('[role="log"]')!
+        const scroller = document.querySelector<HTMLElement>('[role="feed"]')!
         const glyph = scroller.querySelector('[data-asset="astra-mark"]')!
         const disclaimer = Array.from(scroller.querySelectorAll('p')).find((paragraph) => paragraph.textContent === disclosure)!
         const empty = scroller.firstElementChild!

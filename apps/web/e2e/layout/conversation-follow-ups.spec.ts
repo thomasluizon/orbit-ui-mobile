@@ -35,14 +35,18 @@ for (const width of [320, 412, 1352]) {
         await expect(group.getByRole('button')).toHaveCount(2)
         await page.evaluate(() => document.fonts.ready)
         await page.addStyleTag({ content: `html { font-size: ${16 * textScale}px; }` })
+        await page.evaluate(() => Promise.allSettled(document.getAnimations().map(animation => animation.finished)))
 
         const message = await conversation.locator('[data-bubble-role="ai"]').boundingBox()
-        const copy = await conversation.getByRole('button', { name: pt.chat.copy, exact: true }).boundingBox()
-        const label = await group.getByText(pt.chat.followUps.label, { exact: true }).boundingBox()
+        const copy = await conversation.getByRole('button', { name: pt.chat.copy, exact: true }).elementHandle()
+        const label = await group.getByText(pt.chat.followUps.label, { exact: true }).elementHandle()
         expect(message).not.toBeNull()
         expect(copy).not.toBeNull()
         expect(label).not.toBeNull()
-        expect(label!.y - (copy!.y + copy!.height)).toBeGreaterThanOrEqual(16)
+        const gap = await page.evaluate(({ copyElement, labelElement }) =>
+          labelElement.getBoundingClientRect().top - copyElement.getBoundingClientRect().bottom,
+        { copyElement: copy!, labelElement: label! })
+        expect(gap).toBeGreaterThanOrEqual(16)
         for (const question of questions) {
           expect(question).toHaveLength(60)
           const row = group.getByRole('button', { name: question, exact: true })

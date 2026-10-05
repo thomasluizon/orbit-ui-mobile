@@ -894,6 +894,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   const {
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
+    isPendingOperationBusy,
+    trackCardOperation,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,
@@ -941,6 +943,8 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     handleBreakdownConfirmed,
     revisePendingOperationForBubble,
     refreshPendingOperationForBubble,
+    isPendingOperationBusy,
+    trackCardOperation,
     confirmAndExecutePendingOperation,
     prepareStepUpForBubble,
     verifyStepUpForBubble,

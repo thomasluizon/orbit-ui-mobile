@@ -232,14 +232,12 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
     throw new Error(`Missing BlockFrame props: ${missingLabels.join(', ')}`)
   }
 
-  const isBusy = props.state === 'loading' || props.state === 'acting'
   const hasIrreversibleItem = props.items.some((item) => item.irreversible === true)
   // WHY: An unsafe batch must not remain one tap from running when consequence labels are missing. https://github.com/thomasluizon/orbit-tickets/issues/349
   const canRenderActions = missingLabels.length === 0 && props.state !== 'stale'
 
   return (
     <View
-      accessibilityState={{ busy: isBusy }}
       style={[
         styles.frame,
         { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },

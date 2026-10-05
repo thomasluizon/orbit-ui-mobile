@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { ClarificationRequest, PendingAgentOperation } from '@orbit/shared/types'
 import type { MessageBubbleProps, PendingOperationMessageState } from '@orbit/shared/chat'
+import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
 import { safeT } from '@/lib/i18n'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -17,6 +18,7 @@ type ClarificationCardProps = Readonly<{ clarificationRequest: ClarificationRequ
 export function ClarificationCard({ clarificationRequest, entityName, pendingOperation: savedPreview, savedState, onPreview, onStateChange, onPendingOperationRevise, onPendingOperationRefresh, onPendingOperationConfirmExecute, onPendingOperationPrepareStepUp, onPendingOperationVerifyStepUp, onActionChipClick }: ClarificationCardProps) {
   const t = useTranslations()
   const resolve = useResolveClarification()
+  const trackCardOperation = useChatCardOperation()
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [localPreview, setLocalPreview] = useState<PendingAgentOperation | null>(null)
@@ -24,7 +26,7 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
   const choose = async (label: string, value: string) => {
     setErrorKey(null)
     try {
-      const result = await resolve.mutateAsync({ operationId: clarificationRequest.operationId, value })
+      const result = await trackCardOperation(() => resolve.mutateAsync({ operationId: clarificationRequest.operationId, value }))
       if (!result.ok) setErrorKey(errorKeyForStatus(result.status))
       else if (result.data.operation.status === 'PendingConfirmation' && result.data.pendingOperation) {
         setLocalPreview(result.data.pendingOperation)

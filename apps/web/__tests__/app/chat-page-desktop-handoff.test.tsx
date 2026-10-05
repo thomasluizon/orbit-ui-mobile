@@ -183,7 +183,7 @@ describe('ChatPage', () => {
 
     render(<ChatPage />)
 
-    expect(screen.getByRole('log', { name: 'chat.title' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('feed', { name: 'chat.title' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
   })
 

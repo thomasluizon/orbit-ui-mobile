@@ -44,5 +44,5 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
 const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   container: { flex: 1, minWidth: 0 },
-  content: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 16, gap: 12 },
+  content: { width: '100%', maxWidth: 560, alignSelf: 'flex-start', paddingHorizontal: 16, paddingTop: 16, gap: 12 },
 })

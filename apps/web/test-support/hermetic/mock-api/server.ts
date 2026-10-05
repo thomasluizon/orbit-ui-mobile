@@ -9,6 +9,7 @@ import {
   createPaginatedSchema,
   habitScheduleItemSchema,
   habitTagSchema,
+  logHabitResponseSchema,
 } from '@orbit/shared/types/habit'
 import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { checklistTemplateSchema } from '@orbit/shared/types/checklist-template'
@@ -31,6 +32,7 @@ import { mintHermeticJwt } from '../hermetic-session'
 
 const HOST = '127.0.0.1'
 const PORT = 5099
+const habitMutations: { method: string; path: string; body: unknown }[] = []
 
 interface MockRoute {
   method: string
@@ -189,10 +191,47 @@ function handleCatchAll(method: string, pathname: string, res: ServerResponse): 
   sendJson(res, 200, {})
 }
 
+async function handleHabitMutation(req: IncomingMessage, res: ServerResponse, method: string, path: string): Promise<void> {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) {
+    if (!(chunk instanceof Uint8Array)) throw new Error('Expected a request byte chunk')
+    chunks.push(Buffer.from(chunk))
+  }
+  const text = Buffer.concat(chunks).toString('utf8')
+  habitMutations.push({ method, path, body: text ? JSON.parse(text) as unknown : null })
+  if (method === 'POST') {
+    sendJson(res, 200, logHabitResponseSchema.parse({
+      logId: 'layout-log', isFirstCompletionToday: false, currentStreak: 0,
+    }))
+  } else {
+    res.writeHead(204)
+    res.end()
+  }
+}
+
+function handleHabitTestRequest(req: IncomingMessage, res: ServerResponse, method: string, pathname: string): boolean {
+  if (pathname === '/_test/habit-mutations' && (method === 'GET' || method === 'DELETE')) {
+    req.resume()
+    if (method === 'DELETE') habitMutations.length = 0
+    sendJson(res, 200, habitMutations)
+    return true
+  }
+  if ((method === 'PUT' && pathname === '/api/habits/reorder') ||
+      (method === 'POST' && /^\/api\/habits\/[^/]+\/log$/.test(pathname))) {
+    void handleHabitMutation(req, res, method, pathname).catch(() => {
+      sendJson(res, 400, { error: 'Invalid habit mutation fixture' })
+    })
+    return true
+  }
+  return false
+}
+
 function handleRequest(req: IncomingMessage, res: ServerResponse): void {
-  req.resume()
   const method = req.method ?? 'GET'
   const pathname = new URL(req.url ?? '/', `http://${HOST}:${PORT}`).pathname
+
+  if (handleHabitTestRequest(req, res, method, pathname)) return
+  req.resume()
 
   if (pathname === '/health') {
     sendJson(res, 200, { status: 'ok' })

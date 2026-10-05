@@ -1,6 +1,5 @@
 'use client'
 
-import { useTranslations } from 'next-intl'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -14,19 +13,17 @@ export function SortableHabitItem({
   id: string
   children: React.ReactNode
 }>) {
-  const t = useTranslations()
   const {
-    attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
     isDragging: isItemDragging,
-  } = useSortable({ id, attributes: { roleDescription: t('dragAndDrop.roleDescription') } })
+  } = useSortable({ id })
 
   const sensorListeners = listeners as Record<string, React.EventHandler<React.SyntheticEvent<HTMLElement>>> | undefined
   const rowListeners = Object.fromEntries(
-    Object.entries(sensorListeners ?? {}).map(([eventName, activate]) => [eventName, (event: React.SyntheticEvent<HTMLElement>) => {
+    Object.entries(sensorListeners ?? {}).filter(([eventName]) => eventName === 'onPointerDown' || eventName === 'onTouchStart').map(([eventName, activate]) => [eventName, (event: React.SyntheticEvent<HTMLElement>) => {
       if (event.target instanceof Node && event.currentTarget.contains(event.target)) activate(event)
     }]),
   )
@@ -40,7 +37,7 @@ export function SortableHabitItem({
   }
 
   return (
-    <div ref={setNodeRef} className="orbit-focus-inset rounded-[20px]" style={style} {...attributes} {...rowListeners}>
+    <div ref={setNodeRef} className="rounded-[20px]" style={style} {...rowListeners}>
       {children}
     </div>
   )

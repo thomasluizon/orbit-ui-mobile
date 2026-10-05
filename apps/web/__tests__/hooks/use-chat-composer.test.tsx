@@ -287,8 +287,9 @@ describe('web useChatComposer streaming send', () => {
     const closeButton = screen.getByRole('button', { name: 'common.closeConversation' })
     act(() => closeButton.focus())
     expect(closeButton).toHaveFocus()
+    expect(screen.getByRole('feed', { name: 'chat.title' })).not.toHaveAttribute('aria-live')
     await act(async () => { stream.enqueue(finalFrame(makeChatResponse())); stream.close() })
-    expect(screen.getByText('Hi there')).toBeVisible()
+    expect(screen.getByText('Hi there', { selector: '[data-bubble-role="ai"] p' })).toBeVisible()
     expect(closeButton).toHaveFocus()
   })
 
@@ -325,7 +326,7 @@ describe('web useChatComposer streaming send', () => {
     fireEvent.click(group.querySelector('button')!)
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
-    await waitFor(() => expect(screen.getByText('Hi there')).toBeVisible())
+    await waitFor(() => expect(screen.getByText('Hi there', { selector: '[data-bubble-role="ai"] p' })).toBeVisible())
   })
 
   it('keeps voice failures visible in the dock without opening the conversation or losing the draft', () => {
@@ -388,7 +389,7 @@ describe('web useChatComposer streaming send', () => {
     expect(retries).toHaveLength(1)
     expect(retries[0]!.closest('[data-composer-root]')).not.toBeNull()
     fireEvent.click(retries[0]!)
-    await waitFor(() => expect(screen.getByText('Hi there')).toBeVisible())
+    await waitFor(() => expect(screen.getByText('Hi there', { selector: '[data-bubble-role="ai"] p' })).toBeVisible())
     expect(mocks.fetch).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'shell.composer.retry' })).not.toBeInTheDocument()

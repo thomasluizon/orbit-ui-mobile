@@ -4,6 +4,9 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useTranslations } from 'next-intl'
+import { useCallback } from 'react'
+import { useChatCardOperation } from '@/hooks/use-chat-card-operation'
+import type { BulkCreateRequest } from '@orbit/shared/types/habit'
 import { useBreakdownSuggestionState } from '@/hooks/use-breakdown-suggestion-state'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
 import { getBreakdownCadenceKey } from '@orbit/shared/utils'
@@ -16,10 +19,14 @@ import { useBulkCreateHabits } from '@/hooks/use-habits'
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
   const t = useTranslations()
   const bulkCreate = useBulkCreateHabits()
+  const trackCardOperation = useChatCardOperation()
+  const { mutateAsync } = bulkCreate
+  const createHabits = useCallback((request: BulkCreateRequest) =>
+    trackCardOperation(() => mutateAsync(request)), [mutateAsync, trackCardOperation])
   const card = useBreakdownSuggestionState({
     subHabits,
     parentName,
-    onBulkCreate: bulkCreate.mutateAsync,
+    onBulkCreate: createHabits,
     onConfirmed,
   })
 
