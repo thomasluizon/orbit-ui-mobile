@@ -620,14 +620,20 @@ describe('HabitList', () => {
   })
 
   it.each([
-    ['roots', null], ['roots', 0], ['children', null], ['children', 0],
-  ] as const)('matches rendered %s order for tied positions %s from the API producer', async (scope, position) => {
+    ['roots', null, false], ['roots', 0, false], ['children', null, false], ['children', 0, false],
+    ['roots', null, true], ['roots', 0, true], ['children', null, true], ['children', 0, true],
+  ] as const)('matches rendered %s order for tied positions %s and creation ties %s from the API producer', async (scope, position, creationTied) => {
     rowImplementation.actual = true
     dragLocale.portuguese = true
     const entries = [
       { id: 'newer', title: 'Newer', createdAtUtc: '2026-09-02T00:00:00Z', position, scheduledDates: [TODAY] },
+      { id: 'latest', title: 'Latest', createdAtUtc: '2026-09-03T00:00:00Z', position, scheduledDates: [TODAY] },
       { id: 'older', title: 'Older', createdAtUtc: '2026-09-01T00:00:00Z', position, scheduledDates: [TODAY] },
     ]
+    if (creationTied) {
+      entries.unshift(entries.pop()!)
+      for (const entry of entries) entry.createdAtUtc = '2026-09-01T00:00:00Z'
+    }
     const items = scope === 'roots'
       ? entries.map((entry) => createMockHabitScheduleItem(entry))
       : [createMockHabitScheduleItem({ id: 'parent', hasSubHabits: true, scheduledDates: [TODAY],
@@ -637,14 +643,16 @@ describe('HabitList', () => {
     reorderHabitsMutate.mockImplementation((_request, options) => options?.onSuccess?.())
     const { container } = renderWithProviders(<HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} />)
     const bodies = Array.from(container.querySelectorAll<HTMLButtonElement>('[data-habit-row-body]'))
-      .filter((body) => body.textContent.includes('Older') || body.textContent.includes('Newer'))
-    expect(bodies.map((body) => body.textContent)).toEqual([expect.stringContaining('Older'), expect.stringContaining('Newer')])
+      .filter((body) => ['Older', 'Newer', 'Latest'].some((title) => body.textContent.includes(title)))
+    expect(bodies.map((body) => body.textContent)).toEqual([
+      expect.stringContaining('Older'), expect.stringContaining('Newer'), expect.stringContaining('Latest'),
+    ])
     bodies[0]!.focus()
     await userEvent.setup().keyboard('{Alt>}{ArrowDown}{/Alt}')
     expect(reorderHabitsMutate).toHaveBeenCalledExactlyOnceWith({ positions: [
-      { habitId: 'newer', position: 0 }, { habitId: 'older', position: 1 },
+      { habitId: 'newer', position: 0 }, { habitId: 'older', position: 1 }, { habitId: 'latest', position: 2 },
     ] }, expect.objectContaining({ onSuccess: expect.any(Function) }))
-    expect(screen.getByText('Older foi movido para a posição 2 de 2')).toBeInTheDocument()
+    expect(screen.getByText('Older foi movido para a posição 2 de 3')).toBeInTheDocument()
     expect(bodies[0]).toHaveFocus()
   })
 
