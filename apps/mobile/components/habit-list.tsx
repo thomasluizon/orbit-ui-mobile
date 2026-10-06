@@ -29,6 +29,7 @@ import {
   canLogHabitOnDate,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
+  computeHabitDayProgress,
   computeParentPromptProgress,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
@@ -740,36 +741,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         child: NormalizedHabit,
         computeFn: (id: string) => { done: number; total: number },
       ): { done: number; total: number } {
-        let done = 0
-        let total = 0
-
-        if (child.isGeneral) {
-          total += 1
-          if (child.isCompleted) {
-            done += 1
-          }
-        } else if (
-          !visibility.isRelevantToday(child) &&
-          !child.isOverdue &&
-          !child.isLoggedInRange
-        ) {
-          return computeFn(child.id)
-        } else if (
-          visibility.isDueOnSelectedDate(child) ||
-          child.isOverdue ||
-          child.isLoggedInRange
-        ) {
-          total += 1
-          if (child.isCompleted || child.isLoggedInRange) {
-            done += 1
-          }
-        }
-
-        const nestedProgress = computeFn(child.id)
-        done += nestedProgress.done
-        total += nestedProgress.total
-
-        return { done, total }
+        const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate)
+        const nested = computeFn(child.id)
+        return { done: ownProgress.done + nested.done, total: ownProgress.total + nested.total }
       }
 
       function compute(habitId: string): { done: number; total: number } {

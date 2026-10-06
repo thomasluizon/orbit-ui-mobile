@@ -308,6 +308,46 @@ describe('HabitDetailScreen', () => {
     expect(header().querySelector('[data-status="done"]')).toBeInTheDocument()
   })
 
+  it.each(['absent', 'irrelevant'])('excludes a %s not-scheduled child from the header fraction', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    const child = makeDetail().children[0]!
+    mocks.detail = { ...makeDetail(), children: [child, { ...child, id: 'child-2' }] }
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-2', {
+      ...makeScopedChild('2026-08-29'), id: 'child-2', isLoggedInRange: false, instances: [],
+    })
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '100')
+    expect(header.querySelector('[data-status]')).toBeNull()
+  })
+
+  it.each(['loading', 'error'])('shows a status ring while selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedLoading = state === 'loading'
+    mocks.scopedError = state === 'error'
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toBeNull()
+    expect(header.querySelector('[data-status="empty"]')).toBeInTheDocument()
+  })
+
+  it.each(['absent', 'irrelevant'])('shows a status ring when all selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedHabits = new Map()
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-29'), isLoggedInRange: false, instances: [],
+    })
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toBeNull()
+    expect(header.querySelector('[data-status="empty"]')).toBeInTheDocument()
+  })
+
   it.each([0, 1, 2])('shows the selected day fraction for an unlogged parent with %i children done', (done) => {
     mocks.realHeaderRing = true
     mocks.logs = []

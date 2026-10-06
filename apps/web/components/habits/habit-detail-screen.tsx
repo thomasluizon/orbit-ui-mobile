@@ -20,6 +20,7 @@ import {
   capitalizeFirstLetter,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  computeHabitDayProgress,
   computeHabitFrequencyLabel,
   formatLocaleDate,
   formatWeekdayLabels,
@@ -34,6 +35,7 @@ import {
   getHabitLogDateConfirmationKeys,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
+  hasHabitScheduleOnDate,
   isHabitHistoryMonthLoaded,
   isHabitCompletedOnDate,
   isHabitSlipping,
@@ -607,13 +609,20 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         completionStatusUnavailable: scopedChild === undefined,
       }
     })
+  const childProgress = computeHabitDayProgress(
+    children.filter((child) => !child.completionStatusUnavailable).map((child) => child.habit),
+    (child) => hasHabitScheduleOnDate(child, dateStr),
+  )
+  const headerProgress = childProgress.total > 0
+    ? childProgress.done / childProgress.total * 100
+    : undefined
 
   const subHabitCreation = <div className={showCreateRefusal ? 'flex flex-col gap-3' : undefined}><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
 
   return (
     <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <div>
-        <HabitHeader habit={habit} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={children.length > 0 ? children.filter((child) => child.completed).length / children.length * 100 : undefined} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
+        <HabitHeader habit={habit} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={headerProgress} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
         <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
       </div>

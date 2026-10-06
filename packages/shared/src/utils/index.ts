@@ -428,6 +428,7 @@ export {
 } from './habit-picker'
 export type { HabitPickerOption } from './habit-picker'
 export {
+  computeHabitDayProgress,
   computeParentSettlementDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'

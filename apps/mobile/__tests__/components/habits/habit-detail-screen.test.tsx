@@ -446,6 +446,49 @@ describe('HabitDetailScreen', () => {
     expect(header().findByType(StatusRing).props.status).toBe('done')
   })
 
+  it.each(['absent', 'irrelevant'])('excludes a %s not-scheduled child from the header fraction', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    const child = makeDetail().children[0]!
+    mocks.detail = { ...makeDetail(), children: [child, { ...child, id: 'child-2' }] }
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-2', {
+      ...makeScopedChild('2026-08-29'), id: 'child-2', isLoggedInRange: false, instances: [],
+    })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue.now).toBe(100)
+    expect(header.findAllByType(StatusRing)).toHaveLength(0)
+  })
+
+  it.each(['loading', 'error'])('shows a status ring while selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedLoading = state === 'loading'
+    mocks.scopedError = state === 'error'
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findAllByProps({ accessibilityRole: 'progressbar' })).toHaveLength(0)
+    expect(header.findByType(StatusRing).props.status).toBe('empty')
+  })
+
+  it.each(['absent', 'irrelevant'])('shows a status ring when all selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedHabits = new Map()
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-29'), isLoggedInRange: false, instances: [],
+    })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findAllByProps({ accessibilityRole: 'progressbar' })).toHaveLength(0)
+    expect(header.findByType(StatusRing).props.status).toBe('empty')
+  })
+
   it.each([0, 1, 2])('shows the selected day fraction for an unlogged parent with %i children done', (done) => {
     mocks.realHeaderRing = true
     mocks.logs = []
