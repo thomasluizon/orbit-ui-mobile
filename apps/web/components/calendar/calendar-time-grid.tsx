@@ -18,8 +18,6 @@ const BLOCK_MIN_WIDTH = 48
 const BLOCK_HORIZONTAL_INSET = 4
 const MIN_LANE_WIDTH = BLOCK_MIN_WIDTH + BLOCK_HORIZONTAL_INSET
 const HEADER_HEIGHT = 52
-const BODY_MAX_HEIGHT = 520
-const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 64 + BODY_MAX_HEIGHT
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
 const CARD_BG = 'var(--bg-card)'
@@ -222,7 +220,7 @@ export function CalendarTimeGrid({
     perColumn.every(({ allDay, timed }) => allDay.length === 0 && timed.length === 0)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 16px 16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: 4, padding: '0 16px 16px' }}>
       <span
         data-testid="time-grid-any-time-label"
         style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', color: 'var(--fg-2)' }}
@@ -235,6 +233,10 @@ export function CalendarTimeGrid({
         data-columns={columns.length}
         className="relative"
         style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
           borderRadius: 12,
           overflow: 'hidden',
           background: CARD_BG,
@@ -244,7 +246,7 @@ export function CalendarTimeGrid({
         <div
           ref={bodyRef}
           className="thin-scrollbar"
-          style={{ overflow: 'auto', maxHeight: SCROLLER_MAX_HEIGHT, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ overflow: 'auto', flex: 1, minHeight: 0, overscrollBehavior: 'contain', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div className="sticky top-0 z-[3]" style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div

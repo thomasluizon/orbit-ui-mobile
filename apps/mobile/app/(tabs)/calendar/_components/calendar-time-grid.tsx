@@ -28,7 +28,6 @@ const DAY_HEIGHT = HOUR_HEIGHT * 24;
 const BLOCK_HEIGHT = 48;
 const BLOCK_MIN_WIDTH = 48;
 const BLOCK_HORIZONTAL_INSET = 4;
-const BODY_MAX_HEIGHT = 520;
 const MIN_LANE_WIDTH = BLOCK_MIN_WIDTH + BLOCK_HORIZONTAL_INSET;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
@@ -359,7 +358,7 @@ export function CalendarTimeGrid({
             <View style={[styles.gutterAllDay, { height: allDayBandHeight }]} />
             <ScrollView
               ref={gutterScrollRef}
-              style={{ height: BODY_MAX_HEIGHT }}
+              style={{ flex: 1, minHeight: 0 }}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
               accessibilityElementsHidden
@@ -383,9 +382,10 @@ export function CalendarTimeGrid({
             horizontal
             showsHorizontalScrollIndicator
             style={styles.columnsScroll}
+            contentContainerStyle={{ flexGrow: 1 }}
             onLayout={onColumnsLayout}
           >
-            <View style={styles.columnsContent}>
+            <View style={[styles.columnsContent, { width: colWidth * columns.length }]}>
               <View style={[styles.headerRow, { minHeight: headerHeight }]}>
                 {columns.map((column) => (
                   <ColumnHeader
@@ -432,8 +432,7 @@ export function CalendarTimeGrid({
 
               <ScrollView
                 ref={bodyScrollRef}
-                style={{ height: BODY_MAX_HEIGHT }}
-                nestedScrollEnabled
+                style={{ flex: 1, minHeight: 0 }}
                 onScroll={syncGutter}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator
@@ -516,6 +515,8 @@ export function CalendarTimeGrid({
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     wrap: {
+      flex: 1,
+      minHeight: 0,
       gap: 4,
       paddingHorizontal: 16,
       paddingTop: 0,
@@ -527,6 +528,8 @@ function createStyles(tokens: Tokens) {
       color: tokens.fg2,
     },
     card: {
+      flex: 1,
+      minHeight: 0,
       borderRadius: 12,
       overflow: "hidden",
       backgroundColor: tokens.bgCard,
@@ -534,9 +537,12 @@ function createStyles(tokens: Tokens) {
       borderColor: tokens.hairline,
     },
     row: {
+      flex: 1,
+      minHeight: 0,
       flexDirection: "row",
     },
     gutter: {
+      minHeight: 0,
     },
     gutterCorner: {
       borderBottomWidth: 1,
@@ -559,6 +565,7 @@ function createStyles(tokens: Tokens) {
       flex: 1,
     },
     columnsContent: {
+      height: "100%",
       flexDirection: "column",
     },
     headerRow: {
