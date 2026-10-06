@@ -114,6 +114,24 @@ function renderEntryRows(onChange: (value: string) => void, initialValue?: strin
 }
 
 describe('select-check RadioRow group', () => {
+  it.each([false, true])('announces personal text and supporting metadata when disabled=%s', (disabled) => {
+    const label = `${'longaddress'.repeat(12)}@example.com`
+    let tree!: ReactTestRenderer
+    void act(() => {
+      tree = create(disabled
+        ? <RadioRow label={label} textMode="personal" description="Details" meta="3" tag="Current" disabled reason="Sending" />
+        : <RadioRow label={label} textMode="personal" description="Details" meta="3" tag="Current" selected onSelect={vi.fn()} />)
+    })
+    const radio = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'radio')[0]!
+    expect(radio.props.accessibilityLabel).toBe(disabled
+      ? `${label}, Details, 3, Current, Sending`
+      : `${label}, Details, 3, Current`)
+    expect(radio.props.accessibilityState).toEqual(disabled
+      ? { checked: false, disabled: true }
+      : { checked: true })
+    void act(() => tree.update(<View />))
+  })
+
   it('uses the selected row tint and ring', () => {
     let tree: any
     void act(() => {

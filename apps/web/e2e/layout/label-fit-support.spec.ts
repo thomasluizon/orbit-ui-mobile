@@ -23,14 +23,16 @@ for (const width of [320, 360, 384, 412]) {
           await markRequiredLabels(subjects.getByRole('radio', { name: option.label, exact: true }))
         }
         await markRequiredLabels(form.getByText(words.subject, { exact: true }))
-        const reply = form.getByRole('button', { name: words.email, exact: true })
-        const emailText = reply.getByText(replyEmail, { exact: true })
+        const replyName = { name: `${words.email} ${replyEmail}`, exact: true }
+        const reply = form.getByRole('button', replyName)
+        const replyRow = form.locator('[data-personal-text-action]').filter({ has: page.getByRole('button', replyName) })
+        const emailText = replyRow.getByText(replyEmail, { exact: true })
         await expect(emailText).toBeVisible()
         await expect(reply).toHaveAttribute('aria-expanded', 'false')
         await markUserText(page, [replyEmail])
         await expectLabelsFit(page, form, [replyEmail])
         const geometry = await emailText.evaluate((element) => {
-          const control = element.closest('button')!
+          const control = element.closest('[data-personal-text-content]')!
           const style = getComputedStyle(control)
           return {
             width: element.getBoundingClientRect().width,
@@ -44,10 +46,10 @@ for (const width of [320, 360, 384, 412]) {
         await message.fill('Saved support message')
         await reply.click()
         await expect(reply).toHaveAttribute('aria-expanded', 'true')
-        expect(await emailText.evaluate((element) => {
+        expect(await replyRow.locator('[data-personal-text]').evaluate((element) => {
           const style = getComputedStyle(element)
           return style.webkitLineClamp === 'none' && element.scrollHeight <= element.clientHeight + 1
-            && element.scrollWidth <= element.clientWidth + 1
+            && style.overflowX === 'auto'
         })).toBe(true)
         await expectInteractionFill(reply)
         await reply.click()

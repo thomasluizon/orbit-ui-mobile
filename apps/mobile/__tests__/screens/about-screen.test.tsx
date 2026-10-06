@@ -70,7 +70,7 @@ vi.mock('@/components/ui/sheet', () => ({
 }))
 
 function flattenedStyle(node: TestNode) {
-  return StyleSheet.flatten(node.props.style) as Record<string, unknown>
+  return StyleSheet.flatten(typeof node.props.style === 'function' ? node.props.style({ pressed: false }) : node.props.style) as Record<string, unknown>
 }
 
 function textContent(node: TestNode): string {
@@ -110,7 +110,7 @@ describe('AboutScreen', () => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 })
     let tree!: { root: TestNode; unmount: () => void }
     TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
-    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Orbit')[0]!
+    const name = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'Orbit')[0]!
     expect(flattenedStyle(name).fontSize).toBe(width >= 768 ? 34 : 28)
     TestRenderer.act(() => tree.unmount())
   })
@@ -138,7 +138,7 @@ describe('AboutScreen', () => {
       (node) =>
         node.type === 'Pressable' &&
         node.props.accessibilityRole === 'button' &&
-        typeof node.props.accessibilityLabel === 'string',
+        typeof node.props.accessibilityLabel === 'string' && node.props.testID !== 'about-fact-account',
     )
     expect(destinations.map((node) => node.props.accessibilityLabel)).toEqual([
       en.common.backToProfile,
@@ -193,8 +193,8 @@ describe('AboutScreen', () => {
     }
 
     for (const fact of ['version', 'account']) {
-      expect(flattenedStyle(tree.root.findAll((node) => node.props.testID === `about-fact-${fact}`)[0]!)).toMatchObject({
-        flexDirection: 'row',
+      expect(flattenedStyle(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === `about-fact-${fact}`)[0]!)).toMatchObject({
+        flexDirection: fact === 'account' ? 'column' : 'row',
         flexWrap: 'wrap',
         minWidth: 0,
       })

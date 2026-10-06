@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -16,7 +17,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { CheckRow } from '@/components/ui/check-row'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Proposed } from '@/components/ui/proposed'
 
 interface HabitChecklistProps {
@@ -159,6 +160,7 @@ interface InteractiveChecklistItemProps {
   interactive: boolean
   onToggle: (index: number) => void
   styles: ReturnType<typeof createStyles>
+  tokens: AppTokens
 }
 
 function InteractiveChecklistItem({
@@ -168,7 +170,10 @@ function InteractiveChecklistItem({
   interactive,
   onToggle,
   styles,
+  tokens,
 }: Readonly<InteractiveChecklistItemProps>) {
+  const [expanded, setExpanded] = useState(false)
+  const [pressed, setPressed] = useState(false)
   function handlePress() {
     onToggle(index)
   }
@@ -177,30 +182,19 @@ function InteractiveChecklistItem({
     index < itemsLength - 1 ? styles.interactiveItemDivider : null
 
   const itemLabel = (
-    <Text
+    <PersonalText expanded={expanded}
       style={[
         styles.itemText,
         item.isChecked && styles.itemTextChecked,
+        pressed && { color: tokens.fg2 },
       ]}
-      numberOfLines={2}
-    >
-      {item.text}
-    </Text>
+    >{item.text}</PersonalText>
   )
 
-  if (!interactive) {
-    return <View style={[styles.interactiveItem, dividerStyle]}>{itemLabel}</View>
-  }
-
-  return (
-    <View style={dividerStyle}>
-      <CheckRow
-        label={item.text}
-        checked={item.isChecked}
-        onChange={handlePress}
-      />
-    </View>
-  )
+  return <View style={[dividerStyle, { flexDirection: 'row', minWidth: 0, alignItems: 'flex-start', padding: interactive ? 4 : 0 }]}>
+    <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={item.text} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.interactiveItem, { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', gap: 8, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><View style={{ flex: 1, minWidth: 0 }}>{itemLabel}</View><ChevronDown accessible={false} size={20} strokeWidth={1.5} color={tokens.fg2} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></Pressable>
+    {interactive ? <Checkbox label={item.text} checked={item.isChecked} onChange={handlePress} /> : null}
+  </View>
 }
 
 interface ChecklistAddRowProps {
@@ -414,6 +408,7 @@ export function HabitChecklist({
                 index={index}
                 itemsLength={items.length}
                 interactive={interactive}
+                tokens={tokens}
                 onToggle={handleToggle}
                 styles={styles}
               />

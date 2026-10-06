@@ -5,6 +5,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useRouter } from 'next/navigation'
 import type { CalendarCard as CalendarCardData } from '@orbit/shared/types/chat'
 import type { BlockFrameItem } from '@orbit/shared/contracts/blocks'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Button } from '@/components/ui/pill-button'
 
@@ -14,7 +15,7 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
   const router = useRouter()
   const items: BlockFrameItem[] = calendarCard.events.map((event, index) => ({
     id: `event-${index}`,
-    label: event.title,
+    label: <PersonalTextDetails>{event.title}</PersonalTextDetails>,
     wrapLabel: true,
     meta: event.isAllDay ? t('chat.calendarCard.allDay') : displayClock(event.start),
   }))

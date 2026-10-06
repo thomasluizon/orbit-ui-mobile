@@ -93,7 +93,13 @@ for (const width of [412, 1100]) {
         const range = document.createRange()
         range.selectNodeContents(button)
         const text = range.getBoundingClientRect()
-        const lines = range.getClientRects().length
+        const walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT)
+        const lineTops = new Set<number>()
+        while (walker.nextNode()) {
+          range.selectNodeContents(walker.currentNode)
+          for (const rect of range.getClientRects()) if (rect.width > 0) lineTops.add(Math.round(rect.top))
+        }
+        const lines = lineTops.size
         range.selectNodeContents(summary)
         const summaryText = range.getBoundingClientRect()
         const lineHeight = Number.parseFloat(getComputedStyle(button).lineHeight)

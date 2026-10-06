@@ -1,8 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { extname, relative, resolve } from 'node:path'
 import ts from 'typescript'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { applyThemeTokensToDOM, resolveWebThemeVariables } from '@/lib/theme-dom'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const WEB_SOURCE_DIRECTORIES = ['app', 'components', 'hooks', 'lib', 'stores']
 const SHARED_SOURCE_DIRECTORY = resolve(process.cwd(), '../../packages/shared/src')
@@ -171,6 +172,10 @@ function unresolvedReferences(files: ScannedSource[]): string[] {
 const productionSourceFiles = productionSources()
 
 describe('web custom properties', () => {
+  let browserLaunch: BrowserLaunch | undefined
+  let browser: Browser
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
   afterEach(() => {
     document.documentElement.className = ''
     document.documentElement.removeAttribute('style')
@@ -178,7 +183,7 @@ describe('web custom properties', () => {
   })
 
   for (const mode of ['dark', 'light'] as const) {
-    it(`resolves shape and shadow tokens in ${mode} mode`, () => {
+    it(`resolves shape and shadow tokens in ${mode} mode`, async () => {
       const rootBlock = globalsStylesheet(productionSourceFiles).match(/:root\s*{([^}]+)}/)?.[1]
       if (!rootBlock) throw new Error('The :root token block was not found')
       document.head.innerHTML = `<style>:root {${rootBlock}}</style>`
@@ -187,12 +192,19 @@ describe('web custom properties', () => {
       const computed = getComputedStyle(document.documentElement)
       expect(computed.getPropertyValue('--r-card').trim()).toBe('20px')
       expect(computed.getPropertyValue('--r-well').trim()).toBe('12px')
-      expect(computed.getPropertyValue('--sh-2').trim()).toBe(
-        '0 4px 16px rgba(0,0,0,0.28)',
-      )
-      expect(computed.getPropertyValue('--sh-3').trim()).toBe(
-        '0 12px 40px rgba(0,0,0,0.45)',
-      )
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`${document.head.innerHTML}<div style="box-shadow:var(--sh-2)"></div><div style="box-shadow:var(--sh-3)"></div>`)
+        await page.evaluate(({ className, style }) => {
+          document.documentElement.className = className
+          document.documentElement.style.cssText = style
+        }, { className: document.documentElement.className, style: document.documentElement.style.cssText })
+        const shadows = await page.locator('body > div').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).boxShadow))
+        expect(shadows).toEqual([
+          'rgba(0, 0, 0, 0.28) 0px 4px 16px 0px',
+          'rgba(0, 0, 0, 0.45) 0px 12px 40px 0px',
+        ])
+      } finally { await page.close() }
     })
   }
 

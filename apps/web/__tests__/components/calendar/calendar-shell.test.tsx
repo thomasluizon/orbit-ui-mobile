@@ -104,7 +104,7 @@ describe('Calendar shell helpers', () => {
         onNextMonth={vi.fn()}
         onCurrentMonth={vi.fn()}
         onSelectMonth={vi.fn()}
-        showMonthNavigation={false}
+        periodNavigation={<CalendarWeekNav weekLabel="Apr 6 to 12" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} />}
         viewSelector={<div role="group" aria-label="Calendar views" />}
       />,
     )

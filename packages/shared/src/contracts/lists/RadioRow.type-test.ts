@@ -13,6 +13,7 @@ type DisabledVariant = Extract<RadioRowProps, { disabled: true }>
 type EnabledVariant = Extract<RadioRowProps, { disabled?: false }>
 type ExpectedBase = {
   label: string
+  textMode?: 'personal'
   description?: string
   selected?: boolean
   onSelect?: () => void

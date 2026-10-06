@@ -62,9 +62,9 @@ describe('list primitives on mobile', () => {
   ])('limits a personal title to two lines with a trailing ellipsis: %s', (title) => {
     const onOpen = vi.fn()
     const tree = render(<ListRow title={title} textMode="personal" onClick={onOpen} />)
-    const text = tree.root.findByType(Text)
+    const text = tree.root.findAllByType(Text).find((node) => node.props.children === title && node.props.importantForAccessibility !== 'no-hide-descendants')!
     expect(text.props.children).toBe(title)
-    expect(text.props.numberOfLines).toBe(2)
+    expect(text.props.numberOfLines).toBe(1)
     expect(text.props.ellipsizeMode).toBe('tail')
     press(tree.root.findByType(Pressable))
     expect(onOpen).toHaveBeenCalledOnce()

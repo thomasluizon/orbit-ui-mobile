@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -411,7 +412,7 @@ describe('HabitDetailScreen', () => {
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
     expect(headings[0]).not.toHaveFocus()
-    expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
+    expect(headings[0]!.querySelector('button')).toHaveAccessibleName(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
@@ -742,7 +743,7 @@ describe('HabitDetailScreen', () => {
     vi.setSystemTime(new Date(2026, 8, 28, 12))
     mocks.language = 'pt-BR'
     render(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByText('Setembro de 2026')).toBeVisible()
+    expect(screen.getByText(personalText('Setembro de 2026'))).toBeVisible()
     expect(screen.getByLabelText('Atividade do hábito em setembro de 2026')).toBeInTheDocument()
   })
 
@@ -967,7 +968,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedHabits = normalized.habitsById
     render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
 
-    expect(screen.getByText('Nested focus')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Nested focus'))).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
     expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
@@ -1012,7 +1013,7 @@ describe('HabitDetailScreen', () => {
     const previousMonth = screen.getByRole('button', { name: 'previousMonth' })
     for (let index = 0; index < 13; index += 1) fireEvent.click(previousMonth)
 
-    expect(screen.getByText('July 2025')).toBeInTheDocument()
+    expect(screen.getByText(personalText('July 2025'))).toBeInTheDocument()
     expect(screen.queryByText('olderHistoryUnavailable')).not.toBeInTheDocument()
   })
 
@@ -1391,7 +1392,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), reminderEnabled: true, reminderTimes: [10, 30], scheduledReminders: [{ when: 'same_day', time: '08:00' }] }
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByText('habits.detail.reminders')).toBeInTheDocument()
-    expect(screen.getByText('8:00 AM').parentElement).toHaveTextContent('habits.detail.reminderSameDay')
+    expect(screen.getByText(personalText('8:00 AM')).parentElement).toHaveTextContent('habits.detail.reminderSameDay')
   })
   it('orders the open sections like the canvas and swaps checklist logging for editing', () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -2014,7 +2015,7 @@ describe('HabitDetailScreen', () => {
           const offset = Number.parseFloat(style.outlineOffset)
           const outerEdge = offset + Number.parseFloat(style.outlineWidth)
           const range = document.createRange()
-          range.selectNodeContents(heading.querySelector('button')!)
+          range.selectNodeContents(heading.querySelector('[data-personal-text]')!)
           const text = range.getBoundingClientRect()
           return {
             glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
@@ -2042,11 +2043,11 @@ describe('HabitDetailScreen', () => {
           const row = heading.closest('[data-habit-detail-header-row]')!
           const controls = row.firstElementChild!
           const range = document.createRange()
-          range.selectNodeContents(button)
+          range.selectNodeContents(heading.querySelector('[data-personal-text]')!)
           const text = range.getBoundingClientRect()
           const style = getComputedStyle(button)
           const lineHeight = Number.parseFloat(style.lineHeight)
-          const lines = range.getClientRects().length
+          const lines = heading.querySelector('[data-personal-text]')!.getBoundingClientRect().height / lineHeight
           return {
             titleX: text.left,
             summaryX: summary.getBoundingClientRect().left,
@@ -2108,7 +2109,7 @@ describe('HabitDetailScreen', () => {
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
-          const button = element.querySelector('button')!
+          const button = element.querySelector<HTMLButtonElement>(':scope > button')!
           const style = getComputedStyle(button)
           const fontSize = parseFloat(style.fontSize) * 2
           const lineHeight = parseFloat(style.lineHeight) * 2

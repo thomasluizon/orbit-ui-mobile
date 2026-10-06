@@ -106,7 +106,7 @@ describe('ClarificationCard', () => {
     const first = render(<ClarificationCard clarificationRequest={baseClarification} onPreview={onPreview} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} onPendingOperationRevise={vi.fn()} />, { wrapper: createWrapper() })
     const announcement = document.querySelector('span[role="status"]')
     fireEvent.click(screen.getByText('habits.clarification.quickAction.daily'))
-    await waitFor(() => expect(screen.getByText('Beber água')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Beber água' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.edit' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.reject' })).toBeInTheDocument()

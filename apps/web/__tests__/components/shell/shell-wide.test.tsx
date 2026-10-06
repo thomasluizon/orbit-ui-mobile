@@ -84,9 +84,10 @@ describe('ShellWide', () => {
     const { container } = render(<ShellWide items={items} activeId="hoje" navLabel="Main navigation" composer={<div>Composer</div>} fab={<button type="button">Create</button>}><h1>Today</h1></ShellWide>)
     const bottom = container.querySelector('[data-shell-bottom]')
     expect(bottom).not.toHaveClass('shadow-[inset_0_1px_0_var(--hairline)]')
-    const fab = container.querySelector('[data-shell-fab]')
-    expect(fab).toHaveClass('absolute', 'right-4')
-    expect(fab).toHaveStyle({ bottom: 'calc(100% + 16px)' })
+    const fab = container.querySelector<HTMLElement>('[data-shell-fab]')
+    expect(fab).toContainElement(screen.getByRole('button', { name: 'Create' }))
+    expect(container.querySelector('[data-shell-scroller]')).not.toContainElement(fab)
+    expect(bottom).toContainElement(fab)
   })
 
   it('owns the 232px navigation, 740px canvas, notice, and pinned composer', () => {
@@ -180,11 +181,12 @@ describe('ShellWide', () => {
       />,
     )
 
-    const account = screen.getByRole('link', { name: 'Ada Lovelace ada@example.com' })
+    const account = screen.getByRole('link', { name: 'Ada Lovelace, ada@example.com' })
     expect(account).toHaveAttribute('href', '/profile')
     expect(within(account).getByText('ada@example.com')).toBeInTheDocument()
     expect(account.querySelector('[aria-hidden="true"]')).toHaveTextContent('A')
     expect(within(account).queryByRole('button')).not.toBeInTheDocument()
+    expect(account.nextElementSibling).toBeNull()
   })
 
   it('reserves the account row while its profile loads', () => {
@@ -199,7 +201,7 @@ describe('ShellWide', () => {
     rerender(<ShellWide {...props} account="Ada Lovelace" />)
     const account = screen.getByRole('link', { name: 'Ada Lovelace' })
     expect(account).toHaveClass('min-h-[var(--touch-min)]')
-    expect(account.previousElementSibling).toContainElement(create)
+    expect(account.parentElement?.previousElementSibling).toContainElement(create)
   })
 
   it('uses a modal conversation overlay below the side-panel breakpoint', () => {

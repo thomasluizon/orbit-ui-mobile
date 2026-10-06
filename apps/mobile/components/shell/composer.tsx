@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import {
   hasComposerContent,
   type ComposerAttachWords,
@@ -49,7 +50,7 @@ function AttachmentTray({
           <AttachmentIcon kind={attachment.kind} color={tokens.fg2} />
           <InsetFocusPressable accessibilityRole="button" accessibilityLabel={attachment.name} onPress={() => setSelectedName(attachment.name)}
             style={({ pressed }) => [styles.attachmentNameControl, pressed ? { backgroundColor: tokens.bgHover } : null]}>
-            <Text numberOfLines={2} style={[styles.attachmentName, { color: tokens.fg2 }]}>{attachment.name}</Text>
+            <PersonalText style={[styles.attachmentName, { color: tokens.fg2 }]}>{attachment.name}</PersonalText>
           </InsetFocusPressable>
           <InsetFocusPressable
             accessibilityRole="button"
@@ -66,7 +67,7 @@ function AttachmentTray({
       ))}
     </View>
     {selectedName ? <Sheet title={words.trayLabel} onClose={() => setSelectedName(null)}>
-      <Text style={[styles.fullAttachmentName, { color: tokens.fg1 }]}>{selectedName}</Text>
+      <PersonalText expanded style={[styles.fullAttachmentName, { color: tokens.fg1 }]}>{selectedName}</PersonalText>
     </Sheet> : null}
   </>
 }

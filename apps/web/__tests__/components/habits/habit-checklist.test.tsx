@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
@@ -54,9 +55,9 @@ describe('HabitChecklist', () => {
     it('renders all checklist item texts', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} />)
-      expect(screen.getByText('Step 1')).toBeDefined()
-      expect(screen.getByText('Step 2')).toBeDefined()
-      expect(screen.getByText('Step 3')).toBeDefined()
+      expect(screen.getByText(personalText('Step 1'))).toBeDefined()
+      expect(screen.getByText(personalText('Step 2'))).toBeDefined()
+      expect(screen.getByText(personalText('Step 3'))).toBeDefined()
     })
   })
 
@@ -92,12 +93,13 @@ describe('HabitChecklist', () => {
       expect(onToggle).toHaveBeenCalledWith(0)
     })
 
-    it('calls onToggle when the item text is clicked', () => {
+    it('discloses the full label without changing its checked state', () => {
       const onToggle = vi.fn()
       const items = makeItems()
       render(<HabitChecklist items={items} interactive onToggle={onToggle} />)
-      fireEvent.click(screen.getByText('Step 3'))
-      expect(onToggle).toHaveBeenCalledWith(2)
+      fireEvent.click(screen.getByRole('button', { name: 'Step 3' }))
+      expect(screen.getByRole('button', { name: 'Step 3' })).toHaveAttribute('aria-expanded', 'true')
+      expect(onToggle).not.toHaveBeenCalled()
     })
 
     it('shows reset button when at least one item is checked', () => {
@@ -140,8 +142,8 @@ describe('HabitChecklist', () => {
     it('dims checked items without striking their labels', () => {
       const items = [{ text: 'Done task', isChecked: true }]
       render(<HabitChecklist items={items} interactive />)
-      const span = screen.getByText('Done task')
-      expect(span.className).toContain('text-[var(--fg-3)]')
+      const span = screen.getByText(personalText('Done task'))
+      expect(span).toHaveStyle({ color: 'var(--fg-3)' })
       expect(span.className).not.toContain('line-through')
     })
 

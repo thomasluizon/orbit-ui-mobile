@@ -188,7 +188,9 @@
       "route-profile-account",
       "route-profile-astra",
       "route-profile-notifications",
-      "route-profile-preferences"
+      "route-profile-preferences",
+      "m-overlay-components-account-navigation-row",
+      "overlay-components-account-navigation-row"
     ],
     "Orbit Pro": [
       "m-overlay-ui-trial-expired-modal",
@@ -234,7 +236,9 @@
       "overlay-ui-discard-changes-sheet",
       "overlay-ui-menu",
       "overlay-ui-sheet",
-      "overlay-ui-time-field"
+      "overlay-ui-time-field",
+      "m-overlay-ui-personal-text-details",
+      "overlay-ui-personal-text-details"
     ],
     "Orbit Verificacao": [
       "m-route-auth-callback",

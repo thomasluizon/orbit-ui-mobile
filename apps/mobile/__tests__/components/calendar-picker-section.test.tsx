@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
@@ -143,16 +144,16 @@ describe('mobile CalendarPickerSection', () => {
     const name = ('Calendário dos compromissos de toda a família ' + 'encontros '.repeat(12)).trim()
     mocks.calendars = [buildCalendar({ name })]
     const tree = render(true)
-    const title = tree.root.findAll((node) => node.type === 'Text' && node.props.children === name)[0]!
-    expect(title.props.numberOfLines).toBe(2)
+    const title = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === name)[0]!
+    expect(title.props.numberOfLines).toBe(1)
     const open = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === name)[0]!
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(true)
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === name && node.props.numberOfLines === undefined)).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === name && node.props.expanded === true)).toHaveLength(1)
     expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
     TestRenderer.act(() => { (open.props.onPress as () => void)() })
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === name && node.props.numberOfLines === undefined)).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === name && node.props.expanded === true)).toHaveLength(0)
     expect((open.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded).toBe(false)
     expect(mocks.mutate).not.toHaveBeenCalled()
     expect((checkboxes(tree)[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
@@ -183,7 +184,7 @@ describe('mobile CalendarPickerSection', () => {
       options.onError(new ApiClientError(403, 'Forbidden'))
     })
 
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlockedRetry')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlockedRetry')).toHaveLength(1)
     expect(mocks.showError).not.toHaveBeenCalled()
   })
 

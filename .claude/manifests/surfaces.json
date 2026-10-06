@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 218,
-  "cellCount": 928,
+  "surfaceCount": 222,
+  "cellCount": 944,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -824,8 +824,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx"
+        "apps/web/app/(app)/profile/page.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -839,8 +838,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx"
+        "apps/web/app/(app)/profile/page.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -854,8 +852,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx"
+        "apps/web/app/(app)/profile/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -869,8 +866,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx",
-        "apps/web/components/profile/profile-nav-icon.tsx"
+        "apps/web/app/(app)/profile/page.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3773,6 +3769,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-components-account-navigation-row",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-account-navigation-row",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-components-account-navigation-row",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-components-account-navigation-row",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-components-delete-account-modal",
       "platform": "web",
       "kind": "overlay",
@@ -6217,6 +6265,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-ui-personal-text-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-personal-text-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-ui-personal-text-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-ui-personal-text-details",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-ui-sheet",
       "platform": "web",
       "kind": "overlay",
@@ -6957,8 +7057,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
-        "apps/mobile/components/profile/profile-nav-icon.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -6973,8 +7072,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
-        "apps/mobile/components/profile/profile-nav-icon.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
       ],
       "state": "default",
       "theme": "light",
@@ -6989,8 +7087,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
-        "apps/mobile/components/profile/profile-nav-icon.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -7005,8 +7102,7 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
-        "apps/mobile/components/profile/profile-nav-icon.tsx"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
       ],
       "state": "default",
       "theme": "dark",
@@ -9881,6 +9977,58 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-components-account-navigation-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-account-navigation-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-components-account-navigation-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-components-account-navigation-row",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-components-delete-account-modal",
       "platform": "mobile",
       "kind": "overlay",
@@ -12691,6 +12839,58 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/components/ui/menu.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-personal-text-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-personal-text-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-ui-personal-text-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/personal-text-details.tsx"
+      ],
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-ui-personal-text-details",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/ui/personal-text-details.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/ui/personal-text-details.tsx"
       ],
       "state": "default",
       "theme": "dark",

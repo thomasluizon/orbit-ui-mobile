@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import userEvent from '@testing-library/user-event'
 import type { Locator } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -346,7 +347,7 @@ describe('CalendarSyncPage', () => {
       const events = Array.from({ length: count }, (_, index) => createMockCalendarSyncEvent({ id: `count-${index}`, title: `Event ${index}`, isRecurring: false, recurrenceRule: null }))
       mockFetchResponse = { ok: true, status: 200, json: () => Promise.resolve(events) }
       renderPage(true)
-      await screen.findByText('Event 0')
+      await screen.findByText(personalText('Event 0'))
       const row = screen.getByTestId('section-heading-row')
       const expected = `${count} ${locale === 'pt-BR' ? 'eventos' : 'events'}`
       expect(row.querySelector('h2')?.textContent).toBe(expected)
@@ -401,7 +402,7 @@ describe('CalendarSyncPage', () => {
       const contrastEvent = { ...longEvent, title: 'Planning the weekly training schedule', calendarName: 'Work calendar', description: 'Review every preparation step before importing.' }
       provideEvents(true, blocked, contrastEvent)
       const { container } = renderPage()
-      await screen.findByText(contrastEvent.title)
+      await screen.findByText(personalText(contrastEvent.title))
       const row = screen.getByRole('button', { name: new RegExp('Planning the weekly training') })
       if (!selected && !blocked) fireEvent.click(row)
       const page = await browser.newPage({ viewport: { width: 412, height: 900 } })
@@ -447,13 +448,14 @@ describe('CalendarSyncPage', () => {
     ])('wraps all full values at %ipx, review: %s, blocked: %s', async (width, review, blocked) => {
       provideEvents(review, blocked)
       const { container } = renderPage()
-      await screen.findByText(longEvent.title)
+      await screen.findByText(personalText(longEvent.title))
+      fireEvent.click(screen.getAllByRole('button', { name: 'contextMenu.viewDetails' })[0]!)
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         await page.setContent(`<style>${stylesheet}</style><div style="width: min(100%, 480px)">${container.innerHTML}</div>`)
         await loadAppFonts(page)
         for (const value of [longEvent.title, longEvent.calendarName!, longEvent.description!]) {
-          const field = page.getByText(value, { exact: true })
+          const field = value === longEvent.description ? page.getByText(value, { exact: true }) : page.locator('[data-calendar-event-disclosure]').getByText(value, { exact: true })
           const geometry = await field.evaluate((element) => {
             const bounds = element.getBoundingClientRect()
             const style = getComputedStyle(element)
@@ -467,7 +469,8 @@ describe('CalendarSyncPage', () => {
             }
           })
           expect(geometry.height, value).toBeGreaterThan(geometry.lineHeight)
-          expect(geometry.textInside, value).toBe(true)
+          if (value === longEvent.description) expect(geometry.textInside, value).toBe(true)
+          else expect(await field.getAttribute('data-personal-text')).toBe('')
           expect(geometry.horizontalOverflow, value).toBe(false)
         }
       } finally { await page.close() }
@@ -608,9 +611,9 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+      expect(screen.getByText(personalText('Morning Workout'))).toBeInTheDocument()
     })
-    expect(screen.getByText('Team Meeting')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Team Meeting'))).toBeInTheDocument()
     expect(document.body.textContent).toContain('calendar.eventsFound')
     expect(screen.getAllByRole('button').some((button) => button.getAttribute('aria-pressed') === 'true')).toBe(true)
   })
@@ -640,12 +643,12 @@ describe('CalendarSyncPage', () => {
     renderPage()
 
     const issue = await screen.findByText('calendar.importIssue.ordinalWeekday')
-    expect(screen.getByText('Second Monday review').closest('button')).toBeDisabled()
+    expect(screen.getByText(personalText('Second Monday review')).closest('button')).toBeDisabled()
     expect(issue).toBeVisible()
     expect(screen.queryByLabelText('calendar.selectAll')).not.toBeInTheDocument()
     expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
 
-    const row = screen.getByText('Second Monday review').closest('button')?.parentElement
+    const row = screen.getByText(personalText('Second Monday review')).closest('button')?.parentElement
     expect(row?.className).not.toContain('hover:bg-[var(--bg-elev)]')
     expect(row).toHaveStyle({ background: 'var(--bg-elev)' })
   })
@@ -672,7 +675,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText('Alternate week training')).closest('button')).not.toBeDisabled()
+    expect((await screen.findByText(personalText('Alternate week training'))).closest('button')).not.toBeDisabled()
     const importButton = (await screen.findByText(/calendar.importButton/)).closest('button')
     expect(importButton).not.toBeDisabled()
     fireEvent.click(importButton!)
@@ -701,7 +704,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    expect((await screen.findByText('Unsupported training')).closest('button')).toBeDisabled()
+    expect((await screen.findByText(personalText('Unsupported training'))).closest('button')).toBeDisabled()
     expect(screen.getByText('calendar.importIssue.unsupportedWeekdayRecurrence')).toBeVisible()
     expect(screen.queryByLabelText('calendar.selectAll')).not.toBeInTheDocument()
     expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
@@ -732,7 +735,7 @@ describe('CalendarSyncPage', () => {
     renderPage()
 
     expect(await screen.findByText('calendar.importIssue.finiteDateClamp')).toBeVisible()
-    expect(screen.getByText('Month end close').closest('button')).toBeDisabled()
+    expect(screen.getByText(personalText('Month end close')).closest('button')).toBeDisabled()
   })
 
   it('keeps the actionable hover treatment on a row that can still be imported', async () => {
@@ -759,7 +762,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
 
-    const button = await screen.findByText('Weekly review')
+    const button = await screen.findByText(personalText('Weekly review'))
     const hitArea = button.closest('button')
     expect(hitArea).not.toBeDisabled()
     expect(hitArea?.className).toContain('enabled:hover:bg-[var(--bg-hover)]')
@@ -797,7 +800,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Event 1')).toBeInTheDocument()
+      expect(screen.getByText(personalText('Event 1'))).toBeInTheDocument()
     })
 
     expect(screen.getByLabelText('calendar.deselectAll')).toBeInTheDocument()
@@ -849,7 +852,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Daily Standup')).toBeInTheDocument()
+      expect(screen.getByText(personalText('Daily Standup'))).toBeInTheDocument()
     })
     expect(screen.getByText('calendar.recurrenceDaily')).toBeInTheDocument()
   })
@@ -880,12 +883,12 @@ describe('CalendarSyncPage', () => {
     }) as unknown as typeof fetch
 
     renderPage()
-    await screen.findByText('Morning Workout')
+    await screen.findByText(personalText('Morning Workout'))
     const offlineStatus = screen.getByRole('status')
     setNavigatorOnline(false)
     act(() => { globalThis.dispatchEvent(new Event('offline')) })
 
-    expect(screen.getByText('Morning Workout')).toBeVisible()
+    expect(screen.getByText(personalText('Morning Workout'))).toBeVisible()
     const refusals = screen.getAllByText('offline.calendar.reason')
     expect(refusals).toHaveLength(1)
     expect(offlineStatus).toHaveTextContent('offline.calendar.reason')
@@ -908,11 +911,11 @@ describe('CalendarSyncPage', () => {
     }
 
     renderPage()
-    await screen.findByText('Team meeting')
+    await screen.findByText(personalText('Team meeting'))
     setNavigatorOnline(false)
     act(() => { globalThis.dispatchEvent(new Event('offline')) })
 
-    expect(screen.getByText('Team meeting')).toBeVisible()
+    expect(screen.getByText(personalText('Team meeting'))).toBeVisible()
     expect((await screen.findByText(/calendar.importButton/)).closest('button')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'calendar.autoSync.dismissSuggestion' })).toBeDisabled()
     expect(mockBulkMutate).not.toHaveBeenCalled()
@@ -950,7 +953,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText(habitName)).toBeInTheDocument()
+      expect(screen.getByText(personalText(habitName))).toBeInTheDocument()
     })
 
     fireEvent.click(await screen.findByText(/calendar\.importButton/))
@@ -958,13 +961,13 @@ describe('CalendarSyncPage', () => {
     await waitFor(() => {
       expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
     })
-    expect(screen.getByText(habitName)).toBeInTheDocument()
+    expect(screen.getByText(personalText(habitName))).toBeInTheDocument()
     const importedHabit = screen.getByRole('button', { name: habitName })
     expect(importedHabit).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(importedHabit)
     expect(importedHabit).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText(habitName)).toBeVisible()
-    expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
+    expect(screen.getByText(personalText(habitName))).toBeVisible()
+    expect(screen.queryByText(personalText('Team Meeting'))).not.toBeInTheDocument()
     expect(screen.getAllByRole('alert').some((alert) => alert.textContent === 'calendar.importPartialFailure:{"count":1}')).toBe(true)
     expect(toastError).not.toHaveBeenCalled()
   })
@@ -996,7 +999,7 @@ describe('CalendarSyncPage', () => {
 
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+      expect(screen.getByText(personalText('Morning Workout'))).toBeInTheDocument()
     })
     fireEvent.click(await screen.findByText(/calendar\.importButton/))
     await waitFor(() => {

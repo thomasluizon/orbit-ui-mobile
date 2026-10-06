@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { ActionRow } from './action-row'
 
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref, type RefObject } from 'react'
@@ -157,7 +159,7 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
                   ...(boundedBody ? { display: 'flex', flexDirection: 'column', minHeight: 0 } as const : {}),
                   ...(virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } as const : {}),
                 }}>
-                  {titleMode === 'typed' ? <p id={`${overlayId}-full-title`} hidden={!titleExpanded} className="orbit-sheet-full-title">{title}</p> : null}
+                  <ExpandedSheetTitle title={title} titleMode={titleMode} expanded={titleExpanded} id={`${overlayId}-full-title`} />
                   {children}
                 </div>
               </>
@@ -178,6 +180,11 @@ export function Sheet({ title, titleMode = 'label', titleTranslate, accessibleTi
   )
 }
 
+function ExpandedSheetTitle({ title, titleMode, expanded, id }: Readonly<Pick<SheetProps, 'title' | 'titleMode'> & { expanded: boolean; id: string }>) {
+  if (!title || titleMode !== 'typed') return null
+  return <div id={id} hidden={!expanded}><PersonalText expanded className="orbit-sheet-full-title">{title}</PersonalText></div>
+}
+
 function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onToggle, fullTitleId }: Pick<SheetProps, 'title' | 'titleMode' | 'accessibleTitle'> & {
   expanded: boolean
   onToggle: () => void
@@ -188,7 +195,7 @@ function SheetTitleContent({ title, titleMode, accessibleTitle, expanded, onTogg
   return (
     <button type="button" className="orbit-sheet-title-button" aria-expanded={expanded}
       aria-controls={fullTitleId} title={t(expanded ? 'common.collapse' : 'common.expand')} onClick={onToggle}>
-      <span className="orbit-sheet-typed-title">{title}</span>
+      <PersonalText className="orbit-sheet-typed-title">{title}</PersonalText>
     </button>
   )
 }

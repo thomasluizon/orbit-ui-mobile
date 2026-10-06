@@ -54,8 +54,9 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
           expect(box.bottom).toBeLessThan(segments.bottom)
           expect(box.width).toBeGreaterThanOrEqual(48)
           expect(box.height).toBeGreaterThanOrEqual(48)
-          await expectInteractionFill(control)
+          if (!(await control.evaluate((element) => element.matches('.orbit-pill-action')))) await expectInteractionFill(control)
         }
+        await expect(current).toHaveClass(/orbit-pill-action/)
         await markRequiredLabels(current)
         await markUserText(page, [habitTitle])
         await expectLabelsFit(page, header)

@@ -226,27 +226,40 @@ describe('owning onboarding pitch geometry', () => {
         }
       })
       process.stdout.write(`${JSON.stringify({ width, locale, trial, geometry })}\n`)
-      if (!trial) expect(geometry.lines).toBe(1)
-      else expect(geometry.lines).toBeLessThanOrEqual(2)
+      expect(geometry.lines).toBe(1)
       expect(geometry.outside).toBe(false)
       expect(geometry.ellipsis).toBe(false)
       expect(geometry.whiteSpace).toBe('normal')
       expect(geometry.fontSize).toBe(width < 640 ? 28 : 34)
       expect(geometry.fontWeight).toBe('500')
       expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
-      if (!trial) expect(geometry.textWidth).toBeLessThanOrEqual(geometry.measure)
+      expect(geometry.textWidth).toBeLessThanOrEqual(geometry.measure)
+      if (width === 320 && trial) expect(geometry.textWidth).toBeLessThanOrEqual(268)
       if (width < 1024) {
         expect(geometry.scrollerMeasure).toBe(width - 4)
         expect(geometry.measure).toBe(Math.min(width - 4, 440) - 32)
       }
-      await page.locator('[data-onboarding-step] header :is(h1,h2)').evaluate((element) => { (element as HTMLElement).style.fontSize = '56px' })
+      await page.locator('[data-onboarding-step] header :is(h1,h2)').evaluate((element) => {
+        (element as HTMLElement).style.fontSize = `${Number.parseFloat(getComputedStyle(element).fontSize) * 2}px`
+      })
       const grown = await page.locator('[data-onboarding-step] header :is(h1,h2)').evaluate((element) => {
         const range = document.createRange()
         range.selectNodeContents(element)
-        return { lines: new Set([...range.getClientRects()].map((fragment) => Math.round(fragment.top))).size, height: element.getBoundingClientRect().height }
+        const fragments = [...range.getClientRects()]
+        const bounds = element.getBoundingClientRect()
+        const style = getComputedStyle(element)
+        return {
+          lines: new Set(fragments.map((fragment) => Math.round(fragment.top))).size,
+          height: bounds.height,
+          outside: fragments.some((fragment) => fragment.left < bounds.left - 0.5 || fragment.right > bounds.right + 0.5),
+          clipped: [style.overflowX, style.overflowY].some((overflow) => overflow === 'hidden' || overflow === 'clip'),
+        }
       })
+      process.stdout.write(`${JSON.stringify({ width, locale, trial, grown })}\n`)
       if (width === 320) expect(grown.lines).toBeGreaterThan(1)
-      expect(grown.height).toBeGreaterThan(56)
+      expect(grown.height).toBeGreaterThan(geometry.fontSize * 2)
+      expect(grown.outside).toBe(false)
+      expect(grown.clipped).toBe(false)
     } finally { await page.close() }
   })
 })

@@ -26,6 +26,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { HabitRow } from '@/components/habits/habit-row'
 import { HabitRowContent } from '@/components/habits/habit-row-content'
 import { EventRow } from '@/components/dates/event-row'
+import { PersonalText } from '@/components/ui/personal-text'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { loadAppFonts } from './app-fonts'
@@ -359,6 +360,46 @@ describe('label and interaction fill guards in Chromium', () => {
     }
   })
 
+  it('measures painted ellipsized text and still rejects a touching fill', async () => {
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    const text = renderToStaticMarkup(createElement(PersonalText, null, email))
+    const page = await browser.newPage()
+    try {
+      await page.bringToFront()
+      await page.setContent(`<!doctype html><style>${stylesheet}
+        button { width: 200px; min-height: 48px; padding: 8px 16px; border: 0; border-radius: 12px;
+          background: rgb(220, 220, 220); }
+        button:hover { background: rgb(180, 180, 180); }
+        button:active { background: rgb(140, 140, 140); }
+      </style><button>${text}</button>`)
+      await loadAppFonts(page)
+      const rawOverflow = await page.locator('[data-personal-text]').evaluate((element) => {
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        return range.getBoundingClientRect().right - element.getBoundingClientRect().right
+      })
+      expect(rawOverflow).toBeGreaterThan(100)
+      await expectInteractionFill(page.locator('button'))
+
+      await page.locator('button').evaluate((element) => { element.style.paddingInline = '0' })
+      await expect(expectFillShape(page.locator('button'), 'touching')).rejects.toThrow('fill has inline breathing room')
+      await page.locator('button').evaluate((element) => { element.style.paddingInline = '16px' })
+      await expectFillShape(page.locator('button'), 'restored')
+    } finally { await page.close() }
+  })
+
+  it('excludes text fully clipped by an ancestor', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>
+        button { width: 120px; min-height: 48px; padding: 8px 16px; border: 0; border-radius: 12px;
+          background: rgb(220, 220, 220); }
+        .clip { display: block; height: 0; overflow: hidden; }
+      </style><button>Options<span class="clip"><span>Unpainted text that exceeds the fill</span></span></button>`)
+      await expectFillShape(page.locator('button'), 'clipped')
+    } finally { await page.close() }
+  })
+
   it.each([
     { name: 'visible layer', hoverOpacity: '0.5', pressOpacity: '0.5', ancestorOpacity: '1', error: null },
     { name: 'invisible hover layer', hoverOpacity: '0', pressOpacity: '1', ancestorOpacity: '1', error: 'hover: the fill has visible effective opacity' },
@@ -541,6 +582,50 @@ describe('label and interaction fill guards in Chromium', () => {
     } finally {
       await page.close()
     }
+  })
+
+  it('rejects a typed email broken inside its token and accepts the personal row rendering', async () => {
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    try {
+      await page.setContent(`<style>${stylesheet}</style><button>Edit</button>
+        <span data-layout-text-origin="user" style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;width:180px;overflow:hidden;overflow-wrap:anywhere">${email}</span>`)
+      await expect(expectLabelsFit(page)).rejects.toThrow('user text must never break inside a word or token')
+      const row = renderToStaticMarkup(createElement(ListRow, { title: 'Account', description: email, textMode: 'personal', href: '/profile/account' }))
+      await page.setContent(`<style>${stylesheet}</style><main>${row}<button>Edit</button></main>`)
+      await loadAppFonts(page)
+      await markUserText(page, [email])
+      await expectLabelsFit(page, page, [email])
+    } finally { await page.close() }
+  })
+
+  it('allows the unclamped rename heading while retaining word-boundary checks', async () => {
+    const title = Array(3).fill('Read a long chapter and discuss the details with the reading group').join(' ')
+    const heading = render(createElement('h1', { style: { fontSize: 22, lineHeight: 1.4 } }, createElement('button', { type: 'button', 'aria-label': title, style: { width: '100%', whiteSpace: 'normal' } }, cloneElement(createElement(PersonalText, null, title), { unclamped: true }))))
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main style="width:288px">${heading.container.innerHTML}<button>Rename</button></main>`)
+      await loadAppFonts(page)
+      await expectLabelsFit(page, page, [title])
+    } finally { await page.close(); heading.unmount() }
+  })
+
+  it('measures the visual copy of a split row without exposing it twice to assistive technology', async () => {
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    const row = render(createElement(ListRow, { title: 'Account', description: email, textMode: 'personal', personalExpanded: false, onClick: () => {} }))
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><main>${row.container.innerHTML}<button>Edit</button></main>`)
+      await loadAppFonts(page)
+      await markUserText(page, [email])
+      await expectLabelsFit(page, page, [email])
+      await page.getByRole('button', { name: `Account, ${email}` }).evaluate((element) => {
+        const control = element as HTMLElement
+        control.style.setProperty('transition', 'none', 'important')
+        control.style.setProperty('background-color', 'rgb(220, 220, 220)', 'important')
+      })
+      await expectFillShape(page.getByRole('button', { name: `Account, ${email}` }), 'resting')
+    } finally { await page.close(); row.unmount() }
   })
 
   it('marks the typed field beside a decorative emoji and requires its current rendered mark', async () => {

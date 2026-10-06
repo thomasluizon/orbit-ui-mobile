@@ -153,10 +153,10 @@ describe('CalendarGrid (mobile)', () => {
         tree = TestRenderer.create(view === 'month'
           ? <CalendarGrid gridDays={month.gridDays} weekdayHeaders={weekdayLabels.map((label, index) => ({ key: String(index), label }))}
               selectedDay={null} isLoading={isLoading} onSelectDay={vi.fn()} language="en" t={(key) => key} tokens={tokens} />
-          : <CalendarRangeView model={range} weekdayLabels={weekdayLabels} rangeLabel="Range" previousRangeLabel="Previous" nextRangeLabel="Next"
-              onPreviousRange={vi.fn()} onNextRange={vi.fn()} nextRangeDisabled={false} isLoading={isLoading} loadingLabel="Loading"
+          : <CalendarRangeView model={range} weekdayLabels={weekdayLabels} rangeLabel="Range"
+              isLoading={isLoading} loadingLabel="Loading"
               stats={[{ key: 'bestStreak', value: range.stats.bestStreak, label: 'Streak' }, { key: 'totalLogs', value: range.stats.totalLogs, label: 'Logs' }, { key: 'missed', value: range.stats.missed, label: 'Missed' }]}
-              language="en" t={i18n.t} tokens={tokens} />)
+              language="en" t={i18n.t} />)
       })
       const geometry = measureGrid(tree.toJSON(), width, view, isLoading)
       expect(geometry.frameWidth).toBe(width)
