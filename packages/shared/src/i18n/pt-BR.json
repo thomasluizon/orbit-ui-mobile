@@ -1729,21 +1729,21 @@
         "unsubscribePush": "Desativar avisos"
       },
       "approveCount": {
-        "createHabits": "Criar {count, plural, one {# hábito} other {# hábitos}}",
-        "logHabits": "Registrar {count, plural, one {# hábito} other {# hábitos}}",
-        "skipHabits": "Pular {count, plural, one {# hábito} other {# hábitos}}",
-        "updateHabits": "Alterar {count, plural, one {# hábito} other {# hábitos}}",
-        "rescheduleHabits": "Reagendar {count, plural, one {# hábito} other {# hábitos}}",
-        "deleteHabits": "Apagar {count, plural, one {# hábito} other {# hábitos}}",
-        "updateHabitEmojis": "Alterar {count, plural, one {# ícone de hábito} other {# ícones de hábitos}}",
-        "bulkLogHabits": "Registrar {count, plural, one {# hábito} other {# hábitos}}",
-        "bulkSkipHabits": "Pular {count, plural, one {# hábito} other {# hábitos}}"
+        "createHabits": "Criar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+        "logHabits": "Registrar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+        "skipHabits": "Pular {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+        "updateHabits": "Alterar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+        "rescheduleHabits": "Reagendar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+        "deleteHabits": "Apagar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+        "updateHabitEmojis": "Alterar {count, plural, =0 {# ícones de hábitos} one {# ícone de hábito} other {# ícones de hábitos}}",
+        "bulkLogHabits": "Registrar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}",
+        "bulkSkipHabits": "Pular {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}"
       },
       "deleteTitle": {
-        "habits": "Apagar {count, plural, one {# hábito} other {# hábitos}}?",
-        "goals": "Apagar {count, plural, one {# meta} other {# metas}}?",
-        "tags": "Apagar {count, plural, one {# tag} other {# tags}}?",
-        "alerts": "Apagar {count, plural, one {# aviso} other {# avisos}}?",
+        "habits": "Apagar {count, plural, =0 {# hábitos} one {# hábito} other {# hábitos}}?",
+        "goals": "Apagar {count, plural, =0 {# metas} one {# meta} other {# metas}}?",
+        "tags": "Apagar {count, plural, =0 {# tags} one {# tag} other {# tags}}?",
+        "alerts": "Apagar {count, plural, =0 {# avisos} one {# aviso} other {# avisos}}?",
         "memories": "Apagar {count}?",
         "templates": "Apagar {count}?"
       },
