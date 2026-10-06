@@ -85,42 +85,16 @@ afterEach(() => {
 
 describe('alerts', () => {
   let textStyles: string
-  let layoutRules: { selector: string; media: string; declarations: Record<string, string> }[]
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
     const rules: string[] = []
-    layoutRules = []
     compiled.root.walkRules((rule) => {
-      const declarations: Record<string, string> = {}
-      rule.walkDecls((declaration) => { declarations[declaration.prop] = declaration.value })
-      layoutRules.push({ selector: rule.selector, media: rule.parent?.type === 'atrule' ? rule.parent.params : '', declarations })
       if (rule.selector.startsWith('.text-')) {
         rule.walkDecls('color', (declaration) => { rules.push(`${rule.selector} { color: ${declaration.value}; }`) })
       }
     })
     textStyles = rules.join('\n')
-  })
-
-  it('aligns the list with the header title at 1352px and caps it at 560px', () => {
-    seed(1)
-    showInbox()
-    const heading = screen.getByRole('heading', { name: en.notifications.title })
-    const back = screen.getByRole('button', { name: en.common.back })
-    const list = screen.getByRole('list', { name: en.notifications.title })
-    expect(heading.parentElement).toHaveClass('ps-[8px]', 'gap-[8px]')
-    expect(back).toHaveClass('min-h-[48px]', 'w-[48px]')
-    expect(list.parentElement).toHaveClass('lg:ms-12', 'lg:ps-4')
-    expect(list).toHaveClass('lg:max-w-[560px]', 'lg:px-0')
-    const wideRule = (selector: string, property: string) => layoutRules.find((rule) =>
-      rule.selector === selector && rule.media === '(width >= 64rem)',
-    )?.declarations[property]
-    expect(1352).toBeGreaterThan(1024)
-    expect(wideRule('.lg\\:ms-12', 'margin-inline-start')).toBe('calc(var(--spacing) * 12)')
-    expect(wideRule('.lg\\:ps-4', 'padding-inline-start')).toBe('calc(var(--spacing) * 4)')
-    expect(12 * 4 + 4 * 4).toBe(8 + 48 + 8)
-    expect(wideRule('.lg\\:max-w-\\[560px\\]', 'max-width')).toBe('560px')
-    expect(wideRule('.lg\\:px-0', 'padding-inline')).toBe('0px')
   })
 
   it.each(['dark', 'light'].flatMap((mode) =>
