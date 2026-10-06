@@ -225,6 +225,7 @@ describe('WrappedSlide', () => {
   it('shows an 88px well with the habit initial when emoji is absent', () => {
     renderSlide({ id: 'topHabit', habit: { name: 'Read', emoji: null, completionRate: 50, completedCount: 5, scheduledCount: 10 } })
     const well = screen.getByTestId('wrapped-slide-topHabit').querySelector('[data-wrapped-figure="primary"]')
+    expect(screen.getByRole('heading', { level: 2 })).toHaveAccessibleName('Read')
     expect(well).toHaveClass('size-[88px]', 'bg-[var(--bg-well)]')
     expect(well).toHaveTextContent('R')
     expect(well).not.toHaveTextContent('⭐')

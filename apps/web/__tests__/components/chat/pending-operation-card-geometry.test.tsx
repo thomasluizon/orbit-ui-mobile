@@ -62,7 +62,7 @@ describe('Pending preview geometry in Chromium', () => {
     const messages = locale === 'en' ? en : pt
     const { container } = render(<ConversationPreview locale={locale} />)
     expect(screen.getByText(messages.habits.frequency.everyDay)).toBeInTheDocument()
-    expect(screen.getAllByText('Beber água')).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Beber água' })).toHaveLength(1)
     expect(screen.queryByText('Day')).not.toBeInTheDocument()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

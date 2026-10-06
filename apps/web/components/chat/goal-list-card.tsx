@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+import { PersonalText } from '@/components/ui/personal-text'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
@@ -26,7 +28,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     const tracking = getGoalMetricsStatusPresentation(item.trackingStatus)
     return {
       id: item.id,
-      label: tracking ? <div className="flex items-center gap-2"><button type="button" className="min-h-[var(--touch-min)] min-w-0 flex-1 truncate border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:text-[var(--fg-2)]" onClick={() => onOpenGoal?.(item.id)}>{item.title}</button><Badge variant="outline">{t(tracking.labelKey)}</Badge></div> : <button type="button" className="min-h-[var(--touch-min)] w-full truncate border-0 bg-transparent text-left text-sm text-[var(--fg-1)] hover:text-[var(--fg-2)]" onClick={() => onOpenGoal?.(item.id)}>{item.title}</button>,
+      label: <div className="flex min-w-0 flex-col items-start gap-2">{onOpenGoal ? <button type="button" className="min-h-[var(--touch-min)] w-full min-w-0 rounded-[12px] border-0 bg-transparent px-2 py-1 text-left text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2" aria-label={item.title} onClick={() => onOpenGoal(item.id)}><PersonalText>{item.title}</PersonalText></button> : <PersonalTextDetails>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}</div>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
       wrapMeta: projected != null,
       control: value === 100

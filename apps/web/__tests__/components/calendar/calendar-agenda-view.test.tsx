@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -49,8 +50,8 @@ describe('CalendarAgendaView', () => {
     renderAgenda()
 
     expect(screen.getAllByTestId('calendar-agenda-day')).toHaveLength(7)
-    expect(screen.getByText('calendar.agenda.today, Day 12')).toBeDefined()
-    expect(screen.getByText('Morning walk')).toBeDefined()
+    expect(screen.getByText(personalText('calendar.agenda.today, Day 12'))).toBeDefined()
+    expect(screen.getByText(personalText('Morning walk'))).toBeDefined()
     expect(screen.getAllByText('calendar.agenda.empty')).toHaveLength(6)
   })
 

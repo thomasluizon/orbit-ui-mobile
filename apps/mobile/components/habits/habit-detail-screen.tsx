@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -186,7 +187,7 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
         </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><Text style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</Text></Pressable>}
+          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></Pressable>}
           {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
       </View>
@@ -621,7 +622,7 @@ const styles = StyleSheet.create({
   reminderTime: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   stripSection: { gap: 8, paddingTop: 24 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
-  content: { width: '100%', maxWidth: 620, alignSelf: 'center', gap: 24 },
+  content: { width: '100%', maxWidth: 620, gap: 24 },
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16, padding: 16 },
   surface: { gap: 8 },

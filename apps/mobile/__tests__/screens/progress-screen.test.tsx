@@ -265,7 +265,7 @@ function findProgressHabitHost(host: HabitRowHost): HabitRowHost | undefined {
 }
 
 function findPill(root: TestNode, label: string): TestNode {
-  return pillButtons(root).find((button) => button.findAll((node) => node.type === 'Text' && node.props.children === label).length > 0)!
+  return pillButtons(root).find((button) => button.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === label).length > 0)!
 }
 
 function pillButtons(root: TestNode): TestNode[] {
@@ -360,12 +360,12 @@ describe('mobile ProgressContent', () => {
     mocks.goals.data.allGoals = [createMockGoal({ title })]
     const tree = await renderProgress()
     const card = findGoalCard(tree.root, title)
-    const headline = card.findAll((node) => node.type === 'Text' && node.props.children === title)[0]!
-    expect(headline.props.numberOfLines).toBe(2)
+    const headline = card.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
+    expect(headline.props.numberOfLines).toBe(1)
     expect(headline.props.ellipsizeMode).toBe('tail')
     expect(card.props.accessibilityLabel).toContain(title)
-    const metadata = card.findAll((node) => node.type === 'Text' && String(node.props.children).startsWith('progressScreen.goals.progress'))[0]!
-    const texts = card.findAll((node) => node.type === 'Text')
+    const metadata = card.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && String(node.props.children).startsWith('progressScreen.goals.progress'))[0]!
+    const texts = card.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants')
     expect(texts.indexOf(headline)).toBeLessThan(texts.indexOf(metadata))
     await TestRenderer.act(() => (card.props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.type === GoalDetailDrawer)[0]!.props.goalId).toBe('goal-1')
@@ -395,10 +395,10 @@ describe('mobile ProgressContent', () => {
 
   it('uses the display family for the streak and the complete freeze bank figure', async () => {
     const tree = await renderProgress()
-    const streak = tree.root.findAll((node) => node.type === 'Text' && node.props.children === '4')[0]!
+    const streak = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === '4')[0]!
     expect(StyleSheet.flatten(streak.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_600SemiBold')
     const bank = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'freeze-bank')[0]!
-    const denominator = bank.findAll((node) => node.type === 'Text' && Array.isArray(node.props.children) && node.props.children[0] === '/ ')[0]!
+    const denominator = bank.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && Array.isArray(node.props.children) && node.props.children[0] === '/ ')[0]!
     expect(StyleSheet.flatten(denominator.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_500Medium')
     expect(StyleSheet.flatten(denominator.parent!.props.style as TextStyle).fontFamily).toBe('SpaceGrotesk_500Medium')
   })
@@ -407,7 +407,7 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'profile.wrappedTitle')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.children === 'profile.wrappedHint')).toHaveLength(0)
-    const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')
+    const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'header')
     expect(headings[0]?.props.children).toBe('progressScreen.title')
     expect(headings[1]?.props.children).toBe('progressScreen.sections.streak')
   })
@@ -418,7 +418,7 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
     const findCard = () => findGoalCard(tree.root, 'Read 12 Books')
     let card = findCard()
-    const metadata = card.findAll((node) => node.type === 'Text' && typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.progress'))[0]!
+    const metadata = card.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.progress'))[0]!
     const foreground = StyleSheet.flatten(metadata.props.style as TextStyle).color as string
     const tokens = createTokensV2('purple', mode)
     const restingSurface = StyleSheet.flatten(card.props.style as ViewStyle).backgroundColor as string
@@ -852,7 +852,7 @@ describe('mobile ProgressContent', () => {
     ]
     for (const label of labels) {
 
-      const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === label)
+      const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'header' && node.props.children === label)
       expect(headings, label).toHaveLength(1)
       const heading = headings[0]!
 
@@ -862,7 +862,7 @@ describe('mobile ProgressContent', () => {
         expect(ancestor.props.accessibilityLabelledBy, label).toBeUndefined()
       }
     }
-    const sectionHeadings = labels.map((label) => tree.root.findAll((node) => node.type === 'Text'
+    const sectionHeadings = labels.map((label) => tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants'
       && node.props.accessibilityRole === 'header' && node.props.children === label)[0]!)
     expect(StyleSheet.flatten(sectionHeadings[3]!.props.style as TextStyle)).toEqual(
       StyleSheet.flatten(sectionHeadings[1]!.props.style as TextStyle),
@@ -881,12 +881,13 @@ describe('mobile ProgressContent', () => {
     mocks.retrospective.data.metrics.topHabits[0]!.name = name
     mocks.retrospective.data.metrics.topHabits[0]!.emoji = '📚'
     const tree = await renderProgress()
-    const row = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
-    const title = row.findAll((node) => node.type === 'Text' && node.props.accessibilityLabel === name)[0]!
-    expect(title.props.children).toBe(`📚 ${name}`)
-    expect(title.props.numberOfLines).toBe(2)
+    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'progress-top-habit')[0]!
+    const title = row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityLabel === name)[0]!
+    expect(title.props.children).toBe(name)
+    expect(row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === '📚')).toHaveLength(1)
+    expect(title.props.numberOfLines).toBe(1)
     expect(title.props.selectable).toBe(true)
-    expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
+    expect(row.props.accessibilityRole).toBe('button')
   })
 
   it.each([320, 412].flatMap((width) => ['en', 'pt-BR'].flatMap((language) =>
@@ -909,7 +910,7 @@ describe('mobile ProgressContent', () => {
         expect(label.right).toBeLessThanOrEqual(width - 48 - (habitId ? 36 : 0))
         expect(title.left).toBe(16)
         expect(title.right).toBe(width - 48)
-        expect(title.lines).toBe(2)
+        expect(title.lines).toBeLessThanOrEqual(2)
         expect(title.clipped).toBe(true)
         expect(geometry.height).toBeGreaterThanOrEqual(68)
       }
@@ -938,9 +939,10 @@ describe('mobile ProgressContent', () => {
   it.each([undefined, null])('keeps a top habit without an id static (%s)', async (habitId) => {
     mocks.retrospective.data.metrics.topHabits[0]!.habitId = habitId
     const tree = await renderProgress()
-    const row = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
-    expect(row.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
-    expect(row.props.onPress).toBeUndefined()
+    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'progress-top-habit')[0]!
+    expect(row.props.accessibilityRole).toBe('button')
+    await TestRenderer.act(() => { (row.props.onPress as () => void)() })
+    expect(row.props.accessibilityState).toMatchObject({ expanded: true })
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
 
@@ -949,13 +951,13 @@ describe('mobile ProgressContent', () => {
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
     expect(figures).toHaveLength(3)
     expect(figures[2]!.props.value).toBe('dates.daysAbbreviated.thursday')
-    const habit = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'progress-top-habit')[0]!
-    expect(habit.findAll((node) => node.type === 'Text' && node.props.children === 'Read')).toHaveLength(1)
-    expect(habit.findAll((node) => node.type === 'Pressable')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.streak.active')).toHaveLength(0)
+    const habit = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'progress-top-habit')[0]!
+    expect(habit.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'Read')).toHaveLength(1)
+    expect(habit.props.accessibilityRole).toBe('button')
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(0)
     const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.legend')[0]!
     await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.streak.active')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(1)
   })
 
   it('renders pay-gate refusals as the three locked sections', async () => {
@@ -1117,7 +1119,27 @@ describe('mobile ProgressContent', () => {
     const earned = tree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
     const progressive = tree.root.findAll((node) => node.props.testID === 'achievement-tile-week_warrior')[0]!
     const completedProgress = tree.root.findAll((node) => node.props.testID === 'achievement-tile-dedicated')[0]!
-    expect(StyleSheet.flatten(earned.props.style as ViewStyle).width).toBe('48%')
+    const earnedHost = earned.findAll((node) => typeof node.type === 'string' && node.props.testID === 'achievement-tile-first_orbit')[0]!
+    let achievementGrid = earnedHost.parent!
+    while (typeof achievementGrid.type !== 'string') achievementGrid = achievementGrid.parent!
+    const onLayout = achievementGrid.props.onLayout
+    if (typeof onLayout === 'function') await TestRenderer.act(() => onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 708, height: 0 } } }))
+    const row = Yoga.Node.create()
+    row.setWidth(708)
+    row.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+    row.setGap(Yoga.GUTTER_ALL, Number(StyleSheet.flatten(achievementGrid.props.style as ViewStyle).gap))
+    const tileNodes = [earned, progressive].map((tile, index) => {
+      const node = Yoga.Node.create()
+      const tileWidth = StyleSheet.flatten(tile.props.style as ViewStyle).width
+      if (typeof tileWidth === 'number') node.setWidth(tileWidth)
+      else if (typeof tileWidth === 'string' && tileWidth.endsWith('%')) node.setWidthPercent(Number.parseFloat(tileWidth))
+      row.insertChild(node, index)
+      return node
+    })
+    try {
+      row.calculateLayout(undefined, undefined)
+      expect(Math.abs(tileNodes[1]!.getComputedLeft() + tileNodes[1]!.getComputedWidth() - 708)).toBeLessThanOrEqual(0.5)
+    } finally { row.freeRecursive() }
     expect(earned.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
     expect(progressive.findAll((node) => node.props.accessibilityRole === 'progressbar').length).toBeGreaterThan(0)
     const completedProgressBar = completedProgress.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
@@ -1391,7 +1413,7 @@ describe('mobile ProgressContent', () => {
     mocks.repair.error = { status: 500 }
 
     const tree = await renderProgress()
-    const alert = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert')[0]!
+    const alert = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert')[0]!
     const foreground = StyleSheet.flatten(alert.props.style as TextStyle).color as string
     const tokens = createTokensV2('purple', mode)
 
@@ -1535,7 +1557,7 @@ describe('mobile ProgressContent', () => {
 
     mocks.reorder.isError = true
     await TestRenderer.act(async () => { tree.update(<ProgressScreen />); await Promise.resolve() })
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert')).toHaveLength(1)
     await selectGoalFilter(tree, 'active')
     expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAll((node) => node.props.accessibilityActions !== undefined)).toHaveLength(0)
@@ -1551,11 +1573,11 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = count
     try {
       const tree = await renderProgress()
-      const streakLabel = tree.root.findAll((node) => node.type === 'Text' && node.props.children === label)[0]!
+      const streakLabel = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === label)[0]!
       expect(streakLabel).toBeDefined()
       let figure = streakLabel.parent!
       while (figure.type !== 'View') figure = figure.parent!
-      expect(figure.findAll((node) => node.type === 'Text' && node.props.children === String(count))).toHaveLength(1)
+      expect(figure.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === String(count))).toHaveLength(1)
       expect(tree.root.findAll((node) => node.props.children === (count === 1 ? 'dias seguidos' : 'dia seguido'))).toHaveLength(0)
     } finally {
       mocks.usePortugueseCatalog = false

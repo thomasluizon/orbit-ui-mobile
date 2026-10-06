@@ -11,15 +11,47 @@ import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
 
-interface CalendarRangeViewProps {
-  model: CalendarRangeModel
-  weekdayLabels: readonly string[]
+interface CalendarRangeNavigationProps {
   rangeLabel: string
   previousRangeLabel: string
   nextRangeLabel: string
   onPreviousRange: () => void
   onNextRange: () => void
   nextRangeDisabled: boolean
+}
+
+export function CalendarRangeNavigation({ rangeLabel, previousRangeLabel, nextRangeLabel, onPreviousRange, onNextRange, nextRangeDisabled }: Readonly<CalendarRangeNavigationProps>) {
+  return (
+    <div data-testid="calendar-range-navigation" className="flex min-h-12 flex-wrap items-start justify-end gap-3">
+      <p
+        className="flex min-h-12 min-w-0 flex-auto items-center"
+        style={{
+          color: 'var(--fg-2)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.875rem',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {rangeLabel}
+      </p>
+      <div className="flex shrink-0 gap-3">
+        <button type="button" aria-label={previousRangeLabel} onClick={onPreviousRange}
+          className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
+          <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
+        </button>
+        <button type="button" aria-label={nextRangeLabel} onClick={onNextRange} disabled={nextRangeDisabled}
+          className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
+          <ChevronRight size={20} strokeWidth={2} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+interface CalendarRangeViewProps {
+  model: CalendarRangeModel
+  weekdayLabels: readonly string[]
+  rangeLabel: string
   isLoading: boolean
   loadingLabel: string
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
@@ -30,11 +62,6 @@ export function CalendarRangeView({
   model,
   weekdayLabels,
   rangeLabel,
-  previousRangeLabel,
-  nextRangeLabel,
-  onPreviousRange,
-  onNextRange,
-  nextRangeDisabled,
   isLoading,
   loadingLabel,
   stats,
@@ -57,31 +84,8 @@ export function CalendarRangeView({
       aria-label={rangeLabel}
       aria-busy={isLoading}
       className="flex flex-col"
-      style={{ gap: 16, padding: '12px 0 24px' }}
+      style={{ gap: 16, padding: '0 0 24px' }}
     >
-      <div className="flex flex-wrap items-start justify-end gap-3" style={{ paddingInline: 16 }}>
-        <p
-          className="flex min-h-12 min-w-0 flex-auto items-center"
-          style={{
-            color: 'var(--fg-2)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.875rem',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {rangeLabel}
-        </p>
-        <div className="flex shrink-0 gap-3">
-          <button type="button" aria-label={previousRangeLabel} onClick={onPreviousRange}
-            className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
-            <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
-          </button>
-          <button type="button" aria-label={nextRangeLabel} onClick={onNextRange} disabled={nextRangeDisabled}
-            className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-[var(--bg-field)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
-            <ChevronRight size={20} strokeWidth={2} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
       {isLoading ? (
         <>
           <div className="orbit-calendar-grid-frame" style={{ paddingInline: 4 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>

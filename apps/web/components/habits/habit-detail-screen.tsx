@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -187,7 +189,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
             <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-display text-[22px] font-medium tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
           ) : (
             <h1 ref={headingRef} tabIndex={-1} style={{ outlineOffset: 2 }} className="orbit-focus-inset flow-root max-w-full font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)]">
-              <button type="button" onClick={() => setEditing(true)} style={{ overflowWrap: 'anywhere', outlineOffset: -6 }} className="orbit-focus-inset -mx-2 -my-2 block min-h-[var(--touch-min)] min-w-[var(--touch-min)] w-[calc(100%+1rem)] whitespace-normal border-0 bg-transparent px-2 py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]">{habit.title}</button>
+              <button type="button" aria-label={habit.title} onClick={() => setEditing(true)} style={{ outlineOffset: -6 }} className="orbit-focus-inset -mx-2 -my-2 block min-h-[var(--touch-min)] min-w-[var(--touch-min)] w-[calc(100%+1rem)] whitespace-normal border-0 bg-transparent px-2 py-2 text-left transition-[color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"><PersonalText unclamped>{habit.title}</PersonalText></button>
             </h1>
           )}
           {summary ? <p className="mt-1 truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}
@@ -390,7 +392,7 @@ function HabitDetailFrame({ header, navigationKey, children }: Readonly<{ header
   const hosted = useShellHeaderSlot(() => header, navigationKey)
   return <>
     {hosted ? null : header}
-    <div data-habit-detail-content="" className="mx-auto flex min-h-full w-full max-w-[652px] flex-col gap-6 px-4 pt-6">{children}</div>
+    <div data-habit-detail-content="" className="flex min-h-full w-full max-w-[652px] flex-col gap-6 px-4 pt-6">{children}</div>
   </>
 }
 

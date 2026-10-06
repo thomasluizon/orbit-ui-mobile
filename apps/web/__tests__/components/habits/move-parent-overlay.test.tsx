@@ -79,8 +79,8 @@ describe('MoveParentOverlay', () => {
       makeOption({ id: 'parent', label: 'Parent', childCount: 12 }),
     ])
 
-    const parentRow = screen.getByText('Parent').closest('button')
-    if (!parentRow) throw new Error('Expected the parent row button')
+    const parentRow = screen.getByRole('radio', { name: /^Parent(?:,|$)/ }).parentElement
+    if (!parentRow) throw new Error('Expected the parent row')
     expect(within(parentRow).getByText('12')).toBeInTheDocument()
   })
 

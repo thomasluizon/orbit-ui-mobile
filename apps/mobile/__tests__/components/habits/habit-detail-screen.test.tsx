@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -42,7 +43,7 @@ interface TestNode {
 }
 
 function textsOf(root: TestNode): string[] {
-  return root.findAll((node) => node.type === 'Text' || node.type === 'PillButton')
+  return root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' || node.type === 'PillButton')
     .map((node) => [node.props.children].flat().filter((part) => typeof part === 'string').join(''))
 }
 
@@ -411,8 +412,9 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const target = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === title)[0]!
-    const visibleTitle = target.findAll((node: TestNode) => node.type === 'Text' && node.props.children === title)[0]!
-    expect(visibleTitle.props.numberOfLines).toBeUndefined()
+    const visibleTitle = target.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
+    expect(visibleTitle.props.numberOfLines).toBe(1)
+    expect(target.findAllByType('ScrollView')).toHaveLength(0)
     const titleStyle = StyleSheet.flatten(visibleTitle.props.style as { fontSize: number; lineHeight: number })
     expect(titleStyle.lineHeight / titleStyle.fontSize).toBeGreaterThanOrEqual(1.4)
     const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
@@ -426,7 +428,7 @@ describe('HabitDetailScreen', () => {
     expect(controls.findAllByType('HabitLogButton')).toHaveLength(1)
     expect(controls.findAllByType('PillButton').map((node: TestNode) => node.props.label)).toContain('habits.detail.rename')
     expect(controls.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(0)
-    expect(copy.findAll((node: TestNode) => node.type === 'Text' && node.props.numberOfLines === 1)).toHaveLength(1)
+    expect(copy.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.numberOfLines === 1)).toHaveLength(2)
   })
 
   it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
@@ -1599,7 +1601,7 @@ describe('HabitDetailScreen', () => {
       ...(hasDescription ? ['habit-detail-description'] : []),
       'habit-detail-strip-section',
     ])
-    expect(header.findAll((node: TestNode) => node.type === 'View').at(-1)).toBe(copy)
+    expect(copy.findAll((node: TestNode) => node.type === 'ScrollView')).toHaveLength(0)
     expect(StyleSheet.flatten(parent.props.style)).toBeUndefined()
     const strip = contentSlots[1 + Number(hasTags) + Number(hasDescription)]!
     expect(StyleSheet.flatten(strip.props.style)).toEqual({ gap: 8, paddingTop: 24 })

@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -28,7 +29,7 @@ export function CalendarEntryDetails({ entries, title, displayTime, onClose }: R
     <View style={styles.content}>
       {entries.length >= 8 ? <Input label={t('calendar.entrySearch')} value={query} onChange={(value) => { setQuery(value); setPage(0) }} autoComplete="off" /> : null}
       {visible.map((entry) => <View key={entry.habitId} style={styles.entry}>
-        <Text selectable style={[styles.title, { color: tokens.fg1 }]}>{entry.title}</Text>
+        <PersonalText expanded selectable style={[styles.title, { color: tokens.fg1 }]}>{entry.title}</PersonalText>
         <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('calendar.entryMeta', { time: entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime'), status: t(calendarEntryOutcome(entry).labelKey) })}</Text>
       </View>)}
       {matching.length === 0 ? <View style={styles.searchEmpty}><Text style={[styles.empty, { color: tokens.fg2 }]}>{t('calendar.entrySearchEmpty', { query: query.trim() })}</Text><PillButton variant="ghost" onClick={() => { setQuery(''); setPage(0) }}>{t('calendar.dayDetail.clearEventSearch')}</PillButton></View> : null}

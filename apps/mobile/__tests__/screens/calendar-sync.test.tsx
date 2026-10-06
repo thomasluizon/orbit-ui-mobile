@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import React from "react";
 import { Resvg } from "@resvg/resvg-js";
 import * as ReactNative from 'react-native';
@@ -347,8 +348,8 @@ describe("CalendarSyncScreen", () => {
     mocks.eventsQuery.data = { status: 'connected', events: buildEvents(2) };
     let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'header' && node.props.children === ptBR.calendar.calendars.title)).toHaveLength(1);
   });
 
   it.each([{ fontScale: 1, height: 24, y: 0 }, { fontScale: 2, height: 36, y: 0 }, { fontScale: 2, height: 60, y: 3 }])('keeps select all centred on the measured first line: %j', async ({ fontScale, height, y }) => {
@@ -427,8 +428,8 @@ describe("CalendarSyncScreen", () => {
     mocks.eventsQuery.data = { status: 'connected', events: [{ ...buildEvents(1)[0]!, startDate: '2026-10-16' }] };
     let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen inSheet />); await Promise.resolve(); });
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === expected)).toHaveLength(1);
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === '2026-10-16')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === expected)).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === '2026-10-16')).toHaveLength(0);
     vi.unstubAllEnvs();
   });
 
@@ -450,8 +451,9 @@ describe("CalendarSyncScreen", () => {
     mocks.eventsQuery.data = { status: 'connected', events: [{ ...buildEvents(2)[0]!, title, isImported: true }, buildEvents(2)[1]!] };
     let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
-    const fullTitle = tree.root.find((node) => node.type === 'Text' && node.props.children === title);
-    expect(fullTitle.props.numberOfLines ?? 0).toBe(0);
+    const fullTitle = tree.root.find((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title);
+    expect(fullTitle.props.numberOfLines).toBe(1);
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === title && node.props.expanded === true)).toHaveLength(1);
     expect(tree.root.find((node) => node.props.children === 'calendar.importButton({"count":0})' && typeof node.props.onClick === 'function').props.disabled).toBe(true);
     expect(mocks.bulkMutateAsync).not.toHaveBeenCalled();
   });
@@ -461,18 +463,18 @@ describe("CalendarSyncScreen", () => {
     mocks.runSyncNowMutate.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden'));
     let tree!: CalendarSyncTree;
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'calendar.dayDetail.googleConnected')).toHaveLength(1);
-    expect(tree.root.findAll((node) => node.type === 'Text' && typeof node.props.children === 'string' && /2026,/.test(node.props.children))).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'calendar.dayDetail.googleConnected')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && typeof node.props.children === 'string' && /2026,/.test(node.props.children))).toHaveLength(1);
     const toggle = tree.root.find((node) => node.type === 'Switch' && typeof node.props.onPress === 'function');
     await TestRenderer.act(async () => { (toggle.props.onPress as () => void)(); await Promise.resolve(); });
     expect(mocks.setAutoSyncMutate).toHaveBeenCalledWith({ enabled: true });
     const sync = () => tree.root.find((node) => node.props.children === 'calendar.autoSync.syncNow' && typeof node.props.onClick === 'function');
     await TestRenderer.act(async () => { (sync().props.onClick as () => void)(); await Promise.resolve(); });
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlocked')).toHaveLength(1);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'errors.api.edgeBlocked')).toHaveLength(1);
     expect(mocks.showError).not.toHaveBeenCalled();
     await TestRenderer.act(async () => { (sync().props.onClick as () => void)(); await Promise.resolve(); });
     expect(mocks.runSyncNowMutate).toHaveBeenCalledTimes(2);
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children !== '')).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children !== '')).toHaveLength(0);
   });
 
   it.each([[false, false], [true, false], [true, true]])('exposes all long event text before import, review: %s, blocked: %s', async (review, blocked) => {
@@ -496,13 +498,19 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
     for (const value of [event.title, event.calendarName, event.description]) {
-      const text = tree.root.find((node) => node.type === 'Text' && node.props.children === value);
-      expect(text.props.numberOfLines ?? 0, value).toBe(0);
+      const text = tree.root.find((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value);
+      expect(text.props.numberOfLines ?? 0, value).toBe(value === event.description ? 0 : 1);
     }
     const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!;
     expect(row.props.accessibilityState).toEqual({ checked: !blocked, disabled: blocked });
+    const disclosure = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'contextMenu.viewDetails')[0]!;
+    TestRenderer.act(() => { (disclosure.props.onPress as () => void)(); });
+    expect(disclosure.props.accessibilityState).toEqual({ expanded: true });
+    for (const value of [event.title, event.calendarName]) {
+      expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === value && node.props.expanded === true)).toHaveLength(1);
+    }
     for (const value of [event.title, event.calendarName, event.description]) {
-      expect(row.findAll((node) => node.type === 'Text' && node.props.children === value)).toHaveLength(1);
+      expect(row.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === value)).toHaveLength(1);
     }
     if (blocked) {
       expect(row.props.disabled).toBe(true);
@@ -725,7 +733,7 @@ describe("CalendarSyncScreen", () => {
   }) {
     return root.findAll(
       (node) =>
-        typeof node.type === "string" && /^Event \d+$/.test(String(node.props.children)),
+        typeof node.type === "string" && node.props.importantForAccessibility !== 'no-hide-descendants' && /^Event \d+$/.test(String(node.props.children)),
     ).length;
   }
 
@@ -933,7 +941,7 @@ describe("CalendarSyncScreen", () => {
     });
 
     expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "suggestion-1" });
-    expect(tree.root.findAll((node: TestNode) => node.type === "Text" && node.props.accessibilityRole === "alert" && node.props.children === "errors.api.edgeBlockedRetry")).toHaveLength(1);
+    expect(tree.root.findAll((node: TestNode) => node.type === "Text" && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === "alert" && node.props.children === "errors.api.edgeBlockedRetry")).toHaveLength(1);
     expect(mocks.showError).not.toHaveBeenCalled();
   });
 
@@ -1140,7 +1148,7 @@ describe("CalendarSyncScreen", () => {
       await Promise.resolve();
     });
 
-    expect(tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.accessibilityRole === 'alert' && node.props.children === 'calendar.importPartialFailure({"count":1})')).toHaveLength(1);
+    expect(tree.root.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityRole === 'alert' && node.props.children === 'calendar.importPartialFailure({"count":1})')).toHaveLength(1);
     expect(mocks.showError).not.toHaveBeenCalled();
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: [...calendarKeys.all, 'manual-fetch'],

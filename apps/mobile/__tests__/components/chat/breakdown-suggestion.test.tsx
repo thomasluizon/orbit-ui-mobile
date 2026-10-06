@@ -117,11 +117,11 @@ describe('BreakdownSuggestion (mobile)', () => {
     })
     const yearly = tree.root.findAll((node: any) =>
       typeof node.props?.onPress === 'function' &&
-      String(node.props?.accessibilityLabel).includes('Year review'),
+      String(node.props?.accessibilityLabel).includes('Year review') && String(node.props?.accessibilityLabel).includes('chat.breakdown.frequency'),
     )[0]
     const oneTime = tree.root.findAll((node: any) =>
       typeof node.props?.onPress === 'function' &&
-      String(node.props?.accessibilityLabel).includes('File taxes'),
+      String(node.props?.accessibilityLabel).includes('File taxes') && String(node.props?.accessibilityLabel).includes('chat.breakdown.frequency'),
     )[0]
 
     expect(renderedText(yearly.props.children)).toContain('habits.filter.yearly')
@@ -129,7 +129,7 @@ describe('BreakdownSuggestion (mobile)', () => {
     TestRenderer.act(() => yearly.props.onPress())
     const updatedYearly = tree.root.findAll((node: any) =>
       typeof node.props?.onPress === 'function' &&
-      String(node.props?.accessibilityLabel).includes('Year review'),
+      String(node.props?.accessibilityLabel).includes('Year review') && String(node.props?.accessibilityLabel).includes('chat.breakdown.frequency'),
     )[0]
     expect(renderedText(updatedYearly.props.children)).toContain('habits.filter.oneTime')
   })

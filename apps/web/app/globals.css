@@ -256,15 +256,13 @@
 }
 
 .orbit-sheet-typed-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
   text-decoration: underline;
   text-underline-position: from-font;
   text-decoration-thickness: from-font;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  white-space: normal;
+}
+
+.orbit-sheet-typed-title > span {
+  text-decoration: inherit;
 }
 
 .orbit-sheet-title-button:active {
@@ -616,7 +614,9 @@
   /* Shape and elevation tokens */
   --r-card: 20px;
   --r-well: 12px;
-  --sh-2: 0 4px 16px rgba(0, 0, 0, 0.28);
+  --sh-2-offset-y: 4px;
+  --sh-2-blur: 16px;
+  --sh-2: 0 var(--sh-2-offset-y) var(--sh-2-blur) rgba(0, 0, 0, 0.28);
   --sh-3: 0 12px 40px rgba(0, 0, 0, 0.45);
 
   /* Tailwind radius scale */

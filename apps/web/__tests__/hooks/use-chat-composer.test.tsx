@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach, onTestFinished } from 'vitest'
 import { renderHook, act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
@@ -477,6 +477,42 @@ describe('web useChatComposer streaming send', () => {
     useThrottleStore.getState().clear()
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it.each([
+    [true, 'auto'],
+    [false, 'smooth'],
+  ] as const)('scrolls sent messages with reduced motion %s using %s', async (reducedMotion, behavior) => {
+    vi.useFakeTimers()
+    let prefersReducedMotion = reducedMotion
+    const originalMatchMedia = window.matchMedia.bind(window)
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+      ...originalMatchMedia(query),
+      matches: query === '(prefers-reduced-motion: reduce)' && prefersReducedMotion,
+    }))
+    onTestFinished(() => matchMedia.mockRestore())
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    const { result } = renderHook(() => useChatComposer())
+    const container = document.createElement('div')
+    Object.defineProperty(container, 'scrollHeight', { value: 640 })
+    result.current.chatContainerRef.current = container
+
+    await act(async () => { await result.current.sendMessage('hello') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(container.scrollTo).toHaveBeenCalledWith({ top: 640, behavior })
+    expect(container.scrollTo).not.toHaveBeenCalledWith({
+      top: 640, behavior: reducedMotion ? 'smooth' : 'auto',
+    })
+    vi.mocked(container.scrollTo).mockClear()
+    prefersReducedMotion = !reducedMotion
+    await act(async () => { await result.current.sendMessage('hello again') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(container.scrollTo).toHaveBeenCalledWith({
+      top: 640, behavior: reducedMotion ? 'smooth' : 'auto',
+    })
+    expect(container.scrollTo).not.toHaveBeenCalledWith({ top: 640, behavior })
   })
 
   it('sends the account held when chat intent formed', async () => {

@@ -211,7 +211,7 @@ describe('Hoje leading edges on Android', () => {
       try {
         layout.setWidth(width)
         layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-        const textEdges = [...nodes].filter(([element]) => element.type === 'Text' &&
+        const textEdges = [...nodes].filter(([element]) => element.type === 'Text' && StyleSheet.flatten(element.props.style as StyleProp<TextStyle>).opacity !== 0 &&
           ['Sua rotina mudou. Vamos conversar?', 'Quarta-feira', 'Qua.', '8 abr.', 'Leaf', 'Parent', 'Child'].some((label) => textContent(element) === label || textContent(element).startsWith(`${label} habit`)))
         expect(textEdges).toHaveLength(6)
         const rows = [...nodes].filter(([element]) => element.props.testID === 'habit-row')
@@ -220,7 +220,7 @@ describe('Hoje leading edges on Android', () => {
         for (const [, node] of textEdges) expect(Math.abs(leadingPosition(node) - 84)).toBeLessThanOrEqual(1)
         for (const [, node] of rows) {
           expect(leadingPosition(node)).toBe(16)
-          if (fontScale === 2) expect(node.getComputedHeight()).toBeGreaterThan(68)
+          expect(node.getComputedHeight()).toBeGreaterThanOrEqual(48)
         }
         const progress = [...nodes].find(([element]) => element.type === 'Text' && textContent(element) === '0 de 2')!
         expect(progress, JSON.stringify([...nodes].filter(([element]) => element.type === 'Text').map(([element]) => textContent(element)))).toBeDefined()

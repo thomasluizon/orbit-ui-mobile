@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
 import type { ReactTestInstance, ReactTestRenderer } from 'react-test-renderer'
 import { Icon } from '@/components/ui/icon'
@@ -55,10 +56,10 @@ describe('Menu (mobile)', () => {
     const sheet = tree.root.findAll((node) => typeof node.type !== 'string' && node.type.name === 'TrueSheet')[0]!
     const header = sheet.props.header as React.ReactElement<{ children: React.ReactElement<{ onPress: () => void; children: React.ReactElement<{ numberOfLines?: number }> }>[] }>
     const titleButton = header.props.children[0]!
-    expect(titleButton.props.children.props.numberOfLines).toBe(2)
+    expect(titleButton.props.children.type).toBe(PersonalText)
     await TestRenderer.act(() => titleButton.props.onPress())
-    const fullTitle = sheet.findAll((node) => node.type === Text && node.props.children === title)[0]!
-    expect(fullTitle.props.numberOfLines).toBeUndefined()
+    const fullTitle = sheet.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
+    expect(fullTitle.props.numberOfLines).toBe(1)
     expect(fullTitle.props.selectable).toBe(true)
     expect(menuItemLabels(tree)).toContain('habits.actions.delete')
     expect(onDelete).not.toHaveBeenCalled()
@@ -74,7 +75,7 @@ describe('Menu (mobile)', () => {
     const trigger = header.props.children[0]!
     expect(trigger.props.accessibilityLabel).toBe(title)
     await TestRenderer.act(() => trigger.props.onPress())
-    expect(sheet.findAll((node) => node.type === Text && node.props.children === title)).toHaveLength(1)
+    expect(sheet.findAll((node) => node.type === Text && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)).toHaveLength(1)
     await TestRenderer.act(() => tree.update(<></>))
   })
 

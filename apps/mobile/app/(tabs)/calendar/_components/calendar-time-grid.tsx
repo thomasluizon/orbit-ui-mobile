@@ -518,7 +518,7 @@ function createStyles(tokens: Tokens) {
     wrap: {
       gap: 4,
       paddingHorizontal: 16,
-      paddingTop: 4,
+      paddingTop: 0,
       paddingBottom: 16,
     },
     anyTimeLabel: {

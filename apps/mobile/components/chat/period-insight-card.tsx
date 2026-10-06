@@ -1,3 +1,4 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
@@ -37,13 +38,13 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     periodInsight.topHabits.forEach((habit, habitIndex) => rows.push({
       id: `top-${habitIndex}`,
       wrapLabel: true,
-      label: `${t('chat.insight.topHabit')}: ${habit.name}`,
+      label: <PersonalTextDetails>{`${t('chat.insight.topHabit')}: ${habit.name}`}</PersonalTextDetails>,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))
     periodInsight.needsAttention.forEach((habit, habitIndex) => rows.push({
       id: `attention-${habitIndex}`,
       wrapLabel: true,
-      label: `${t('chat.insight.needsAttention')}: ${habit.name}`,
+      label: <PersonalTextDetails>{`${t('chat.insight.needsAttention')}: ${habit.name}`}</PersonalTextDetails>,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))
   }

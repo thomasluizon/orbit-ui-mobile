@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -17,7 +18,7 @@ export function SupportReplyEmail({ email }: Readonly<{ email: string }>) {
     <View style={styles.field}>
       <InsetFocusPressable
         accessibilityRole="button"
-        accessibilityLabel={t('profile.support.email')}
+        accessibilityLabel={`${t('profile.support.email')} ${email}`.trim()}
         accessibilityHint={`${email} ${t('profile.support.emailLockedReason')}`.trim()}
         accessibilityState={{ expanded, disabled: !email }}
         disabled={!email}
@@ -30,13 +31,13 @@ export function SupportReplyEmail({ email }: Readonly<{ email: string }>) {
           <Text style={[styles.label, { color: tokens.fg2 }]}>{t('profile.support.email')}</Text>
           {email ? <ChevronDown size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /> : null}
         </View>
-        <Text
+        <PersonalText
+          expanded={expanded}
           style={[styles.email, { color: tokens.fg1 }]}
-          numberOfLines={expanded ? undefined : 2}
           ellipsizeMode="tail"
         >
           {email}
-        </Text>
+        </PersonalText>
       </InsetFocusPressable>
       <Text style={[styles.hint, { color: tokens.fg3 }]}>{t('profile.support.emailLockedReason')}</Text>
     </View>

@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { resolveSettingsRowText } from '@orbit/shared/hooks'
 import { useState, type ComponentType, type ReactNode } from 'react'
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -61,7 +62,7 @@ function SettingsRowTrailing({ value, children, accessory, valueColor, mono, tok
 }
 
 function labelPresentation(textMode: SettingsRowProps['textMode'], expanded: boolean) {
-  return { numberOfLines: textMode === 'personal' && !expanded ? 2 : undefined, style: textMode === 'label' || expanded ? styles.wrappedLabel : null }
+  return { numberOfLines: undefined, style: textMode === 'label' || expanded ? styles.wrappedLabel : null }
 }
 
 export function SettingsRow({
@@ -82,6 +83,7 @@ export function SettingsRow({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { fontScale } = useWindowDimensions()
+  const Label = textMode === 'personal' ? PersonalText : Text
   const [expanded, setExpanded] = useState(false)
   const { expandedState, onAction: handlePress } = resolveSettingsRowText({ textMode, expanded, onAction: onPress, onToggle: () => setExpanded((current) => !current) })
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
@@ -116,13 +118,14 @@ export function SettingsRow({
         <View style={[styles.dot, { backgroundColor: leadingDot }]} />
       ) : null}
       <View style={[styles.titleBlock, textMode === 'personal' ? styles.personalTextBlock : null]}>
-        <Text
+        <Label
+          expanded={textMode === 'personal' ? expanded : undefined}
           style={[styles.title, labelPresentation(textMode, expanded).style, { color: titleColor }]}
           numberOfLines={labelPresentation(textMode, expanded).numberOfLines}
           ellipsizeMode="tail"
         >
           {label}
-        </Text>
+        </Label>
         {desc ? (
           <Text style={[styles.desc, { color: tokens.fg2 }]}>{desc}</Text>
         ) : null}

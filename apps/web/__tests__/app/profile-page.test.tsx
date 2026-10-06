@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import postcss from 'postcss'
@@ -291,7 +292,7 @@ describe('ProfilePage', () => {
           expect(row.iconHidden, row.label!).toBe(true)
           expect(row.overflow, row.label!).toBe(false)
           expect(row.titleOverflow, row.label!).toBe(false)
-          expect(row.ellipsis, row.label!).toBe(false)
+          expect(row.ellipsis, row.label!).toBe(row.label === 'Marina')
           expect(row.right, row.label!).toBeLessThanOrEqual(width)
           if (textScale === 2 && row.label !== 'Marina') expect(Math.abs(row.iconTop - row.titleTop), row.label!).toBeLessThanOrEqual(12)
         }
@@ -316,17 +317,22 @@ describe('ProfilePage', () => {
             const title = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')).find((element) => element.textContent === name)!
             const description = title.nextElementSibling!
             for (const element of [title, description] as HTMLElement[]) element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * textScale}px`
-            const text = title.firstChild!
-            const words = Array.from(name.matchAll(/\S+/g)).map((match) => {
-              const range = document.createRange()
-              range.setStart(text, match.index)
-              range.setEnd(text, match.index + match[0].length)
-              return { word: match[0], tops: Array.from(range.getClientRects()).map((rect) => rect.top) }
-            })
+            const words: { word: string; tops: number[] }[] = []
+            const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT)
+            let text = walker.nextNode()
+            while (text) {
+              if (text.textContent?.trim()) {
+                const range = document.createRange()
+                range.selectNodeContents(text)
+                words.push({ word: text.textContent, tops: Array.from(range.getClientRects()).map((rect) => rect.top) })
+              }
+              text = walker.nextNode()
+            }
             const emailRange = document.createRange()
-            emailRange.selectNodeContents(description)
+            const scroller = description.querySelector('[data-personal-text]') ?? description
+            emailRange.selectNodeContents(scroller.firstElementChild ?? scroller)
             const titleStyle = getComputedStyle(title)
-            return { words, titleHeight: title.getBoundingClientRect().height, lineHeight: parseFloat(titleStyle.lineHeight), clamp: titleStyle.webkitLineClamp, email: description.textContent, emailLines: emailRange.getClientRects().length, emailOverflow: description.scrollWidth > description.clientWidth, pageOverflow: document.documentElement.scrollWidth > innerWidth }
+            return { words, titleHeight: title.getBoundingClientRect().height, lineHeight: parseFloat(titleStyle.lineHeight), clamp: titleStyle.webkitLineClamp, email: description.textContent, emailLines: new Set(Array.from(emailRange.getClientRects()).map((rect) => rect.top)).size, emailOverflow: scroller.scrollWidth > scroller.clientWidth, pageOverflow: document.documentElement.scrollWidth > innerWidth }
           }, { name, email, textScale })
           for (const word of geometry.words) expect(new Set(word.tops).size, `${surface}: ${word.word}`).toBe(1)
           if (surface === 'profile') {
@@ -334,8 +340,8 @@ describe('ProfilePage', () => {
             expect(geometry.titleHeight).toBeLessThanOrEqual(2 * geometry.lineHeight + 1)
           } else expect(geometry.clamp).toBe('none')
           expect(geometry.email).toBe(email)
-          expect(geometry.emailLines).toBeGreaterThan(1)
-          expect(geometry.emailOverflow).toBe(false)
+          expect(geometry.emailLines).toBe(1)
+          expect(geometry.emailOverflow).toBe(true)
           expect(geometry.pageOverflow).toBe(false)
         }
       } finally { await page.close() }
@@ -362,12 +368,12 @@ describe('ProfilePage', () => {
           title.style.fontSize = `${parseFloat(getComputedStyle(title).fontSize) * textScale}px`
           const range = document.createRange()
           range.selectNodeContents(title)
-          return { overflow: row.scrollWidth > row.clientWidth, clamped: getComputedStyle(description).webkitLineClamp, text: description.textContent, nameLines: range.getClientRects().length, lineHeightRatio: parseFloat(getComputedStyle(title).lineHeight) / parseFloat(getComputedStyle(title).fontSize) }
+          return { overflow: row.scrollWidth > row.clientWidth, clamped: getComputedStyle(description).webkitLineClamp, text: description.textContent, nameLines: title.getBoundingClientRect().height / parseFloat(getComputedStyle(title).lineHeight), lineHeightRatio: parseFloat(getComputedStyle(title).lineHeight) / parseFloat(getComputedStyle(title).fontSize) }
         }, { email, textScale })
         expect(geometry.text).toBe(email)
         expect(geometry.clamped).toBe('none')
         expect(geometry.overflow).toBe(false)
-        expect(geometry.nameLines).toBeGreaterThanOrEqual(3)
+        expect(geometry.nameLines).toBeLessThanOrEqual(2.1)
         expect(geometry.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
       } finally { await page.close() }
     })
@@ -440,7 +446,7 @@ describe('ProfilePage', () => {
         const title = row.querySelector('[data-slot="list-row-title"]')!
         const icons = row.querySelectorAll('svg')
         const navigates = row.querySelector('a') !== null
-        expect(icons, title.textContent!).toHaveLength(navigates ? 2 : 1)
+        expect(icons, title.textContent!).toHaveLength(title.textContent === 'Alex' ? 3 : navigates ? 2 : 1)
         expect(icons[0]!.closest('[aria-hidden="true"]')).not.toBeNull()
         expect(icons[0]!.getAttribute('width')).toBe('24')
         expect(icons[0]!.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -957,7 +963,7 @@ describe('ProfilePage', () => {
     render(<ProfileSubscreen screen="astra" />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
-    expect(apiKeys.getByText('Work key')).toBeInTheDocument()
+    expect(apiKeys.getByText(personalText('Work key'))).toBeInTheDocument()
     expect(apiKeys.getByText('orb_live_1234…')).toBeInTheDocument()
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.revokeNamed' }))
     expect(screen.getByRole('dialog', { name: 'profile.apiKeys.revokeNamedQuestion' })).toBeInTheDocument()

@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -175,7 +176,7 @@ export function CalendarDayDetail({
   return (
     <View style={styles.container}>
       {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
-        <Text style={styles.fullTitle}>{expandedTitle}</Text>
+        <PersonalText expanded style={styles.fullTitle}>{expandedTitle}</PersonalText>
       </Sheet> : null}
       <View style={styles.copyBlock}>
         {showTitle ? <Text style={[styles.dayTitle, { color: tokens.fg1 }]}>{title}</Text> : null}
@@ -213,7 +214,7 @@ export function CalendarDayDetail({
               <Pressable key={`${selectedDate}:${entry.habitId}`} accessibilityRole="button" accessibilityLabel={`${entry.title}, ${outcome.ringLabel}`} onPress={() => (onOpenHabitTitle ?? setExpandedTitle)(entry.title)} style={({ pressed }) => [styles.habitDisclosure, pressed ? { backgroundColor: tokens.bgHover } : null]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}>
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                    <Text numberOfLines={2} style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</Text>
+                    <PersonalText style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</PersonalText>
                     {value ? <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2 }}>{value}</Text> : null}
                   </View>
                   <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />

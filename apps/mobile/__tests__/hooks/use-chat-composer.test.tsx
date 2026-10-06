@@ -11,7 +11,7 @@ import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixture
 import { i18n } from '@/lib/i18n'
 import type { DocumentPickerAsset } from 'expo-document-picker'
 
-import { Linking, StyleSheet } from 'react-native'
+import { Linking, StyleSheet, type FlatList } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { prepareChatRequest } from '@orbit/shared/stores'
@@ -20,7 +20,7 @@ import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epo
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import RootLayout from '@/app/_layout'
-import { __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode, __resetTestHostConfig } from '../../test-mocks/react-native'
+import { AccessibilityInfo as TestAccessibilityInfo, __focusHost, __getFocusedNativeTag, __setFocusImpl, __setTouchMode, __resetTestHostConfig } from '../../test-mocks/react-native'
 
 const { Composer: ShellComposer } = await vi.importActual<typeof import('@/components/shell/composer')>('@/components/shell/composer')
 const { Shell412: ConversationShell } = await vi.importActual<typeof import('@/components/shell/shell-412')>('@/components/shell/shell-412')
@@ -650,6 +650,85 @@ describe('mobile useChatComposer', () => {
 
   afterEach(() => {
     for (const tree of mountedTrees.splice(0)) tree.unmount()
+  })
+
+  it.each([true, false])('scrolls sent messages with reduced motion %s', async (reducedMotion) => {
+    vi.useFakeTimers()
+    const listeners = new Set<(enabled: boolean) => void>()
+    const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+      if (event === 'reduceMotionChanged') listeners.add(listener)
+      return { remove: () => { listeners.delete(listener) } }
+    })
+    onTestFinished(() => {
+      subscription.mockRestore()
+      vi.useRealTimers()
+    })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const composer = await renderComposer()
+    const scrollToEnd = vi.fn()
+    composer.current.flatListRef.current = { scrollToEnd } as unknown as FlatList<ChatMessage>
+    TestRenderer.act(() => { for (const listener of listeners) listener(reducedMotion) })
+
+    await TestRenderer.act(async () => { await composer.current.sendMessage('hello') })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: !reducedMotion })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: reducedMotion })
+    scrollToEnd.mockClear()
+    TestRenderer.act(() => { for (const listener of listeners) listener(!reducedMotion) })
+    await TestRenderer.act(async () => { await composer.current.sendMessage('hello again') })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: reducedMotion })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: !reducedMotion })
+  })
+
+  it('uses the latest motion setting for queued scrolls and active streaming deltas', async () => {
+    vi.useFakeTimers()
+    const listeners = new Set<(enabled: boolean) => void>()
+    const subscription = vi.spyOn(TestAccessibilityInfo, 'addEventListener').mockImplementation((event, listener) => {
+      if (event === 'reduceMotionChanged') listeners.add(listener)
+      return { remove: () => { listeners.delete(listener) } }
+    })
+    onTestFinished(() => {
+      subscription.mockRestore()
+      vi.useRealTimers()
+    })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+    const scrollToEnd = vi.fn()
+    composer.current.flatListRef.current = { scrollToEnd } as unknown as FlatList<ChatMessage>
+    TestRenderer.act(() => { for (const listener of listeners) listener(false) })
+
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    TestRenderer.act(() => { for (const listener of listeners) listener(true) })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: true })
+    scrollToEnd.mockClear()
+    TestRenderer.act(() => { for (const listener of listeners) listener(false) })
+    TestRenderer.act(() => stream.enqueue(frame('{"type":"delta","text":"First"}')))
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: true })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: false })
+
+    scrollToEnd.mockClear()
+    TestRenderer.act(() => { for (const listener of listeners) listener(true) })
+    TestRenderer.act(() => stream.enqueue(frame('{"type":"delta","text":" second"}')))
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    expect(scrollToEnd).not.toHaveBeenCalledWith({ animated: true })
+
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await send
+      await vi.advanceTimersByTimeAsync(100)
+    })
   })
 
   it('sends Support entry intent on the first and later requests of that conversation', async () => {

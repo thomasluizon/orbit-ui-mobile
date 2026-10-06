@@ -70,6 +70,7 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
           key={apiKey.id}
           icon={<Key size={24} strokeWidth={1.8} color={tokens.fg1} />}
           title={apiKey.name}
+          textMode="personal"
           wrapTitle
           value={`${apiKey.keyPrefix}…`}
           chevron={false}

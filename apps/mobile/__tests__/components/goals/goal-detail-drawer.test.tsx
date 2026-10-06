@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { Animated, BackHandler, StyleSheet } from 'react-native'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
@@ -853,7 +854,7 @@ describe('GoalDetailDrawer', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<GoalDetailDrawer inline open onClose={vi.fn()} goalId="1" />) })
     const titles = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
-      typeof node.type === 'string' && node.props.accessibilityRole === 'header' &&
+      node.type === PersonalText && node.props.accessibilityRole === 'header' &&
       (node.props.children === 'Read 12 books' || node.props.children === 'progressScreen.sections.goals'))
     expect(titles).toHaveLength(1)
     expect(titles[0]!.props.children).toBe('Read 12 books')

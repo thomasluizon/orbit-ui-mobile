@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { resolveSettingsRowText } from '@orbit/shared/hooks'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import type { ReactNode } from 'react'
@@ -51,16 +52,17 @@ interface SettingsGroupRowProps {
 }
 
 function SettingsGroupRowText({ label, textMode, hint, expanded, color, hintColor }: Readonly<Pick<SettingsGroupRowProps, 'label' | 'textMode' | 'hint'> & { expanded: boolean; color: string; hintColor: string }>) {
+  const Label = textMode === 'personal' ? PersonalText : Text
   return (
       <View style={[styles.textBlock, textMode === 'personal' ? styles.personalTextBlock : null]}>
         <View style={styles.titleRow}>
-          <Text
+          <Label
+            expanded={textMode === 'personal' ? expanded : undefined}
             style={[styles.label, textMode === 'label' || expanded ? styles.wrappedLabel : null, { color: color }]}
-            numberOfLines={textMode === 'personal' && !expanded ? 2 : undefined}
             ellipsizeMode="tail"
           >
             {label}
-          </Text>
+          </Label>
         </View>
         {hint ? (
           <Text style={[styles.hint, { color: hintColor }]} numberOfLines={1}>

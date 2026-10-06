@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import Link from 'next/link'
 import {
   useEffect,
@@ -144,19 +146,20 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
           </div>
         ) : null}
         {props.account ? (
-          <Link
+          <div className="flex min-w-0 items-center"><Link
             data-shell-account=""
+            aria-label={[props.account, props.accountEmail].filter(Boolean).join(', ')}
             href="/profile"
-            className="orbit-hover-text flex min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+            className="orbit-hover-text flex flex-1 min-h-[var(--touch-min)] min-w-0 items-center gap-3 rounded-[12px] px-2 py-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
           >
             <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
               {Array.from(props.account)[0]?.toLocaleUpperCase()}
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-1">
-              <span data-shell-account-name="" className="line-clamp-2 [overflow-wrap:anywhere]">{props.account}</span>{' '}
-              {props.accountEmail ? <span data-shell-account-email="" className="line-clamp-2 text-[12px] font-normal text-[var(--fg-3)] [overflow-wrap:anywhere]">{props.accountEmail}</span> : null}
+              <PersonalText data-shell-account-name="">{props.account}</PersonalText>{' '}
+              {props.accountEmail ? <PersonalText data-shell-account-email="" className="text-[12px] font-normal text-[var(--fg-3)]">{props.accountEmail}</PersonalText> : null}
             </span>
-          </Link>
+          </Link></div>
         ) : (
           <div data-shell-account="" data-loading="true" aria-hidden="true" className="min-h-[var(--touch-min)]" />
         )}
@@ -173,7 +176,7 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? props.composer : props.action
   if (!visible) return null
-  const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height : undefined
+  const actionMinimum = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined) ? BUTTON_SIZES.md.height + 8 : undefined
 
   return (
     <div
@@ -182,18 +185,22 @@ function ShellBottomChrome({ props, conversationOpen, visible }: Readonly<{
       style={actionMinimum === undefined ? undefined : { minHeight: `calc(${actionMinimum}px + var(--safe-bottom))` }}
     >
       <div className="relative mx-auto flex min-h-0 w-full flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH, minHeight: actionMinimum }}>
-        {props.notice !== undefined ? <div data-shell-notice="" className="px-4">{props.notice}</div> : null}
+        {props.notice !== undefined ? (
+          <div data-shell-notice="" className="pointer-events-none overflow-y-auto [scrollbar-gutter:stable] px-4 has-[>div>:not(:empty)]:pt-[calc(var(--sh-2-blur)-var(--sh-2-offset-y))] has-[>div>:not(:empty)]:pb-[calc(var(--sh-2-blur)+var(--sh-2-offset-y))]">
+            <div className="pointer-events-auto">{props.notice}</div>
+          </div>
+        ) : null}
         {pinnedSlot !== undefined ? (
-          <div data-shell-pinned-slot="" hidden={conversationOpen} className="min-h-0 overflow-y-auto overscroll-contain lg:pb-4" style={{ minHeight: actionMinimum }}>
-            {pinnedSlot}
+          <div data-shell-pinned-slot="" hidden={conversationOpen} className={`pointer-events-none min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] ${actionMinimum === undefined ? '' : 'py-1'} lg:pb-4`} style={{ minHeight: actionMinimum }}>
+            <div className="pointer-events-auto">{pinnedSlot}</div>
           </div>
         ) : null}
         {navigationEnabled && props.tabBar !== undefined ? (
           <div data-shell-tab-bar="" className="shrink-0 lg:hidden">{props.tabBar}</div>
         ) : null}
         {props.fab !== undefined ? (
-          <div data-shell-fab="" className="absolute right-4 lg:hidden" style={{ bottom: 'calc(100% + 16px)' }}>
-            {props.fab}
+          <div data-shell-fab-clip="" className="pointer-events-none absolute inset-x-0 flex justify-end overflow-y-auto [scrollbar-gutter:stable] px-4 py-2 lg:hidden" style={{ bottom: 'calc(100% + 8px)' }}>
+            <div data-shell-fab="" className="pointer-events-auto">{props.fab}</div>
           </div>
         ) : null}
       </div>

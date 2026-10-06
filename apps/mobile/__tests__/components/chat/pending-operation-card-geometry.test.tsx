@@ -53,7 +53,7 @@ describe('Pending preview geometry on Android', () => {
     expect(buttons[0].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
     expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
-    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown } }) => node.props.children === 'Beber água')).toHaveLength(1)
+    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === 'Beber água' && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
     const rowStyle = StyleSheet.flatten(row.props.style)
     const frame = tree.root.findByProps({ testID: 'block-frame-resting' })
     const frameStyle = StyleSheet.flatten(frame.props.style)
@@ -91,7 +91,7 @@ describe('Pending preview geometry on Android', () => {
     const onRevise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: null, preview: null, cancelled: true } })
     const pendingOperation = { ...operation, changeTargetCount: count, items: Array.from({ length: count }, (_, index) => ({ ...originalItem, itemId: `item-${index}`, entityName: `Habit ${index}` })) }
     const tree = render(<PendingOperationCard pendingOperation={pendingOperation} {...handlers} onRevise={onRevise} />)
-    const reject = tree.root.findAllByType(Button).find((button: { props: { children?: unknown } }) => button.props.children === i18n.t('chat.operation.reject'))
+    const reject = tree.root.findAllByType(Button).find((button: { props: { children?: unknown; importantForAccessibility?: string } }) => button.props.children === i18n.t('chat.operation.reject'))
     await TestRenderer.act(async () => { reject.props.onClick(); await Promise.resolve() })
     const expected = locale === 'en' ? count === 1 ? 'The change was rejected. Nothing was saved.' : 'The 3 changes were rejected. Nothing was saved.' : count === 1 ? 'A mudança foi rejeitada. Nada foi salvo.' : 'As 3 mudanças foram rejeitadas. Nada foi salvo.'
     expect(renderedText(tree.toJSON())).toContain(expected)

@@ -1,5 +1,8 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
+
 import Link from 'next/link'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 
@@ -50,7 +53,7 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton, PillLink } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -386,7 +389,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
       onClick={onOpen}
       className="orbit-hover-text relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className={`line-clamp-2 [overflow-wrap:anywhere] text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</span>
+        <PersonalText className={`  text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</PersonalText>
         <span className="flex flex-wrap items-center gap-2">
           {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
           {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-2)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
@@ -479,19 +482,23 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
 
 function TopHabitRow({ habit }: Readonly<{ habit?: { name: string; emoji: string | null; habitId?: string | null } }>) {
   const t = useTranslations()
+  const [expanded, setExpanded] = useState(false)
+  const titleId = useId()
+  const ChevronIcon = habit?.habitId ? ChevronRight : ChevronDown
   const content = <>
     <span className="flex items-center justify-between gap-3">
       <span className="whitespace-nowrap text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.window.topHabit')}</span>
-      {habit?.habitId ? <ChevronRight size={24} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-[var(--fg-3)]" /> : null}
+      {habit ? <ChevronIcon size={24} strokeWidth={1.5} aria-hidden="true" className="shrink-0 text-[var(--fg-3)]" /> : null}
     </span>
-    {habit ? <span title={habit.name} className="line-clamp-2 text-[17px] leading-[1.4] text-[var(--fg-1)]" style={{ overflowWrap: 'anywhere' }}>
-      {habit.emoji ? <span aria-hidden="true">{habit.emoji} </span> : null}{habit.name}
+    {habit ? <span title={habit.name} className="flex min-w-0 items-start gap-1 text-[17px] leading-[1.4] text-[var(--fg-1)]">
+      {habit.emoji ? <span aria-hidden="true">{habit.emoji}</span> : null}<PersonalText id={titleId} expanded={expanded}>{habit.name}</PersonalText>
     </span> : <span className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.window.topHabitEmpty')}</span>}
   </>
   const rowClass = 'flex min-h-[68px] min-w-0 flex-col gap-1 rounded-[12px] p-4'
-  return habit?.habitId
+  const control = habit?.habitId
     ? <Link href={`/habits/${habit.habitId}`} data-testid="progress-top-habit" className={`${rowClass} touch-manipulation transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}>{content}</Link>
-    : <div data-testid="progress-top-habit" className={rowClass}>{content}</div>
+    : habit ? <button type="button" aria-label={`${t('progressScreen.window.topHabit')}, ${habit.name}`} aria-expanded={expanded} aria-controls={titleId} onClick={() => setExpanded(!expanded)} data-testid="progress-top-habit" className={`${rowClass} w-full text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}>{content}</button> : <div data-testid="progress-top-habit" className={rowClass}>{content}</div>
+  return habit && !habit.habitId ? <PersonalTextAction label={`${t('progressScreen.window.topHabit')}, ${habit.name}`} contentClassName={rowClass} control={control} /> : control
 }
 
 function WindowSection({ hasGoals }: Readonly<{ hasGoals: boolean }>) {
@@ -590,7 +597,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Rea
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </div>
       <Section title={t('progressScreen.sections.achievements')}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h3 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h3><div className="grid grid-cols-1 gap-3 md:grid-cols-2">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h3 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h3><div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:gap-4">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
       </Section>
     </>
   )

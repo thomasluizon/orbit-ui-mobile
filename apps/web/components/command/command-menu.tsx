@@ -94,7 +94,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose }: Readonly<Comma
       {search.isSuccess && !search.busy && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
       <HabitSearchLoading show={search.showLoading} text={search.text} heading={t('command.groups.search')} />
-      {!search.busy && !search.isError && entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>}
+      {!search.busy && !search.isError && entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disclose={page !== null} disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>}
       {page === null && <CommandGroups query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} createRefusal={createRefusal} />}
       <div className="flex gap-3"><ActionRow>
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}

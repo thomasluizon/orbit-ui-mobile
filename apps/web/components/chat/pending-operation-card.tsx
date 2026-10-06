@@ -1,5 +1,6 @@
 'use client'
 
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
 
 import type { Time24 } from '@orbit/shared/contracts/forms'
@@ -98,8 +99,8 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
     <div className="flex flex-col gap-4">
       {editableItems.length > 1 ? <div className="flex flex-col gap-2">{showSearch ? <Input label={labels.search} value={query} onChange={setQuery} disabled={busy} /> : null}<RadioGroup aria-label={labels.editTitle}>{editableItems.filter((entry) => !showSearch || entry.entityName.toLocaleLowerCase().includes(query.toLocaleLowerCase())).map((entry) =>
         busy
-          ? <RadioRow key={entry.itemId} label={entry.entityName} selected={entry.itemId === item.itemId} disabled reason={labels.acting} />
-          : <RadioRow key={entry.itemId} label={entry.entityName} selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></div> : null}
+          ? <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} disabled reason={labels.acting} />
+          : <RadioRow key={entry.itemId} label={entry.entityName} textMode="personal" selected={entry.itemId === item.itemId} onSelect={() => onSelectItem(entry.itemId)} />)}</RadioGroup></div> : null}
       {item.fields.filter(isPendingOperationEditableField).map((field) => {
         const label = labels.fieldLabels[field.field] ?? field.field
         if (field.field === 'checklist_items' || field.field === 'reminder_times' || field.field === 'scheduled_reminders') return <ListFieldEditor key={field.field} field={field.field} value={draft[field.field] ?? '[]'} labels={labels} busy={busy} error={error} onChange={(value) => onChange(field.field, value)} />
@@ -168,7 +169,7 @@ function StepUpVerificationSheet({
 }
 
 const pendingOperationRenderers = {
-  blockFrame: (props) => <BlockFrame {...props} />,
+  blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PersonalTextDetails proposed={item.proposed}>{item.label}</PersonalTextDetails> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
   stepUp: (props) => <StepUp {...props} />,

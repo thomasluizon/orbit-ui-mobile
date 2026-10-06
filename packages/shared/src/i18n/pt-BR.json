@@ -2274,8 +2274,8 @@
     "flow": {
       "completionFailed": "Não foi possível concluir a configuração. Tente de novo.",
       "trial": {
-        "title": "O seu teste do Orbit Pro está ativo.",
-        "body": "Tudo do Pro está liberado durante o teste grátis. Se você não assinar, a sua conta volta para o plano grátis."
+        "title": "Orbit Pro está ativo",
+        "body": "O teste grátis dura 7 dias. Se você não assinar, a sua conta volta para o plano grátis."
       },
       "step": "{current} de {total}",
       "skip": "Pular",
