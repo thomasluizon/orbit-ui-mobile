@@ -418,7 +418,41 @@ describe('Composer (mobile)', () => {
     },
   )
 
-  it('releases chip allocation through narrow wide narrow layout callbacks', () => {
+  it.each([en, ptBR])('hugs every returning suggestion across supported native widths', messages => {
+    const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [createMockHabit()], totalHabitCount: 1,
+      profile: createMockProfile({ lastCompletionDate: '2026-09-01' }), now: new Date('2026-09-10T12:00:00Z') })
+    const labels = messages.shell.composer.chips.today
+    const suggestions = toComposerSuggestions(chips.map(({ id }) => ({ id,
+      label: labels[id.replace('today.', '') as keyof typeof labels], onSelect: vi.fn() })))
+    const tree = renderComposer(props({ suggestions, words: messages.shell.composer }))
+    const config = Yoga.Config.create()
+    try {
+      for (const width of [320, 412, 600, 840, 1100, 1352, 320]) {
+        const host = tree.root.findByProps({ testID: 'composer-suggestions-layout' })
+        TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: width - 32, height: 48 } } }))
+        for (const [index, suggestion] of suggestions.entries()) {
+          const chip = byLabel(tree.root, suggestion.label)[0]
+          const contentWidth = [111, 154, 105, 160, 180, 120][index]!
+          TestRenderer.act(() => chip.findByProps({ testID: 'composer-suggestion-content' }).props.onLayout({
+            nativeEvent: { layout: { x: 0, y: 0, width: contentWidth, height: 20 } },
+          }))
+          const target = Yoga.Node.create(config)
+          const content = Yoga.Node.create(config)
+          try {
+            const style = StyleSheet.flatten(chip.props.style)
+            applyComposerLayoutStyle(target, style)
+            applyComposerLayoutInsets(target, style)
+            content.setMeasureFunc(() => ({ width: contentWidth, height: 20 }))
+            target.insertChild(content, 0)
+            target.calculateLayout(undefined, undefined)
+            expect(Math.abs(target.getComputedWidth() - content.getComputedWidth() - 24 - 2 * StyleSheet.hairlineWidth)).toBeLessThanOrEqual(1)
+          } finally { target.freeRecursive() }
+        }
+      }
+    } finally { config.free(); TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it('keeps content widths through narrow wide narrow layout callbacks', () => {
     const chips = buildComposerChips({ surface: 'habitDetail', status: 'success', habits: [], totalHabitCount: 1,
       detailHabit: { title: 'Reading', checklistItems: [] }, profile: createMockProfile() })
     expect(chips.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
@@ -432,28 +466,26 @@ describe('Composer (mobile)', () => {
       TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height: 48 } } }))
       for (const [index, suggestion] of suggestions.entries()) {
         const chip = byLabel(mounted.root, suggestion.label)[0]
-        const content = chip.findAll((node: { props: Record<string, unknown> }) => typeof node.props.onLayout === 'function' && node.props.testID === 'composer-suggestion-content')[0]
-        const target = content ?? chip
-        const renderedWidth = content ? naturalWidths[index]! - 24 - 2 * StyleSheet.hairlineWidth
-          : Math.max(naturalWidths[index]!, StyleSheet.flatten(chip.props.style).minWidth ?? 0)
-        TestRenderer.act(() => target.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: renderedWidth, height: 24 } } }))
+        const content = chip.findByProps({ testID: 'composer-suggestion-content' })
+        const renderedWidth = Math.min(naturalWidths[index]!, width - 32) - 24 - 2 * StyleSheet.hairlineWidth
+        TestRenderer.act(() => content.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: renderedWidth, height: 24 } } }))
+        expect(StyleSheet.flatten(chip.props.style).minWidth).toBeUndefined()
       }
-      return StyleSheet.flatten(byLabel(mounted.root, suggestions[0]!.label)[0].props.style).minWidth
+      return StyleSheet.flatten(byLabel(mounted.root, en.shell.composer.suggestionsLabel)[0].props.contentContainerStyle).gap
     }
     try {
       for (const width of [176, 427, 176, 427]) {
-        const allocated = layoutAt(tree, width)
+        const gap = layoutAt(tree, width)
         const fresh = renderComposer(props({ suggestions, words: en.shell.composer }))
-        try { expect(allocated).toBe(layoutAt(fresh, width)) }
+        try { expect(gap).toBe(layoutAt(fresh, width)) }
         finally { TestRenderer.act(() => fresh.unmount()) }
-        expect(allocated).toBe(width === 427 ? 0 : 144)
-        if (width === 176) expect(width - allocated - 8).toBe(24)
+        expect(gap).toBe(8)
       }
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
-  it.each([320, 360, 384, 412, 640, 768, 900, 1023].flatMap(width => [1, 2].map(fontScale => ({ width, fontScale })) ))(
-    'reserves a 24 dp peek after measured chips at $width and $fontScale text', ({ width, fontScale }) => {
+  it.each([320, 360, 384, 412, 600, 840, 1100, 1352].flatMap(width => [1, 2].map(fontScale => ({ width, fontScale })) ))(
+    'keeps a readable peek after content-hugging chips at $width and $fontScale text', ({ width, fontScale }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
       const tree = renderComposer(props())
       try {
@@ -467,6 +499,18 @@ describe('Composer (mobile)', () => {
           const style = StyleSheet.flatten(chip.props.style)
           expect(style.maxWidth).toBe(available - 32)
           expect(style.minHeight).toBe(48)
+          const config = Yoga.Config.create()
+          const target = Yoga.Node.create(config)
+          const content = Yoga.Node.create(config)
+          try {
+            applyComposerLayoutStyle(target, style)
+            applyComposerLayoutInsets(target, style)
+            const contentWidth = chipWidth - 24 - 2 * StyleSheet.hairlineWidth
+            content.setMeasureFunc(() => ({ width: contentWidth, height: 20 * fontScale }))
+            target.insertChild(content, 0)
+            target.calculateLayout(undefined, undefined)
+            expect(Math.abs(target.getComputedWidth() - content.getComputedWidth() - 24 - 2 * StyleSheet.hairlineWidth)).toBeLessThanOrEqual(1)
+          } finally { target.freeRecursive(); config.free() }
           expect(style.alignItems).toBe('flex-start')
           expect(StyleSheet.flatten(chip.findByType('Text').props.style).flexShrink).toBe(1)
           expect(chip.findByType('Text').props.numberOfLines).toBeUndefined()
@@ -475,22 +519,23 @@ describe('Composer (mobile)', () => {
         const scroller = byLabel(tree.root, words.suggestionsLabel)[0]
         const visible = StyleSheet.flatten(scroller.props.style).width ?? available
         expect(visible).toBe(available)
-        chipWidths[0] = Math.max(chipWidths[0]!, StyleSheet.flatten(byLabel(tree.root, 'chip sentinel 0')[0].props.style).minWidth)
-        const starts = chipWidths.map((_, index) => chipWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const gap = StyleSheet.flatten(scroller.props.contentContainerStyle).gap
+        const starts = chipWidths.map((_, index) => chipWidths.slice(0, index).reduce((sum, size) => sum + size + gap, 0))
         const partial = starts.findIndex((start, index) => start < visible && start + chipWidths[index]! > visible)
         if (chipWidths.reduce((sum, size) => sum + size, 16) > available) {
           expect(partial).toBeGreaterThan(0)
-          expect(visible - starts[partial]!).toBe(24)
+          expect(visible - starts[partial]!).toBeGreaterThanOrEqual(16)
         } else expect(visible).toBe(available)
         expect(chipWidths.every(size => size <= visible)).toBe(true)
         TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 288, height: 48 } } }))
         const resizedWidths = chipWidths.map(size => Math.min(size, 256))
-        const resizedVisible = StyleSheet.flatten(scroller.props.style).width
-        resizedWidths[0] = Math.max(resizedWidths[0]!, StyleSheet.flatten(byLabel(tree.root, 'chip sentinel 0')[0].props.style).minWidth)
-        const resizedStarts = resizedWidths.map((_, index) => resizedWidths.slice(0, index).reduce((sum, size) => sum + size + 8, 0))
+        const resizedScroller = byLabel(tree.root, words.suggestionsLabel)[0]
+        const resizedVisible = StyleSheet.flatten(resizedScroller.props.style).width ?? 288
+        const resizedGap = StyleSheet.flatten(resizedScroller.props.contentContainerStyle).gap
+        const resizedStarts = resizedWidths.map((_, index) => resizedWidths.slice(0, index).reduce((sum, size) => sum + size + resizedGap, 0))
         const resizedPartial = resizedStarts.findIndex((start, index) => start < resizedVisible && start + resizedWidths[index]! > resizedVisible)
         expect(resizedPartial).toBeGreaterThan(0)
-        expect(resizedVisible - resizedStarts[resizedPartial]!).toBe(24)
+        expect(resizedVisible - resizedStarts[resizedPartial]!).toBeGreaterThanOrEqual(16)
       } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },
   )

@@ -90,10 +90,10 @@ function SuggestionStrip({
         horizontal
         accessibilityLabel={label}
         showsHorizontalScrollIndicator={false}
-        style={{ width: layout.visibleWidth || undefined, flexGrow: 0 }}
-        contentContainerStyle={styles.suggestions}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={[styles.suggestions, { gap: layout.gap }]}
       >
-        {suggestions.map((suggestion, index) => (
+        {suggestions.map(suggestion => (
           <InsetFocusPressable
             key={suggestion.id}
             accessibilityRole="button"
@@ -104,7 +104,7 @@ function SuggestionStrip({
             }}
             style={({ pressed }) => [
               styles.suggestion,
-              { maxWidth, minWidth: index === 0 ? layout.firstChipMinWidth : undefined,
+              { maxWidth,
                 backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
             ]}
           >

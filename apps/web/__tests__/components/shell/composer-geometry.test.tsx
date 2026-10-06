@@ -332,7 +332,37 @@ describe('Composer compact geometry in Chromium', () => {
     }, 30_000,
   )
 
-  it('releases chip allocation when a mounted habit detail strip grows and shrinks', async () => {
+  it.each([en, ptBR])('hugs every returning conversation suggestion across supported widths', async messages => {
+    const { suggestions } = liveChipSuggestions('returning', messages)
+    const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
+      for (const width of [320, 412, 600, 840, 1100, 1352, 320]) {
+        await page.setViewportSize({ width, height: 740 })
+        await vi.waitFor(async () => {
+          const measured = await strip.evaluate(element => {
+            element.scrollLeft = 0
+            const bounds = element.getBoundingClientRect()
+            return { available: element.parentElement!.getBoundingClientRect().width, viewport: bounds.width,
+              chips: [...element.querySelectorAll('button')].map(button => {
+                const style = getComputedStyle(button)
+                return { label: button.textContent, width: button.getBoundingClientRect().width,
+                  content: button.querySelector('[data-suggestion-content]')!.getBoundingClientRect().width,
+                  padding: parseFloat(style.paddingInlineStart) + parseFloat(style.paddingInlineEnd) }
+              }) }
+          })
+          const evidence = JSON.stringify({ width, measured })
+          expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
+          for (const chip of measured.chips) expect(Math.abs(chip.width - chip.content - chip.padding), evidence).toBeLessThanOrEqual(1)
+        })
+      }
+    } finally { await page.close() }
+  })
+
+  it('keeps content widths when a mounted habit detail strip grows and shrinks', async () => {
     const { suggestions } = liveChipSuggestions('habitDetail', en)
     expect(suggestions.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
     const configuration = { state: 'idle', value: '', suggestions, words: en.shell.composer }
@@ -366,7 +396,6 @@ describe('Composer compact geometry in Chromium', () => {
           } else {
             expect(measured.scrollWidth).toBeGreaterThan(measured.clientWidth)
             expect(measured.peek).toBeGreaterThanOrEqual(16)
-            expect(measured.peek).toBeLessThanOrEqual(32)
           }
         })
       }
@@ -378,7 +407,7 @@ describe('Composer compact geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([en, ptBR])('reserves a 16 to 32 pixel peek for live Today chips at 320 with doubled text', async (messages) => {
+  it.each([en, ptBR])('keeps a readable peek for live Today chips at 320 with doubled text', async (messages) => {
     const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0,
       profile: createMockProfile() })
     const labels = messages.shell.composer.chips.today
@@ -402,7 +431,6 @@ describe('Composer compact geometry in Chromium', () => {
       })
       const evidence = JSON.stringify(measured)
       expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
-      expect(measured.peek, evidence).toBeLessThanOrEqual(32)
     } finally { await page.close() }
   })
 
@@ -418,7 +446,7 @@ describe('Composer compact geometry in Chromium', () => {
         await loadAppFonts(page)
         const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
         await strip.waitFor()
-        for (const width of [320, 360, 384, 412, 640, 768, 900, 1023, 412, 320]) {
+        for (const width of [320, 360, 384, 412, 600, 840, 1100, 1352, 412, 320]) {
           await page.setViewportSize({ width, height: 740 })
           await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
           const measured = await strip.evaluate(element => {
@@ -446,7 +474,6 @@ describe('Composer compact geometry in Chromium', () => {
           expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           if (measured.overflow) {
             expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
-            expect(measured.peek, evidence).toBeLessThanOrEqual(32)
             expect(measured.controls[0]!.right - measured.controls[0]!.left, evidence).toBeLessThan(measured.viewport)
           } else expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           for (const control of measured.controls) {

@@ -6,23 +6,20 @@ import { getReturningInterval } from '../utils/returning-interval'
 export const COMPOSER_CHIP_GAP = 8
 export const COMPOSER_CHIP_PEEK = 24
 
-export function resolveComposerStripLayout(availableWidth: number, measuredWidths: readonly number[]): { visibleWidth: number; firstChipMinWidth: number } {
-  const spacing = COMPOSER_CHIP_GAP + COMPOSER_CHIP_PEEK
-  const chipWidths = measuredWidths.map(width => Math.min(width, Math.max(0, availableWidth - spacing)))
+export function resolveComposerStripLayout(availableWidth: number, measuredWidths: readonly number[]): { gap: number } {
+  const chipWidths = measuredWidths.map(width => Math.min(width, Math.max(0, availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK)))
   const totalWidth = chipWidths.reduce((sum, width) => sum + width, 0)
     + Math.max(0, chipWidths.length - 1) * COMPOSER_CHIP_GAP
-  if (chipWidths.some(width => width === 0) || totalWidth <= availableWidth) {
-    return { visibleWidth: availableWidth, firstChipMinWidth: 0 }
-  }
-  const firstChipMinWidth = Math.max(0, Math.max(...chipWidths) - spacing)
-  let nextStart = Math.max(chipWidths[0]!, firstChipMinWidth) + COMPOSER_CHIP_GAP
-  let visibleWidth = nextStart + COMPOSER_CHIP_PEEK
-  for (const width of chipWidths.slice(1, -1)) {
-    nextStart += width + COMPOSER_CHIP_GAP
-    if (nextStart + COMPOSER_CHIP_PEEK > availableWidth) break
-    visibleWidth = nextStart + COMPOSER_CHIP_PEEK
-  }
-  return { visibleWidth: availableWidth, firstChipMinWidth: Math.max(chipWidths[0]!, firstChipMinWidth) + availableWidth - visibleWidth }
+  if (chipWidths.some(width => width === 0) || totalWidth <= availableWidth) return { gap: COMPOSER_CHIP_GAP }
+  const gap = [8, 12, 16, 24, 32, 48, 64, 96].find(spacing => {
+    let start = 0
+    return chipWidths.some(width => {
+      const visible = availableWidth - start
+      start += width + spacing
+      return visible >= 16 && visible < width
+    })
+  })!
+  return { gap }
 }
 
 export type ComposerChipSurface = 'today' | 'calendar' | 'progress' | 'profile' | 'habitDetail'
