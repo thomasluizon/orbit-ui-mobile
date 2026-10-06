@@ -142,7 +142,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const col = { ...column('2025-06-16'), isToday: true };
     const tree = renderGrid([col], new Map(), vi.fn(), false, displayTime, 'UTC', palette);
     const header = hostsByTestID(tree, 'time-grid-col-header')[0]!;
-    const weekday = tree.root.findAll((node) => node.type === 'Text' && resolveStyle(node.props.style).color === palette.primaryText)[0]!;
+    const weekday = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && resolveStyle(node.props.style).color === palette.primaryText)[0]!;
     expect(resolveStyle(weekday.props.style).color).toBe(palette.primaryText);
     TestRenderer.act(() => header.props.onPressIn?.());
     const fill = StyleSheet.flatten(header.props.style({ pressed: true })).backgroundColor;
@@ -162,7 +162,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(renderedAncestorHeight(hostsByTestID(tree, 'time-grid-col-header')[0]!)).toBeGreaterThanOrEqual(100);
     for (const label of hostsByTestID(tree, 'time-grid-hour-label')) expect(resolveStyle(label.props.style).fontSize).toBeGreaterThanOrEqual(12);
     const summaryStyle = resolveStyle(hostsByTestID(tree, 'time-grid-all-day-summary')[0]!.props.style);
-    const count = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 1)[0]!;
+    const count = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 1)[0]!;
     const cell = hostsByTestID(tree, 'time-grid-all-day')[0]!;
     const cellStyle = resolveStyle(cell.props.style);
     const textHeight = Number(resolveStyle(count.props.style).lineHeight) * 2;
@@ -176,15 +176,15 @@ describe("CalendarTimeGrid (mobile)", () => {
     const entries = Array.from({ length: 25 }, (_, i) => makeEntry({ habitId: `ad-${i}`, title: `All ${i}` }));
     const tree = renderGrid([col], new Map([[col.dateStr, entries]]));
     TestRenderer.act(() => hostsByTestID(tree, 'time-grid-all-day-summary')[0]!.props.onPress());
-    const titleNodes = () => tree.root.findAll((node) => node.type === 'Text' && node.props.selectable === true);
+    const titleNodes = () => tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.selectable === true);
     expect(titleNodes()).toHaveLength(20);
     const next = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.next')[0]!;
     TestRenderer.act(() => next.props.onClick());
     expect(titleNodes()).toHaveLength(5);
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]!.props.children).toContain('\"shown\":5,\"total\":25');
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityLiveRegion === 'polite')[0]!.props.children).toContain('\"shown\":5,\"total\":25');
     TestRenderer.act(() => tree.root.findAll((node) => node.type === Input)[0]!.props.onChange('missing'));
     expect(titleNodes()).toHaveLength(0);
-    const liveCount = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityLiveRegion === 'polite')[0]!;
+    const liveCount = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityLiveRegion === 'polite')[0]!;
     expect(liveCount.props.children).toContain('"total":0');
     const clear = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'calendar.dayDetail.clearEventSearch')[0]!;
     TestRenderer.act(() => clear.props.onClick());

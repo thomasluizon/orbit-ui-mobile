@@ -1,5 +1,8 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
+
 import { resolveSettingsRowText } from '@orbit/shared/hooks'
 
 import { ChevronRight, type Icon } from '@/components/ui/icons'
@@ -58,7 +61,7 @@ function SettingsRowTrailing({ value, children, accessory, valueColor, mono }: R
 }
 
 function labelPresentation(textMode: SettingsRowProps['textMode'], expanded: boolean) {
-  return { className: textMode === 'personal' && !expanded ? 'line-clamp-2' : undefined, lineHeight: textMode === 'label' || expanded ? 1.4 : 1.35, overflowWrap: textMode === 'personal' ? 'anywhere' as const : 'break-word' as const }
+  return { className: undefined, lineHeight: textMode === 'label' || expanded ? 1.4 : 1.35, overflowWrap: textMode === 'personal' ? 'normal' as const : 'break-word' as const }
 }
 
 function settingsRowStyle(textMode: SettingsRowProps['textMode'], divider: boolean) {
@@ -93,6 +96,7 @@ export function SettingsRow({
   ariaLabel,
   divider = true,
 }: Readonly<SettingsRowProps>) {
+  const Label = textMode === 'personal' ? PersonalText : 'span'
   const [expanded, setExpanded] = useState(false)
   const labelId = useId()
   const { expandedState, controls, onAction: handleClick } = resolveSettingsRowText({ textMode, expanded, labelId, onAction: onClick, onToggle: () => setExpanded((current) => !current) })
@@ -101,7 +105,7 @@ export function SettingsRow({
   const rowColors = { iconColor: danger ? 'var(--status-bad)' : 'var(--fg-1)' }
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
 
-  return (
+  const control = (
     <RootTag
       type={interactive ? 'button' : undefined}
       onClick={handleClick}
@@ -128,7 +132,8 @@ export function SettingsRow({
         />
       )}
       <span className="flex flex-col min-w-0 flex-1" style={{ gap: 4 }}>
-        <span
+        <Label
+          expanded={textMode === 'personal' ? expanded : undefined}
           id={labelId}
           data-slot="settings-row-label"
           className={labelPresentation(textMode, expanded).className}
@@ -142,7 +147,7 @@ export function SettingsRow({
           }}
         >
           {label}
-        </span>
+        </Label>
         {desc && (
           <span
             style={{
@@ -160,4 +165,5 @@ export function SettingsRow({
       <SettingsRowTrailing value={value} valueColor={valueColor} accessory={accessory} mono={mono}>{children}</SettingsRowTrailing>
     </RootTag>
   )
+  return textMode === 'personal' && interactive ? <PersonalTextAction label={ariaLabel ?? label} contentClassName="flex items-center w-full rounded-[12px]" contentStyle={settingsRowStyle(textMode, divider)} control={control} /> : control
 }

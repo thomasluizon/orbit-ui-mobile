@@ -1,6 +1,7 @@
 'use client'
 
-import type { KeyboardEvent, ReactNode } from 'react'
+import { useId, type KeyboardEvent, type ReactNode } from 'react'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import { useTranslations } from 'next-intl'
 import type { HabitStatus } from '@orbit/shared/contracts/lists'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -201,7 +202,7 @@ export function HabitRow({
         wellRadius={wellRadius}
       />
 
-      <HabitRowContent
+      <HabitRowContent expanded={selectMode && selected}
         habit={habit}
         titleSize={titleSize}
         titleColor={getTitleColor()}
@@ -253,7 +254,7 @@ export function HabitRow({
   const rowContents = (
     <>
       <HabitRowPrimaryButton onClick={handleRowClick} supportingMeta={supportingMeta}
-        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta}
+        largeText={largeText} isChild={isChild} rowPadding={rowPadding} meta={meta} independentText={selectMode} label={habit.title}
         onReorder={actions.onReorder} reorderInstructionsId={reorderInstructionsId}>
         {primaryContent}
       </HabitRowPrimaryButton>
@@ -269,8 +270,10 @@ export function HabitRow({
   )
 }
 
-function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children }: Readonly<{
+function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, rowPadding, meta, onReorder, reorderInstructionsId, children, independentText, label }: Readonly<{
   onClick: () => void
+  independentText: boolean
+  label: string
   supportingMeta: boolean
   largeText: boolean
   isChild: boolean
@@ -281,22 +284,19 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
   children: ReactNode
 }>) {
   const t = useTranslations()
-  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (!onReorder || !event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
-    event.preventDefault()
-    onReorder(event.key === 'ArrowUp' ? -1 : 1)
-  }
-  return (
+  const contentId = useId()
+  const accessibleLabel = [label, meta.map((token) => typeof token === 'string' ? token : token.label).join('·')].filter(Boolean).join(' ')
+  const layoutClass = supportingMeta ? 'grid grid-cols-subgrid grid-rows-subgrid' : 'flex'
+  const paddingStyle = { gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 8, alignItems: largeText ? 'flex-start' : undefined }
+  const control = (
       <button
         type="button"
         onClick={onClick}
-        onKeyDown={onReorder ? handleKeyDown : undefined}
-        aria-roledescription={onReorder ? t('dragAndDrop.roleDescription') : undefined}
-        aria-keyshortcuts={onReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
-        aria-describedby={onReorder ? reorderInstructionsId : undefined}
+        {...habitRowReorderProps(onReorder, reorderInstructionsId, t('dragAndDrop.roleDescription'))}
         data-habit-row-body=""
-        className={`${supportingMeta ? 'grid col-start-1 col-span-full row-start-1 row-span-2 grid-cols-subgrid grid-rows-subgrid' : 'flex'} min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left transition-[background-color,transform] duration-[var(--dur-hover)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
-        style={{ gap: supportingMeta ? undefined : 12, rowGap: supportingMeta ? 0 : undefined, paddingBlock: rowPadding, paddingInlineStart: 8, alignItems: largeText ? 'flex-start' : undefined }}
+        aria-label={independentText ? accessibleLabel : undefined}
+        className={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 flex-1 items-center self-stretch overflow-hidden rounded-[20px] appearance-none border-0 bg-transparent text-left ${independentText ? 'transition-[background-color]' : 'transition-[background-color,transform] active:scale-[0.96]'} duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]`}
+        style={paddingStyle}
       >
         {supportingMeta ? (
           <div data-habit-row-heading="" className="col-start-1 row-start-1 flex min-w-0 items-start" style={{ gap: 12, minHeight: isChild ? 52 : 68, paddingBlockStart: isChild ? 4 : 8 }}>
@@ -311,6 +311,7 @@ function HabitRowPrimaryButton({ onClick, supportingMeta, largeText, isChild, ro
         ) : null}
       </button>
   )
+  return independentText ? <PersonalTextAction label={accessibleLabel} contentId={contentId} className={`${supportingMeta ? 'col-start-1 col-span-full row-start-1 row-span-2 grid grid-cols-subgrid grid-rows-subgrid' : 'flex-1 self-stretch'} transition-transform duration-[var(--dur-hover)] ease-[var(--ease-standard)] motion-safe:has-[>button:active]:scale-[0.96]`} contentClassName={`${layoutClass} col-start-1 col-span-full row-start-1 row-span-2 min-w-0 items-center self-stretch rounded-[20px] text-left`} contentStyle={paddingStyle} control={control} /> : control
 }
 
 function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild, supportingMeta, children }: Readonly<{
@@ -335,6 +336,20 @@ function HabitRowLayout({ habitTitle, depth, state, selected, largeText, isChild
       ) : children}
     </div>
   )
+}
+
+function habitRowReorderProps(onReorder: ((direction: -1 | 1) => void) | undefined, reorderInstructionsId: string | undefined, roleDescription: string) {
+  if (!onReorder) return {}
+  return {
+    onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+      event.preventDefault()
+      onReorder(event.key === 'ArrowUp' ? -1 : 1)
+    },
+    'aria-roledescription': roleDescription,
+    'aria-keyshortcuts': 'Alt+ArrowUp Alt+ArrowDown',
+    'aria-describedby': reorderInstructionsId,
+  }
 }
 
 function habitRowPadding(isChild: boolean, largeText: boolean): number {

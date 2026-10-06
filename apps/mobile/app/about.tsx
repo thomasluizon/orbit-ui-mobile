@@ -1,3 +1,6 @@
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
+import { ChevronDown } from '@/components/ui/icons'
+import { PersonalText } from '@/components/ui/personal-text'
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -26,6 +29,15 @@ interface AboutFactProps {
 }
 
 function AboutFact({ id, label, value, labelColor, valueColor }: Readonly<AboutFactProps>) {
+  const [expanded, setExpanded] = useState(false)
+  const [pressed, setPressed] = useState(false)
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const content = <>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: pressed ? tokens.fg2 : labelColor }]}>{label}</Text><ChevronDown size={20} strokeWidth={1.5} color={pressed ? tokens.fg2 : labelColor} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></View>
+    <PersonalText expanded={expanded} testID={`about-fact-${id}-value`} style={[styles.factValue, { color: valueColor }]}>{value}</PersonalText>
+  </>
+  if (id === 'account') return <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={`${label} ${value}`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} testID={`about-fact-${id}`} style={({ pressed }) => [styles.factRow, { minHeight: 48, padding: 8, borderRadius: 12, overflow: 'hidden', flexDirection: 'column', alignItems: 'stretch', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</Pressable>
   return (
     <View testID={`about-fact-${id}`} style={styles.factRow}>
       <Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: labelColor }]}>

@@ -153,6 +153,7 @@ export function GoalLinkedHabitsSection({
               <ListRow
                 compact={false}
                 title={habit.title}
+                textMode="personal"
                 value={value}
                 accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
                 href={`/habits/${habit.id}`}

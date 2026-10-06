@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo } from 'react'
 import Link from 'next/link'
@@ -178,7 +180,7 @@ function CalendarDayRows({
       <button key={`${dateStr}:${entry.habitId}`} type="button" aria-label={`${entry.title}, ${outcome.ringLabel}`} onClick={() => onOpenTitle(entry.title)} className="min-h-[68px] w-full overflow-hidden rounded-[12px] border-0 p-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
         <span className="flex min-w-0 items-start gap-2 px-4 py-2">
           <span className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="line-clamp-2 text-base [overflow-wrap:anywhere] text-[var(--fg-1)]">{entry.title}</span>
+            <PersonalText className=" text-base  text-[var(--fg-1)]">{entry.title}</PersonalText>
             {value ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
           </span>
           <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
@@ -311,7 +313,7 @@ export function CalendarDayDetail({
     >
       {body}
       {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
-        <p className="text-base text-[var(--fg-1)] [overflow-wrap:anywhere]">{expandedTitle}</p>
+        <PersonalText expanded className="text-base text-[var(--fg-1)]">{expandedTitle}</PersonalText>
       </Sheet> : null}
     </section>
   )

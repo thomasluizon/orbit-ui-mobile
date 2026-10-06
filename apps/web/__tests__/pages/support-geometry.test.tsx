@@ -54,12 +54,12 @@ describe('support form geometry in Chromium', () => {
         await expectLabelsFit(page, page.locator('form'), [replyEmail])
         const email = page.getByText(replyEmail, { exact: true })
         const geometry = await email.evaluate((element) => {
-          const control = element.closest('button')!
-          const style = getComputedStyle(control)
+          const content = element.closest('[data-personal-text-content]')!
+          const style = getComputedStyle(content)
           const textStyle = getComputedStyle(element)
           return {
             width: element.getBoundingClientRect().width,
-            available: control.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+            available: content.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
             lines: element.clientHeight / Number.parseFloat(textStyle.lineHeight),
             clamp: textStyle.webkitLineClamp,
             clipped: element.scrollHeight > element.clientHeight,
@@ -71,7 +71,7 @@ describe('support form geometry in Chromium', () => {
         for (const mode of ['light', 'dark'] as const) {
           const variables = resolveWebThemeVariables('purple', mode)
           await page.addStyleTag({ content: `:root { ${Object.entries(variables).map(([name, value]) => `${name}: ${value};`).join(' ')} }` })
-          const control = email.locator('..')
+          const control = page.getByRole('button', { name: replyEmail, exact: false })
           await page.mouse.move(0, 0)
           const readFill = () => control.evaluate((element) => {
             for (const animation of element.getAnimations()) animation.finish()

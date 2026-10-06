@@ -696,10 +696,10 @@ describe('ProfileScreen', () => {
       try {
         const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
         const description = geometry.texts.find(({ label }) => label === email)!
-        expect(geometry.texts[0]!.lines).toBeGreaterThanOrEqual(3)
+        expect(geometry.texts[0]!.lines).toBeLessThanOrEqual(2)
         expect(geometry.texts[0]!.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
-        expect(description.clipped).toBe(false)
-        expect(description.lines).toBeGreaterThan(2)
+        expect(description.clipped).toBe(true)
+        expect(description.lines).toBe(1)
         expect(description.right).toBeLessThanOrEqual(288)
       } finally { TestRenderer.act(() => rowTree.unmount()) }
     } finally { TestRenderer.act(() => destination.unmount()) }
@@ -735,7 +735,7 @@ describe('ProfileScreen', () => {
         }
         const decorativeSlots = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string } }) =>
           node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants')
-        expect(decorativeSlots).toHaveLength(navigates ? 2 : 1)
+        expect(decorativeSlots).toHaveLength(expectedDecorativeSlots(row, navigates))
       }
       const expectedValue = locale === 'en' ? plan.en : plan.pt
       const text = nodeText(group)
@@ -1951,3 +1951,8 @@ it('places the Perfil bell inside the page scroller and opens Avisos', async () 
 
 
 })
+
+function expectedDecorativeSlots(row: { findAll: (predicate: (node: { props: { children?: unknown } }) => boolean) => unknown[] }, navigates: boolean) {
+  if (row.findAll((node) => node.props.children === 'Alex').length > 0) return 3
+  return navigates ? 2 : 1
+}

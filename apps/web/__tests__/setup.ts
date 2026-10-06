@@ -51,9 +51,9 @@ if (typeof document !== 'undefined' && !('fonts' in document)) {
 }
 
 if (typeof window !== 'undefined') {
-  vi.stubGlobal('ResizeObserver', class {
+  Object.defineProperty(globalThis, 'ResizeObserver', { configurable: true, writable: true, value: class {
     observe() {}
     unobserve() {}
     disconnect() {}
-  })
+  } })
 }

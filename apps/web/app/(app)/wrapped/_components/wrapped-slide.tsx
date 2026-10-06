@@ -1,6 +1,8 @@
 'use client'
 
-import type { ReactNode, Ref } from 'react'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextAction } from '@/components/ui/personal-text-action'
+import { useId, useState, type ReactNode, type Ref } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -61,6 +63,8 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
   const t = useTranslations()
   const { profile, isError: isProfileError, refetch: refetchProfile } = useProfile()
   const reducedMotion = Boolean(useReducedMotion())
+  const [titleExpanded, setTitleExpanded] = useState(false)
+  const titleId = useId()
 
   switch (slide.id) {
     case 'intro':
@@ -153,17 +157,12 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError, sav
             </span>
           </motion.div>
           <motion.h2
+            aria-labelledby={titleId}
             data-testid="wrapped-motion-part"
             {...motionProps(1, reducedMotion)}
-            style={{
-              ...topHabitTitleStyle,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
+            style={topHabitTitleStyle}
           >
-            {slide.habit.name}
+            <PersonalTextAction label={slide.habit.name} contentClassName="px-2 py-1 underline decoration-from-font min-h-12 w-full min-w-0 text-center" control={<button type="button" aria-label={slide.habit.name} aria-expanded={titleExpanded} aria-controls={titleId} onClick={() => setTitleExpanded(!titleExpanded)} className="px-2 py-1 underline decoration-from-font min-h-12 w-full min-w-0 rounded-[12px] text-center touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2"><PersonalText id={titleId} expanded={titleExpanded} style={titleExpanded ? { lineHeight: 1.4 } : undefined}>{slide.habit.name}</PersonalText></button>} />
           </motion.h2>
           <motion.span data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={labelStyle}>
             {t('wrapped.slides.topHabit.label')}

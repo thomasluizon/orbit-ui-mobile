@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { ChevronDown } from '@/components/ui/icons'
+import { PersonalText } from '@/components/ui/personal-text'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -38,7 +42,8 @@ export function RadioGlyph({
   )
 }
 
-export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, textMode, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+  const [disclosed, setDisclosed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -53,7 +58,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       <>
         {leading ? <View style={styles.leading}>{leading}</View> : null}
         <View style={styles.textBlock}>
-          <Text style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>
+          {textMode === 'personal' ? <PersonalText expanded={disabled ? disclosed : selected} style={[styles.label, { color: tokens.fg1, lineHeight: 22.4 }]}>{label}</PersonalText> : <Text style={[styles.label, { color: tokens.fg1 }]}>{label}</Text>}
           {description ? <Text style={[styles.description, { color: secondaryColor }]}>{description}</Text> : null}
           {disabled && reason ? <Text style={[styles.reason, { color: secondaryColor }]}>{reason}</Text> : null}
         </View>
@@ -76,7 +81,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
     .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content()}</View>
+    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
     <Pressable
       {...navigationProps}

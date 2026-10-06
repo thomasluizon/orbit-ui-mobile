@@ -64,8 +64,8 @@ describe('settings text geometry in Chromium', () => {
             expect(geometry.clamp).toBe('none')
             expect(geometry.scrollHeight).toBeLessThanOrEqual(geometry.height)
           }
-          const typed = await page.getByRole('button', { name: title, exact: true }).getByText(title, { exact: true }).evaluate((label) => {
-            const row = label.closest('button')!
+          const typed = await page.getByText(title, { exact: true }).evaluate((label) => {
+            const row = (label.closest('[data-personal-text-content]') ?? label.closest('button'))!
             const style = getComputedStyle(row)
             const labelStyle = getComputedStyle(label)
             return { width: label.getBoundingClientRect().width, available: row.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd), clamp: labelStyle.webkitLineClamp, height: label.clientHeight, scrollHeight: label.scrollHeight, lineHeight: parseFloat(labelStyle.lineHeight) }
@@ -90,7 +90,7 @@ describe('settings text geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
       return page.locator('[data-slot="settings-row-label"]').evaluate((label) => {
-        const row = label.closest('button')!
+        const row = (label.closest('[data-personal-text-content]') ?? label.closest('button'))!
         const style = getComputedStyle(row)
         const labelStyle = getComputedStyle(label)
         return { width: label.getBoundingClientRect().width, available: row.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd), clamp: labelStyle.webkitLineClamp, height: label.clientHeight, scrollHeight: label.scrollHeight, lineHeight: parseFloat(labelStyle.lineHeight) }

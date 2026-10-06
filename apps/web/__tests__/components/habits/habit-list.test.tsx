@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, within, waitFor } from '@testing-library/react'
 import React from 'react'
@@ -458,8 +459,9 @@ describe('HabitList', () => {
           await page.setContent(`<style>${stylesheet.css}:root{font-size:${16 * textScale}px}</style>${markup}`)
           const geometry = await page.locator('[data-testid="habit-row"]').evaluateAll((rows) => rows.map((row) => {
             const body = row.querySelector('[data-habit-row-body]')!
-            const title = (row.querySelector('[data-habit-row-heading] > div') ?? body.querySelector(':scope > div'))!
-            const well = body.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
+            const content = row.querySelector('[data-personal-text-content]') ?? body
+            const title = (row.querySelector('[data-habit-row-heading] > div') ?? content.querySelector(':scope > div'))!
+            const well = content.querySelector('[data-habit-row-heading] > span > span, :scope > span > span')!
             return {
               inset: row.getBoundingClientRect().left,
               textEdge: title.getBoundingClientRect().left,
@@ -961,13 +963,13 @@ describe('HabitList', () => {
     const panelId = disclosure.getAttribute('aria-controls')!
     const childPanel = document.getElementById(panelId)!
     expect(childPanel).toBeVisible()
-    expect(within(childPanel).getByText(child.title)).toBeInTheDocument()
-    expect(within(childPanel).queryByText(secondChild.title)).toBeNull()
-    expect(within(childPanel).queryByText(parent.title)).toBeNull()
+    expect(within(childPanel).getByText(personalText(child.title))).toBeInTheDocument()
+    expect(within(childPanel).queryByText(personalText(secondChild.title))).toBeNull()
+    expect(within(childPanel).queryByText(personalText(parent.title))).toBeNull()
     const secondRow = screen.getAllByTestId('habit-row').find((row) => row.dataset.habitTitle === secondParent.title)!
     const secondPanelId = within(secondRow).getByRole('button', { name: 'common.collapse' }).getAttribute('aria-controls')!
     expect(secondPanelId).not.toBe(panelId)
-    expect(within(document.getElementById(secondPanelId)!).getByText(secondChild.title)).toBeInTheDocument()
+    expect(within(document.getElementById(secondPanelId)!).getByText(personalText(secondChild.title))).toBeInTheDocument()
 
     disclosure.focus()
     await user.keyboard('{Enter}')
@@ -975,16 +977,16 @@ describe('HabitList', () => {
     expect(disclosure).toHaveAccessibleName('common.expand')
     expect(disclosure).toHaveAttribute('aria-expanded', 'false')
     expect(disclosure).toHaveAttribute('aria-controls', panelId)
-    expect(screen.queryByText(child.title)).toBeNull()
+    expect(screen.queryByText(personalText(child.title))).toBeNull()
     expect(document.getElementById(panelId)).not.toBeVisible()
-    expect(screen.getByText(secondChild.title)).toBeInTheDocument()
+    expect(screen.getByText(personalText(secondChild.title))).toBeInTheDocument()
 
     await user.keyboard(' ')
     expect(disclosure).toHaveFocus()
     expect(disclosure).toHaveAccessibleName('common.collapse')
     expect(disclosure).toHaveAttribute('aria-expanded', 'true')
     expect(disclosure).toHaveAttribute('aria-controls', panelId)
-    expect(within(document.getElementById(panelId)!).getByText(child.title)).toBeInTheDocument()
+    expect(within(document.getElementById(panelId)!).getByText(personalText(child.title))).toBeInTheDocument()
     expect(toggleSelectionSpy).not.toHaveBeenCalled()
     expect(selected).toEqual(new Set([parent.id]))
     if (selectMode) expect(within(parentRow).getByRole('button', { name: parent.title, pressed: true })).toBeInTheDocument()
@@ -1007,7 +1009,7 @@ describe('HabitList', () => {
       expect(button).toHaveAttribute('aria-controls')
       const panelId = button.getAttribute('aria-controls')!
       const panel = document.getElementById(panelId)!
-      expect(within(panel).getByText(grandchild.title)).toBeInTheDocument()
+      expect(within(panel).getByText(personalText(grandchild.title))).toBeInTheDocument()
       return panelId
     })
     expect(new Set(panelIds).size).toBe(4)
@@ -1179,8 +1181,8 @@ describe('HabitList', () => {
     const { container } = renderWithProviders(<HabitList filters={defaultFilters} view="today" showCompleted={false} />)
 
     expect(screen.getByText('habits.allDoneToday')).toBeInTheDocument()
-    expect(screen.getByText('Anytime habit')).toBeInTheDocument()
-    expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText('Anytime habit')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText(personalText('Anytime habit'))).toBeInTheDocument()
+    expect(screen.getByText('habits.allDoneToday').compareDocumentPosition(screen.getByText(personalText('Anytime habit'))) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     const cssPath = resolve('app/globals.css')
     const stylesheet = await postcss([tailwind()]).process(readFileSync(cssPath, 'utf8'), { from: cssPath })
     const launch = launchChrome()
@@ -3018,7 +3020,7 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent A"})'))
+    expect(await screen.findByText(personalText('habits.autoLogParentMessage({"name":"Parent A"})')))
       .toBeDefined()
     fireEvent.click(within(
       screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' }),
@@ -3030,7 +3032,7 @@ describe('HabitList', () => {
       sheetTestControls.completeDismissal()
       await Promise.resolve()
     })
-    expect(await screen.findByText('habits.autoLogParentMessage({"name":"Parent B"})'))
+    expect(await screen.findByText(personalText('habits.autoLogParentMessage({"name":"Parent B"})')))
       .toBeDefined()
 
     mockHabitsDataUpdatedAt += 1
@@ -3488,13 +3490,13 @@ describe('HabitList', () => {
       }
     })
     renderWithProviders(<><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /><SkipToastHost /></>)
-    const childRow = (await screen.findByText('Pending child')).closest('[data-testid="habit-row"]') as HTMLElement
+    const childRow = (await screen.findByText(personalText('Pending child'))).closest('[data-testid="habit-row"]') as HTMLElement
     fireEvent.click(within(childRow).getByRole('button', { name: 'habits.actions.more' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'habits.actions.skip' }))
     await screen.findByRole('dialog', { name: 'habits.autoLogParentTitle' })
-    await waitFor(() => expect(screen.queryByText('Pending child')).toBeNull())
+    await waitFor(() => expect(screen.queryByText(personalText('Pending child'))).toBeNull())
     fireEvent.click(screen.getByRole('button', { name: 'undo.action' }))
-    await screen.findByText('Pending child')
+    await screen.findByText(personalText('Pending child'))
     expect(skipFlow.mutate).toHaveBeenCalledTimes(2)
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
     expect(logHabitMutateAsync).not.toHaveBeenCalled()

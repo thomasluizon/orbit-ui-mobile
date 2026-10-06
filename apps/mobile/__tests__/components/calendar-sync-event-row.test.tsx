@@ -25,6 +25,7 @@ interface RowNode {
   type: unknown
   parent: RowNode | null
   props: {
+    importantForAccessibility?: string
     children?: unknown
     style?: StyleProp<TextStyle & ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
     accessibilityRole?: string
@@ -54,7 +55,7 @@ function textLayers(text: RowNode, row: RowNode) {
 }
 
 function expectTextContrast(tree: RowTree, row: RowNode, layers: string[], state: string) {
-  const texts = tree.root.findAll((node) => node.type === 'Text')
+  const texts = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants')
   expect(texts.length).toBeGreaterThanOrEqual(6)
   for (const text of texts) {
     const color = String(StyleSheet.flatten(text.props.style as StyleProp<TextStyle>).color)

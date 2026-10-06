@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { ActionRow } from './action-row'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
@@ -161,7 +162,7 @@ export function Sheet({
   const header = renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory, onClose, onAttemptDismiss,
     styles, titleExpanded, t, closeButton, onToggleTitle: toggleTitle,
     onLayout: (event) => setHeaderHeight(event.nativeEvent.layout.height) })
-  const expandedTitle = titleExpanded && titleMode === 'typed' ? <Text selectable style={styles.fullTitle}>{title}</Text> : null
+  const expandedTitle = title && titleExpanded && titleMode === 'typed' ? <PersonalText expanded selectable style={styles.fullTitle}>{title}</PersonalText> : null
 
   const showSheetToast = topOverlayId === sheetId && currentToast !== null
   const footer = renderSheetFooter(actions, showSheetToast, sheetId, styles, bottomInset, setFooterHeight)
@@ -242,7 +243,7 @@ function renderSheetHeader({ title, titleMode, accessibleTitle, headerAccessory,
           accessibilityState={{ expanded: titleExpanded }}
           onPress={onToggleTitle}
           style={({ pressed }) => [styles.titleButton, pressed ? styles.titlePressed : null]}>
-          <Text numberOfLines={2} ellipsizeMode="tail" style={styles.typedTitle}>{title}</Text>
+          <PersonalText style={styles.typedTitle}>{title}</PersonalText>
         </Pressable>
       ) : <Text accessibilityRole="header" accessibilityLabel={accessibleTitle} style={styles.title}>{title}</Text> : (
         <View accessible={Boolean(accessibleTitle)} accessibilityLabel={accessibleTitle} style={styles.titleSpacer} />

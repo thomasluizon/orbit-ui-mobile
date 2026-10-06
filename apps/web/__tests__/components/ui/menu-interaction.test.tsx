@@ -26,6 +26,20 @@ describe('Menu interaction colours in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it('underlines every word of a typed sheet title', async () => {
+    const title = 'Ler um capítulo inteiro'
+    render(<Menu open presentation="sheet" title={title} titleMode="typed" items={[{ id: 'edit', label: 'Edit', icon: 'pencil' }]} />)
+    const dialog = await screen.findByRole('dialog', { name: title })
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${dialog.outerHTML}`)
+      const words = await page.locator('.orbit-sheet-typed-title > span').evaluateAll((elements) =>
+        elements.map((element) => ({ text: element.textContent, decoration: getComputedStyle(element).textDecorationLine })))
+      expect(words.map((word) => word.text)).toEqual(title.split(' '))
+      for (const word of words) expect(word.decoration, word.text).toBe('underline')
+    } finally { await page.close() }
+  })
+
   it.each(cases)('changes only the destructive fill in $mode $presentation with $reducedMotion motion', async ({ mode, presentation, reducedMotion }) => {
     const menuPresentation = presentation === 'sheet'
       ? { presentation: 'sheet' as const }

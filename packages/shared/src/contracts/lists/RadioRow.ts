@@ -1,6 +1,7 @@
 
 export interface RadioRowBase {
   label: string
+  textMode?: 'personal'
   description?: string
   selected?: boolean
   onSelect?: () => void

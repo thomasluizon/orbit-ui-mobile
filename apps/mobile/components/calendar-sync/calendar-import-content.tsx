@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { PressFill } from '@/components/ui/press-fill'
 import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
@@ -663,5 +664,5 @@ function OpenedCalendarEventTitle({ eventId, eventsResult, reviewMode, enabled, 
   if (!enabled || reviewMode || eventsResult?.status !== 'connected') return null
   const event = eventsResult.events.find((candidate) => candidate.id === eventId)
   if (!event) return null
-  return <Text style={{ paddingVertical: 24, fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{event.title}</Text>
+  return <View style={{ minWidth: 0, gap: 8, paddingVertical: 24 }}><PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{event.title}</PersonalText>{event.calendarName ? <PersonalText expanded style={{ fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg3 }}>{event.calendarName}</PersonalText> : null}</View>
 }

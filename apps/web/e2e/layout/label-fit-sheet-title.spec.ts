@@ -96,7 +96,7 @@ for (const width of [320, 360, 384, 412, 600]) {
           await expect(sheet.getByRole('menu', { name: longTitle })).toBeVisible()
           await sheet.getByRole('button', { name: words.common.close, exact: true }).click()
           await expect(sheet).toHaveCount(0)
-          const shortRow = page.locator('[data-habit-title]').filter({ has: page.getByText(shortTitle, { exact: true }) })
+          const shortRow = page.locator('[data-habit-title]').filter({ has: page.locator('[data-personal-text]', { hasText: /^Ler$/ }) })
           await shortRow.getByRole('button', { name: words.habits.actions.more, exact: true }).click()
           const shortSheet = page.getByRole('dialog', { name: shortTitle, exact: true })
           expect((await measureTitle(shortSheet)).lines).toBeCloseTo(1, 1)

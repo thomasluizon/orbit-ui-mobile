@@ -1,3 +1,5 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { PersonalText } from '@/components/ui/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, Text, View } from 'react-native'
@@ -14,7 +16,6 @@ vi.mock('react-native', async () => {
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key, i18n: { language: mocks.locale } }) }))
 vi.mock('@react-native-clipboard/clipboard', () => ({ default: { setString: mocks.setString } }))
-vi.mock('@/components/ui/list-row', () => ({ ListRow: ({ title, value }: { title: string; value: string }) => <View><Text>{title}</Text><Text>{value}</Text></View> }))
 vi.mock('@/components/ui/settings-group', () => ({ SettingsGroup: ({ children }: { children: React.ReactNode }) => <View>{children}</View> }))
 vi.mock('@/components/ui/pill-button', () => ({ Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable> }))
 vi.mock('@/components/ui/block-frame', () => ({ BlockFrame: ({ body, actions }: BlockFrameProps) => <View>{body}{actions}</View> }))
@@ -46,6 +47,24 @@ describe('Astra account rows on mobile', () => {
     const open = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.account.open'))[0]
     TestRenderer.act(() => open.props.onPress())
     expect(mocks.push).toHaveBeenCalledWith('/profile')
+  })
+
+  it('keeps an account email intact and reveals its complete value in one tap', async () => {
+    const email = `${'longaddress'.repeat(12)}@example.com`
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<AccountRowsCard accountRows={{ kind: 'profile', surfaceId: 'profile', rows: [{ key: 'email', value: email, valueType: 'text' }] }} />) })
+    const preview = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.children === email)
+    expect(preview).toHaveLength(1)
+    expect(preview[0]!.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
+    const disclosure = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === `chat.account.row.email, ${email}`)[0]!
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: false })
+    const onPress = disclosure.props.onPress
+    if (typeof onPress !== 'function') throw new Error('Account disclosure missing')
+    await act(() => { onPress() })
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
+    expect(tree.root.findAll((node) => node.type === PersonalText && node.props.children === email && node.props.expanded === true)).toHaveLength(1)
+    expect(mocks.push).not.toHaveBeenCalled()
+    await act(() => tree.update(<></>))
   })
 
   it('copies the referral code and opens the native share sheet', async () => {

@@ -111,7 +111,8 @@ describe('AboutPage', () => {
       const value = screen.getByTestId(`about-fact-${fact}-value`)
       expect(row).toHaveClass('flex-wrap', 'min-w-0')
       expect(label).toHaveStyle({ minWidth: '0px', flexGrow: '1', flexShrink: '1' })
-      expect(value).toHaveStyle({ minWidth: '0px', flexShrink: '1', overflowWrap: 'anywhere' })
+      expect(value).toHaveStyle({ minWidth: '0px', overflowWrap: fact === 'account' ? 'normal' : 'anywhere' })
+      if (fact === 'account') expect(row).toHaveAttribute('aria-expanded', 'false')
     }
   })
 })
