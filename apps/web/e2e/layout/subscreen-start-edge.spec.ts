@@ -37,10 +37,10 @@ for (const locale of ['en', 'pt-BR'] as const) {
 
           await page.goto('/support')
           const form = page.locator('form')
-          const reply = form.getByRole('button', { name: words.profile.support.email })
-          await expect(reply).toBeVisible()
+          const control = form.getByRole('radio').first()
+          await expect(control).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
-          await assertStartEdge(reply, back)
+          await assertStartEdge(control, back)
           await assertCap(form, 520)
 
           await page.goto('/upgrade')
