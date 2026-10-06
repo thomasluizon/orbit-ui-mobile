@@ -468,7 +468,6 @@ const styles = StyleSheet.create({
   },
   offlineText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   successBlock: {
-    paddingHorizontal: 24,
     paddingVertical: 48,
     alignItems: 'flex-start',
     gap: 16,

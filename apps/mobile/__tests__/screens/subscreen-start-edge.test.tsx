@@ -1,5 +1,5 @@
 import React from 'react'
-import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import TestRenderer, { type ReactTestInstance } from 'react-test-renderer'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -17,13 +17,14 @@ const mocks = vi.hoisted(() => ({
   loading: false,
   failed: false,
   online: true,
+  apiClient: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
-vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }), useLocalSearchParams: () => ({}) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
@@ -42,6 +43,7 @@ beforeEach(() => {
   mocks.loading = false
   mocks.failed = false
   mocks.online = true
+  mocks.apiClient.mockReset().mockResolvedValue(undefined)
 })
 afterEach(__resetTestHostConfig)
 
@@ -107,6 +109,35 @@ describe.each([412, 840])('sub-screen start edges at %ipx', (width) => {
       expect(body!.left).toBe(16)
       expect(box!.width).toBe(Math.min(width, 620))
       expect(body!.width).toBe(Math.min(width - 32, 520))
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
+  it('starts the sent Support check and heading at 16', async () => {
+    const tree = await renderScreen(<SupportScreen />, width)
+    try {
+      const subject = tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityRole === 'radio')[0]!
+      const message = tree.root.findAll((node) => node.props.accessibilityLabel === 'profile.support.message' && typeof node.props.onChangeText === 'function')[0]!
+      await TestRenderer.act(() => {
+        ;(subject.props.onPress as () => void)()
+        ;(message.props.onChangeText as (value: string) => void)('Support request')
+      })
+      const send = tree.root.findAll((node) => node.props.testID === 'button-primary-md')[0]!
+      await TestRenderer.act(async () => {
+        ;(send.props.onPress as () => void)()
+        await Promise.resolve()
+      })
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+      const scroll = tree.root.findAll((node) => node.type === ScrollView)[0]!
+      const success = firstView(scroll)
+      const heading = tree.root.findAll((node) => node.type === Text && node.props.children === 'profile.support.success')[0]!
+      const check = success.findAll((node) => node.type === View && styleOf(node).width === 44)[0]!
+      for (const child of [check, heading]) {
+        const [box, , body] = layout(width, [
+          StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(success), styleOf(child),
+        ])
+        expect.soft(body!.left).toBe(16)
+        expect.soft(box!.width).toBe(Math.min(width, 620))
+      }
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
 

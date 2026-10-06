@@ -127,7 +127,7 @@ describe('sub-screen start edges in isolated Chromium', () => {
               return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('main > div')!) }
             }
             const body = state === 'support-success'
-              ? document.querySelector('h2')!.parentElement! : document.querySelector('form button')!
+              ? document.querySelector('h2')! : document.querySelector('form button')!
             return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('main > div')!) }
           }, state)
           expect.soft(Math.abs(geometry.body.left - geometry.back.left - 8)).toBeLessThanOrEqual(0.5)
