@@ -150,6 +150,68 @@ describe('search result geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([412, 1280].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('fades pointer hover both ways and keeps keyboard paint instant at $width in $locale', async ({ width, locale }) => {
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'title', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Run/ })
+    fireEvent.keyDown(input, { key: 'Home' })
+    fireEvent.pointerMove(screen.getAllByRole('option')[1])
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate((variables) => {
+        for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+        document.body.style.backgroundColor = 'var(--bg)'
+      }, resolveWebThemeVariables('orange', 'dark'))
+      await page.mouse.move(0, 0)
+      const row = page.getByRole('option').nth(1)
+      const measureTransition = () => row.evaluate(async (element) => {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const transitions = element.getAnimations().filter((animation): animation is CSSTransition => animation instanceof CSSTransition)
+        const measured = { property: getComputedStyle(element).transitionProperty, transitions: transitions.map((animation) => ({ property: animation.transitionProperty, duration: animation.effect!.getTiming().duration, easing: animation.effect!.getTiming().easing })) }
+        await Promise.all(transitions.map((animation) => animation.finished))
+        return measured
+      })
+      for (const hovered of [true, false]) {
+        if (hovered) await row.hover()
+        else await page.mouse.move(0, 0)
+        const measured = await measureTransition()
+        expect.soft(measured.property).toBe('background-color')
+        expect.soft(measured.transitions).toEqual([{ property: 'background-color', duration: 380, easing: 'cubic-bezier(0.2, 0, 0, 1)' }])
+      }
+      fireEvent.keyDown(input, { key: 'ArrowDown' })
+      const command = container.querySelector('[cmdk-root]')!
+      const selected = screen.getAllByRole('option').map((option) => option.getAttribute('aria-selected'))
+      expect(selected).toEqual(['false', 'true'])
+      const paint = await page.evaluate(({ modality, selected }) => {
+        const root = document.querySelector('[cmdk-root]')!
+        if (modality !== null) root.setAttribute('data-input-modality', modality)
+        return [...document.querySelectorAll('[cmdk-item]')].map((element, index) => {
+          element.setAttribute('data-selected', selected[index]!)
+          element.setAttribute('aria-selected', selected[index]!)
+          return element
+        }).map((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = element.getAttribute('aria-selected') === 'true' ? 'var(--primary-dim)' : 'var(--bg-card)'
+          element.append(probe)
+          const measured = { transitions: element.getAnimations().length, background: getComputedStyle(element).backgroundColor, expected: getComputedStyle(probe).backgroundColor }
+          probe.remove()
+          return measured
+        })
+      }, { modality: command.getAttribute('data-input-modality'), selected })
+      for (const rowPaint of paint) {
+        expect(rowPaint.transitions).toBe(0)
+        expect(rowPaint.background).toBe(rowPaint.expected)
+      }
+    } finally { await page.close() }
+  })
+
   it.each(cases)('aligns $count result rows with the field at $width in $locale', async ({ width, locale, count }) => {
     mocks.wide = width >= WIDE_DESKTOP_BREAKPOINT
     const habits = Array.from({ length: count }, (_, index) => createMockHabit({ id: `walk-${index}`, title: `Walk ${index}`, searchMatches: [{ field: 'title', value: null }] }))
