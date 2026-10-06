@@ -2041,18 +2041,12 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .orbit-calendar-grid-frame {
+  container-name: calendar-grid;
   container-type: inline-size;
 }
 
 .orbit-calendar-grid-card {
-  --calendar-grid-gap: 4px;
   width: 100%;
-}
-
-@container (max-width: 331px) {
-  .orbit-calendar-grid-card {
-    --calendar-grid-gap: 0px;
-  }
 }
 
 .light :is(.orbit-hover-text, .orbit-menu-item, .orbit-list-row-body, [data-habit-row-body]):active:not(:disabled) {

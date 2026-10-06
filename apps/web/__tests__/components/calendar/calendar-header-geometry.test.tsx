@@ -317,11 +317,11 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 600, 840, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
+  it.each([320, 339, 340, 360, 363, 363.5, 364, 365, 412, 600, 840, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
     (['month', 'range'] as const).flatMap((view) => [{ width, isLoading, view, locale: 'en', messages: en }, { width, isLoading, view, locale: 'pt-BR', messages: ptBR }]),
   )))('aligns $view tracks and contained rings at $width in $locale (loading=$isLoading)', async ({ width, isLoading, view, locale, messages }) => {
     const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
-    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width }}>
       <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08" previousMonthLabel="Previous" nextMonthLabel="Next"
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
         viewSelector={<SegmentedControl fullWidth options={[{ value: 'month', label: messages.calendar.view.month }, { value: 'week', label: messages.calendar.view.week }, { value: 'agenda', label: messages.calendar.view.agenda }, { value: 'range', label: messages.calendar.view.range }]} value={view} onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
@@ -329,8 +329,8 @@ describe('Calendar header geometry in Chromium', () => {
         todayKey="2026-02-08" selectedDateStr="2026-02-01" weekStartsOn={0} isLoading={isLoading} />
         : <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={isLoading} loadingLabel={messages.calendar.loading}
           stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: messages.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: messages.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: messages.calendar.missedCount }]} />}
-    </NextIntlClientProvider>)
-    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    </div></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: Math.ceil(width), height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
@@ -339,6 +339,7 @@ describe('Calendar header geometry in Chromium', () => {
         const grid = frame.querySelector<HTMLElement>('[data-testid="month-grid-days"], [data-cols="7"]')!
         const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
         const bounds = grid.getBoundingClientRect()
+        const gap = Number.parseFloat(getComputedStyle(grid).columnGap)
         const slots = [...grid.children].map((slot) => {
           const box = slot.getBoundingClientRect()
           const disc = (slot.matches('[data-outcome]') ? slot.querySelector(':scope > span') : slot.querySelector('[data-outcome] > span')) ?? slot.querySelector('[data-variant="grid"] span')
@@ -348,13 +349,15 @@ describe('Calendar header geometry in Chromium', () => {
           const numeral = future?.firstElementChild?.getBoundingClientRect()
           return { futureWidth: futureBox?.width, futureCentered: !numeral || Math.abs(numeral.left + numeral.width / 2 - box.left - box.width / 2) <= 0.5, width: box.width, height: box.height, contained: !visual || (visual.left >= box.left - 0.5 && visual.right <= box.right + 0.5), square: !visual || Math.abs(visual.width - visual.height) <= 0.5 }
         })
-        return { left: bounds.left, right: bounds.right, switchLeft: selector.left, switchRight: selector.right, slots,
+        return { gap, left: bounds.left, right: bounds.right, switchLeft: selector.left, switchRight: selector.right, slots,
           scrollWidth: document.documentElement.scrollWidth, selected: grid.querySelector('[data-selected="true"]')?.getBoundingClientRect().width }
       })
       expect(Math.abs(geometry.left - geometry.switchLeft)).toBeLessThanOrEqual(0.5)
       expect(Math.abs(geometry.right - geometry.switchRight)).toBeLessThanOrEqual(0.5)
+      expect(geometry.gap).toBe(width < 364 ? 0 : 4)
       expect(geometry.slots.length).toBeGreaterThanOrEqual(14)
       for (const slot of geometry.slots) {
+        expect(slot.width).toBeCloseTo((width - 32 - 6 * geometry.gap) / 7, 1)
         expect(slot.height).toBeGreaterThanOrEqual(44)
         expect(slot.contained).toBe(true)
         expect(slot.futureCentered).toBe(true)

@@ -66,7 +66,7 @@ describe('CalendarGrid (mobile)', () => {
 
   afterEach(() => vi.useRealTimers())
 
-  it.each([320, 412, 600, 840, 1100, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
+  it.each([320, 339, 340, 360, 363, 363.5, 364, 365, 412, 600, 840, 1100, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
     (['month', 'range'] as const).map((view) => ({ width, isLoading, view })),
   )))('fills the $view content column at $width (loading=$isLoading)', ({ width, isLoading, view }) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
@@ -86,6 +86,13 @@ describe('CalendarGrid (mobile)', () => {
               language="en" t={i18n.t} />)
       })
       const geometry = measureGrid(tree.toJSON(), width, view, isLoading)
+      const expectedGap = width < 364 ? 0 : 4
+      expect(geometry.columnGap).toBeCloseTo(expectedGap, 4)
+      expect(geometry.slots).toHaveLength(7)
+      for (const slot of geometry.slots) {
+        expect(slot.width).toBeCloseTo((width - 32 - 6 * expectedGap) / 7, 4)
+        expect(slot.height).toBeGreaterThanOrEqual(44)
+      }
       expect(geometry.inlineInset).toBe(16)
       expect(geometry.frameWidth).toBe(width)
       expect(geometry.cardWidth).toBe(geometry.contentWidth)

@@ -49,6 +49,13 @@ function monthHeader(screen: CalendarTree): CalendarTree {
 }
 
 function expectColumn(geometry: ReturnType<typeof measureGrid>, width: number, view: 'month' | 'range', loading: boolean) {
+  const expectedGap = width < 364 ? 0 : 4
+  expect(geometry.columnGap).toBeCloseTo(expectedGap, 4)
+  expect(geometry.slots).toHaveLength(7)
+  for (const slot of geometry.slots) {
+    expect(slot.width).toBeCloseTo((width - 32 - 6 * expectedGap) / 7, 4)
+    expect(slot.height).toBeGreaterThanOrEqual(44)
+  }
   expect(geometry.inlineInset).toBe(16)
   expect(geometry.switchEdges).toBeDefined()
   expect(Math.abs(geometry.gridEdges.left - geometry.switchEdges!.left)).toBeLessThanOrEqual(0.5)
@@ -73,7 +80,7 @@ describe('Calendar screen grid column', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it.each([320, 412].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('aligns both views at $width (loading=$loading)', ({ width, loading }) => {
+  it.each([320, 339, 340, 360, 363, 363.5, 364, 365, 412].flatMap((width) => [false, true].map((loading) => ({ width, loading }))))('aligns both views at $width (loading=$loading)', ({ width, loading }) => {
     source.loading = loading
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let screen!: CalendarTree

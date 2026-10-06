@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import type { TFunction } from 'i18next'
-import type { CalendarRangeModel } from '@orbit/shared/utils'
+import { CALENDAR_GRID_GAP_CONTENT_BREAKPOINT, CALENDAR_MONTH_GRID_GEOMETRY, type CalendarRangeModel } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
@@ -65,7 +65,7 @@ export function CalendarRangeView({
   t,
 }: Readonly<CalendarRangeViewProps>) {
   const { width } = useWindowDimensions()
-  const gridGap = width < 340 ? 0 : 4
+  const gridGap = width - 2 * CALENDAR_MONTH_GRID_GEOMETRY.inlineInset < CALENDAR_GRID_GAP_CONTENT_BREAKPOINT ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap
   const locale = language === 'pt-BR' ? ptBR : enUS
   const words = {
     none: t('calendar.dayCell.none'),
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   container: { gap: 16 },
   header: { minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   controls: { flexDirection: 'row', flexShrink: 0, gap: 12 },
-  grid: { width: '100%', alignSelf: 'center', paddingHorizontal: 16 },
+  grid: { width: '100%', alignSelf: 'center', paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset },
   iconButton: { minHeight: 48, minWidth: 48, borderWidth: 1.5, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   rangeLabel: {
     flex: 1,

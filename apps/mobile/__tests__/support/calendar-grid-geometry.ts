@@ -73,6 +73,8 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
       : selected.get('calendar-grid')!.getChild(0)
     const frame = view === 'range' ? card : selected.get('calendar-grid')!
     const grid = selected.get('month-grid-7-columns') ?? card
+    const row = isLoading && view === 'month' ? card.getChild(0).getChild(0) : selected.get('month-grid-row-0')!
+    const slots = Array.from({ length: row.getChildCount() }, (_, index) => row.getChild(index))
     const selector = selected.get('segmented-control-enabled')
     const bounds = (node: YogaNode) => {
       let left = 0
@@ -82,6 +84,8 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
     }
     return {
       gridEdges: bounds(grid),
+      columnGap: slots[1]!.getComputedLeft() - slots[0]!.getComputedLeft() - slots[0]!.getComputedWidth(),
+      slots: slots.map((node) => ({ width: node.getComputedWidth(), height: node.getComputedHeight() })),
       switchEdges: selector ? bounds(selector) : undefined,
       discs: discs.map(({ node, column }) => ({ width: node.getComputedWidth(), height: node.getComputedHeight(), columnWidth: column.getComputedWidth() })),
       cardWidth: grid.getComputedWidth(),

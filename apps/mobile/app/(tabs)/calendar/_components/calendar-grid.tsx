@@ -8,6 +8,7 @@ import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts
 import {
   buildDayCellAccessibleName,
   CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_GRID_GAP_CONTENT_BREAKPOINT,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
@@ -255,7 +256,7 @@ export function CalendarGrid({
   interaction = 'write-window',
 }: Readonly<CalendarGridProps>) {
   const { width } = useWindowDimensions()
-  const gridGap = width < 340 ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap
+  const gridGap = width - 2 * CALENDAR_MONTH_GRID_GEOMETRY.inlineInset < CALENDAR_GRID_GAP_CONTENT_BREAKPOINT ? 0 : CALENDAR_MONTH_GRID_GEOMETRY.gap
   const locale = language === 'pt-BR' ? ptBR : enUS
   const words: DayCellWords = {
     none: t('calendar.dayCell.none'),
@@ -326,7 +327,7 @@ export function CalendarGrid({
 }
 
 const styles = StyleSheet.create({
-  calendarGrid: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 8 },
+  calendarGrid: { paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset, paddingTop: 0, paddingBottom: 8 },
   gridCard: {
     width: '100%',
     alignSelf: 'center',
