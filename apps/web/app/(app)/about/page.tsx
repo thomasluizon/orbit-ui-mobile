@@ -73,7 +73,7 @@ export default function AboutPage() {
   const appVersion = getAppVersion()
 
   return (
-    <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
+    <div className="min-w-0 md:w-full md:max-w-[620px]">
       <div className="flex min-w-0 flex-col">
         <PageHeader
           backLabel={t('common.backToProfile')}

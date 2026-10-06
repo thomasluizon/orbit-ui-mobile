@@ -1,0 +1,137 @@
+import React from 'react'
+import { ScrollView, StyleSheet, View, type ViewStyle } from 'react-native'
+import TestRenderer, { type ReactTestInstance } from 'react-test-renderer'
+import Yoga from 'yoga-layout'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { subscriptionStatusSchema } from '@orbit/shared/types/profile'
+import AboutScreen from '@/app/about'
+import SupportScreen from '@/app/support'
+import UpgradeScreen from '@/app/upgrade'
+import { PricingSection } from '@/components/upgrade/pricing-section'
+import { ProPitch } from '@/components/upgrade/pro-pitch'
+import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
+
+const mocks = vi.hoisted(() => ({
+  status: null as ReturnType<typeof subscriptionStatusSchema.parse> | null,
+  loading: false,
+  failed: false,
+  online: true,
+}))
+
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => undefined },
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+}))
+vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }), useLocalSearchParams: () => ({}) }))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
+vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
+vi.mock('@/hooks/use-subscription-status', () => ({ useSubscriptionStatus: () => ({
+  status: mocks.status, isLoading: mocks.loading, isError: mocks.failed, refetch: vi.fn(),
+}) }))
+vi.mock('@/hooks/use-subscription-plans', () => ({ useSubscriptionPlans: () => ({ plans: null, isLoading: true, refetch: vi.fn() }) }))
+vi.mock('@/hooks/use-billing', () => ({ useBilling: () => ({ billing: null, refetch: vi.fn() }) }))
+vi.mock('@/hooks/use-play-billing', () => ({ usePlayBilling: () => ({ clearError: vi.fn(), purchase: vi.fn(), restorePurchases: vi.fn() }) }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showSuccess: vi.fn() }) }))
+vi.mock('@/components/onboarding/feature-guide-drawer', () => ({ FeatureGuideDrawer: () => null }))
+
+beforeEach(() => {
+  mocks.status = subscriptionStatusSchema.parse({ ...createMockProfile(), source: null, hasProAccess: false, isTrialActive: false })
+  mocks.loading = false
+  mocks.failed = false
+  mocks.online = true
+})
+afterEach(__resetTestHostConfig)
+
+async function renderScreen(screen: React.ReactElement, width: number) {
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+  let tree!: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(() => { tree = TestRenderer.create(screen) })
+  return tree
+}
+
+function firstView(root: ReactTestInstance) {
+  return root.findAll((node) => node.type === View)[0]!
+}
+
+function layout(width: number, styles: ViewStyle[]) {
+  const column = Yoga.Node.create()
+  const nodes = styles.map((style) => {
+    const node = Yoga.Node.create()
+    if (style.width === '100%') node.setWidthPercent(100)
+    if (typeof style.maxWidth === 'number') node.setMaxWidth(style.maxWidth)
+    if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
+    if (style.alignSelf) node.setAlignSelf({
+      auto: Yoga.ALIGN_AUTO, 'flex-start': Yoga.ALIGN_FLEX_START, center: Yoga.ALIGN_CENTER,
+      'flex-end': Yoga.ALIGN_FLEX_END, stretch: Yoga.ALIGN_STRETCH, baseline: Yoga.ALIGN_BASELINE,
+    }[style.alignSelf])
+    return node
+  })
+  try {
+    column.setWidth(width)
+    column.setHeight(915)
+    nodes.forEach((node, index) => (index === 0 ? column : nodes[index - 1]!).insertChild(node, 0))
+    nodes.at(-1)!.setHeight(48)
+    column.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
+    let left = 0
+    return nodes.map((node) => ({ left: left += node.getComputedLeft(), width: node.getComputedWidth() }))
+  } finally { column.freeRecursive() }
+}
+
+function styleOf(node: ReactTestInstance): ViewStyle {
+  return StyleSheet.flatten(node.props.style) ?? {}
+}
+
+describe.each([412, 840])('sub-screen start edges at %ipx', (width) => {
+  it('starts About at 16 with its inset inside the 620 box', async () => {
+    const tree = await renderScreen(<AboutScreen />, width)
+    try {
+      const content = tree.root.findAll((node) => node.props.testID === 'about-content')[0]!
+      const identity = tree.root.findAll((node) => node.props.testID === 'about-identity')[0]!
+      const [box, body] = layout(width, [styleOf(content), styleOf(identity)])
+      expect(body!.left).toBe(16)
+      expect(box!.width).toBe(Math.min(width, 620))
+      expect(body!.width).toBe(box!.width - 32)
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
+  it.each([true, false])('starts Support and its 520 form at 16, online=%s', async (online) => {
+    mocks.online = online
+    const tree = await renderScreen(<SupportScreen />, width)
+    try {
+      const scroll = tree.root.findAll((node) => node.type === ScrollView)[0]!
+      const form = firstView(scroll)
+      const [box, body] = layout(width, [StyleSheet.flatten(scroll.props.contentContainerStyle) as ViewStyle, styleOf(form)])
+      expect(body!.left).toBe(16)
+      expect(box!.width).toBe(Math.min(width, 620))
+      expect(body!.width).toBe(Math.min(width - 32, 520))
+    } finally { await TestRenderer.act(() => tree.update(<></>)) }
+  })
+
+  it.each(['free', 'offline', 'lapsed', 'stripe', 'play', 'loading', 'load-failed'] as const)
+    ('starts the %s upgrade body at 16 with the matching cap', async (state) => {
+      mocks.loading = state === 'loading'
+      mocks.failed = state === 'load-failed'
+      mocks.online = state !== 'offline'
+      if (state === 'lapsed') mocks.status = subscriptionStatusSchema.parse({ ...mocks.status, lapseReason: 'expired' })
+      if (state === 'stripe' || state === 'play') mocks.status = subscriptionStatusSchema.parse({
+        ...mocks.status, plan: 'pro', hasProAccess: true, isTrialActive: false, source: state,
+      })
+      const tree = await renderScreen(<UpgradeScreen />, width)
+      try {
+        const pitch = state === 'free' || state === 'offline'
+        const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
+        const root = pitch ? firstView(tree.root.findAll((node) => node.type === PricingSection)[0]!) : firstView(scroll)
+        const section = pitch ? firstView(tree.root.findAll((node) => node.type === ProPitch)[0]!) : null
+        const headingSection = section?.findAll((node) => node.type === View && styleOf(node).paddingHorizontal === 16)[0]
+        const [box, ...children] = layout(width, [
+          styleOf(root), ...(section ? [styleOf(section), styleOf(headingSection!), {}] : [{}]),
+        ])
+        expect.soft(children.at(-1)!.left).toBe(16)
+        expect.soft(box!.left).toBe(0)
+        expect.soft(box!.width).toBe(Math.min(width, pitch ? 652 : 560))
+      } finally { await TestRenderer.act(() => tree.update(<></>)) }
+    })
+})

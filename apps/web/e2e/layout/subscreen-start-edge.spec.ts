@@ -1,0 +1,61 @@
+import { expect, type Locator } from '@playwright/test'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { test } from './upgrade-fixtures'
+import { completeInstallOnboarding } from './install-onboarding'
+
+async function assertStartEdge(body: Locator, back: Locator) {
+  await expect(body).toBeVisible()
+  await expect(back).toBeVisible()
+  const bodyLeft = await body.evaluate((element) => element.getBoundingClientRect().left)
+  const backLeft = await back.evaluate((element) => element.getBoundingClientRect().left)
+  expect(Math.abs(bodyLeft - backLeft - 8)).toBeLessThanOrEqual(0.5)
+}
+
+async function assertCap(box: Locator, maximum: number) {
+  const width = await box.evaluate((element) => element.getBoundingClientRect().width)
+  expect(width).toBeLessThanOrEqual(maximum)
+}
+
+for (const locale of ['en', 'pt-BR'] as const) {
+  for (const subscriptionState of ['free', 'lapsed', 'stripe'] as const) {
+    test.describe(`${subscriptionState} sub-screen edges in ${locale}`, () => {
+      test.use({ appLocale: locale, subscriptionState })
+      for (const width of [412, 840, 1100, 1352]) {
+        test(`aligns About, Support and upgrade at ${width}px`, async ({ page }) => {
+          const words = locale === 'en' ? en : ptBR
+          await page.setViewportSize({ width, height: 915 })
+          await completeInstallOnboarding(page)
+          const back = page.getByRole('button', { name: words.common.backToProfile })
+
+          await page.goto('/about')
+          const identity = page.getByTestId('about-identity')
+          await expect(identity).toBeVisible()
+          await page.evaluate(() => document.fonts.ready)
+          await assertStartEdge(identity, back)
+          await assertCap(page.getByTestId('about-content'), 620)
+
+          await page.goto('/support')
+          const form = page.locator('form')
+          const reply = form.getByRole('button', { name: words.profile.support.email })
+          await expect(reply).toBeVisible()
+          await page.evaluate(() => document.fonts.ready)
+          await assertStartEdge(reply, back)
+          await assertCap(form, 520)
+
+          await page.goto('/upgrade')
+          const upgrade = page.locator('[data-upgrade-screen]')
+          await expect(upgrade).toHaveAttribute('data-state', subscriptionState)
+          await expect(upgrade).toHaveAttribute('aria-busy', 'false')
+          const body = subscriptionState === 'free'
+            ? upgrade.getByRole('heading', { name: words.upgrade.convert.freeHeading })
+            : upgrade.locator('section').first()
+          await expect(body).toBeVisible()
+          await page.evaluate(() => document.fonts.ready)
+          await assertStartEdge(body, back)
+          await assertCap(upgrade, subscriptionState === 'free' ? 652 : 560)
+        })
+      }
+    })
+  }
+}
