@@ -1,7 +1,7 @@
 const { collectStaticStrings, getAttributeValueNode } = require('./_jsx-strings.cjs')
 
 const HOVER_FILL = /(?:^|:)(?:hover|group-hover(?:\/[^:]+)?):bg-/
-const TRANSITION = /(?:^|:)(?:!?transition(?:-[\w-]+|-\[[^\]]+\])?)(?:!)?$/
+const TRANSITION = /(?:^|:)(?:!?transition(?:-[\w-]+|-\[[^\]]+\])?|\[transition-property:[^\]]+\])(?:!)?$/
 const HOVER_VARIANT = /(?:^|:)(?:hover|group-hover(?:\/[^:]+)?):/
 const MOTION = /^(?:habit-control-motion|orbit-pill-action|orbit-list-row[\w-]*|orbit-menu-item|chip)$/
 

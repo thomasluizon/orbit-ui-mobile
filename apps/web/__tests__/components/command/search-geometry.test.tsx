@@ -161,7 +161,7 @@ describe('search result geometry in Chromium', () => {
     fireEvent.change(input, { target: { value: 'walk' } })
     await screen.findByRole('option', { name: /Run/ })
     fireEvent.keyDown(input, { key: 'Home' })
-    fireEvent.pointerMove(screen.getAllByRole('option')[1])
+    fireEvent.pointerMove(screen.getAllByRole('option')[1]!)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'no-preference' })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)

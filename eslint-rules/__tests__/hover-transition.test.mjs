@@ -13,6 +13,8 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
   valid: [
     '<button className="bg-[var(--bg-card)]" />',
     '<button className="hover:bg-[var(--bg-hover)] transition-[background-color]" />',
+    '<button className="hover:bg-[var(--bg-hover)] [transition-property:background-color]" />',
+    '<div className="md:[&_button]:hover:bg-[var(--bg-hover)] md:[&_button]:[transition-property:background-color,color,opacity,scale]" />',
     '<button className={["hover:bg-[var(--bg-hover)]", "transition-colors"].join(" ")} />',
     '<button className={["hover:bg-[var(--bg-hover)]", "transition-colors"].filter(Boolean).join(" ")} />',
     '<button className={`hover:bg-[var(--bg-hover)] ${ready ? "transition-colors" : "transition-none"}`} />',
@@ -28,6 +30,7 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
     { code: '<button className={`hover:bg-[var(--bg-hover)] ${tone}`} />', errors: [{ messageId: 'missing' }] },
     { code: '<button className={["hover:bg-[var(--bg-hover)]", "duration-200"].join(" ")} />', errors: [{ messageId: 'missing' }] },
     { code: '<button className="hover:bg-[var(--bg-hover)] hover:transition-colors" />', errors: [{ messageId: 'missing' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] hover:[transition-property:background-color]" />', errors: [{ messageId: 'missing' }] },
     { code: '<button className="hover:bg-[var(--bg-hover)] habit-control-motionless" />', errors: [{ messageId: 'missing' }] },
     { code: '<div className="transition-colors"><button className="hover:bg-[var(--bg-hover)]" /></div>', errors: [{ messageId: 'missing' }] },
   ],

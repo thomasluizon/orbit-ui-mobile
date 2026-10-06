@@ -160,7 +160,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
           aria-expanded={open}
           aria-label={`${label}: ${selectTimeLabel}`}
           onClick={onOpenPicker}
-          className="absolute top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)] disabled:opacity-60"
+          className="absolute top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)] disabled:opacity-60 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
           style={{ right: canClear ? TOUCH_TARGET_MIN + 4 : 4, width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
         >
           <Clock3 size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -170,7 +170,7 @@ function TimeEntry(props: Readonly<TimeEntryProps>) {
             type="button"
             onClick={onClear}
             aria-label={clearLabel}
-            className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)]"
+            className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
             style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}
           >
             <X size={16} strokeWidth={1.8} aria-hidden="true" />
