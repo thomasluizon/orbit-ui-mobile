@@ -377,7 +377,11 @@ describe('Composer compact geometry in Chromium', () => {
         const bounds = element.getBoundingClientRect()
         const chips = [...element.querySelectorAll('button')].map(button => {
           const chip = button.getBoundingClientRect()
-          return { left: chip.left - bounds.left, right: chip.right - bounds.left, width: chip.width }
+          const style = getComputedStyle(button)
+          return { left: chip.left - bounds.left, right: chip.right - bounds.left, width: chip.width,
+            maximum: parseFloat(style.maxWidth),
+            content: button.querySelector('[data-suggestion-content]')!.getBoundingClientRect().width,
+            padding: parseFloat(style.paddingInlineStart) + parseFloat(style.paddingInlineEnd) }
         })
         const partial = chips.find(chip => chip.left < bounds.width && chip.right > bounds.width)
         return { clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
@@ -390,6 +394,10 @@ describe('Composer compact geometry in Chromium', () => {
           const measured = await measure()
           expect(measured.clientWidth).toBe(width - 32)
           expect(measured.available).toBe(measured.clientWidth)
+          for (const chip of measured.chips) {
+            expect(chip.maximum, JSON.stringify(measured)).toBe(width - 64)
+            expect(Math.abs(chip.width - chip.content - chip.padding), JSON.stringify(measured)).toBeLessThanOrEqual(1)
+          }
           if (width === 459) {
             expect(measured.scrollWidth, JSON.stringify(measured)).toBe(measured.clientWidth)
             expect(measured.chips.every(chip => chip.left >= 0 && chip.right <= measured.clientWidth)).toBe(true)
