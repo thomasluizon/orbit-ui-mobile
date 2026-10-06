@@ -1744,8 +1744,8 @@
         "goals": "Delete {count, plural, one {# goal} other {# goals}}?",
         "tags": "Delete {count, plural, one {# tag} other {# tags}}?",
         "alerts": "Delete {count, plural, one {# alert} other {# alerts}}?",
-        "memories": "Delete {count, plural, one {# memory} other {# memories}}?",
-        "templates": "Delete {count, plural, one {# checklist template} other {# checklist templates}}?"
+        "memories": "Delete {count}?",
+        "templates": "Delete {count}?"
       },
       "deleteAction": {
         "habits": "Delete habits",

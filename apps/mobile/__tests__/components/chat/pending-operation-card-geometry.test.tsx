@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
@@ -18,9 +18,15 @@ const TestRenderer = require('react-test-renderer')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
-vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
+vi.unmock('@/components/ui/sheet')
+vi.mock('@lodev09/react-native-true-sheet', () => ({ TrueSheet: class extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
+  present = vi.fn().mockResolvedValue(undefined)
+  dismiss = vi.fn().mockResolvedValue(undefined)
+  render() { return <>{this.props.header}{this.props.children}{this.props.footer}</> }
+} }))
 
 const locales = ['en', 'pt-BR'] as const
+const deletionSubjects = [{ subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits' }, { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal' }, { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag' }, { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications' }, { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts' }, { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate' }]
 const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const originalOperation = makeHeldHabitMessage().pendingOperations![0]!
 const originalItem = originalOperation.items![0]!
@@ -86,6 +92,23 @@ describe('Pending preview geometry on Android', () => {
       if (!counted && width >= 360) expect(new Set(bounds.map((bound) => bound.top)).size).toBe(1)
       for (const bound of bounds) expect(bound.left + bound.width).toBeLessThanOrEqual(rowWidth)
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 1 })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={{ ...makeDeleteHabitsPreview(count), capabilityId, actionKey }} {...handlers} />)
+    try {
+      await TestRenderer.act(async () => { tree.root.findAllByType(Button).find((button: { props: { variant: string } }) => button.props.variant === 'primary').props.onClick(); await Promise.resolve() })
+      const title = tree.root.findAllByType(Text).find((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'header')
+      const titleStyle = StyleSheet.flatten(title.props.style)
+      const headerStyle = StyleSheet.flatten(title.parent.props.style)
+      const close = tree.root.findAllByType(Pressable).find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === i18n.t('common.close'))
+      const closeStyle = StyleSheet.flatten(typeof close.props.style === 'function' ? close.props.style({ pressed: false }) : close.props.style)
+      const available = 320 - headerStyle.paddingHorizontal * 2 - headerStyle.gap - closeStyle.width
+      expect(title.props.children).toContain(String(count))
+      expect(textWidth(title.props.children, Number(titleStyle.fontSize))).toBeLessThanOrEqual(available)
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   it.each(locales.flatMap((locale) => [1, 3].map((count) => ({ locale, count }))))('collapses $count rejected items in $locale', async ({ locale, count }) => {

@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -21,6 +21,7 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
 const viewports = [1352, 1100, 412, 320]
+const deletionSubjects = [{ subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits' }, { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal' }, { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag' }, { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications' }, { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts' }, { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate' }]
 const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const locales = ['en', 'pt-BR'] as const
 const message = makeHeldHabitMessage({ habitList: habitListCardFixture })
@@ -55,7 +56,8 @@ describe('Pending preview geometry in Chromium', () => {
       const font = readFileSync(require.resolve(`@expo-google-fonts/geist/${folder}`)).toString('base64')
       return `@font-face { font-family: TestGeist; font-weight: ${weight}; src: url(data:font/ttf;base64,${font}); }`
     }).join('\n')
-    stylesheet = `${compiled.css}\n${fonts}\n:root { --font-sans: TestGeist; }`
+    const displayFont = readFileSync(require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')).toString('base64')
+    stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { --font-sans: TestGeist; --font-display: TestSpaceGrotesk; }`
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
@@ -95,6 +97,31 @@ describe('Pending preview geometry in Chromium', () => {
       expect(geometry.buttons[0]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
       expect(geometry.visiblePrimary).toBe(1)
       expect(geometry.moreWidth).toBeLessThan(geometry.moreRowWidth)
+    } finally { await page.close() }
+  })
+
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
+    setViewport(320)
+    const messages = locale === 'en' ? en : pt
+    const pendingOperation = { ...makeDeleteHabitsPreview(count), capabilityId, actionKey }
+    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><PendingOperationCard pendingOperation={pendingOperation} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} /></NextIntlClientProvider>)
+    fireEvent.click(screen.getAllByRole('button').find((button) => button.dataset.variant === 'primary')!)
+    await waitFor(() => expect(document.querySelector('.orbit-sheet-title')).not.toBeNull())
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div class="dark">${document.body.innerHTML}</div>`)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.evaluate(() => {
+        const title = document.querySelector<HTMLElement>('.orbit-sheet-title')!
+        const range = document.createRange()
+        range.selectNodeContents(title)
+        const bounds = range.getBoundingClientRect()
+        const available = title.getBoundingClientRect()
+        return { text: title.textContent, lines: new Set(Array.from(range.getClientRects(), (rect) => rect.top)).size, width: bounds.width, available: available.width }
+      })
+      expect(geometry.text).toContain(String(count))
+      expect(geometry.lines).toBe(1)
+      expect(geometry.width).toBeLessThanOrEqual(geometry.available + 0.5)
     } finally { await page.close() }
   })
 

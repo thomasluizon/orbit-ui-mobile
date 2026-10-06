@@ -1744,8 +1744,8 @@
         "goals": "Apagar {count, plural, one {# meta} other {# metas}}?",
         "tags": "Apagar {count, plural, one {# tag} other {# tags}}?",
         "alerts": "Apagar {count, plural, one {# aviso} other {# avisos}}?",
-        "memories": "Apagar {count, plural, one {# memória} other {# memórias}}?",
-        "templates": "Apagar {count, plural, one {# modelo de checklist} other {# modelos de checklist}}?"
+        "memories": "Apagar {count}?",
+        "templates": "Apagar {count}?"
       },
       "deleteAction": {
         "habits": "Apagar hábitos",
