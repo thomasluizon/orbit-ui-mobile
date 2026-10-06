@@ -24,6 +24,7 @@ function translateMessages(messages: typeof en, key: string, values?: Record<str
 }
 
 const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
+const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('item summaries in $locale', ({ locale, messages }) => {
   const summarize = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale).summarize
@@ -587,6 +588,54 @@ describe('pending operation card view', () => {
 
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('operation treatment in $locale', ({ locale, messages }) => {
+  const deletionSubjects = [
+    ['habits', 'habits.delete', 'habit', 'habits', 'hábito', 'hábitos'],
+    ['goals', 'goals.delete', 'goal', 'goals', 'meta', 'metas'],
+    ['tags', 'tags.delete', 'tag', 'tags', 'tag', 'tags'],
+    ['alerts', 'notifications.delete', 'alert', 'alerts', 'aviso', 'avisos'],
+    ['memories', 'user-facts.delete', 'memory', 'memories', 'memória', 'memórias'],
+    ['templates', 'checklist-templates.write', 'template', 'templates', 'modelo', 'modelos'],
+  ] as const
+
+  it('covers every deletion title subject', () => {
+    expect(deletionSubjects.map(([subject]) => subject).sort(compareStrings)).toEqual(Object.keys(messages.chat.operation.deleteTitle).sort(compareStrings))
+  })
+
+  it.each(deletionSubjects)('names the counted %s subject in the confirmation sheet', (_subject, capabilityId, singularEnglish, pluralEnglish, singularPortuguese, pluralPortuguese) => {
+    for (const count of [1, 2]) {
+      const operation = { ...makeDeleteHabitsPreview(count), capabilityId }
+      const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+      const { record, render } = createRenderers()
+      renderPendingOperationCard({ card: { ...createCard(), confirmOpen: true }, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+      const subject = locale === 'en'
+        ? count === 1 ? singularEnglish : pluralEnglish
+        : count === 1 ? singularPortuguese : pluralPortuguese
+      expect(record.confirm).toMatchObject({ open: true, destructive: true,
+        title: `${locale === 'en' ? 'Delete' : 'Apagar'} ${count} ${subject}?` })
+      expect(localized.confirm.split(/\s+/)).toHaveLength(2)
+    }
+  })
+
+  it.each(Object.keys(messages.chat.operation.approveAction))('keeps the %s approval action within two words', (actionKey) => {
+    const operation = { ...makeCreateHabitsPreview(1), actionKey }
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    const approve = record.buttons.find((button) => button.variant === 'primary')!
+    expect(approve.label).not.toContain('chat.')
+    expect(approve.label.trim().split(/\s+/).length).toBeLessThanOrEqual(2)
+  })
+
+  it('only provides counted approval copy for action keys the producer sends', () => {
+    expect(Object.keys(messages.chat.operation.approveCount).sort(compareStrings)).toEqual([
+      'createHabits', 'deleteHabits', 'logHabits', 'rescheduleHabits', 'skipHabits', 'updateHabitEmojis', 'updateHabits',
+    ])
+    for (const actionKey of ['bulkLogHabits', 'bulkSkipHabits']) {
+      const localized = buildPendingOperationCardLabels({ ...makeCreateHabitsPreview(), actionKey }, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+      expect(localized.approve(12)).toBe(messages.chat.operation.approve)
+    }
+  })
+
   it.each(['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits'])('approves %s without deletion treatment regardless of risk', (actionKey) => {
     for (const riskClass of ['Low', 'Destructive', 'High'] as const) {
       const operation = { ...makeCreateHabitsPreview(), actionKey, riskClass }

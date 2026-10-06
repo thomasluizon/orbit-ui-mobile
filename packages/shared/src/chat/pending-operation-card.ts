@@ -55,7 +55,7 @@ export interface PendingOperationCardLabels {
   stepUpMessage: string
 }
 
-const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis', 'bulkLogHabits', 'bulkSkipHabits']
+const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis']
 const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush']
 
 const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
