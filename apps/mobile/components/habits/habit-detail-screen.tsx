@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   reminderTime: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   stripSection: { gap: 8, paddingTop: 24 },
   stripLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16 },
-  content: { width: '100%', maxWidth: 620, alignSelf: 'center', gap: 24 },
+  content: { width: '100%', maxWidth: 620, gap: 24 },
   summary: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16, fontVariant: ['tabular-nums'] },
   profileLoading: { gap: 16, padding: 16 },
   surface: { gap: 8 },
