@@ -60,11 +60,9 @@ export function NotificationInbox() {
           if (id === 'read') markAllAsRead.mutate()
           else if (id === 'clear') setConfirmOpen(true)
         }} />
-      <div className="lg:ms-12 lg:ps-4">
-        <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
-          onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
-          onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
-      </div>
+      <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}
+        onRetry={() => void inbox.refetch()} onDelete={requestDeleteNotification}
+        onOpen={(item) => { setSelected(item); setDetailOpen(true) }} />
       {selected ? <NotificationDetailModal open={detailOpen} onOpenChange={setDetailOpen}
         notification={inbox.notifications.find((item) => item.id === selected.id) ?? selected}
         onMarkAsRead={(id) => markAsRead.mutate(id)}

@@ -1119,7 +1119,27 @@ describe('mobile ProgressContent', () => {
     const earned = tree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
     const progressive = tree.root.findAll((node) => node.props.testID === 'achievement-tile-week_warrior')[0]!
     const completedProgress = tree.root.findAll((node) => node.props.testID === 'achievement-tile-dedicated')[0]!
-    expect(StyleSheet.flatten(earned.props.style as ViewStyle).width).toBe('48%')
+    const earnedHost = earned.findAll((node) => typeof node.type === 'string' && node.props.testID === 'achievement-tile-first_orbit')[0]!
+    let achievementGrid = earnedHost.parent!
+    while (typeof achievementGrid.type !== 'string') achievementGrid = achievementGrid.parent!
+    const onLayout = achievementGrid.props.onLayout
+    if (typeof onLayout === 'function') await TestRenderer.act(() => onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 708, height: 0 } } }))
+    const row = Yoga.Node.create()
+    row.setWidth(708)
+    row.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+    row.setGap(Yoga.GUTTER_ALL, Number(StyleSheet.flatten(achievementGrid.props.style as ViewStyle).gap))
+    const tileNodes = [earned, progressive].map((tile, index) => {
+      const node = Yoga.Node.create()
+      const tileWidth = StyleSheet.flatten(tile.props.style as ViewStyle).width
+      if (typeof tileWidth === 'number') node.setWidth(tileWidth)
+      else if (typeof tileWidth === 'string' && tileWidth.endsWith('%')) node.setWidthPercent(Number.parseFloat(tileWidth))
+      row.insertChild(node, index)
+      return node
+    })
+    try {
+      row.calculateLayout(undefined, undefined)
+      expect(Math.abs(tileNodes[1]!.getComputedLeft() + tileNodes[1]!.getComputedWidth() - 708)).toBeLessThanOrEqual(0.5)
+    } finally { row.freeRecursive() }
     expect(earned.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
     expect(progressive.findAll((node) => node.props.accessibilityRole === 'progressbar').length).toBeGreaterThan(0)
     const completedProgressBar = completedProgress.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
