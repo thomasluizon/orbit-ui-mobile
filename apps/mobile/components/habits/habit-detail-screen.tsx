@@ -66,7 +66,6 @@ import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
 import { DateRow } from '@/components/ui/date-row'
-import { StatTile } from '@/components/ui/stat-tile'
 import { CreateHabitModal } from './create-habit-modal'
 import { HabitDetailFields, HabitDetailSchedule } from './habit-detail-fields'
 import { HabitChecklist } from './habit-checklist'
@@ -145,17 +144,32 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
 
 function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Readonly<{ visible: boolean; loading: boolean; error: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
   const { t } = useTranslation()
-  const { width, fontScale } = useWindowDimensions()
-  const gridStyle = [styles.tileGrid, width / fontScale < 600 && styles.stackedTiles]
   if (!visible) return null
-  if (loading) return <View accessible accessibilityRole="progressbar" accessibilityLabel={t('habits.detail.loading')} style={gridStyle}>{[isBadHabit ? 'daysFree' : 'currentStreak', 'longestStreak', 'monthlyRate'].map((key) => <View key={key} style={{ flex: 1 }} importantForAccessibility="no-hide-descendants"><StatTile state="loading" label={t(`habits.detail.${key}`)} loadingLabel={t('habits.detail.loading')} /></View>)}</View>
-  if (error || !metrics || metrics.totalCompletions === 0) return <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3, textAlign: 'center', paddingVertical: 16 }]}>{t('habits.detail.noDataYet')}</Text>
+  if (!loading && (error || !metrics || metrics.totalCompletions === 0)) return <Text accessibilityLiveRegion="polite" style={[styles.muted, { color: tokens.fg3, textAlign: 'center', paddingVertical: 16 }]}>{t('habits.detail.noDataYet')}</Text>
   const values = [
-    { label: t(isBadHabit ? 'habits.detail.daysFree' : 'habits.detail.currentStreak'), value: String(metrics.currentStreak) },
-    { label: t('habits.detail.longestStreak'), value: String(metrics.longestStreak) },
-    { label: t('habits.detail.monthlyRate'), value: `${Math.round(metrics.monthlyCompletionRate)}%` },
+    { label: t(isBadHabit ? 'habits.detail.daysFree' : 'habits.detail.currentStreak'), value: String(metrics?.currentStreak ?? '') },
+    { label: t('habits.detail.longestStreak'), value: String(metrics?.longestStreak ?? '') },
+    { label: t('habits.detail.monthlyRate'), value: metrics ? `${Math.round(metrics.monthlyCompletionRate)}%` : '' },
   ]
-  return <View style={gridStyle}>{values.map((item) => <StatTile key={item.label} label={item.label} value={item.value} />)}</View>
+  return (
+    <View testID="habit-detail-stat-card" accessible={loading} accessibilityRole={loading ? 'progressbar' : undefined} accessibilityLabel={loading ? t('common.loading') : undefined} accessibilityState={{ busy: loading }} style={[styles.statCard, { backgroundColor: tokens.bgCard }]}>
+      {values.map((item) => (
+        <View key={item.label} testID="habit-detail-stat-row" style={styles.statRow}>
+          <Text testID="habit-detail-stat-label" style={[styles.statLabel, { color: tokens.fg2 }]}>{item.label}</Text>
+          <View style={styles.statValueSlot}>
+            <View style={styles.statValueLine}>
+              <Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.statValue, styles.statValueStrut, { color: tokens.fg1 }]}>0</Text>
+              <Text testID="habit-detail-stat-value" style={[styles.statValue, { color: tokens.fg1 }]}>
+                {loading ? <Text style={styles.statLoadingValue}>{t('common.loading')}</Text> : item.value}
+              </Text>
+            </View>
+            <Text accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.statValueSizer, { color: tokens.fg1 }]}>{t('common.loading')}</Text>
+          </View>
+        </View>
+      ))}
+      <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={[styles.statRing, { borderColor: tokens.hairlineGhost }]} />
+    </View>
+  )
 }
 
 function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
@@ -640,11 +654,16 @@ const styles = StyleSheet.create({
   childReason: { alignSelf: 'flex-end', paddingRight: 12, paddingBottom: 8 },
   disclosureTitle: { fontSize: 17 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  stackedTiles: { flexDirection: 'column' },
-  tileGrid: { flexDirection: 'row', gap: 8 },
-  metric: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
-  metricValue: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 28.6, fontVariant: ['tabular-nums'] },
-  metricLabel: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16, width: '100%', textAlign: 'center' },
+  statCard: { padding: 24, borderRadius: 20 },
+  statRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1 },
+  statRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, minHeight: 48, paddingVertical: 8 },
+  statLabel: { flexGrow: 1, flexShrink: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  statValueSlot: { marginStart: 'auto', flexShrink: 0, maxWidth: '100%', alignItems: 'flex-end' },
+  statValueLine: { flexDirection: 'row', alignItems: 'baseline' },
+  statValueStrut: { width: 0, opacity: 0 },
+  statValueSizer: { height: 0, opacity: 0, fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, fontWeight: '600' },
+  statValue: { minWidth: 0, textAlign: 'right', fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 22, lineHeight: 28.6, fontVariant: ['tabular-nums'] },
+  statLoadingValue: { fontSize: 14, lineHeight: 18.2 },
   headerMetadata: { paddingTop: 12 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
