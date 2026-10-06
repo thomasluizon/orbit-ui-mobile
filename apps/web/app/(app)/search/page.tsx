@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useRouter } from 'next/navigation'
@@ -35,6 +35,15 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
   const router = useRouter()
   const { isOnline } = useOffline()
   const [inputModality, setInputModality] = useState('keyboard')
+  const [selectedValue, setSelectedValue] = useState('')
+  useEffect(() => {
+    if (inputModality !== 'keyboard') return
+    const restorePointerHover = () => setInputModality('pointer')
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(restorePointerHover)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [inputModality, selectedValue])
   const [createRefusal, setCreateRefusal] = useAccountScopedState(false)
   const entries = buildSearchEntries(search.data, search.query, null)
   const hasQuery = search.text.trim().length > 0
@@ -42,7 +51,11 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     if (!isOnline) { setCreateRefusal(true); return }
     onCreateHabit(search.query)
   }
-  return <Command shouldFilter={false} disablePointerSelection label={t('habits.search.title')} data-input-modality={inputModality} onKeyDownCapture={() => setInputModality('keyboard')} onPointerMoveCapture={() => setInputModality('pointer')} className="group/search flex flex-col gap-4">
+  function suppressKeyboardTransition(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || (event.ctrlKey && ['n', 'j', 'p', 'k'].includes(event.key))) setInputModality('keyboard')
+  }
+  return <Command shouldFilter={false} disablePointerSelection value={selectedValue} onValueChange={setSelectedValue} label={t('habits.search.title')} data-input-modality={inputModality} onKeyDownCapture={suppressKeyboardTransition} className="group/search flex flex-col gap-4">
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={null} onBack={() => {}} searchMode />
     {hasQuery && <CommandList label={t('habits.search.title')} aria-busy={search.busy} className="px-4 py-2">
       {search.showLoading && <Searching />}

@@ -125,6 +125,8 @@ describe('search result geometry in Chromium', () => {
           for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
           document.body.style.backgroundColor = 'var(--bg)'
         }, resolveWebThemeVariables('orange', theme))
+        const expectedTransitionProperty = ['background-color', 'none'][selectedIndex]
+        expect(await page.getByRole('option').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).transitionProperty))).toEqual([expectedTransitionProperty, expectedTransitionProperty])
         await page.mouse.move(0, 0)
         if (pointer !== 'outside') await page.getByRole('option').nth(pointer === 'active' ? selectedIndex : 1 - selectedIndex).hover()
         for (const index of [0, 1]) {
@@ -132,6 +134,7 @@ describe('search result geometry in Chromium', () => {
           const hovered = pointer === 'active' ? selected : pointer === 'inactive' && !selected
           const row = page.getByRole('option').nth(index)
           const paint = await row.evaluate((element, state) => {
+            element.getAnimations().forEach((animation) => animation.finish())
             const probe = document.createElement('span')
             probe.style.backgroundColor = state.selected ? 'var(--primary-dim)' : state.hovered ? 'var(--bg-hover)' : 'var(--bg-card)'
             probe.style.boxShadow = state.selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline-ghost)'
