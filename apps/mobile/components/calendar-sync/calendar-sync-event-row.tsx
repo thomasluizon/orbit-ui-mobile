@@ -108,7 +108,6 @@ export function CalendarSyncEventRow({
           styles.eventRow,
           { flex: 1 },
           {
-            borderBottomColor: tokens.hairline,
             backgroundColor: eventRowBackground(
               hasImportIssue,
               pressed,

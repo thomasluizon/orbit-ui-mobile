@@ -66,7 +66,8 @@ export function CalendarSyncEventRow({
     <div
       className="flex flex-wrap items-start"
       style={{
-        borderBottom: '1px solid var(--hairline)',
+        borderRadius: 12,
+        overflow: 'hidden',
         background: importIssue
           ? 'var(--bg-elev)'
           : selected
