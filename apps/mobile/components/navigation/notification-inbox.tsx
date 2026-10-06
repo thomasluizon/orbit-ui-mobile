@@ -80,7 +80,7 @@ export function NotificationInbox() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  screen: { flex: 1, width: '100%' },
   options: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   scroller: { flex: 1 },
 })
