@@ -1718,6 +1718,16 @@
         "Succeeded": "Feito",
         "Failed": "Não foi salvo"
       },
+      "approveAction": {
+        "openBillingPortal": "Gerenciar assinatura",
+        "setCalendarSync": "Alterar sincronização",
+        "dismissCalendarImport": "Dispensar importação",
+        "dismissCalendarSuggestion": "Dispensar sugestão",
+        "manageCalendarSync": "Alterar sincronização",
+        "linkGoalsToHabit": "Alterar vínculos",
+        "markAllNotificationsRead": "Marcar todos como lidos",
+        "unsubscribePush": "Desativar avisos"
+      },
       "approveCount": {
         "createHabits": "Criar {count, plural, one {# hábito} other {# hábitos}}",
         "logHabits": "Registrar {count, plural, one {# hábito} other {# hábitos}}",

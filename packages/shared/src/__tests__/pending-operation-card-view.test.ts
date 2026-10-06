@@ -621,6 +621,14 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     }
   })
 
+  it('names deletion even when the action key is absent', () => {
+    const operation = { ...makeDeleteHabitsPreview(1), capabilityId: 'habits.bulk.write', actionKey: null }
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.confirm).toMatchObject({ confirmLabel: locale === 'en' ? 'Delete habits' : 'Apagar hábitos' })
+  })
+
   it('does not guess removal from missing or null metadata or an unknown action', () => {
     const original = makeCreateHabitsPreview(2)
     const operation = pendingAgentOperationSchema.parse({ ...original, riskClass: 'Destructive', actionKey: 'unknownAction',

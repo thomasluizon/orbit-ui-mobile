@@ -1,3 +1,4 @@
+import { makeCreateHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
@@ -20,6 +21,7 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 
 const locales = ['en', 'pt-BR'] as const
+const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const originalOperation = makeHeldHabitMessage().pendingOperations![0]!
 const originalItem = originalOperation.items![0]!
 const fields = [...originalItem.fields, { ...originalItem.fields[0]!, field: 'frequency_unit', newValue: 'Day' }, { ...originalItem.fields[0]!, field: 'frequency_quantity', newValue: '1', valueType: 'number' }]
@@ -42,18 +44,18 @@ function textWidth(label: string, size: number): number {
 afterEach(async () => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
-  it.each([1352, 1100, 412, 320].flatMap((width) => locales.map((locale) => ({ width, locale }))))('keeps the action row readable at $width in $locale', async ({ width, locale }) => {
+  it.each([1352, 1100, 412, 320].flatMap((width) => locales.flatMap((locale) => [undefined, ...countedActions].map((counted) => ({ width, locale, counted })))))('keeps controls readable at $width in $locale with counted action $counted', async ({ width, locale, counted }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
-    const tree = render(<PendingOperationCard pendingOperation={operation} {...handlers} />)
+    const tree = render(<PendingOperationCard pendingOperation={counted ? { ...makeCreateHabitsPreview(), actionKey: counted } : operation} {...handlers} />)
     const row = tree.root.findByProps({ testID: 'preview-actions' })
     const buttons = row.findAllByType(Button)
     const labels = buttons.map((button: { props: { children: string } }) => button.props.children)
-    expect(labels).toEqual([i18n.t('chat.operation.approve'), i18n.t('chat.operation.edit'), i18n.t('chat.operation.reject')])
+    expect(labels).toEqual([counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve'), i18n.t('chat.operation.edit'), i18n.t('chat.operation.reject')])
     expect(buttons[0].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
-    expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
+    if (!counted) expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
-    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === 'Beber água' && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
+    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
     const rowStyle = StyleSheet.flatten(row.props.style)
     const frame = tree.root.findByProps({ testID: 'block-frame-resting' })
     const frameStyle = StyleSheet.flatten(frame.props.style)
@@ -81,7 +83,7 @@ describe('Pending preview geometry on Android', () => {
       })
       layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
       const bounds = Array.from({ length: layout.getChildCount() }, (_, index) => layout.getChild(index).getComputedLayout())
-      if (width >= 360) expect(new Set(bounds.map((bound) => bound.top)).size).toBe(1)
+      if (!counted && width >= 360) expect(new Set(bounds.map((bound) => bound.top)).size).toBe(1)
       for (const bound of bounds) expect(bound.left + bound.width).toBeLessThanOrEqual(rowWidth)
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
   })

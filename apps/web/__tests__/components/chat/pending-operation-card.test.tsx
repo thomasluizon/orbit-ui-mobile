@@ -89,6 +89,38 @@ describe('PendingOperationCard', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
+    it('updates the action count after removing a proposed habit', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview()
+      const items = operation.items!.slice(1)
+      revise.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id,
+        cancelled: false, preview: { changes: [], items, changeTargetCount: 11, previewFingerprint: 'revised-create' } } })
+      render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      fireEvent.click(screen.getByRole('button', { name: `${locale === 'en' ? 'Remove' : 'Remover'} Habit 1` }))
+      await screen.findByRole('button', { name: locale === 'en' ? 'Create 11 habits' : 'Criar 11 hábitos' })
+      expect(screen.queryByRole('button', { name: locale === 'en' ? 'Create 12 habits' : 'Criar 12 hábitos' })).not.toBeInTheDocument()
+    })
+
+    it('approves the remaining creation directly after removing the last deletion', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const mixed = makeMixedHabitsPreview()
+      const items = mixed.items!.slice(0, 2)
+      const operation = { ...mixed, items: mixed.items!.slice(0, 3), changeTargetCount: 3 }
+      revise.mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id,
+        cancelled: false, preview: { changes: [], items, changeTargetCount: 2, previewFingerprint: 'revised-mixed' } } })
+      confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+      render(<PendingOperationCard pendingOperation={operation} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      fireEvent.click(screen.getByRole('button', { name: `${locale === 'en' ? 'Remove' : 'Remover'} Old habit 1` }))
+      fireEvent.click(await screen.findByRole('button', { name: locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos' }))
+      await waitFor(() => expect(confirm).toHaveBeenCalledWith(operation.id))
+      const messages = locale === 'en' ? en : ptBR
+      expect(screen.queryByText(messages.chat.operation.irreversible)).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.chat.operation.confirmNote)).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
     it('marks only delete rows and confirms their count', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
@@ -96,6 +128,10 @@ describe('PendingOperationCard', () => {
       render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
       const messages = locale === 'en' ? en : ptBR
       expect(screen.getAllByText(messages.chat.operation.irreversible)).toHaveLength(3)
+      for (const item of operation.items!) {
+        const row = screen.getByText(personalText(item.entityName)).closest('[data-proposed]')! as HTMLElement
+        expect(within(row).queryByText(messages.chat.operation.irreversible) !== null).toBe(item.removesData === true)
+      }
       expect(screen.getByText(messages.chat.operation.confirmNote)).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: messages.chat.pendingOp.action.applyChanges }))
       expect(confirm).not.toHaveBeenCalled()

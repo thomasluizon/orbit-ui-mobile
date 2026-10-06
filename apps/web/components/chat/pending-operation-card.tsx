@@ -180,7 +180,7 @@ const pendingOperationRenderers = {
     className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40"
   ><X aria-hidden="true" size={20} strokeWidth={1.5} /></button>,
   notice: (message) => <p role="status" className="text-sm text-[var(--fg-2)]">{message}</p>,
-  actionRow: (...children) => <div className="flex flex-wrap items-center gap-2 min-[360px]:flex-nowrap" data-preview-actions="">{children}</div>,
+  actionRow: (...children) => <div className="flex flex-wrap items-center gap-2" data-preview-actions="">{children}</div>,
   spacer: () => <span className="flex-1" />,
   rejected: (message) => <p role="status" data-preview-rejection-status="" className={message ? 'flex items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-sm text-[var(--fg-2)]' : 'sr-only'}>{message ? <><XCircle aria-hidden="true" size={20} strokeWidth={1.5} className="shrink-0 text-[var(--fg-3)]" /><span className="min-w-0 flex-1 leading-[1.55]">{message}</span></> : null}</p>,
 } satisfies PendingOperationCardRenderers

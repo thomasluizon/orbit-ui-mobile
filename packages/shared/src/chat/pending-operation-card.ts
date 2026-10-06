@@ -56,6 +56,7 @@ export interface PendingOperationCardLabels {
 }
 
 const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis', 'bulkLogHabits', 'bulkSkipHabits']
+const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush']
 
 const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
   'habits.write': 'habits', 'habits.delete': 'habits', 'habits.bulk.write': 'habits', 'habits.bulk.delete': 'habits',
@@ -75,9 +76,10 @@ export function buildPendingOperationCardLabels(
     && pendingOperation.items.some((item) => item.removesData !== true)
   const actionKey = pendingOperation.actionKey
   const actionLabel = actionKey && PREVIEW_ACTION_KEYS.includes(actionKey)
-    ? translate(`chat.operation.source.${actionKey}`) : translate('chat.operation.approve')
+    ? translate(`chat.operation.${COMPACT_ACTIONS.includes(actionKey) ? 'approveAction' : 'source'}.${actionKey}`)
+    : translate('chat.operation.approve')
   const deletionSubject = DELETION_SUBJECTS[pendingOperation.capabilityId]
-  const confirm = actionKey && deletionSubject
+  const confirm = deletionSubject && pendingOperation.items?.some((item) => item.removesData === true)
     ? translate(`chat.operation.deleteAction.${deletionSubject}`)
     : translate(actionKey && PREVIEW_ACTION_KEYS.includes(actionKey)
       ? `chat.operation.source.${actionKey}`

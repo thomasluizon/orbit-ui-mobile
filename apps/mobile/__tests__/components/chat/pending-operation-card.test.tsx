@@ -93,12 +93,49 @@ describe('PendingOperationCard (mobile)', () => {
       expect(tree.root.findAllByType('ConfirmSheet')).toHaveLength(0)
     })
 
+    it('updates the action count after removing a proposed habit', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview()
+      const items = operation.items!.slice(1)
+      const revise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id,
+        cancelled: false, preview: { changes: [], items, changeTargetCount: 11, previewFingerprint: 'revised-create' } } })
+      const { tree } = renderCard(operation, revise)
+      await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: `${locale === 'en' ? 'Remove' : 'Remover'} Habit 1` }).props.onPress(); await Promise.resolve() })
+      expect(press(tree, locale === 'en' ? 'Create 11 habits' : 'Criar 11 hábitos')).toBeDefined()
+      expect(press(tree, locale === 'en' ? 'Create 12 habits' : 'Criar 12 hábitos')).toBeUndefined()
+    })
+
+    it('approves the remaining creation directly after removing the last deletion', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const mixed = makeMixedHabitsPreview()
+      const items = mixed.items!.slice(0, 2)
+      const operation = { ...mixed, items: mixed.items!.slice(0, 3), changeTargetCount: 3 }
+      const revise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id,
+        cancelled: false, preview: { changes: [], items, changeTargetCount: 2, previewFingerprint: 'revised-mixed' } } })
+      const { tree, handlers } = renderCard(operation, revise)
+      handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+      await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: `${locale === 'en' ? 'Remove' : 'Remover'} Old habit 1` }).props.onPress(); await Promise.resolve() })
+      await TestRenderer.act(async () => { press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.onPress(); await Promise.resolve() })
+      expect(handlers.onConfirmExecute).toHaveBeenCalledWith(operation.id)
+      const messages = locale === 'en' ? en : ptBR
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operation.irreversible)
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operation.confirmNote)
+      expect(tree.root.findAllByType('ConfirmSheet')).toHaveLength(0)
+    })
+
     it('marks only delete rows and confirms their count', () => {
       visibleLocale.actual = true
       visibleLocale.language = locale
-      const { tree, handlers } = renderCard(makeMixedHabitsPreview())
+      const operation = makeMixedHabitsPreview()
+      const { tree, handlers } = renderCard(operation)
       const messages = locale === 'en' ? en : ptBR
       expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === messages.chat.operation.irreversible)).toHaveLength(3)
+      for (const item of operation.items!) {
+        const row = tree.root.findByProps({ testID: `block-frame-item-${item.itemId}-pending-proposed` })
+        expect(row.findAllByType(Text).some((node: ReactTestInstance) => node.props.children === messages.chat.operation.irreversible)).toBe(item.removesData === true)
+      }
       expect(renderedText(tree.toJSON())).toContain(messages.chat.operation.confirmNote)
       TestRenderer.act(() => press(tree, messages.chat.pendingOp.action.applyChanges).props.onPress())
       expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
