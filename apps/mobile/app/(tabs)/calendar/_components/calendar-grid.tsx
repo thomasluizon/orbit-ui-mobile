@@ -127,7 +127,7 @@ function CalendarGridDayBody({
     : <DayCell {...dayCell} />
   return (
     <>
-      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.dayBody}>
         {contents}
       </View>
       {cell.isCurrentMonth ? (
@@ -326,7 +326,7 @@ export function CalendarGrid({
 }
 
 const styles = StyleSheet.create({
-  calendarGrid: { paddingHorizontal: 4, paddingTop: 0, paddingBottom: 8 },
+  calendarGrid: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 8 },
   gridCard: {
     width: '100%',
     alignSelf: 'center',
@@ -337,16 +337,16 @@ const styles = StyleSheet.create({
   },
   loadingRow: { flexDirection: 'row' },
   loadingSlot: { flex: 1, minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
-  loadingCell: { width: MONTH_GRID_TARGET_MIN },
+  loadingCell: { width: '100%', maxWidth: MONTH_GRID_TARGET_MIN },
   daySlot: {
     position: 'relative',
     width: '100%',
-    minWidth: MONTH_GRID_TARGET_MIN,
-    height: MONTH_GRID_TARGET_MIN,
+    minHeight: MONTH_GRID_TARGET_MIN,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dayBody: { width: '100%', alignItems: 'center' },
   selectionRing: { position: 'absolute', inset: 0, borderRadius: 999, borderWidth: 2 },
   futureNumeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   futureControl: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },

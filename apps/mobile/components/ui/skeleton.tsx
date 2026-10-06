@@ -114,6 +114,7 @@ function GridSkeleton({ props, tokens, opacity }: Readonly<{
         {
           gap: props.gap,
           width: props.cols * props.cell + (props.cols - 1) * props.gap,
+          maxWidth: props.cols === 1 ? '100%' : undefined,
           height: props.rows * props.cell + (props.rows - 1) * props.gap,
         },
       ]}
@@ -122,7 +123,7 @@ function GridSkeleton({ props, tokens, opacity }: Readonly<{
       {Array.from({ length: props.rows * props.cols }, (_, index) => (
         <Block
           key={index}
-          style={{ width: props.cell, height: props.cell }}
+          style={{ width: props.cell, maxWidth: '100%', height: props.cell }}
           tokens={tokens}
           opacity={opacity}
         />

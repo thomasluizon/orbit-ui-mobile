@@ -99,4 +99,3 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
     }
   } finally { root.freeRecursive(); config.free() }
 }
-

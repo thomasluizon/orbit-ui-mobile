@@ -343,7 +343,10 @@ describe('Calendar header geometry in Chromium', () => {
           const box = slot.getBoundingClientRect()
           const disc = (slot.matches('[data-outcome]') ? slot.querySelector(':scope > span') : slot.querySelector('[data-outcome] > span')) ?? slot.querySelector('[data-variant="grid"] span')
           const visual = disc?.getBoundingClientRect()
-          return { width: box.width, height: box.height, contained: !visual || (visual.left >= box.left - 0.5 && visual.right <= box.right + 0.5), square: !visual || Math.abs(visual.width - visual.height) <= 0.5 }
+          const future = slot.querySelector('[role="img"]:not([data-outcome])')
+          const futureBox = future?.getBoundingClientRect()
+          const numeral = future?.firstElementChild?.getBoundingClientRect()
+          return { futureWidth: futureBox?.width, futureCentered: !numeral || Math.abs(numeral.left + numeral.width / 2 - box.left - box.width / 2) <= 0.5, width: box.width, height: box.height, contained: !visual || (visual.left >= box.left - 0.5 && visual.right <= box.right + 0.5), square: !visual || Math.abs(visual.width - visual.height) <= 0.5 }
         })
         return { left: bounds.left, right: bounds.right, switchLeft: selector.left, switchRight: selector.right, slots,
           scrollWidth: document.documentElement.scrollWidth, selected: grid.querySelector('[data-selected="true"]')?.getBoundingClientRect().width }
@@ -354,6 +357,8 @@ describe('Calendar header geometry in Chromium', () => {
       for (const slot of geometry.slots) {
         expect(slot.height).toBeGreaterThanOrEqual(44)
         expect(slot.contained).toBe(true)
+        expect(slot.futureCentered).toBe(true)
+        if (slot.futureWidth !== undefined) expect(slot.futureWidth).toBeCloseTo(slot.width, 1)
         if (!isLoading) expect(slot.square).toBe(true)
         expect(slot.width).toBeCloseTo(geometry.slots[0]!.width, 1)
       }
