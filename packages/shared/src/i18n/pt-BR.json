@@ -1699,7 +1699,7 @@
         "run_sync": "Sincronizar agora"
       },
       "confirmTitle": "Aprovar esta mudança?",
-      "confirmBody": "Esta mudança não pode ser desfeita.",
+      "confirmBody": "Apagar não pode ser desfeito.",
       "confirm": "Aprovar",
       "stepUpMessage": "Confirme a identidade no aparelho antes de continuar.",
       "stepUpAction": "Confirmar identidade",
@@ -1718,6 +1718,34 @@
         "Succeeded": "Feito",
         "Failed": "Não foi salvo"
       },
+      "approveCount": {
+        "createHabits": "Criar {count, plural, one {# hábito} other {# hábitos}}",
+        "logHabits": "Registrar {count, plural, one {# hábito} other {# hábitos}}",
+        "skipHabits": "Pular {count, plural, one {# hábito} other {# hábitos}}",
+        "updateHabits": "Alterar {count, plural, one {# hábito} other {# hábitos}}",
+        "rescheduleHabits": "Reagendar {count, plural, one {# hábito} other {# hábitos}}",
+        "deleteHabits": "Apagar {count, plural, one {# hábito} other {# hábitos}}",
+        "updateHabitEmojis": "Alterar {count, plural, one {# ícone de hábito} other {# ícones de hábitos}}",
+        "bulkLogHabits": "Registrar {count, plural, one {# hábito} other {# hábitos}}",
+        "bulkSkipHabits": "Pular {count, plural, one {# hábito} other {# hábitos}}"
+      },
+      "deleteTitle": {
+        "habits": "Apagar {count, plural, one {# hábito} other {# hábitos}}?",
+        "goals": "Apagar {count, plural, one {# meta} other {# metas}}?",
+        "tags": "Apagar {count, plural, one {# tag} other {# tags}}?",
+        "alerts": "Apagar {count, plural, one {# aviso} other {# avisos}}?",
+        "memories": "Apagar {count, plural, one {# memória} other {# memórias}}?",
+        "templates": "Apagar {count, plural, one {# modelo de checklist} other {# modelos de checklist}}?"
+      },
+      "deleteAction": {
+        "habits": "Apagar hábitos",
+        "goals": "Apagar metas",
+        "tags": "Apagar tags",
+        "alerts": "Apagar avisos",
+        "memories": "Apagar memórias",
+        "templates": "Apagar modelos de checklist"
+      },
+      "confirmActionTitle": "{action}?",
       "source": {
         "createHabit": "Criar hábito",
         "logHabit": "Registrar hábito",

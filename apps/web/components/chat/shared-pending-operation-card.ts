@@ -10,7 +10,7 @@ export type { PendingOperationButtonSpec, PendingOperationConfirmSheetProps, Pen
 export type PendingOperationCardRenderers = Omit<CoreRenderers<ReactNode>, 'fragment'>
 
 export interface PendingOperationCardProps {
-  labels: PendingOperationCardLabels
+  labels: (operation: PendingAgentOperation) => PendingOperationCardLabels
   onConfirmExecute: (id: string) => Promise<PendingOperationExecutionResult>
   onRevise?: RevisePendingOperation
   onRefresh?: RefreshPendingOperation
@@ -81,7 +81,7 @@ export function SharedPendingOperationCard({
       startStepUp: async () => { if (!staleRef.current) await card.startStepUp() },
       setConfirmOpen: (open) => { if (!staleRef.current) card.setConfirmOpen(open) },
     },
-    labels,
+    labels: labels(revision.operation),
     onVerifyStepUp: async (...args) => {
       if (staleRef.current || !card.preparedStepUp || !card.isCurrent()) return { ok: false }
       const result = await onVerifyStepUp(...args)

@@ -1699,7 +1699,7 @@
         "run_sync": "Sync now"
       },
       "confirmTitle": "Approve this change?",
-      "confirmBody": "This change cannot be undone.",
+      "confirmBody": "Deletion cannot be undone.",
       "confirm": "Approve",
       "stepUpMessage": "Confirm your identity on the device before this can continue.",
       "stepUpAction": "Confirm identity",
@@ -1718,6 +1718,34 @@
         "Succeeded": "Done",
         "Failed": "Did not save"
       },
+      "approveCount": {
+        "createHabits": "Create {count, plural, one {# habit} other {# habits}}",
+        "logHabits": "Log {count, plural, one {# habit} other {# habits}}",
+        "skipHabits": "Skip {count, plural, one {# habit} other {# habits}}",
+        "updateHabits": "Update {count, plural, one {# habit} other {# habits}}",
+        "rescheduleHabits": "Reschedule {count, plural, one {# habit} other {# habits}}",
+        "deleteHabits": "Delete {count, plural, one {# habit} other {# habits}}",
+        "updateHabitEmojis": "Change {count, plural, one {# habit icon} other {# habit icons}}",
+        "bulkLogHabits": "Log {count, plural, one {# habit} other {# habits}}",
+        "bulkSkipHabits": "Skip {count, plural, one {# habit} other {# habits}}"
+      },
+      "deleteTitle": {
+        "habits": "Delete {count, plural, one {# habit} other {# habits}}?",
+        "goals": "Delete {count, plural, one {# goal} other {# goals}}?",
+        "tags": "Delete {count, plural, one {# tag} other {# tags}}?",
+        "alerts": "Delete {count, plural, one {# alert} other {# alerts}}?",
+        "memories": "Delete {count, plural, one {# memory} other {# memories}}?",
+        "templates": "Delete {count, plural, one {# checklist template} other {# checklist templates}}?"
+      },
+      "deleteAction": {
+        "habits": "Delete habits",
+        "goals": "Delete goals",
+        "tags": "Delete tags",
+        "alerts": "Delete alerts",
+        "memories": "Delete memories",
+        "templates": "Delete checklist templates"
+      },
+      "confirmActionTitle": "{action}?",
       "source": {
         "createHabit": "Create habit",
         "logHabit": "Log habit",

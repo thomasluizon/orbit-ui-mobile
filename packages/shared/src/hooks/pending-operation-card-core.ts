@@ -88,14 +88,14 @@ export function getPendingOperationVerificationResult(
 }
 
 export function getPendingOperationCardPresentation(
-  riskClass: string,
+  removesData: boolean,
   confirmationRequirement: string,
   busy: boolean,
   status: PendingOperationCardStatus,
   canRetry = false,
 ): { destructive: boolean; action: 'none' | 'stepUp' | 'buttons'; frameState: 'acting' | 'partiallyFailed' | 'resting' } {
   return {
-    destructive: riskClass === 'Destructive',
+    destructive: removesData,
     action: status === 'done' || (status === 'failed' && !canRetry) ? 'none' : confirmationRequirement === 'StepUp' ? 'stepUp' : 'buttons',
     frameState: busy ? 'acting' : status === 'failed' ? 'partiallyFailed' : 'resting',
   }

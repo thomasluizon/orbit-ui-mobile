@@ -1,3 +1,5 @@
+import { makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -17,7 +19,7 @@ const visibleLocale = vi.hoisted(() => ({ language: 'en', actual: false }))
 function translateVisible(key: string, values?: Record<string, string | number>): string {
   const messages = visibleLocale.language === 'en' ? en : ptBR
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
-  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+  return typeof message === 'string' ? new IntlMessageFormat(message, visibleLocale.language).format(values) as string : key
 }
 
 vi.mock('next-intl', () => ({ useLocale: () => visibleLocale.language, useTranslations: () => (key: string, values?: Record<string, string | number>) => {
@@ -43,8 +45,8 @@ vi.mock('@/hooks/use-pending-operation-card-state', async (importOriginal) => {
   }
 })
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? (capturedSheet.onConfirm = onConfirm, <button type="button" onClick={onConfirm}>confirm-sheet</button>) : null,
+  ConfirmSheet: ({ open, onConfirm, title, confirmLabel, destructive }: { open: boolean; onConfirm: () => void; title: string; confirmLabel: string; destructive: boolean }) =>
+    open ? (capturedSheet.onConfirm = onConfirm, <div role="dialog" aria-label={title} data-destructive={destructive}><button type="button" onClick={onConfirm}>confirm-sheet</button><span>{confirmLabel}</span></div>) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
@@ -71,6 +73,37 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+
+  describe.each(['en', 'pt-BR'])('operation approval in %s', (locale) => {
+    it.each(['Low', 'Destructive', 'High'] as const)('approves creation directly with %s internal risk', async (riskClass) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = { ...makeCreateHabitsPreview(), riskClass }
+      confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+      render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      const messages = locale === 'en' ? en : ptBR
+      expect(screen.queryByText(messages.chat.operation.irreversible)).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.chat.operation.confirmNote)).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? 'Create 12 habits' : 'Criar 12 hábitos' }))
+      await waitFor(() => expect(confirm).toHaveBeenCalledWith(operation.id))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('marks only delete rows and confirms their count', () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeMixedHabitsPreview()
+      render(<PendingOperationCard pendingOperation={operation} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      const messages = locale === 'en' ? en : ptBR
+      expect(screen.getAllByText(messages.chat.operation.irreversible)).toHaveLength(3)
+      expect(screen.getByText(messages.chat.operation.confirmNote)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: messages.chat.pendingOp.action.applyChanges }))
+      expect(confirm).not.toHaveBeenCalled()
+      expect(screen.getByRole('dialog', { name: locale === 'en' ? 'Delete 3 habits?' : 'Apagar 3 hábitos?' })).toHaveAttribute('data-destructive', 'true')
+      expect(screen.getByText(locale === 'en' ? 'Delete habits' : 'Apagar hábitos')).toBeInTheDocument()
+    })
+  })
+
   describe.each(['en', 'pt-BR'])('visible write summaries in %s', (locale) => {
     it.each(pendingWriteSummaryCases)('shows $name', (scenario) => {
       visibleLocale.actual = true
@@ -125,7 +158,7 @@ describe('PendingOperationCard', () => {
 
   it('hides risk and requires a sheet before a destructive operation', async () => {
     confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
-    render(<PendingOperationCard pendingOperation={makePendingAgentOperation()} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ items: [{ ...firstItem, removesData: true }] })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
 
     expect(screen.queryByText('chat.operation.risk.destructive')).not.toBeInTheDocument()
     expect(screen.getByText('chat.operation.irreversible')).toBeInTheDocument()
@@ -352,7 +385,7 @@ describe('PendingOperationCard', () => {
   })
 
   it('closes confirmation and blocks its old handler when the preview changes', () => {
-    const destructive = makePendingAgentOperation({ ...preview, riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
+    const destructive = makePendingAgentOperation({ ...preview, items: preview.items!.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
     const { rerender } = render(<PendingOperationCard pendingOperation={destructive} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     expect(screen.getByRole('button', { name: 'confirm-sheet' })).toBeInTheDocument()
@@ -367,7 +400,7 @@ describe('PendingOperationCard', () => {
   })
 
   it('keeps confirmation open when the preview fingerprint is unchanged', () => {
-    const destructive = makePendingAgentOperation({ ...preview, riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
+    const destructive = makePendingAgentOperation({ ...preview, items: preview.items!.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
     const { rerender } = render(<PendingOperationCard pendingOperation={destructive} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     rerender(<PendingOperationCard pendingOperation={{ ...destructive, items: [...destructive.items!] }} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
@@ -642,7 +675,7 @@ describe('PendingOperationCard', () => {
   })
 
   it('refreshes a stale preview and closes the old confirmation', async () => {
-    const destructive = makePendingAgentOperation({ ...preview, riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
+    const destructive = makePendingAgentOperation({ ...preview, items: preview.items!.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
     revise.mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
     const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null,
       pendingOperationId: 'pending-1', cancelled: false,
@@ -664,11 +697,11 @@ describe('PendingOperationCard', () => {
   })
 
   it('requires a new confirmation after refresh returns the same fingerprint', async () => {
-    const destructive = makePendingAgentOperation({ ...preview, riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
+    const destructive = makePendingAgentOperation({ ...preview, items: preview.items!.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive', confirmationRequirement: 'FreshConfirmation' })
     revise.mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
     const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null,
       pendingOperationId: 'pending-1', cancelled: false,
-      preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem], previewFingerprint: 'preview-1' } } })
+      preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem].map((item) => ({ ...item, removesData: true })), previewFingerprint: 'preview-1' } } })
     render(<PendingOperationCard pendingOperation={destructive} onRevise={revise} onRefresh={refresh} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
     const oldConfirm = capturedSheet.onConfirm

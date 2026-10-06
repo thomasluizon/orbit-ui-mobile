@@ -218,6 +218,6 @@ export function PendingOperationCard({
     savedState={savedState}
     onStateChange={onStateChange}
     render={pendingOperationRenderers}
-    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime, locale)}
+    labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, locale)}
   />
 }

@@ -143,7 +143,7 @@ export interface PendingOperationCardActions {
 }
 
 type CardRevision = NonNullable<PendingOperationCardActions['revision']>
-type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields'>
+type PreviewItem = Pick<PendingOperationItem, 'itemId' | 'entityId' | 'entityName' | 'fields' | 'removesData'>
 
 const NAVIGABLE_OPERATION_ACTIONS: Readonly<Record<string, string | null>> = {
   create_habit: 'CreateHabit', update_habit: 'UpdateHabit', create_sub_habit: 'CreateSubHabit',
@@ -202,6 +202,7 @@ function itemControl<Node>(
 function pendingActions<Node>(
   action: 'none' | 'stepUp' | 'buttons',
   destructive: boolean,
+  count: number,
   card: PendingOperationCardActions,
   revision: CardRevision | undefined,
   labels: PendingOperationCardLabels,
@@ -220,7 +221,7 @@ function pendingActions<Node>(
     onClick: revision?.canRevise ? () => void revision.rejectAll() : card.dismiss,
   })
   const approve = render.button({
-    label: labels.approve,
+    label: labels.approve(count),
     variant: 'primary',
     disabled: revision?.canRevise === true && revision.items.length === 0,
     onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
@@ -244,7 +245,6 @@ function previewRows<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
   labels: PendingOperationCardLabels,
-  destructive: boolean,
   render: PendingOperationCardRenderers<Node>,
 ): PendingOperationFrame<Node>['items'] | null {
   const revision = card.revision
@@ -258,7 +258,7 @@ function previewRows<Node>(
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
       meta: edited ? `${labels.edited} · ${summary}` : summary,
       status: card.status,
-      irreversible: destructive && card.status == null,
+      irreversible: item.removesData === true && card.status == null,
       proposed: card.status == null && !edited,
       wrapLabel: true,
       wrapMeta: true,
@@ -300,6 +300,11 @@ function previewBody<Node>(
   return render.notice(labels.failed)
 }
 
+function targetCount(operation: PendingAgentOperation): number {
+  return operation.changeTargetCount ?? operation.items?.length
+    ?? Math.max(1, new Set(operation.changes?.map((change) => change.entityId)).size)
+}
+
 function previewFrame<Node>(
   pendingOperation: PendingAgentOperation,
   card: PendingOperationCardActions,
@@ -308,8 +313,8 @@ function previewFrame<Node>(
   presentation: ReturnType<typeof getPendingOperationCardPresentation>,
 ): Node {
   const revision = card.revision
-  const actions = pendingActions(presentation.action, presentation.destructive, card, revision, labels, render)
-  const previewItems = previewRows(pendingOperation, card, labels, presentation.destructive, render)
+  const actions = pendingActions(presentation.action, presentation.destructive, targetCount(pendingOperation), card, revision, labels, render)
+  const previewItems = previewRows(pendingOperation, card, labels, render)
   const frameBase: PendingOperationFrameBase<Node> = {
     title: previewItems ? labels.name : labels.pendingTitle,
     wrapTitle: true,
@@ -318,7 +323,7 @@ function previewFrame<Node>(
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{
       id: pendingOperation.id, label: labels.name, meta: labels.pending,
-      status: card.status, irreversible: presentation.destructive && card.status == null,
+      status: card.status, irreversible: false,
     }],
     proposedLabel: labels.proposed,
     irreversibleLabel: labels.irreversible,
@@ -348,10 +353,11 @@ export function renderPendingOperationCard<Node>({
   render: PendingOperationCardRenderers<Node>
 }): Node | null {
   const revision = card.revision
-  if (card.dismissed || revision?.rejected) return render.fragment(render.rejected(labels.rejected(pendingOperation.changeTargetCount ?? pendingOperation.items?.length ?? Math.max(1, new Set(pendingOperation.changes?.map((change) => change.entityId)).size))))
+  if (card.dismissed || revision?.rejected) return render.fragment(render.rejected(labels.rejected(targetCount(pendingOperation))))
 
+  const deletionCount = pendingOperation.items?.filter((item) => item.removesData === true).length ?? 0
   const presentation = getPendingOperationCardPresentation(
-    pendingOperation.riskClass, pendingOperation.confirmationRequirement,
+    deletionCount > 0, pendingOperation.confirmationRequirement,
     card.busy || revision?.busy === true, card.status, card.canRetry,
   )
   const openableCapability = pendingOperation.capabilityId === 'habits.write'
@@ -359,11 +365,11 @@ export function renderPendingOperationCard<Node>({
     || pendingOperation.capabilityId === 'goals.write'
   const blockFrame = previewFrame(pendingOperation, { ...card, openableCapability }, labels, render, presentation)
   const confirmSheet = render.confirmSheet({
-    open: card.confirmOpen,
-    title: labels.confirmTitle,
+    open: card.confirmOpen && presentation.destructive,
+    title: labels.confirmTitle(deletionCount),
     message: labels.confirmBody,
     confirmLabel: labels.confirm,
-    destructive: true,
+    destructive: presentation.destructive,
     onCancel: () => card.setConfirmOpen(false),
     onConfirm: () => {
       card.setConfirmOpen(false)
