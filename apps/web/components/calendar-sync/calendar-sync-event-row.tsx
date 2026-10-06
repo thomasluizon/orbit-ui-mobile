@@ -65,6 +65,7 @@ export function CalendarSyncEventRow({
   return (
     <div
       className="flex flex-wrap items-start"
+      data-focus-inset=""
       style={{
         borderRadius: 12,
         overflow: 'hidden',

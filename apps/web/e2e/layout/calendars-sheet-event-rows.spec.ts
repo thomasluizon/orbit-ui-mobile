@@ -62,6 +62,16 @@ for (const width of [412, 1352]) {
           await expect(row).toHaveCSS('overflow-y', 'hidden')
           expect(await row.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
         }
+        await page.keyboard.press('Tab')
+        await selected.focus()
+        await expect(selected).toBeFocused()
+        await expect(selected).toHaveCSS('outline-style', 'solid')
+        await expect(selected).toHaveCSS('outline-width', '2px')
+        await expect(selected).toHaveCSS('outline-offset', '-4px')
+        const details = rows[2]!.getByRole('button', { name: ptBR.contextMenu.viewDetails, exact: true })
+        await details.focus()
+        await expect(details).toBeFocused()
+        await expect(details).toHaveCSS('outline-offset', '-4px')
       })
     })
   }
