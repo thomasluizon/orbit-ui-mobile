@@ -90,7 +90,6 @@ export function createStyles() {
       paddingVertical: 12,
       borderRadius: 12,
       overflow: 'hidden',
-      borderBottomWidth: StyleSheet.hairlineWidth,
     },
     eventBody: {
       flex: 1,
