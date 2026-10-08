@@ -1,4 +1,5 @@
 import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -205,7 +206,7 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
           {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
       </View>
-      {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><Text numberOfLines={1} style={[styles.tagText, { color: tokens.fg2 }]}>{tag.name}</Text></View>)}</View></View> : null}
+      {habit.tags.length > 0 ? <View testID="habit-detail-tags" style={styles.headerMetadata}><View style={styles.tags}>{habit.tags.map((tag) => <View key={tag.id} style={[styles.tag, { borderColor: tokens.hairlineStrong }]}><PersonalTextDetails lines={1} textStyle={{ ...styles.tagText, color: tokens.fg2 }}>{tag.name}</PersonalTextDetails></View>)}</View></View> : null}
       {habit.description ? <Pressable testID="habit-detail-description" style={[styles.headerMetadata, { minHeight: TOUCH_TARGET_MIN }]} accessibilityRole="button" accessibilityLabel={habit.description} accessibilityHint={t('habits.detail.viewDescription')} accessibilityState={{ expanded: descriptionOpen }} onPress={() => setDescriptionOpen((open) => !open)}><Text numberOfLines={descriptionOpen ? undefined : 1} style={[styles.muted, { color: tokens.fg3 }]}>{habit.description}</Text></Pressable> : null}
     </>
   )
@@ -666,7 +667,7 @@ const styles = StyleSheet.create({
   statLoadingValue: { fontSize: 14, lineHeight: 18.2 },
   headerMetadata: { paddingTop: 12 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  tag: { minWidth: 0, maxWidth: '100%', borderWidth: 1, borderRadius: 8 },
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
   disclosure: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rescueCard: { gap: 12, padding: 24, borderRadius: 20, borderWidth: 1 },

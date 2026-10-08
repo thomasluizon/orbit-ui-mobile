@@ -56,7 +56,7 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
     })
 
     await TestRenderer.act(() => {
-      (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+      (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
     })
     await TestRenderer.act(() => {
       createGoalButton(tree.root).props.onPress()
@@ -69,7 +69,7 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
       tree.root.findByType('CreateGoalFromHabitSheet').props.onClose()
     })
     await TestRenderer.act(() => {
-      (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+      (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
     })
     expect(tree.root.findAllByType('Sheet')).toHaveLength(1)
   })
@@ -90,7 +90,7 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     )
   })
   await TestRenderer.act(() => {
-    (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   expect(StyleSheet.flatten(tree.root.findByType('BottomSheetAppTextInput').props.style)).toMatchObject({ paddingHorizontal: 16, minHeight: 54 })
@@ -120,11 +120,11 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     await expectPersonalTextLayout(tree.root, name, 1)
     await TestRenderer.act(() => pressTextControl(disclosure))
     expect(expandedTextControls(tree.root, name, true)).toHaveLength(1)
-    expect(tree.root.findAll((node) => String(node.type) === 'ScrollView' && node.props.horizontal === true).length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ScrollView' && node.props.horizontal === true).length).toBeGreaterThan(0)
     expect(onToggle).not.toHaveBeenCalled()
     await TestRenderer.act(() => pressTextControl(expandedTextControls(tree.root, name, true)[0]!))
-    await TestRenderer.act(() => (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)())
-    const row = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
+    await TestRenderer.act(() => (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)())
+    const row = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
     expect(row).toBeDefined()
     await expectPersonalTextLayout(row, name)
     await TestRenderer.act(() => pressTextControl(row))

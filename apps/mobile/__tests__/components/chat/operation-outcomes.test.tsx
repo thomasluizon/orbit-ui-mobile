@@ -1,4 +1,6 @@
 import React from 'react'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, Text, View } from 'react-native'
 import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
@@ -63,4 +65,15 @@ describe('OperationOutcomes on mobile', () => {
 
     expect(renderedText(tree.toJSON()).match(/chat\.operation\.outcome\.UnsupportedByPolicy/g)).toHaveLength(1)
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full operation target %s', async (name) => {
+    const operation = { ...makeAgentOperationResult('Failed', 2), targetName: name }
+    const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<OperationOutcomes outcomes={outcomes} />) })
+    await expectPersonalTextLayout(tree.root, name)
+    await act(() => pressTextControl(expandedTextControls(tree.root, name, false)[0]!))
+    expect(expandedTextControls(tree.root, name, true)).toHaveLength(1)
+    await act(() => tree.update(<></>))
+  })
+
 })

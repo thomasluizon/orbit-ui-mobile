@@ -83,7 +83,7 @@ describe('TagPickerField', () => {
 
     const search = screen.getByPlaceholderText('habits.form.searchTags')
     expect(screen.queryByText(personalText('Tag 20'))).not.toBeInTheDocument()
-    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 112 } })
+    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 120 } })
     expect(await screen.findByText(personalText('Tag 20'))).toBeInTheDocument()
     fireEvent.change(search, { target: { value: 'Tag 49' } })
     expect(screen.getByText(personalText('Tag 49'))).toBeInTheDocument()

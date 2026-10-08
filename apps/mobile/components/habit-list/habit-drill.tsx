@@ -13,6 +13,8 @@ import {
 } from 'react-native'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ArrowLeft } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
@@ -97,7 +99,12 @@ export function HabitDrill({
     <>
       {listHeaderComponent}
       <View style={styles.drillControls}>
-        <View style={styles.drillHeader}>
+        <View style={[styles.drillHeader, { flexDirection: 'column', alignItems: 'stretch' }]}>
+          <View style={[styles.drillHeading, { flex: 0 }]}>
+            <PersonalText accessibilityRole="header" style={styles.drillTitle}>
+              {drill.currentParent?.title ?? ''}
+            </PersonalText>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <Pressable
             onPress={drill.drillBack}
             accessibilityRole="button"
@@ -109,16 +116,14 @@ export function HabitDrill({
           >
             <ArrowLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
           </Pressable>
-          <View style={styles.drillHeading}>
-            <Text style={styles.drillTitle} numberOfLines={1}>
-              {drill.currentParent?.title ?? ''}
-            </Text>
             <Text style={styles.drillProgress}>
               {t('habits.drillProgress', {
                 done: drill.completedCount,
                 total: drill.drillChildren.length,
               })}
             </Text>
+              <PersonalTextDetails iconOnly>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
+            </View>
           </View>
         </View>
         {drill.drillStack.length > 1 ? (

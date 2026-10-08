@@ -11,6 +11,9 @@ import {
   useDeleteChecklistTemplate,
 } from '@/hooks/use-checklist-templates'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { Icon } from '@/components/ui/icon'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
@@ -136,20 +139,19 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
               </div>
             ) : null}
             {templates.map((template) => (
-              <ListRow
-                key={template.id}
-                icon="template"
-                title={template.name}
-                description={t('habits.form.templateItemCount', { count: template.items.length })}
-                chevron={false}
-                action={{
-                  icon: 'trash',
-                  label: `${t('common.delete')}: ${template.name}`,
-                  danger: true,
-                  onPress: () => handleDelete(template.id),
-                }}
-                onClick={() => handleLoad(template.id)}
-              />
+              <div key={template.id} className="flex min-w-0 flex-col gap-1 px-4 py-2">
+                <button type="button" aria-label={template.name} className="orbit-list-row-body min-h-[var(--touch-min)] w-full min-w-0 rounded-[12px] px-2 py-1 text-left text-[17px] font-normal leading-[1.4] text-[var(--fg-1)]" onClick={() => handleLoad(template.id)}>
+                  <PersonalText>{template.name}</PersonalText>
+                </button>
+                <div className="flex min-w-0 items-center gap-2 px-2 text-sm text-[var(--fg-3)]">
+                  <Icon name="template" size={20} />
+                  <span className="min-w-0 flex-1">{t('habits.form.templateItemCount', { count: template.items.length })}</span>
+                  <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
+                  <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-body grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--status-bad)]" onClick={() => handleDelete(template.id)}>
+                    <Icon name="trash" size={20} />
+                  </button>
+                </div>
+              </div>
             ))}
             {templates.length === 0 && !showSave ? (
               <div className="flex flex-col items-center py-8 text-center" style={{ gap: 12 }}>

@@ -16,7 +16,7 @@ import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CreateGoalFromHabitSheet } from './create-goal-from-habit-sheet'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 
-const VIRTUAL_ROW_HEIGHT = 112
+const VIRTUAL_ROW_HEIGHT = 120
 const VIRTUAL_VIEWPORT_HEIGHT = 320
 const VIRTUAL_OVERSCAN = 2
 
@@ -42,11 +42,11 @@ function GoalPickerRow({ goal, selected, disabled, onToggle }: Readonly<{
   onToggle: (goalId: string) => void
 }>) {
   return (
-    <div data-picker-row="" className="orbit-list-row flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(112px, calc(2.8em + 64px))' }}>
-      <button type="button" aria-label={goal.title} aria-pressed={selected} disabled={disabled} className="flex min-h-12 w-full min-w-0 items-center rounded-[12px] text-left active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(goal.id)}>
-        <PersonalText className="w-full">{goal.title}</PersonalText>
+    <div data-picker-row="" className="orbit-list-row flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(120px, calc(2.8em + 72px))' }}>
+      <button type="button" aria-label={goal.title} aria-pressed={selected} disabled={disabled} className="flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(goal.id)}>
+        <PersonalText className="w-full leading-[1.4]">{goal.title}</PersonalText>
       </button>
-      <div className="flex items-center justify-between gap-2"><span aria-hidden="true" className="font-mono text-xs text-[var(--fg-2)]">{selected ? '✓' : `${Math.round(goal.progressPercentage)}%`}</span><PersonalTextDetails iconOnly>{goal.title}</PersonalTextDetails></div>
+      <div className="flex items-center justify-between gap-2"><span aria-hidden={selected || undefined} className="font-mono text-xs text-[var(--fg-2)]">{selected ? '✓' : `${Math.round(goal.progressPercentage)}%`}</span><PersonalTextDetails iconOnly>{goal.title}</PersonalTextDetails></div>
     </div>
   )
 }
@@ -120,7 +120,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
       <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} inset={false} onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? (
         <div className="flex flex-wrap gap-2 pt-2">
-          {selectedGoals.slice(0, 3).map((goal) => <div key={goal.id} className="chip min-w-0 max-w-full"><PersonalTextDetails lines={1}>{goal.title}</PersonalTextDetails></div>)}
+          {selectedGoals.slice(0, 3).map((goal) => <div key={goal.id} className="min-w-0 max-w-full rounded-[8px] bg-[var(--bg-well)] text-sm font-medium text-[var(--fg-2)]"><PersonalTextDetails lines={1}>{goal.title}</PersonalTextDetails></div>)}
           {selectedGoals.length > 3 ? <span className="chip">{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</span> : null}
         </div>
       ) : null}

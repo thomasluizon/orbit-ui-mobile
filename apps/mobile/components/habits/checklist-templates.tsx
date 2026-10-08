@@ -20,6 +20,9 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { Icon } from '@/components/ui/icon'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
@@ -171,20 +174,19 @@ export function ChecklistTemplates({
               </View>
             ) : null}
             {templates.map((template) => (
-              <ListRow
-                key={template.id}
-                icon="template"
-                title={template.name}
-                description={t('habits.form.templateItemCount', { count: template.items.length })}
-                chevron={false}
-                action={{
-                  icon: 'trash',
-                  label: `${t('common.delete')}: ${template.name}`,
-                  danger: true,
-                  onPress: () => handleDelete(template.id),
-                }}
-                onClick={() => handleLoad(template.id)}
-              />
+              <View key={template.id} style={styles.templateRow}>
+                <Pressable accessibilityRole="button" accessibilityLabel={template.name} focusInset style={({ pressed }) => [styles.templateLoad, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleLoad(template.id)}>
+                  <PersonalText style={styles.templateName}>{template.name}</PersonalText>
+                </Pressable>
+                <View style={styles.templateActions}>
+                  <Icon name="template" size={20} color={tokens.fg3} />
+                  <Text style={styles.templateCount}>{t('habits.form.templateItemCount', { count: template.items.length })}</Text>
+                  <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${t('common.delete')}: ${template.name}`} focusInset style={({ pressed }) => [styles.templateDelete, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]} onPress={() => handleDelete(template.id)}>
+                    <Icon name="trash" size={20} color={tokens.statusBad} />
+                  </Pressable>
+                </View>
+              </View>
             ))}
             {templates.length === 0 && !showSave ? <ChecklistTemplatesEmptyState canSave={items.length > 0} onSave={() => setShowSave(true)} styles={styles} translate={t} /> : null}
           </View>
@@ -196,6 +198,12 @@ export function ChecklistTemplates({
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
+    templateRow: { minWidth: 0, gap: 4, paddingHorizontal: 16, paddingVertical: 8 },
+    templateLoad: { minWidth: 0, minHeight: TOUCH_TARGET_MIN, width: '100%', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, justifyContent: 'center' },
+    templateName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
+    templateActions: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 },
+    templateCount: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 },
+    templateDelete: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
     formRow: { paddingTop: 8 },
     container: {
       gap: 4,

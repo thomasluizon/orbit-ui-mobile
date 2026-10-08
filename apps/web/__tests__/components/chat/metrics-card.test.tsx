@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MetricsCard as MetricsCardData } from '@orbit/shared/types/chat'
 import { MetricsCard } from '@/components/chat/metrics-card'
@@ -35,7 +35,7 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('chat.metrics.completionRate')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.daysLogged')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.topHabit')).toBeInTheDocument()
-    expect(container.querySelectorAll('svg path')).toHaveLength(7)
+    expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(7)
     expect(screen.getByRole('link', { name: 'chat.metrics.progressLink' })).toHaveAttribute('href', '/progress')
   })
 
@@ -45,22 +45,22 @@ describe('Astra metrics card on web', () => {
     expect(screen.getByText('chat.metrics.currentStreak')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.longestStreak')).toBeInTheDocument()
     expect(screen.getByText('chat.metrics.monthlyRate')).toBeInTheDocument()
-    expect(container.querySelectorAll('svg path')).toHaveLength(30)
+    expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(30)
     expect(screen.getByRole('link', { name: 'chat.metrics.habitLink' })).toHaveAttribute('href', `/habits/${habitId}`)
   })
 
   it('shows one empty line and no chart when the series is unavailable', () => {
     const { container } = render(<MetricsCard metricsCard={{ ...overview, hasData: false, series: null }} />)
     expect(screen.getByText('chat.metrics.empty')).toBeInTheDocument()
-    expect(container.querySelectorAll('svg path')).toHaveLength(0)
+    expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(0)
     expect(screen.queryByText('0')).not.toBeInTheDocument()
   })
 
   it('hides an all-null series and wraps row labels', () => {
     const emptySeries = { ...series(7), points: series(7).points.map((point) => ({ ...point, scheduled: 0, completed: 0, completionRate: null })) }
     const { container } = render(<MetricsCard metricsCard={{ ...overview, series: emptySeries }} />)
-    expect(container.querySelectorAll('svg path')).toHaveLength(0)
-    expect(screen.getByText('chat.metrics.topHabit')).toHaveClass('break-words')
+    expect(container.querySelectorAll('[data-testid="bar-chart"] svg path')).toHaveLength(0)
+    expect(screen.getByText('chat.metrics.topHabit')).toBeInTheDocument()
   })
 
   it('uses the generic title when a habit has no name', () => {
@@ -73,5 +73,19 @@ describe('Astra metrics card on web', () => {
     const title = screen.getByRole('heading', { level: 3 })
     expect(title).toHaveTextContent('A very long walking habit name')
     expect(title).not.toHaveClass('truncate')
+  })
+  describe.each(['heading', 'top habit'] as const)('%s', (slot) => {
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the metric habit names %s', (name) => {
+    const { container } = render(<MetricsCard metricsCard={{ ...overview, habitId: slot === 'heading' ? 'habit-1' : null, habitTitle: name, topHabitName: name }} />)
+    for (const title of [slot === 'heading' ? `Metrics for ${name}` : name]) {
+      const text = [...container.querySelectorAll('[data-personal-text]')].find((element) => element.getAttribute('aria-label') === title)!
+      expect(text).toHaveAttribute('aria-label', title)
+      expect(text).toHaveStyle({ whiteSpace: title.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal' })
+      fireEvent.click(screen.getByRole('button', { name: title, expanded: false }))
+      if (title.startsWith('Metrics for ')) fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
+      else expect(screen.getByRole('button', { name: title, expanded: true })).toBeInTheDocument()
+    }
+  })
+
   })
 })

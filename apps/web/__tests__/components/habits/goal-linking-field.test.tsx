@@ -160,7 +160,7 @@ describe('GoalLinkingField', () => {
     expect(screen.getByText('habits.form.availableCount')).toBeInTheDocument()
     expect(screen.queryByText(personalText('Goal 20'))).not.toBeInTheDocument()
 
-    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 112 } })
+    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 120 } })
     expect(await screen.findByText(personalText('Goal 20'))).toBeInTheDocument()
     fireEvent.change(search, { target: { value: 'Goal 49' } })
     expect(screen.getByText(personalText('Goal 49'))).toBeInTheDocument()

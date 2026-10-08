@@ -67,7 +67,7 @@ it('shows an actionable empty state instead of an empty picker body', async () =
     )
   })
   await TestRenderer.act(() => {
-    (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
@@ -99,7 +99,7 @@ it('selects a tag below the first viewport while the search keyboard is open', a
     )
   })
   await TestRenderer.act(() => {
-    (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   expect(StyleSheet.flatten(tree.root.findByType(TextInput).props.style)).toMatchObject({ paddingHorizontal: 16, minHeight: 54 })
@@ -138,7 +138,7 @@ it.each(['create', 'edit'])('keeps the %s tag input inside the keyboard-aware vi
     )
   })
   await TestRenderer.act(() => {
-    (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   const list = tree.root.findByType(FlatList)
@@ -176,7 +176,7 @@ it('filters tags while keeping a creation action when no tag matches', async () 
     )
   })
   await TestRenderer.act(() => {
-    (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   const search = tree.root.findByType(BottomSheetAppTextInput)
@@ -221,7 +221,7 @@ it('selects and deselects a tag and exposes its edit and delete actions', async 
     tree = TestRenderer.create(<TagPickerField {...props} selectedIds={[]} />)
   })
   await TestRenderer.act(() => {
-    (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   let tagButton = findButtonWithText(tree.root, 'Tag 0')
@@ -266,7 +266,7 @@ it('renders an editor when an empty tag collection is being created', async () =
     )
   })
   await TestRenderer.act(() => {
-    (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   expect(tree.root.findByProps({ testID: 'tag-editor' })).toBeDefined()
@@ -284,11 +284,11 @@ it('renders an editor when an empty tag collection is being created', async () =
     await expectPersonalTextLayout(tree.root, name, 1)
     await TestRenderer.act(() => pressTextControl(disclosure))
     expect(expandedTextControls(tree.root, name, true)).toHaveLength(1)
-    expect(tree.root.findAll((node) => String(node.type) === 'ScrollView' && node.props.horizontal === true).length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ScrollView' && node.props.horizontal === true).length).toBeGreaterThan(0)
     expect(onToggle).not.toHaveBeenCalled()
     await TestRenderer.act(() => pressTextControl(expandedTextControls(tree.root, name, true)[0]!))
-    await TestRenderer.act(() => (tree.root.findAll((node) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)())
-    const row = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
+    await TestRenderer.act(() => (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)())
+    const row = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
     expect(row).toBeDefined()
     await expectPersonalTextLayout(row, name)
     await TestRenderer.act(() => pressTextControl(row))

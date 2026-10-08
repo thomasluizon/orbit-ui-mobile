@@ -11,7 +11,7 @@ import { ListRow } from '@/components/ui/list-row'
 import { Sheet } from '@/components/ui/sheet'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 
-const VIRTUAL_ROW_HEIGHT = 112
+const VIRTUAL_ROW_HEIGHT = 120
 const VIRTUAL_VIEWPORT_HEIGHT = 320
 const VIRTUAL_OVERSCAN = 2
 
@@ -31,7 +31,7 @@ interface TagPickerFieldProps {
 
 function TagPreview({ tags, moreLabel }: Readonly<{ tags: HabitTag[]; moreLabel: string }>) {
   if (tags.length === 0) return null
-  return <div className="flex flex-wrap gap-2 pt-2">{tags.slice(0, 3).map((tag) => <div key={tag.id} className="chip min-w-0 max-w-full"><PersonalTextDetails lines={1}>{tag.name}</PersonalTextDetails></div>)}{tags.length > 3 ? <span className="chip">{moreLabel}</span> : null}</div>
+  return <div className="flex flex-wrap gap-2 pt-2">{tags.slice(0, 3).map((tag) => <div key={tag.id} className="min-w-0 max-w-full rounded-[8px] bg-[var(--bg-well)] text-sm font-medium text-[var(--fg-2)]"><PersonalTextDetails lines={1}>{tag.name}</PersonalTextDetails></div>)}{tags.length > 3 ? <span className="chip">{moreLabel}</span> : null}</div>
 }
 
 function VirtualSpacer({ rows, rowHeight }: Readonly<{ rows: number; rowHeight: number }>) {
@@ -55,8 +55,8 @@ function TagPickerRow({ tag, selected, atLimit, disabled, onToggle, onEdit, onDe
   deleteLabel: string
 }>) {
   return (
-    <div data-picker-row="" className="flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(112px, calc(2.8em + 64px))' }}>
-      <button type="button" aria-label={tag.name} aria-pressed={selected} disabled={disabled || (!selected && atLimit)} className="habit-control-motion flex min-h-12 w-full min-w-0 items-center rounded-[12px] text-left enabled:hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(tag.id)}><PersonalText className="w-full">{tag.name}</PersonalText></button>
+    <div data-picker-row="" className="flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(120px, calc(2.8em + 72px))' }}>
+      <button type="button" aria-label={tag.name} aria-pressed={selected} disabled={disabled || (!selected && atLimit)} className="habit-control-motion flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left enabled:hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(tag.id)}><PersonalText className="w-full leading-[1.4]">{tag.name}</PersonalText></button>
       <div className="flex items-center gap-2"><span aria-hidden="true" className="flex-1 text-sm text-[var(--fg-2)]">{selected ? '✓' : ''}</span><PersonalTextDetails iconOnly>{tag.name}</PersonalTextDetails>
       <button type="button" aria-label={`${editLabel}: ${tag.name}`} disabled={disabled} className="habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onEdit(tag)}><Pencil size={16} strokeWidth={1.8} aria-hidden="true" /></button>
       <button type="button" aria-label={`${deleteLabel}: ${tag.name}`} disabled={disabled} className="habit-control-motion grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--fg-3)] enabled:hover:bg-[var(--bg-hover)] active:scale-[0.96] disabled:opacity-40" onClick={() => onDelete(tag.id)}><Trash2 size={16} strokeWidth={1.8} aria-hidden="true" /></button>
