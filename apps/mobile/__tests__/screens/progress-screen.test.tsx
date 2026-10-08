@@ -973,6 +973,17 @@ describe('mobile ProgressContent', () => {
     const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.legend')[0]!
     const pill = tree.root.findAll((node) => node.type === PillButton && node.props.label === 'progressScreen.streak.legend')[0]!
     expect(pill.props).toMatchObject({ variant: 'ghost', size: 'sm', iconOnly: true })
+    const tokens = createTokensV2('purple', theme.mode)
+    const entryStyle = (pressed = false) => StyleSheet.flatten((entry.props.style as (state: { pressed: boolean }) => ViewStyle[])({ pressed }))
+    expect(entryStyle()).toMatchObject({ width: 48, height: 48, borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' })
+    expect(entryStyle().borderRadius).toBeGreaterThanOrEqual(24)
+    expect(entryStyle(true).backgroundColor).toBe(tokens.bgHover)
+    expect(entry.props.onHoverIn).toBeTypeOf('function')
+    await TestRenderer.act(() => { (entry.props.onHoverIn as () => void)() })
+    expect(entryStyle().backgroundColor).toBe(tokens.bgHover)
+    expect(entryStyle().transform).toBeUndefined()
+    await TestRenderer.act(() => { (entry.props.onHoverOut as () => void)() })
+    expect(entryStyle().backgroundColor).toBe('transparent')
     expect(entry.props.accessibilityState).toMatchObject({ expanded: false })
     await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
     expect(entry.props.accessibilityState).toMatchObject({ expanded: true })

@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import {
@@ -40,6 +40,7 @@ export function Button({
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
   const prefersReducedMotion = usePrefersReducedMotion()
+  const [hovered, setHovered] = useState(false)
 
   const textColorByVariant: Record<ButtonVariant, string> = {
     primary: tokens.fgOnPrimary,
@@ -56,8 +57,9 @@ export function Button({
       return { backgroundColor: pressed ? mixHex(tokens.fg1, tokens.bg, 0.1) : tokens.fg1 }
     }
     if (variant === 'ghost') {
+      const active = pressed || (hovered && !disabled && !loading)
       return {
-        backgroundColor: pressed ? ghostPressedFill : ghostFill,
+        backgroundColor: active ? ghostPressedFill : ghostFill,
         borderWidth: 1.5,
         borderColor: tokens.hairlineStrong,
       }
@@ -79,8 +81,10 @@ export function Button({
 
   return (
     <Pressable
-      hitSlop={size === 'sm' && (minimumHeight ?? 0) < TOUCH_TARGET_MIN ? SMALL_PILL_HIT_PADDING : undefined}
+      hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
       onPress={loading ? undefined : onClick}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       disabled={disabled || loading}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
