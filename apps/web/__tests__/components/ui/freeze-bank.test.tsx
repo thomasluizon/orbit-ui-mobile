@@ -5,6 +5,8 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import type { FreezeBankWords } from '@orbit/shared/contracts/display'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { expectFillShape } from '../../../e2e/layout/label-interaction-fill'
 import { FreezeBank } from '@/components/ui/freeze-bank'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -82,6 +84,57 @@ describe('FreezeBank rendered spacing', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each(['dark', 'light'] as const)('renders the legend as a 48px ghost pill with padded hover fills in %s', async (mode) => {
+    const page = await browser.newPage({ viewport: { width: 1352, height: 706 } })
+    try {
+      const { container, unmount } = render(<FreezeBank {...baseProps} />)
+      const html = container.innerHTML
+      unmount()
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([name, value]) => `${name}: ${value};`).join(' ')
+      await page.setContent(`<style>${stylesheet}:root { ${variables} }</style><div class="${mode}" style="padding:16px">${html}</div>`)
+      const legend = page.getByRole('button', { name: words.legendLabel })
+      const geometry = await legend.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const box = element.getBoundingClientRect()
+        return { width: box.width, height: box.height, radius: Number.parseFloat(style.borderRadius), ring: style.boxShadow }
+      })
+      expect.soft(geometry.width).toBeGreaterThanOrEqual(48)
+      expect.soft(geometry.height).toBeGreaterThanOrEqual(48)
+      expect.soft(geometry.radius).toBeGreaterThanOrEqual(geometry.height / 2)
+      expect.soft(geometry.ring).toContain('inset')
+      expect.soft(geometry.ring).toMatch(/0px 0px 0px 1\.5px/)
+      await legend.hover()
+      await legend.evaluate((element) => { for (const animation of element.getAnimations()) animation.finish() })
+      await expectFillShape(legend, 'hover')
+    } finally { await page.close() }
+  })
+
+  it.each([320, 359, 360, 412, 1100, 1352])('shares bookkeeping columns or stacks below 360px at %ipx', async (width) => {
+    const page = await browser.newPage({ viewport: { width, height: 706 } })
+    try {
+      const { container, unmount } = render(<FreezeBank {...baseProps} banked={0} usedThisMonth={0} />)
+      const html = container.innerHTML
+      unmount()
+      await page.setContent(`<style>${stylesheet}</style><div style="padding:16px">${html}</div>`)
+      const figures = await page.locator('[data-component="freeze-bank"]').evaluate((bank) => {
+        const row = bank.children[2]!.children[0]!
+        const bounds = row.getBoundingClientRect()
+        const first = row.children[0]!.getBoundingClientRect()
+        const second = row.children[1]!.getBoundingClientRect()
+        return { firstWidth: first.width, secondWidth: second.width, gap: second.left - first.right,
+          secondStart: second.left, expectedStart: bounds.left + (bounds.width + 12) / 2,
+          stackedGap: second.top - first.bottom, firstTop: first.top, secondTop: second.top }
+      })
+      expect.soft(Math.abs(figures.firstWidth - figures.secondWidth)).toBeLessThanOrEqual(1)
+      if (width < 360) expect.soft(figures.stackedGap).toBe(12)
+      else {
+        expect.soft(figures.secondTop).toBe(figures.firstTop)
+        expect.soft(figures.gap).toBe(12)
+        expect.soft(Math.abs(figures.secondStart - figures.expectedStart)).toBeLessThanOrEqual(1)
+      }
+    } finally { await page.close() }
+  })
 
   it.each([320, 412, 840, 1352].flatMap((width) => (['dark', 'light'] as const).map((mode) => ({ width, mode }))))('keeps 16 between bank groups and tiles at $width in $mode', async ({ width, mode }) => {
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })

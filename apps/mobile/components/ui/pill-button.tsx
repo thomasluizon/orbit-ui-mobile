@@ -18,6 +18,7 @@ const SMALL_PILL_HIT_PADDING = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
+  expanded,
   elevated = false,
   variant = 'primary',
   size: requestedSize = 'sm',
@@ -33,7 +34,7 @@ export function Button({
   hint,
   accessibilityRole = 'button',
   quiet = false,
-}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean }>) {
+}: Readonly<ButtonProps & { accessibilityRole?: 'button' | 'link'; quiet?: boolean; expanded?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = useContext(ActionRowContext) ? 'sm' : requestedSize
@@ -78,18 +79,18 @@ export function Button({
 
   return (
     <Pressable
-      hitSlop={size === 'sm' ? SMALL_PILL_HIT_PADDING : undefined}
+      hitSlop={size === 'sm' && (minimumHeight ?? 0) < TOUCH_TARGET_MIN ? SMALL_PILL_HIT_PADDING : undefined}
       onPress={loading ? undefined : onClick}
       disabled={disabled || loading}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={iconOnly ? label : accessibleName}
       accessibilityHint={hint}
-      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      accessibilityState={{ disabled: disabled || loading, busy: loading, ...(expanded === undefined ? {} : { expanded }) }}
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [
         styles.base,
         iconOnly
-          ? { height: Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN), width: Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN), paddingHorizontal: 0, gap: 0 }
+          ? { height: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), width: Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), paddingHorizontal: 0, gap: 0 }
           : { height: minimumHeight === undefined ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined, minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN), width: matchedWidth ? MATCHED_PILL_WIDTH : undefined, paddingHorizontal: sizeSpec.paddingX, paddingStart: leadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed && !disabled && !loading),
         disabled && !loading ? styles.disabled : null,

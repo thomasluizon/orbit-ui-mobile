@@ -14,6 +14,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 import ProgressScreen from '@/app/(tabs)/progress'
+import { PillButton } from '@/components/ui/pill-button'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
@@ -309,6 +310,12 @@ function findProgressHeadingFocusTarget(root: TestNode) {
   return target
 }
 
+function findGoalEmptyWell(line: TestNode): TestNode {
+  let ancestor = line.parent!
+  while (ancestor.type !== 'View') ancestor = ancestor.parent!
+  return ancestor
+}
+
 async function selectGoalFilter(tree: TestTree, view: string) {
   const entry = tree.root.findAll((node) => node.type === 'Pressable' && String(node.props.accessibilityLabel).startsWith('progressScreen.goals.filter:'))[0]!
   await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
@@ -574,7 +581,9 @@ describe('mobile ProgressContent', () => {
     expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-outline')).toHaveLength(1)
     expect(card.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
     await selectGoalFilter(tree, 'completed')
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.filterEmpty').length).toBeGreaterThan(0)
+    const line = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.goals.filterEmpty')[0]!
+    expect(StyleSheet.flatten(findGoalEmptyWell(line).props.style as ViewStyle)).toMatchObject({ backgroundColor: createTokensV2('purple', theme.mode).bgWell, borderRadius: 12, padding: 16, gap: 8, alignItems: 'flex-start' })
+    expect(StyleSheet.flatten(line.props.style as TextStyle)).toMatchObject({ color: createTokensV2('purple', theme.mode).fg2, fontSize: 14 })
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.empty')).toHaveLength(0)
     await TestRenderer.act(() => (findPill(tree.root, 'progressScreen.goals.clearFilter').props.onPress as () => void)())
     expect(findGoalCard(tree.root, 'Read 12 Books')).toBeDefined()
@@ -805,6 +814,12 @@ describe('mobile ProgressContent', () => {
 
     const action = findPill(tree.root, 'progressScreen.goals.createAction')
     expect(action.props.testID).toBe('button-primary-sm')
+    expect(findGoalsSection(tree.root).findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(0)
+    const line = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.goals.empty')[0]!
+    expect(StyleSheet.flatten(findGoalEmptyWell(line).props.style as ViewStyle)).toMatchObject({ backgroundColor: createTokensV2('purple', theme.mode).bgWell, borderRadius: 12, padding: 16, gap: 8, alignItems: 'flex-start' })
+    expect(StyleSheet.flatten(line.props.style as TextStyle)).toMatchObject({ color: createTokensV2('purple', theme.mode).fg2, fontSize: 14 })
+    const style = action.props.style as (state: { pressed: boolean }) => ViewStyle[]
+    expect(StyleSheet.flatten(style({ pressed: false })).minHeight).toBe(48)
     ;(action.props.onPress as () => void)()
     expect(useChatStore.getState().draft).toBe('progressScreen.goals.request')
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
@@ -956,7 +971,11 @@ describe('mobile ProgressContent', () => {
     expect(habit.props.accessibilityRole).toBe('button')
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(0)
     const entry = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'progressScreen.streak.legend')[0]!
+    const pill = tree.root.findAll((node) => node.type === PillButton && node.props.label === 'progressScreen.streak.legend')[0]!
+    expect(pill.props).toMatchObject({ variant: 'ghost', size: 'sm', iconOnly: true })
+    expect(entry.props.accessibilityState).toMatchObject({ expanded: false })
     await TestRenderer.act(() => { (entry.props.onPress as () => void)() })
+    expect(entry.props.accessibilityState).toMatchObject({ expanded: true })
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'progressScreen.streak.active')).toHaveLength(1)
   })
 
