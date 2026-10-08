@@ -89,7 +89,7 @@ function createStyles(tokens: Tokens) {
     search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: 54, paddingHorizontal: 16 },
     virtualList: { maxHeight: 320 },
     row: { borderRadius: 12, minWidth: 0, paddingHorizontal: 12, paddingVertical: 8 }, rowActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 48 },
-    rowMain: { borderRadius: 12, minHeight: 48, minWidth: 0, paddingHorizontal: 8, paddingVertical: 4, justifyContent: 'center' },
+    rowMain: { overflow: 'hidden', borderRadius: 12, minHeight: 48, minWidth: 0, paddingHorizontal: 8, paddingVertical: 4, justifyContent: 'center' },
     rowTitle: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 16 },
     rowValue: { flex: 1, color: tokens.fg2, fontFamily: 'GeistMono_400Regular', fontSize: 12 }, disabled: { opacity: 0.4 }, pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
     empty: { alignItems: 'center', gap: 16, padding: 32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },

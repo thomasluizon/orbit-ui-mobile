@@ -93,6 +93,34 @@ describe('other clipped control containers in Chromium', () => {
   })
   afterAll(async () => { vi.unstubAllGlobals(); await closeChrome(browserLaunch) }, 30_000)
 
+  it.each(cases)('goal picker fills only the hovered control at $width in $mode', async ({ width, mode }) => {
+    const { container, unmount } = mountSurface('goal picker')
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([property, value]) => `${property}: ${value};`).join(' ')
+      await page.setContent(`<style>${stylesheet}:root {${variables}}body {padding:16px}</style>${container.innerHTML}`)
+      const row = page.locator('[data-picker-row]').first()
+      const toggle = row.locator('button[aria-pressed]')
+      const disclosure = row.locator('button[aria-expanded]')
+      const background = async (selector: string) => row.evaluate((element, target) => {
+        for (const animation of element.getAnimations({ subtree: true })) animation.finish()
+        return getComputedStyle(target ? element.querySelector(target)! : element).backgroundColor
+      }, selector)
+      const restingRow = await background('')
+      const restingToggle = await background('button[aria-pressed]')
+      await toggle.hover()
+      expect(await background('')).toBe(restingRow)
+      expect(await background('button[aria-pressed]')).not.toBe(restingToggle)
+      await disclosure.hover()
+      expect(await background('')).toBe(restingRow)
+      expect(await background('button[aria-pressed]')).toBe(restingToggle)
+      expect(await background('button[aria-expanded]')).not.toBe('rgba(0, 0, 0, 0)')
+      await row.locator('span.font-mono').hover()
+      expect(await background('')).toBe(restingRow)
+      expect(await background('button[aria-pressed]')).toBe(restingToggle)
+    } finally { unmount(); await page.close() }
+  })
+
   for (const { surface, selector } of surfaces) {
     it.each(cases)(`${surface} has complete perimeters at $width in $mode`, async ({ width, mode }) => {
       const { container, unmount } = mountSurface(surface)
@@ -135,8 +163,8 @@ describe('other clipped control containers in Chromium', () => {
         }
         if (surface === 'tag picker' || surface === 'goal picker') {
           const firstControl = container.querySelector('button[aria-pressed]')!
-          const scroller = surface === 'tag picker' ? firstControl.parentElement!.parentElement! : firstControl.parentElement!
-          fireEvent.scroll(scroller, { target: { scrollTop: 688 } })
+          const scroller = firstControl.closest('[data-focus-inset]')!
+          fireEvent.scroll(scroller, { target: { scrollTop: 18 * 120 } })
           expect(container.textContent).toContain(surface === 'tag picker' ? 'Tag 20' : 'Goal 20')
           await page.setContent(`<style>${stylesheet}:root {${variables}}body {padding:16px}</style><button>Before</button>${container.innerHTML}<button>After</button>`)
           await loadAppFonts(page)

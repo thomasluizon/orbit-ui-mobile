@@ -42,8 +42,8 @@ function GoalPickerRow({ goal, selected, disabled, onToggle }: Readonly<{
   onToggle: (goalId: string) => void
 }>) {
   return (
-    <div data-picker-row="" className="orbit-list-row flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(120px, calc(2.8em + 72px))' }}>
-      <button type="button" aria-label={goal.title} aria-pressed={selected} disabled={disabled} className="flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(goal.id)}>
+    <div data-picker-row="" className="flex flex-col rounded-[12px] px-3 py-2" style={{ minHeight: 'max(120px, calc(2.8em + 72px))' }}>
+      <button type="button" aria-label={goal.title} aria-pressed={selected} disabled={disabled} className="orbit-list-row-body flex min-h-12 w-full min-w-0 items-center rounded-[12px] px-2 py-1 text-left active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(goal.id)}>
         <PersonalText className="w-full leading-[1.4]">{goal.title}</PersonalText>
       </button>
       <div className="flex items-center justify-between gap-2"><span aria-hidden={selected || undefined} className="font-mono text-xs text-[var(--fg-2)]">{selected ? '✓' : `${Math.round(goal.progressPercentage)}%`}</span><PersonalTextDetails iconOnly>{goal.title}</PersonalTextDetails></div>

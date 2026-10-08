@@ -101,7 +101,7 @@ async function expectMatchContrast(row: import('react-test-renderer').ReactTestI
   const match = row.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children).startsWith(label))[0]!
   let matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
   expect(matchStyle).toMatchObject({ color: tokens.fg3, fontSize: 12, fontFamily: 'GeistMono_400Regular' })
-  const fragments = match.findAll((node) => String(node.type) === 'Text' && node !== match)
+  const fragments = row.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityLabel === '“walking”')
   expect(fragments).toHaveLength(hasFragment ? 1 : 0)
   for (const pressed of [false, true]) {
     await TestRenderer.act(() => pressed ? (row.props.onPressIn as () => void)() : (row.props.onPressOut as () => void)())

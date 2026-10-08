@@ -147,8 +147,8 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                   <Icon name="template" size={20} />
                   <span className="min-w-0 flex-1">{t('habits.form.templateItemCount', { count: template.items.length })}</span>
                   <PersonalTextDetails iconOnly>{template.name}</PersonalTextDetails>
-                  <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-body grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--status-bad)]" onClick={() => handleDelete(template.id)}>
-                    <Icon name="trash" size={20} />
+                  <button type="button" aria-label={`${t('common.delete')}: ${template.name}`} className="orbit-list-row-body grid size-[var(--touch-min)] shrink-0 place-items-center rounded-full text-[var(--status-bad-text)]" onClick={() => handleDelete(template.id)}>
+                    <Icon name="trash" size={20} color="var(--status-bad)" />
                   </button>
                 </div>
               </div>

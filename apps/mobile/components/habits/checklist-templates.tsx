@@ -199,11 +199,11 @@ export function ChecklistTemplates({
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     templateRow: { minWidth: 0, gap: 4, paddingHorizontal: 16, paddingVertical: 8 },
-    templateLoad: { minWidth: 0, minHeight: TOUCH_TARGET_MIN, width: '100%', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, justifyContent: 'center' },
+    templateLoad: { overflow: 'hidden', minWidth: 0, minHeight: TOUCH_TARGET_MIN, width: '100%', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, justifyContent: 'center' },
     templateName: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8, color: tokens.fg1 },
     templateActions: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8 },
     templateCount: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 14, color: tokens.fg3 },
-    templateDelete: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+    templateDelete: { overflow: 'hidden', width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
     formRow: { paddingTop: 8 },
     container: {
       gap: 4,

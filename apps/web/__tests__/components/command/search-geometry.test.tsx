@@ -39,10 +39,11 @@ async function expectMatchContrast(page: Awaited<ReturnType<Browser['newPage']>>
     }
     const measured = await row.evaluate((element, matchLabels) => {
       for (const animation of element.getAnimations()) animation.finish()
-      const match = [...element.querySelectorAll('span')].find((span) => matchLabels.includes(span.firstChild?.textContent?.trim() ?? ''))!
+      const match = [...element.querySelectorAll('span')].find((span) => span.childElementCount === 0 && matchLabels.includes(span.textContent.trim()))!
+      const fragment = match.parentElement!.querySelector('[data-personal-text]')
       const layers = []
       for (let ancestor: Element | null = match; ancestor; ancestor = ancestor.parentElement) layers.unshift(getComputedStyle(ancestor).backgroundColor)
-      return { label: getComputedStyle(match).color, fragment: match.querySelector('span') ? getComputedStyle(match.querySelector('span')!).color : null, layers, fontSize: getComputedStyle(match).fontSize }
+      return { label: getComputedStyle(match).color, fragment: fragment ? getComputedStyle(fragment).color : null, layers, fontSize: getComputedStyle(match).fontSize }
     }, labels)
     const evidence = JSON.stringify({ ...context, surface, index, state, measured })
     expect(measured.fontSize).toBe('12px')

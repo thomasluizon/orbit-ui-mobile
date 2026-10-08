@@ -323,7 +323,7 @@ describe('habit search', () => {
     expect(await screen.findByText(locale === 'en' ? 'in the name' : 'no nome')).toBeInTheDocument()
     expect(screen.getByText(locale === 'en' ? 'in the description' : 'na descrição')).toBeInTheDocument()
     expect(screen.getByText('“walking”')).toBeInTheDocument()
-    expect(screen.getByText('“Walk to the shop”')).toBeInTheDocument()
+    expect(screen.getByLabelText('“Walk to the shop”')).toHaveTextContent('“Walk to the shop”')
     expect(screen.getByText(locale === 'en' ? '4 habits' : '4 hábitos')).toBeInTheDocument()
     const expectedNames = locale === 'en'
       ? ['Open Walk in the name', 'Open Park run in the description', 'Open Stretch in the tag “walking”', 'Open House routine inside “Walk to the shop”']
