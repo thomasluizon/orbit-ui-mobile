@@ -114,6 +114,7 @@ describe('Hoje header geometry', () => {
             const outlineOutset = outlineWidth + Number.parseFloat(focus.outlineOffset)
             const viewport = host.getBoundingClientRect()
             return { right: bounds.right, width: bounds.width, height: bounds.height,
+              gutter: scroller.offsetWidth - scroller.clientWidth,
               pinned: host.hasAttribute('data-shell-header'),
               overflow: scroller.scrollHeight > scroller.clientHeight,
               documentWidth: document.documentElement.scrollWidth,
@@ -129,6 +130,7 @@ describe('Hoje header geometry', () => {
             expect(geometry.focusTop).toBeGreaterThanOrEqual(geometry.viewportTop)
             expect(geometry.focusBottom).toBeLessThanOrEqual(geometry.viewportBottom)
           }
+          if (contentHeight === 1600) expect(geometry.gutter).toBeGreaterThan(0)
           expect(geometry.width).toBeGreaterThanOrEqual(48)
           expect(geometry.height).toBeGreaterThanOrEqual(48)
           expect(geometry.documentWidth).toBe(width)

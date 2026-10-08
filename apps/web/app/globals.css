@@ -1600,6 +1600,42 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 /* ═══════════════════════════════════════════════════════
+   SCROLLBAR STYLING
+   ═══════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--radius-full);
+  transition: background-color var(--dur-hover-control) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* WHY: Hover needs style invalidation to repaint scrollbars: https://developer.chrome.com/docs/css-ui/scrollbar-styling */
+  *:hover {
+    --scrollbar-hover-repaint: ;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background: var(--hairline);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::-webkit-scrollbar-thumb {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
    CHECKLIST DRAG & DROP
    ═══════════════════════════════════════════════════════ */
 

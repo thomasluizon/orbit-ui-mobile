@@ -3,7 +3,6 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
-import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import React from 'react'
@@ -237,9 +236,8 @@ describe('owning onboarding pitch geometry', () => {
       expect(geometry.textWidth).toBeLessThanOrEqual(geometry.measure)
       if (width === 320 && trial) expect(geometry.textWidth).toBeLessThanOrEqual(268)
       if (width < 1024) {
-        const gutter = await page.locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
-        expect(geometry.scrollerMeasure).toBe(width - gutter)
-        expect(geometry.measure).toBe(Math.min(width - gutter, 440) - 32)
+        expect(geometry.scrollerMeasure).toBe(width - 4)
+        expect(geometry.measure).toBe(Math.min(width - 4, 440) - 32)
       }
       await page.locator('[data-onboarding-step] header :is(h1,h2)').evaluate((element) => {
         (element as HTMLElement).style.fontSize = `${Number.parseFloat(getComputedStyle(element).fontSize) * 2}px`

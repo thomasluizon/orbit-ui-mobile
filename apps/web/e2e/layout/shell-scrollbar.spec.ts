@@ -1,5 +1,4 @@
 import { expect, type Page } from '@playwright/test'
-import sharp from 'sharp'
 import { API } from '@orbit/shared/api'
 import { createMockGoal, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
@@ -9,8 +8,9 @@ import { emptyGoalsPageFixture } from '../../test-support/hermetic/mock-api/fixt
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 import { measureScrollbarGutter } from './scrollbar-geometry'
+import { measureScrollbarPaint } from './scrollbar-paint'
 
-test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'], args: ['--enable-features=OverlayScrollbar'] } })
+test.use({ launchOptions: { ignoreDefaultArgs: ['--hide-scrollbars'] } })
 
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: Array.from({ length: 12 }, (_, index) => createMockHabitScheduleItem({
@@ -27,26 +27,36 @@ const goals = paginatedGoalResponseSchema.parse({
   totalCount: 40,
 })
 
-async function expectOverlayGeometry(page: Page) {
+async function expectScrollbarGeometry(page: Page) {
   await page.evaluate(() => {
-    document.querySelectorAll('[data-overlay-scrollbar-probe]').forEach((element) => element.removeAttribute('data-overlay-scrollbar-probe'))
+    document.querySelectorAll('[data-scrollbar-probe]').forEach((element) => element.removeAttribute('data-scrollbar-probe'))
     for (const element of document.querySelectorAll<HTMLElement>('*')) {
       const style = getComputedStyle(element)
       if ([style.overflowX, style.overflowY].some((overflow) => overflow === 'auto' || overflow === 'scroll')) {
-        element.setAttribute('data-overlay-scrollbar-probe', '')
+        element.setAttribute('data-scrollbar-probe', '')
       }
     }
   })
-  const scrollers = page.locator('[data-overlay-scrollbar-probe]')
+  const gutter = await page.locator('main[data-shell-scroller]').evaluate(measureScrollbarGutter)
+  expect(gutter).toBe(4)
+  const scrollers = page.locator('[data-scrollbar-probe]')
   expect(await scrollers.count()).toBeGreaterThan(0)
   for (const scroller of await scrollers.all()) {
     const description = await scroller.evaluate((element) => `${element.tagName} ${element.getAttribute('class')}`)
-    expect.soft(await scroller.evaluate(measureScrollbarGutter), `${description} vertical gutter`).toBe(0)
-    expect.soft(await scroller.evaluate((element: HTMLElement) => {
+    const reservation = await scroller.evaluate((element: HTMLElement) => {
       const style = getComputedStyle(element)
-      return element.offsetHeight - element.clientHeight
-        - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth)
-    }), `${description} horizontal gutter`).toBe(0)
+      const scrollbar = getComputedStyle(element, '::-webkit-scrollbar')
+      const visible = element.getClientRects().length > 0
+      const hidden = style.scrollbarWidth === 'none' || scrollbar.display === 'none'
+      return {
+        vertical: visible && !hidden && (style.scrollbarGutter.includes('stable') || element.scrollHeight > element.clientHeight),
+        horizontal: visible && !hidden && element.scrollWidth > element.clientWidth,
+        horizontalGutter: element.offsetHeight - element.clientHeight
+          - parseFloat(style.borderTopWidth) - parseFloat(style.borderBottomWidth),
+      }
+    })
+    expect.soft(await scroller.evaluate(measureScrollbarGutter), `${description} vertical gutter`).toBe(reservation.vertical ? gutter : 0)
+    expect.soft(reservation.horizontalGutter, `${description} horizontal gutter`).toBe(reservation.horizontal ? gutter : 0)
   }
 }
 
@@ -55,29 +65,21 @@ async function expectRestingEdge(page: Page) {
   expect(await scroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   await page.mouse.move(0, 0)
   await page.waitForTimeout(1500)
-  const { clip, background } = await scroller.evaluate((element) => {
-    const bounds = element.getBoundingClientRect()
-    const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = 1
-    const context = canvas.getContext('2d')!
-    context.fillStyle = getComputedStyle(element).getPropertyValue('--bg').trim()
-    context.fillRect(0, 0, 1, 1)
-    return {
-      clip: { x: bounds.right - 8, y: bounds.top, width: 8, height: bounds.height },
-      background: Array.from(context.getImageData(0, 0, 1, 1).data).slice(0, 3),
-    }
-  })
-  const pixels = await sharp(await page.screenshot({ clip, scale: 'css' })).removeAlpha().raw().toBuffer()
-  expect(pixels.length).toBe(8 * Math.round(clip.height) * 3)
-  let differingPixels = 0
-  for (let offset = 0; offset < pixels.length; offset += 3) {
-    if (background.some((channel, index) => pixels[offset + index] !== channel)) differingPixels++
-  }
-  expect.soft(differingPixels, 'resting trailing edge matches the canvas').toBe(0)
+  const resting = await measureScrollbarPaint(scroller)
+  expect.soft(resting.backgroundPixels, 'resting trailing edge matches the canvas').toBe(resting.totalPixels)
+  const bounds = await scroller.boundingBox()
+  expect(bounds).not.toBeNull()
+  await page.mouse.move(bounds!.x + bounds!.width - 16, bounds!.y + bounds!.height / 2)
+  await page.waitForTimeout(300)
+  expect((await measureScrollbarPaint(scroller)).thumbPixels, 'hovered thumb paints the hairline').toBeGreaterThan(0)
+  await page.mouse.move(0, 0)
+  await page.waitForTimeout(300)
+  const afterHover = await measureScrollbarPaint(scroller)
+  expect.soft(afterHover.backgroundPixels, 'leaving clears the trailing edge').toBe(afterHover.totalPixels)
 }
 
 for (const width of [1352, 1100, 600]) {
-  test.describe(`platform overlay scrollbars at ${width}px`, () => {
+  test.describe(`quiet scrollbars at ${width}px`, () => {
     test.use({ appLocale: 'pt-BR', viewport: { width, height: 706 }, layoutProfile: { themePreference: 'dark' } })
     test.beforeEach(async ({ context }) => {
       await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
@@ -86,7 +88,7 @@ for (const width of [1352, 1100, 600]) {
         (route) => route.fulfill({ json: goals }))
     })
 
-    test('keeps scrollbars over the content and clears the edge at rest', async ({ page }) => {
+    test('keeps the 4px gutter and paints thumbs only on hover', async ({ page }) => {
       await page.goto('/calendar')
       for (const view of ['month', 'agenda', 'range'] as const) {
         await page.getByRole('radio', { name: ptBR.calendar.view[view], exact: true }).click()
@@ -100,19 +102,19 @@ for (const width of [1352, 1100, 600]) {
           await expect(page.getByRole('region').filter({ has: page.getByTestId('month-grid-days') })).toHaveAttribute('aria-busy', 'false')
         }
         await page.evaluate(() => document.fonts.ready)
-        await expectOverlayGeometry(page)
+        await expectScrollbarGeometry(page)
         if (view === 'month') await expectRestingEdge(page)
       }
       await page.goto('/progress')
       await expect(page.locator('[data-goal-id]')).toHaveCount(goals.items.length)
       await page.evaluate(() => document.fonts.ready)
-      await expectOverlayGeometry(page)
+      await expectScrollbarGeometry(page)
       await expectRestingEdge(page)
       await page.goto('/')
       await expect(page.locator('[data-today-header-actions]')).toBeVisible()
       await expect(page.locator('[data-composer-input]')).toBeVisible()
       await page.evaluate(() => document.fonts.ready)
-      await expectOverlayGeometry(page)
+      await expectScrollbarGeometry(page)
     })
   })
 }

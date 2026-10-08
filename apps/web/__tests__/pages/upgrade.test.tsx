@@ -4,7 +4,6 @@ import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
-import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, render as renderComponent, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
@@ -240,8 +239,7 @@ describe('UpgradePage', () => {
         expect(geometry.fontSize).toBe(width < 640 ? 28 : 34)
         expect(geometry.fontWeight).toBe('500')
         expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
-        const gutter = await page.locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
-        expect(geometry.scrollerMeasure).toBe(width - gutter)
+        expect(geometry.scrollerMeasure).toBe(width - 4)
         expect(geometry.measure).toBe(Math.min(geometry.scrollerMeasure - 32, 620))
       } finally { await page.close() }
     })

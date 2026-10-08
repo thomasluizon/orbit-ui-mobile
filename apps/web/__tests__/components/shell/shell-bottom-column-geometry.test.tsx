@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/pill-button'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { measureChromePaint } from '@/e2e/layout/composer-column-paint'
+import { measureScrollbarGutter } from '@/e2e/layout/scrollbar-geometry'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -98,6 +99,8 @@ describe('Shell bottom column geometry', () => {
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${view.container.innerHTML}`)
+      const gutter = await page.locator('[data-shell-scroller]').evaluate(measureScrollbarGutter)
+      expect(gutter).toBeGreaterThan(0)
       const geometry = await page.evaluate(() => {
         const right = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().right
         const tabs = document.querySelector('[data-shell-tab-bar]')!.getBoundingClientRect()
