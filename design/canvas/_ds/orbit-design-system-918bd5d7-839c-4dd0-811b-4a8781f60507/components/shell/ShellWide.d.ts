@@ -2,7 +2,8 @@
  *  the destination column from its top inset to the viewport bottom, keeping the sidebar visible.
  *  The sidebar holds the lockup, search, the Astra row above the same four destinations as the compact
  *  tab bar, the notifications entry, the one filled create action and the account row.
- *  The Astra row is the wide front door. Only habit detail uses the destination composer slot.
+ *  The Astra row is the wide front door. The destination bottom slot carries habit detail's composer
+ *  or Hoje's active selection tray; resting wide Hoje passes nothing.
  *
  *  WHETHER NAVIGATION IS PRESENT IS THIS SHELL'S OWN BEHAVIOUR, NEVER A SCREEN'S STYLESHEET. `nav={false}`
  *  renders NO SIDEBAR AT ALL - not a disabled one and not an empty one, following ListRow's readOnly rule
@@ -22,8 +23,8 @@ interface ShellWideBase {
    *  identically at both widths.
    *  A screen with no header passes NOTHING and the scroller takes the full height, which is what Hoje does. */
   header?: any;
-  /** Transient pinned chrome above habit detail's composer or a flow's action. On other wide
-   *  destinations it sits above the column bottom. It never replaces the pinned slot. */
+  /** Transient pinned chrome above habit detail's composer, Hoje's selection tray or a flow's action.
+   *  On other wide destinations it sits above the column bottom. It never replaces the pinned slot. */
   notice?: any;
   /** The full-screen conversation's content: its own NavHeader, thread, chips and composer.
    *  Replaces the destination's header, scroller and bottom chrome in the centred 740 column.
@@ -65,11 +66,14 @@ export interface ShellWideNavProps extends ShellWideBase {
   paletteLabel?: string;
   /** the keycap hint, e.g. "Ctrl K" - a keycap, not a word, so it may default */
   paletteHint?: string;
-  /** Habit detail's own composer only, with its habit chips, pinned to the bottom of the 740 column.
-   *  Wide Hoje has no shell composer: the sidebar Astra row opens the conversation.
-   *  A toast or celebration uses `notice`. The conversation owns its composer inside its content. */
+  /** The pinned destination bottom slot in the 740 column: habit detail's own composer with its habit
+   *  chips, or Hoje's selection tray while selection is active. The tray carries exit, select-all,
+   *  delete, log and skip controls. One node occupies this slot; it never draws both surfaces.
+   *  Resting wide Hoje passes nothing: its sidebar Astra row opens the conversation, so it has no
+   *  shell composer. An open conversation replaces this slot and owns its composer inside its content.
+   *  A toast or celebration uses `notice`, which never evicts the selection tray. */
   composer?: any;
-  /** rejected on a destination: the pinned bottom slot is the composer (D69). A flow's forward action
+  /** rejected on a destination: `composer` owns its pinned bottom content. A flow's forward action
    *  exists only where `nav` is false. */
   action?: never;
 }
@@ -104,7 +108,7 @@ export interface ShellWideNoNavProps extends ShellWideBase {
   composer?: never;
 }
 /** Discriminated on `nav`: the sidebar's props exist only where the sidebar does, and the pinned bottom
- *  slot is typed for the two shapes it really has - the composer on a destination, the flow's one
- *  forward action on a flow. Shell412 uses the compact Hoje composer and the same flow action rule. */
+ *  slot is `composer` on a destination (habit detail's composer or Hoje's selection tray), and the
+ *  one forward `action` on a flow. Shell412 also replaces the compact Hoje composer with selection. */
 export type ShellWideProps = ShellWideNavProps | ShellWideNoNavProps;
 export declare function ShellWide(props: ShellWideProps): any;

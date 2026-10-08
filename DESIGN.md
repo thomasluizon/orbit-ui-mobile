@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, the retained Hoje selection tray, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -105,6 +105,10 @@ that holds secondary content is not navigation; in the compact shell (Android at
 below 1024) it is the default home for that content. The shell composer stays visible on Hoje in
 that compact shell only. Habit detail keeps its own composer at every width.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
+Hoje's selection tray stays pinned at both widths while selection is active, with exit, select-all,
+delete, log and skip controls. It replaces the compact composer; on wide web it alone occupies
+the destination's bottom slot, named `composer` in the shell reference contract. Resting wide Hoje
+passes no bottom content. Transient notices keep the separate `notice` slot.
 
 **The conversation opens full screen on both platforms.** In the compact shell it covers the whole
 screen, including the tab bar. On wide web the sidebar stays visible and the conversation replaces
@@ -114,6 +118,8 @@ at every width. The header is NavHeader: minimum height 56, start-aligned mono 1
 `Astra`, and a 48 close control with a 20 X. The composer has a top hairline and 16 padding,
 aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
 disclosure in `--fg-3`.
+Every conversation entry, including the proactive line, the no-habits action and habit detail's
+own entry, opens this same layer. Closing it restores the underlying surface and its selection.
 
 **Each composer pins to the bottom of its content column.** The sidebar carries the lockup, search
 control, the Astra row directly above Hoje, the four destinations in tab order, the Avisos bell

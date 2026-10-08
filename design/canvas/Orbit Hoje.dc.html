@@ -40,7 +40,7 @@ a:hover{color:var(--fg-1)}
   <div data-screen-label="Hoje" style="display:flex;gap:32px;align-items:flex-start">
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
-      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" header="{{ rootHeader }}" fab="{{ fabNode }}" notice="{{ notice }}" composer="{{ bottom }}" conversation="{{ overlay412 }}" conversation-label="{{ panelAria }}" sheets="{{ sheet }}" hint-size="412px,820px">
+      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" tab-bar="{{ tabBar }}" header="{{ rootHeader }}" fab="{{ fabNode }}" notice="{{ notice }}" composer="{{ bottom }}" conversation="{{ overlay412 }}" conversation-label="{{ conversationLabel }}" sheets="{{ sheet }}" hint-size="412px,820px">
         <div data-native-scroll="true" style="display:flex;flex-direction:column;gap:24px;padding:16px 16px 64px;min-height:100%;box-sizing:border-box">
 
           {{ backToTop }}
@@ -182,7 +182,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" header="{{ wideOptions }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" header="{{ wideOptions }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ wideBottom }}" conversation="{{ conversation }}" conversation-label="{{ conversationLabel }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;min-height:100%;box-sizing:border-box">
 
             <sc-if value="{{ hasAstra }}" hint-placeholder-val="{{ true }}">
@@ -349,7 +349,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">offline&nbsp;&nbsp;</span>the row mutates optimistically with no pending mark, and a neutral Toast in the shell's notice slot, above the composer and never in its place, says the log was kept on the device. The composer takes its own offline state. No full page offline screen.</p>
       <p><span style="color:var(--fg-3)">at limit&nbsp;&nbsp;</span>the daily Astra allowance, five free, drawn as the composer's boundary state with neutral tokens, no upgrade action and no return time, because no endpoint returns that moment. The list stays fully usable, since the core loop never calls the model.</p>
       <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>two moments, each with everything the app shows. No habits yet is the mark, a title, one body line and TWO actions, ask Astra filled and create manually quiet (habit-list.tsx:1044), centred in the space the list would occupy; the load failure is centred the same way. All done is a title, the line that everything due today is done, and a quiet action to tomorrow’s habits (habit-list.tsx:1032), over an EMPTY due list: with show completed off a completed row leaves, 1400 ms after its tap so it never vanishes under the thumb, and the list menu brings the rows back. The anytime group stays, since nothing of it was due.</p>
-      <p><span style="color:var(--fg-3)">conversation&nbsp;&nbsp;</span>The conversation opens full screen at both widths, from the compact shell composer's Astra glyph or the wide sidebar Astra row. Compact covers the tab bar; wide web keeps the sidebar and replaces the destination column. The conversation owns its header, live chips and composer. Habit detail keeps its own composer at every width.</p>
+      <p><span style="color:var(--fg-3)">conversation&nbsp;&nbsp;</span>The conversation opens full screen at both widths, from the compact shell composer's Astra glyph, the wide sidebar Astra row, the proactive line, the no-habits action or the local habit-detail entry. Compact covers the tab bar; wide web keeps the sidebar and replaces the destination column. Both frames bind the same conversation node, including conversation and batch failed states, with its own header, live chips and composer. It takes precedence over the detail dialog; closing it restores the underlying view. The wide composer slot binds only wideBottom, the active selection tray with exit, select-all, delete, log and skip controls; resting wide Hoje passes nothing. Habit detail keeps its own composer at every width.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32 48, gap only. 44 is the touch and column token, 68 and 52 the row tokens. Group gap 24 against in-group 12.</p>
       <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 the selection box and chips, 12 wells and the notice, 20 panels and the tray, 28 shell and sheet, 999 interactive.</p>
       <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: the create FAB is the one filled action, so the proactive line's action is a quiet underlined text control with no fill and no pill. Where another action owns the fill the FAB stands down rather than doubling: the tray's log in selection, the empty state's create, the retry on error, while loading, and behind an open surface, where the create button or the accept owns it. A selected day pill is not an action, so it takes the selected tint and ring rather than a fill. Also accented at 412: current position on the Hoje tab, the parent ring while it is unfinished, and the composer focus and send. Wide: the sidebar create is the one filled action, so every other filled action steps down to the neutral fg-1 fill. Completion is neutral: the done disc is fg-1 and the parent ring turns fg-1 at 100 percent.</p>
@@ -443,7 +443,7 @@ const STR = {
     allDone: 'Tudo que era para hoje está feito.',
     quiet: 'A qualquer momento',
     menu: 'Mais opções', loading: 'Carregando', close: 'Fechar conversa',
-    panelAria: 'Conversa com o Astra',
+    conversationLabel: 'Astra',
     navLabel: 'Navegação principal', palette: 'Buscar',
     composerWords: {
       placeholder: 'Peça à Astra', offlinePlaceholder: 'Sem conexão', atLimitPlaceholder: 'Sem mensagens hoje',
@@ -520,7 +520,7 @@ const STR = {
     allDone: 'Everything due today is done.',
     quiet: 'Anytime',
     menu: 'More options', loading: 'Loading', close: 'Close conversation',
-    panelAria: 'Conversation with Astra',
+    conversationLabel: 'Astra',
     navLabel: 'Main navigation', palette: 'Search',
     composerWords: {
       placeholder: 'Ask Astra', offlinePlaceholder: 'No connection', atLimitPlaceholder: 'No messages today',
@@ -983,10 +983,10 @@ class Component extends DCLogic {
       else if (s.moveKey) this.setState({ moveKey: null, moveSel: null, moveQ: '' });
       else if (s.ctrlOpen) this.setState({ ctrlOpen: false });
       else if (s.menu) this.setState({ menu: null });
+      else if (s.conv || CONV_STATES[s.st]) this.closeConv();
       else if (s.drillStack.length) this.popDrill();
       else if (s.view) this.setState({ view: null });
       else if (s.selMode) this.exitSelect();
-      else if (s.conv) this.closeConv();
     };
     document.addEventListener('keydown', this._esc);
     if (!window.OrbitDesignSystem_918bd5) {
@@ -1039,12 +1039,13 @@ class Component extends DCLogic {
     this.setState({ askPhase: 'parsing' });
     this._akT = setTimeout(() => this.setState({ askPhase: 'done' }), 1100);
   };
-  openCreate = (origin, seed) => this.setState({ view: { kind: 'create', origin: origin || 'fab', seed: seed }, menu: null,
+  openCreate = (origin, seed) => this.setState((s) => ({ view: { kind: 'create', origin: origin || 'fab', seed: seed }, menu: null,
+    conv: false, st: CONV_STATES[s.st] ? 'default' : s.st,
     text: null, days: null, qty: null, resolved: false, disc: false,
     fTime: null, remOn: true, remSel: [0, 15], remCustom: [], cNum: '45', cUnit: 'min', sched: [],
     ckItems: [], ckInput: '', tplOpen: false, tags: [], tagInput: '', subsOwn: [], subInput: '',
     tplList: null, tplSaving: false, tplName: '', schedForm: null, cEmoji: null, emoOpen: false, askPhase: null,
-    badOn: false, slipOn: false, goalOpen: false, goalSel: -1 });
+    badOn: false, slipOn: false, goalOpen: false, goalSel: -1 }));
   closeView = () => this.setState({ view: null, dtEdit: false });
   openMenu = (key, e) => { this._menuAnchor = e && e.currentTarget; this.setState({ menu: key }); };
   openControls = (e) => { this._ctrlAnchor = e && e.currentTarget; this.setState({ ctrlOpen: true }); };
@@ -2502,9 +2503,10 @@ class Component extends DCLogic {
     const D = window.OrbitDesignSystem_918bd5;
     const n = Math.max(3, Math.min(6, this.props.chipCount != null ? this.props.chipCount : 4));
     const key = st === 'returning' ? 'returning' : st === 'no habits' ? 'noHabits' : st === 'all done' ? 'allDone' : 'default';
-    const chips = (st === 'loading' || st === 'error') ? [] : t.chips[key].slice(0, n);
+    const chips = ['loading', 'error', 'offline', 'at limit'].includes(st) ? [] : t.chips[key].slice(0, n);
     return H(window.OrbitNativeMobile.Composer, {
       state: st === 'at limit' ? 'atLimit' : st === 'offline' ? 'offline' : 'resting',
+      padding: conversation ? 16 : 8,
       chips: conversation ? chips : [],
       limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
       words: t.composerWords,
@@ -2580,21 +2582,23 @@ class Component extends DCLogic {
     const actions = b.retry
       ? H(D.Button, { size: 'sm', variant: filled, onClick: this.closeConv }, b.retry[0], mock(b.retry[1]), b.retry[2])
       : H(D.Button, { size: 'sm', variant: 'ghost', onClick: this.closeConv }, b.undo);
-    return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
+    return H('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0,
+      width: '100%', maxWidth: 740, marginInline: 'auto', background: 'var(--bg)' } },
       H(window.OrbitNativeMobile.NavHeader, {
         title: H('span', { translate: 'no' }, 'Astra'),
         trailing: H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.close, onClick: this.closeConv,
-          style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'x', size: 20 })),
+          style: { width: 48, height: 48, paddingInline: 0, boxShadow: 'none' } }, H(D.Icon, { name: 'x', size: 20 })),
       }),
       H('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, padding: 16 } },
         th.turns.map((turn, i) => turn.who === 'me'
           ? H('p', { key: i, style: { alignSelf: 'flex-end', maxWidth: '80%', background: 'var(--bg-well)',
-              borderRadius: 16, padding: '12px 16px', fontSize: 16, color: 'var(--fg-1)' } }, turn.text)
-          : H('p', { key: i, style: { fontSize: 16, lineHeight: 1.5, color: 'var(--fg-1)', textWrap: 'pretty' } },
+              borderRadius: 16, padding: '12px 16px', fontSize: 16, lineHeight: 1.5,
+              color: 'var(--fg-1)', textWrap: 'pretty' } }, turn.text)
+          : H('p', { key: i, style: { fontSize: 16, lineHeight: 1.5, maxWidth: '65ch', color: 'var(--fg-1)', textWrap: 'pretty' } },
               turn.parts ? H(F, null, turn.parts[0], mock(turn.parts[1]), turn.parts[2], mock(turn.parts[3]), turn.parts[4]) : turn.text)),
         H(D.BlockFrame, { title: b.title, count: mock(b.count), state: b.state || 'resting', items: items,
           actions: actions })),
-      H('div', { style: { flex: '0 0 auto', paddingBlock: 12 } }, this.composerNode(t, st, true)));
+      H('div', { style: { flex: '0 0 auto' } }, this.composerNode(t, st, true)));
   }
 
   renderVals() {
@@ -2698,6 +2702,8 @@ class Component extends DCLogic {
     const aKey = st === 'returning' ? 'returning' : 'default';
     const line = t.astra[aKey][0];
 
+    const conversation = convOpen ? this.conversationNode(t, st, filled) : null;
+    const selectionTray = selecting && !convOpen && !view ? this.trayNode(t, filled) : null;
     return Object.assign(base, {
       hasAstra: hasAstra,
       astraLine: H(F, null, line[0], mock(line[1]), line[2], line[3] ? mock(line[3]) : null, line[4] || null),
@@ -2751,23 +2757,22 @@ class Component extends DCLogic {
       errorAction: H(D.Button, { size: 'sm', variant: filled,
         onClick: (drillOn && s.drillFailed) ? this.retryDrill : () => this.setState({ st: 'default' }) }, t.retry),
 
-      astraRow: H(window.OrbitNativeMobile.AstraRow),
+      astraRow: H(window.OrbitNativeMobile.AstraRow, { current: convOpen, onOpen: this.openConv }),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       createLabel: t.create, account: t.account,
-      panelAria: t.panelAria, navLabelWord: t.navLabel, paletteWord: t.palette,
+      conversationLabel: t.conversationLabel, navLabelWord: t.navLabel, paletteWord: t.palette,
       /* The FAB is the one filled action at 412, so it stands down wherever another view owns that fill. */
       fabNode: (s.width === '412' && !selecting && !convOpen && !view && ['no habits', 'error', 'loading'].indexOf(st) < 0)
         ? H(D.Fab, { label: t.create, onClick: () => this.openCreate('fab') }, H(D.Icon, { name: 'plus', size: 24 })) : null,
       tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'hoje', onSelect: () => {} }),
-      /* Transient chrome rides the shells' notice slot, above the composer, never in its place. */
+      /* Transient chrome rides the notice slot, above the pinned bottom content. */
       notice: st === 'offline' ? H(D.Toast, { kind: 'neutral', icon: 'wifi-off', message: t.offlineToast }) : null,
-      bottom: ((convOpen || view) && s.width === 'wide') ? null
-        : selecting ? this.trayNode(t, filled)
-        : this.composerNode(t, st),
-      overlay412: view ? surface : convOpen ? this.conversationNode(t, st, filled) : null,
-      conversation: convOpen ? this.conversationNode(t, st, filled) : null,
-      wideDialog: (s.width === 'wide' && view) ? this.wideDialogNode(surface) : null,
+      bottom: convOpen || view ? null : selecting ? selectionTray : this.composerNode(t, st),
+      wideBottom: selectionTray,
+      overlay412: convOpen ? conversation : surface,
+      conversation: conversation,
+      wideDialog: (s.width === 'wide' && view && !convOpen) ? this.wideDialogNode(surface) : null,
       sheet: s.emoOpen ? this.emojiSheet(t, x)
         : s.confirmOne ? this.sheetOneNode(t, x)
         : s.confirm ? this.sheetNode(t)
