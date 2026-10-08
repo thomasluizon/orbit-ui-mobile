@@ -47,26 +47,27 @@ describe('Week and agenda geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(['dark', 'light'] as const)('fills the untimed summary hit area at radius 8 in %s', async (theme) => {
+  it.each(['dark', 'light'] as const)('keeps the named chip at 28 inside its 48 hit area in %s', async (theme) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       <CalendarTimeGrid columns={[{ date, dateStr, isToday: false, isFuture: false }]}
         dayMap={new Map([[dateStr, [{ ...entry, dueTime: null }]]])} onSelectDay={vi.fn()}
         displayTime={timeLabel} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime}
         nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
     </NextIntlClientProvider>)
+    container.style.cssText = 'height:100vh;display:flex;flex-direction:column'
     const page = await browser.newPage()
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', theme)).map(([name, value]) => `${name}:${value}`).join(';')
-      await page.setContent(`<html class="${theme}"><style>${stylesheet}\n:root{${variables}}</style>${container.innerHTML}</html>`)
+      await page.setContent(`<html class="${theme}"><style>${stylesheet}\n:root{${variables}}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div></html>`)
       await loadAppFonts(page)
       for (const width of [412, 1280]) {
         await page.setViewportSize({ width, height: 915 })
-        await page.locator('[data-testid="time-grid-all-day-summary"]').hover()
+        await page.locator('[data-testid="time-grid-all-day-event"]').hover()
         await page.waitForFunction(() => {
-          const button = document.querySelector('[data-testid="time-grid-all-day-summary"]')!
+          const button = document.querySelector('[data-testid="time-grid-all-day-event"]')!
           return button.getAnimations().every((animation) => animation.playState === 'finished')
         })
-        const fill = await page.locator('[data-testid="time-grid-all-day-summary"]').evaluate((button) => {
+        const fill = await page.locator('[data-testid="time-grid-all-day-event"]').evaluate((button) => {
           const style = getComputedStyle(button)
           const rect = button.getBoundingClientRect()
           const probe = document.createElement('span')
@@ -74,7 +75,9 @@ describe('Week and agenda geometry in Chromium', () => {
           button.append(probe)
           const expected = getComputedStyle(probe).backgroundColor
           probe.remove()
-          return { width: rect.width, height: rect.height, background: style.backgroundColor, expected,
+          const chip = button.firstElementChild!
+          const chipStyle = getComputedStyle(chip)
+          return { chipHeight: chip.getBoundingClientRect().height, chipRadius: chipStyle.borderRadius, width: rect.width, height: rect.height, background: style.backgroundColor, expected,
             radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius],
             padding: [style.paddingLeft, style.paddingRight, style.paddingTop, style.paddingBottom] }
         })
@@ -82,8 +85,9 @@ describe('Week and agenda geometry in Chromium', () => {
         expect(fill.height).toBeGreaterThanOrEqual(48)
         expect(fill.background).toBe(fill.expected)
         expect(fill.background).not.toBe('rgba(0, 0, 0, 0)')
-        expect(fill.radii).toEqual(['8px', '8px', '8px', '8px'])
-        expect(fill.padding).toEqual(['8px', '8px', '8px', '8px'])
+        expect(fill.chipHeight).toBe(28)
+        expect(fill.chipRadius).toBe('8px')
+        expect(fill.padding).toEqual(['0px', '0px', '0px', '0px'])
       }
     } finally { await page.close() }
   })
@@ -95,9 +99,10 @@ describe('Week and agenda geometry in Chromium', () => {
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={timeLabel} dateFnsLocale={dateLocale} allDayLabel={messages.calendar.timeGrid.noSetTime} nowLabel={messages.calendar.timeGrid.now} timeZone="UTC" />
     </NextIntlClientProvider>)
+    container.style.cssText = 'height:100vh;display:flex;flex-direction:column'
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
@@ -110,7 +115,7 @@ describe('Week and agenda geometry in Chromium', () => {
           return { page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, band: box(band),
             headers: headers.map(box),
             labels: labels.map((label) => ({ ...box(label), parent: box(label.parentElement!), font: Number.parseFloat(getComputedStyle(label).fontSize) })),
-            summaries: [...document.querySelectorAll('[data-testid="time-grid-all-day-summary"]')].map((button) => ({ ...box(button), parent: box(button.parentElement!) })),
+            summaries: [...document.querySelectorAll('[data-testid="time-grid-all-day-event"]')].map((button) => ({ ...box(button), parent: box(button.parentElement!) })),
             columns: [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => ({ ...box(column), targets: [...column.querySelectorAll('[data-testid="time-grid-event"]')].map(box) })),
           }
         })
@@ -177,7 +182,7 @@ describe('Week and agenda geometry in Chromium', () => {
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       let defaultHeight = 0
       for (const scale of [1, 2]) {

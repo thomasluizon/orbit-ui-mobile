@@ -1,4 +1,3 @@
-import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { enUS } from 'date-fns/locale'
@@ -87,26 +86,6 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getByTestId('time-grid-event').querySelector('svg')).not.toBeNull()
   })
 
-  it('paginates and searches untimed entries with an announced count and a recovery action', () => {
-    const col = column(2025, 5, 16)
-    const entries = Array.from({ length: 25 }, (_, index) => makeEntry({ habitId: String(index), title: `Untimed ${index}` }))
-    renderGrid([col], new Map([[col.dateStr, entries]]))
-    fireEvent.click(screen.getByTestId('time-grid-all-day-summary'))
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText(personalText('Untimed 19'))).toBeInTheDocument()
-    expect(within(dialog).queryByText(personalText('Untimed 20'))).toBeNull()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'common.next' }))
-    expect(within(dialog).getByText(personalText('Untimed 24'))).toBeInTheDocument()
-    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('\"shown\":5,\"total\":25')
-    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'missing' } })
-    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveAttribute('role', 'status')
-    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('"total":0')
-    expect(dialog).toHaveTextContent('calendar.entrySearchEmpty:{"query":"missing"}')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
-    expect(within(dialog).getByText(personalText('Untimed 0'))).toBeInTheDocument()
-    expect(within(dialog).getByRole('textbox')).toHaveValue('')
-  })
-
   it('places a timed habit in its hour slot in the correct column', () => {
     const col = column(2025, 5, 16)
     const dayMap = new Map<string, CalendarDayEntry[]>([
@@ -116,9 +95,9 @@ describe('CalendarTimeGrid', () => {
 
     const block = screen.getByTestId('time-grid-event')
     expect(block).toHaveAttribute('data-hour', '8')
-    expect(block).toHaveStyle({ top: '384px', minWidth: '48px', minHeight: '48px' })
+    expect(block).toHaveStyle({ top: '24rem', minWidth: '48px', minHeight: '48px' })
     expect(block).toHaveAccessibleName(/Standup/)
-    expect(block).not.toHaveTextContent('Standup')
+    expect(block).toHaveTextContent('Standup')
     expect(block.querySelector('[data-status]')).not.toBeNull()
     fireEvent.click(block)
     expect(screen.getByRole('dialog')).toHaveTextContent('Standup')
@@ -147,7 +126,7 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.getByTestId('time-grid-all-day-band')).toHaveStyle({
-      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(max(104px, 3.25rem), 1fr))',
+      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(12rem, 1fr))',
     })
     for (const block of screen.getAllByTestId('time-grid-event')) {
       expect(block).toHaveStyle({ minWidth: '48px' })
@@ -162,8 +141,8 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.queryByTestId('time-grid-event')).toBeNull()
-    expect(screen.getByTestId('time-grid-all-day-summary')).toHaveTextContent('1')
-    expect(screen.getByTestId('time-grid-all-day-summary').closest('[data-testid="time-grid-all-day-band"]')).not.toBeNull()
+    expect(screen.getByTestId('time-grid-all-day-event')).toHaveTextContent('Read')
+    expect(screen.getByTestId('time-grid-all-day-event').closest('[data-testid="time-grid-all-day-band"]')).not.toBeNull()
     expect(screen.getByTestId('time-grid-any-time-label')).toHaveTextContent('No set time')
   })
 
@@ -190,7 +169,7 @@ describe('CalendarTimeGrid', () => {
       const hour = Number(time.slice(0, 2))
       return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`
     })
-    expect(screen.getByText(personalText('8:00 PM'))).toBeInTheDocument()
+    expect(screen.getByText('8:00 PM')).toBeInTheDocument()
   })
 
   it('positions the now line by the account timezone', () => {
@@ -200,7 +179,7 @@ describe('CalendarTimeGrid', () => {
     try {
       renderGrid([today], new Map(), vi.fn(), false, displayTime, 'Pacific/Kiritimati')
 
-      expect(screen.getByRole('img', { name: 'Now' })).toHaveStyle({ top: '24px' })
+      expect(screen.getByRole('img', { name: 'Now' })).toHaveStyle({ top: '1.5rem' })
     } finally {
       vi.useRealTimers()
     }
@@ -236,24 +215,45 @@ describe('CalendarTimeGrid', () => {
     expect(onSelectDay).not.toHaveBeenCalled()
   })
 
-  it('collapses every untimed item into one count row and discloses the full list', () => {
+  it('shows the first untimed name and opens the day for the remainder', () => {
     const onSelectDay = vi.fn()
     const col = column(2025, 5, 16)
-    const entries = Array.from({ length: 8 }, (_, i) =>
-      makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
-    )
-    const dayMap = new Map<string, CalendarDayEntry[]>([[col.dateStr, entries]])
-    renderGrid([col], dayMap, onSelectDay)
+    const entries = Array.from({ length: 3 }, (_, index) => makeEntry({ habitId: String(index), title: `All ${index}` }))
+    renderGrid([col], new Map([[col.dateStr, entries]]), onSelectDay)
+    expect(screen.getByTestId('time-grid-all-day-event')).toHaveTextContent('All 0')
+    const more = screen.getByTestId('time-grid-all-day-more')
+    expect(more).toHaveTextContent('calendar.timeGrid.moreCount:{"count":2}')
+    expect(more).toHaveStyle({ minWidth: '48px' })
+    fireEvent.click(more)
+    expect(onSelectDay).toHaveBeenCalledWith(col.dateStr)
+    fireEvent.click(screen.getByTestId('time-grid-all-day-event'))
+    expect(screen.getByRole('dialog')).toHaveTextContent('All 0')
+  })
 
-    expect(screen.queryByTestId('time-grid-all-day-event')).toBeNull()
-    const summary = screen.getByTestId('time-grid-all-day-summary')
-    expect(summary).toHaveTextContent('8')
-    expect(summary).toHaveStyle({ minHeight: '48px', minWidth: '48px' })
-    fireEvent.click(summary)
-    const dialog = screen.getByRole('dialog')
-    for (const entry of entries) expect(dialog).toHaveTextContent(entry.title)
-    expect(onSelectDay).not.toHaveBeenCalled()
+  it('uses natural short weekdays and only the date accent for today', () => {
+    const col = { ...column(2025, 5, 16), isToday: true }
+    renderGrid([col], new Map())
+    const weekday = within(screen.getByTestId('time-grid-col-header')).getByText('Mon')
+    expect(weekday).toHaveStyle({ color: 'var(--fg-2)' })
+    expect(weekday.style.letterSpacing).toBe('')
+    expect(weekday.className).not.toContain('uppercase')
+    expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ background: 'var(--primary)' })
+  })
 
+  it('opens today near now and another week at its earliest morning block', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    try {
+      const today = { ...column(2026, 9, 8), isToday: true }
+      const view = renderGrid([today], new Map())
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      fireEvent(body, new Event('resize'))
+      expect(body.scrollTop).toBeGreaterThan(900)
+      view.unmount()
+      const past = column(2026, 9, 1)
+      renderGrid([past], new Map([[past.dateStr, [makeEntry({ dueTime: '05:00' })]]]))
+      expect(screen.getByTestId('time-grid-hour-scroller').scrollTop).toBe(240)
+    } finally { vi.useRealTimers() }
   })
 
   it('uses an opaque semantic surface for the pinned any-time pane', () => {
@@ -267,16 +267,16 @@ describe('CalendarTimeGrid', () => {
     expect(band.style.backgroundImage).toBe('')
   })
 
-  it('labels the untimed row with the full localized count', () => {
+  it('labels the remaining untimed habits with the localized count', () => {
     const col = column(2025, 5, 16)
     const entries = Array.from({ length: 8 }, (_, i) =>
       makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
     )
     renderGrid([col], new Map([[col.dateStr, entries]]))
 
-    expect(screen.getByTestId('time-grid-all-day-summary')).toHaveAttribute(
+    expect(screen.getByTestId('time-grid-all-day-more')).toHaveAttribute(
       'aria-label',
-      'calendar.timeGrid.untimedCount:{"count":8}',
+      'calendar.timeGrid.moreCountLabel:{"count":7}',
     )
   })
 

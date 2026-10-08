@@ -291,6 +291,7 @@ export {
   formatLocaleDayMonth,
   formatCalendarDayTitle,
   formatWeekdayLabels,
+  formatCalendarWeekday,
   formatLocaleDateTime,
   formatLocaleTime,
   getSystemLocale,

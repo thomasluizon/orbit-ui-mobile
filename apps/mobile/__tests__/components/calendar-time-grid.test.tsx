@@ -2,9 +2,8 @@ import React from "react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
 import * as ReactNative from "react-native";
+import { __setScrollToImpl } from "../../test-mocks/react-native";
 import { CalendarEntryDetails } from "@/app/(tabs)/calendar/_components/calendar-entry-details";
-import { Input } from "@/components/ui/input";
-import { PillButton } from "@/components/ui/pill-button";
 import { sheetTestControls } from "@/__tests__/support/sheet-double";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
@@ -142,16 +141,16 @@ describe("CalendarTimeGrid (mobile)", () => {
     const col = { ...column('2025-06-16'), isToday: true };
     const tree = renderGrid([col], new Map(), vi.fn(), false, displayTime, 'UTC', palette);
     const header = hostsByTestID(tree, 'time-grid-col-header')[0]!;
-    const weekday = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && resolveStyle(node.props.style).color === palette.primaryText)[0]!;
-    expect(resolveStyle(weekday.props.style).color).toBe(palette.primaryText);
+    const weekday = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && resolveStyle(node.props.style).color === palette.fg2)[0]!;
+    expect(resolveStyle(weekday.props.style).color).toBe(palette.fg2);
     TestRenderer.act(() => header.props.onPressIn?.());
     const fill = StyleSheet.flatten(header.props.style({ pressed: true })).backgroundColor;
     const color = String(resolveStyle(weekday.props.style).color);
     expect(fill).toBe(palette.bgHover);
     if (mode === 'light') expect(contrastOnSurface(color, [palette.bg, palette.bgCard, fill])).toBeGreaterThanOrEqual(4.5);
-    else expect(color).toBe(palette.primaryText);
+    else expect(color).toBe(palette.fg2);
     TestRenderer.act(() => header.props.onPressOut?.());
-    expect(resolveStyle(weekday.props.style).color).toBe(palette.primaryText);
+    expect(resolveStyle(weekday.props.style).color).toBe(palette.fg2);
   });
 
   it("grows the grid labels and padded column widths at 200% font scale", () => {
@@ -161,35 +160,14 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(resolveStyle(hostsByTestID(tree, 'time-grid-col-header')[0]!.props.style).width).toBeGreaterThanOrEqual(104);
     expect(renderedAncestorHeight(hostsByTestID(tree, 'time-grid-col-header')[0]!)).toBeGreaterThanOrEqual(100);
     for (const label of hostsByTestID(tree, 'time-grid-hour-label')) expect(resolveStyle(label.props.style).fontSize).toBeGreaterThanOrEqual(12);
-    const summaryStyle = resolveStyle(hostsByTestID(tree, 'time-grid-all-day-summary')[0]!.props.style);
-    const count = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 1)[0]!;
+    const summaryStyle = resolveStyle(hostsByTestID(tree, 'time-grid-all-day-event')[0]!.props.style);
+    const count = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'Meditate')[0]!;
     const cell = hostsByTestID(tree, 'time-grid-all-day')[0]!;
     const cellStyle = resolveStyle(cell.props.style);
     const textHeight = Number(resolveStyle(count.props.style).lineHeight) * 2;
-    const summaryHeight = Math.max(Number(summaryStyle.minHeight), textHeight + Number(summaryStyle.padding) * 2 + Number(summaryStyle.borderWidth) * 2);
+    const summaryHeight = Math.max(Number(summaryStyle.minHeight), textHeight + 20);
     const requiredBandHeight = summaryHeight + Number(cellStyle.paddingVertical) * 2 + Number(cellStyle.borderBottomWidth);
     expect(renderedAncestorHeight(cell)).toBeGreaterThanOrEqual(requiredBandHeight);
-  });
-
-  it("paginates the untimed list and recovers from an empty search with a live count", () => {
-    const col = column("2025-06-16");
-    const entries = Array.from({ length: 25 }, (_, i) => makeEntry({ habitId: `ad-${i}`, title: `All ${i}` }));
-    const tree = renderGrid([col], new Map([[col.dateStr, entries]]));
-    TestRenderer.act(() => hostsByTestID(tree, 'time-grid-all-day-summary')[0]!.props.onPress());
-    const titleNodes = () => tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.selectable === true);
-    expect(titleNodes()).toHaveLength(20);
-    const next = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'common.next')[0]!;
-    TestRenderer.act(() => next.props.onClick());
-    expect(titleNodes()).toHaveLength(5);
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityLiveRegion === 'polite')[0]!.props.children).toContain('\"shown\":5,\"total\":25');
-    TestRenderer.act(() => tree.root.findAll((node) => node.type === Input)[0]!.props.onChange('missing'));
-    expect(titleNodes()).toHaveLength(0);
-    const liveCount = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.accessibilityLiveRegion === 'polite')[0]!;
-    expect(liveCount.props.children).toContain('"total":0');
-    const clear = tree.root.findAll((node) => node.type === PillButton && node.props.children === 'calendar.dayDetail.clearEventSearch')[0]!;
-    TestRenderer.act(() => clear.props.onClick());
-    expect(titleNodes()).toHaveLength(20);
-    expect(tree.root.findAll((node) => node.type === Input)[0]!.props.value).toBe('');
   });
 
   it("places a timed habit as a block in its column", () => {
@@ -202,10 +180,10 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
     expect(resolveStyle(hostsByTestID(tree, "time-grid-event")[0]!.props.style)).toMatchObject({
       top: 384,
-      width: 56,
+      width: 92,
       minHeight: 48,
     });
-    expect(textValuesWithin(tree, "time-grid-event")).not.toContain("Standup");
+    expect(textValuesWithin(tree, "time-grid-event")).toContain("Standup");
     expect(hostsByTestID(tree, "time-grid-event")[0]!.props.accessibilityLabel).toContain("Standup");
   });
 
@@ -217,8 +195,8 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(0);
-    expect(hostsByTestID(tree, "time-grid-all-day-event")).toHaveLength(0);
-    expect(textValuesWithin(tree, "time-grid-all-day-summary")).toContain(1);
+    expect(hostsByTestID(tree, "time-grid-all-day-event")).toHaveLength(1);
+    expect(textValuesWithin(tree, "time-grid-all-day-event")).toContain("Read");
     expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
   });
 
@@ -236,7 +214,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     const widths = hostsByTestID(tree, "time-grid-event").map(
       (event) => resolveStyle(event.props.style).width,
     );
-    expect(widths).toEqual([48, 48]);
+    expect(widths).toEqual([92, 92]);
   });
 
   it("dims every future day column without lowering text contrast", () => {
@@ -299,21 +277,45 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-col-header")).toHaveLength(4);
   });
 
-  it("aggregates every untimed entry into one 48px row and discloses their full names", () => {
+  it("shows one named chip and opens the day for two remaining habits", () => {
     const onSelectDay = vi.fn();
     const col = column("2025-06-16");
-    const entries = Array.from({ length: 8 }, (_, i) => makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }));
+    const entries = Array.from({ length: 3 }, (_, index) => makeEntry({ habitId: String(index), title: `All ${index}` }));
     const tree = renderGrid([col], new Map([[col.dateStr, entries]]), onSelectDay);
-    expect(hostsByTestID(tree, "time-grid-all-day-event")).toHaveLength(0);
-    const summary = hostsByTestID(tree, "time-grid-all-day-summary");
-    expect(summary).toHaveLength(1);
-    expect(textValuesWithin(tree, "time-grid-all-day-summary")).toContain(8);
-    expect(summary[0]!.props.hitSlop).toBeUndefined();
-    expect(resolveStyle(summary[0]!.props.style)).toMatchObject({ minHeight: 48, minWidth: 48 });
-    TestRenderer.act(() => summary[0]!.props.onPress());
-    const details = tree.root.findAll((node) => node.type === CalendarEntryDetails)[0]!;
-    expect(details.props.entries.map((entry: CalendarDayEntry) => entry.title)).toEqual(entries.map((entry) => entry.title));
-    expect(onSelectDay).not.toHaveBeenCalled();
+    expect(textValuesWithin(tree, "time-grid-all-day-event")).toContain("All 0");
+    const more = hostsByTestID(tree, "time-grid-all-day-more")[0]!;
+    expect(more.props.accessibilityLabel).toBe('calendar.timeGrid.moreCountLabel:{"count":2}');
+    expect(resolveStyle(more.props.style)).toMatchObject({ minHeight: 48, minWidth: 48 });
+    TestRenderer.act(() => more.props.onPress());
+    expect(onSelectDay).toHaveBeenCalledWith(col.dateStr);
+    TestRenderer.act(() => hostsByTestID(tree, "time-grid-all-day-event")[0]!.props.onPress());
+    expect(tree.root.findAll((node) => node.type === CalendarEntryDetails)[0]!.props.entries[0].title).toBe("All 0");
+  });
+
+  it("opens the hour body with now in its upper third", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    const scrollTo = vi.fn();
+    __setScrollToImpl(scrollTo);
+    try {
+      const tree = renderGrid([{ ...column('2026-10-08'), isToday: true }], new Map());
+      const body = hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      TestRenderer.act(() => body.props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } }));
+      const y = scrollTo.mock.calls[0]![0].y;
+      expect(1032 - y).toBeGreaterThanOrEqual(0);
+      expect(1032 - y).toBeLessThanOrEqual(100);
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
+  it("uses natural short weekdays and only the date accent", () => {
+    const tree = renderGrid([{ ...column("2025-06-16"), isToday: true }], new Map());
+    const weekday = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Mon')[0]!;
+    expect(weekday).toBeDefined();
+    expect(resolveStyle(weekday.props.style)).not.toHaveProperty('textTransform');
+    expect(resolveStyle(weekday.props.style)).not.toHaveProperty('letterSpacing');
+    expect(resolveStyle(weekday.props.style).color).toBe(tokens.fg2);
+    const accents = tree.root.findAll((node) => typeof node.type === 'string' && resolveStyle(node.props.style).backgroundColor === tokens.primary);
+    expect(accents).toHaveLength(3);
   });
 
   it("reserves enough band height for a 48px summary and its padding", () => {
@@ -366,15 +368,14 @@ describe("CalendarTimeGrid (mobile)", () => {
     const gridTokens = createTokensV2('purple', mode);
     const tree = renderGrid([col], new Map([[col.dateStr, entries]]), vi.fn(), false, displayTime, 'UTC', gridTokens);
 
-    const more = hostsByTestID(tree, "time-grid-all-day-summary");
+    const more = hostsByTestID(tree, "time-grid-all-day-more");
     expect(more[0]!.props.accessibilityLabel).toBe(
-      'calendar.timeGrid.untimedCount:{"count":8}',
+      'calendar.timeGrid.moreCountLabel:{"count":7}',
     );
     expect(resolveStyle(more[0]!.props.style)).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 8 });
     expect(StyleSheet.flatten(more[0]!.props.style({ pressed: true }))).toMatchObject({
       backgroundColor: gridTokens.bgHover,
       borderRadius: 8,
-      overflow: 'hidden',
     });
   });
 

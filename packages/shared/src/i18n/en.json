@@ -1060,7 +1060,8 @@
       "rangeMaxDays": "Range limited to {max} days.",
       "empty": "Nothing scheduled",
       "moreLabel": "{count} more",
-      "untimedCount": "{count} without a set time"
+      "moreCount": "{count, plural, one {+#} other {+#}}",
+      "moreCountLabel": "{count, plural, one {# more on this day} other {# more on this day}}"
     },
     "status": {
       "completed": "done",
