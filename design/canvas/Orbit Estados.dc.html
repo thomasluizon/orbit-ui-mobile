@@ -77,7 +77,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ banner }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ banner }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
 
             <sc-if value="{{ isNotFound }}" hint-placeholder-val="{{ false }}">
@@ -308,6 +308,7 @@ class Component extends DCLogic {
       isUpdate: isUpdate, isSoft: isSoft, isNotFound: st === 'not found', isFailure: st === 'failure',
       isThrottle: st === 'throttle', filled: filled,
       blocker: blocker || softDrawer, banner: banner,
+      astraRow: H(window.OrbitNativeMobile.AstraRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'hoje', onSelect: () => {} }),

@@ -52,7 +52,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ bottom }}" composer="{{ composer }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ bottom }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
 
             <p style="font-family:var(--font-display);font-size:22px;line-height:1.2;font-weight:500;letter-spacing:-0.02em">{{ hostTitle }}</p>
@@ -281,6 +281,7 @@ class Component extends DCLogic {
         chips: t.chips.slice(0, 4),
         limitReason: H('span', null, t.limit[0], mock(t.limit[1]), t.limit[2]),
         words: t.composerWords, onOpen: () => {}, onChipPress: () => {} }),
+      astraRow: H(window.OrbitNativeMobile.AstraRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       tabBar: H(window.OrbitNativeMobile.TabBar, { items: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
         activeId: 'hoje', onSelect: () => {} }),

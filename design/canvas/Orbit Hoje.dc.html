@@ -182,7 +182,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" header="{{ wideOptions }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" composer="{{ bottom }}" conversation="{{ conversation }}" conversation-label="{{ panelAria }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" header="{{ wideOptions }}" items="{{ navItems }}" active-id="hoje" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" notice="{{ notice }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;min-height:100%;box-sizing:border-box">
 
             <sc-if value="{{ hasAstra }}" hint-placeholder-val="{{ true }}">
@@ -349,7 +349,7 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">offline&nbsp;&nbsp;</span>the row mutates optimistically with no pending mark, and a neutral Toast in the shell's notice slot, above the composer and never in its place, says the log was kept on the device. The composer takes its own offline state. No full page offline screen.</p>
       <p><span style="color:var(--fg-3)">at limit&nbsp;&nbsp;</span>the daily Astra allowance, five free, drawn as the composer's boundary state with neutral tokens, no upgrade action and no return time, because no endpoint returns that moment. The list stays fully usable, since the core loop never calls the model.</p>
       <p><span style="color:var(--fg-3)">empty&nbsp;&nbsp;</span>two moments, each with everything the app shows. No habits yet is the mark, a title, one body line and TWO actions, ask Astra filled and create manually quiet (habit-list.tsx:1044), centred in the space the list would occupy; the load failure is centred the same way. All done is a title, the line that everything due today is done, and a quiet action to tomorrow’s habits (habit-list.tsx:1032), over an EMPTY due list: with show completed off a completed row leaves, 1400 ms after its tap so it never vanishes under the thumb, and the list menu brings the rows back. The anytime group stays, since nothing of it was due.</p>
-      <p><span style="color:var(--fg-3)">conversation&nbsp;&nbsp;</span>one feature, two presentations: a full height overlay at 412, a 380 panel at the wide width, both opened from the composer's Astra glyph or a chip. Exactly one composer is visible, so the panel owns the input while it is open.</p>
+      <p><span style="color:var(--fg-3)">conversation&nbsp;&nbsp;</span>The conversation opens full screen at both widths, from the compact shell composer's Astra glyph or the wide sidebar Astra row. Compact covers the tab bar; wide web keeps the sidebar and replaces the destination column. The conversation owns its header, live chips and composer. Habit detail keeps its own composer at every width.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32 48, gap only. 44 is the touch and column token, 68 and 52 the row tokens. Group gap 24 against in-group 12.</p>
       <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>8 the selection box and chips, 12 wells and the notice, 20 panels and the tray, 28 shell and sheet, 999 interactive.</p>
       <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>412: the create FAB is the one filled action, so the proactive line's action is a quiet underlined text control with no fill and no pill. Where another action owns the fill the FAB stands down rather than doubling: the tray's log in selection, the empty state's create, the retry on error, while loading, and behind an open surface, where the create button or the accept owns it. A selected day pill is not an action, so it takes the selected tint and ring rather than a fill. Also accented at 412: current position on the Hoje tab, the parent ring while it is unfinished, and the composer focus and send. Wide: the sidebar create is the one filled action, so every other filled action steps down to the neutral fg-1 fill. Completion is neutral: the done disc is fg-1 and the parent ring turns fg-1 at 100 percent.</p>
@@ -2751,6 +2751,7 @@ class Component extends DCLogic {
       errorAction: H(D.Button, { size: 'sm', variant: filled,
         onClick: (drillOn && s.drillFailed) ? this.retryDrill : () => this.setState({ st: 'default' }) }, t.retry),
 
+      astraRow: H(window.OrbitNativeMobile.AstraRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
       createLabel: t.create, account: t.account,
       panelAria: t.panelAria, navLabelWord: t.navLabel, paletteWord: t.palette,
