@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -211,6 +211,62 @@ describe('search result geometry in Chromium', () => {
       for (const rowPaint of paint) {
         expect(rowPaint.transitions).toBe(0)
         expect(rowPaint.background).toBe(rowPaint.expected)
+      }
+    } finally { await page.close() }
+  })
+
+  it.each([412, 1280].flatMap((width) => ['en', 'pt-BR'].map((locale) => ({ width, locale }))))('paints a trim-preserving query selection reset without transitions at $width in $locale', async ({ width, locale }) => {
+    const habits = [
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'title', value: null }] }),
+    ]
+    mocks.query.mockReturnValue({ data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: 2, totalPages: 1, currentPage: 1 }, isPending: false, isFetching: false, isSuccess: true, isError: false, refetch: vi.fn() })
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    await screen.findByRole('option', { name: /Run/ })
+    const rows = screen.getAllByRole('option')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(rows[1]).toHaveAttribute('aria-selected', 'true')
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+    const command = container.querySelector('[cmdk-root]')!
+    expect(command).toHaveAttribute('data-input-modality', 'pointer')
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'no-preference' })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate((variables) => {
+        for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
+        document.body.style.backgroundColor = 'var(--bg)'
+      }, resolveWebThemeVariables('orange', 'dark'))
+      await page.mouse.move(0, 0)
+      await page.getByRole('option').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor))
+
+      fireEvent.change(input, { target: { value: 'walk ' } })
+
+      expect(screen.getAllByRole('option')).toEqual(rows)
+      expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+      const selected = rows.map((option) => option.getAttribute('aria-selected'))
+      expect(selected).toEqual(['true', 'false'])
+      const paint = await page.evaluate(({ modality, selected }) => {
+        document.querySelector('[cmdk-root]')!.setAttribute('data-input-modality', modality!)
+        const elements = [...document.querySelectorAll('[cmdk-item]')]
+        elements.forEach((element, index) => {
+          element.setAttribute('data-selected', selected[index]!)
+          element.setAttribute('aria-selected', selected[index]!)
+        })
+        return elements.map((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = element.getAttribute('aria-selected') === 'true' ? 'var(--primary-dim)' : 'var(--bg-card)'
+          element.append(probe)
+          const measured = { property: getComputedStyle(element).transitionProperty, transitions: element.getAnimations().length, background: getComputedStyle(element).backgroundColor, expected: getComputedStyle(probe).backgroundColor }
+          probe.remove()
+          return measured
+        })
+      }, { modality: command.getAttribute('data-input-modality'), selected })
+      for (const rowPaint of paint) {
+        expect.soft(rowPaint.property).toBe('none')
+        expect.soft(rowPaint.transitions).toBe(0)
+        expect.soft(rowPaint.background).toBe(rowPaint.expected)
       }
     } finally { await page.close() }
   })

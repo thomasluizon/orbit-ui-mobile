@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useRouter } from 'next/navigation'
@@ -51,11 +51,11 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     if (!isOnline) { setCreateRefusal(true); return }
     onCreateHabit(search.query)
   }
-  function suppressKeyboardTransition(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.defaultPrevented || event.nativeEvent.isComposing || event.keyCode === 229) return
-    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || (event.ctrlKey && ['n', 'j', 'p', 'k'].includes(event.key))) setInputModality('keyboard')
+  function changeSelection(value: string) {
+    setInputModality('keyboard')
+    setSelectedValue(value)
   }
-  return <Command shouldFilter={false} disablePointerSelection value={selectedValue} onValueChange={setSelectedValue} label={t('habits.search.title')} data-input-modality={inputModality} onKeyDownCapture={suppressKeyboardTransition} className="group/search flex flex-col gap-4">
+  return <Command shouldFilter={false} disablePointerSelection value={selectedValue} onValueChange={changeSelection} label={t('habits.search.title')} data-input-modality={inputModality} className="group/search flex flex-col gap-4">
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={null} onBack={() => {}} searchMode />
     {hasQuery && <CommandList label={t('habits.search.title')} aria-busy={search.busy} className="px-4 py-2">
       {search.showLoading && <Searching />}
