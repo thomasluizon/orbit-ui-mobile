@@ -1060,8 +1060,8 @@
       "rangeMaxDays": "Intervalo limitado a {max} dias.",
       "empty": "Nada agendado",
       "moreLabel": "mais {count}",
-      "moreCount": "{count, plural, one {+#} other {+#}}",
-      "moreCountLabel": "{count, plural, one {# mais neste dia} other {# mais neste dia}}"
+      "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
+      "moreCountLabel": "{count, plural, =0 {# mais neste dia} one {# mais neste dia} other {# mais neste dia}}"
     },
     "status": {
       "completed": "feito",
