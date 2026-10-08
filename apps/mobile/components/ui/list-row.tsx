@@ -42,8 +42,8 @@ function wrappedTitleStyle(textMode: ListRowProps['textMode'], wrapTitle: ListRo
   return textMode === 'label' || wrapTitle ? styles.wrappedTitle : null
 }
 
-function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRowProps['wrapValue'], wrapTitle: ListRowProps['wrapTitle'], compact: boolean, hasTrailing: boolean) {
-  return [styles.textBlock, compact && hasTrailing ? styles.controlRowText : null, wrapTitle && hasTrailing ? styles.wrappedControlText : null, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]
+function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRowProps['wrapValue'], wrapTitle: ListRowProps['wrapTitle'], compact: boolean, hasTrailing: boolean, inlineControl: boolean) {
+  return [styles.textBlock, compact && hasTrailing && !inlineControl ? styles.controlRowText : null, wrapTitle && hasTrailing ? styles.wrappedControlText : null, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null, inlineControl ? styles.wrappedControlText : null]
 }
 
 function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNode, value: ListRowProps['value'], readOnly: ListRowProps['readOnly']) {
@@ -58,7 +58,7 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
   const Title = textMode === 'personal' ? PersonalText : Text
   const Description = textMode === 'personal' ? PersonalText : Text
   const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
-  const text = <View style={[getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), keepsControlInline ? styles.labelControlText : null]}>
+  const text = <View style={[getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing, keepsControlInline), keepsControlInline ? styles.labelControlText : null]}>
     <Title {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Title>
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
