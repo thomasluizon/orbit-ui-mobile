@@ -7,9 +7,20 @@ import { completeInstallOnboarding } from './install-onboarding'
 async function assertStartEdge(body: Locator, back: Locator) {
   await expect(body).toBeVisible()
   await expect(back).toBeVisible()
-  const bodyLeft = await body.evaluate((element) => element.getBoundingClientRect().left)
-  const backLeft = await back.evaluate((element) => element.getBoundingClientRect().left)
-  expect(Math.abs(bodyLeft - backLeft - 8)).toBeLessThanOrEqual(0.5)
+  await expect.poll(async () => {
+    const backElement = await back.elementHandle()
+    try {
+      return await body.evaluate((element, control) => {
+        if (!element.isConnected || !control.isConnected) return Infinity
+        const bodyBounds = element.getBoundingClientRect()
+        const backBounds = control.getBoundingClientRect()
+        if (!bodyBounds.width || !backBounds.width) return Infinity
+        return Math.abs(bodyBounds.left - backBounds.left - 8)
+      }, backElement)
+    } finally {
+      await backElement.dispose()
+    }
+  }).toBeLessThanOrEqual(0.5)
 }
 
 async function assertCap(box: Locator, maximum: number) {

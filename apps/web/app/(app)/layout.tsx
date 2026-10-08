@@ -71,6 +71,7 @@ import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { HABIT_CREATE_OVERLAY_ID, buildHabitCreateHref, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
 import { AccountEventConnection } from '@/lib/account-event-connection'
 import { isPublicPath } from '@/lib/public-paths'
+import { useHasSessionCookie } from '@/lib/session-cookie-provider'
 
 const AstraConversation = dynamic(
   () => import('@/components/chat/conversation').then((module) => module.AstraConversation),
@@ -84,7 +85,11 @@ export default function AppLayout({
 }>) {
   const pathname = usePathname()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  if (!isAuthenticated && isPublicPath(pathname)) return <>{children}<AppToastHost placement="page" /></>
+  const sessionInactive = useAuthStore((state) => state.sessionInactive)
+  const sessionRefreshFailed = useAuthStore((state) => state.sessionRefreshFailed)
+  const hasSessionCookie = useHasSessionCookie()
+  const restoringAboutSession = pathname === '/about' && hasSessionCookie && !sessionInactive && !sessionRefreshFailed
+  if (!isAuthenticated && !restoringAboutSession && isPublicPath(pathname)) return <>{children}<AppToastHost placement="page" /></>
   return (
     <Providers>
       <AccountEventConnection />
