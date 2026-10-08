@@ -7,6 +7,7 @@ import {
   formatLocaleDayMonth,
   formatCalendarDayTitle,
   formatWeekdayLabels,
+  formatCalendarWeekday,
   formatLocaleDateTime,
   formatLocaleTime,
   resolveSupportedLocale,
@@ -15,6 +16,10 @@ import {
 } from '../utils/locale-format'
 
 describe('locale-format utils', () => {
+  it.each([['pt-BR', 'Seg.'], ['en', 'Mon']])('formats a natural short week header in %s', (locale, label) => {
+    expect(formatCalendarWeekday('2026-10-05', locale)).toBe(label)
+  })
+
   it.each([
     ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
     ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],

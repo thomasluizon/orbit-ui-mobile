@@ -135,6 +135,25 @@ function renderedAncestorHeight(node: TestNode): number | undefined {
 }
 
 describe("CalendarTimeGrid (mobile)", () => {
+  it.each(['light', 'dark'] as const)('keeps timed metadata readable on %s press', (mode) => {
+    setRuntimeTheme({ themeMode: mode });
+    const palette = createTokensV2('purple', mode);
+    const col = column('2025-06-16');
+    const tree = renderGrid([col], new Map([[col.dateStr, [makeEntry({ dueTime: '08:00' })]]]), vi.fn(), false, displayTime, 'UTC', palette);
+    const block = hostsByTestID(tree, 'time-grid-event')[0]!;
+    const time = () => tree.root.findAll((node) => {
+      if (node.type !== 'Text' || node.props.children !== '08:00') return false;
+      for (let parent = node.parent; parent; parent = parent.parent) if (parent === block) return true;
+      return false;
+    })[0]!;
+    expect(resolveStyle(time().props.style).color).toBe(palette.fg3);
+    TestRenderer.act(() => block.props.onPressIn());
+    const fill = StyleSheet.flatten(block.props.style({ pressed: true })).backgroundColor;
+    expect(contrastOnSurface(String(resolveStyle(time().props.style).color), [palette.bg, palette.bgCard, fill])).toBeGreaterThanOrEqual(4.5);
+    TestRenderer.act(() => block.props.onPressOut());
+    expect(resolveStyle(time().props.style).color).toBe(palette.fg3);
+  });
+
   it.each(['light', 'dark'] as const)('keeps the today weekday readable on %s press', (mode) => {
     setRuntimeTheme({ themeMode: mode });
     const palette = createTokensV2('purple', mode);

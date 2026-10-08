@@ -179,14 +179,16 @@ function TimedBlock({
         transform: [{ scale: pressed ? 0.96 : 1 }],
       })}
     >
+      {({ pressed }) => <>
       <PersonalText numberOfLines={2} testID="time-grid-event-name" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg1 }}>{block.entry.title}</PersonalText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, width: '100%' }}>
       <View importantForAccessibility="no-hide-descendants">
         <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
         {outcome.status === 'bad' ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><X size={16} color={tokens.statusBad} strokeWidth={1.5} /></View> : null}
       </View>
-      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg3 }}>{displayTime(block.entry.dueTime!)}</Text>
+      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: pressed ? tokens.fg2 : tokens.fg3 }}>{displayTime(block.entry.dueTime!)}</Text>
       </View>
+      </>}
     </InsetFocusPressable>
   );
 }
@@ -391,7 +393,7 @@ export function CalendarTimeGrid({
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              <View style={{ height: (DAY_HEIGHT + 128) * fontScale }}>
+              <View style={{ height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
                 {HOURS.map((hour) => (
                   <Text
                     key={hour}
@@ -463,7 +465,7 @@ export function CalendarTimeGrid({
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator
               >
-                <View style={{ flexDirection: "row", height: (DAY_HEIGHT + 128) * fontScale }}>
+                <View style={{ flexDirection: "row", height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
                   {perColumn.map(({ column, timed }) => (
                     <View
                       key={column.dateStr}

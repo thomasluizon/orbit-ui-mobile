@@ -94,7 +94,7 @@ describe('Week and agenda geometry in Chromium', () => {
 
   it.each(locales.flatMap((settings) => [false, true].map((crowded) => ({ ...settings, crowded }))))('keeps week labels and every crowded target clear in $locale at 320 and 200% text (crowded=$crowded)', async ({ locale, messages, dateLocale, crowded }) => {
     const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 8, 30 + index), dateStr: `day-${index}`, isToday: index === 0, isFuture: index > 0 }))
-    const entries = [entry, { ...entry, habitId: 'second' }, { ...entry, habitId: 'adjacent', dueTime: '09:00' }, { ...entry, habitId: 'last', dueTime: '23:59' }, { ...entry, habitId: 'untimed', dueTime: null }]
+    const entries = [entry, { ...entry, habitId: 'second' }, { ...entry, habitId: 'adjacent', dueTime: '09:00' }, { ...entry, habitId: 'last', dueTime: '23:59' }, { ...entry, habitId: 'untimed', dueTime: null, title: 'Sweep-Supercalifragilisticexpialidocious-Token-Habit' }, { ...entry, habitId: 'untimed-words', dueTime: null }, { ...entry, habitId: 'untimed-avoid', dueTime: null, isBadHabit: true }]
     const dayMap = new Map(columns.map((column) => [column.dateStr, crowded ? entries : entries.filter((item) => item.habitId !== 'second')]))
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={timeLabel} dateFnsLocale={dateLocale} allDayLabel={messages.calendar.timeGrid.noSetTime} nowLabel={messages.calendar.timeGrid.now} timeZone="UTC" />
@@ -115,8 +115,9 @@ describe('Week and agenda geometry in Chromium', () => {
           return { page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, band: box(band),
             headers: headers.map(box),
             labels: labels.map((label) => ({ ...box(label), parent: box(label.parentElement!), font: Number.parseFloat(getComputedStyle(label).fontSize) })),
-            summaries: [...document.querySelectorAll('[data-testid="time-grid-all-day-event"]')].map((button) => ({ ...box(button), parent: box(button.parentElement!) })),
-            columns: [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => ({ ...box(column), targets: [...column.querySelectorAll('[data-testid="time-grid-event"]')].map(box) })),
+            summaries: [...document.querySelectorAll('[data-testid="time-grid-all-day-event"], [data-testid="time-grid-all-day-more"]')].map((button) => ({ ...box(button), parent: box(button.parentElement!) })),
+            chipTargets: [...band.querySelectorAll('button')].map(box),
+            columns: [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => ({ ...box(column), targets: [...column.querySelectorAll('[data-testid="time-grid-event"]')].map((target) => ({ ...box(target), name: target.querySelector('[data-testid="time-grid-event-name"]')?.textContent, rings: target.querySelectorAll('[data-status]').length, fonts: [...target.querySelectorAll<HTMLElement>('*')].map((element) => Number.parseFloat(getComputedStyle(element).fontSize)) })) })),
           }
         })
         expect(geometry.scroll).toBe(geometry.page)
@@ -129,6 +130,7 @@ describe('Week and agenda geometry in Chromium', () => {
           expect(label.left).toBeGreaterThanOrEqual(label.parent.left)
           expect(label.right).toBeLessThanOrEqual(label.parent.right)
         }
+        expectNoOverlap(geometry.chipTargets)
         for (const summary of geometry.summaries) {
           expect(summary.width).toBeGreaterThanOrEqual(48)
           expect(summary.height).toBeGreaterThanOrEqual(48)
@@ -136,6 +138,9 @@ describe('Week and agenda geometry in Chromium', () => {
         }
         for (const column of geometry.columns) {
           for (const target of column.targets) {
+            expect(target.name).toBe(longTitle)
+            expect(target.rings).toBe(1)
+            expect(target.fonts.every((size) => size >= 12 * scale)).toBe(true)
             expect(target.width).toBeGreaterThanOrEqual(48)
             expect(target.height).toBeGreaterThanOrEqual(48)
             expect(target.bottom).toBeLessThanOrEqual(column.bottom)

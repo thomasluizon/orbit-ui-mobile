@@ -301,7 +301,7 @@ a:hover{color:var(--fg-1)}
     <div data-canvas-chrome="true" style="display:flex;flex-direction:column;gap:8px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:var(--fg-4);max-width:104ch">
       <p><span style="color:var(--fg-3)">screen&nbsp;&nbsp;</span>Calendário answers where the time actually went. Four views of one content, the shipping four (page.tsx:56): month, week, range and agenda, switched with SegmentedControl because they are views of the same thing. It is an orientation view and a way to fix one specific day, not a second habit list: one ring per day, never one ring per habit per day, and the only loggable list on the screen belongs to the selected day in the month view.</p>
       <p><span style="color:var(--fg-3)">layout&nbsp;&nbsp;</span>At both widths a centred month title control sits between the chevrons. The full-width equal-segment selector is the last header line. The shell options and bell share one trailing row. Repeat, Google Calendar and legend live in disclosure; the day card has a 24 inset and three plain figures follow it.</p>
-      <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>week lays the week against the clock (calendar-week-view.tsx over calendar-time-grid.tsx): a habit with a due time sits at its hour inside its day column, and a habit with none sits in the any-time strip above the clock, never at an invented hour; future day columns dim and hour marks follow the clock setting. Range has its own header (page.tsx:324): a fourteen day span stated as two dates, paged as a span, its days as read only cells with the three figures computed over the same span. Agenda lists the days ahead with each day’s habits read only. The agenda is drawn at BOTH widths: the shipping build gates it to desktop (page.tsx:77 folds it back to month below the breakpoint, :259 pushes the tab only when isDesktop), and that gate is a parity defect the code should lose, because the parity contract allows navigation chrome, the palette and hover affordances, and a whole view is none of those. The recurring toggle (show-recurring-toggle.tsx) is a real switch deciding whether recurring habits appear at all; every habit in this fixture recurs, so turning it off empties the month honestly rather than hiding what the switch means. Paging works by swipe as well as by the chevrons (page.tsx:263-268): a sideways drag past 60px pages the month.</p>
+      <p><span style="color:var(--fg-3)">views&nbsp;&nbsp;</span>Week follows the Google Calendar week pattern: names and status rings sit at their hours, named any-time chips sit in each day's lane inside the grid, and +N opens the day. One hour scroller fills the space below the header group, with the weekday header and lane pinned, a single today date disc and the now line opened in the upper third. Future blocks keep a transparent fill and ghost hairline. Range has its own header (page.tsx:324): a fourteen day span stated as two dates, paged as a span, its days as read only cells with the three figures computed over the same span. Agenda lists the days ahead with each day’s habits read only. The agenda is drawn at BOTH widths: the shipping build gates it to desktop (page.tsx:77 folds it back to month below the breakpoint, :259 pushes the tab only when isDesktop), and that gate is a parity defect the code should lose, because the parity contract allows navigation chrome, the palette and hover affordances, and a whole view is none of those. The recurring toggle (show-recurring-toggle.tsx) is a real switch deciding whether recurring habits appear at all; every habit in this fixture recurs, so turning it off empties the month honestly rather than hiding what the switch means. Paging works by swipe as well as by the chevrons (page.tsx:263-268): a sideways drag past 60px pages the month.</p>
       <p><span style="color:var(--fg-3)">shell&nbsp;&nbsp;</span>The one-line shell composer appears on Hoje in the compact shell only; wide web uses the sidebar Astra row. Habit detail keeps its own composer at every width. Hoje suggestions move into the conversation; habit detail keeps its chips. This surface has no composer dock or chips; its last content clears the tab bar at compact widths or the column bottom on wide web. An open Astra conversation stays full screen when destinations change: it covers the compact shell and replaces the wide destination column while the sidebar stays visible.</p>
       <p><span style="color:var(--fg-3)">states&nbsp;&nbsp;</span>loading, month, week, range, agenda, a month with nothing in it, error, the read only day, and the selected day with its habits and its imported events. A plan axis sits beside the state, free or Pro, defaulting to free; the old sync boundary state came off the axis because the boundary is the free side of the plan, not a state of the month. Reached by using the screen: the views through the switcher, paging by swipe as well as by the chevrons, the recurring toggle, and the day route out. A day is always selected in the month view, opening on today.</p>
       <p><span style="color:var(--fg-3)">ring&nbsp;&nbsp;</span>the month response is a list of habits and a dictionary of logs, with no per day status in it, so every ring here is arithmetic done on the device, from one count per day that the cell, the month figures and the day card all read. Logging a habit on the open day moves its arc, turns the cell to the full disc when the last one lands, and moves both figures with it. Nothing on the screen speaks as if the server judged the day: the labels count, they do not rank, and no cell carries a word like good or bad. Four shapes carry the four outcomes and colour only reinforces them: no ring at all for a day with nothing scheduled, a hollow ring for a day with nothing logged, a partial arc for a day part done, and a filled neutral disc for a day fully logged. The arc sweeps the exact completed over scheduled proportion and is never rounded: a ring can draw any angle, so rounding would buy no legibility and would lose the difference between one of three and two of three. The legend lists the three marks and the loggable well; it does not list the day with nothing scheduled, because that day carries no mark and a swatch for it would be an empty circle explaining an absence. Completion is neutral, so the full day is fg-1 and the accent is spent on the unfinished arc. The cells take the raw done and scheduled counts, and DayCell derives both the outcome and the exact fraction, so a hand computed outcome cannot drift from the arc.</p>
@@ -546,53 +546,89 @@ class Component extends DCLogic {
     return { arc: true, sched: sched, done: done };
   }
 
-  /* The week against the clock (calendar-week-view.tsx over calendar-time-grid.tsx): a habit with a
-     due time sits at its hour; a habit with none sits in the any-time strip, never on the clock. */
   weekNode(t, h12, weekStart) {
     const D = window.OrbitDesignSystem_918bd5;
-    const s = this.state;
-    const H0 = 6, H1 = 23, PX = 26;
-    const monday = 17 - ((new Date(YEAR, MONTH, 17).getDay() - weekStart + 7) % 7);
-    const days = [];
-    for (let i = 0; i < 7; i++) days.push(monday + i);
-    const wide = s.width === 'wide';
-    return H('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, maxWidth: wide ? 720 : undefined } },
-      H('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
-        H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, t.anytime),
-        H('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8 } },
-          H('span', { style: { height: 28, display: 'inline-flex', alignItems: 'center', paddingInline: 10,
-            borderRadius: 'var(--r-chip)', background: 'var(--bg-well)', color: 'var(--fg-2)',
-            fontSize: 'var(--fs-xs)', boxShadow: 'inset 0 0 0 1px var(--hairline)' } },
-            (t.lang === 'en' ? UNTIMED.en : UNTIMED.pt)))),
-      H('div', { style: { display: 'flex', gap: 2 } },
-        H('div', { style: { width: 34, flex: '0 0 auto', position: 'relative', height: (H1 - H0 + 1) * PX } },
-          [8, 12, 16, 20].map((hh) => H('p', { key: hh, style: { position: 'absolute', top: (hh - H0) * PX - 7,
-            insetInlineEnd: 4, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-4)',
-            fontVariantNumeric: 'tabular-nums' } }, this.fmt(('0' + hh).slice(-2) + ':00', h12)))),
-        days.map((d, i) => {
-          const dow = new Date(YEAR, MONTH, d).getDay();
-          const schedCount = this.schedFor(0, YEAR, MONTH, d);
-          const future = d > TODAY;
-          return H('div', { key: i, style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 } },
-            H('p', { style: { textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)',
-              color: d === TODAY ? 'var(--fg-1)' : 'var(--fg-4)', fontVariantNumeric: 'tabular-nums' } },
-              t.dayShort[dow], ' ', mock(String(d))),
-            H('div', { style: { position: 'relative', height: (H1 - H0 + 1) * PX, background: 'var(--bg-card)',
-              borderRadius: 'var(--r-well)', boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)',
-              opacity: future ? 0.45 : 1 } },
-              HABITS.slice(0, schedCount).map((h, j) => {
-                const hh = parseInt(h.t.split(':')[0], 10);
-                const nm = t.lang === 'en' ? h.en : h.pt;
-                return H('div', { key: j, title: nm + ' \u00B7 ' + this.fmt(h.t, h12),
-                  style: { position: 'absolute', insetInline: 2, top: (hh - H0) * PX + 1, height: PX - 3,
-                    borderRadius: 6, background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                    display: 'flex', alignItems: 'center', paddingInline: 4, overflow: 'hidden' } },
-                  H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    fontVariantNumeric: 'tabular-nums' } },
-                    wide ? nm : mock(this.fmt(h.t, h12))));
-              })));
-        })));
+    const monday = TODAY - ((new Date(YEAR, MONTH, TODAY).getDay() - weekStart + 7) % 7);
+    const days = Array.from({ length: 7 }, (_, i) => monday + i);
+    const hours = Array.from({ length: 24 }, (_, hour) => hour);
+    const fixtureNow = 21 * 60 + 30;
+    const columnWidth = 192;
+    const gridTemplate = '96px repeat(7, ' + columnWidth + 'px)';
+    const pinned = { background: 'var(--bg-elev)' };
+    const selectDay = (day) => this.setState({ sel: day, view: 'month', st: 'month' });
+    const chip = (name, day, more) => H('button', {
+      key: name, type: 'button', className: 'native-control', 'aria-label': more
+        ? (t.lang === 'en' ? '2 more on this day' : '2 mais neste dia') : name,
+      onClick: () => selectDay(day),
+      style: { minHeight: 48, minWidth: 48, padding: 0, border: 0, borderRadius: 8,
+        background: 'transparent', display: 'flex', alignItems: 'center', width: '100%' }
+    }, H('span', { style: { height: 28, paddingInline: 8, borderRadius: 'var(--r-chip)',
+      background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      color: 'var(--fg-2)', fontSize: 12, width: '100%', minWidth: 0, display: 'flex', alignItems: 'center' }
+    }, H('span', { style: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, name)));
+    return H('div', { style: { borderRadius: 12, overflow: 'hidden', background: 'var(--bg-card)',
+      boxShadow: 'inset 0 0 0 1px var(--hairline)', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 } },
+      H('div', { ref: (node) => {
+        if (!node) return;
+        const pinnedHeight = node.firstElementChild.clientHeight;
+        const height = node.clientHeight - pinnedHeight;
+        node.scrollTop = fixtureNow / 60 * 48 - height / 4;
+        node.scrollLeft = Math.max(0, days.indexOf(TODAY) * columnWidth - (node.clientWidth - 96 - columnWidth) / 2);
+      }, style: { overflow: 'auto', height: 520, minHeight: 0, overscrollBehavior: 'contain' } },
+        H('div', { style: { position: 'sticky', top: 0, zIndex: 3, minWidth: 96 + 7 * columnWidth, ...pinned } },
+          H('div', { style: { display: 'grid', gridTemplateColumns: gridTemplate } },
+            H('div', { style: { position: 'sticky', left: 0, zIndex: 1, ...pinned } }),
+            days.map((day) => {
+              const label = new Intl.DateTimeFormat(t.intl, { weekday: 'short' }).format(new Date(YEAR, MONTH, day));
+              return H('button', { key: day, type: 'button', onClick: () => selectDay(day), className: 'native-control',
+                style: { minHeight: 52, padding: 8, border: 0, borderLeft: '1px solid var(--hairline)',
+                  borderBottom: '1px solid var(--hairline)', background: 'transparent', display: 'flex',
+                  flexDirection: 'column', alignItems: 'center', gap: 4, fontFamily: 'var(--font-mono)', fontSize: 12 } },
+                H('span', { style: { color: 'var(--fg-2)' } }, label.charAt(0).toUpperCase() + label.slice(1)),
+                H('span', { style: { width: 24, height: 24, borderRadius: 999, display: 'grid', placeItems: 'center',
+                  background: day === TODAY ? 'var(--primary)' : 'transparent',
+                  color: day === TODAY ? 'var(--fg-on-primary)' : 'var(--fg-1)' } }, mock(String(day))));
+            })),
+          H('div', { style: { display: 'grid', gridTemplateColumns: gridTemplate } },
+            H('div', { style: { position: 'sticky', left: 0, zIndex: 1, padding: 8, fontSize: 12, color: 'var(--fg-2)', ...pinned } }, t.anytime),
+            days.map((day) => H('div', { key: day, style: { padding: '8px 4px', minHeight: 64,
+              display: 'flex', flexDirection: 'column', gap: 4, borderLeft: '1px solid var(--hairline)',
+              borderBottom: '1px solid var(--hairline)' } },
+              new Date(YEAR, MONTH, day).getDay() === 1 ? null : [chip(t.lang === 'en' ? UNTIMED.en : UNTIMED.pt, day), chip('+2', day, true)])))),
+        H('div', { style: { display: 'grid', gridTemplateColumns: gridTemplate, minWidth: 96 + 7 * columnWidth } },
+          H('div', { style: { height: 1280, position: 'sticky', left: 0, zIndex: 1, ...pinned } },
+            hours.map((hour) => H('span', { key: hour, style: { position: 'absolute', top: hour * 48 + 2,
+              right: 8, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)' } }, this.fmt(String(hour).padStart(2, '0') + ':00', h12)))),
+          days.map((day) => H('div', { key: day, style: { position: 'relative', height: 1280,
+            borderLeft: '1px solid var(--hairline)' } },
+            hours.map((hour) => H('span', { key: hour, style: { position: 'absolute', top: hour * 48,
+              insetInline: 0, height: 1, background: day > TODAY ? 'var(--hairline-ghost)' : 'var(--hairline)' } })),
+            HABITS.slice(0, this.schedFor(0, YEAR, MONTH, day)).map((habit, index) => {
+              const name = t.lang === 'en' ? habit.en : habit.pt;
+              const concurrent = index >= 3;
+              return H('button', { key: index, type: 'button', className: 'native-control', 'aria-label': name,
+                onClick: () => selectDay(day), style: { position: 'absolute', top: Number(habit.t.split(':')[0]) * 48,
+                  left: concurrent && index === 3 ? columnWidth / 2 + 2 : 2,
+                  width: concurrent ? columnWidth / 2 - 4 : columnWidth - 4, minHeight: 48, height: 72,
+                  border: 0, borderRadius: 8, padding: 4, display: 'flex', flexDirection: 'column', gap: 4,
+                  alignItems: 'flex-start', justifyContent: 'space-between', overflow: 'hidden',
+                  background: day > TODAY ? 'transparent' : 'var(--bg-well)',
+                  boxShadow: 'inset 0 0 0 1px var(' + (day > TODAY ? '--hairline-ghost' : '--hairline') + ')' } },
+                H('span', { style: { fontSize: 12, lineHeight: 1.4, color: 'var(--fg-1)', display: '-webkit-box',
+                  WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, width: '100%', overflow: 'hidden', wordBreak: 'normal' } },
+                  name.split(/(\s+)/).map((word, part) => H('span', { key: part, style: word.trim() ? {
+                    display: 'inline-block', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom' } : {} }, word))),
+                H('span', { style: { display: 'flex', alignItems: 'center', gap: 4, width: '100%' } },
+                  H('span', { style: { position: 'relative', display: 'inline-flex' } },
+                    H(D.StatusRing, { status: habit.bad && day < TODAY ? 'bad' : 'empty', size: 24, label: name }),
+                    habit.bad && day < TODAY ? H(D.Icon, { name: 'x', size: 16, style: { position: 'absolute', inset: 4, color: 'var(--status-bad)' } }) : null),
+                  H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, mock(this.fmt(habit.t, h12)))));
+            }),
+            day === TODAY ? H('div', { style: { position: 'absolute', top: fixtureNow / 60 * 48,
+              insetInline: 0, display: 'flex', alignItems: 'center', pointerEvents: 'none' } },
+              H('span', { style: { width: 7, height: 7, borderRadius: 999, marginLeft: -4, background: 'var(--primary)' } }),
+              H('span', { style: { flex: 1, height: 1.5, background: 'var(--primary)' } })) : null)))));
   }
 
   /* The range view with its own header (page.tsx:324): a fourteen day span, paged as a span. */

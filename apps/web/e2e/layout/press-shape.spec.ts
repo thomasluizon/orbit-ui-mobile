@@ -210,7 +210,7 @@ for (const width of [412, 1280] as const) {
         await expectFullTouchTarget(page.getByRole('button', { name: label, exact: true }), 'pill')
       }
       await expectFullTouchTarget(page.getByRole('button', { name: new RegExp(`, ${ptBr.calendar.goToCurrentWeek}$`) }), 'pill')
-      await expectFullTouchTarget(page.getByTestId('time-grid-all-day-summary').first(), 8)
+      await expectFullTouchTarget(page.getByTestId('time-grid-all-day-event').first(), 8)
     })
 
     test.describe('calendar review targets', () => {

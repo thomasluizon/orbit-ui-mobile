@@ -128,7 +128,7 @@ function TimedBlock({
       data-hour={block.hour}
       onClick={onSelect}
       aria-label={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
-      className={`absolute flex flex-col items-start justify-between gap-1 overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
+      className={`group absolute flex flex-col items-start justify-between gap-1 overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
       style={{
         top: `${block.top / 16}rem`,
         minHeight: 48,
@@ -149,7 +149,7 @@ function TimedBlock({
         <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
         {outcome.status === 'bad' ? <span className="absolute inset-0 flex items-center justify-center"><X size={16} color="var(--status-bad)" strokeWidth={1.5} /></span> : null}
       </span>
-      <span className="truncate" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-3)' }}>{displayTime(block.entry.dueTime!)}</span>
+      <span className="truncate text-[var(--fg-3)] group-hover:text-[var(--fg-2)] group-active:text-[var(--fg-2)]" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', lineHeight: 1.4 }}>{displayTime(block.entry.dueTime!)}</span>
       </span>
     </button>
   )
@@ -222,12 +222,14 @@ export function CalendarTimeGrid({
     const node = bodyRef.current
     if (!node) return
     const open = () => {
-      if (openingPosition.current) return
       const pinnedHeight = node.firstElementChild?.clientHeight ?? 0
       const hourLabels = node.querySelectorAll<HTMLElement>('[data-testid="time-grid-hour-label"]')
       const measuredHour = hourLabels[1]!.offsetTop - hourLabels[0]!.offsetTop
       const scale = measuredHour > 0 ? measuredHour / HOUR_HEIGHT : 1
       const bodyHeight = Math.max(0, node.clientHeight - pinnedHeight)
+      node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75)}px`)
+      node.style.scrollPaddingTop = `${pinnedHeight}px`
+      if (openingPosition.current) return
       const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)))
       node.scrollTop = Math.max(0, columns.some(({ isToday }) => isToday)
         ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * scale - bodyHeight / 4
@@ -242,6 +244,7 @@ export function CalendarTimeGrid({
     open()
     const observer = new ResizeObserver(open)
     observer.observe(node)
+    if (node.firstElementChild) observer.observe(node.firstElementChild)
     return () => observer.disconnect()
   }, [columns, perColumn, timeZone, isLoading])
 
@@ -378,7 +381,7 @@ export function CalendarTimeGrid({
             <div
               aria-hidden="true"
               className="sticky left-0 z-[1]"
-              style={{ height: '80rem', ...pinnedPaneBackground }}
+              style={{ minHeight: '80rem', height: 'calc(72rem + var(--time-grid-tail, 128px))', ...pinnedPaneBackground }}
             >
               {HOURS.map((hour) => (
                 <span
@@ -405,7 +408,8 @@ export function CalendarTimeGrid({
                 data-date={column.dateStr}
                 style={{
                   position: 'relative',
-                  height: '80rem',
+                  height: 'calc(72rem + var(--time-grid-tail, 128px))',
+                  minHeight: '80rem',
                   borderLeft: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
                 }}
               >

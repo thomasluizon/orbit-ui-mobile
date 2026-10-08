@@ -861,6 +861,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | DayCell | full-column month-grid target, minimum height 44px, tabular day number, read-only by default; `scheduled={0}` derives not scheduled, counts derive none, partial, or full, partial uses the exact fraction, full is neutral, and only today or selected uses primary position treatment | `dates/day-cell.tsx` | `dates/day-cell.tsx` |
 | MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |
 | EventRow | read-only timed or all-day event row with required title and optional source; time and all-day label are mutually exclusive | `dates/event-row.tsx` | `dates/event-row.tsx` |
+| TimeGrid | Google Calendar week pattern: names at 12 with up to two lines and word-boundary ellipsis, status rings and time beneath when space permits; per-day any-time chips at 28 inside distinct 48 targets, first chip plus +N from three items, full names in disclosure; natural short weekdays and a single 24 today date disc; pinned header and lane, aligned gutter, horizontal column scrolling, one hour scroller opening with now in its upper third or at the earlier of 07:00 and the first timed block for another week | `calendar/calendar-time-grid.tsx` | `app/(tabs)/calendar/_components/calendar-time-grid.tsx` |
 | HabitRow | inside a tonal panel: 46px emoji well radius 12 `--bg-well`, name Geist Sans 16/500, meta 12 fg-3, trailing 30px status ring (done `--status-done` filled with a filled check, empty `--status-empty` track, overdue `--status-overdue` ring, bad habit `--status-bad`, read-only dimmed and not tappable, parent a done-over-total ring). **Never frozen and never skipped**, see the habit list rules. Per-row overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 | BlockFrame | the container every generative block inherits: five states, header count from `items.length`, one pinned action row, block scoped polite live region, no entrance animation | `ui/block-frame.tsx` | `ui/block-frame.tsx` |
 | Proposed | the tenth state wrapper: `--fg-3` inside an inset dashed hairline, radius 12 field / 8 row / 20 block, never the accent | `ui/proposed.tsx` | `ui/proposed.tsx` |
@@ -900,6 +901,7 @@ Android wide sheets stay bottom-attached to the centred shell column with TrueSh
 
 ### Scroll ownership
 
+- A destination view with a time grid keeps one vertical scroller: the grid fills the height the page leaves, and the page does not scroll in that view.
 - **Exactly one page-level scroll container per overlay, owned by the primitive.**
 - **A caller never nests its own scroll container inside a scrollable sheet**, except for the bounded TimeField columns below. TrueSheet's native `scrollable` stays off while the primitive owns the body scroller.
 - **An overlay never opens scrolled away from its own first line.**
