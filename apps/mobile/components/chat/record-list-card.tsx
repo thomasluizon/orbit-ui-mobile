@@ -1,3 +1,4 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -93,7 +94,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     const details = [unread ? t('chat.recordList.unread') : null, item.detail, item.date ? date.format(new Date(item.date)) : null, itemCount, keyState].filter(Boolean)
     return {
       id: item.id,
-      label: <Text style={{ color: unread ? tokens.fg1 : tokens.fg2, fontFamily: unread ? 'Geist_600SemiBold' : 'Geist_400Regular', fontSize: 14 }}>{item.title}</Text>,
+      label: <PersonalTextDetails>{item.title}</PersonalTextDetails>,
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,

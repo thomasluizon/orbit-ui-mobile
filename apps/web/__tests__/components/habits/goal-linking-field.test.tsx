@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { act, cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -83,7 +84,7 @@ describe('GoalLinkingField', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
-    const activeGoal = await screen.findByRole('button', { name: /Run 100km/ })
+    const activeGoal = await screen.findByRole('button', { name: /Run 100km/, pressed: false })
     expect(activeGoal).toBeEnabled()
     expect(activeGoal).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: /Completed Goal/ })).not.toBeInTheDocument()
@@ -103,7 +104,7 @@ describe('GoalLinkingField', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     expect(screen.getByText('habits.form.noGoals')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Run 100km/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Run 100km/, pressed: false })).not.toBeInTheDocument()
 
     await act(async () => {
       finishRequest({ items: [
@@ -112,7 +113,7 @@ describe('GoalLinkingField', () => {
       ] })
     })
 
-    const activeGoal = await screen.findByRole('button', { name: /Run 100km/ })
+    const activeGoal = await screen.findByRole('button', { name: /Run 100km/, pressed: false })
     expect(activeGoal).toBeEnabled()
     expect(screen.queryByText('habits.form.noGoals')).not.toBeInTheDocument()
     expect(screen.queryByText('Completed Goal')).not.toBeInTheDocument()
@@ -157,12 +158,31 @@ describe('GoalLinkingField', () => {
 
     const search = await screen.findByPlaceholderText('habits.form.searchGoals')
     expect(screen.getByText('habits.form.availableCount')).toBeInTheDocument()
-    expect(screen.queryByText('Goal 20')).not.toBeInTheDocument()
+    expect(screen.queryByText(personalText('Goal 20'))).not.toBeInTheDocument()
 
-    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 48 } })
-    expect(await screen.findByText('Goal 20')).toBeInTheDocument()
+    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 112 } })
+    expect(await screen.findByText(personalText('Goal 20'))).toBeInTheDocument()
     fireEvent.change(search, { target: { value: 'Goal 49' } })
-    expect(screen.getByText('Goal 49')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Goal 49'))).toBeInTheDocument()
     expect(search.nextElementSibling!.scrollTop).toBe(0)
   })
+  it.each(['UnbrokenToken' .repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses typed text without changing selection for %s', async (name) => {
+    const onToggle = vi.fn()
+    mockFetchJson.mockResolvedValue([createMockGoal({ id: 'long-goal', title: name })])
+    render(<GoalLinkingField selectedGoalIds={['long-goal']} atGoalLimit={false} onToggleGoal={onToggle} />, { wrapper: Wrapper })
+    const disclosure = await screen.findByRole('button', { name, expanded: false })
+    fireEvent.click(disclosure)
+    expect(screen.getByRole('button', { name, expanded: true })).toBeInTheDocument()
+    expect(document.querySelector('[data-personal-text-expanded]')).not.toBeNull()
+    expect(onToggle).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name, expanded: true }))
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+    const row = await screen.findByRole('button', { name, pressed: true })
+    const title = row.querySelector('[data-personal-text]')!
+    expect(title).toHaveAttribute('aria-label', name)
+    expect(title).toHaveStyle({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal', overflowWrap: 'normal' })
+    fireEvent.click(row)
+    expect(onToggle).toHaveBeenCalledWith('long-goal')
+  })
+
 })

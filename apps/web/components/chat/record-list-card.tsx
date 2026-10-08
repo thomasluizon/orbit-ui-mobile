@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useEffect, useState } from 'react'
@@ -76,7 +78,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     const details = [unread ? t('chat.recordList.unread') : null, item.detail, item.date ? date.format(new Date(item.date)) : null, itemCount, keyState].filter(Boolean)
     return {
       id: item.id,
-      label: <span className={unread ? 'font-semibold text-[var(--fg-1)]' : 'font-normal text-[var(--fg-2)]'}>{item.title}</span>,
+      label: <PersonalTextDetails>{item.title}</PersonalTextDetails>,
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,

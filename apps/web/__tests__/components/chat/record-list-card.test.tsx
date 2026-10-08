@@ -47,7 +47,7 @@ describe('Astra record list on web', () => {
 
   it('does not show a chip for tags', () => {
     render(<RecordListCard recordList={{ kind: 'tags', totalCount: 1, items: [{ id: 'tag-1', title: 'Focus' }] }} />)
-    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'chat.recordList.open.tags' })).not.toBeInTheDocument()
   })
 
   it('can page again after switching accounts during a pending page', async () => {
@@ -72,4 +72,14 @@ describe('Astra record list on web', () => {
     await act(async () => { finish(); await Promise.resolve() })
     expect(screen.getByRole('button', { name: 'notifications.markRead:{"title":"Reminder"}' })).toBeInTheDocument()
   })
+  it.each(['UnbrokenToken' .repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses typed text without changing selection for %s', async (name) => {
+    const onToggle = vi.fn()
+    render(<RecordListCard recordList={{ kind: 'tags', totalCount: 1, items: [{ id: 'long-record', title: name }] }} />)
+    const disclosure = await screen.findByRole('button', { name, expanded: false })
+    fireEvent.click(disclosure)
+    expect(screen.getByRole('button', { name, expanded: true })).toBeInTheDocument()
+    expect(document.querySelector('[data-personal-text-expanded]')).not.toBeNull()
+    expect(onToggle).not.toHaveBeenCalled()
+  })
+
 })

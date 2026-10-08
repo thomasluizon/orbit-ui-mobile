@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -56,11 +57,11 @@ describe('TagPickerField', () => {
       />,
     )
 
-    expect(screen.getByText('Tag 0')).toBeInTheDocument()
-    expect(screen.getByText('Tag 1')).toBeInTheDocument()
-    expect(screen.getByText('Tag 2')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Tag 0'))).toBeInTheDocument()
+    expect(screen.getByText(personalText('Tag 1'))).toBeInTheDocument()
+    expect(screen.getByText(personalText('Tag 2'))).toBeInTheDocument()
     expect(screen.getByText('habits.form.moreSelected')).toBeInTheDocument()
-    expect(screen.queryByText('Tag 3')).not.toBeInTheDocument()
+    expect(screen.queryByText(personalText('Tag 3'))).not.toBeInTheDocument()
   })
 
   it('windows twenty-one or more tags and keeps search outside the scroller', async () => {
@@ -81,11 +82,11 @@ describe('TagPickerField', () => {
     fireEvent.click(screen.getByText('habits.form.tags'))
 
     const search = screen.getByPlaceholderText('habits.form.searchTags')
-    expect(screen.queryByText('Tag 20')).not.toBeInTheDocument()
-    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 48 } })
-    expect(await screen.findByText('Tag 20')).toBeInTheDocument()
+    expect(screen.queryByText(personalText('Tag 20'))).not.toBeInTheDocument()
+    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 112 } })
+    expect(await screen.findByText(personalText('Tag 20'))).toBeInTheDocument()
     fireEvent.change(search, { target: { value: 'Tag 49' } })
-    expect(screen.getByText('Tag 49')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Tag 49'))).toBeInTheDocument()
     expect(search.nextElementSibling!.scrollTop).toBe(0)
   })
 
@@ -109,11 +110,11 @@ describe('TagPickerField', () => {
     fireEvent.click(screen.getByText('habits.form.tags'))
     const search = screen.getByPlaceholderText('habits.form.searchTags')
     fireEvent.change(search, { target: { value: 'Tag 24' } })
-    expect(screen.getByText('Tag 24')).toBeInTheDocument()
-    expect(screen.queryByText('Tag 0')).not.toBeInTheDocument()
+    expect(screen.getByText(personalText('Tag 24'))).toBeInTheDocument()
+    expect(screen.queryByText(personalText('Tag 0'))).not.toBeInTheDocument()
 
     fireEvent.change(search, { target: { value: 'No match' } })
-    expect(screen.queryByText('Tag 24')).not.toBeInTheDocument()
+    expect(screen.queryByText(personalText('Tag 24'))).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.newTag' }))
     expect(onCreate).toHaveBeenCalledOnce()
   })
@@ -137,7 +138,7 @@ describe('TagPickerField', () => {
     const { rerender } = render(<TagPickerField {...props} selectedIds={[]} />)
 
     fireEvent.click(screen.getByText('habits.form.tags'))
-    let tagButton = screen.getByRole('button', { name: 'Tag 0' })
+    let tagButton = screen.getByRole('button', { name: 'Tag 0', pressed: false })
     expect(tagButton).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(tagButton)
     expect(onToggle).toHaveBeenLastCalledWith('tag-0')
@@ -175,4 +176,22 @@ describe('TagPickerField', () => {
     expect(screen.getByText('Tag editor')).toBeInTheDocument()
     expect(screen.queryByText('habits.form.noTags')).not.toBeInTheDocument()
   })
+  it.each(['UnbrokenToken' .repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses typed text without changing selection for %s', async (name) => {
+    const onToggle = vi.fn()
+    render(<TagPickerField tags={[{ id: 'long-tag', name, color: '#000000' }]} selectedIds={['long-tag']} atLimit={false} disabled={false} onToggle={onToggle} onCreate={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} editLabel="Edit" deleteLabel="Delete" />)
+    const disclosure = await screen.findByRole('button', { name, expanded: false })
+    fireEvent.click(disclosure)
+    expect(screen.getByRole('button', { name, expanded: true })).toBeInTheDocument()
+    expect(document.querySelector('[data-personal-text-expanded]')).not.toBeNull()
+    expect(onToggle).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name, expanded: true }))
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.tags/ }))
+    const row = await screen.findByRole('button', { name, pressed: true })
+    const title = row.querySelector('[data-personal-text]')!
+    expect(title).toHaveAttribute('aria-label', name)
+    expect(title).toHaveStyle({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal', overflowWrap: 'normal' })
+    fireEvent.click(row)
+    expect(onToggle).toHaveBeenCalledWith('long-tag')
+  })
+
 })
