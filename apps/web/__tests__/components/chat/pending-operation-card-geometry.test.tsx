@@ -21,7 +21,26 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
 const viewports = [1352, 1100, 412, 320]
-const deletionSubjects = [{ subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits' }, { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal' }, { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag' }, { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications' }, { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts' }, { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate' }]
+const deletionSubjects = [
+  { subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits',
+    english: ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
+    portuguese: ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.'] },
+  { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal',
+    english: ['The goal leaves your list.', '# goals leave your list.'],
+    portuguese: ['A meta sai da sua lista.', '# metas saem da sua lista.'] },
+  { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag',
+    english: ['The tag leaves your list.', '# tags leave your list.'],
+    portuguese: ['A tag sai da sua lista.', '# tags saem da sua lista.'] },
+  { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications',
+    english: ['The alert leaves your list.', '# alerts leave your list.'],
+    portuguese: ['O aviso sai da sua lista.', '# avisos saem da sua lista.'] },
+  { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts',
+    english: ['The memory leaves your list.', '# memories leave your list.'],
+    portuguese: ['A memória sai da sua lista.', '# memórias saem da sua lista.'] },
+  { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate',
+    english: ['The template leaves your list.', '# templates leave your list.'],
+    portuguese: ['O modelo sai da sua lista.', '# modelos saem da sua lista.'] },
+]
 const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const locales = ['en', 'pt-BR'] as const
 const message = makeHeldHabitMessage({ habitList: habitListCardFixture })
@@ -100,7 +119,7 @@ describe('Pending preview geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count, english, portuguese }) => {
     setViewport(320)
     const messages = locale === 'en' ? en : pt
     const pendingOperation = { ...makeDeleteHabitsPreview(count), capabilityId, actionKey }
@@ -120,7 +139,9 @@ describe('Pending preview geometry in Chromium', () => {
         return { text: title.textContent, lines: new Set(Array.from(range.getClientRects(), (rect) => rect.top)).size, width: bounds.width, available: available.width }
       })
       expect(geometry.text).not.toMatch(/\d/)
-      expect(screen.getByText(new RegExp(`^${count} `))).toBeInTheDocument()
+      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replace('#', String(count))
+      const expectedBody = `${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`
+      expect(screen.getByText(expectedBody)).toBeInTheDocument()
       expect(geometry.lines).toBe(1)
       expect(geometry.width).toBeLessThanOrEqual(geometry.available + 0.5)
     } finally { await page.close() }

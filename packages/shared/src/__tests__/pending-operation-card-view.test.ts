@@ -589,12 +589,24 @@ describe('pending operation card view', () => {
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('operation treatment in $locale', ({ locale, messages }) => {
   const deletionSubjects = [
-    ['habits', 'habits.delete', 'habit', 'habits', 'hábito', 'hábitos'],
-    ['goals', 'goals.delete', 'goal', 'goals', 'meta', 'metas'],
-    ['tags', 'tags.delete', 'tag', 'tags', 'tag', 'tags'],
-    ['alerts', 'notifications.delete', 'alert', 'alerts', 'aviso', 'avisos'],
-    ['memories', 'user-facts.delete', 'memory', 'memories', 'memória', 'memórias'],
-    ['templates', 'checklist-templates.write', 'template', 'templates', 'modelo', 'modelos'],
+    ['habits', 'habits.delete', 'habit', 'habits', 'hábito', 'hábitos',
+      ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
+      ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.']],
+    ['goals', 'goals.delete', 'goal', 'goals', 'meta', 'metas',
+      ['The goal leaves your list.', '# goals leave your list.'],
+      ['A meta sai da sua lista.', '# metas saem da sua lista.']],
+    ['tags', 'tags.delete', 'tag', 'tags', 'tag', 'tags',
+      ['The tag leaves your list.', '# tags leave your list.'],
+      ['A tag sai da sua lista.', '# tags saem da sua lista.']],
+    ['alerts', 'notifications.delete', 'alert', 'alerts', 'aviso', 'avisos',
+      ['The alert leaves your list.', '# alerts leave your list.'],
+      ['O aviso sai da sua lista.', '# avisos saem da sua lista.']],
+    ['memories', 'user-facts.delete', 'memory', 'memories', 'memória', 'memórias',
+      ['The memory leaves your list.', '# memories leave your list.'],
+      ['A memória sai da sua lista.', '# memórias saem da sua lista.']],
+    ['templates', 'checklist-templates.write', 'template', 'templates', 'modelo', 'modelos',
+      ['The template leaves your list.', '# templates leave your list.'],
+      ['O modelo sai da sua lista.', '# modelos saem da sua lista.']],
   ] as const
 
   it('covers every deletion title and body subject', () => {
@@ -603,18 +615,18 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     }
   })
 
-  it.each(deletionSubjects)('names the counted %s subject in the confirmation sheet', (_subject, capabilityId, singularEnglish, pluralEnglish, singularPortuguese, pluralPortuguese) => {
-    for (const count of [1, 2]) {
+  it.each(deletionSubjects)('names the counted %s subject in the confirmation sheet', (_subject, capabilityId, singularEnglish, pluralEnglish, singularPortuguese, pluralPortuguese, englishBody, portugueseBody) => {
+    for (const count of [1, 12, 120]) {
       const operation = { ...makeDeleteHabitsPreview(count), capabilityId }
       const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
       const { record, render } = createRenderers()
       renderPendingOperationCard({ card: { ...createCard(), confirmOpen: true }, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
-      const subject = locale === 'en'
-        ? count === 1 ? singularEnglish : pluralEnglish
-        : count === 1 ? singularPortuguese : pluralPortuguese
+      const subjects = locale === 'en' ? [singularEnglish, pluralEnglish] : [singularPortuguese, pluralPortuguese]
+      const subject = subjects[Number(count !== 1)]!
       expect(record.confirm).toMatchObject({ open: true, destructive: true,
         title: `${locale === 'en' ? 'Delete' : 'Apagar'} ${subject}?` })
-      expect(record.confirm?.message).toMatch(new RegExp(`^${count} ${subject} `))
+      const consequence = (locale === 'en' ? englishBody : portugueseBody)[Number(count !== 1)]!.replace('#', String(count))
+      expect(record.confirm?.message).toBe(`${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`)
       expect(record.confirm?.message).toContain(locale === 'en' ? 'here.' : 'por aqui.')
       expect(localized.confirm.split(/\s+/)).toHaveLength(2)
     }

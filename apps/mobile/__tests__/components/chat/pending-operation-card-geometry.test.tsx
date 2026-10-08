@@ -26,7 +26,26 @@ vi.mock('@lodev09/react-native-true-sheet', () => ({ TrueSheet: class extends Re
 } }))
 
 const locales = ['en', 'pt-BR'] as const
-const deletionSubjects = [{ subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits' }, { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal' }, { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag' }, { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications' }, { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts' }, { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate' }]
+const deletionSubjects = [
+  { subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits',
+    english: ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
+    portuguese: ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.'] },
+  { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal',
+    english: ['The goal leaves your list.', '# goals leave your list.'],
+    portuguese: ['A meta sai da sua lista.', '# metas saem da sua lista.'] },
+  { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag',
+    english: ['The tag leaves your list.', '# tags leave your list.'],
+    portuguese: ['A tag sai da sua lista.', '# tags saem da sua lista.'] },
+  { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications',
+    english: ['The alert leaves your list.', '# alerts leave your list.'],
+    portuguese: ['O aviso sai da sua lista.', '# avisos saem da sua lista.'] },
+  { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts',
+    english: ['The memory leaves your list.', '# memories leave your list.'],
+    portuguese: ['A memória sai da sua lista.', '# memórias saem da sua lista.'] },
+  { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate',
+    english: ['The template leaves your list.', '# templates leave your list.'],
+    portuguese: ['O modelo sai da sua lista.', '# modelos saem da sua lista.'] },
+]
 const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const originalOperation = makeHeldHabitMessage().pendingOperations![0]!
 const originalItem = originalOperation.items![0]!
@@ -94,7 +113,7 @@ describe('Pending preview geometry on Android', () => {
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
   })
 
-  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count, english, portuguese }) => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
     const tree = render(<PendingOperationCard pendingOperation={{ ...makeDeleteHabitsPreview(count), capabilityId, actionKey }} {...handlers} />)
@@ -107,7 +126,9 @@ describe('Pending preview geometry on Android', () => {
       const closeStyle = StyleSheet.flatten(typeof close.props.style === 'function' ? close.props.style({ pressed: false }) : close.props.style)
       const available = 320 - headerStyle.paddingHorizontal * 2 - headerStyle.gap - closeStyle.width
       expect(title.props.children).not.toMatch(/\d/)
-      expect(tree.root.findAllByType(Text).some((node: { props: { children?: unknown } }) => typeof node.props.children === 'string' && node.props.children.startsWith(`${count} `))).toBe(true)
+      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replace('#', String(count))
+      const expectedBody = `${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`
+      expect(tree.root.findAllByType(Text).some((node: { props: { children?: unknown } }) => node.props.children === expectedBody)).toBe(true)
       expect(textWidth(title.props.children, Number(titleStyle.fontSize))).toBeLessThanOrEqual(available)
     } finally { TestRenderer.act(() => tree.unmount()) }
   })

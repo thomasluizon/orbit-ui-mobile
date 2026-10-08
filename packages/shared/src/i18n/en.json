@@ -1745,12 +1745,12 @@
         "templates": "Delete {count, plural, one {template} other {templates}}?"
       },
       "deleteBody": {
-        "habits": "{count, plural, one {# habit and everything inside it leave your list.} other {# habits and everything inside them leave your list.}} There is no way to restore this here.",
-        "goals": "{count, plural, one {# goal leaves your list.} other {# goals leave your list.}} There is no way to restore this here.",
-        "tags": "{count, plural, one {# tag leaves your list.} other {# tags leave your list.}} There is no way to restore this here.",
-        "alerts": "{count, plural, one {# alert leaves your list.} other {# alerts leave your list.}} There is no way to restore this here.",
-        "memories": "{count, plural, one {# memory leaves your list.} other {# memories leave your list.}} There is no way to restore this here.",
-        "templates": "{count, plural, one {# template leaves your list.} other {# templates leave your list.}} There is no way to restore this here."
+        "habits": "{count, plural, one {The habit and everything inside it leave your list.} other {# habits and everything inside them leave your list.}} There is no way to restore this here.",
+        "goals": "{count, plural, one {The goal leaves your list.} other {# goals leave your list.}} There is no way to restore this here.",
+        "tags": "{count, plural, one {The tag leaves your list.} other {# tags leave your list.}} There is no way to restore this here.",
+        "alerts": "{count, plural, one {The alert leaves your list.} other {# alerts leave your list.}} There is no way to restore this here.",
+        "memories": "{count, plural, one {The memory leaves your list.} other {# memories leave your list.}} There is no way to restore this here.",
+        "templates": "{count, plural, one {The template leaves your list.} other {# templates leave your list.}} There is no way to restore this here."
       },
       "deleteAction": {
         "habits": "Delete habits",

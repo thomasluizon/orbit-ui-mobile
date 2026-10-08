@@ -1745,12 +1745,12 @@
         "templates": "Apagar {count, plural, =0 {modelos} one {modelo} other {modelos}}?"
       },
       "deleteBody": {
-        "habits": "{count, plural, =0 {# hábitos e tudo dentro deles saem da sua lista.} one {# hábito e tudo dentro dele saem da sua lista.} other {# hábitos e tudo dentro deles saem da sua lista.}} Não há como restaurar por aqui.",
-        "goals": "{count, plural, =0 {# metas saem da sua lista.} one {# meta sai da sua lista.} other {# metas saem da sua lista.}} Não há como restaurar por aqui.",
-        "tags": "{count, plural, =0 {# tags saem da sua lista.} one {# tag sai da sua lista.} other {# tags saem da sua lista.}} Não há como restaurar por aqui.",
-        "alerts": "{count, plural, =0 {# avisos saem da sua lista.} one {# aviso sai da sua lista.} other {# avisos saem da sua lista.}} Não há como restaurar por aqui.",
-        "memories": "{count, plural, =0 {# memórias saem da sua lista.} one {# memória sai da sua lista.} other {# memórias saem da sua lista.}} Não há como restaurar por aqui.",
-        "templates": "{count, plural, =0 {# modelos saem da sua lista.} one {# modelo sai da sua lista.} other {# modelos saem da sua lista.}} Não há como restaurar por aqui."
+        "habits": "{count, plural, =0 {# hábitos e tudo dentro deles saem da sua lista.} one {O hábito e tudo dentro dele saem da sua lista.} other {# hábitos e tudo dentro deles saem da sua lista.}} Não há como restaurar por aqui.",
+        "goals": "{count, plural, =0 {# metas saem da sua lista.} one {A meta sai da sua lista.} other {# metas saem da sua lista.}} Não há como restaurar por aqui.",
+        "tags": "{count, plural, =0 {# tags saem da sua lista.} one {A tag sai da sua lista.} other {# tags saem da sua lista.}} Não há como restaurar por aqui.",
+        "alerts": "{count, plural, =0 {# avisos saem da sua lista.} one {O aviso sai da sua lista.} other {# avisos saem da sua lista.}} Não há como restaurar por aqui.",
+        "memories": "{count, plural, =0 {# memórias saem da sua lista.} one {A memória sai da sua lista.} other {# memórias saem da sua lista.}} Não há como restaurar por aqui.",
+        "templates": "{count, plural, =0 {# modelos saem da sua lista.} one {O modelo sai da sua lista.} other {# modelos saem da sua lista.}} Não há como restaurar por aqui."
       },
       "deleteAction": {
         "habits": "Apagar hábitos",
