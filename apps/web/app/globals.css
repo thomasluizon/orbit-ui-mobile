@@ -1600,40 +1600,6 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 /* ═══════════════════════════════════════════════════════
-   SCROLLBAR STYLING
-   ═══════════════════════════════════════════════════════ */
-
-.thin-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--hairline) transparent;
-  padding-bottom: 10px;
-}
-.thin-scrollbar::-webkit-scrollbar {
-  height: 3px;
-}
-.thin-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.thin-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--hairline);
-  border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--hairline);
-  border-radius: var(--radius-full);
-}
-
-/* ═══════════════════════════════════════════════════════
    CHECKLIST DRAG & DROP
    ═══════════════════════════════════════════════════════ */
 
