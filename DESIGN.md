@@ -1,4 +1,4 @@
-> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
+> **At a glance** - the authoritative spec for every Orbit UI surface, including light hover contrast, the native mobile rule, disclosure, label and typed-text handling, the full-screen Astra conversation, the web sidebar Astra row, composer placement, bell rows and Perfil sub-menu ownership; it overrides generic and user-global design defaults.
 > - Anchor (D68): spacious, near-black, maximum contrast, warmth in ONE mark. Canvas `#09090B`, ONE colour scheme, ONE accent, **warm orange `#C4530F`**. **No decorative glow, no gradient wash, no Liquid Glass, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-text`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
@@ -62,17 +62,21 @@ for. A design that fails either direction is wrong. Both tests are applied, neve
 
 ### Astra is a layer with a front door, never a destination
 
-**Astra is not a place.** There is no Astra tab, no Astra screen in the navigation, and no bubble.
+**Astra has no route, no Android tab and no bubble.** The wide web sidebar's Astra row opens
+its conversation as a layer; that row is navigation chrome, not a fifth destination.
 
-1. **The front door** is ONE persistent one-line composer in the shell on Hoje. The
-   **3 to 6 suggestion chips built from live state**, never from a static list, open with the
-   conversation above its input: what is overdue, which streak is at risk, which habit has no goal.
-   Habit detail keeps its own composer with its habit chips in one scroll row, never ellipsized.
+1. **The front door** is ONE persistent one-line composer on Hoje in the compact shell
+   (Android at every width, web below 1024), and the sidebar Astra row on wide web.
+   **One set of 3 to 6 suggestion chips built from live state**, never from a static list, sits
+   above the conversation input: what is overdue, which streak is at risk, which habit has no goal.
+   The empty state adds no opener chips; the daily limit shows none. Chips hug their labels in
+   one scroll row, never ellipsized, with the next chip peeking at its edge.
+   Habit detail keeps its own composer at every width, with its habit chips in one scroll row.
 2. **The layer** is an inline AI affordance on every object it can improve. Schedule, breakdown,
    emoji, reschedule and goal link are all **proposals a person accepts or edits**, never silent
    writes.
-3. **The conversation** is a full-height overlay opened from the composer. It is not a navigation
-   destination and it never earns a tab.
+3. **The conversation opens full screen at every width**, with its own header, thread, live chips
+   and composer. It is not a navigation destination and it never earns an Android tab.
 4. **Astra speaks first.** Proactive check-ins are part of the architecture, not a preference buried
    in settings. See **The proactive line** below.
 
@@ -93,23 +97,37 @@ client asks for them deliberately.
 | platform | navigation | Astra |
 |---|---|---|
 | **mobile** | bottom tab bar, **four** destinations: Hoje, Calendário, Progresso, Perfil | composer above the tab bar, on Hoje only |
-| **web** | sidebar, the same four | composer pinned at the bottom of the 740 column, on Hoje only |
+| **web** | sidebar, the same four at 1024 and above; compact tab bar below 1024 | sidebar Astra row on wide web; Hoje composer in the compact shell |
 
-**No navigation drawer and no hamburger on either platform.** Navigation is the four destinations and nothing else. A bottom sheet, menu or dialog that holds secondary content is not navigation; in the compact shell (Android at every width, web below 1024) it is the default home for that content. The composer stays visible on Hoje and on habit detail only.
+**No navigation drawer and no hamburger on either platform.** Navigation has four destinations.
+The wide web Astra row is a button opening a layer with no route. A bottom sheet, menu or dialog
+that holds secondary content is not navigation; in the compact shell (Android at every width, web
+below 1024) it is the default home for that content. The shell composer stays visible on Hoje in
+that compact shell only. Habit detail keeps its own composer at every width.
 Calendário, Progresso and Perfil clear the tab bar or the wide column bottom without a composer dock.
 
-**The conversation renders as an overlay on mobile and as a side panel at the wide breakpoint.** That
-is one feature in two presentations, which the responsive rules already govern. It is **not** a new
-shell divergence.
+**The conversation opens full screen on both platforms.** In the compact shell it covers the whole
+screen, including the tab bar. On wide web the sidebar stays visible and the conversation replaces
+the destination's header, scroller and bottom chrome in the centred column, capped at 740, from
+its top inset to the viewport bottom. Its header, thread, chips and composer have the same layout
+at every width. The header is NavHeader: minimum height 56, start-aligned mono 12/500 title
+`Astra`, and a 48 close control with a 20 X. The composer has a top hairline and 16 padding,
+aligning its pill with the thread's 16 inset. The empty thread centres the Astra mark, title and
+disclosure in `--fg-3`.
 
-**The composer sits in the same place on both platforms: pinned to the bottom of the content column.**
-A 232px sidebar cannot hold the input, attach menu and send control at their minimum sizes.
-The sidebar carries navigation, identity and the notifications entry only: the lockup, search
-control, four destinations, the Avisos bell with its neutral count pill, one filled create action, and account row.
+**Each composer pins to the bottom of its content column.** The sidebar carries the lockup, search
+control, the Astra row directly above Hoje, the four destinations in tab order, the Avisos bell
+with its neutral count pill, one filled create action, and the account row.
+The Astra row uses destination geometry: minimum height 48, radius 12, 12 inline padding,
+12 gap, a 20 Astra glyph and a 14/500 `Astra` label with `translate="no"` in both locales.
+The list gap is 4. While the conversation is open, only the Astra row draws the current-position
+treatment: `--primary` glyph and `--primary-soft` label. The destination retains
+`aria-current="page"` because the route stays unchanged, but draws no current-position treatment.
 
-**The way in must be visible.** Focus alone is not an affordance, so the Astra glyph at the leading
-edge inside the composer pill is a real button with a hit area at the touch floor, a padded hover and press fill and a
-focus ring, labelled `Abrir conversa`. A person who never types into the bar can still find the conversation.
+**The way in must be visible.** In the compact shell the Astra glyph at the leading edge inside
+the composer pill is a real button with a hit area at the touch floor, a padded hover and press
+fill and a focus ring, labelled `Abrir conversa`. On wide web the sidebar Astra row opens the
+conversation. Habit detail's own composer glyph remains an entry at every width.
 
 **Avisos is reachable from every destination.** In the compact shell (Android at every width,
 web below 1024), Hoje and Calendário pass a header row with a minimum height of 48 to Shell412.
@@ -301,8 +319,8 @@ Designing any of these is the defect, not the omission.
   completion**, which the motion frequency gate already rules out at that frequency.
 - **The separate onboarding, tour, feature guide and push prompt.** One system.
 - **A create-goal entry in navigation.** A goal is created from a habit, or by asking.
-- **The desktop stats rail.** Progresso owns the question it was answering, and the width goes to the
-  conversation panel.
+- **The desktop stats rail.** Progresso owns the question it was answering.
+- **The narrow conversation beside a destination.** Astra replaces the content column on wide web.
 - **The social layer, the colour-scheme picker and AI memory**, per the deletions already decided.
 - **The persistent reminder.** Perfil has no switch for an ongoing Android notification with the
   streak and today's progress, and no platform replaces it.
@@ -1076,7 +1094,7 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 
 - At the desktop breakpoint, content composes **horizontally** where the surface calls for it. Calendário keeps one centred column inside the 740px content cap.
 - **The main content column caps at about 740px and is centred.**
-- **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. **The width goes to the conversation panel**, which is the wide-breakpoint presentation of the same overlay mobile opens from the composer.
+- **The right stats rail is deleted** (D69). Progresso owns the question it was answering, and two surfaces competing to summarise is what made it read as raw. The full-screen conversation replaces the destination in the centred content column on wide web.
 - **Sidebar:** grounded at the bottom with the account chip and a create button above it, on the canvas background with a hairline as its only separation.
 - Primary app sections are one click away in the desktop sidebar.
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set.
@@ -1088,15 +1106,14 @@ Enumerated and greppable, so `/deslop` can execute it over 2,905 i18n keys witho
 
 Exactly these three, and nothing more. Everything below the shell stays parity-bound.
 
-1. Navigation chrome: sidebar (web) versus tab bar (mobile).
+1. Navigation chrome: sidebar with its Astra row (wide web) versus the four-tab bar (compact web and Android).
 2. The command palette and keyboard shortcuts.
 3. Hover affordances on that shell chrome.
 
 **The desktop stats rail was the fourth and is deleted** (D69). The list got shorter, which is the
 only direction it is allowed to move without a decision.
 
-**The conversation panel is not on this list.** A side panel at the wide breakpoint and an overlay on
-mobile are two presentations of one feature, governed by the responsive rules, not a divergence.
+The conversation opens full screen on both platforms, so it is not a divergence.
 
 **Any new divergence found during canvas work comes back as a request, never as a judgement call.**
 

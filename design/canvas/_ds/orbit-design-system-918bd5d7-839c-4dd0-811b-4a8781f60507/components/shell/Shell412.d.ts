@@ -1,7 +1,7 @@
 /** The mobile shell at 412. An optional pinned header, one scroller, and a pinned chrome block at the
  *  bottom carrying the composer above the tab bar. Safe-area aware.
  *  The tab bar holds EXACTLY four destinations: Hoje, Calendario, Progresso, Perfil. There is no Astra tab.
- *  The conversation is a full-height overlay inside this shell, opened from the composer, never a route.
+ *  The conversation is a full-screen layer covering this shell and its tab bar, opened from the composer, never a route.
  *
  *  WHETHER NAVIGATION IS PRESENT IS THIS SHELL'S OWN BEHAVIOUR, NEVER A SCREEN'S STYLESHEET. `nav={false}`
  *  renders NO TAB BAR AT ALL, and the type then rejects `tabBar` outright rather than accepting a null a
@@ -31,14 +31,14 @@ interface Shell412Base {
   fab?: any;
   /** Hoje only: top-centre back-to-top below the pinned header, separate from the create FAB. */
   scrollToTop?: any;
-  /** the full-height conversation overlay's CONTENT. Takes authored MARKUP as readily as a pre-built node,
+  /** the full-screen conversation's CONTENT, including its own header, thread, chips and composer. Takes authored MARKUP as readily as a pre-built node,
    *  the way every other slot in this shell does. Openness is `conversationOpen`. */
   conversation?: any;
-  /** whether the overlay is open. Omit it and PRESENCE means open, which is right for a screen that merely
-   *  has the panel open. Pass it and the slot can hold authored markup permanently while this flag opens and
+  /** whether the conversation is open. Omit it and PRESENCE means open, which is right for a screen that merely
+   *  has the conversation open. Pass it and the slot can hold authored markup permanently while this flag opens and
    *  closes it - the case a conversation-subject screen needs. */
   conversationOpen?: boolean;
-  /** REQUIRED with `conversation`: the overlay dialog's accessible name, in the screen's locale. The shell
+  /** REQUIRED with `conversation`: the full-screen layer's accessible name, Astra in both locales. The shell
    *  ships no words - no default exists in either language. */
   conversationLabel?: string;
   sheets?: any;

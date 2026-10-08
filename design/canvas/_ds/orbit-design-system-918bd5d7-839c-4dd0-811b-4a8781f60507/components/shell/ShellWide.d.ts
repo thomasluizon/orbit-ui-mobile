@@ -1,8 +1,8 @@
-/** The wide shell: sidebar, a 740 column, and the conversation as a side panel.
- *  The sidebar holds the lockup, the search / command-palette entry, the same four destinations as the
- *  mobile tab bar, the one filled create action, and the account row. There is no Astra nav item.
- *  The composer pins to the BOTTOM OF THE 740 MAIN COLUMN, the same position it holds on mobile, so the
- *  two platforms do not diverge.
+/** The wide shell: sidebar and a centred column capped at 740. The full-screen conversation replaces
+ *  the destination column from its top inset to the viewport bottom, keeping the sidebar visible.
+ *  The sidebar holds the lockup, search, the Astra row above the same four destinations as the compact
+ *  tab bar, the notifications entry, the one filled create action and the account row.
+ *  The Astra row is the wide front door. Only habit detail uses the destination composer slot.
  *
  *  WHETHER NAVIGATION IS PRESENT IS THIS SHELL'S OWN BEHAVIOUR, NEVER A SCREEN'S STYLESHEET. `nav={false}`
  *  renders NO SIDEBAR AT ALL - not a disabled one and not an empty one, following ListRow's readOnly rule
@@ -11,10 +11,10 @@
  *  moment the shell's markup changes, and it leaves the two platforms disagreeing about the same
  *  behaviour. This is the prop that flow does exist for, and Shell412 states it the same way.
  *
- *  Discriminated on `nav`, so the wrong shape does not type-check: with the sidebar OFF, `items`,
+ *  Discriminated on `nav`, so the wrong shape does not type-check: with the sidebar OFF, `astraRow`, `items`,
  *  `activeId`, `onSelect`, `account`, `onPalette`, `paletteHint`, `onCreate` and `createLabel` are all rejected,
  *  because every one of them renders inside the sidebar and none of them can do anything without it. With
- *  the sidebar ON, `items` and `activeId` stay REQUIRED - a sidebar with no destinations is not a state. */
+ *  the sidebar ON, `astraRow`, `items` and `activeId` stay REQUIRED - a sidebar with no destinations is not a state. */
 interface ShellWideBase {
   children?: any;
   /** PINNED above the main scroller, spanning the pane beside the sidebar: it does not scroll with the
@@ -22,29 +22,29 @@ interface ShellWideBase {
    *  identically at both widths.
    *  A screen with no header passes NOTHING and the scroller takes the full height, which is what Hoje does. */
   header?: any;
-  /** TRANSIENT PINNED CHROME - a Toast, a celebration line - directly ABOVE the pinned bottom slot
-   *  (the composer on a destination, the action on a flow), never in its place. This slot exists because
-   *  transient panels were riding the composer slot and deleting Astra's front door while on screen, on
-   *  screens where D69 says the composer is present on every destination. A toast belongs above a pinned
-   *  action just as it belongs above a composer; that is this slot's whole reason to exist. */
+  /** Transient pinned chrome above habit detail's composer or a flow's action. On other wide
+   *  destinations it sits above the column bottom. It never replaces the pinned slot. */
   notice?: any;
-  /** the conversation panel's CONTENT. Takes authored MARKUP as readily as a pre-built node, the way every
-   *  other slot in this shell does: a screen whose subject IS the conversation writes the panel inline here
-   *  and controls openness with `conversationOpen`, instead of having to hand over a finished node.
-   *  The shell owns the panel's frame and nothing inside it. */
+  /** The full-screen conversation's content: its own NavHeader, thread, chips and composer.
+   *  Replaces the destination's header, scroller and bottom chrome in the centred 740 column.
+   *  The sidebar stays visible. The conversation uses the same layout as the compact full screen. */
   conversation?: any;
-  /** whether the panel is open. Omit it and PRESENCE means open, which is right for a screen that merely has
-   *  the panel open (`conversation={open ? <Conversation /> : null}`). Pass it and the slot can hold authored
-   *  markup permanently while this flag opens and closes it - the case a conversation-subject screen needs.
-   *  Same feature as the mobile overlay, in its wide presentation. */
+  /** Whether the conversation is open. Omitted means presence opens it. When open, only `astraRow`
+   *  draws the current-position treatment; `activeId` keeps aria-current="page" on the routed
+   *  destination without its visual selection. No route changes. */
   conversationOpen?: boolean;
-  /** REQUIRED with `conversation`: the panel's accessible name, in the screen's locale (e.g. "Conversa com
-   *  o Astra" / "Conversation with Astra"). The shell ships no words - no default exists in either language. */
+  /** Required with `conversation`: the layer's accessible name, `Astra` in both locales. */
   conversationLabel?: string;
 }
 export interface ShellWideNavProps extends ShellWideBase {
   /** the sidebar is present. Default. */
   nav?: true;
+  /** Required with the sidebar on: a button opening the conversation, never a link or destination.
+   *  First in the destination list, directly above Hoje with a 4 list gap. Minimum height 48,
+   *  radius 12, inline padding 12, gap 12, 20 Astra glyph, 14/500 Astra label with translate="no".
+   *  Open conversation: --primary glyph and --primary-soft label, the only visually current row.
+   *  The caller supplies the button node; the shell owns its placement and destination treatment. */
+  astraRow: any;
   /** four destinations, never five. REQUIRED with the sidebar on. */
   items: Array<{ id: string; label: string; icon?: string }>;
   /** REQUIRED with the sidebar on: a nav with no current position is not a state. */
@@ -65,9 +65,9 @@ export interface ShellWideNavProps extends ShellWideBase {
   paletteLabel?: string;
   /** the keycap hint, e.g. "Ctrl K" - a keycap, not a word, so it may default */
   paletteHint?: string;
-  /** Astra's front door. Pins to the bottom of the 740 main column, matching the mobile placement. THE
-   *  COMPOSER AND NOTHING ELSE: a toast or a celebration goes in `notice`, above it, so it never evicts
-   *  the front door. */
+  /** Habit detail's own composer only, with its habit chips, pinned to the bottom of the 740 column.
+   *  Wide Hoje has no shell composer: the sidebar Astra row opens the conversation.
+   *  A toast or celebration uses `notice`. The conversation owns its composer inside its content. */
   composer?: any;
   /** rejected on a destination: the pinned bottom slot is the composer (D69). A flow's forward action
    *  exists only where `nav` is false. */
@@ -80,6 +80,7 @@ export interface ShellWideNoNavProps extends ShellWideBase {
   nav: false;
   /** every sidebar prop is rejected with the sidebar off: it renders inside the sidebar, so with no sidebar
    *  it could only be silently dropped. */
+  astraRow?: never;
   items?: never;
   activeId?: never;
   onSelect?: never;
@@ -98,12 +99,12 @@ export interface ShellWideNoNavProps extends ShellWideBase {
    *  the caller's; the shell ships no words. */
   action?: any;
   /** rejected on a flow: a flow that owns the screen has no front door to pin, and passing one would
-   *  put Astra under a person who has not finished deciding. D69's composer-on-every-destination rule
+   *  put Astra under a person who has not finished deciding. The compact shell's composer-on-Hoje rule
    *  does not reach here, because a flow is not a destination - that is what nav: false means. */
   composer?: never;
 }
 /** Discriminated on `nav`: the sidebar's props exist only where the sidebar does, and the pinned bottom
  *  slot is typed for the two shapes it really has - the composer on a destination, the flow's one
- *  forward action on a flow. Shell412 states the identical rule. */
+ *  forward action on a flow. Shell412 uses the compact Hoje composer and the same flow action rule. */
 export type ShellWideProps = ShellWideNavProps | ShellWideNoNavProps;
 export declare function ShellWide(props: ShellWideProps): any;
