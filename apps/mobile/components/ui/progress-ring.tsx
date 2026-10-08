@@ -73,7 +73,7 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
       <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.trackEmpty} strokeWidth={strokeWidth} />
       <AnimatedCircle
         ref={circle}
-        opacity={circumference > 0 ? 1 : 0}
+        opacity={circumference > 0 && clamped > 0 ? 1 : 0}
         cx={size / 2}
         cy={size / 2}
         r={radius}

@@ -22,6 +22,7 @@ import {
   capitalizeFirstLetter,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  computeHabitDayProgress,
   computeHabitFrequencyLabel,
   formatLocaleDate,
   formatWeekdayLabels,
@@ -36,6 +37,7 @@ import {
   getHabitLogDateConfirmationKeys,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
+  hasHabitScheduleOnDate,
   isHabitHistoryMonthLoaded,
   isHabitCompletedOnDate,
   isHabitSlipping,
@@ -145,10 +147,12 @@ function completionReasonForBoundary(boundary: ReturnType<typeof getTodayBoundar
   return undefined
 }
 
-function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onLog, completionDisabled, completionReason }: Readonly<{
+function HabitHeader({ habit, completed, logged, overdue, progress, summary, onRename, onEmoji, onLog, completionDisabled, completionReason }: Readonly<{
   habit: NormalizedHabit
   completed: boolean
   logged: boolean
+  overdue: boolean
+  progress?: number
   summary: string
   onRename: (title: string) => Promise<boolean>
   onEmoji: (emoji: string) => void
@@ -181,7 +185,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
           <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={onEmoji} wellSize={76} />
           <div className="flex-1" />
           <PillButton variant="ghost" size="sm" iconOnly label={t('rename')} onClick={() => setEditing(true)}><Pencil size={20} /></PillButton>
-          <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
+          <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} status={overdue ? 'overdue' : 'empty'} progress={progress} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
         </div>
         <div className="min-w-0 w-full">
           {editing ? (
@@ -621,13 +625,20 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         completionStatusUnavailable: scopedChild === undefined,
       }
     })
+  const childProgress = computeHabitDayProgress(
+    children.filter((child) => !child.completionStatusUnavailable).map((child) => child.habit),
+    (child) => hasHabitScheduleOnDate(child, dateStr),
+  )
+  const headerProgress = childProgress.total > 0
+    ? childProgress.done / childProgress.total * 100
+    : undefined
 
   const subHabitCreation = <div className={showCreateRefusal ? 'flex flex-col gap-3' : undefined}><ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={hasProAccess ? undefined : <Badge>{t('habits.detail.proGate')}</Badge>} onClick={openSubHabitCreation} /><div aria-live="polite" aria-atomic="true">{showCreateRefusal ? <OfflineRefusal icon="create" embedded title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}</div></div>
 
   return (
     <HabitDetailFrame navigationKey={`${parentId ?? ''}:${dateStr}:${fromToday}`} header={<HabitDetailNavigation parentId={parentId} onBack={goBack} />}>
       <div>
-        <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
+        <HabitHeader habit={habit} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={headerProgress} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
         <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} />
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} />
       </div>

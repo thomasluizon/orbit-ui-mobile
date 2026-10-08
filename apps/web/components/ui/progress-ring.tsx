@@ -42,7 +42,7 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
         className={canAnimate
           ? 'transition-[stroke-dashoffset] duration-[var(--dur-base)] ease-[var(--ease-standard)] motion-reduce:transition-none'
           : undefined}
-        visibility={circumference > 0 ? undefined : 'hidden'}
+        visibility={circumference > 0 && clamped > 0 ? undefined : 'hidden'}
         cx={size / 2}
         cy={size / 2}
         r={radius}

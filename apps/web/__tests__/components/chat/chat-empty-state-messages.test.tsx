@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import en from '@orbit/shared/i18n/en.json'
@@ -32,7 +32,7 @@ const houseRoutine = makeHabitScheduleItem({
   hasSubHabits: false,
 })
 
-function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[] | null, onSelectSuggestion = vi.fn()) {
+function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[] | null) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   if (items !== null) {
     queryClient.setQueryData(
@@ -43,14 +43,10 @@ function renderEmptyState(locale: 'en' | 'pt-BR', items: HabitScheduleItem[] | n
   render(
     <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>
       <QueryClientProvider client={queryClient}>
-        <ChatEmptyState onSelectSuggestion={onSelectSuggestion} />
+        <ChatEmptyState />
       </QueryClientProvider>
     </NextIntlClientProvider>,
   )
-}
-
-function suggestionLabels(): (string | null)[] {
-  return screen.getAllByRole('button').map((button) => button.textContent)
 }
 
 describe('ChatEmptyState copy', () => {
@@ -64,80 +60,16 @@ describe('ChatEmptyState copy', () => {
     cleanup()
   })
 
-  it('reads the compact pt-BR title, prompt and suggestions, with Astra in the feminine', () => {
-    renderEmptyState('pt-BR', [walkWithSubHabits, houseRoutine])
+  it.each(['pt-BR', 'en'] as const)('reads only the localized title and disclosure in %s', (locale) => {
+    renderEmptyState(locale, [walkWithSubHabits, houseRoutine])
+    const words = locale === 'pt-BR' ? pt : en
 
-    expect(screen.getByText('Fale com a Astra')).toBeInTheDocument()
-    expect(screen.getByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
-    expect(suggestionLabels()).toEqual([
-      'Registrar hábito',
-      'Como foi a semana',
-      'Dividir hábito',
-      'Como estão as metas',
-    ])
-  })
-
-  it('reads the compact English title, prompt and suggestions', () => {
-    renderEmptyState('en', [walkWithSubHabits, houseRoutine])
-
-    expect(screen.getByText('Talk to Astra')).toBeInTheDocument()
-    expect(screen.getByText('Some things you can ask')).toBeInTheDocument()
-    expect(suggestionLabels()).toEqual([
-      'Log a habit',
-      'How the week went',
-      'Split a habit',
-      'How are my goals',
-    ])
-  })
-
-  it('shows the prompt and every suggestion together, once the habit list arrives', async () => {
-    let answer: (page: unknown) => void = () => {}
-    habitRequest.fetchJson.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve }))
-    renderEmptyState('pt-BR', null)
-
-    expect(screen.getByText('Fale com a Astra')).toBeInTheDocument()
-    expect(screen.queryByText('Algumas coisas que dá para pedir')).toBeNull()
+    expect(screen.getByText(words.chat.empty.title)).toBeInTheDocument()
+    expect(screen.getByText(words.aiDisclosure.notMedicalAdvice)).toBeInTheDocument()
     expect(screen.queryAllByRole('button')).toEqual([])
-
-    await act(async () => {
-      answer({ items: [houseRoutine], totalCount: 1, totalPages: 1, page: 1, pageSize: 200 })
-    })
-
-    expect(await screen.findByText('Algumas coisas que dá para pedir')).toBeInTheDocument()
-    expect(suggestionLabels()).toEqual([
-      'Registrar hábito',
-      'Como foi a semana',
-      'Dividir hábito',
-      'Como estão as metas',
+    expect(screen.getAllByRole('paragraph').map(paragraph => paragraph.textContent)).toEqual([
+      words.chat.empty.title,
+      words.aiDisclosure.notMedicalAdvice,
     ])
-  })
-
-  it.each([
-    ['pt-BR', 'Caminhar', 'Registrar "Caminhar"', 'Dividir "Caminhar"'],
-    ['pt-BR', 'Rotina da casa', 'Registrar "Rotina da casa"', 'Dividir "Rotina da casa"'],
-    ['en', 'Meditate', 'Log "Meditate"', 'Split "Meditate"'],
-    ['en', 'House routine', 'Log "House routine"', 'Split "House routine"'],
-    ...(['pt-BR', 'en'] as const).map(locale => {
-      const title = 'Caminhar com acentos e muitos detalhes '.repeat(5)
-      return [locale, title, `${locale === 'pt-BR' ? 'Registrar' : 'Log'} "${title}"`, `${locale === 'pt-BR' ? 'Dividir' : 'Split'} "${title}"`] as const
-    }),
-  ] as const)('sends the quoted %s suggestion for %s', (locale, title, logLabel, splitLabel) => {
-    const onSelectSuggestion = vi.fn()
-    const habit = makeHabitScheduleItem({ title, children: [], hasSubHabits: false })
-    renderEmptyState(locale, [habit], onSelectSuggestion)
-
-    const labels = locale === 'pt-BR' ? ['Registrar hábito', 'Dividir hábito'] : ['Log a habit', 'Split a habit']
-    for (const label of labels) {
-      const button = screen.getByRole('button', { name: label })
-      expect(button.textContent).toBe(label)
-      fireEvent.click(button)
-    }
-    expect(onSelectSuggestion.mock.calls).toEqual([[logLabel], [splitLabel]])
-  })
-
-  it('offers only the two general suggestions to an account with no habits', () => {
-    renderEmptyState('pt-BR', [])
-
-    expect(suggestionLabels()).toEqual(['Como foi a semana', 'Como estão as metas'])
   })
 })
