@@ -309,6 +309,11 @@
       }
     ]
   },
+  "eslint-rules/hover-transition.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "eslint-rules/no-pill-radius-on-static.cjs": {
     "scope": "changed-files",
     "snapshot": "none",
