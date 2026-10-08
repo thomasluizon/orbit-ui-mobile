@@ -149,6 +149,7 @@ describe('pressed hit area shapes', () => {
     expect(pressedStyle(<ListRow title="Habit" accessibilityLabel="Habit" onClick={() => {}} />, 'Habit').minHeight).toBe(52)
     expect(pressedStyle(<ListRow title="Goal habit" compact={false} accessibilityLabel="Goal habit" onClick={() => {}} />, 'Goal habit').minHeight).toBe(56)
     expect(pressedStyle(<ListRow title="Account" description="account@example.com" accessibilityLabel="Account" onClick={() => {}} />, 'Account').minHeight).toBe(68)
+    expect(pressedStyle(<ListRow title="Account" description="account@example.com" accessibilityLabel="Account" compact inForm onClick={() => {}} />, 'Account')).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16 })
     const row = <ListRow title="Key" accessibilityLabel="Key" compact onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />
     expect(pressedStyle(row, 'Key')).toMatchObject({ minHeight: 56, paddingVertical: 4, paddingHorizontal: 16 })
     expect(pressedStyle(row, 'Revoke')).toMatchObject({ width: 48, height: 48, marginVertical: 4, marginEnd: 16, alignSelf: 'center' })

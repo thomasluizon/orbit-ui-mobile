@@ -21,7 +21,7 @@ function getDisabledStyle(disabled: boolean) {
 }
 
 function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean, hasTrailing: boolean) {
-  return [styles.body, compact && !hasDescription ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasDescription ? styles.descriptionBody : null, hasAction ? styles.bodyWithAction : null, compact && !hasDescription && hasAction ? { minHeight: TOUCH_TARGET_MIN + 8 } : null, compact && !hasDescription && hasTrailing ? styles.controlRowBody : null]
+  return [styles.body, compact && !hasDescription ? styles.compactBody : null, compactForm && !hasDescription ? styles.formBody : null, !inset ? styles.bareBody : null, hasDescription ? styles.descriptionBody : null, hasAction ? styles.bodyWithAction : null, compact && !hasDescription && hasAction ? { minHeight: TOUCH_TARGET_MIN + 8 } : null, compact && !hasDescription && hasTrailing ? styles.controlRowBody : null]
 }
 
 function RowValue({ value, wrap, color, personal, expanded }: Readonly<{ value: string | undefined; wrap: boolean; color: string; personal?: boolean; expanded?: boolean }>) {
