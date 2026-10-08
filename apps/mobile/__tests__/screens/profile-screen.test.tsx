@@ -679,6 +679,28 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each([1, 2])('sizes the Android account row for two lines at %s text scale', async (textScale) => {
+    const email = 'a@b.co'
+    mockProfileState.current.profile = createMockProfile({ name: 'Ana', email })
+    mockRealListRow.current = true
+    const screen = await renderProfileScreen()
+    try {
+      const account = screen.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.description === email)!
+      let rowTree!: ReturnType<typeof TestRenderer.create>
+      TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, account.props)) })
+      try {
+        const body = rowTree.root.find((node: { type: unknown; props: { accessibilityLabel?: string } }) => node.type === 'Pressable' && node.props.accessibilityLabel === account.props.accessibilityLabel)
+        const declared = body.props.style
+        expect(StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16 })
+        const description = rowTree.root.find((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === email)
+        expect(StyleSheet.flatten(description.props.style)).toMatchObject({ fontSize: 14, lineHeight: 19.6 })
+        const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
+        if (textScale === 1) expect(Math.abs(geometry.height - 68)).toBeLessThanOrEqual(1)
+        else expect(geometry.height).toBeGreaterThan(68)
+      } finally { TestRenderer.act(() => rowTree.unmount()) }
+    } finally { TestRenderer.act(() => screen.unmount()) }
+  })
+
   it.each([1, 2])('reveals the full account email within the Android row at %s text scale', async (textScale) => {
     const email = `${'address'.repeat(9)}@${'domain'.repeat(20)}.com`
     mockProfileState.current.profile = createMockProfile({ name: `Marina ${'Silva'.repeat(16)}`, email })
