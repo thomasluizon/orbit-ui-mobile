@@ -52,12 +52,16 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBR]] as const) {
             const partial = chips.find(chip => chip.left < bounds.right && chip.right > bounds.right)
             return { right: bounds.right, fieldRight: field.right, overflow: element.scrollWidth > element.clientWidth,
               peek: partial ? bounds.right - partial.left : 0,
+              hidden: partial ? partial.right - bounds.right : 0,
               visible: chips.filter(chip => chip.right > bounds.left && chip.left < bounds.right) }
           })
           expect(measured.visible.length).toBeGreaterThan(0)
           expect(Math.abs(measured.right - measured.fieldRight)).toBeLessThanOrEqual(1)
           for (const chip of measured.visible) expect(Math.abs(chip.width - chip.content - chip.padding)).toBeLessThanOrEqual(1)
-          if (measured.overflow) expect(measured.peek).toBeGreaterThanOrEqual(16)
+          if (measured.overflow) {
+            expect(measured.peek).toBeGreaterThanOrEqual(16)
+            expect(measured.hidden).toBeGreaterThanOrEqual(16)
+          }
         }).toPass({ timeout: 5000 })
       })
     })

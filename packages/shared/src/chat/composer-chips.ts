@@ -11,12 +11,12 @@ export function resolveComposerStripLayout(availableWidth: number, measuredWidth
   const totalWidth = chipWidths.reduce((sum, width) => sum + width, 0)
     + Math.max(0, chipWidths.length - 1) * COMPOSER_CHIP_GAP
   if (chipWidths.some(width => width === 0) || totalWidth <= availableWidth) return { gap: COMPOSER_CHIP_GAP }
-  const gap = [8, 12, 16, 24, 32, 48, 64, 96].find(spacing => {
+  const gap = [8, 12, 16, 24, 32, 48].find(spacing => {
     let start = 0
     return chipWidths.some(width => {
       const visible = availableWidth - start
       start += width + spacing
-      return visible >= 16 && visible < width
+      return visible >= 16 && width - visible >= 16
     })
   })!
   return { gap }

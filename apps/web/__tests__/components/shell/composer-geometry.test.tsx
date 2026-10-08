@@ -386,7 +386,8 @@ describe('Composer compact geometry in Chromium', () => {
         const partial = chips.find(chip => chip.left < bounds.width && chip.right > bounds.width)
         return { clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
           available: element.parentElement!.getBoundingClientRect().width,
-          chips, peek: partial ? bounds.width - partial.left : 0 }
+          chips, peek: partial ? bounds.width - partial.left : 0,
+          hidden: partial ? partial.right - bounds.width : 0 }
       })
       for (const width of [208, 459, 208, 459]) {
         await page.locator('#root').evaluate((element, nextWidth) => { element.style.width = `${nextWidth}px` }, width)
@@ -404,6 +405,7 @@ describe('Composer compact geometry in Chromium', () => {
           } else {
             expect(measured.scrollWidth).toBeGreaterThan(measured.clientWidth)
             expect(measured.peek).toBeGreaterThanOrEqual(16)
+            expect(measured.hidden).toBeGreaterThanOrEqual(16)
           }
         })
       }
@@ -435,10 +437,12 @@ describe('Composer compact geometry in Chromium', () => {
           return { label: button.textContent, left: bounds.left, right: bounds.right, width: bounds.width }
         })
         const partial = controls.find((control) => control.left < viewport.right && control.right > viewport.right)
-        return { availableWidth: viewport.width, controls, peek: partial ? viewport.right - partial.left : 0 }
+        return { availableWidth: viewport.width, controls, peek: partial ? viewport.right - partial.left : 0,
+          hidden: partial ? partial.right - viewport.right : 0 }
       })
       const evidence = JSON.stringify(measured)
       expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
+      expect(measured.hidden, evidence).toBeGreaterThanOrEqual(16)
     } finally { await page.close() }
   })
 
@@ -475,6 +479,7 @@ describe('Composer compact geometry in Chromium', () => {
             const partial = controls.find(control => control.left < viewport.right && control.right > viewport.right)
             return { viewport: viewport.width, available: element.parentElement!.getBoundingClientRect().width,
               overflow: element.scrollWidth > element.clientWidth, peek: partial ? viewport.right - partial.left : 0,
+              hidden: partial ? partial.right - viewport.right : 0,
               documentWidth: document.documentElement.scrollWidth, controls }
           })
           const evidence = JSON.stringify({ width, fontScale, surface, scenario, measured })
@@ -482,6 +487,7 @@ describe('Composer compact geometry in Chromium', () => {
           expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           if (measured.overflow) {
             expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
+            expect(measured.hidden, evidence).toBeGreaterThanOrEqual(16)
             expect(measured.controls[0]!.right - measured.controls[0]!.left, evidence).toBeLessThan(measured.viewport)
           } else expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           for (const control of measured.controls) {

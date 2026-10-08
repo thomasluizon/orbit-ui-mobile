@@ -245,12 +245,27 @@ describe('composer strip layout', () => {
 
   it('keeps a short first chip at its content width when the natural cut misses the peek', () => {
     const naturalWidths = [111, 154, 105]
-    expect(resolveComposerStripLayout(288, naturalWidths)).toEqual({ gap: 24 })
+    expect(resolveComposerStripLayout(288, naturalWidths)).toEqual({ gap: 48 })
     expect(resolveComposerStripLayout(427, naturalWidths)).toEqual({ gap: 8 })
     for (const width of [288, 427, 288, 427]) {
-      expect(resolveComposerStripLayout(width, naturalWidths)).toEqual({ gap: width === 288 ? 24 : 8 })
+      expect(resolveComposerStripLayout(width, naturalWidths)).toEqual({ gap: width === 288 ? 48 : 8 })
       expect(naturalWidths).toEqual([111, 154, 105])
     }
+  })
+
+  it.each([
+    { available: 288, rejectedGap: 24 },
+    { available: 296, rejectedGap: 32 },
+  ])('rejects a $rejectedGap gap that leaves a nearly whole chip at $available', ({ available, rejectedGap }) => {
+    const widths = [111, 154, 105]
+    const hidden = widths[0]! + rejectedGap + widths[1]! - available
+    expect(hidden).toBe(1)
+    expect(resolveComposerStripLayout(available, widths)).toEqual({ gap: 48 })
+  })
+
+  it('accepts exactly sixteen hidden pixels and advances the gap below that boundary', () => {
+    expect(resolveComposerStripLayout(312, [140, 180, 160])).toEqual({ gap: 8 })
+    expect(resolveComposerStripLayout(313, [140, 180, 160])).toEqual({ gap: 12 })
   })
 
   it('keeps the drawn gap when the natural cut already shows readable content', () => {
@@ -265,7 +280,7 @@ describe('composer strip layout', () => {
         const total = chipWidths.reduce((sum, size) => sum + size, (chipWidths.length - 1) * 8)
         const layout = resolveComposerStripLayout(available, chipWidths)
         expect(Object.keys(layout)).toEqual(['gap'])
-        expect([8, 12, 16, 24, 32, 48, 64, 96]).toContain(layout.gap)
+        expect([8, 12, 16, 24, 32, 48]).toContain(layout.gap)
         if (total <= available) {
           expect(layout.gap).toBe(8)
           continue
@@ -274,6 +289,7 @@ describe('composer strip layout', () => {
         const partial = starts.findIndex((start, index) => start < available && start + chipWidths[index]! > available)
         expect(partial).toBeGreaterThan(0)
         expect(available - starts[partial]!).toBeGreaterThanOrEqual(16)
+        expect(starts[partial]! + chipWidths[partial]! - available).toBeGreaterThanOrEqual(16)
         expect(chipWidths.every(size => size <= available)).toBe(true)
       }
     }

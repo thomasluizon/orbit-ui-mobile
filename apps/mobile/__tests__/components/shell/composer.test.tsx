@@ -525,6 +525,7 @@ describe('Composer (mobile)', () => {
         if (chipWidths.reduce((sum, size) => sum + size, 16) > available) {
           expect(partial).toBeGreaterThan(0)
           expect(visible - starts[partial]!).toBeGreaterThanOrEqual(16)
+          expect(starts[partial]! + chipWidths[partial]! - visible).toBeGreaterThanOrEqual(16)
         } else expect(visible).toBe(available)
         expect(chipWidths.every(size => size <= visible)).toBe(true)
         TestRenderer.act(() => host.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 288, height: 48 } } }))
@@ -536,6 +537,7 @@ describe('Composer (mobile)', () => {
         const resizedPartial = resizedStarts.findIndex((start, index) => start < resizedVisible && start + resizedWidths[index]! > resizedVisible)
         expect(resizedPartial).toBeGreaterThan(0)
         expect(resizedVisible - resizedStarts[resizedPartial]!).toBeGreaterThanOrEqual(16)
+        expect(resizedStarts[resizedPartial]! + resizedWidths[resizedPartial]! - resizedVisible).toBeGreaterThanOrEqual(16)
       } finally { TestRenderer.act(() => tree.unmount()); __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 }) }
     },
   )
