@@ -132,7 +132,7 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
-        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
+        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" items="{{ navItems }}" active-id="perfil" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" header="{{ header }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
           <div style="display:flex;flex-direction:column;gap:24px;max-width:560px">
 
             <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
@@ -510,6 +510,7 @@ class Component extends DCLogic {
           style: { width: 44, height: 44, paddingInline: 0, boxShadow: 'none' } },
           H(D.Icon, { name: 'arrow-left', size: 20 })),
         H('p', { style: { flex: 1, minWidth: 0, fontSize: 'var(--fs-lg)', fontWeight: 500 } }, t.title)),
+      astraRow: H(window.OrbitNativeMobile.AstraRow),
       navItems: t.tabs.map((label, i) => ({ id: IDS[i], label: label, icon: ICONS[i] })),
     });
   }
