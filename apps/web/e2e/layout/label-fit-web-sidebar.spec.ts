@@ -11,7 +11,7 @@ const name = 'W'.repeat(60)
 const email = `${'W'.repeat(48)}@example.com`
 const accountRoute = PROFILE_SUBMENUS.find((submenu) => submenu.id === 'account')!.route
 
-for (const width of [320, 360, 384, 412, 1100, 1440]) {
+for (const width of [320, 360, 384, 412, 1024, 1100, 1352, 1440]) {
   for (const locale of ['pt-BR', 'en'] as const) {
     test.describe(`sidebar account text at ${width}px in ${locale}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 900 }, layoutProfile: { name, email } })
@@ -42,11 +42,11 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
           const geometry = await field.evaluate((element) => {
             const style = getComputedStyle(element)
             return { lines: element.clientHeight / Number.parseFloat(style.lineHeight),
-              clamp: style.webkitLineClamp, clipped: element.scrollHeight > element.clientHeight,
+              clamp: style.webkitLineClamp, clipped: element.scrollWidth > element.clientWidth,
               width: element.getBoundingClientRect().width, availableWidth: element.parentElement!.clientWidth }
           })
-          expect(geometry.lines).toBeCloseTo(2, 0)
-          expect(geometry.clamp).toBe('2')
+          expect(geometry.lines).toBeCloseTo(1, 0)
+          expect(geometry.clamp).toBe('none')
           expect(geometry.clipped).toBe(true)
           expect(geometry.width).toBeCloseTo(geometry.availableWidth, 0)
         }

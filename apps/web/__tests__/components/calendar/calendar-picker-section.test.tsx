@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
@@ -86,12 +87,12 @@ describe('CalendarPickerSection', () => {
     expect(open).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(open)
     expect(open).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText(name, { selector: 'p' })).toBeVisible()
-    expect(screen.getByText(name, { selector: 'p' }).parentElement).toHaveAttribute('id', open.getAttribute('aria-controls'))
+    expect(screen.getByText(personalText(name), { selector: '[data-personal-text-expanded]' })).toBeVisible()
+    expect(screen.getByText(personalText(name), { selector: '[data-personal-text-expanded]' }).parentElement).toHaveAttribute('id', open.getAttribute('aria-controls'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(open)
-    expect(screen.queryByText(name, { selector: 'p' })).not.toBeInTheDocument()
+    expect(screen.queryByText(personalText(name), { selector: '[data-personal-text-expanded]' })).not.toBeInTheDocument()
     expect(open).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('checkbox', { name })).toHaveAttribute('aria-checked', 'true')
     expect(mutateAsync).not.toHaveBeenCalled()

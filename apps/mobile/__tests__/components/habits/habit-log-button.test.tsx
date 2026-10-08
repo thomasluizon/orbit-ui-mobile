@@ -40,6 +40,20 @@ describe('HabitLogButton (mobile)', () => {
     expect(onPress).toHaveBeenCalledOnce()
   })
 
+  it('uses the supplied overdue status when there is no child progress', () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitLogButton label="Log Read" logged={false} status="overdue" onPress={vi.fn()} />)
+    })
+    expect(tree!.root.findByType('StatusRing').props.status).toBe('overdue')
+    expect(tree!.root.findAllByType('ProgressRing')).toHaveLength(0)
+    TestRenderer.act(() => {
+      tree!.update(<HabitLogButton label="Log Read" logged={false} status="overdue" progress={0} onPress={vi.fn()} />)
+    })
+    expect(tree!.root.findByType('ProgressRing').props.value).toBe(0)
+    expect(tree!.root.findAllByType('StatusRing')).toHaveLength(0)
+  })
+
   it('shows visible partial progress until the habit is complete', () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

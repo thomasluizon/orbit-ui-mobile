@@ -1,6 +1,26 @@
 import type { NormalizedHabit } from '../types/habit'
 import { hasHabitScheduleOnDate } from './habits'
 
+export function computeHabitDayProgress(
+  habits: readonly NormalizedHabit[],
+  isDueOnSelectedDate: (habit: NormalizedHabit) => boolean,
+): { done: number; total: number } {
+  let done = 0
+  let total = 0
+  for (const habit of habits) {
+    const countsForDay = habit.isGeneral
+      || isDueOnSelectedDate(habit)
+      || habit.isOverdue
+      || habit.isLoggedInRange
+    if (!countsForDay) continue
+    total += 1
+    if (habit.isGeneral ? habit.isCompleted : habit.isCompleted || habit.isLoggedInRange) {
+      done += 1
+    }
+  }
+  return { done, total }
+}
+
 export interface ParentPromptProgress {
   done: number
   total: number

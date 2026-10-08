@@ -881,7 +881,7 @@
       "longestStreak": "Maior sequência",
       "monthlyRate": "Últimos 30 dias",
       "noDataYet": "Ainda sem dados",
-      "daysFree": "Dias livres",
+      "daysFree": "Sem recaída",
       "reminders": "Lembretes",
       "linkedGoal": "Meta vinculada",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
@@ -1251,17 +1251,6 @@
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
-    "suggestion": {
-      "prompt": "Algumas coisas que dá para pedir",
-      "logHabit": "Registrar hábito",
-      "week": "Como foi a semana",
-      "splitHabit": "Dividir hábito",
-      "goals": "Como estão as metas"
-    },
-    "prompts": {
-      "logHabit": "Registrar \"{habit}\"",
-      "splitHabit": "Dividir \"{habit}\""
-    },
     "action": {
       "changes": "Alterações",
       "completed": "A Astra atualizou o Orbit",
@@ -2285,8 +2274,8 @@
     "flow": {
       "completionFailed": "Não foi possível concluir a configuração. Tente de novo.",
       "trial": {
-        "title": "O seu teste do Orbit Pro está ativo.",
-        "body": "Tudo do Pro está liberado durante o teste grátis. Se você não assinar, a sua conta volta para o plano grátis."
+        "title": "Orbit Pro está ativo",
+        "body": "O teste grátis dura 7 dias. Se você não assinar, a sua conta volta para o plano grátis."
       },
       "step": "{current} de {total}",
       "skip": "Pular",

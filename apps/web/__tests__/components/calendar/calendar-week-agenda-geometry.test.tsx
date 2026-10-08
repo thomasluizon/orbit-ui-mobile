@@ -157,7 +157,7 @@ describe('Week and agenda geometry in Chromium', () => {
       await page.evaluate(() => { document.documentElement.style.fontSize = '32px'; const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!; body.scrollTop = body.scrollHeight })
       const geometry = await page.evaluate(() => {
         const body = document.querySelector<HTMLElement>('[data-slot="sheet-body"]')!
-        const title = body.querySelector<HTMLElement>('p')!
+        const title = body.querySelector<HTMLElement>('[data-personal-text]')!
         const metadata = title.nextElementSibling!
         return { text: title.textContent, font: Number.parseFloat(getComputedStyle(title).fontSize), clamp: getComputedStyle(title).webkitLineClamp,
           overflow: title.scrollWidth > title.clientWidth, lastBottom: metadata.getBoundingClientRect().bottom, bodyBottom: body.getBoundingClientRect().bottom, scrolls: body.scrollHeight > body.clientHeight }
@@ -184,7 +184,7 @@ describe('Week and agenda geometry in Chromium', () => {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         const geometry = await page.evaluate(() => {
           const row = document.querySelector<HTMLButtonElement>('.orbit-list-row-body')!
-          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          const title = row.parentElement!.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
           const metadata = title.nextElementSibling!
           const heading = document.querySelector('h2')!
           const range = document.createRange(); range.selectNodeContents(heading)

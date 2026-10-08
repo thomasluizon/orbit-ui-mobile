@@ -43,6 +43,7 @@ export function ParentRing({
           strokeWidth="1.5"
         />
         <circle
+          visibility={pct > 0 ? undefined : 'hidden'}
           cx={size / 2}
           cy={size / 2}
           r={r}

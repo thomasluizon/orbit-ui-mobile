@@ -31,13 +31,15 @@ describe('personal ListRow text in Chromium', () => {
       const geometry = await page.evaluate(() => {
         const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
         return [title, title.nextElementSibling!].map((element) => {
-          const text = element.firstChild!
-          const words = Array.from(text.textContent!.matchAll(/\S+/g)).map((match) => {
+          const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+          const texts: Node[] = []
+          while (walker.nextNode()) texts.push(walker.currentNode)
+          const words = texts.flatMap((text) => Array.from(text.textContent!.matchAll(/\S+/g)).map((match) => {
             const range = document.createRange()
             range.setStart(text, match.index)
             range.setEnd(text, match.index + match[0].length)
             return { word: match[0], lines: range.getClientRects().length }
-          })
+          }))
           const style = getComputedStyle(element)
           return { words, height: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight), clamp: style.webkitLineClamp, overflow: style.overflow }
         })
@@ -51,8 +53,7 @@ describe('personal ListRow text in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it('breaks an oversized single token without horizontal overflow', async () => {
-    const email = `${'longaddress'.repeat(12)}@example.com`
+  it.each([`${'longaddress'.repeat(12)}@example.com`, `Ler ${'palavralonga'.repeat(12)} todos os dias`])('keeps oversized tokens intact with tail ellipsis: %s', async (email) => {
     const { container } = render(<div style={{ width: 288 }}>
       <ListRow title={email} description={email} textMode="personal" chevron={false} onClick={vi.fn()} />
     </div>)
@@ -66,13 +67,26 @@ describe('personal ListRow text in Chromium', () => {
           const range = document.createRange()
           range.selectNodeContents(element)
           const style = getComputedStyle(element)
-          return { lines: range.getClientRects().length, width: element.clientWidth, scrollWidth: element.scrollWidth, height: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight) }
+          const words = Array.from(element.textContent!.matchAll(/\S+/g)).map((match) => {
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+            while (walker.nextNode()) {
+              const node = walker.currentNode
+              const start = node.textContent!.indexOf(match[0])
+              if (start < 0) continue
+              const word = document.createRange()
+              word.setStart(node, start)
+              word.setEnd(node, start + match[0].length)
+              return new Set(Array.from(word.getClientRects()).map((rect) => rect.top)).size
+            }
+            return 0
+          })
+          return { words, lines: new Set(Array.from(range.getClientRects()).map((rect) => rect.top)).size, height: element.getBoundingClientRect().height, lineHeight: parseFloat(style.lineHeight) }
         })
       })
       for (const block of geometry) {
-        expect(block.lines).toBeGreaterThan(2)
-        expect(block.scrollWidth).toBeLessThanOrEqual(block.width + 1)
-        expect(block.height).toBeCloseTo(2 * block.lineHeight, 0)
+        expect(block.words.every((lines) => lines === 1)).toBe(true)
+        expect(block.height).toBeLessThanOrEqual(2 * block.lineHeight + 1)
+        if (!email.includes(' ')) expect(block.height).toBeCloseTo(block.lineHeight, 0)
       }
     } finally { await page.close() }
   })

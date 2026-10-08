@@ -1,3 +1,4 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
@@ -30,7 +31,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   if (card.rejected) return <Text accessibilityLiveRegion="polite" style={{ padding: 12, borderRadius: 12, color: tokens.fg2, backgroundColor: tokens.bgWell }}>{t('chat.preview.rejected', { name: parentName })}</Text>
   const rows = card.habits.map((habit) => ({
     id: habit.id,
-    label: card.editingId === habit.id ? <TextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: tokens.primary, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : habit.title,
+    label: card.editingId === habit.id ? <TextInput autoFocus accessibilityLabel={t('chat.preview.editName', { name: habit.title })} value={habit.title} onBlur={() => card.setEditingId(null)} onChangeText={(title) => card.editTitle(habit.id, title)} style={{ minHeight: TOUCH_TARGET_MIN, borderRadius: 8, borderWidth: 2, borderColor: tokens.primary, color: tokens.fg1, backgroundColor: tokens.bgField, paddingHorizontal: 12 }} /> : <PersonalTextDetails proposed={card.results[habit.id] == null}>{habit.title}</PersonalTextDetails>,
     meta: card.results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: card.results[habit.id],
     proposed: card.results[habit.id] == null,

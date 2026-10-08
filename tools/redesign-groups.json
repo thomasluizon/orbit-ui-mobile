@@ -23,7 +23,6 @@
       "block-chat-period-insight-card",
       "block-chat-record-list-card",
       "block-chat-streak-card",
-      "block-chat-suggestion-chips",
       "m-block-chat-account-rows-card",
       "m-block-chat-action-chips",
       "m-block-chat-breakdown-suggestion",
@@ -44,7 +43,6 @@
       "m-block-chat-period-insight-card",
       "m-block-chat-record-list-card",
       "m-block-chat-streak-card",
-      "m-block-chat-suggestion-chips",
       "m-overlay-chat-breakdown-suggestion",
       "m-overlay-chat-pending-operation-card",
       "m-route-chat",
@@ -188,7 +186,9 @@
       "route-profile-account",
       "route-profile-astra",
       "route-profile-notifications",
-      "route-profile-preferences"
+      "route-profile-preferences",
+      "m-overlay-components-account-navigation-row",
+      "overlay-components-account-navigation-row"
     ],
     "Orbit Pro": [
       "m-overlay-ui-trial-expired-modal",
@@ -234,7 +234,9 @@
       "overlay-ui-discard-changes-sheet",
       "overlay-ui-menu",
       "overlay-ui-sheet",
-      "overlay-ui-time-field"
+      "overlay-ui-time-field",
+      "m-overlay-ui-personal-text-details",
+      "overlay-ui-personal-text-details"
     ],
     "Orbit Verificacao": [
       "m-route-auth-callback",
@@ -360,6 +362,14 @@
     {
       "surfaceId": "overlay-share-share-card-panel",
       "decision": "Perfil as drawn has no share entry, and the share card panel had no other entry point, so ticket 906 deleted it."
+    },
+    {
+      "surfaceId": "m-block-chat-suggestion-chips",
+      "decision": "The empty conversation shows one suggestion set, the composer's live-state chips (DESIGN.md Information architecture item 1), so ticket 1261 deleted the opener chips."
+    },
+    {
+      "surfaceId": "block-chat-suggestion-chips",
+      "decision": "The empty conversation shows one suggestion set, the composer's live-state chips (DESIGN.md Information architecture item 1), so ticket 1261 deleted the opener chips."
     }
   ],
   "excluded": [

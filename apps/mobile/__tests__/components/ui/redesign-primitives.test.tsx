@@ -8,6 +8,7 @@ import { Fab } from '@/components/ui/fab'
 import { Icon } from '@/components/ui/icon'
 import { Lockup } from '@/components/ui/lockup'
 import { OrbitMark } from '@/components/ui/orbit-mark'
+import { ParentRing } from '@/components/ui/parent-ring'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -118,12 +119,14 @@ describe('redesign primitives on mobile', () => {
     })
 
     expect(prop(byType(tree.root, 'Circle')[0]!, 'stroke')).toBe(tokens.trackEmpty)
-    expect(prop(progressCircle(), 'stroke')).toBe(tokens.primary)
+    expect(prop(progressCircle(), 'opacity')).toBe(0)
     expect(timing).not.toHaveBeenCalled()
 
     void act(() => {
       tree.update(<ProgressRing value={40} label="Progress" />)
     })
+    expect(prop(progressCircle(), 'opacity')).toBe(1)
+    expect(prop(progressCircle(), 'stroke')).toBe(tokens.primary)
     expect(timing).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.objectContaining({ toValue: circumference * 0.6 }),
@@ -146,6 +149,19 @@ describe('redesign primitives on mobile', () => {
     })
     expect(tree.root.findByProps({ testID: 'progress-ring-complete' })).toBeDefined()
     expect(prop(byType(tree.root, 'Circle')[1]!, 'stroke')).toBe(tokens.fg3)
+  })
+
+  it('paints only the parent track at zero and shows child progress afterward', () => {
+    const tree = render(<ParentRing done={0} total={2} />)
+    const circles = () => byType(tree.root, 'Circle').filter((circle) => prop(circle, 'opacity') !== 0)
+    expect(circles()).toHaveLength(1)
+    expect(prop(circles()[0]!, 'stroke')).toBe(tokens.trackEmpty)
+
+    void act(() => { tree.update(<ParentRing done={1} total={2} />) })
+    expect(circles()).toHaveLength(2)
+    expect(prop(circles()[1]!, 'stroke')).toBe(tokens.primary)
+    const circumference = 2 * Math.PI * 5.25
+    expect(prop(circles()[1]!, 'strokeDasharray')).toBe(`${circumference / 2} ${circumference}`)
   })
 
   it('keeps the FAB labelled and actionable', () => {

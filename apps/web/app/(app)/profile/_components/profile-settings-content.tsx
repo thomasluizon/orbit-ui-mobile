@@ -12,6 +12,7 @@ import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import {
   ProfileSettingsFrame,
 } from '@/components/profile/profile-settings-frame'
+import { AccountNavigationRow } from './account-navigation-row'
 import { ListRow } from '@/components/ui/list-row'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { useAuthStore } from '@/stores/auth-store'
@@ -68,14 +69,13 @@ export function ProfileSettingsContent({ profile, isLoading }: Readonly<ProfileS
   const proEntry = profile ? getProfileProEntry(profile, t) : undefined
   const rows = {
     you: PROFILE_SUBMENUS.flatMap((submenu) => {
-      const row = <ListRow
+      const row = submenu.id === 'account' ? <AccountNavigationRow key={submenu.id} profile={profile} submenu={submenu} /> : <ListRow
         key={submenu.id}
         compact
         icon={<ProfileNavIcon iconKey={submenu.iconKey} />}
-        textMode={submenu.id === 'account' ? 'personal' : 'label'}
-        title={submenu.id === 'account' ? profile?.name ?? t(submenu.labelKey) : t(submenu.labelKey)}
-        accessibilityLabel={submenu.id === 'account' ? t('profile.submenus.accountLabel', { name: profile?.name ?? t(submenu.labelKey), email: profile?.email ?? '' }) : t(submenu.labelKey)}
-        description={submenu.id === 'account' ? profile?.email : undefined}
+        textMode="label"
+        title={t(submenu.labelKey)}
+        accessibilityLabel={t(submenu.labelKey)}
         href={submenu.route}
       />
       if (submenu.id !== 'account' || !proEntry) return [row]

@@ -43,7 +43,7 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
   const [canShare] = useState(() => typeof navigator !== 'undefined' && typeof navigator.share === 'function')
   const rows = accountRows.rows.flatMap((row) => {
     const labelKey = accountRowLabelKey(row.key)
-    return labelKey ? [<ListRow key={row.key} title={t(labelKey)} value={formatAccountRowValue(row, locale, t)} wrapValue readOnly chevron={false} />] : []
+    return labelKey ? [<ListRow key={row.key} title={t(labelKey)} value={formatAccountRowValue(row, locale, t)} wrapValue valueTextMode={row.key === 'name' || row.key === 'email' ? 'personal' : undefined} readOnly={row.key !== 'name' && row.key !== 'email'} chevron={false} />] : []
   })
 
   async function copyCode() {

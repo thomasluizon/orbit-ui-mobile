@@ -6,6 +6,7 @@ import { Fab } from '@/components/ui/fab'
 import { Icon } from '@/components/ui/icon'
 import { Lockup } from '@/components/ui/lockup'
 import { OrbitMark } from '@/components/ui/orbit-mark'
+import { ParentRing } from '@/components/ui/parent-ring'
 import { ProgressRing } from '@/components/ui/progress-ring'
 
 describe('redesign primitives on web', () => {
@@ -46,11 +47,13 @@ describe('redesign primitives on web', () => {
     const circumference = 2 * Math.PI * 30
 
     expect(container.querySelector('circle:first-child')).toHaveAttribute('stroke', 'var(--track-empty)')
-    expect(progressCircle()).toHaveAttribute('stroke', 'var(--primary)')
+    expect(progressCircle()).toHaveAttribute('visibility', 'hidden')
     expect(Number(progressCircle()?.getAttribute('stroke-dashoffset'))).toBeCloseTo(circumference)
     await waitFor(() => expect(progressCircle()).toHaveClass('transition-[stroke-dashoffset]'))
 
     rerender(<ProgressRing value={40} label="Progress" />)
+    expect(progressCircle()).not.toHaveAttribute('visibility', 'hidden')
+    expect(progressCircle()).toHaveAttribute('stroke', 'var(--primary)')
     expect(Number(progressCircle()?.getAttribute('stroke-dashoffset'))).toBeCloseTo(circumference * 0.6)
     expect(progressCircle()).toHaveClass('transition-[stroke-dashoffset]')
     expect(progressCircle()).toHaveClass('motion-reduce:transition-none')
@@ -62,6 +65,19 @@ describe('redesign primitives on web', () => {
     rerender(<ProgressRing value={100} label="Progress" />)
     expect(container.querySelector('svg')).toHaveAttribute('data-complete')
     expect(progressCircle()).toHaveAttribute('stroke', 'var(--fg-3)')
+  })
+
+  it('paints only the parent track at zero and shows child progress afterward', () => {
+    const { container, rerender } = render(<ParentRing done={0} total={2} />)
+    const circles = () => Array.from(container.querySelectorAll('circle')).filter((circle) => circle.getAttribute('visibility') !== 'hidden')
+    expect(circles()).toHaveLength(1)
+    expect(circles()[0]).toHaveAttribute('stroke', 'var(--track-empty)')
+
+    rerender(<ParentRing done={1} total={2} />)
+    expect(circles()).toHaveLength(2)
+    expect(circles()[1]).toHaveAttribute('stroke', 'var(--primary)')
+    const circumference = 2 * Math.PI * 5.25
+    expect(circles()[1]).toHaveAttribute('stroke-dasharray', `${circumference / 2} ${circumference}`)
   })
 
   it('keeps the FAB labelled, accent filled, and actionable', () => {

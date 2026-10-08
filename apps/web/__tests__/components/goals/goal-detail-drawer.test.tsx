@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import { updateGoalProgressDetail } from '@orbit/shared/utils'
@@ -89,7 +90,7 @@ describe('GoalDetailDrawer', () => {
     render(
       <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
     )
-    expect(screen.getByText('Read 12 books')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Read 12 books'))).toBeInTheDocument()
   })
   it('uses the inline goal title as its only page heading', () => {
     render(<GoalDetailDrawer inline open onOpenChange={vi.fn()} goalId="1" />)
@@ -175,8 +176,8 @@ describe('GoalDetailDrawer', () => {
 
     const readRow = screen.getByRole('link', { name: 'Read every night, goals.detail.linkedHabitStreak:{"count":12}' })
     const stretchRow = screen.getByRole('link', { name: 'Stretch, goals.detail.linkedHabitStreak:{"count":4}' })
-    expect(readRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
-    expect(stretchRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
+    expect(readRow.parentElement).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
+    expect(stretchRow.parentElement).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
     expect(readRow).toHaveAttribute('href', '/habits/habit-read')
     expect(stretchRow).toHaveAttribute('href', '/habits/habit-stretch')
   })
@@ -255,7 +256,7 @@ describe('GoalDetailDrawer', () => {
       <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
     )
 
-    expect(screen.getByText('Read 12 books (synced)')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Read 12 books (synced)'))).toBeInTheDocument()
     expect(document.body.textContent).toContain('"current":6')
   })
 

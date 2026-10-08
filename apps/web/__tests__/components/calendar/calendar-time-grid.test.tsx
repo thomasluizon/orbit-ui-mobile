@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { enUS } from 'date-fns/locale'
@@ -92,17 +93,17 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], new Map([[col.dateStr, entries]]))
     fireEvent.click(screen.getByTestId('time-grid-all-day-summary'))
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText('Untimed 19')).toBeInTheDocument()
-    expect(within(dialog).queryByText('Untimed 20')).toBeNull()
+    expect(within(dialog).getByText(personalText('Untimed 19'))).toBeInTheDocument()
+    expect(within(dialog).queryByText(personalText('Untimed 20'))).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: 'common.next' }))
-    expect(within(dialog).getByText('Untimed 24')).toBeInTheDocument()
+    expect(within(dialog).getByText(personalText('Untimed 24'))).toBeInTheDocument()
     expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('\"shown\":5,\"total\":25')
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'missing' } })
     expect(within(dialog).getByText(/calendar.showingCount/)).toHaveAttribute('role', 'status')
     expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('"total":0')
     expect(dialog).toHaveTextContent('calendar.entrySearchEmpty:{"query":"missing"}')
     fireEvent.click(within(dialog).getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
-    expect(within(dialog).getByText('Untimed 0')).toBeInTheDocument()
+    expect(within(dialog).getByText(personalText('Untimed 0'))).toBeInTheDocument()
     expect(within(dialog).getByRole('textbox')).toHaveValue('')
   })
 
@@ -189,7 +190,7 @@ describe('CalendarTimeGrid', () => {
       const hour = Number(time.slice(0, 2))
       return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`
     })
-    expect(screen.getByText('8:00 PM')).toBeInTheDocument()
+    expect(screen.getByText(personalText('8:00 PM'))).toBeInTheDocument()
   })
 
   it('positions the now line by the account timezone', () => {

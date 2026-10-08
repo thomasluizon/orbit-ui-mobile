@@ -150,6 +150,7 @@ export function GoalLinkedHabitsSection({
             compact={false}
             key={habit.id}
             title={habit.title}
+                textMode="personal"
             value={value}
             accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
             onClick={() => onOpenHabit(habit.id)}

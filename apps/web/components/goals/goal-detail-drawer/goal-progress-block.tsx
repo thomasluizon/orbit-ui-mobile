@@ -1,5 +1,7 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
+
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useRef, useState } from 'react'
@@ -84,7 +86,7 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <h1 tabIndex={-1} className={`font-[var(--font-display)] text-[22px] font-medium leading-tight md:text-[28px] ${abandoned ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</h1>
+          <h1 tabIndex={-1} className={`font-[var(--font-display)] text-[22px] font-medium leading-tight md:text-[28px] ${abandoned ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}><PersonalText expanded>{goal.title}</PersonalText></h1>
           <div className="flex flex-wrap items-center gap-2">
             {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
             {!abandoned ? <p className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</p> : null}

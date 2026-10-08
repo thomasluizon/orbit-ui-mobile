@@ -66,6 +66,7 @@ function MoveTargetRow({
   return (
     <RadioRow
       label={option.label}
+      textMode={option.id === null ? undefined : 'personal'}
       description={undefined}
       selected={selected}
       {...availability}

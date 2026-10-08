@@ -1,5 +1,6 @@
 'use client'
 
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { getInsightPages } from '@orbit/shared/chat'
@@ -33,13 +34,13 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     periodInsight.topHabits.forEach((habit, habitIndex) => rows.push({
       id: `top-${habitIndex}`,
       wrapLabel: true,
-      label: `${t('chat.insight.topHabit')}: ${habit.name}`,
+      label: <PersonalTextDetails>{`${t('chat.insight.topHabit')}: ${habit.name}`}</PersonalTextDetails>,
       control: <span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>,
     }))
     periodInsight.needsAttention.forEach((habit, habitIndex) => rows.push({
       id: `attention-${habitIndex}`,
       wrapLabel: true,
-      label: `${t('chat.insight.needsAttention')}: ${habit.name}`,
+      label: <PersonalTextDetails>{`${t('chat.insight.needsAttention')}: ${habit.name}`}</PersonalTextDetails>,
       control: <span className="text-base tabular-nums text-[var(--fg-1)]">{habit.completionRate}%</span>,
     }))
   }

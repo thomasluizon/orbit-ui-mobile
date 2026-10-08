@@ -1,3 +1,4 @@
+import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -33,6 +34,7 @@ const mocks = vi.hoisted(() => ({
   pathname: '/habits/habit-1',
   realTimeField: false,
   realReminderSections: false,
+  realHeaderRing: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   metricsError: false,
@@ -236,9 +238,14 @@ vi.mock('@/components/habits/habit-checklist', () => ({
   ),
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
-vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled?: boolean; disabledReason?: string }) => <button type="button" aria-label={label} data-logged={logged} data-disabled-reason={disabledReason} disabled={disabled} onClick={onPress}>{label}</button>,
-}))
+vi.mock('@/components/habits/habit-log-button', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-log-button')>()
+  return {
+    HabitLogButton: (props: React.ComponentProps<typeof actual.HabitLogButton>) => mocks.realHeaderRing
+      ? <actual.HabitLogButton {...props} />
+      : <button type="button" aria-label={props.label} data-logged={props.logged} data-disabled-reason={props.disabledReason} disabled={props.disabled} onClick={props.onPress}>{props.label}</button>,
+  }
+})
 vi.mock('@/components/habits/habit-row', () => ({
   HabitRow: ({ habit, state, canLog, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; state: string; canLog: boolean; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void; onDelete: () => void } }) => (
     <div>
@@ -269,6 +276,103 @@ function openRescueGate() {
 }
 
 describe('HabitDetailScreen', () => {
+  it('keeps child progress in an unlogged bad habit parent header', () => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true })]).habitsById
+    mocks.scopedHabits = new Map([
+      ['habit-1', { ...makeScopedParent(), isBadHabit: true }],
+      ['child-1', makeScopedChild('2026-08-28')],
+    ])
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '100')
+    expect(header.querySelector('[data-status]')).toBeNull()
+  })
+
+  it('shows empty, overdue and done status in the leaf header', () => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), children: [] }
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = () => view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header().querySelector('[data-status="empty"]')).toBeInTheDocument()
+    expect(header().querySelector('[role="progressbar"]')).toBeNull()
+
+    mocks.scopedHabits.set('habit-1', { ...makeScopedParent(), isOverdue: true })
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(header().querySelector('[data-status="overdue"]')).toBeInTheDocument()
+
+    mocks.logs = [{ id: 'selected', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T12:00:00Z' }]
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(header().querySelector('[data-status="done"]')).toBeInTheDocument()
+  })
+
+  it.each(['absent', 'irrelevant'])('excludes a %s not-scheduled child from the header fraction', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    const child = makeDetail().children[0]!
+    mocks.detail = { ...makeDetail(), children: [child, { ...child, id: 'child-2' }] }
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-2', {
+      ...makeScopedChild('2026-08-29'), id: 'child-2', isLoggedInRange: false, instances: [],
+    })
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toHaveAttribute('aria-valuenow', '100')
+    expect(header.querySelector('[data-status]')).toBeNull()
+  })
+
+  it.each(['loading', 'error'])('shows a status ring while selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedLoading = state === 'loading'
+    mocks.scopedError = state === 'error'
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toBeNull()
+    expect(header.querySelector('[data-status="empty"]')).toBeInTheDocument()
+  })
+
+  it.each(['absent', 'irrelevant'])('shows a status ring when all selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedHabits = new Map()
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-29'), isLoggedInRange: false, instances: [],
+    })
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    expect(header.querySelector('[role="progressbar"]')).toBeNull()
+    expect(header.querySelector('[data-status="empty"]')).toBeInTheDocument()
+  })
+
+  it.each([0, 1, 2])('shows the selected day fraction for an unlogged parent with %i children done', (done) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    const child = makeDetail().children[0]!
+    mocks.detail = { ...makeDetail(), children: [child, { ...child, id: 'child-2' }] }
+    mocks.scopedHabits = new Map(mocks.detail.children.map((entry, index) => [entry.id, {
+      ...makeScopedChild('2026-08-28'), id: entry.id,
+      isLoggedInRange: index < done,
+      instances: index < done ? [{ date: '2026-08-28', status: 'Completed', logId: entry.id }] : [],
+    }]))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const header = view.container.querySelector('[data-habit-detail-header-row]')!
+    const ring = header.querySelector('[role="progressbar"]')!
+    expect(ring).toHaveAttribute('aria-valuenow', String(done * 50))
+    expect(header.querySelector('[data-status]')).toBeNull()
+    const paintedCircles = Array.from(ring.querySelectorAll('circle')).filter((circle) => circle.getAttribute('visibility') !== 'hidden')
+    expect(paintedCircles).toHaveLength(done === 0 ? 1 : 2)
+
+    mocks.logs = [{ id: 'selected', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T12:00:00Z' }]
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    expect(header.querySelector('[data-status="done"]')).toBeInTheDocument()
+    expect(header.querySelector('[role="progressbar"]')).toBeNull()
+  })
+
   it.each(['ready', 'loading', 'error'])('keeps a leaf creation row without an empty inside section when day habits are %s', (state) => {
     mocks.detail = { ...makeDetail(), children: [] }
     mocks.scopedLoading = state === 'loading'
@@ -308,7 +412,7 @@ describe('HabitDetailScreen', () => {
     expect(document.title).toBe(`${mocks.detail!.title} · Orbit`)
     expect(headings[0]).toHaveAttribute('tabindex', '-1')
     expect(headings[0]).not.toHaveFocus()
-    expect(headings[0]!.querySelector('button')).toHaveTextContent(mocks.detail!.title)
+    expect(headings[0]!.querySelector('button')).toHaveAccessibleName(mocks.detail!.title)
     fireEvent.click(screen.getByRole('button', { name: mocks.detail!.title }))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mocks.detail!.title)
@@ -341,6 +445,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('heading', { level: 1, name: mocks.detail!.title })).toHaveFocus()
   })
   beforeEach(() => {
+    mocks.realHeaderRing = false
     mocks.pathname = '/habits/habit-1'
     mocks.realTimeField = false;
     mocks.realReminderSections = false;
@@ -638,7 +743,7 @@ describe('HabitDetailScreen', () => {
     vi.setSystemTime(new Date(2026, 8, 28, 12))
     mocks.language = 'pt-BR'
     render(<HabitDetailScreen habitId="habit-1" />)
-    expect(screen.getByText('Setembro de 2026')).toBeVisible()
+    expect(screen.getByText(personalText('Setembro de 2026'))).toBeVisible()
     expect(screen.getByLabelText('Atividade do hábito em setembro de 2026')).toBeInTheDocument()
   })
 
@@ -863,7 +968,7 @@ describe('HabitDetailScreen', () => {
     mocks.scopedHabits = normalized.habitsById
     render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
 
-    expect(screen.getByText('Nested focus')).toBeInTheDocument()
+    expect(screen.getByText(personalText('Nested focus'))).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
     expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
@@ -908,7 +1013,7 @@ describe('HabitDetailScreen', () => {
     const previousMonth = screen.getByRole('button', { name: 'previousMonth' })
     for (let index = 0; index < 13; index += 1) fireEvent.click(previousMonth)
 
-    expect(screen.getByText('July 2025')).toBeInTheDocument()
+    expect(screen.getByText(personalText('July 2025'))).toBeInTheDocument()
     expect(screen.queryByText('olderHistoryUnavailable')).not.toBeInTheDocument()
   })
 
@@ -1287,7 +1392,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), reminderEnabled: true, reminderTimes: [10, 30], scheduledReminders: [{ when: 'same_day', time: '08:00' }] }
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByText('habits.detail.reminders')).toBeInTheDocument()
-    expect(screen.getByText('8:00 AM').parentElement).toHaveTextContent('habits.detail.reminderSameDay')
+    expect(screen.getByText(personalText('8:00 AM')).parentElement).toHaveTextContent('habits.detail.reminderSameDay')
   })
   it('orders the open sections like the canvas and swaps checklist logging for editing', () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -1910,7 +2015,7 @@ describe('HabitDetailScreen', () => {
           const offset = Number.parseFloat(style.outlineOffset)
           const outerEdge = offset + Number.parseFloat(style.outlineWidth)
           const range = document.createRange()
-          range.selectNodeContents(heading.querySelector('button')!)
+          range.selectNodeContents(heading.querySelector('[data-personal-text]')!)
           const text = range.getBoundingClientRect()
           return {
             glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
@@ -1938,11 +2043,11 @@ describe('HabitDetailScreen', () => {
           const row = heading.closest('[data-habit-detail-header-row]')!
           const controls = row.firstElementChild!
           const range = document.createRange()
-          range.selectNodeContents(button)
+          range.selectNodeContents(heading.querySelector('[data-personal-text]')!)
           const text = range.getBoundingClientRect()
           const style = getComputedStyle(button)
           const lineHeight = Number.parseFloat(style.lineHeight)
-          const lines = range.getClientRects().length
+          const lines = heading.querySelector('[data-personal-text]')!.getBoundingClientRect().height / lineHeight
           return {
             titleX: text.left,
             summaryX: summary.getBoundingClientRect().left,
@@ -2004,7 +2109,7 @@ describe('HabitDetailScreen', () => {
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
-          const button = element.querySelector('button')!
+          const button = element.querySelector<HTMLButtonElement>(':scope > button')!
           const style = getComputedStyle(button)
           const fontSize = parseFloat(style.fontSize) * 2
           const lineHeight = parseFloat(style.lineHeight) * 2

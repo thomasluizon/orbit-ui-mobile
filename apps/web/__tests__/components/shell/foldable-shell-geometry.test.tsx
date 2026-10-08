@@ -80,7 +80,7 @@ describe('Foldable shell geometry', () => {
   )
 
   it.each([1100, 1440].flatMap((width) => [en, ptBR].flatMap((words) => [1, 2].map((textScale) => ({ width, words, textScale })))))
-    ('grows the sidebar account target around two lines at $width and text scale $textScale', async ({ width, words, textScale }) => {
+    ('keeps the sidebar account tokens on one line at $width and text scale $textScale', async ({ width, words, textScale }) => {
       const name = 'W'.repeat(60)
       const email = `${'W'.repeat(48)}@example.com`
       const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
@@ -88,7 +88,7 @@ describe('Foldable shell geometry', () => {
       try {
         const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
         await page.setContent(`<style>${stylesheet}\n${largeText}</style>${container.innerHTML}`)
-        const account = page.getByRole('link', { name: `${name} ${email}` })
+        const account = page.getByRole('link', { name: `${name}, ${email}` })
         expect(await account.getAttribute('href')).toBe('/profile')
         const geometry = await account.evaluate((element) => {
           const control = element.getBoundingClientRect()
@@ -96,7 +96,7 @@ describe('Foldable shell geometry', () => {
             const style = getComputedStyle(text)
             const bounds = text.getBoundingClientRect()
             return { lines: bounds.height / Number.parseFloat(style.lineHeight), clamp: style.webkitLineClamp, fontSize: Number.parseFloat(style.fontSize),
-              clipped: text.scrollHeight > text.clientHeight, width: bounds.width,
+              clipped: text.scrollWidth > text.clientWidth, width: bounds.width,
               availableWidth: text.parentElement!.clientWidth, top: bounds.top, bottom: bounds.bottom }
           })
           return { fields, height: control.height,
@@ -106,8 +106,8 @@ describe('Foldable shell geometry', () => {
         expect(geometry.fields).toHaveLength(2)
         expect(geometry.fields.map((field) => field.fontSize)).toEqual([14 * textScale, 12 * textScale])
         for (const field of geometry.fields) {
-          expect(field.lines).toBeCloseTo(2, 0)
-          expect(field.clamp).toBe('2')
+          expect(field.lines).toBeCloseTo(1, 0)
+          expect(field.clamp).toBe('none')
           expect(field.clipped).toBe(true)
           expect(field.width).toBeCloseTo(field.availableWidth, 0)
         }

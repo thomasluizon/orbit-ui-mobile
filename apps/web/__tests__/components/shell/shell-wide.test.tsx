@@ -181,11 +181,12 @@ describe('ShellWide', () => {
       />,
     )
 
-    const account = screen.getByRole('link', { name: 'Ada Lovelace ada@example.com' })
+    const account = screen.getByRole('link', { name: 'Ada Lovelace, ada@example.com' })
     expect(account).toHaveAttribute('href', '/profile')
     expect(within(account).getByText('ada@example.com')).toBeInTheDocument()
     expect(account.querySelector('[aria-hidden="true"]')).toHaveTextContent('A')
     expect(within(account).queryByRole('button')).not.toBeInTheDocument()
+    expect(account.nextElementSibling).toBeNull()
   })
 
   it('reserves the account row while its profile loads', () => {
@@ -200,7 +201,7 @@ describe('ShellWide', () => {
     rerender(<ShellWide {...props} account="Ada Lovelace" />)
     const account = screen.getByRole('link', { name: 'Ada Lovelace' })
     expect(account).toHaveClass('min-h-[var(--touch-min)]')
-    expect(account.previousElementSibling).toContainElement(create)
+    expect(account.parentElement?.previousElementSibling).toContainElement(create)
   })
 
   it('uses a modal conversation overlay below the side-panel breakpoint', () => {

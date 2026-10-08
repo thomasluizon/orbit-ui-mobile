@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { Fragment, type ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
@@ -13,6 +14,7 @@ interface HabitRowContentProps {
   habit: NormalizedHabit
   titleSize: number
   titleColor: string
+  expanded?: boolean
   meta: HabitRowMetaToken[]
 }
 
@@ -21,13 +23,14 @@ export function HabitRowContent({
   habit,
   titleSize,
   titleColor,
+  expanded = false,
   meta,
 }: Readonly<HabitRowContentProps>) {
   const visibleMeta = meta.filter((token) => typeof token === 'string' || token.kind !== 'future')
   const futureHint = meta.find((token) => typeof token !== 'string' && token.kind === 'future')
   return (
     <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
-      <TitleText title={habit.title} size={titleSize} color={titleColor} />
+      <TitleText expanded={expanded} title={habit.title} size={titleSize} color={titleColor} />
       {visibleMeta.length > 0 ? <MetaStrip tokens={visibleMeta} /> : null}
       {futureHint && typeof futureHint !== 'string' ? <span className="sr-only">{futureHint.label}</span> : null}
     </div>
@@ -39,19 +42,19 @@ const TITLE_TEXT_STYLE_BASE = {
   fontWeight: 500,
   lineHeight: 1.25,
   letterSpacing: '-0.005em',
-  overflowWrap: 'anywhere',
 } as const
 
 interface TitleTextProps {
+  expanded?: boolean
   title: string
   size: number
   color: string
 }
 
-export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
+export function TitleText({ title, size, color, expanded }: Readonly<TitleTextProps>) {
   return (
-    <span
-      className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
+    <PersonalText expanded={expanded}
+      className="flex-shrink min-w-0"
       style={{
         ...TITLE_TEXT_STYLE_BASE,
         fontSize: `${size / 16}rem`,
@@ -59,7 +62,7 @@ export function TitleText({ title, size, color }: Readonly<TitleTextProps>) {
       }}
     >
       {title}
-    </span>
+    </PersonalText>
   )
 }
 

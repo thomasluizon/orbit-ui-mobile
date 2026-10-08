@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { AccessibilityInfo, BackHandler, StyleSheet, Text, View } from 'react-native'
+import { AccessibilityInfo, BackHandler, StyleSheet, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -40,7 +40,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
   const deleteGoal = useDeleteGoal()
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const headingRef = useRef<Text>(null)
+  const headingRef = useRef<View>(null)
   const focusedInlineGoalId = useRef<string | null>(null)
   const { sheetRef, closeSheet } = useSheetHost()
   const close = useCallback(() => {

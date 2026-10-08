@@ -1,3 +1,4 @@
+import { PersonalText } from '@/components/ui/personal-text'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { AccessibilityInfo, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
@@ -46,7 +47,7 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { FreezeBank } from '@/components/ui/freeze-bank'
-import { ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
+import { ChevronDown, ChevronRight, Lock, Snowflake } from '@/components/ui/icons'
 import { AchievementMark } from '@/components/gamification/achievement-mark'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -313,7 +314,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
         isDragging ? { ...shadowsV2.shadow2, borderColor: tokens.hairlineStrong, opacity: 0.5, zIndex: 2 } : null,
       ]}>
       <View style={styles.goalCopy}>
-        <Text numberOfLines={2} ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</Text>
+        <PersonalText ellipsizeMode="tail" style={[styles.goalTitle, { color: abandoned ? tokens.fg2 : tokens.fg1 }]}>{goal.title}</PersonalText>
         <View style={styles.goalMeta}>
           {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
           {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
@@ -404,13 +405,15 @@ function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji
   const { t } = useTranslation()
   const router = useRouter()
   const [hovered, setHovered] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const habitId = habit?.habitId
+  const ChevronIcon = habitId ? ChevronRight : ChevronDown
   const content = <>
     <View style={styles.topHabitLabelRow}>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.window.topHabit')}</Text>
-      {habitId ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
+      {habit ? <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.topHabitChevron}><ChevronIcon size={24} strokeWidth={1.5} color={tokens.fg3} /></View> : null}
     </View>
-    {habit ? <Text selectable={!habitId} accessibilityLabel={habit.name} numberOfLines={2} ellipsizeMode="tail" style={[styles.topHabitName, { color: tokens.fg1 }]}>{`${habit.emoji ? `${habit.emoji} ` : ''}${habit.name}`}</Text>
+    {habit ? <View style={{ flexDirection: 'row', gap: 4, minWidth: 0 }}>{habit.emoji ? <Text accessible={false} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.emoji}</Text> : null}<View style={{ flex: 1, minWidth: 0 }}><PersonalText expanded={expanded} selectable={!habitId} accessibilityLabel={habit.name} style={[styles.topHabitName, { color: tokens.fg1 }]}>{habit.name}</PersonalText></View></View>
       : <Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.window.topHabitEmpty')}</Text>}
   </>
   return habitId
@@ -418,7 +421,7 @@ function TopHabitRow({ habit, tokens }: Readonly<{ habit?: { name: string; emoji
         onPress={() => router.push({ pathname: '/habits/[id]', params: { id: habitId } })}
         onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
         style={({ pressed }) => [styles.topHabit, { backgroundColor: pressed || hovered ? tokens.bgHover : 'transparent' }]}>{content}</InsetFocusPressable>
-    : <View testID="progress-top-habit" style={styles.topHabit}>{content}</View>
+    : habit ? <InsetFocusPressable testID="progress-top-habit" accessibilityRole="button" accessibilityLabel={`${t('progressScreen.window.topHabit')}, ${habit.name}`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} style={({ pressed }) => [styles.topHabit, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</InsetFocusPressable> : <View testID="progress-top-habit" style={styles.topHabit}>{content}</View>
 }
 
 function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; hasGoals: boolean }>) {
@@ -457,14 +460,14 @@ function WindowSection({ tokens, hasGoals }: Readonly<{ tokens: AppTokensV2; has
   )
 }
 
-function AchievementTile({ achievement, tokens, wide }: Readonly<{ achievement: Achievement; tokens: AppTokensV2; wide: boolean }>) {
+function AchievementTile({ achievement, tokens, width }: Readonly<{ achievement: Achievement; tokens: AppTokensV2; width: number | '100%' }>) {
   const { t } = useTranslation()
   const current = achievement.progressCurrent
   const target = achievement.progressTarget
   const hasProgress = current != null && target != null
   const name = t(`gamification.achievements.${achievement.id}.name`)
   return (
-    <View style={[styles.achievement, wide ? styles.achievementWide : undefined, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]} testID={`achievement-tile-${achievement.id}`}>
+    <View style={[styles.achievement, { width, backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]} testID={`achievement-tile-${achievement.id}`}>
       <View style={styles.achievementHeader}>
         <AchievementMark achievement={achievement} name={name} tokens={tokens} />
         <View style={styles.achievementCopy}>
@@ -486,6 +489,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
 }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
+  const [gridWidth, setGridWidth] = useState(0)
   if (!gamificationAvailable) {
     return (
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
@@ -504,7 +508,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
   const levelTitle = t(getGamificationLevelTitleKey(profile.level))
-  const wide = width >= 768
+  const tileWidth = width >= 768 && gridWidth > 0 ? (gridWidth - styles.achievementGrid.gap) / 2 : '100%'
   return (
     <>
       <View style={styles.xpSummary} testID="progress-xp-summary">
@@ -512,7 +516,7 @@ function AchievementsSection({ gamificationAvailable, profile, xpProgress, token
         <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </View>
       <Section title={t('progressScreen.sections.achievements')} tokens={tokens}>
-        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} wide={wide} />)}</View></View>)}
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.achievementCategory}><Text accessibilityRole="header" style={[styles.achievementCategoryTitle, { color: tokens.fg2 }]} testID="achievement-category">{t(`gamification.categories.${category}`)}</Text><View style={styles.achievementGrid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} width={tileWidth} />)}</View></View>)}
       </Section>
     </>
   )
@@ -639,7 +643,7 @@ const styles = StyleSheet.create({
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', gap: 12, paddingVertical: 24 },
-  achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: 16, width: '100%' }, achievementWide: { width: '48%' },
+  achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: 16 },
   achievementCategory: { gap: 12 }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: 4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   achievementHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 }, achievementCopy: { flex: 1, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 17 }, achievementProgress: { gap: 4 },
