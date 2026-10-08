@@ -33,7 +33,7 @@ describe('Shell scrollbar geometry and paint', () => {
       notice={<div>Notice</div>} composer={<button type="button">Composer</button>}
       tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}>
       <div style={{ height: 1600 }}>
-        <div data-scroll-probe="" className="thin-scrollbar" style={{ overflow: 'auto', width: 200, height: 100, border: '1px solid', background: 'var(--bg)' }}>
+        <div data-scroll-probe="" style={{ overflow: 'auto', width: 200, height: 100, border: '1px solid', background: 'var(--bg)' }}>
           <div style={{ width: 400, height: 200 }} />
         </div>
         <div data-scroll-sibling="" style={{ overflow: 'auto', width: 200, height: 100, background: 'var(--bg)' }}>
@@ -61,6 +61,9 @@ describe('Shell scrollbar geometry and paint', () => {
       }
       const probe = page.locator('[data-scroll-probe]')
       expect.soft(await probe.evaluate((element) => getComputedStyle(element).paddingBottom)).toBe('0px')
+      await shell.evaluate((element) => element.style.setProperty('--scrollbar-hover-repaint', 'shell-only'))
+      expect.soft(await probe.evaluate((element) => getComputedStyle(element).getPropertyValue('--scrollbar-hover-repaint')), 'repaint invalidation stays on its scroller').toBe('')
+      await shell.evaluate((element) => element.style.removeProperty('--scrollbar-hover-repaint'))
       await page.waitForTimeout(1500)
       for (const scroller of [shell, probe, page.locator('[data-scroll-sibling]')]) {
         const paint = await measureScrollbarPaint(scroller)
@@ -74,7 +77,7 @@ describe('Shell scrollbar geometry and paint', () => {
       expect((await measureScrollbarPaint(probe)).thumbPixels, 'unhovered child stays clear').toBe(0)
       await probe.hover()
       await page.waitForTimeout(300)
-      expect((await measureScrollbarPaint(probe)).thumbPixels, 'hovered thin thumb paints the hairline').toBeGreaterThan(0)
+      expect((await measureScrollbarPaint(probe)).thumbPixels, 'hovered child thumb paints the hairline').toBeGreaterThan(0)
       expect((await measureScrollbarPaint(probe, 'horizontal')).thumbPixels, 'hovered horizontal thumb paints').toBeGreaterThan(0)
       expect((await measureScrollbarPaint(page.locator('[data-scroll-sibling]'))).thumbPixels, 'unhovered sibling stays clear').toBe(0)
       await page.mouse.move(0, 0)

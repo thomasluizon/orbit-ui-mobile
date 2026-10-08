@@ -25,7 +25,7 @@ export function YearPicker({
   }, [])
 
   return (
-    <div data-focus-inset="" onFocusCapture={revealFocusedControl} className="thin-scrollbar min-h-0 overflow-y-auto overscroll-contain" style={{ maxHeight: 240 }}>
+    <div data-focus-inset="" onFocusCapture={revealFocusedControl} className="min-h-0 overflow-y-auto overscroll-contain" style={{ maxHeight: 240 }}>
       <div
         className="grid"
         style={{

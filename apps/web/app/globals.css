@@ -1603,6 +1603,11 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
    SCROLLBAR STYLING
    ═══════════════════════════════════════════════════════ */
 
+@property --scrollbar-hover-repaint {
+  syntax: '*';
+  inherits: false;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
