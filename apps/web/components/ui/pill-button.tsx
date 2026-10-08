@@ -5,7 +5,7 @@ import { useContext, type CSSProperties, type Ref } from 'react'
 import { ActionRowContext } from './action-row'
 import type { ButtonProps } from '@orbit/shared/contracts/actions'
 import { Loader2 } from '@/components/ui/icons'
-import { BUTTON_SIZES, MATCHED_PILL_WIDTH, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
+import { BUTTON_SIZES, MATCHED_PILL_WIDTH, TOUCH_TARGET_MIN, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--primary)] text-[var(--fg-on-primary)]',
@@ -54,13 +54,14 @@ function inlineStartPadding(paddingX: number, iconOnly: boolean, leadingIcon: bo
   return leadingIcon ? paddingX - 2 : paddingX
 }
 
-function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false, hugLabel = false): CSSProperties {
+function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false, hugLabel = false, minimumHeight?: number): CSSProperties & { '--pill-hit-padding'?: string } {
   const sizeSpec = BUTTON_SIZES[size]
   return {
+    '--pill-hit-padding': iconOnly && minimumHeight !== undefined && minimumHeight >= TOUCH_TARGET_MIN ? '0px' : undefined,
     flexShrink: 0,
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
-    width: iconOnly ? sizeSpec.height : matchedWidth ? MATCHED_PILL_WIDTH : hugLabel ? 'auto' : undefined,
+    width: iconOnly ? Math.max(minimumHeight ?? sizeSpec.height, sizeSpec.height) : matchedWidth ? MATCHED_PILL_WIDTH : hugLabel ? 'auto' : undefined,
     paddingInlineStart: inlineStartPadding(sizeSpec.paddingX, iconOnly, leadingIcon),
     paddingInlineEnd: iconOnly ? 0 : sizeSpec.paddingX,
     fontSize: sizeSpec.fontSize,
@@ -71,6 +72,7 @@ function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, l
 /** The canonical five-variant pill action in the shared two-size geometry. */
 export function Button({
   minimumHeight,
+  expanded,
   elevated = false,
   variant = 'primary',
   size: requestedSize = 'sm',
@@ -87,7 +89,7 @@ export function Button({
   descriptionId,
   buttonRef,
   quiet = false,
-}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean }>) {
+}: Readonly<ButtonProps & { buttonRef?: Ref<HTMLButtonElement>; quiet?: boolean; expanded?: boolean }>) {
   const withinRow = useContext(ActionRowContext)
   const size = withinRow ? 'sm' : requestedSize
   const sizeSpec = BUTTON_SIZES[size]
@@ -102,11 +104,13 @@ export function Button({
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}
       aria-describedby={descriptionId}
+      aria-haspopup={expanded === undefined ? undefined : 'dialog'}
+      aria-expanded={expanded}
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}
       className={actionClasses(variant, size, 'button', loading, quiet, elevated)}
-      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
+      style={{ ...actionStyle(size, iconOnly, matchedWidth, Boolean(leadingIcon), withinRow, minimumHeight), height: minimumHeight === undefined ? sizeSpec.height : undefined, minHeight: minimumHeight, fontSize: minimumHeight === undefined ? sizeSpec.fontSize : `${sizeSpec.fontSize / 16}rem`, color: variant === 'ghost' && quiet ? 'var(--fg-2)' : undefined }}
     >
       {loading ? (
         <Loader2 size={sizeSpec.iconSize} strokeWidth={1.8} className="animate-spin orbit-essential-loading" aria-hidden="true" />

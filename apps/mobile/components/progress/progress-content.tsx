@@ -325,7 +325,7 @@ function GoalCard({ goal, index, total, canReorder, isDragging, onDrag, onMove, 
   )
 }
 
-function GoalsEmptyState() {
+function GoalsEmptyState({ tokens, inSection = false }: Readonly<{ tokens: AppTokensV2; inSection?: boolean }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
   useEffect(() => () => {
@@ -339,7 +339,8 @@ function GoalsEmptyState() {
     })
     useUIStore.getState().setAstraConversationOpen(true)
   }
-  return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
+  return <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.empty')}</Text><PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton></View>
 }
 
 function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string) => void; onRegisterGoal: (goalId: string, instance: View | null) => void }>) {
@@ -388,8 +389,8 @@ function GoalsSection({ goals, tokens, onOpenGoal, onRegisterGoal }: Readonly<{ 
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
       </> : null}
-      {goals.length === 0 ? <GoalsEmptyState /> : null}
-      {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
+      {goals.length === 0 ? <GoalsEmptyState tokens={tokens} inSection /> : null}
+      {goals.length > 0 && filtered.length === 0 ? <View style={[styles.emptyLine, { backgroundColor: tokens.bgWell }]}><Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
       {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={goals.findIndex((item) => item.id === goal.id)} total={goals.length} canReorder={false} isDragging={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} onRegister={onRegisterGoal} tokens={tokens} />) : null}
       {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
@@ -609,7 +610,7 @@ export function ProgressContent() {
         <ProgressPageHeading focusRef={pageHeadingRef} title={t('progressScreen.title')} />
         {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
         {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant={width >= 768 ? 'secondary' : 'primary'} size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
-        {empty ? <View style={styles.empty}><GoalsEmptyState /></View> : null}
+        {empty ? <View style={styles.empty}><GoalsEmptyState tokens={tokens} /></View> : null}
         {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} hasGoals={allGoals.length > 0} /><GoalsSection onOpenGoal={openGoal} onRegisterGoal={registerGoalCard} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} hasGoals={allGoals.length > 0} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
       </View>
     </NestableScrollContainer>
@@ -642,7 +643,7 @@ const styles = StyleSheet.create({
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, overflow: 'hidden', borderWidth: 1 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
-  emptyLine: { alignItems: 'flex-start', gap: 12, paddingVertical: 24 },
+  emptyLine: { alignItems: 'flex-start', borderRadius: 12, gap: 8, padding: 16 },
   achievement: { borderRadius: 20, borderWidth: 1, gap: 12, minWidth: 0, padding: 16 },
   achievementCategory: { gap: 12 }, achievementCategoryTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20, paddingTop: 4 }, achievementGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   achievementHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 }, achievementCopy: { flex: 1, gap: 4, minWidth: 0 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
