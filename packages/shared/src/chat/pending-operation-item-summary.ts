@@ -107,7 +107,7 @@ function listSummary(field: PendingOperationChange, translate: PreviewTranslatio
   }).join(', ')
 }
 
-const PREVIEW_ACTION_KEYS: readonly string[] = [
+export const PREVIEW_ACTION_KEYS: readonly string[] = [
   'deleteHabit', 'updateHabits', 'rescheduleHabits', 'logHabits', 'skipHabits', 'createHabits', 'deleteHabits',
   'deleteGoal', 'deleteTag', 'deleteNotification', 'deleteAllNotifications', 'deleteNotifications',
   'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'syncCalendar', 'manageCalendarSync',

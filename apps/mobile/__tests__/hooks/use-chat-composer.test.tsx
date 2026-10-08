@@ -14,6 +14,7 @@ import type { DocumentPickerAsset } from 'expo-document-picker'
 import { Linking, StyleSheet, type FlatList } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { prepareChatRequest } from '@orbit/shared/stores'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch'
 import { useChatStore } from '@/stores/chat-store'
@@ -34,6 +35,7 @@ const mocks = vi.hoisted(() => {
     habitData: { topLevelHabits: [] as NormalizedHabit[], totalCount: 0 } as { topLevelHabits: NormalizedHabit[]; totalCount: number } | null,
     detail: null as HabitDetail | null,
     habitFilters: [] as HabitsFilter[],
+    habitsError: false,
     speechError: null as string | null,
     recordingDuration: 0,
     isRecording: false,
@@ -213,7 +215,7 @@ vi.mock('expo-file-system', () => ({
 
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/hooks/use-habit-queries')>(),
-  useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: false } },
+  useHabits: (filters: HabitsFilter) => { mocks.state.habitFilters.push(filters); return { data: mocks.state.habitData, isError: mocks.state.habitsError } },
   useHabitDetail: () => ({ data: mocks.state.detail, isError: false }),
 }))
 
@@ -621,6 +623,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.habitData = { topLevelHabits: [], totalCount: 0 }
     mocks.state.detail = null
     mocks.state.habitFilters = []
+    mocks.state.habitsError = false
     mocks.state.speechError = null
     mocks.state.recordingDuration = 0
     mocks.state.isRecording = false
@@ -1837,6 +1840,39 @@ describe('mobile useChatComposer', () => {
     expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me make a goal')
     expect(useChatStore.getState().draft).toBe('Unsent note')
     appendFormPart.mockRestore()
+  })
+
+  it.each(['loading', 'error'] as const)('selects the requested Progress goal beside an existing draft while habits are %s', async status => {
+    mocks.state.profile = createMockProfile({ lastCompletionDate: null })
+    mocks.state.habitData = null
+    mocks.state.habitsError = status === 'error'
+    useChatStore.getState().setDraft('Unsent note')
+    prepareChatRequest(useChatStore.getState(), {
+      id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal',
+    })
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    onTestFinished(() => appendFormPart.mockRestore())
+    function GoalRequestComposer() {
+      const chat = useChatComposer({ pathname: '/progress', isOnline: true, offlineTitle: 'offline' })
+      return <ShellComposer {...chat.composerProps} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<GoalRequestComposer />)
+      mountedTrees.push(tree)
+      await Promise.resolve()
+    })
+    expect(tree.root.findByType('TextInput').props.value).toBe('Unsent note')
+    const group = tree.root.findByProps({ accessibilityLabel: 'shell.composer.suggestionsLabel' })
+    const chips = group.findAllByType('Pressable')
+    expect(chips.length).toBeGreaterThanOrEqual(3)
+    expect(chips[0].props.accessibilityLabel).toBe('Create a goal')
+    TestRenderer.act(() => chips[0].props.onPress())
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me make a goal')
+    expect(tree.root.findByType('TextInput').props.value).toBe('Unsent note')
+    expect(useChatStore.getState().draft).toBe('Unsent note')
   })
 
   it('uses loaded habit detail while the separate day query is unavailable', async () => {

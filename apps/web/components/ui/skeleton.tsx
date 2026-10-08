@@ -66,7 +66,8 @@ function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps,
     <div
       className="grid"
       style={{
-        gridTemplateColumns: `repeat(${cols}, ${cell}px)`,
+        gridTemplateColumns: cols === 1 ? `minmax(0, ${cell}px)` : `repeat(${cols}, ${cell}px)`,
+        justifyContent: cols === 1 ? 'center' : undefined,
         gridTemplateRows: `repeat(${rows}, ${cell}px)`,
         gap,
       }}
@@ -76,7 +77,7 @@ function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps,
       data-gap={gap}
     >
       {Array.from({ length: rows * cols }, (_, index) => (
-        <span key={index} className={blockClass} style={{ width: cell, height: cell }} />
+        <span key={index} className={blockClass} style={{ width: cell, maxWidth: '100%', height: cell }} />
       ))}
     </div>
   )

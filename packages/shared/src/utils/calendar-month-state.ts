@@ -8,7 +8,12 @@ export const CALENDAR_MONTH_GRID_GEOMETRY = {
   maximumRows: 6,
   cell: MONTH_GRID_TARGET_MIN,
   gap: 4,
+  inlineInset: 16,
 } as const
+
+export const CALENDAR_GRID_GAP_CONTENT_BREAKPOINT =
+  CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
+  + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap
 
 export type CalendarMonthDisplayState = 'loading' | 'empty' | 'future' | 'ready'
 

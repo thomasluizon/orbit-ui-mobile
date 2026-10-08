@@ -21,14 +21,15 @@ function getBodyPadding(compact: boolean, hasTrailing: boolean) {
 
 function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean, hasTrailing: boolean) {
   const paddingBlock = getBodyPadding(compact, hasTrailing)
+  const paddingInline = inset ? 16 : 0
+  if (hasDescription) return { minHeight: 'var(--row-h)', paddingBlock: 12, paddingInline, paddingInlineEnd: hasAction ? 0 : paddingInline }
   if (!inset) return { minHeight: 'var(--row-h-compact)', paddingBlock, paddingInlineStart: 0, paddingInlineEnd: 0 }
-  return compact
-    ? { minHeight: 'var(--row-h-compact)', paddingBlock, paddingInline: compactForm ? 12 : 16, paddingInlineEnd: hasAction ? 0 : compactForm ? 12 : 16 }
-    : { minHeight: hasDescription ? 76 : 56, paddingBlock: hasDescription ? 16 : 4, paddingInline: 16, paddingInlineEnd: hasAction ? 0 : 16 }
+  const singleLinePaddingInline = compactForm ? 12 : 16
+  return { minHeight: compact ? 'var(--row-h-compact)' : 56, paddingBlock: compact ? paddingBlock : 4, paddingInline: singleLinePaddingInline, paddingInlineEnd: hasAction ? 0 : singleLinePaddingInline }
 }
 
-function getActionStyle(compact: boolean, inset: boolean, compactForm: boolean, hasDescription: boolean) {
-  return { marginBlock: !compact && inset && hasDescription ? 16 : 4, marginInlineEnd: inset ? compactForm ? 12 : 16 : 0, marginInlineStart: 0, alignSelf: 'center' as const }
+function getActionStyle(inset: boolean, compactForm: boolean, hasDescription: boolean) {
+  return { marginBlock: hasDescription ? 8 : 4, marginInlineEnd: inset ? compactForm ? 12 : 16 : 0, marginInlineStart: 0, alignSelf: 'center' as const }
 }
 
 function descriptionClass(textMode: WebListRowProps['textMode'], wrapTitle: WebListRowProps['wrapTitle']) {
@@ -58,7 +59,7 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
     <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</Title>
-    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.75rem' : 14, lineHeight: 1.4 }}>{description}</Description> : null}
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.875rem' : 14, lineHeight: 1.4 }}>{description}</Description> : null}
   </span>
 }
 
@@ -135,7 +136,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
     <div className={`orbit-list-row-shell flex items-stretch ${inForm ? 'orbit-list-row-form' : ''}`} style={{ minHeight: 52 }}>
       {(props.textMode === 'personal' || props.valueTextMode === 'personal') && props.personalExpanded !== undefined && !readOnly && (href || onClick) ? <PersonalTextAction className="flex-1" label={accessibilityLabel ?? [props.title, props.description, props.value].filter(Boolean).join(', ')} contentClassName="flex min-w-0 flex-1 items-center" contentStyle={{ ...bodyStyle, opacity: props.disabled ? 0.5 : undefined }} control={actionBody} /> : actionBody}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(compact, inset, compactForm, !!props.description)}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action flex size-[var(--touch-min)] shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent active:scale-[0.96]" style={getActionStyle(inset, compactForm, !!props.description)}>
           <span className="flex shrink-0 items-center justify-center" style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}>
             <Icon name={action.icon} size={20} color={action.danger ? 'var(--status-bad)' : 'var(--fg-2)'} />
           </span>

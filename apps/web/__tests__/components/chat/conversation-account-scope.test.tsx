@@ -1,6 +1,9 @@
 import { createRef } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'pt-BR',
@@ -26,13 +29,11 @@ vi.mock('@/components/ui/app-bar', async (importOriginal) => ({
 }))
 
 vi.mock('@/components/shell/composer', () => ({
-  Composer: ({ suggestions }: { suggestions?: { id: string }[] }) => (
-    <div data-testid="conversation-composer">{suggestions?.length ? <div role="group" aria-label="composer-chips" /> : null}</div>
+  Composer: ({ suggestions }: { suggestions?: { id: string; label?: string; onSelect?: () => void }[] }) => (
+    <div data-testid="conversation-composer">{suggestions?.length ? <div role="group" aria-label="composer-chips">
+      {suggestions.filter(suggestion => suggestion.label).map(suggestion => <button key={suggestion.id} type="button" onClick={suggestion.onSelect}>{suggestion.label}</button>)}
+    </div> : null}</div>
   ),
-}))
-
-vi.mock('@/components/chat/chat-empty-state', () => ({
-  ChatEmptyState: ({ contextualAction }: { contextualAction?: { label: string; onSelect: () => void } }) => <div data-testid="empty-suggestions">{contextualAction ? <button type="button" onClick={contextualAction.onSelect}>{contextualAction.label}</button> : null}</div>,
 }))
 
 vi.mock('@/components/chat/message-bubble', () => ({
@@ -103,24 +104,31 @@ it('keeps live composer suggestions available in a new and populated thread', ()
   chat.messages = []
   chat.showSuggestions = true
   const view = render(<AstraConversation chat={chat} />)
-  expect(screen.getByTestId('empty-suggestions')).toBeInTheDocument()
+  expect(screen.getByText('chat.empty.title')).toBeInTheDocument()
   expect(screen.getByRole('group', { name: 'composer-chips' })).toBeInTheDocument()
   chat.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
   chat.showSuggestions = false
   view.rerender(<AstraConversation chat={chat} />)
-  expect(screen.queryByTestId('empty-suggestions')).not.toBeInTheDocument()
+  expect(screen.queryByText('chat.empty.title')).not.toBeInTheDocument()
   expect(screen.getByRole('group', { name: 'composer-chips' })).toBeInTheDocument()
 })
 
-it('keeps a requested Progress action reachable in a new conversation', () => {
+it('keeps the requested Progress action only in the composer in a new conversation', () => {
   const chat = buildChat()
   chat.messages = []
   chat.showSuggestions = true
-  chat.composerProps.suggestions = []
   useChatStore.getState().setContextualSuggestion({ id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' })
+  const chips = buildComposerChips({ surface: 'progress', status: 'success',
+    habits: [createMockHabit()], totalHabitCount: 1, profile: createMockProfile(),
+    contextualSuggestion: useChatStore.getState().contextualSuggestion })
+  chat.composerProps.suggestions = toComposerSuggestions(chips.map(chip => ({
+    id: chip.id, label: chip.label ?? chip.key,
+    onSelect: () => void chat.sendMessage(chip.prompt ?? chip.promptKey ?? chip.key),
+  })))
   render(<AstraConversation chat={chat} />)
-  expect(screen.queryByRole('group', { name: 'composer-chips' })).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Create a goal' }))
+  expect(screen.getAllByRole('button', { name: 'Create a goal' })).toHaveLength(1)
+  expect(within(screen.getByRole('feed')).queryAllByRole('button')).toEqual([])
+  fireEvent.click(within(screen.getByRole('group', { name: 'composer-chips' })).getByRole('button', { name: 'Create a goal' }))
   expect(chat.sendMessage).toHaveBeenCalledWith('Help me make a goal')
 })
 

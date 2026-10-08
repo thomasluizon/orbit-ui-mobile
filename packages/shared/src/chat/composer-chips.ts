@@ -110,9 +110,15 @@ function todayChips(state: ComposerChipState): ComposerChip[] {
 }
 
 function progressChips(state: ComposerChipState): ComposerChip[] {
-  if (state.status !== 'success' || !state.profile) return []
-  const noGoal = state.habits.find((habit) => !habit.linkedGoals?.length)
-  const withGoal = state.habits.some((habit) => Boolean(habit.linkedGoals?.length))
+  if (!state.profile) return []
+  const contextual = state.contextualSuggestion
+  const requested: ComposerChip[] = contextual?.id === 'progress-create-goal' ? [{
+    id: contextual.id, key: 'progressScreen.goals.createAction',
+    label: contextual.label, prompt: contextual.prompt,
+  }] : []
+  if (state.status !== 'success' && !requested.length) return []
+  const noGoal = state.status === 'success' ? state.habits.find((habit) => !habit.linkedGoals?.length) : undefined
+  const withGoal = state.status === 'success' && state.habits.some((habit) => Boolean(habit.linkedGoals?.length))
   const candidates = [
     ...(noGoal ? [chip('progress.createGoal', { title: noGoal.title })] : []),
     ...(state.profile.currentStreak === 0 && state.profile.longestStreak > 0 ? [chip('progress.brokenStreak')] : []),
@@ -121,14 +127,7 @@ function progressChips(state: ComposerChipState): ComposerChip[] {
   ]
   if (candidates.length < 3) candidates.push(chip('today.logYesterday'))
   if (candidates.length < 3) candidates.push(chip('today.createMorningHabit'))
-  const contextual = state.contextualSuggestion
-  if (contextual?.id === 'progress-create-goal') {
-    return [{
-      id: contextual.id, key: 'progressScreen.goals.createAction',
-      label: contextual.label, prompt: contextual.prompt,
-    }, ...candidates.slice(0, 3)]
-  }
-  return candidates
+  return requested.length ? [...requested, ...candidates.slice(0, 3)] : candidates
 }
 
 export function buildComposerChips(state: ComposerChipState): ComposerChip[] {

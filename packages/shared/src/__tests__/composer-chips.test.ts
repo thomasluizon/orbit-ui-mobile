@@ -23,14 +23,15 @@ function ids(overrides: Partial<ComposerChipState> = {}) {
 }
 
 describe('composer chips', () => {
-  it('accepts two suggestions with their callbacks and rejects one or seven', () => {
+  it('accepts zero or two suggestions with their callbacks and rejects one or seven', () => {
     const suggestions = buildComposerChips(state({ surface: 'habitDetail', detailHabit: { title: 'Reading', checklistItems: [] } }))
       .filter(chip => chip.id !== 'habitDetail.askAstra')
       .map(chip => ({ id: chip.id, label: chip.key, onSelect: () => chip.id }))
     const accepted = toComposerSuggestions(suggestions)
     expect(accepted.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
     expect(accepted.map(chip => chip.onSelect())).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
-    expect(() => toComposerSuggestions(suggestions.slice(0, 1))).toThrow()
+    expect(toComposerSuggestions([])).toEqual([])
+    expect(() => toComposerSuggestions(suggestions.slice(0, 1))).toThrow('Composer suggestions must contain zero or two to six chips')
     expect(() => toComposerSuggestions(Array(7).fill(suggestions[0]))).toThrow()
   })
 
@@ -169,6 +170,30 @@ describe('composer chips', () => {
       label: 'Create a goal', prompt: 'Help me make a goal',
     })
     expect(chips).toHaveLength(4)
+    expect(chips.slice(1)).toEqual(buildComposerChips(state({ surface: 'progress' })).slice(0, 3))
+  })
+
+  it.each(['loading', 'error'] as const)('keeps the explicit Progress goal first with chips independent of habit data while habits are %s', status => {
+    const contextualSuggestion = { id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' }
+    const habits = [pending, createMockHabit({ linkedGoals: [{ id: 'goal', title: 'Goal' }] })]
+    for (const profile of [
+      createMockProfile({ currentStreak: 0, longestStreak: 0 }),
+      createMockProfile({ currentStreak: 0, longestStreak: 5 }),
+      createMockProfile({ currentStreak: 3, longestStreak: 5 }),
+    ]) {
+      const chips = buildComposerChips(state({ surface: 'progress', status, contextualSuggestion, habits, profile, totalHabitCount: null }))
+      expect(chips.length).toBeGreaterThanOrEqual(3)
+      expect(chips.length).toBeLessThanOrEqual(4)
+      expect(chips[0]).toEqual({ ...contextualSuggestion, key: 'progressScreen.goals.createAction' })
+      expect(chips.map(chip => chip.id)).not.toContain('progress.createGoal')
+      expect(chips.map(chip => chip.id)).not.toContain('progress.trimGoals')
+      expect(chips.slice(1).map(chip => chip.id)).toEqual(profile.currentStreak === 0 && profile.longestStreak > 0
+        ? ['progress.brokenStreak', 'progress.stuckThisWeek', 'today.logYesterday']
+        : ['progress.stuckThisWeek', 'today.logYesterday', 'today.createMorningHabit'])
+      expect(chips.slice(1)).toEqual(buildComposerChips(state({ surface: 'progress', habits: [], profile })).slice(0, 3))
+    }
+    expect(buildComposerChips(state({ surface: 'progress', status }))).toEqual([])
+    expect(buildComposerChips(state({ surface: 'progress', status, contextualSuggestion, profile: null }))).toEqual([])
   })
 
   it('has localized text for every chip and interpolates habit titles', () => {

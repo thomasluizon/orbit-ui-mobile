@@ -82,6 +82,7 @@ export const pendingOperationItemSchema = z.object({
   entityName: z.string(),
   fields: z.array(pendingOperationChangeSchema),
   stateFingerprint: z.string(),
+  removesData: z.boolean().nullable().optional(),
 })
 export type PendingOperationItem = z.infer<typeof pendingOperationItemSchema>
 

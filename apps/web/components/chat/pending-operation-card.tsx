@@ -69,7 +69,7 @@ function ListFieldEditor({ field, value, labels, busy, error, onChange }: Readon
       const row = typeof entry === 'object' && entry !== null ? entry as Record<string, unknown> : { value: entry }
       const rowLabel = `${fieldLabel} ${index + 1}`
       return <div key={`${field}-${index}`} className="flex flex-col gap-2">
-        <div className="flex justify-end"><button type="button" aria-label={`${labels.remove} ${rowLabel}`} disabled={busy} onClick={() => onChange(removePendingOperationListRow(value, index))} className="flex size-[var(--touch-min)] items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40"><X aria-hidden="true" size={20} strokeWidth={1.5} /></button></div>
+        <div className="flex justify-end"><button type="button" aria-label={`${labels.remove} ${rowLabel}`} disabled={busy} onClick={() => onChange(removePendingOperationListRow(value, index))} className="flex size-[var(--touch-min)] items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"><X aria-hidden="true" size={20} strokeWidth={1.5} /></button></div>
         <ListRowFields field={field} row={row} rowLabel={rowLabel} labels={labels} busy={busy} change={(key, next) => onChange(changePendingOperationListRow(value, index, key, next))} />
       </div>
     })}
@@ -107,7 +107,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
         if (field.valueType === 'boolean') return <div key={field.field} className="flex items-center justify-between gap-3"><span className="text-sm">{label}</span><Switch label={label} checked={draft[field.field] === 'true'} disabled={busy} onChange={(value) => onChange(field.field, String(value))} /></div>
         if (field.field === 'days') {
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
-          return <fieldset key={field.field}><legend className="mb-2 text-sm">{label}</legend><div className="flex flex-wrap gap-2">{PENDING_OPERATION_WEEKDAYS.map((day) => <button key={day} type="button" aria-pressed={days.includes(day)} disabled={busy} onClick={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} className="min-h-[var(--touch-min)] rounded-full border border-[var(--hairline)] px-3 text-sm enabled:hover:bg-[var(--bg-hover)] aria-pressed:border-[var(--primary)] aria-pressed:bg-[var(--selection-bg)] aria-pressed:enabled:hover:bg-[var(--bg-hover)]">{labels.dayLabels[day]}</button>)}</div></fieldset>
+          return <fieldset key={field.field}><legend className="mb-2 text-sm">{label}</legend><div className="flex flex-wrap gap-2">{PENDING_OPERATION_WEEKDAYS.map((day) => <button key={day} type="button" aria-pressed={days.includes(day)} disabled={busy} onClick={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} className="min-h-[var(--touch-min)] rounded-full border border-[var(--hairline)] px-3 text-sm enabled:hover:bg-[var(--bg-hover)] aria-pressed:border-[var(--primary)] aria-pressed:bg-[var(--selection-bg)] aria-pressed:enabled:hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{labels.dayLabels[day]}</button>)}</div></fieldset>
         }
         if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={(draft[field.field] ?? '') as Time24 | ''} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input
@@ -177,10 +177,10 @@ const pendingOperationRenderers = {
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <button
     type="button" aria-label={label} disabled={disabled} onClick={onClick}
-    className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40"
+    className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
   ><X aria-hidden="true" size={20} strokeWidth={1.5} /></button>,
   notice: (message) => <p role="status" className="text-sm text-[var(--fg-2)]">{message}</p>,
-  actionRow: (...children) => <div className="flex flex-wrap items-center gap-2 min-[360px]:flex-nowrap" data-preview-actions="">{children}</div>,
+  actionRow: (...children) => <div className="flex flex-wrap items-center gap-2" data-preview-actions="">{children}</div>,
   spacer: () => <span className="flex-1" />,
   rejected: (message) => <p role="status" data-preview-rejection-status="" className={message ? 'flex items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-sm text-[var(--fg-2)]' : 'sr-only'}>{message ? <><XCircle aria-hidden="true" size={20} strokeWidth={1.5} className="shrink-0 text-[var(--fg-3)]" /><span className="min-w-0 flex-1 leading-[1.55]">{message}</span></> : null}</p>,
 } satisfies PendingOperationCardRenderers
@@ -218,6 +218,6 @@ export function PendingOperationCard({
     savedState={savedState}
     onStateChange={onStateChange}
     render={pendingOperationRenderers}
-    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime, locale)}
+    labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, locale)}
   />
 }

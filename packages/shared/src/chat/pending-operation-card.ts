@@ -1,5 +1,5 @@
 import type { PendingAgentOperation, PendingOperationChange } from '../types/ai'
-import { PENDING_OPERATION_WEEKDAYS, summarizePendingOperationItem } from './pending-operation-item-summary'
+import { PENDING_OPERATION_WEEKDAYS, PREVIEW_ACTION_KEYS, summarizePendingOperationItem } from './pending-operation-item-summary'
 import { getAgentCapabilityActionLabelKey, getAgentCapabilityLabelKey } from '../utils/agent-pending-operation'
 
 export { PENDING_OPERATION_WEEKDAYS } from './pending-operation-item-summary'
@@ -7,7 +7,7 @@ export const PENDING_OPERATION_ITEM_SEARCH_THRESHOLD = 8
 
 export interface PendingOperationCardLabels {
   formatTime: (value: string) => string
-  approve: string
+  approve: (count: number) => string
   acting: string
   cancel: string
   edit: string
@@ -37,9 +37,9 @@ export interface PendingOperationCardLabels {
   reminderSameDay: string
   reminderDayBefore: string
   reminderTime: string
-  confirmBody: string
+  confirmBody: (count: number) => string
   confirmNote: string
-  confirmTitle: string
+  confirmTitle: (count: number) => string
   irreversible: string
   name: string
   pending: string
@@ -55,6 +55,16 @@ export interface PendingOperationCardLabels {
   stepUpMessage: string
 }
 
+const COUNTED_ACTIONS = ['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits', 'deleteHabits', 'updateHabitEmojis']
+const COMPACT_ACTIONS = ['openBillingPortal', 'setCalendarSync', 'dismissCalendarImport', 'dismissCalendarSuggestion', 'manageCalendarSync', 'linkGoalsToHabit', 'markAllNotificationsRead', 'unsubscribePush']
+
+const DELETION_SUBJECTS: Readonly<Record<string, string>> = {
+  'habits.write': 'habits', 'habits.delete': 'habits', 'habits.bulk.write': 'habits', 'habits.bulk.delete': 'habits',
+  'goals.write': 'goals', 'goals.delete': 'goals', 'tags.write': 'tags', 'tags.delete': 'tags',
+  'notifications.write': 'alerts', 'notifications.delete': 'alerts', 'user-facts.delete': 'memories',
+  'checklist-templates.write': 'templates',
+}
+
 export function buildPendingOperationCardLabels(
   pendingOperation: PendingAgentOperation,
   translate: (key: string, values?: Record<string, string | number>) => string,
@@ -62,9 +72,23 @@ export function buildPendingOperationCardLabels(
   locale = 'en',
 ): PendingOperationCardLabels {
   const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
+  const hasMixedDeletion = pendingOperation.items?.some((item) => item.removesData === true)
+    && pendingOperation.items.some((item) => item.removesData !== true)
+  const actionKey = pendingOperation.actionKey
+  const actionLabel = actionKey && PREVIEW_ACTION_KEYS.includes(actionKey)
+    ? translate(`chat.operation.${COMPACT_ACTIONS.includes(actionKey) ? 'approveAction' : 'source'}.${actionKey}`)
+    : translate('chat.operation.approve')
+  const deletionSubject = DELETION_SUBJECTS[pendingOperation.capabilityId]
+  const confirm = deletionSubject && pendingOperation.items?.some((item) => item.removesData === true)
+    ? translate(`chat.operation.deleteAction.${deletionSubject}`)
+    : translate(actionKey && PREVIEW_ACTION_KEYS.includes(actionKey)
+      ? `chat.operation.source.${actionKey}`
+      : getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges')
   return {
     formatTime,
-    approve: translate('chat.operation.approve'),
+    approve: (count) => hasMixedDeletion ? translate('chat.pendingOp.action.applyChanges')
+      : actionKey && COUNTED_ACTIONS.includes(actionKey)
+        ? translate(`chat.operation.approveCount.${actionKey}`, { count }) : actionLabel,
     acting: translate('blockFrame.status.acting'),
     cancel: translate('common.cancel'),
     edit: translate('chat.operation.edit'),
@@ -95,14 +119,17 @@ export function buildPendingOperationCardLabels(
     checklistLimit: translate('chat.operation.list.checklistLimit'),
     scheduledLimit: translate('chat.operation.list.scheduledLimit'),
     checked: translate('chat.operation.list.checked'),
-    confirm: translate(getAgentCapabilityActionLabelKey(pendingOperation.capabilityId) ?? 'chat.pendingOp.action.applyChanges'),
+    confirm,
     reminderWhen: translate('chat.operation.list.when'),
     reminderSameDay: translate('chat.operation.list.sameDay'),
     reminderDayBefore: translate('chat.operation.list.dayBefore'),
     reminderTime: translate('chat.operation.list.time'),
-    confirmBody: translate('chat.operation.confirmBody'),
+    confirmBody: (count) => translate(deletionSubject
+      ? `chat.operation.deleteBody.${deletionSubject}` : 'chat.operation.confirmNote', { count }),
     confirmNote: translate('chat.operation.confirmNote'),
-    confirmTitle: translate('chat.operation.confirmTitle'),
+    confirmTitle: (count) => deletionSubject
+      ? translate(`chat.operation.deleteTitle.${deletionSubject}`, { count })
+      : translate('chat.operation.confirmActionTitle', { action: confirm }),
     irreversible: translate('chat.operation.irreversible'),
     name: translate(capabilityKey ?? 'chat.operation.unknown'),
     pending: translate('chat.operation.pending'),

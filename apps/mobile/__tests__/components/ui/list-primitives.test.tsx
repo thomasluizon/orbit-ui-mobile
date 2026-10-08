@@ -120,7 +120,7 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ alignItems: 'stretch' })
     expect(StyleSheet.flatten(row.props.style)).not.toHaveProperty('padding')
     for (const pressed of [false, true]) {
-      expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 16, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden', flexShrink: 0 })
+      expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 8, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden', flexShrink: 0 })
       expect(StyleSheet.flatten(actionContent(action, pressed).props.style)).toMatchObject({ width: 48, height: 48, flexShrink: 0 })
     }
     press(action)

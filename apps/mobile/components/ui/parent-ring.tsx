@@ -45,6 +45,7 @@ export function ParentRing({ done, total, size = 12, stroke, trackColor }: Reado
           strokeWidth={1.5}
         />
         <Circle
+          opacity={pct > 0 ? 1 : 0}
           cx={size / 2}
           cy={size / 2}
           r={r}

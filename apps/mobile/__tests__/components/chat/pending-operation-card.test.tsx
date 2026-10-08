@@ -1,3 +1,5 @@
+import { makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
@@ -26,7 +28,7 @@ const visibleLocale = vi.hoisted(() => ({ language: 'en', actual: false }))
 function translateVisible(key: string, values?: Record<string, string | number>): string {
   const messages = visibleLocale.language === 'en' ? en : ptBR
   const message = key.split('.').reduce<unknown>((current, segment) => typeof current === 'object' && current !== null ? (current as Record<string, unknown>)[segment] : undefined, messages)
-  return typeof message === 'string' ? message.replace(/\{(\w+)\}/g, (_, name: string) => String(values?.[name] ?? `{${name}}`)) : key
+  return typeof message === 'string' ? new IntlMessageFormat(message, visibleLocale.language).format(values) as string : key
 }
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: visibleLocale.language }, t: (key: string, values?: Record<string, string | number>) => {
@@ -42,8 +44,8 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
-    open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
+  ConfirmSheet: (props: { open: boolean; onConfirm: () => void; title: string; confirmLabel: string; destructive: boolean }) =>
+    props.open ? React.createElement('ConfirmSheet', props) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
@@ -76,6 +78,76 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  describe.each(['en', 'pt-BR'])('operation approval in %s', (locale) => {
+    it.each(['Low', 'Destructive', 'High'] as const)('approves creation directly with %s internal risk', async (riskClass) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = { ...makeCreateHabitsPreview(), riskClass }
+      const { tree, handlers } = renderCard(operation)
+      handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+      const messages = locale === 'en' ? en : ptBR
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operation.irreversible)
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operation.confirmNote)
+      await TestRenderer.act(async () => { press(tree, locale === 'en' ? 'Create 12 habits' : 'Criar 12 hábitos').props.onPress(); await Promise.resolve() })
+      expect(handlers.onConfirmExecute).toHaveBeenCalledWith(operation.id)
+      expect(tree.root.findAllByType('ConfirmSheet')).toHaveLength(0)
+    })
+
+    it('updates the action count after removing a proposed habit', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview()
+      const items = operation.items!.slice(1)
+      const revise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id,
+        cancelled: false, preview: { changes: [], items, changeTargetCount: 11, previewFingerprint: 'revised-create' } } })
+      const { tree } = renderCard(operation, revise)
+      await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: `${locale === 'en' ? 'Remove' : 'Remover'} Habit 1` }).props.onPress(); await Promise.resolve() })
+      expect(press(tree, locale === 'en' ? 'Create 11 habits' : 'Criar 11 hábitos')).toBeDefined()
+      expect(press(tree, locale === 'en' ? 'Create 12 habits' : 'Criar 12 hábitos')).toBeUndefined()
+    })
+
+    it('approves the remaining creation directly after removing the last deletion', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const mixed = makeMixedHabitsPreview()
+      const items = mixed.items!.slice(0, 2)
+      const operation = { ...mixed, items: mixed.items!.slice(0, 3), changeTargetCount: 3 }
+      const revise = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null, pendingOperationId: operation.id,
+        cancelled: false, preview: { changes: [], items, changeTargetCount: 2, previewFingerprint: 'revised-mixed' } } })
+      const { tree, handlers } = renderCard(operation, revise)
+      handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Succeeded' } } })
+      await TestRenderer.act(async () => { tree.root.findByProps({ accessibilityLabel: `${locale === 'en' ? 'Remove' : 'Remover'} Old habit 1` }).props.onPress(); await Promise.resolve() })
+      await TestRenderer.act(async () => { press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.onPress(); await Promise.resolve() })
+      expect(handlers.onConfirmExecute).toHaveBeenCalledWith(operation.id)
+      const messages = locale === 'en' ? en : ptBR
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operation.irreversible)
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operation.confirmNote)
+      expect(tree.root.findAllByType('ConfirmSheet')).toHaveLength(0)
+    })
+
+    it('marks only delete rows and confirms their count', () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeMixedHabitsPreview()
+      const { tree, handlers } = renderCard(operation)
+      const messages = locale === 'en' ? en : ptBR
+      expect(tree.root.findAllByType(Text).filter((node: ReactTestInstance) => node.props.children === messages.chat.operation.irreversible)).toHaveLength(3)
+      for (const item of operation.items!) {
+        const row = tree.root.findByProps({ testID: `block-frame-item-${item.itemId}-pending-proposed` })
+        expect(row.findAllByType(Text).some((node: ReactTestInstance) => node.props.children === messages.chat.operation.irreversible)).toBe(item.removesData === true)
+      }
+      expect(renderedText(tree.toJSON())).toContain(messages.chat.operation.confirmNote)
+      TestRenderer.act(() => press(tree, messages.chat.pendingOp.action.applyChanges).props.onPress())
+      expect(handlers.onConfirmExecute).not.toHaveBeenCalled()
+      expect(tree.root.findByType('ConfirmSheet').props).toMatchObject({
+        title: locale === 'en' ? 'Delete habits?' : 'Apagar hábitos?',
+        message: locale === 'en' ? '3 habits and everything inside them leave your list. There is no way to restore this here.' : '3 hábitos e tudo dentro deles saem da sua lista. Não há como restaurar por aqui.',
+        confirmLabel: locale === 'en' ? 'Delete habits' : 'Apagar hábitos', destructive: true,
+      })
+    })
+  })
+
+
   describe.each(['en', 'pt-BR'])('visible write summaries in %s', (locale) => {
     it.each(pendingWriteSummaryCases)('shows $name', (scenario) => {
       visibleLocale.actual = true
@@ -235,7 +307,7 @@ describe('PendingOperationCard (mobile)', () => {
   })
 
   it('closes confirmation and blocks its old handler when the preview changes', async () => {
-    const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
+    const destructive = { ...preview, items: preview.items.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
     const { tree, handlers } = renderCard(destructive, vi.fn())
     TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
     const oldConfirm = tree.root.findByType('ConfirmSheet').props.onConfirm
@@ -248,7 +320,7 @@ describe('PendingOperationCard (mobile)', () => {
   })
 
   it('keeps confirmation open when the preview fingerprint is unchanged', () => {
-    const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
+    const destructive = { ...preview, items: preview.items.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
     const { tree, handlers } = renderCard(destructive, vi.fn())
     TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
     TestRenderer.act(() => tree.update(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...destructive, items: [...destructive.items] })} onRevise={vi.fn()} {...handlers} />))
@@ -589,7 +661,7 @@ describe('PendingOperationCard (mobile)', () => {
   })
 
   it('refreshes a stale preview and closes the old confirmation', async () => {
-    const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
+    const destructive = { ...preview, items: preview.items.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
     const revise = vi.fn().mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
     const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null,
       pendingOperationId: 'pending-1', cancelled: false,
@@ -610,11 +682,11 @@ describe('PendingOperationCard (mobile)', () => {
   })
 
   it('requires a new confirmation after refresh returns the same fingerprint', async () => {
-    const destructive = { ...preview, riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
+    const destructive = { ...preview, items: preview.items.map((item) => ({ ...item, removesData: true })), riskClass: 'Destructive' as const, confirmationRequirement: 'FreshConfirmation' as const }
     const revise = vi.fn().mockResolvedValue({ ok: false, error: 'stale_preview', stale: true })
     const refresh = vi.fn().mockResolvedValue({ ok: true, result: { isSuccess: true, error: null,
       pendingOperationId: 'pending-1', cancelled: false,
-      preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem], previewFingerprint: 'preview-1' } } })
+      preview: { changes: [], changeTargetCount: 2, items: [firstItem, secondItem].map((item) => ({ ...item, removesData: true })), previewFingerprint: 'preview-1' } } })
     const { tree, handlers } = renderCard(destructive, revise, refresh)
     TestRenderer.act(() => press(tree, 'chat.operation.approve').props.onPress())
     const oldConfirm = tree.root.findByType('ConfirmSheet').props.onConfirm
@@ -684,7 +756,7 @@ describe('PendingOperationCard (mobile)', () => {
   })
 
   it('hides risk and requires confirmation before a destructive operation', async () => {
-    const { tree, handlers } = renderCard()
+    const { tree, handlers } = renderCard({ items: [{ ...firstItem, removesData: true }] })
     handlers.onConfirmExecute.mockResolvedValue({
       ok: true,
       response: { operation: { status: 'Succeeded' } },

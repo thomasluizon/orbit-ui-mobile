@@ -195,8 +195,7 @@ const pendingOperationRenderers = {
 } satisfies PendingOperationCardRenderers
 
 function PreviewActions({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { width } = useWindowDimensions()
-  return <View testID="preview-actions" style={{ flexDirection: 'row', flexWrap: width < 360 ? 'wrap' : 'nowrap', alignItems: 'center', gap: 8 }}>{children}</View>
+  return <View testID="preview-actions" style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</View>
 }
 
 function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
@@ -240,6 +239,6 @@ export function PendingOperationCard({
     savedState={savedState}
     onStateChange={onStateChange}
     render={pendingOperationRenderers}
-    labels={buildPendingOperationCardLabels(pendingOperation, t, displayTime, i18n.language)}
+    labels={(operation) => buildPendingOperationCardLabels(operation, t, displayTime, i18n.language)}
   />
 }

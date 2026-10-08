@@ -32,17 +32,6 @@ export function createStyles(tokens: Tokens) {
       paddingHorizontal: 16,
       paddingVertical: 16,
     },
-    emptySuggestions: {
-      alignItems: "center",
-      gap: 8,
-    },
-    emptyPrompt: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
-      textAlign: "center",
-      color: tokens.fg3,
-    },
     aiDisclaimer: {
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
