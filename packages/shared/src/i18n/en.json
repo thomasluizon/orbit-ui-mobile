@@ -1699,7 +1699,6 @@
         "run_sync": "Sync now"
       },
       "confirmTitle": "Approve this change?",
-      "confirmBody": "Deletion cannot be undone.",
       "confirm": "Approve",
       "stepUpMessage": "Confirm your identity on the device before this can continue.",
       "stepUpAction": "Confirm identity",
@@ -1738,12 +1737,20 @@
         "updateHabitEmojis": "Change {count, plural, one {# habit icon} other {# habit icons}}"
       },
       "deleteTitle": {
-        "habits": "Delete {count, plural, one {# habit} other {# habits}}?",
-        "goals": "Delete {count, plural, one {# goal} other {# goals}}?",
-        "tags": "Delete {count, plural, one {# tag} other {# tags}}?",
-        "alerts": "Delete {count, plural, one {# alert} other {# alerts}}?",
-        "memories": "Delete {count, plural, one {# memory} other {# memories}}?",
-        "templates": "Delete {count, plural, one {# template} other {# templates}}?"
+        "habits": "Delete {count, plural, one {habit} other {habits}}?",
+        "goals": "Delete {count, plural, one {goal} other {goals}}?",
+        "tags": "Delete {count, plural, one {tag} other {tags}}?",
+        "alerts": "Delete {count, plural, one {alert} other {alerts}}?",
+        "memories": "Delete {count, plural, one {memory} other {memories}}?",
+        "templates": "Delete {count, plural, one {template} other {templates}}?"
+      },
+      "deleteBody": {
+        "habits": "{count, plural, one {# habit and everything inside it leave your list.} other {# habits and everything inside them leave your list.}} There is no way to restore this here.",
+        "goals": "{count, plural, one {# goal leaves your list.} other {# goals leave your list.}} There is no way to restore this here.",
+        "tags": "{count, plural, one {# tag leaves your list.} other {# tags leave your list.}} There is no way to restore this here.",
+        "alerts": "{count, plural, one {# alert leaves your list.} other {# alerts leave your list.}} There is no way to restore this here.",
+        "memories": "{count, plural, one {# memory leaves your list.} other {# memories leave your list.}} There is no way to restore this here.",
+        "templates": "{count, plural, one {# template leaves your list.} other {# templates leave your list.}} There is no way to restore this here."
       },
       "deleteAction": {
         "habits": "Delete habits",

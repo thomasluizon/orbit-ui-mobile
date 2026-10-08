@@ -94,7 +94,7 @@ describe('Pending preview geometry on Android', () => {
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
   })
 
-  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
     const tree = render(<PendingOperationCard pendingOperation={{ ...makeDeleteHabitsPreview(count), capabilityId, actionKey }} {...handlers} />)
@@ -106,7 +106,8 @@ describe('Pending preview geometry on Android', () => {
       const close = tree.root.findAllByType(Pressable).find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === i18n.t('common.close'))
       const closeStyle = StyleSheet.flatten(typeof close.props.style === 'function' ? close.props.style({ pressed: false }) : close.props.style)
       const available = 320 - headerStyle.paddingHorizontal * 2 - headerStyle.gap - closeStyle.width
-      expect(title.props.children).toContain(String(count))
+      expect(title.props.children).not.toMatch(/\d/)
+      expect(tree.root.findAllByType(Text).some((node: { props: { children?: unknown } }) => typeof node.props.children === 'string' && node.props.children.startsWith(`${count} `))).toBe(true)
       expect(textWidth(title.props.children, Number(titleStyle.fontSize))).toBeLessThanOrEqual(available)
     } finally { TestRenderer.act(() => tree.unmount()) }
   })

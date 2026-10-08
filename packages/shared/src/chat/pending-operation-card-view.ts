@@ -367,7 +367,7 @@ export function renderPendingOperationCard<Node>({
   const confirmSheet = render.confirmSheet({
     open: card.confirmOpen && presentation.destructive,
     title: labels.confirmTitle(deletionCount),
-    message: labels.confirmBody,
+    message: labels.confirmBody(deletionCount),
     confirmLabel: labels.confirm,
     destructive: presentation.destructive,
     onCancel: () => card.setConfirmOpen(false),

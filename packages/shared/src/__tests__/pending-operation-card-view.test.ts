@@ -209,7 +209,7 @@ const labels: PendingOperationCardLabels = {
   rejected: (count) => `The ${count} changes were rejected. Nothing was saved.`,
   summarize: buildPendingOperationCardLabels(makePendingAgentOperation(), translateEnglish, (value) => value).summarize, save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
-  confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: () => 'Confirm',
+  confirmBody: () => 'Confirm the action', confirmNote: 'Review it', confirmTitle: () => 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', denied: 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
@@ -597,8 +597,10 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
     ['templates', 'checklist-templates.write', 'template', 'templates', 'modelo', 'modelos'],
   ] as const
 
-  it('covers every deletion title subject', () => {
-    expect(deletionSubjects.map(([subject]) => subject).sort(compareStrings)).toEqual(Object.keys(messages.chat.operation.deleteTitle).sort(compareStrings))
+  it('covers every deletion title and body subject', () => {
+    for (const copy of [messages.chat.operation.deleteTitle, messages.chat.operation.deleteBody]) {
+      expect(deletionSubjects.map(([subject]) => subject).sort(compareStrings)).toEqual(Object.keys(copy).sort(compareStrings))
+    }
   })
 
   it.each(deletionSubjects)('names the counted %s subject in the confirmation sheet', (_subject, capabilityId, singularEnglish, pluralEnglish, singularPortuguese, pluralPortuguese) => {
@@ -611,9 +613,19 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
         ? count === 1 ? singularEnglish : pluralEnglish
         : count === 1 ? singularPortuguese : pluralPortuguese
       expect(record.confirm).toMatchObject({ open: true, destructive: true,
-        title: `${locale === 'en' ? 'Delete' : 'Apagar'} ${count} ${subject}?` })
+        title: `${locale === 'en' ? 'Delete' : 'Apagar'} ${subject}?` })
+      expect(record.confirm?.message).toMatch(new RegExp(`^${count} ${subject} `))
+      expect(record.confirm?.message).toContain(locale === 'en' ? 'here.' : 'por aqui.')
       expect(localized.confirm.split(/\s+/)).toHaveLength(2)
     }
+  })
+
+  it.each(deletionSubjects)('uses plural %s copy for zero deletions', (_subject, capabilityId, _singularEnglish, pluralEnglish, _singularPortuguese, pluralPortuguese) => {
+    const operation = { ...makeDeleteHabitsPreview(0), capabilityId }
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const subject = locale === 'en' ? pluralEnglish : pluralPortuguese
+    expect(localized.confirmTitle(0)).toBe(`${locale === 'en' ? 'Delete' : 'Apagar'} ${subject}?`)
+    expect(localized.confirmBody(0)).toMatch(new RegExp(`^0 ${subject} `))
   })
 
   it.each(Object.keys(messages.chat.operation.approveAction))('keeps the %s approval action within two words', (actionKey) => {
@@ -662,8 +674,9 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
       renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
       expect(record.frame?.items.map((item) => item.irreversible)).toEqual(operation.items!.map((item) => item.removesData === true))
       const deletionCount = operation.items!.filter((item) => item.removesData).length
-      expect(record.confirm).toMatchObject({ title: locale === 'en' ? `Delete ${deletionCount} habits?` : `Apagar ${deletionCount} hábitos?`,
+      expect(record.confirm).toMatchObject({ title: locale === 'en' ? 'Delete habits?' : 'Apagar hábitos?',
         confirmLabel: locale === 'en' ? 'Delete habits' : 'Apagar hábitos', destructive: true })
+      expect(record.confirm?.message).toMatch(new RegExp(`^${deletionCount} `))
       record.buttons.find((button) => button.label === localized.approve(operation.changeTargetCount!))!.onClick()
       expect(card.execute).not.toHaveBeenCalled()
       expect(card.setConfirmOpen).toHaveBeenCalledWith(true)

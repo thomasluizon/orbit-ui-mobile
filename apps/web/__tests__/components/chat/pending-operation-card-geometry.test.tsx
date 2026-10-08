@@ -100,7 +100,7 @@ describe('Pending preview geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count }) => {
     setViewport(320)
     const messages = locale === 'en' ? en : pt
     const pendingOperation = { ...makeDeleteHabitsPreview(count), capabilityId, actionKey }
@@ -119,7 +119,8 @@ describe('Pending preview geometry in Chromium', () => {
         const available = title.getBoundingClientRect()
         return { text: title.textContent, lines: new Set(Array.from(range.getClientRects(), (rect) => rect.top)).size, width: bounds.width, available: available.width }
       })
-      expect(geometry.text).toContain(String(count))
+      expect(geometry.text).not.toMatch(/\d/)
+      expect(screen.getByText(new RegExp(`^${count} `))).toBeInTheDocument()
       expect(geometry.lines).toBe(1)
       expect(geometry.width).toBeLessThanOrEqual(geometry.available + 0.5)
     } finally { await page.close() }

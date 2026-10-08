@@ -45,8 +45,8 @@ vi.mock('@/hooks/use-pending-operation-card-state', async (importOriginal) => {
   }
 })
 vi.mock('@/components/ui/confirm-sheet', () => ({
-  ConfirmSheet: ({ open, onConfirm, title, confirmLabel, destructive }: { open: boolean; onConfirm: () => void; title: string; confirmLabel: string; destructive: boolean }) =>
-    open ? (capturedSheet.onConfirm = onConfirm, <div role="dialog" aria-label={title} data-destructive={destructive}><button type="button" onClick={onConfirm}>confirm-sheet</button><span>{confirmLabel}</span></div>) : null,
+  ConfirmSheet: ({ open, onConfirm, title, message, confirmLabel, destructive }: { open: boolean; onConfirm: () => void; title: string; message: string; confirmLabel: string; destructive: boolean }) =>
+    open ? (capturedSheet.onConfirm = onConfirm, <div role="dialog" aria-label={title} data-destructive={destructive}><button type="button" onClick={onConfirm}>confirm-sheet</button><p>{message}</p><span>{confirmLabel}</span></div>) : null,
 }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: false } }) }))
@@ -135,7 +135,8 @@ describe('PendingOperationCard', () => {
       expect(screen.getByText(messages.chat.operation.confirmNote)).toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: messages.chat.pendingOp.action.applyChanges }))
       expect(confirm).not.toHaveBeenCalled()
-      expect(screen.getByRole('dialog', { name: locale === 'en' ? 'Delete 3 habits?' : 'Apagar 3 hábitos?' })).toHaveAttribute('data-destructive', 'true')
+      expect(screen.getByRole('dialog', { name: locale === 'en' ? 'Delete habits?' : 'Apagar hábitos?' })).toHaveAttribute('data-destructive', 'true')
+      expect(screen.getByText(locale === 'en' ? '3 habits and everything inside them leave your list. There is no way to restore this here.' : '3 hábitos e tudo dentro deles saem da sua lista. Não há como restaurar por aqui.')).toBeInTheDocument()
       expect(screen.getByText(locale === 'en' ? 'Delete habits' : 'Apagar hábitos')).toBeInTheDocument()
     })
   })
