@@ -30,7 +30,7 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
   const center = size / 2
   const sweep = Math.max(0, Math.min(1, fraction)) * 100
   return (
-    <svg aria-hidden="true" width={size} height={size} className="absolute inset-0 -rotate-90">
+    <svg aria-hidden="true" width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 -rotate-90">
       <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--status-empty)" strokeWidth={stroke} />
       <circle
         cx={center}
@@ -53,8 +53,8 @@ function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProp
   return (
     <span
       aria-hidden="true"
-      className="relative inline-flex items-center justify-center rounded-full"
-      style={{ width: size, height: size, ...ringStyle(outcome) }}
+      className="relative inline-flex items-center justify-center"
+      style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, ...ringStyle(outcome) }}
     >
       {outcome === 'full' && props.loggable && !props.outsideMonth ? <PressFill /> : null}
       {outcome === 'partial' ? <PartialArc fraction={fraction} size={size} /> : null}
@@ -82,8 +82,8 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
   return (
     <span
       aria-hidden="true"
-      className="relative inline-flex items-center justify-center rounded-full"
-      style={{ width: size, height: size, background: outcome === 'full' ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
+      className="relative inline-flex items-center justify-center"
+      style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, background: outcome === 'full' ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
     >
       {outcome === 'full' && props.loggable && !props.outsideMonth ? <PressFill /> : null}
       <span className={`relative ${numeralClass}`} style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums', fontWeight: props.today ? 500 : 400 }}>{props.day}</span>

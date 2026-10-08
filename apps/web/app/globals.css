@@ -2040,6 +2040,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 }
 
 .orbit-calendar-grid-frame {
+  container-name: calendar-grid;
   container-type: inline-size;
 }
 
@@ -2048,7 +2049,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   width: 100%;
 }
 
-@container (max-width: 331px) {
+@container calendar-grid (width < 332px) {
   .orbit-calendar-grid-card {
     --calendar-grid-gap: 0px;
   }
