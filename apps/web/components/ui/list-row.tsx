@@ -68,8 +68,8 @@ function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded 
   return <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</span>
 }
 
-function getContentStyle(hasWrappedControl: boolean) {
-  return hasWrappedControl
+function getContentStyle(textMode: WebListRowProps['textMode'], hasWrappedControl: boolean) {
+  return textMode === 'label' || hasWrappedControl
     ? { minHeight: 24, gap: 12, alignItems: 'flex-start' }
     : { minHeight: 24, gap: 12 }
 }
@@ -125,7 +125,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
   const { props, Chevron, contentId } = useRowDisclosure(original)
   const { accessibilityLabel, action, chevron = true, compact = !props.description, inset = true, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(!!props.wrapTitle && !!props.trailing)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
+  const content = <span id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
   const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm, !!props.trailing)
 

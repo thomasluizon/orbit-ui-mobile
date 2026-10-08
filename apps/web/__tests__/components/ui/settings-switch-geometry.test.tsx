@@ -9,7 +9,7 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { ListRow } from '@/components/ui/list-row'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { BarChart3 } from '@/components/ui/icons'
+import { BarChart3, Lock } from '@/components/ui/icons'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -27,15 +27,20 @@ describe('settings switch centres in Chromium', () => {
   it('keeps locked Astra labels in their existing text block', async () => {
     const title = ptBR.profile.proactiveAstra.title
     const { container } = render(<div style={{ width: 364 }}>
-      <ListRow title={title} compact textMode="label" chevron={false} onClick={() => {}}
+      <ListRow title={title} icon={<Lock size={24} strokeWidth={1.8} />} compact textMode="label" chevron={false} onClick={() => {}}
         trailing={<Badge>Pro</Badge>} />
     </div>)
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      const height = await page.evaluate(() => document.querySelector('[data-slot="list-row-title"]')!.parentElement!.getBoundingClientRect().height)
-      expect(height).toBeLessThanOrEqual(32)
+      const geometry = await page.evaluate(() => {
+        const textBlock = document.querySelector('[data-slot="list-row-title"]')!.parentElement!.getBoundingClientRect()
+        const icon = document.querySelector('svg')!.getBoundingClientRect()
+        return { height: textBlock.height, iconOffset: icon.top - textBlock.top }
+      })
+      expect(geometry.height).toBeLessThanOrEqual(32)
+      expect(geometry.iconOffset).toBe(0)
     } finally { await page.close() }
   })
 
