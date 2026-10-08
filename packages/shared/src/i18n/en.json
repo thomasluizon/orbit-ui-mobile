@@ -1251,17 +1251,6 @@
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
-    "suggestion": {
-      "prompt": "Some things you can ask",
-      "logHabit": "Log a habit",
-      "week": "How the week went",
-      "splitHabit": "Split a habit",
-      "goals": "How are my goals"
-    },
-    "prompts": {
-      "logHabit": "Log \"{habit}\"",
-      "splitHabit": "Split \"{habit}\""
-    },
     "action": {
       "changes": "Changes",
       "completed": "Astra updated Orbit",

@@ -2,38 +2,19 @@ import { forwardRef } from "react";
 import { ScrollView, View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SuggestionChips } from "@/components/chat/suggestion-chips";
-import { useAstraSuggestions } from "@/hooks/use-astra-suggestions";
 import type { ChatStyles } from "@/components/chat/conversation.styles";
 
 interface ChatEmptyStateProps {
   styles: ChatStyles;
-  onSelectSuggestion: (suggestion: string) => void;
-  contextualAction?: { label: string; onSelect: () => void };
 }
 
-/** The first thing a person sees in an empty thread: the Astra mark and title,
- *  the prompt over the suggestions, and the line saying what Astra is not. */
 export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
-  function ChatEmptyState({ styles, onSelectSuggestion, contextualAction }, ref) {
+  function ChatEmptyState({ styles }, ref) {
     const { t } = useTranslation();
-    const suggestions = useAstraSuggestions();
-    const hasOpeners = suggestions !== null || contextualAction !== undefined;
-
     return (
       <View ref={ref} style={styles.emptyState}>
         <ScrollView contentContainerStyle={styles.emptyContent} keyboardShouldPersistTaps="handled">
           <EmptyState mark="astra" title={t("chat.empty.title")} />
-          {hasOpeners ? (
-            <View style={styles.emptySuggestions}>
-              <Text style={styles.emptyPrompt}>{t("chat.suggestion.prompt")}</Text>
-              <SuggestionChips
-                suggestions={suggestions ?? []}
-                onSelect={onSelectSuggestion}
-                contextualAction={contextualAction}
-              />
-            </View>
-          ) : null}
           <Text style={styles.aiDisclaimer}>
             {t("aiDisclosure.notMedicalAdvice")}
           </Text>

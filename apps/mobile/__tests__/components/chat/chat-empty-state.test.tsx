@@ -48,8 +48,6 @@ function makeTopLevelItem(overrides: Partial<HabitScheduleItem>): HabitScheduleI
 
 function renderEmptyState(
   items: HabitScheduleItem[] | null,
-  onSelectSuggestion = vi.fn(),
-  contextualAction?: { label: string; onSelect: () => void },
 ) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   if (items !== null) {
@@ -62,11 +60,11 @@ function renderEmptyState(
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
-        <ChatEmptyState styles={styles} onSelectSuggestion={onSelectSuggestion} contextualAction={contextualAction} />
+        <ChatEmptyState styles={styles} />
       </QueryClientProvider>,
     )
   })
-  return { tree, onSelectSuggestion }
+  return { tree }
 }
 
 function suggestionLabels(tree: any): string[] {
@@ -104,7 +102,8 @@ describe('ChatEmptyState (mobile)', () => {
     content.setPadding(Yoga.EDGE_VERTICAL, contentStyle.paddingVertical ?? 0)
     content.setPadding(Yoga.EDGE_HORIZONTAL, contentStyle.paddingHorizontal ?? 0)
     /** Synthetic intrinsic blocks exercise spare space and overflow using the mounted content styles. */
-    for (const intrinsicHeight of [244, 168, 48]) {
+    expect(scroll.props.children.filter(Boolean)).toHaveLength(2)
+    for (const intrinsicHeight of [244, 48]) {
       const block = Yoga.Node.create()
       block.setHeight(intrinsicHeight)
       content.insertChild(block, content.getChildCount())
@@ -112,13 +111,13 @@ describe('ChatEmptyState (mobile)', () => {
     try {
       viewport.calculateLayout(undefined, undefined)
       const firstTop = content.getChild(0).getComputedTop()
-      const last = content.getChild(2)
+      const last = content.getChild(1)
       const lastBottom = last.getComputedTop() + last.getComputedHeight()
       const contentHeight = content.getComputedHeight()
       const scrollEnd = Math.max(0, contentHeight - height)
       expect(firstTop).toBeGreaterThanOrEqual(16)
       expect(height - (lastBottom - scrollEnd)).toBeGreaterThanOrEqual(16)
-      if (height === 731) {
+      if (height >= 348) {
         expect(contentHeight).toBe(height)
         expect(Math.abs(firstTop - (height - lastBottom))).toBeLessThanOrEqual(1)
       } else {
@@ -141,128 +140,22 @@ describe('ChatEmptyState (mobile)', () => {
     expect(rendered).not.toContain(tokens.primaryRgb)
   })
 
-  it('sets the prompt and the disclosure on the type scale, in the third text tone', () => {
+  it('sets the disclosure on the type scale, in the third text tone', () => {
     const { tree } = renderEmptyState([])
-    const textStyle = (content: string) => StyleSheet.flatten(
-      tree.root.find((node: any) => node.type === 'Text' && node.props.children === content).props.style,
-    )
+    const disclosure = tree.root.find((node: any) => node.type === 'Text' && node.props.children === 'aiDisclosure.notMedicalAdvice')
 
-    expect(textStyle('chat.suggestion.prompt')).toMatchObject({ fontSize: 14, color: tokens.fg3 })
-    expect(textStyle('aiDisclosure.notMedicalAdvice')).toMatchObject({ fontSize: 12, color: tokens.fg3 })
+    expect(StyleSheet.flatten(disclosure.props.style)).toMatchObject({ fontSize: 12, color: tokens.fg3 })
   })
 
-  it('renders the drawn title, the prompt and the disclosure', () => {
-    const { tree } = renderEmptyState([])
-    const rendered = JSON.stringify(tree.toJSON())
+  it.each([{ habits: [] }, { habits: [makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })] }])(
+    'renders only the mark, title and disclosure with habits $habits', ({ habits: items }) => {
+      const { tree } = renderEmptyState(items)
+      const rendered = JSON.stringify(tree.toJSON())
 
-    expect(rendered).toContain('chat.empty.title')
-    expect(rendered).toContain('chat.suggestion.prompt')
-    expect(rendered).toContain('aiDisclosure.notMedicalAdvice')
-  })
-
-  it('offers generic labels for the account habits in the drawn order', () => {
-    const { tree } = renderEmptyState([
-      makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 }),
-      makeTopLevelItem({ id: 'house', title: 'Rotina da casa', position: 1, isLoggedInRange: true }),
-    ])
-
-    expect(suggestionLabels(tree)).toEqual([
-      'chat.suggestion.logHabit',
-      'chat.suggestion.week',
-      'chat.suggestion.splitHabit',
-      'chat.suggestion.goals',
-    ])
-  })
-
-  it('shows the prompt and every suggestion together, once the habit list arrives', async () => {
-    let answer: (page: unknown) => void = () => {}
-    habitRequest.apiClient.mockImplementationOnce(() => new Promise((resolve) => { answer = resolve }))
-    const { tree } = renderEmptyState(null)
-
-    expect(suggestionLabels(tree)).toEqual([])
-    expect(JSON.stringify(tree.toJSON())).not.toContain('chat.suggestion.prompt')
-
-    await TestRenderer.act(async () => {
-      answer({
-        items: [makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 })],
-        totalCount: 1,
-        totalPages: 1,
-        page: 1,
-        pageSize: 200,
-      })
-      await vi.advanceTimersByTimeAsync(50)
-    })
-
-    expect(suggestionLabels(tree)).toEqual([
-      'chat.suggestion.logHabit',
-      'chat.suggestion.week',
-      'chat.suggestion.splitHabit',
-      'chat.suggestion.goals',
-    ])
-  })
-
-  it('offers a requested contextual action at once, while the habit list is still on its way', () => {
-    habitRequest.apiClient.mockImplementationOnce(() => new Promise(() => {}))
-    const onSelect = vi.fn()
-    const { tree } = renderEmptyState(null, vi.fn(), { label: 'Criar uma meta', onSelect })
-
-    expect(suggestionLabels(tree)).toEqual(['Criar uma meta'])
-    TestRenderer.act(() => {
-      tree.root.findAll((node: any) => node.props?.accessibilityLabel === 'Criar uma meta' && node.props?.onPress)[0].props.onPress()
-    })
-    expect(onSelect).toHaveBeenCalledTimes(1)
-  })
-
-  it('keeps long habit titles out of app labels without ellipsis', () => {
-    const { tree } = renderEmptyState([
-      makeTopLevelItem({ id: 'long', title: 'Arrumar a casa inteira antes do almoço de domingo', position: 0 }),
-    ])
-
-    const labels = tree.root
-      .findAll((node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'button')
-      .flatMap((button: any) => button.findAll((node: any) => node.type === 'Text'))
-    expect(labels).toHaveLength(4)
-    for (const label of labels) expect(label.props.numberOfLines).toBeUndefined()
-  })
-
-  it('leaves out both habit suggestions when the account has no habits', () => {
-    const { tree } = renderEmptyState([])
-
-    expect(suggestionLabels(tree)).toEqual(['chat.suggestion.week', 'chat.suggestion.goals'])
-  })
-
-  it('clips each pressed suggestion fill to the pill that owns its hit area', () => {
-    const { tree } = renderEmptyState([
-      makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 }),
-    ])
-    const chips = tree.root.findAll((node: any) =>
-      typeof node.type === 'string' && node.props.accessibilityRole === 'button',
-    )
-
-    expect(chips).toHaveLength(4)
-    for (const chip of chips) {
-      TestRenderer.act(() => chip.props.onPressIn())
-      expect(StyleSheet.flatten(chip.props.style)).toMatchObject({
-        minHeight: 48,
-        borderRadius: 999,
-        overflow: 'hidden',
-        backgroundColor: tokens.bgHover,
-      })
-    }
-  })
-
-  it('sends the complete intent when a suggestion is pressed', () => {
-    const { tree, onSelectSuggestion } = renderEmptyState([
-      makeTopLevelItem({ id: 'walk', title: 'Caminhar', position: 0 }),
-    ])
-
-    const chip = tree.root.findAll((node: any) =>
-      node.props?.accessibilityLabel === 'chat.suggestion.logHabit' && node.props?.onPress,
-    )[0]
-    TestRenderer.act(() => {
-      chip.props.onPress()
-    })
-
-    expect(onSelectSuggestion).toHaveBeenCalledWith('chat.prompts.logHabit:Caminhar')
-  })
+      expect(rendered).toContain('chat.empty.title')
+      expect(rendered).toContain('aiDisclosure.notMedicalAdvice')
+      expect(suggestionLabels(tree)).toEqual([])
+      expect(tree.root.findAll((node: any) => node.type === 'Text' && typeof node.props.children === 'string').map((node: any) => node.props.children)).toEqual(['chat.empty.title', 'aiDisclosure.notMedicalAdvice'])
+    },
+  )
 })

@@ -31,7 +31,6 @@ import { useConversationKeyboardScroll } from "@/components/chat/use-conversatio
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
-import { useChatStore } from "@/stores/chat-store";
 
 type ChatController = ReturnType<typeof useChatComposer>;
 
@@ -97,7 +96,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   );
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen);
-  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion);
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
@@ -234,16 +232,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         />
 
         {showSuggestions ? (
-          <ChatEmptyState
-            ref={chatAreaRef}
-            styles={styles}
-            contextualAction={contextualSuggestion?.id === "progress-create-goal"
-              ? { label: contextualSuggestion.label, onSelect: () => void sendMessage(contextualSuggestion.prompt) }
-              : undefined}
-            onSelectSuggestion={(suggestion) => {
-              void sendMessage(suggestion);
-            }}
-          />
+          <ChatEmptyState ref={chatAreaRef} styles={styles} />
         ) : (
           <View ref={chatAreaRef} style={{ flex: 1 }}>
             <FlatList
