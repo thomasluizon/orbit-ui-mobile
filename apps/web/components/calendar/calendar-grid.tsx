@@ -18,7 +18,6 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CalendarGridStyles } from './calendar-grid-styles'
 
 interface CalendarGridProps {
   currentMonth: Date
@@ -286,7 +285,6 @@ export function CalendarGrid({
             {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
           </div>
         </div>
-        <CalendarGridStyles />
       </div>
     )
   }
@@ -334,7 +332,6 @@ export function CalendarGrid({
           })}
         </MonthGrid>
       </div>
-      <CalendarGridStyles />
     </div>
   )
 }

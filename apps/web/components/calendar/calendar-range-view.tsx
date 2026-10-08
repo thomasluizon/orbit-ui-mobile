@@ -10,7 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
-import { CalendarGridStyles } from './calendar-grid-styles'
 
 interface CalendarRangeNavigationProps {
   rangeLabel: string
@@ -99,7 +98,7 @@ export function CalendarRangeView({
                 )}
               </span>
             ))}
-          </MonthGrid></div><CalendarGridStyles /></div>
+          </MonthGrid></div></div>
           <CalendarStats stats={stats} state="loading" loadingLabel={loadingLabel} />
         </>
       ) : (
@@ -119,7 +118,7 @@ export function CalendarRangeView({
                 words={words}
               />
             ))}
-          </MonthGrid></div><CalendarGridStyles /></div>
+          </MonthGrid></div></div>
 
           <CalendarStats stats={stats} />
         </>
