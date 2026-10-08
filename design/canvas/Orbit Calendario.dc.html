@@ -33,6 +33,19 @@ a:hover{color:var(--fg-1)}
 .native-send:hover:not(:disabled){background:var(--primary-hover)}
 .native-send:active:not(:disabled){background:var(--primary-pressed)}
 .native-tab:hover .native-tab-indicator{background:var(--bg-hover)}
+.calendar-week-chip{background:transparent}
+.calendar-week-block{background:var(--bg-well)}
+.calendar-week-block[data-future="true"]{background:transparent}
+.calendar-week-header{background:transparent}
+.calendar-week-chip:active{background:var(--bg-hover)}
+.calendar-week-block:active,.calendar-week-header:active{background:var(--bg-hover-opaque)}
+.calendar-week-time{color:var(--fg-3)}
+.calendar-week-block:active .calendar-week-time{color:var(--fg-2)}
+@media(hover:hover) and (pointer:fine){
+.calendar-week-chip:hover{background:var(--bg-hover)}
+.calendar-week-block:hover,.calendar-week-header:hover{background:var(--bg-hover-opaque)}
+.calendar-week-block:hover .calendar-week-time{color:var(--fg-2)}
+}
 </style>
 <script src="./native-mobile.js"></script>
 </helmet>
@@ -44,9 +57,9 @@ a:hover{color:var(--fg-1)}
 
     <sc-if value="{{ is412 }}" hint-placeholder-val="{{ true }}">
       <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Shell412" header="{{ rootHeader }}" sheets="{{ disclosure }}" tab-bar="{{ tabBar }}" hint-size="412px,820px">
-        <div data-native-scroll="true" style="display:flex;flex-direction:column;gap:24px;padding:16px">
+        <div data-native-scroll="true" style="{{ calendarBodyStyle }}">
 
-          <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-direction:column;gap:16px;flex-shrink:0">
             <div style="display:flex;align-items:center;justify-content:center;gap:8px">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}"></x-import></x-import>
               <button type="button" onClick="{{ openMonth }}" style="display:flex;align-items:center;gap:8px;padding:8px 16px;min-height:44px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-1);font-family:var(--font-display);font-size:22px;font-weight:500;white-space:nowrap" style-hover="background:var(--bg-hover)">{{ monthTitle }}<x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-down" size="{{ n20 }}"></x-import></button>
@@ -169,9 +182,9 @@ a:hover{color:var(--fg-1)}
     <sc-if value="{{ isWide }}" hint-placeholder-val="{{ false }}">
       <div style="position:relative;width:1416px">
         <x-import component-from-global-scope="OrbitDesignSystem_918bd5.ShellWide" astra-row="{{ astraRow }}" header="{{ wideOptions }}" items="{{ navItems }}" active-id="calendario" on-select="{{ noop }}" nav-label="{{ navLabelWord }}" on-create="{{ noop }}" create-label="{{ createLabel }}" account="{{ account }}" on-palette="{{ noop }}" palette-label="{{ paletteWord }}" palette-hint="Ctrl K" hint-size="1416px,820px">
-          <div style="display:flex;flex-direction:column;gap:24px">
+          <div style="{{ calendarBodyStyle }}">
 
-            <div style="display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:16px;flex-shrink:0">
             <div style="display:flex;align-items:center;justify-content:center;gap:8px">
               <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="ghost" size="sm" on-click="{{ onPrev }}" dc-props="{{ prevProps }}"><x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-left" size="{{ n20 }}"></x-import></x-import>
               <button type="button" onClick="{{ openMonth }}" style="display:flex;align-items:center;gap:8px;padding:8px 16px;min-height:44px;border:0;border-radius:12px;background:var(--p-transparent);color:var(--fg-1);font-family:var(--font-display);font-size:22px;font-weight:500;white-space:nowrap" style-hover="background:var(--bg-hover)">{{ monthTitle }}<x-import component-from-global-scope="OrbitDesignSystem_918bd5.Icon" name="chevron-down" size="{{ n20 }}"></x-import></button>
@@ -555,13 +568,15 @@ class Component extends DCLogic {
     const columnWidth = 192;
     const gridTemplate = '96px repeat(7, ' + columnWidth + 'px)';
     const pinned = { background: 'var(--bg-elev)' };
-    const selectDay = (day) => this.setState({ sel: day, view: 'month', st: 'month' });
+    const untimed = [UNTIMED, { pt: 'Organizar as anotações e preparar a próxima semana com calma', en: 'Organize the notes and prepare for the next week calmly' }, { pt: 'Evitar doces', en: 'Avoid sweets', bad: true }];
+    const selectDay = (day) => this.setState({ disclosure: 'week-day', weekDay: day, weekEntries: (new Date(YEAR, MONTH, day).getDay() === 1 ? [] : untimed).concat(HABITS.slice(0, this.schedFor(0, YEAR, MONTH, day))) });
+    const selectEntry = (entry, day) => this.setState({ disclosure: 'week-entry', weekDay: day, weekEntries: [entry] });
     const chip = (name, day, more) => H('button', {
-      key: name, type: 'button', className: 'native-control', 'aria-label': more
+      key: name, type: 'button', className: 'calendar-week-chip', 'aria-label': more
         ? (t.lang === 'en' ? '2 more on this day' : '2 mais neste dia') : name,
-      onClick: () => selectDay(day),
+      onClick: () => more ? selectDay(day) : selectEntry(UNTIMED, day),
       style: { minHeight: 48, minWidth: 48, padding: 0, border: 0, borderRadius: 8,
-        background: 'transparent', display: 'flex', alignItems: 'center', width: '100%' }
+        display: 'flex', alignItems: 'center', width: '100%' }
     }, H('span', { style: { height: 28, paddingInline: 8, borderRadius: 'var(--r-chip)',
       background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)',
       color: 'var(--fg-2)', fontSize: 12, width: '100%', minWidth: 0, display: 'flex', alignItems: 'center' }
@@ -569,20 +584,25 @@ class Component extends DCLogic {
     return H('div', { style: { borderRadius: 12, overflow: 'hidden', background: 'var(--bg-card)',
       boxShadow: 'inset 0 0 0 1px var(--hairline)', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 } },
       H('div', { ref: (node) => {
-        if (!node) return;
+        if (!node || this._weekOpened?.has(node)) return;
         const pinnedHeight = node.firstElementChild.clientHeight;
         const height = node.clientHeight - pinnedHeight;
+        node.style.setProperty('--week-tail', Math.max(128, height * 0.75) + 'px');
         node.scrollTop = fixtureNow / 60 * 48 - height / 4;
         node.scrollLeft = Math.max(0, days.indexOf(TODAY) * columnWidth - (node.clientWidth - 96 - columnWidth) / 2);
-      }, style: { overflow: 'auto', height: 520, minHeight: 0, overscrollBehavior: 'contain' } },
+        if (height > 0) {
+          this._weekOpened ||= new WeakSet();
+          this._weekOpened.add(node);
+        }
+      }, style: { overflow: 'auto', flex: 1, minHeight: 0, overscrollBehavior: 'contain' } },
         H('div', { style: { position: 'sticky', top: 0, zIndex: 3, minWidth: 96 + 7 * columnWidth, ...pinned } },
           H('div', { style: { display: 'grid', gridTemplateColumns: gridTemplate } },
             H('div', { style: { position: 'sticky', left: 0, zIndex: 1, ...pinned } }),
             days.map((day) => {
               const label = new Intl.DateTimeFormat(t.intl, { weekday: 'short' }).format(new Date(YEAR, MONTH, day));
-              return H('button', { key: day, type: 'button', onClick: () => selectDay(day), className: 'native-control',
+              return H('button', { key: day, type: 'button', onClick: () => selectDay(day), className: 'calendar-week-header',
                 style: { minHeight: 52, padding: 8, border: 0, borderLeft: '1px solid var(--hairline)',
-                  borderBottom: '1px solid var(--hairline)', background: 'transparent', display: 'flex',
+                  borderBottom: '1px solid var(--hairline)', display: 'flex',
                   flexDirection: 'column', alignItems: 'center', gap: 4, fontFamily: 'var(--font-mono)', fontSize: 12 } },
                 H('span', { style: { color: 'var(--fg-2)' } }, label.charAt(0).toUpperCase() + label.slice(1)),
                 H('span', { style: { width: 24, height: 24, borderRadius: 999, display: 'grid', placeItems: 'center',
@@ -596,23 +616,22 @@ class Component extends DCLogic {
               borderBottom: '1px solid var(--hairline)' } },
               new Date(YEAR, MONTH, day).getDay() === 1 ? null : [chip(t.lang === 'en' ? UNTIMED.en : UNTIMED.pt, day), chip('+2', day, true)])))),
         H('div', { style: { display: 'grid', gridTemplateColumns: gridTemplate, minWidth: 96 + 7 * columnWidth } },
-          H('div', { style: { height: 1280, position: 'sticky', left: 0, zIndex: 1, ...pinned } },
+          H('div', { style: { minHeight: 1280, height: 'calc(1152px + var(--week-tail, 128px))', position: 'sticky', left: 0, zIndex: 1, ...pinned } },
             hours.map((hour) => H('span', { key: hour, style: { position: 'absolute', top: hour * 48 + 2,
               right: 8, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-2)' } }, this.fmt(String(hour).padStart(2, '0') + ':00', h12)))),
-          days.map((day) => H('div', { key: day, style: { position: 'relative', height: 1280,
+          days.map((day) => H('div', { key: day, style: { position: 'relative', minHeight: 1280, height: 'calc(1152px + var(--week-tail, 128px))',
             borderLeft: '1px solid var(--hairline)' } },
             hours.map((hour) => H('span', { key: hour, style: { position: 'absolute', top: hour * 48,
               insetInline: 0, height: 1, background: day > TODAY ? 'var(--hairline-ghost)' : 'var(--hairline)' } })),
             HABITS.slice(0, this.schedFor(0, YEAR, MONTH, day)).map((habit, index) => {
               const name = t.lang === 'en' ? habit.en : habit.pt;
               const concurrent = index >= 3;
-              return H('button', { key: index, type: 'button', className: 'native-control', 'aria-label': name,
-                onClick: () => selectDay(day), style: { position: 'absolute', top: Number(habit.t.split(':')[0]) * 48,
+              return H('button', { key: index, type: 'button', className: 'calendar-week-block', 'aria-label': name, 'data-future': day > TODAY,
+                onClick: () => selectEntry(habit, day), style: { position: 'absolute', top: Number(habit.t.split(':')[0]) * 48,
                   left: concurrent && index === 3 ? columnWidth / 2 + 2 : 2,
                   width: concurrent ? columnWidth / 2 - 4 : columnWidth - 4, minHeight: 48, height: 72,
                   border: 0, borderRadius: 8, padding: 4, display: 'flex', flexDirection: 'column', gap: 4,
                   alignItems: 'flex-start', justifyContent: 'space-between', overflow: 'hidden',
-                  background: day > TODAY ? 'transparent' : 'var(--bg-well)',
                   boxShadow: 'inset 0 0 0 1px var(' + (day > TODAY ? '--hairline-ghost' : '--hairline') + ')' } },
                 H('span', { style: { fontSize: 12, lineHeight: 1.4, color: 'var(--fg-1)', display: '-webkit-box',
                   WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, width: '100%', overflow: 'hidden', wordBreak: 'normal' } },
@@ -622,7 +641,7 @@ class Component extends DCLogic {
                   H('span', { style: { position: 'relative', display: 'inline-flex' } },
                     H(D.StatusRing, { status: habit.bad && day < TODAY ? 'bad' : 'empty', size: 24, label: name }),
                     habit.bad && day < TODAY ? H(D.Icon, { name: 'x', size: 16, style: { position: 'absolute', inset: 4, color: 'var(--status-bad)' } }) : null),
-                  H('span', { style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)',
+                  H('span', { className: 'calendar-week-time', style: { fontFamily: 'var(--font-mono)', fontSize: 12,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, mock(this.fmt(habit.t, h12)))));
             }),
             day === TODAY ? H('div', { style: { position: 'absolute', top: fixtureNow / 60 * 48,
@@ -831,14 +850,30 @@ class Component extends DCLogic {
       time: this.fmt(e.t, h12), source: 'Google Calendar' }));
 
     return Object.assign(base, {
+      calendarBodyStyle: { display: 'flex', flexDirection: 'column', gap: 24,
+        padding: s.width === '412' ? 16 : 0, boxSizing: 'border-box',
+        ...(view === 'week' ? { height: '100%', minHeight: 0 } : {}) },
       monthTitle: first.toLocaleDateString(t.intl, y === YEAR ? { month: 'long' } : { month: 'short', year: 'numeric' }),
       openMonth: () => this.setState({ disclosure: 'month' }),
       wideOptions: H('div', { style: { display: 'flex', justifyContent: 'flex-end', minHeight: 48, paddingInline: 16 } }, H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: () => this.setState({ disclosure: 'options' }) }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
       rootHeader: H(window.OrbitNativeMobile.BellRow, null,
         H(D.Button, { variant: 'ghost', size: 'sm', 'aria-label': t.lang === 'en' ? 'Options' : 'Opções', onClick: () => this.setState({ disclosure: 'options' }) }, H(D.Icon, { name: 'dots-vertical', size: 24 }))),
-      disclosure: s.disclosure ? H(D.Sheet, { open: true, title: s.disclosure === 'legend' ? (t.lang === 'en' ? 'Legend' : 'Legenda') : s.disclosure === 'calendar' ? 'Google Calendar' : s.disclosure === 'events' ? t.eventsTitle : s.disclosure === 'month' ? (t.lang === 'en' ? 'Month' : 'Mês') : (t.lang === 'en' ? 'Options' : 'Opções'),
+      disclosure: s.disclosure ? H(D.Sheet, { open: true, title: s.disclosure === 'week-entry' ? (t.lang === 'en' ? 'Details' : 'Detalhes') : s.disclosure === 'week-day' ? new Date(YEAR, MONTH, s.weekDay).toLocaleDateString(t.intl, { weekday: 'short', day: 'numeric', month: 'short' }) : s.disclosure === 'legend' ? (t.lang === 'en' ? 'Legend' : 'Legenda') : s.disclosure === 'calendar' ? 'Google Calendar' : s.disclosure === 'events' ? t.eventsTitle : s.disclosure === 'month' ? (t.lang === 'en' ? 'Month' : 'Mês') : (t.lang === 'en' ? 'Options' : 'Opções'),
         onClose: () => this.setState({ disclosure: null }) },
-        s.disclosure === 'options' ? H('div', { style: { display: 'grid', gap: 8 } },
+        s.disclosure === 'week-entry' || s.disclosure === 'week-day' ? H('div', { style: { display: 'grid', gap: 16 } },
+          (s.weekEntries || []).map((entry, index) => H('div', { key: index, style: { display: 'grid', gap: 4 } },
+            H('p', { style: { fontSize: 17, lineHeight: 1.4, color: 'var(--fg-1)', whiteSpace: 'normal', wordBreak: 'normal', overflowWrap: 'normal' } },
+              (t.lang === 'en' ? entry.en : entry.pt).split(/(\s+)/).map((word, part) => word.trim() ? H('span', {
+                key: part, ref: (node) => {
+                  if (node && node.scrollWidth > node.clientWidth) {
+                    node.tabIndex = 0;
+                    node.setAttribute('role', 'region');
+                    node.setAttribute('aria-label', word);
+                  }
+                }, style: { display: 'inline-block', maxWidth: '100%', whiteSpace: 'nowrap', overflowX: 'auto', verticalAlign: 'bottom' }
+              }, word) : word)),
+            H('p', { style: { fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' } }, entry.t ? this.fmt(entry.t, h12) : t.anytime))))
+        : s.disclosure === 'options' ? H('div', { style: { display: 'grid', gap: 8 } },
           H('button', { type: 'button', role: 'menuitemcheckbox', 'aria-checked': s.recOn, style: { minHeight: 52, padding: '12px 16px', border: 0, background: 'var(--bg-sheet)', color: 'var(--fg-1)', font: 'inherit', textAlign: 'start' }, onClick: () => this.setState({ recOn: !s.recOn, disclosure: null }) }, t.recLabel, s.recOn ? ' ✓' : ''),
           H(window.OrbitNativeMobile.ListRow, { title: 'Google Calendar', onClick: () => { this.setState({ disclosure: null }); if (paywall) this.goPro(); else setTimeout(() => this.setState({ disclosure: 'calendar' }), 0); } }),
           H(window.OrbitNativeMobile.ListRow, { title: t.lang === 'en' ? 'Legend' : 'Legenda', onClick: () => { this.setState({ disclosure: null }); setTimeout(() => this.setState({ disclosure: 'legend' }), 0); } }))

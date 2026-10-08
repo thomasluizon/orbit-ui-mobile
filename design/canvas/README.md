@@ -39,6 +39,22 @@ that disagrees with production is a trap rather than an authority.
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
 
+### Week time grid surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Semana page and week wrapper | Fill the height below the header with one hour scroll owner; compact and wide viewport cases at font scales 1 and 2. |
+| Weekday header | Pinned natural short names, one today date disc, day selection and clearance from calendar options. |
+| Any-time gutter and per-day lanes | Empty, one, two and three-or-more habits; named 28 chips inside separate 48 targets and +N day disclosure; long words and unbroken tokens. |
+| Timed blocks | Two-line names, status ring, bad mark and time; concurrent and adjacent lanes, transparent future blocks and full-name disclosure. |
+| Hours and position | Every hour labelled, aligned gutter, horizontal columns, now in today's column and upper third on opening, earlier morning for another week and trailing space at 200% text. |
+| Entry and day disclosures | Existing CalendarEntryDetails and day sheets retained; complete titles, selection and scroll preservation, localized copy and loading, empty and error states. |
+| Drawing and specification | Amended calendar drawing, views note, TimeGrid contract, scroll ownership and docs registry; crowded Chromium unit geometry and CI page layout cases. |
+
+The unit geometry fixtures include crowded lanes and long titles. Whole-page layout and real native
+rendering remain verification boundaries: the layout workflow owns page evidence, and the unit
+screen tests verify native scroll ownership without an emulator.
+
 **Precedence is a ladder, defined in `DESIGN.md` D42.** `## Information architecture` outranks every
 drawing on whether a surface should exist. `## Bans` outranks every drawing, so a granted export
 never authorises a banned value. **Below those two the drawing wins**, over `DESIGN.md` prose, a

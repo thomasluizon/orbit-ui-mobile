@@ -89,6 +89,25 @@ describe('Week and agenda geometry in Chromium', () => {
         expect(fill.chipRadius).toBe('8px')
         expect(fill.padding).toEqual(['0px', '0px', '0px', '0px'])
       }
+      const touchPage = await browser.newPage({ hasTouch: true })
+      try {
+        await touchPage.setContent(`<html class="${theme}"><style>${stylesheet}\n:root{${variables}}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div></html>`)
+        const chip = touchPage.locator('[data-testid="time-grid-all-day-event"]')
+        const bounds = (await chip.boundingBox())!
+        await touchPage.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        await touchPage.mouse.down()
+        await touchPage.waitForFunction(() => document.querySelector('[data-testid="time-grid-all-day-event"]')!.getAnimations().every((animation) => animation.playState === 'finished'))
+        const active = await chip.evaluate((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = 'var(--bg-hover)'
+          element.append(probe)
+          const expected = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          return { background: getComputedStyle(element).backgroundColor, expected }
+        })
+        expect(active.background).toBe(active.expected)
+        await touchPage.mouse.up()
+      } finally { await touchPage.close() }
     } finally { await page.close() }
   })
 
