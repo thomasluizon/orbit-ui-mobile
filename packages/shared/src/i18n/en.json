@@ -1688,7 +1688,6 @@
         "run_sync": "Sync now"
       },
       "confirmTitle": "Approve this change?",
-      "confirmBody": "This change cannot be undone.",
       "confirm": "Approve",
       "stepUpMessage": "Confirm your identity on the device before this can continue.",
       "stepUpAction": "Confirm identity",
@@ -1707,6 +1706,50 @@
         "Succeeded": "Done",
         "Failed": "Did not save"
       },
+      "approveAction": {
+        "openBillingPortal": "Manage subscription",
+        "setCalendarSync": "Change sync",
+        "dismissCalendarImport": "Dismiss import",
+        "dismissCalendarSuggestion": "Dismiss suggestion",
+        "manageCalendarSync": "Change sync",
+        "linkGoalsToHabit": "Change links",
+        "markAllNotificationsRead": "Mark read",
+        "unsubscribePush": "Disable alerts"
+      },
+      "approveCount": {
+        "createHabits": "Create {count, plural, one {# habit} other {# habits}}",
+        "logHabits": "Log {count, plural, one {# habit} other {# habits}}",
+        "skipHabits": "Skip {count, plural, one {# habit} other {# habits}}",
+        "updateHabits": "Update {count, plural, one {# habit} other {# habits}}",
+        "rescheduleHabits": "Reschedule {count, plural, one {# habit} other {# habits}}",
+        "deleteHabits": "Delete {count, plural, one {# habit} other {# habits}}",
+        "updateHabitEmojis": "Change {count, plural, one {# habit icon} other {# habit icons}}"
+      },
+      "deleteTitle": {
+        "habits": "Delete {count, plural, one {habit} other {habits}}?",
+        "goals": "Delete {count, plural, one {goal} other {goals}}?",
+        "tags": "Delete {count, plural, one {tag} other {tags}}?",
+        "alerts": "Delete {count, plural, one {alert} other {alerts}}?",
+        "memories": "Delete {count, plural, one {memory} other {memories}}?",
+        "templates": "Delete {count, plural, one {template} other {templates}}?"
+      },
+      "deleteBody": {
+        "habits": "{count, plural, one {The habit and everything inside it leave your list.} other {# habits and everything inside them leave your list.}} There is no way to restore this here.",
+        "goals": "{count, plural, one {The goal leaves your list.} other {# goals leave your list.}} There is no way to restore this here.",
+        "tags": "{count, plural, one {The tag leaves your list.} other {# tags leave your list.}} There is no way to restore this here.",
+        "alerts": "{count, plural, one {The alert leaves your list.} other {# alerts leave your list.}} There is no way to restore this here.",
+        "memories": "{count, plural, one {The memory leaves your list.} other {# memories leave your list.}} There is no way to restore this here.",
+        "templates": "{count, plural, one {The template leaves your list.} other {# templates leave your list.}} There is no way to restore this here."
+      },
+      "deleteAction": {
+        "habits": "Delete habits",
+        "goals": "Delete goals",
+        "tags": "Delete tags",
+        "alerts": "Delete alerts",
+        "memories": "Delete memories",
+        "templates": "Delete templates"
+      },
+      "confirmActionTitle": "{action}?",
       "source": {
         "createHabit": "Create habit",
         "logHabit": "Log habit",

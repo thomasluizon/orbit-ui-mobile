@@ -1,3 +1,4 @@
+import { makeCreateHabitsPreview, makeDeleteHabitsPreview, makeMixedHabitsPreview } from '../test-support/pending-operation-preview-fixtures'
 import { describe, expect, it, vi } from 'vitest'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { makeAgentOperationResult, makePendingAgentOperation, partialScheduleSummaryCases, makePartialScheduleSummaryOperation } from '../test-support/chat-fixtures'
@@ -23,6 +24,7 @@ function translateMessages(messages: typeof en, key: string, values?: Record<str
 }
 
 const translateEnglish = (key: string, values?: Record<string, string | number>) => translateMessages(en, key, values)
+const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
 describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('item summaries in $locale', ({ locale, messages }) => {
   const summarize = buildPendingOperationCardLabels(makePendingAgentOperation(), (key, values) => translateMessages(messages, key, values), (value) => `clock:${value}`, locale).summarize
@@ -202,12 +204,12 @@ describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR
 
 const labels: PendingOperationCardLabels = {
   formatTime: (value) => value,
-  approve: 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
+  approve: () => 'Approve', acting: 'Working', cancel: 'Cancel', confirm: 'Delete habit',
   edit: 'Edit item', edited: 'Edited', editTitle: 'Edit', reject: 'Reject', remove: 'Remove',
   rejected: (count) => `The ${count} changes were rejected. Nothing was saved.`,
   summarize: buildPendingOperationCardLabels(makePendingAgentOperation(), translateEnglish, (value) => value).summarize, save: 'Save', search: 'Search', invalid: 'Invalid', stale: 'Stale', refresh: 'Refresh preview', refreshFailed: 'Could not refresh.', staleUnavailable: 'Unavailable', fieldLabels: {}, dayLabels: {}, yes: 'Yes', no: 'No', proposed: 'Proposed',
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
-  confirmBody: 'Confirm the action', confirmNote: 'Review it', confirmTitle: 'Confirm',
+  confirmBody: () => 'Confirm the action', confirmNote: 'Review it', confirmTitle: () => 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
   pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', denied: 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
@@ -531,7 +533,7 @@ describe('pending operation card view', () => {
     const card = createCard()
     const { record, render } = createRenderers()
     const output = renderPendingOperationCard({
-      card, labels, onVerifyStepUp: vi.fn(), pendingOperation: makePendingAgentOperation(), render,
+      card, labels, onVerifyStepUp: vi.fn(), pendingOperation: makeDeleteHabitsPreview(1), render,
     })
 
     expect(output).toBe('frame|confirm')
@@ -581,5 +583,136 @@ describe('pending operation card view', () => {
       pendingOperation: operation, render: failed.render,
     })
     expect(failed.record.frame).toMatchObject({ state: 'partiallyFailed', actions: undefined })
+  })
+})
+
+
+describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('operation treatment in $locale', ({ locale, messages }) => {
+  const deletionSubjects = [
+    ['habits', 'habits.delete', 'habit', 'habits', 'hábito', 'hábitos',
+      ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
+      ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.']],
+    ['goals', 'goals.delete', 'goal', 'goals', 'meta', 'metas',
+      ['The goal leaves your list.', '# goals leave your list.'],
+      ['A meta sai da sua lista.', '# metas saem da sua lista.']],
+    ['tags', 'tags.delete', 'tag', 'tags', 'tag', 'tags',
+      ['The tag leaves your list.', '# tags leave your list.'],
+      ['A tag sai da sua lista.', '# tags saem da sua lista.']],
+    ['alerts', 'notifications.delete', 'alert', 'alerts', 'aviso', 'avisos',
+      ['The alert leaves your list.', '# alerts leave your list.'],
+      ['O aviso sai da sua lista.', '# avisos saem da sua lista.']],
+    ['memories', 'user-facts.delete', 'memory', 'memories', 'memória', 'memórias',
+      ['The memory leaves your list.', '# memories leave your list.'],
+      ['A memória sai da sua lista.', '# memórias saem da sua lista.']],
+    ['templates', 'checklist-templates.write', 'template', 'templates', 'modelo', 'modelos',
+      ['The template leaves your list.', '# templates leave your list.'],
+      ['O modelo sai da sua lista.', '# modelos saem da sua lista.']],
+  ] as const
+
+  it('covers every deletion title and body subject', () => {
+    for (const copy of [messages.chat.operation.deleteTitle, messages.chat.operation.deleteBody]) {
+      expect(deletionSubjects.map(([subject]) => subject).sort(compareStrings)).toEqual(Object.keys(copy).sort(compareStrings))
+    }
+  })
+
+  it.each(deletionSubjects)('names the counted %s subject in the confirmation sheet', (_subject, capabilityId, singularEnglish, pluralEnglish, singularPortuguese, pluralPortuguese, englishBody, portugueseBody) => {
+    for (const count of [1, 12, 120]) {
+      const operation = { ...makeDeleteHabitsPreview(count), capabilityId }
+      const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+      const { record, render } = createRenderers()
+      renderPendingOperationCard({ card: { ...createCard(), confirmOpen: true }, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+      const subjects = locale === 'en' ? [singularEnglish, pluralEnglish] : [singularPortuguese, pluralPortuguese]
+      const subject = subjects[Number(count !== 1)]!
+      expect(record.confirm).toMatchObject({ open: true, destructive: true,
+        title: `${locale === 'en' ? 'Delete' : 'Apagar'} ${subject}?` })
+      const consequence = (locale === 'en' ? englishBody : portugueseBody)[Number(count !== 1)]!.replace('#', String(count))
+      expect(record.confirm?.message).toBe(`${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`)
+      expect(record.confirm?.message).toContain(locale === 'en' ? 'here.' : 'por aqui.')
+      expect(localized.confirm.split(/\s+/)).toHaveLength(2)
+    }
+  })
+
+  it.each(deletionSubjects)('uses plural %s copy for zero deletions', (_subject, capabilityId, _singularEnglish, pluralEnglish, _singularPortuguese, pluralPortuguese) => {
+    const operation = { ...makeDeleteHabitsPreview(0), capabilityId }
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const subject = locale === 'en' ? pluralEnglish : pluralPortuguese
+    expect(localized.confirmTitle(0)).toBe(`${locale === 'en' ? 'Delete' : 'Apagar'} ${subject}?`)
+    expect(localized.confirmBody(0)).toMatch(new RegExp(`^0 ${subject} `))
+  })
+
+  it.each(Object.keys(messages.chat.operation.approveAction))('keeps the %s approval action within two words', (actionKey) => {
+    const operation = { ...makeCreateHabitsPreview(1), actionKey }
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    const approve = record.buttons.find((button) => button.variant === 'primary')!
+    expect(approve.label).not.toContain('chat.')
+    expect(approve.label.trim().split(/\s+/).length).toBeLessThanOrEqual(2)
+  })
+
+  it('only provides counted approval copy for action keys the producer sends', () => {
+    expect(Object.keys(messages.chat.operation.approveCount).sort(compareStrings)).toEqual([
+      'createHabits', 'deleteHabits', 'logHabits', 'rescheduleHabits', 'skipHabits', 'updateHabitEmojis', 'updateHabits',
+    ])
+    for (const actionKey of ['bulkLogHabits', 'bulkSkipHabits']) {
+      const localized = buildPendingOperationCardLabels({ ...makeCreateHabitsPreview(), actionKey }, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+      expect(localized.approve(12)).toBe(messages.chat.operation.approve)
+    }
+  })
+
+  it.each(['createHabits', 'logHabits', 'skipHabits', 'updateHabits', 'rescheduleHabits'])('approves %s without deletion treatment regardless of risk', (actionKey) => {
+    for (const riskClass of ['Low', 'Destructive', 'High'] as const) {
+      const operation = { ...makeCreateHabitsPreview(), actionKey, riskClass }
+      const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+      const card = createCard()
+      const { record, render } = createRenderers()
+      renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+      expect(record.frame?.items.every((item) => !item.irreversible)).toBe(true)
+      expect(record.confirm).toMatchObject({ open: false, destructive: false })
+      const approve = record.buttons.find((button) => button.label === localized.approve(12))!
+      expect(approve.label).not.toBe(messages.chat.operation.approve)
+      expect(approve.label).not.toContain('chat.')
+      approve.onClick()
+      expect(card.execute).toHaveBeenCalledOnce()
+      expect(card.setConfirmOpen).not.toHaveBeenCalled()
+    }
+  })
+
+  it('marks the exact producer delete items and counts all of them beyond ten displayed changes', () => {
+    for (const operation of [makeMixedHabitsPreview(), makeDeleteHabitsPreview(12)]) {
+      const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+      const { record, render } = createRenderers()
+      const card = createCard()
+      renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+      expect(record.frame?.items.map((item) => item.irreversible)).toEqual(operation.items!.map((item) => item.removesData === true))
+      const deletionCount = operation.items!.filter((item) => item.removesData).length
+      expect(record.confirm).toMatchObject({ title: locale === 'en' ? 'Delete habits?' : 'Apagar hábitos?',
+        confirmLabel: locale === 'en' ? 'Delete habits' : 'Apagar hábitos', destructive: true })
+      expect(record.confirm?.message).toMatch(new RegExp(`^${deletionCount} `))
+      record.buttons.find((button) => button.label === localized.approve(operation.changeTargetCount!))!.onClick()
+      expect(card.execute).not.toHaveBeenCalled()
+      expect(card.setConfirmOpen).toHaveBeenCalledWith(true)
+    }
+  })
+
+  it('names deletion even when the action key is absent', () => {
+    const operation = { ...makeDeleteHabitsPreview(1), capabilityId: 'habits.bulk.write', actionKey: null }
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card: createCard(), labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.confirm).toMatchObject({ confirmLabel: locale === 'en' ? 'Delete habits' : 'Apagar hábitos' })
+  })
+
+  it('does not guess removal from missing or null metadata or an unknown action', () => {
+    const original = makeCreateHabitsPreview(2)
+    const operation = pendingAgentOperationSchema.parse({ ...original, riskClass: 'Destructive', actionKey: 'unknownAction',
+      items: original.items!.map((item, index) => ({ ...item, removesData: index === 0 ? null : undefined })) })
+    const localized = buildPendingOperationCardLabels(operation, (key, values) => translateMessages(messages, key, values), (time) => time, locale)
+    const card = createCard()
+    const { record, render } = createRenderers()
+    renderPendingOperationCard({ card, labels: localized, render, onVerifyStepUp: vi.fn(), pendingOperation: operation })
+    expect(record.frame?.items.map((item) => item.irreversible)).toEqual([false, false])
+    expect(record.confirm).toMatchObject({ open: false, destructive: false })
+    expect(localized.approve(2)).toBe(messages.chat.operation.approve)
   })
 })

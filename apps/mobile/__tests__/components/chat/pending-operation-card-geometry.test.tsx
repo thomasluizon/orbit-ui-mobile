@@ -1,3 +1,4 @@
+import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
@@ -17,9 +18,35 @@ const TestRenderer = require('react-test-renderer')
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({ useHabits: () => ({ data: { habitsById: new Map() } }), useLogHabit: () => ({ mutate: vi.fn() }) }))
 vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime: (value: string) => value }) }))
-vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
+vi.unmock('@/components/ui/sheet')
+vi.mock('@lodev09/react-native-true-sheet', () => ({ TrueSheet: class extends React.Component<{ children?: React.ReactNode; header?: React.ReactNode; footer?: React.ReactNode }> {
+  present = vi.fn().mockResolvedValue(undefined)
+  dismiss = vi.fn().mockResolvedValue(undefined)
+  render() { return <>{this.props.header}{this.props.children}{this.props.footer}</> }
+} }))
 
 const locales = ['en', 'pt-BR'] as const
+const deletionSubjects = [
+  { subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits',
+    english: ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
+    portuguese: ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.'] },
+  { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal',
+    english: ['The goal leaves your list.', '# goals leave your list.'],
+    portuguese: ['A meta sai da sua lista.', '# metas saem da sua lista.'] },
+  { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag',
+    english: ['The tag leaves your list.', '# tags leave your list.'],
+    portuguese: ['A tag sai da sua lista.', '# tags saem da sua lista.'] },
+  { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications',
+    english: ['The alert leaves your list.', '# alerts leave your list.'],
+    portuguese: ['O aviso sai da sua lista.', '# avisos saem da sua lista.'] },
+  { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts',
+    english: ['The memory leaves your list.', '# memories leave your list.'],
+    portuguese: ['A memória sai da sua lista.', '# memórias saem da sua lista.'] },
+  { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate',
+    english: ['The template leaves your list.', '# templates leave your list.'],
+    portuguese: ['O modelo sai da sua lista.', '# modelos saem da sua lista.'] },
+]
+const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const originalOperation = makeHeldHabitMessage().pendingOperations![0]!
 const originalItem = originalOperation.items![0]!
 const fields = [...originalItem.fields, { ...originalItem.fields[0]!, field: 'frequency_unit', newValue: 'Day' }, { ...originalItem.fields[0]!, field: 'frequency_quantity', newValue: '1', valueType: 'number' }]
@@ -42,18 +69,18 @@ function textWidth(label: string, size: number): number {
 afterEach(async () => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
-  it.each([1352, 1100, 412, 320].flatMap((width) => locales.map((locale) => ({ width, locale }))))('keeps the action row readable at $width in $locale', async ({ width, locale }) => {
+  it.each([1352, 1100, 412, 320].flatMap((width) => locales.flatMap((locale) => [undefined, ...countedActions].map((counted) => ({ width, locale, counted })))))('keeps controls readable at $width in $locale with counted action $counted', async ({ width, locale, counted }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
-    const tree = render(<PendingOperationCard pendingOperation={operation} {...handlers} />)
+    const tree = render(<PendingOperationCard pendingOperation={counted ? { ...makeCreateHabitsPreview(), actionKey: counted } : operation} {...handlers} />)
     const row = tree.root.findByProps({ testID: 'preview-actions' })
     const buttons = row.findAllByType(Button)
     const labels = buttons.map((button: { props: { children: string } }) => button.props.children)
-    expect(labels).toEqual([i18n.t('chat.operation.approve'), i18n.t('chat.operation.edit'), i18n.t('chat.operation.reject')])
+    expect(labels).toEqual([counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve'), i18n.t('chat.operation.edit'), i18n.t('chat.operation.reject')])
     expect(buttons[0].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
-    expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
+    if (!counted) expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
-    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === 'Beber água' && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
+    expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
     const rowStyle = StyleSheet.flatten(row.props.style)
     const frame = tree.root.findByProps({ testID: 'block-frame-resting' })
     const frameStyle = StyleSheet.flatten(frame.props.style)
@@ -81,9 +108,29 @@ describe('Pending preview geometry on Android', () => {
       })
       layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
       const bounds = Array.from({ length: layout.getChildCount() }, (_, index) => layout.getChild(index).getComputedLayout())
-      if (width >= 360) expect(new Set(bounds.map((bound) => bound.top)).size).toBe(1)
+      if (!counted && width >= 360) expect(new Set(bounds.map((bound) => bound.top)).size).toBe(1)
       for (const bound of bounds) expect(bound.left + bound.width).toBeLessThanOrEqual(rowWidth)
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count, english, portuguese }) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 1 })
+    await i18n.changeLanguage(locale)
+    const tree = render(<PendingOperationCard pendingOperation={{ ...makeDeleteHabitsPreview(count), capabilityId, actionKey }} {...handlers} />)
+    try {
+      await TestRenderer.act(async () => { tree.root.findAllByType(Button).find((button: { props: { variant: string } }) => button.props.variant === 'primary').props.onClick(); await Promise.resolve() })
+      const title = tree.root.findAllByType(Text).find((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'header')
+      const titleStyle = StyleSheet.flatten(title.props.style)
+      const headerStyle = StyleSheet.flatten(title.parent.props.style)
+      const close = tree.root.findAllByType(Pressable).find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === i18n.t('common.close'))
+      const closeStyle = StyleSheet.flatten(typeof close.props.style === 'function' ? close.props.style({ pressed: false }) : close.props.style)
+      const available = 320 - headerStyle.paddingHorizontal * 2 - headerStyle.gap - closeStyle.width
+      expect(title.props.children).not.toMatch(/\d/)
+      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replace('#', String(count))
+      const expectedBody = `${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`
+      expect(tree.root.findAllByType(Text).some((node: { props: { children?: unknown } }) => node.props.children === expectedBody)).toBe(true)
+      expect(textWidth(title.props.children, Number(titleStyle.fontSize))).toBeLessThanOrEqual(available)
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   it.each(locales.flatMap((locale) => [1, 3].map((count) => ({ locale, count }))))('collapses $count rejected items in $locale', async ({ locale, count }) => {

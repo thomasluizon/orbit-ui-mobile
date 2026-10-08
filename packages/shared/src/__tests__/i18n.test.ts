@@ -36,13 +36,9 @@ function flatten(value: JsonValue, prefix = ''): Map<string, string> {
 }
 
 function placeholderNames(value: string): Set<string> {
-  const names = new Set<string>()
-  const matches = value.matchAll(/\{(\w+)\}/g)
-  for (const match of matches) {
-    const name = match[1]
-    if (name !== undefined) names.add(name)
-  }
-  return names
+  return new Set(allMessageElements(parse(value, { ignoreTag: true }))
+    .filter((element) => !isLiteralElement(element) && !isPoundElement(element))
+    .map((element) => element.value))
 }
 
 function allMessageElements(elements: MessageFormatElement[]): MessageFormatElement[] {
@@ -270,6 +266,11 @@ describe('i18n locale parity', () => {
 
     expect(missingInPt).toEqual([])
     expect(missingInEn).toEqual([])
+  })
+
+  it('counts ICU arguments without mistaking plural option text for placeholders', () => {
+    expect([...placeholderNames('Delete {count, plural, one {habit} other {habits}}?')]).toEqual(['count'])
+    expect([...placeholderNames('{count, plural, one {{name} leaves.} other {{name} and # others leave.}}')].sort(compareStrings)).toEqual(['count', 'name'])
   })
 
   it('has matching placeholder names per key across en and pt-BR', () => {
