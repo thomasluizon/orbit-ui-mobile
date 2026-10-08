@@ -83,7 +83,7 @@ Groups under `components/`:
 - `navigation/`: TabBar, NavHeader, SectionTitle
 - `overlay/`: Sheet (short + long content), EmptyState (the orbital band with one open accent invitation arc), Skeleton (final-layout shaped, aria-busy, no spinner), ErrorState (message states the fix + one action), CapacityNotice (neutral boundary, never --status-bad), Scrim
 - `brand/`: OrbitMark, AstraGlyph, Lockup, Icon (Tabler wrapper)
-- `shell/`: Shell412 (the mobile shell: one scroller, pinned tab bar + FAB, safe-area aware), ShellWide (sidebar with its Astra row + 740 column; habit detail's own composer pins to the bottom; sidebar create is the one filled action), **Composer** (Astra's front door: one bar plus 3 to 6 live-state chips; its head Astra glyph is a 44px `Abrir conversa` button; resting/focused/composing/sending/offline/atLimit, and `atLimit` carries no upgrade call to action)
+- `shell/`: Shell412 (the mobile shell: one scroller, pinned tab bar + FAB, safe-area aware), ShellWide (sidebar with its Astra row + 740 column; habit detail's own composer pins to the bottom; sidebar create is the one filled action), **Composer** (Astra's front door: one bar plus 3 to 6 live-state chips; its head Astra glyph on compact Hoje and habit detail is a 48px `Abrir conversa` button; resting/focused/composing/sending/offline/atLimit, and `atLimit` carries no upgrade call to action)
 - `canvas/`: CanvasControls (the review bar: mode / width / state / locale; canvas chrome, not product UI)
 
 **Wave 0 landed 2026-08-16**: Composer, Proposed and BlockFrame are built, with `components/shell/composer.card.html` and `components/display/generative.card.html` as their specimen cards.
