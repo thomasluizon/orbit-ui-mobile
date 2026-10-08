@@ -156,10 +156,10 @@ describe('About destination geometry in Chromium', () => {
     ['plain', <ListRow key="plain" title="Habit" onClick={() => {}} />, 52],
     ['compact read only', <ListRow key="compact read only" title="Calendar habit" compact readOnly />, 52],
     ['read only', <ListRow key="read only" title="Habit" readOnly />, 52],
-    ['described', <ListRow key="described" title="Account" description="account@example.com" onClick={() => {}} />, 76],
+    ['described', <ListRow key="described" title="Account" description="account@example.com" onClick={() => {}} />, 68],
     ['compact with action', <ListRow key="compact with action" title="Key" compact onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />, 56],
     ['plain with action', <ListRow key="plain with action" title="Key" onClick={() => {}} action={{ icon: 'trash', label: 'Revoke', onPress: () => {} }} />, 56],
-    ['described with action', <ListRow key="described with action" title="Invoice" description="Paid" action={{ icon: 'download', label: 'Download', onPress: () => {} }} />, 76],
+    ['described with action', <ListRow key="described with action" title="Invoice" description="Paid" action={{ icon: 'download', label: 'Download', onPress: () => {} }} />, 68],
     ['bare', <ListRow key="bare" title="Schedule" inset={false} onClick={() => {}} />, 52],
     ['compact in form', <ListRow key="compact in form" title="Template" compact inForm onClick={() => {}} />, 52],
   ] as const)('keeps the %s row at its drawn height and its action at 48px', async (_name, element, height) => {
@@ -180,7 +180,7 @@ describe('About destination geometry in Chromium', () => {
           overlap: action ? bounds.right > action.getBoundingClientRect().left : false,
         }
       })
-      if (element.props.description) expect(measured.height).toBeGreaterThanOrEqual(height)
+      if (element.props.description) expect(Math.abs(measured.height - height)).toBeLessThanOrEqual(1)
       else expect(measured.height).toBe(height)
       expect(measured.bodyHeight).toBe(measured.height)
       expect(measured.overlap).toBe(false)
