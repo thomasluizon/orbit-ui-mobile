@@ -1,23 +1,16 @@
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
-import { streakInfoSchema } from '@orbit/shared/types/gamification'
 import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
-
-const emptyGoals = paginatedGoalResponseSchema.parse({ items: [], page: 1, pageSize: 100, totalCount: 0, totalPages: 0 })
-const streak = streakInfoSchema.parse({
-  currentStreak: 4, longestStreak: 21, lastActiveDate: '2026-09-04',
-  freezesUsedThisMonth: 0, freezesAvailable: 0, maxFreezesPerMonth: 3,
-  isFrozenToday: false, recentFreezeDates: [],
-  streakFreezesAccumulated: 0, maxStreakFreezesAccumulated: 3,
-  daysUntilNextFreeze: 3, freezesAvailableToUse: 0, canEarnMore: true,
-  isRepairAvailable: false, repairableGapDates: [],
-})
+import {
+  matchesProgressGoalsRequest, progressGoalsEmptyGamification, progressGoalsEmptyPage,
+  progressGoalsEmptyProfile, progressGoalsEmptyStreak,
+} from './progress-goals-empty-fixtures'
 
 async function expectGoalsWell(well: Locator) {
   await expect(well).toBeVisible()
@@ -49,11 +42,12 @@ for (const locale of ['pt-BR', 'en'] as const) {
   for (const mode of ['dark', 'light'] as const) {
     for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 706 }, { width: 412, height: 915 }]) {
       test.describe(`Progress goals in ${locale} ${mode} at ${viewport.width}`, () => {
-        test.use({ appLocale: locale, subscriptionState: 'trial', layoutProfile: { canViewGamification: true, themePreference: mode }, viewport, colorScheme: mode })
+        test.use({ appLocale: locale, subscriptionState: 'trial', layoutProfile: { ...progressGoalsEmptyProfile, language: locale, themePreference: mode }, viewport, colorScheme: mode })
         test('keeps the section empty state compact, figures shared and legend a ghost pill', async ({ page, context }) => {
-          await context.route(`${LAYOUT_ORIGIN}${API.gamification.streak}`, (route) => route.fulfill({ json: streak }))
-          let goalPage = emptyGoals
-          await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goalPage }))
+          await context.route(`${LAYOUT_ORIGIN}${API.gamification.profile}`, (route) => route.fulfill({ json: progressGoalsEmptyGamification }))
+          await context.route(`${LAYOUT_ORIGIN}${API.gamification.streak}`, (route) => route.fulfill({ json: progressGoalsEmptyStreak }))
+          let goalPage = progressGoalsEmptyPage
+          await context.route(matchesProgressGoalsRequest, (route) => route.fulfill({ json: goalPage }))
           await page.goto('/progress')
           await expect(page.locator('html')).toHaveClass(new RegExp(mode))
           const section = page.getByRole('region', { name: words.progressScreen.sections.goals })
@@ -103,7 +97,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
           await expect(page.getByRole('dialog', { name: words.progressScreen.streak.legend })).toBeVisible()
           await page.keyboard.press('Escape')
           await expect(legend).toBeFocused()
-          goalPage = paginatedGoalResponseSchema.parse({ ...emptyGoals, items: [createMockGoal()], totalCount: 1, totalPages: 1 })
+          goalPage = paginatedGoalResponseSchema.parse({ ...progressGoalsEmptyPage, items: [createMockGoal()], totalCount: 1, totalPages: 1 })
           await page.reload()
           await section.getByRole('button', { name: `${words.progressScreen.goals.filter}: ${words.progressScreen.goals.all}`, exact: true }).click()
           await page.getByRole('menuitemcheckbox', { name: words.progressScreen.goals.completed, exact: true }).click()
