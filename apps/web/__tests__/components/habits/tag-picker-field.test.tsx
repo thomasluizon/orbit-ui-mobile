@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import type { HabitTag } from '@orbit/shared/types/habit'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({ useTranslations: () => (key: string, values?: { name: string }) => key === 'common.showFullText' ? `Show full text: ${values!.name}` : key }))
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
@@ -190,6 +190,12 @@ describe('TagPickerField', () => {
     const title = row.querySelector('[data-personal-text]')!
     expect(title).toHaveAttribute('aria-label', name)
     expect(title).toHaveStyle({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal', overflowWrap: 'normal' })
+    const fullTextLabel = `Show full text: ${name}`
+    const rowDisclosure = screen.getByRole('button', { name: fullTextLabel, expanded: false })
+    expect(rowDisclosure).toHaveAccessibleName(fullTextLabel)
+    fireEvent.click(rowDisclosure)
+    expect(onToggle).not.toHaveBeenCalled()
+    fireEvent.click(rowDisclosure)
     fireEvent.click(row)
     expect(onToggle).toHaveBeenCalledWith('long-tag')
   })

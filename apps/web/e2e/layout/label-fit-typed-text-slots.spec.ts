@@ -10,7 +10,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
-import { expectLabelsFit, markUserText } from './label-fit-contract'
+import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -54,9 +54,11 @@ for (const width of [320, 1352]) {
             await form.getByRole('button').filter({ has: page.getByText(label, { exact: true }) }).click()
             const picker = page.getByRole('dialog', { name: label, exact: true })
             await checkTypedHeadline(page, picker, name)
-            const toggle = picker.getByRole('button', { name, pressed: false })
+            const toggle = picker.locator('button[aria-pressed]').filter({ hasText: name })
+            await expect(toggle).toHaveCount(1)
+            await expect(toggle).toHaveAccessibleName(name)
             await expect(toggle).toHaveAttribute('aria-pressed', 'false')
-            await picker.getByRole('button', { name, expanded: false }).click()
+            await picker.getByRole('button', { name: words.common.showFullText.replace('{name}', name), expanded: false, exact: true }).click()
             const full = page.getByRole('dialog', { name, exact: true })
             await expect(full.locator('[data-personal-text-expanded]').last()).toHaveText(name)
             await full.getByRole('button', { name: words.common.close, exact: true }).click()
@@ -71,9 +73,10 @@ for (const width of [320, 1352]) {
           await row.locator('[data-habit-row-control="menu"]').click()
           await page.getByRole('menu', { name, exact: true }).getByRole('menuitem', { name: words.habits.actions.openSubHabits, exact: true }).click()
           const heading = page.getByRole('heading', { name, level: 2, exact: true })
+          await markRequiredLabels(heading.locator('..').getByText(words.habits.drillProgress.replace('{done}', '0').replace('{total}', '1'), { exact: true }))
           await checkTypedHeadline(page, page.getByRole('main'), name)
           await expect(heading.locator('[data-personal-text]')).toHaveAttribute('aria-label', name)
-          await page.getByRole('button', { name, expanded: false, exact: true }).click()
+          await page.getByRole('button', { name: words.common.showFullText.replace('{name}', name), expanded: false, exact: true }).click()
           const full = page.getByRole('dialog', { name, exact: true })
           await expect(full.locator('[data-personal-text-expanded]').last()).toHaveText(name)
           await full.getByRole('button', { name: words.common.close, exact: true }).click()

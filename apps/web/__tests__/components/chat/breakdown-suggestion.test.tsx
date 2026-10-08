@@ -126,7 +126,7 @@ describe('BreakdownSuggestion', () => {
     render(<BreakdownSuggestion {...defaultProps} parentName={name} />)
     const heading = screen.getByRole('heading', { name: title, level: 3 })
     expect(heading.querySelector('[data-personal-text]')).toHaveAttribute('aria-label', title)
-    fireEvent.click(screen.getByRole('button', { name: title, expanded: false }))
+    fireEvent.click(screen.getByRole('button', { name: `common.showFullText(${JSON.stringify({ name: title })})`, expanded: false }))
     expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument()
     expect(bulkCreate).not.toHaveBeenCalled()
   })

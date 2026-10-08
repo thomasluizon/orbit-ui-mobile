@@ -415,7 +415,7 @@ describe('habit search', () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title, isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
     mount()
     fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
-    const disclosure = screen.getByRole('button', { name: title })
+    const disclosure = screen.getByRole('button', { name: en.common.showFullText.replace('{name}', title) })
     disclosure.focus()
     await userEvent.keyboard('{Enter}')
     expect(mocks[page]).not.toHaveBeenCalled()

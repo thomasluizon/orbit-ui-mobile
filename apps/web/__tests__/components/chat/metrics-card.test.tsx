@@ -6,7 +6,7 @@ import { MetricsCard } from '@/components/chat/metrics-card'
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string, values?: { done?: number; scheduled?: number; name?: string }) =>
-    key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key === 'chat.metrics.habitTitle' ? `Metrics for ${values?.name}` : key,
+    key === 'common.showFullText' ? `Show full text: ${values?.name}` : key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key === 'chat.metrics.habitTitle' ? `Metrics for ${values?.name}` : key,
 }))
 
 const series = (count: number) => ({ granularity: 'day' as const, points: Array.from({ length: count }, (_, index) => ({
@@ -81,7 +81,7 @@ describe('Astra metrics card on web', () => {
       const text = [...container.querySelectorAll('[data-personal-text]')].find((element) => element.getAttribute('aria-label') === title)!
       expect(text).toHaveAttribute('aria-label', title)
       expect(text).toHaveStyle({ whiteSpace: title.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal' })
-      fireEvent.click(screen.getByRole('button', { name: title, expanded: false }))
+      fireEvent.click(screen.getByRole('button', { name: slot === 'heading' ? `Show full text: ${title}` : title, expanded: false }))
       if (title.startsWith('Metrics for ')) fireEvent.click(screen.getByRole('button', { name: 'common.close' }))
       else expect(screen.getByRole('button', { name: title, expanded: true })).toBeInTheDocument()
     }

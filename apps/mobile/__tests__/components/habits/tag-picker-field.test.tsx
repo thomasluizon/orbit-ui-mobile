@@ -10,7 +10,7 @@ const TestRenderer = require('react-test-renderer')
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string, values?: { name: string }) => key === 'common.showFullText' ? `${key}:${JSON.stringify(values)}` : key }),
 }))
 vi.mock('@/components/ui/sheet', async () =>
   await import('@/__tests__/support/sheet-double'))
@@ -291,6 +291,11 @@ it('renders an editor when an empty tag collection is being created', async () =
     const row = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
     expect(row).toBeDefined()
     await expectPersonalTextLayout(row, name)
+    const rowDisclosure = expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)
+    expect(rowDisclosure).toHaveLength(1)
+    await TestRenderer.act(() => pressTextControl(rowDisclosure[0]!))
+    expect(onToggle).not.toHaveBeenCalled()
+    await TestRenderer.act(() => pressTextControl(rowDisclosure[0]!))
     await TestRenderer.act(() => pressTextControl(row))
     expect(onToggle).toHaveBeenCalledWith('long-tag')
     await TestRenderer.act(() => tree.update(<></>))

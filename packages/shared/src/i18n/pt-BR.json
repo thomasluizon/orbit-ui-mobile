@@ -107,6 +107,7 @@
     "openIn": "Abrir em {target}"
   },
   "common": {
+    "showFullText": "Mostrar texto completo: {name}",
     "options": "Opções",
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",

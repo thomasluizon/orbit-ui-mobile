@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string, values?: { name: string }) => key === 'common.showFullText' ? `${key}:${JSON.stringify(values)}` : key }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -157,7 +157,7 @@ describe('ChecklistTemplates mobile', () => {
     const entry = tree.root.findAll((node) => String(node.type) === 'ListRow' && node.props.title === 'habits.form.useTemplate')[0]!
     await act(() => { (entry.props.onClick as () => void)() })
     await expectPersonalTextLayout(tree.root, name)
-    await act(() => pressTextControl(expandedTextControls(tree.root, name, false)[0]!))
+    await act(() => pressTextControl(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)[0]!))
     expect(onLoad).not.toHaveBeenCalled()
     const load = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && !(node.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded && node.props.accessibilityState === undefined)[0]!
     await act(() => pressTextControl(load))

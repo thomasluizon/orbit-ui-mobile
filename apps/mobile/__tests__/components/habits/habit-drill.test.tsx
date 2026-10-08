@@ -24,7 +24,7 @@ describe('typed drill heading', () => {
     const header = tree.root.findAll((node) => node.type === FlatList)[0]!.props.ListHeaderComponent as React.ReactNode
     await act(() => tree.update(<>{header}</>))
     await expectPersonalTextLayout(tree.root, name)
-    await act(() => pressTextControl(expandedTextControls(tree.root, name, false)[0]!))
+    await act(() => pressTextControl(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)[0]!))
     expect(tree.root.findAll((node) => String(node.type) === 'ScrollView' && node.props.horizontal === true).length).toBeGreaterThan(0)
     expect(drillBack).not.toHaveBeenCalled()
     const back = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'common.back')[0]!

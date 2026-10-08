@@ -9,7 +9,7 @@ const push = vi.fn()
 vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, values?: { done?: number; scheduled?: number; name?: string }) =>
-    key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key === 'chat.metrics.habitTitle' ? `Metrics for ${values?.name}` : key,
+    key === 'common.showFullText' ? `${key}:${JSON.stringify(values)}` : key === 'charts.bar.readout' ? `${values?.done} of ${values?.scheduled}` : key === 'chat.metrics.habitTitle' ? `Metrics for ${values?.name}` : key,
     i18n: { language: 'en' } }),
 }))
 
@@ -82,8 +82,8 @@ describe('Astra metrics card on mobile', () => {
     await act(() => { tree = create(<MetricsCard metricsCard={{ ...overview, habitId: slot === 'heading' ? 'habit-1' : null, habitTitle: name, topHabitName: name }} />) })
     for (const title of [slot === 'heading' ? `Metrics for ${name}` : name]) {
       await expectPersonalTextLayout(tree.root, title)
-      await act(() => pressTextControl(expandedTextControls(tree.root, title, false)[0]!))
-      expect(expandedTextControls(tree.root, title, true)).toHaveLength(1)
+      await act(() => pressTextControl(expandedTextControls(tree.root, slot === 'heading' ? `common.showFullText:${JSON.stringify({ name: title })}` : title, false)[0]!))
+      expect(expandedTextControls(tree.root, slot === 'heading' ? `common.showFullText:${JSON.stringify({ name: title })}` : title, true)).toHaveLength(1)
     }
     await act(() => tree.update(<></>))
   })

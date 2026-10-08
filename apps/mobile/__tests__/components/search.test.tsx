@@ -320,7 +320,7 @@ describe('mobile search', () => {
     await mount()
     await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
     const disclosure = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded === false)[0]!
-    expect(disclosure.props.accessibilityLabel).toBe(title)
+    expect(disclosure.props.accessibilityLabel).toBe(en.common.showFullText.replace('{name}', title))
     await TestRenderer.act(() => { (disclosure.props.onPress as () => void)() })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
     expect(text()).toContain(title)

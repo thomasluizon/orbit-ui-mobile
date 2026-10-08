@@ -174,8 +174,8 @@ describe('BreakdownSuggestion (mobile)', () => {
     let tree!: ReactTestRenderer
     await act(() => { tree = create(<BreakdownSuggestion {...defaultProps} parentName={name} />) })
     await expectPersonalTextLayout(tree.root, title)
-    await act(() => pressTextControl(expandedTextControls(tree.root, title, false)[0]!))
-    expect(expandedTextControls(tree.root, title, true)).toHaveLength(1)
+    await act(() => pressTextControl(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name: title })}`, false)[0]!))
+    expect(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name: title })}`, true)).toHaveLength(1)
     expect(bulkCreate).not.toHaveBeenCalled()
     await act(() => tree.update(<></>))
   })
