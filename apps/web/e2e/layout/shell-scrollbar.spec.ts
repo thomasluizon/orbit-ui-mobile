@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
@@ -60,10 +60,22 @@ async function expectScrollbarGeometry(page: Page) {
   }
 }
 
+async function restOutsideScroller(page: Page, scroller: Locator) {
+  const point = await scroller.evaluate((element) => {
+    for (const [x, y] of [[0, 0], [0, window.innerHeight - 1]] as const) {
+      const hit = document.elementFromPoint(x, y)
+      if (hit && !element.contains(hit)) return { x, y }
+    }
+    return null
+  })
+  expect(point, 'a resting pointer position outside the scroller').not.toBeNull()
+  await page.mouse.move(point!.x, point!.y)
+}
+
 async function expectRestingEdge(page: Page) {
   const scroller = page.locator('main[data-shell-scroller]')
   expect(await scroller.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
-  await page.mouse.move(0, 0)
+  await restOutsideScroller(page, scroller)
   await page.waitForTimeout(1500)
   const resting = await measureScrollbarPaint(scroller)
   expect.soft(resting.backgroundPixels, 'resting trailing edge matches the canvas').toBe(resting.totalPixels)
@@ -72,7 +84,7 @@ async function expectRestingEdge(page: Page) {
   await page.mouse.move(bounds!.x + bounds!.width - 16, bounds!.y + bounds!.height / 2)
   await page.waitForTimeout(300)
   expect((await measureScrollbarPaint(scroller)).thumbPixels, 'hovered thumb paints the hairline').toBeGreaterThan(0)
-  await page.mouse.move(0, 0)
+  await restOutsideScroller(page, scroller)
   await page.waitForTimeout(300)
   const afterHover = await measureScrollbarPaint(scroller)
   expect.soft(afterHover.backgroundPixels, 'leaving clears the trailing edge').toBe(afterHover.totalPixels)
