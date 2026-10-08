@@ -3539,7 +3539,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -3564,7 +3565,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -3589,7 +3591,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3614,7 +3617,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3639,7 +3643,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -3664,7 +3669,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -3689,7 +3695,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -3714,7 +3721,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "dark",

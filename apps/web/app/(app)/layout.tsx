@@ -26,7 +26,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
-import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
+import { getHeldAccountId, useAuthStore, useHeldAccountId } from '@/stores/auth-store'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
@@ -167,8 +167,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   useEffect(() => {
     setShowCreateRefusal(false)
   }, [pathname, isOnline, setShowCreateRefusal])
-  useTimezoneAutoSync(profile)
-  useOnboardingFlush()
   const draftHydrated = useOnboardingDraftHydrated()
   const hasPendingOnboardingAnswers = useOnboardingHasPendingAnswers()
   const hasProAccess = profile?.hasProAccess ?? false
@@ -332,6 +330,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   return (
     <CommandPaletteBackground className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)]">
+      <AccountAutomaticEffects profile={profile} />
       <Suspense fallback={null}>
         <SyncComposerDate onChange={setComposerDate} />
         <OpenAstraFromQuery pathname={pathname} onOpen={setAstraConversationOpen} />
@@ -424,6 +423,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <ApiFetchI18nProvider />
     </CommandPaletteBackground>
   )
+}
+
+function AccountAutomaticEffects({ profile }: Readonly<{ profile: ReturnType<typeof useProfile>['profile'] }>) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const heldAccountId = useHeldAccountId()
+  return isAuthenticated && heldAccountId !== null ? <AccountAutomaticEffectsContent profile={profile} /> : null
+}
+
+function AccountAutomaticEffectsContent({ profile }: Readonly<{ profile: ReturnType<typeof useProfile>['profile'] }>) {
+  useTimezoneAutoSync(profile)
+  useOnboardingFlush()
+  return null
 }
 
 // react-doctor-disable-next-line no-many-boolean-props -- private layout-internal overlay aggregator, not a reusable API; the flags are independent render gates, not a combinatorial surface https://github.com/thomasluizon/orbit-ui-mobile/issues/243

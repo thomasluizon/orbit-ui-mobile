@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 import ProfilePage from '@/app/(app)/profile/page'
@@ -105,11 +106,12 @@ describe('pages with a profile request held across the first account check', () 
   it('lets ProfilePage leave loading when its request answers', async () => {
     const answer = await holdProfileRequest()
     renderPage(<ProfilePage />)
-    await waitFor(() => expect(fetchJson).toHaveBeenCalled())
+    expect(fetchJson.mock.calls.filter(([url]) => url === API.profile.get)).toHaveLength(0)
     expect(screen.getByTestId('profile-state')).toHaveTextContent('profile.loading')
 
     respondWithAccount('user-1')
     await act(async () => { await useAuthStore.getState().checkSession() })
+    await waitFor(() => expect(fetchJson).toHaveBeenCalledWith(API.profile.get))
     await act(async () => answer(createMockProfile()))
 
     await waitFor(() => expect(screen.getByTestId('profile-state')).toHaveTextContent('profile.ready'))
