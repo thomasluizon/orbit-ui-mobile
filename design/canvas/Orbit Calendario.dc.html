@@ -21,7 +21,7 @@ body{background:var(--bg)}
 a{color:var(--fg-2);text-decoration:none}
 a:hover{color:var(--fg-1)}
 .calendar-navigation-title:active{background:var(--bg-hover)!important}
-.calendar-navigation-title:focus-visible{outline:2px solid var(--fg-1);outline-offset:2px}
+.calendar-navigation-title:focus-visible{background:var(--bg-hover)!important;outline:2px solid var(--fg-1);outline-offset:2px}
 @media(hover:hover){.calendar-navigation-title:hover{background:var(--bg-hover)!important}}
 
 .native-typed{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;white-space:normal;text-align:start}
@@ -637,9 +637,10 @@ class Component extends DCLogic {
     const D = window.OrbitDesignSystem_918bd5;
     const s = this.state;
     const out = [];
-    for (let d = TODAY + (s.agOff || 0) * 7; d < TODAY + (s.agOff || 0) * 7 + 7 && d <= 31; d++) {
-      const schedCount = this.schedFor(0, YEAR, MONTH, d);
+    for (let d = TODAY + (s.agOff || 0) * 7; d < TODAY + (s.agOff || 0) * 7 + 7; d++) {
       const date = new Date(YEAR, MONTH, d);
+      const monthOffset = (date.getFullYear() - YEAR) * 12 + date.getMonth() - MONTH;
+      const schedCount = this.schedFor(monthOffset, date.getFullYear(), date.getMonth(), date.getDate());
       const dateLabel = date.toLocaleDateString(t.lang === 'en' ? 'en-US' : t.intl, { weekday: 'long', day: 'numeric', month: 'long' });
       const head = d === TODAY ? (t.lang === 'en' ? 'Today, {date}' : 'Hoje, {date}').replace('{date}', dateLabel) : dateLabel;
       out.push(H('div', { key: d, style: { display: 'flex', flexDirection: 'column', gap: 4 } },
@@ -651,9 +652,11 @@ class Component extends DCLogic {
               [...(UNTIMED.days.includes(date.getDay()) ? [UNTIMED] : []), ...HABITS.slice(0, schedCount).sort((a, b) => a.t.localeCompare(b.t))].map((h, i) => {
                 const title = t.lang === 'en' ? h.en : h.pt;
                 const value = h.t ? this.fmt(h.t, h12) : t.anytime;
-                const done = d <= TODAY && i < this.doneFor(0, YEAR, MONTH, d);
-                const status = done ? h.bad ? 'bad' : 'done' : 'empty';
-                const word = done ? h.bad ? t.statusIndulged : t.statusDone : t.statusEmpty;
+                const lived = d <= TODAY;
+                const done = lived && i < this.doneFor(monthOffset, date.getFullYear(), date.getMonth(), date.getDate());
+                const resisted = lived && h.bad && !done;
+                const status = done ? h.bad ? 'bad' : 'done' : resisted ? 'done' : 'empty';
+                const word = done ? h.bad ? t.statusIndulged : t.statusDone : resisted ? t.statusResisted : t.statusEmpty;
                 return H(window.OrbitNativeMobile.ListRow, { key: i, title, value, typedTitle: true, chevron: false,
                   trailing: H('span', { style: { position: 'relative', display: 'inline-flex' } }, H(D.StatusRing, { status, size: 24, label: word }),
                     status === 'bad' ? H('span', { style: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, H(D.Icon, { name: 'x', size: 16, color: 'var(--status-bad)' })) : null),
@@ -796,7 +799,7 @@ class Component extends DCLogic {
     const spanDate = (day) => new Date(YEAR, MONTH, day).toLocaleDateString(t.lang === 'en' ? 'en-US' : t.intl, { day: 'numeric', month: 'short' }).replaceAll('.', '');
     const spanLabel = (t.lang === 'en' ? '{start} to {end}' : '{start} a {end}').replace('{start}', spanDate(spanStart)).replace('{end}', spanDate(spanEnd));
     return Object.assign(base, {
-      navigationTitle: H('button', { type: 'button', className: 'calendar-navigation-title', 'aria-label': isMonth ? first.toLocaleDateString(t.intl, { month: 'long' }) : (t.lang === 'en' ? '{period}, go to today' : '{period}, ir para hoje').replace('{period}', spanLabel),
+      navigationTitle: H('button', { type: 'button', className: 'calendar-navigation-title', 'aria-label': isMonth ? first.toLocaleDateString(t.intl, y === YEAR ? { month: 'long' } : { month: 'short', year: 'numeric' }) : (t.lang === 'en' ? '{period}, go to today' : '{period}, ir para hoje').replace('{period}', spanLabel),
         onClick: () => isMonth ? this.setState({ disclosure: 'month' }) : this.setState(view === 'range' ? { rngOff: 0 } : view === 'week' ? { wkOff: 0 } : { agOff: 0 }),
         style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', minHeight: 48, border: 0, borderRadius: 12, background: 'var(--p-transparent)', color: isMonth ? 'var(--fg-1)' : 'var(--fg-2)', fontFamily: isMonth ? 'var(--font-display)' : 'var(--font-mono)', fontSize: isMonth ? 22 : 'var(--fs-sm)', fontWeight: isMonth ? 500 : 400, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' } },
         isMonth ? first.toLocaleDateString(t.intl, y === YEAR ? { month: 'long' } : { month: 'short', year: 'numeric' }) : spanLabel,

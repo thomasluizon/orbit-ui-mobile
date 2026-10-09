@@ -178,10 +178,10 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     expect(onSelectMonth).not.toHaveBeenCalled();
     pressByAccessibilityLabel(tree, "April, calendar.monthPicker");
     nativeSheet.dismiss.mockRejectedValueOnce(new Error("Dismissal rejected"));
-    await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
+    await TestRenderer.act(() => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
     expect(onSelectMonth).not.toHaveBeenCalled();
     expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
-    await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
+    await TestRenderer.act(() => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
     finishNativeDismissal(tree);
     expect(onSelectMonth).toHaveBeenCalledExactlyOnceWith(3, 2026);
   });
@@ -221,7 +221,7 @@ describe("CalendarHeader period navigation (mobile)", () => {
 });
 
 describe('CalendarHeader shared navigation', () => {
-  it.each(['month', 'week', 'range', 'agenda'] as const)('renders one navigation row with shared targets in %s', (view) => {
+  it.each(['month', 'week', 'range', 'agenda'] as const)('renders one navigation row with shared targets in %s', async (view) => {
     const tokens = createTokensV2('purple', 'dark');
     let tree!: Tree;
     TestRenderer.act(() => { tree = mount(<CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05"
@@ -235,6 +235,12 @@ describe('CalendarHeader shared navigation', () => {
     expect(title).toMatchObject({ borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: 16, paddingVertical: 8 });
     expect(title.borderWidth).toBeUndefined();
     expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover);
+    await TestRenderer.act(() => { controls[1]!.props.onHoverIn?.({}); });
+    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe(tokens.bgHover);
+    await TestRenderer.act(() => { controls[1]!.props.onHoverOut?.({}); controls[1]!.props.onFocus?.({ target: 1, currentTarget: 1 }); });
+    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe(tokens.bgHover);
+    await TestRenderer.act(() => { controls[1]!.props.onBlur?.({ target: 1, currentTarget: 1 }); });
+    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe('transparent');
     expect(Boolean(controls[2]!.props.disabled)).toBe(view === 'range');
   });
 });

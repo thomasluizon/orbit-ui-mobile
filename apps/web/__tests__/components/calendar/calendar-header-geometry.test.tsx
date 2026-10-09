@@ -69,6 +69,7 @@ describe('Calendar header geometry in Chromium', () => {
         for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
       }, { mode, variables: resolveWebThemeVariables('orange', mode) })
       await loadAppFonts(page)
+      await page.bringToFront()
       for (const label of ['Previous', 'Next']) {
         const control = page.getByRole('button', { name: label, exact: true })
         const resting = await control.evaluate((button) => {
@@ -86,6 +87,8 @@ describe('Calendar header geometry in Chromium', () => {
       }
       const title = page.getByRole('button', { name: `September, ${en.calendar.monthPicker}` })
       expect(await title.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, radius: getComputedStyle(button).borderRadius }))).toEqual({ background: 'rgba(0, 0, 0, 0)', radius: '12px' })
+      await title.focus()
+      await expect.poll(() => title.evaluate((button) => getComputedStyle(button).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
     } finally { await page.close() }
   })
 

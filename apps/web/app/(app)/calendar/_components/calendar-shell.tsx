@@ -30,7 +30,7 @@ interface CalendarHeaderProps {
   viewSelector?: ReactNode
 }
 
-const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]'
+const controlButton = 'inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center border-0 text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]'
 const titleButton = `${controlButton} rounded-[12px] bg-transparent`
 const headerButton = `${controlButton} rounded-full bg-transparent shadow-[inset_0_0_0_1.5px_var(--hairline-strong)]`
 const pickerButton = `${controlButton} rounded-[12px] bg-[var(--bg-field)]`
