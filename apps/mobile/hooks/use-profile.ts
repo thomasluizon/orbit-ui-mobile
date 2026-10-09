@@ -25,19 +25,19 @@ export function useProfile(options?: { enabled?: boolean }) {
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: fetchProfile,
-    enabled: isAuthenticated && (options?.enabled ?? true),
+    enabled: options?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
   })
 
-  const profile = query.data
+  const profile = isAuthenticated ? query.data : undefined
 
   useEffect(() => {
-    const language = query.data?.language
+    const language = profile?.language
     if (!language) return
     if (i18n.language === language) return
     void i18n.changeLanguage(language)
-  }, [query.data?.language, i18n])
+  }, [profile?.language, i18n])
 
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: profileKeys.all })

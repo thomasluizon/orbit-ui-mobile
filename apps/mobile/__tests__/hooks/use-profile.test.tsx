@@ -86,6 +86,25 @@ describe('mobile useProfile', () => {
     mocks.i18n.language = 'en'
   })
 
+  it('withholds the cached profile while the stored session is unvalidated', async () => {
+    mocks.state.isAuthenticated = false
+    mocks.state.profile = createMockProfile({ themePreference: null, timeZone: null, language: 'pt-BR' })
+    let observedProfile: Profile | undefined
+    function Harness() {
+      observedProfile = useProfile().profile
+      return null
+    }
+    let renderer: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(() => { renderer = TestRenderer.create(<Harness />) })
+    expect(observedProfile).toBeUndefined()
+    expect(mocks.i18n.changeLanguage).not.toHaveBeenCalled()
+    mocks.state.isAuthenticated = true
+    await TestRenderer.act(() => { renderer.update(<Harness />) })
+    expect(observedProfile).toBe(mocks.state.profile)
+    expect(mocks.i18n.changeLanguage).toHaveBeenCalledWith('pt-BR')
+    await TestRenderer.act(() => { renderer.unmount() })
+  })
+
   it('renders without error and exposes profile data', async () => {
     mocks.state.profile = createMockProfile({ email: 'alex@example.com' })
 

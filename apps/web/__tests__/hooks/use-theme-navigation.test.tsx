@@ -12,7 +12,11 @@ import { canvasColor } from '@/lib/theme-dom'
 
 vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showPersistentError: vi.fn() }) }))
-vi.mock('@/stores/auth-store', () => ({ getHeldAccountId: () => null }))
+vi.mock('@/stores/auth-store', () => ({
+  getHeldAccountId: () => 'account-a',
+  useHeldAccountId: () => 'account-a',
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }),
+}))
 vi.mock('@/lib/actions/profile', () => ({ updateThemePreference: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@/lib/api-fetch', () => ({ fetchJson: vi.fn() }))
 
