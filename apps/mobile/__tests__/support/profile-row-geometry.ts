@@ -4,14 +4,14 @@ import { Resvg } from '@resvg/resvg-js'
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string }
+  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle }
   children: (HostRow | string)[] | null
 }
 
 const widths = new Map<string, number>()
 
 function textWidth(label: string, style: TextStyle, scale: number): number {
-  const size = Number(style.fontSize) * scale
+  const size = Number(style.fontSize ?? 17) * scale
   const cacheKey = `${style.fontFamily}:${size}:${label}`
   const cached = widths.get(cacheKey)
   if (cached !== undefined) return cached
@@ -53,6 +53,7 @@ function applyFlexStyle(node: YogaNode, style: ViewStyle) {
 
 function applyDimensions(node: YogaNode, style: ViewStyle) {
   if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
+  if (typeof style.maxWidth === 'number') node.setMaxWidth(style.maxWidth)
   if (style.maxWidth === '100%') node.setMaxWidthPercent(100)
   if (style.maxWidth === '50%') node.setMaxWidthPercent(50)
   if (typeof style.width === 'number') node.setWidth(style.width)
@@ -85,6 +86,8 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     ['paddingTop', Yoga.EDGE_TOP],
     ['paddingBottom', Yoga.EDGE_BOTTOM],
     ['paddingEnd', Yoga.EDGE_END],
+    ['paddingLeft', Yoga.EDGE_LEFT],
+    ['paddingRight', Yoga.EDGE_RIGHT],
   ] as const) {
     const padding = style[property]
     if (typeof padding === 'number') node.setPadding(edge, padding)
@@ -99,7 +102,7 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
   return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight(), width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
-export function measureProfileRow(host: HostRow, width: number, scale: number) {
+export function measureProfileRow(host: HostRow | HostRow[], width: number, scale: number) {
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
@@ -123,14 +126,16 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
         const natural = textWidth(label, style, scale)
         const measured = mode === Yoga.MEASURE_MODE_UNDEFINED ? natural : Math.min(natural, available)
         const lines = wrappedLines(label, measured, style, scale)
-        return { width: measured, height: Math.min(lines, host.props.numberOfLines ?? lines) * Number(style.lineHeight ?? Number(style.fontSize) * 1.4) * scale }
+        return { width: measured, height: Math.min(lines, host.props.numberOfLines ?? lines) * Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) * scale }
       })
+    } else if (host.type === 'ScrollView' && host.props.contentContainerStyle) {
+      node.insertChild(layoutHost({ type: 'View', props: { style: host.props.contentContainerStyle }, children: host.children }), 0)
     } else {
       (host.children ?? []).filter((child): child is HostRow => typeof child !== 'string').forEach((child, index) => node.insertChild(layoutHost(child), index))
     }
     return node
   }
-  const layout = layoutHost(host)
+  const layout = layoutHost(Array.isArray(host) ? { type: 'View', props: {}, children: host } : host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
     return { height: layout.getComputedHeight(), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel }) => {
@@ -139,7 +144,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
       return { labels, accessibilityLabel, ...bounds, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
     }), texts: texts.map(({ node, label, style, limit }) => {
       const lines = wrappedLines(label, node.getComputedWidth(), style, scale)
-      return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize) * 1.4) / Number(style.fontSize) }
+      return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize ?? 17) * 1.4) / Number(style.fontSize) }
     }) }
   } finally { layout.freeRecursive(); config.free() }
 }

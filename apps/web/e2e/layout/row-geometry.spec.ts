@@ -5,7 +5,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarAutoSyncStateSchema, calendarEventsResponseSchema, userCalendarsSchema } from '@orbit/shared/types/calendar'
-import { calendarMonthResponseSchema, habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
+import { bulkCreateResponseSchema, calendarMonthResponseSchema, habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
@@ -17,7 +17,7 @@ const date = '2026-09-04'
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), isBadHabit: true })
 const schedule = makeHabitScheduleItem({ id: habit.id, title: habit.title, dueDate: date, scheduledDates: [date], children: [], hasSubHabits: false })
 const calendars = userCalendarsSchema.parse([{ id: 'family', name: 'Family calendar', accessRole: 'owner', primary: false, backgroundColor: null, isSynced: true }])
-const events = calendarEventsResponseSchema.parse([createMockCalendarSyncEvent({ id: 'walk', title: 'Walk', calendarName: '', startDate: date, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] })])
+const events = calendarEventsResponseSchema.parse(['Walk', 'Read'].map((title, index) => createMockCalendarSyncEvent({ id: `event-${index}`, title, calendarName: '', startDate: date, startTime: null, endTime: null, isRecurring: false, recurrenceRule: null, reminders: [] })))
 const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
 
 async function assertRow(row: Locator) {
@@ -79,7 +79,7 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       await setLayoutProfileSession(context, profile, calendars)
       const responses: ReadonlyArray<readonly [string, unknown]> = [
         [API.profile.get, profile], [API.habits.get(habit.id), habit], [API.habits.logs(habit.id), []], [API.habits.metrics(habit.id), metrics],
-        [API.calendar.events, events], [API.calendar.calendars, calendars],
+        [API.habits.bulk, bulkCreateResponseSchema.parse({ results: events.map((event, index) => ({ index, status: 'Success', habitId: `imported-${index}`, title: event.title, error: null, field: null })) })], [API.calendar.events, events], [API.calendar.calendars, calendars],
         [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
         [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [schedule], logs: {} })],
       ]
@@ -144,6 +144,16 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
         expect(Math.abs(inset - 16)).toBeLessThanOrEqual(0.5)
         await expectInteractionFill(checkbox)
         await expectInteractionFill(label)
+        const importText = words.calendar.importButton.split(' | ')[1]!.replace(/\{count\}/g, '2')
+        await sheet.getByRole('button', { name: importText, exact: true }).click()
+        await expect(sheet.getByText(words.calendar.importDone, { exact: true })).toBeVisible()
+        await assertRows(sheet)
+        const imported = sheet.getByRole('button', { name: 'Walk', exact: true })
+        const separators = await imported.evaluate((control) => {
+          const group = control.closest('.orbit-list-row-shell')!.parentElement!.parentElement!
+          return [...group.querySelectorAll<HTMLElement>('[aria-hidden="true"]')].filter((node) => node.style.height === '1px').length
+        })
+        expect(separators).toBe(1)
       } else {
         await expect(page).toHaveURL(/\/upgrade/)
       }

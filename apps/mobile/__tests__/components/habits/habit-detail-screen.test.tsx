@@ -1,3 +1,4 @@
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { renderedText } from '@/__tests__/support/react-test-renderer'
 import { expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -119,6 +120,7 @@ const mocks = vi.hoisted(() => ({
   reducedMotion: false,
   realPressTokens: false,
   realHabitRows: false,
+  realListRows: false,
   theme: 'dark',
 }))
 
@@ -347,9 +349,13 @@ vi.mock('@/components/ui/time-field', async (importOriginal) => {
 vi.mock('@/components/ui/list-row', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/list-row')>()
   return ({
-  ListRow: ({ title, description, value, trailing, chevron, onClick, icon, expanded, controls, toggle }: React.ComponentProps<typeof import('@/components/ui/list-row')['ListRow']>) => title === 'habits.detail.askAstra' ? <actual.ListRow title={title} placement="column" onClick={onClick} /> : React.createElement('ListRow', { title, description, value, chevron, onClick, icon: typeof icon === 'string' ? icon : undefined, expanded, controls, toggle },
+  ListRow: (props: React.ComponentProps<typeof import('@/components/ui/list-row')['ListRow']>) => {
+    if (mocks.realListRows) return <actual.ListRow {...props} />
+    const { title, description, value, trailing, chevron, onClick, icon, expanded, controls, toggle } = props
+    return title === 'habits.detail.askAstra' ? <actual.ListRow title={title} placement="column" onClick={onClick} /> : React.createElement('ListRow', { title, description, value, chevron, onClick, icon: typeof icon === 'string' ? icon : undefined, expanded, controls, toggle },
     toggle ? React.createElement('Switch', { testID: title === 'habits.detail.slipAlert' ? 'slip-alert-switch' : title, label: title, checked: toggle.checked, onChange: toggle.onChange }, React.createElement('Text', {}, title)) : onClick ? React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel: title, accessibilityState: { expanded }, onPress: onClick }, React.createElement('Text', {}, title)) : null,
-    trailing),
+    trailing)
+  },
 })
 })
 vi.mock('@/components/ui/pill-button', () => ({
@@ -630,6 +636,7 @@ describe('HabitDetailScreen', () => {
     mocks.realHeaderRing = false
     mocks.reducedMotion = false
     mocks.realPressTokens = false
+    mocks.realListRows = false
     mocks.realHabitRows = false
     mocks.theme = 'dark'
     mocks.metricsError = false
@@ -1840,6 +1847,29 @@ describe('HabitDetailScreen', () => {
   })
 
 
+
+  it.each([412, 840].flatMap((width) => [1, 2].map((scale) => ({ width, scale }))))('measures the full detail owner at $width and text scale $scale', ({ width, scale }) => {
+    mocks.realListRows = true
+    mocks.realPressTokens = true
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const disclosure = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.moreDetails')!
+    TestRenderer.act(() => disclosure.props.onPress())
+    const geometry = measureProfileRow(tree.toJSON(), width, scale)
+    const rowTitles = geometry.parts.filter((part) => part.slot === 'list-row-title')
+    expect(rowTitles.length).toBeGreaterThanOrEqual(4)
+    const date = geometry.parts.find((part) => part.slot === 'date-row-label')!
+    const icons = geometry.parts.filter((part) => part.slot === 'list-row-icon')
+    expect(date).toBeDefined()
+    for (const icon of icons) expect(icon.left).toBeCloseTo(date.left, 1)
+    for (const body of geometry.parts.filter((part) => part.slot === 'list-row-body')) {
+      expect(body.left).toBeCloseTo(date.left - 16, 1)
+      expect(body.right).toBeLessThanOrEqual(width)
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
 
   it.each(['', 'My draft'])('paints and opens Astra about the habit, preserving draft %s', (draft) => {
     mocks.reducedMotion = draft !== ''

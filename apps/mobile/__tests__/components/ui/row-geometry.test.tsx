@@ -1,10 +1,10 @@
 import React from 'react'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { Pressable, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
-import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ListRow } from '@/components/ui/list-row'
 import { Badge } from '@/components/ui/badge'
 import { CheckRow } from '@/components/ui/check-row'
@@ -18,7 +18,7 @@ import { PushDevicesRow } from '@/components/profile/push-devices-row'
 import { createTokensV2 } from '@/lib/theme'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 
-vi.mock('react-i18next', async (importOriginal) => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }) }))
+vi.mock('react-i18next', async (importOriginal) => ({ ...await importOriginal<typeof import('react-i18next')>(), useTranslation: () => ({ t: (key: string) => key === 'common.proBadge' || key === 'habits.detail.proGate' ? 'Pro' : key, i18n: { language: 'en' } }) }))
 vi.mock('react-hook-form', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-hook-form')>(),
   useController: () => ({ field: { ref: vi.fn() } }),
@@ -52,7 +52,7 @@ function assertRow(host: Parameters<typeof measureProfileRow>[0], width: number,
   const first = part('list-row-icon') ?? part('list-row-title')!
   const last = part('list-row-chevron') ?? part('list-row-trailing') ?? part('list-row-value') ?? part('list-row-title')!
   expect(first.left - body.left).toBeCloseTo(16, 1)
-  expect(body.right - last.right).toBeCloseTo(16, 1)
+  expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(16, 1)
   expect(content.style.gap).toBe(12)
   expect(body.style.paddingVertical).toBe(12)
   expect(body.style.minHeight).toBe(part('list-row-description') ? 68 : 52)
@@ -71,6 +71,28 @@ function assertRow(host: Parameters<typeof measureProfileRow>[0], width: number,
   if (track) expect(track).toMatchObject({ width: 48, height: 28 })
   return geometry
 }
+
+
+function assertComposition(host: Parameters<typeof measureProfileRow>[0], width: number, scale: number, inset: number) {
+  const geometry = measureProfileRow(host, width, scale)
+  const bodies = geometry.parts.filter((part) => part.slot === 'list-row-body')
+  expect(bodies.length).toBeGreaterThan(0)
+  for (const body of bodies) {
+    const start = geometry.parts.indexOf(body)
+    const end = geometry.parts.findIndex((part, index) => index > start && part.slot === 'list-row-body')
+    const parts = geometry.parts.slice(start + 1, end < 0 ? undefined : end)
+    const first = parts.find((part) => part.slot === 'list-row-icon') ?? parts.find((part) => part.slot === 'list-row-title')!
+    const last = ['list-row-chevron', 'list-row-trailing', 'list-row-value', 'list-row-title'].map((slot) => parts.find((part) => part.slot === slot)).find(Boolean)!
+    expect(first.left - body.left).toBeCloseTo(16, 1)
+    expect(body.right - last.right, JSON.stringify({ body, first, last })).toBeCloseTo(16, 1)
+    expect(first.left).toBeGreaterThanOrEqual(inset)
+    expect(body.right).toBeLessThanOrEqual(width)
+    for (const part of parts) expect(Number(part.style.marginHorizontal ?? 0)).toBeGreaterThanOrEqual(0)
+  }
+  return geometry
+}
+
+afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
 async function mount(element: React.ReactElement) {
   let tree!: Tree
@@ -95,6 +117,7 @@ function createTags(): TagSelectionState {
 
 describe('canonical row geometry in Yoga', () => {
   it.each(matrix)('measures primitive slots at $width and text scale $scale', async ({ width, scale }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
     for (const props of [
       { title: 'Details', onClick: vi.fn() },
       { title: 'Tags', value: '3', onClick: vi.fn() },
@@ -125,40 +148,32 @@ describe('canonical row geometry in Yoga', () => {
   })
 
   it.each(matrix)('measures the owning habit form, detail fields and profile compositions at $width and scale $scale', async ({ width, scale }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    const form = await mount(<QueryClientProvider client={queryClient}><HabitFormFields defaultExpanded formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /></QueryClientProvider>)
+    const form = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitFormFields defaultExpanded formHelpers={createFormHelpers({ isBadHabit: true })} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} /></View></QueryClientProvider>)
     try {
       const rows = form.root.findAll((node) => node.type === ListRow)
       for (const title of ['moreDetails', 'upgrade', 'habitTypeAvoid', 'tags', 'goals', 'useTemplate']) {
         const key = title === 'upgrade' ? 'common.upgrade' : `habits.form.${title}`
         expect(rows.some((row) => row.props.title === key), key).toBe(true)
       }
-      for (const row of rows) {
-        const rendered = await mount(<ListRow {...(row.props as unknown as ListRowProps)} />)
-        try { assertRow(rendered.toJSON(), width, scale, row.props.placement === 'column') }
-        finally { await act(() => rendered.update(<></>)) }
-      }
+      const geometry = assertComposition(form.toJSON(), width, scale, 16)
+      const leading = geometry.parts.filter((part) => part.slot === 'list-row-title')
+      expect(leading.find((part) => part.left === 56)).toBeDefined()
+      expect(geometry.parts.filter((part) => part.slot === 'list-row-body').some((body) => body.left === 16)).toBe(true)
     } finally { await act(() => form.update(<></>)); queryClient.clear() }
     const habit = createMockHabit({ isBadHabit: true })
-    const detail = await mount(<QueryClientProvider client={queryClient}><HabitDetailSchedule habit={habit} summary="Every day" open={false} tokens={tokens} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} /><HabitDetailFields habit={habit} hasProAccess={false} relationshipControlsAvailable tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} /></QueryClientProvider>)
+    const detail = await mount(<QueryClientProvider client={queryClient}><View style={{ paddingHorizontal: 16 }}><HabitDetailSchedule habit={habit} summary="Every day" open={false} tokens={tokens} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} /><HabitDetailFields habit={habit} hasProAccess={false} relationshipControlsAvailable tokens={tokens} onItemsChange={vi.fn()} onPatch={vi.fn().mockResolvedValue(true)} onUpgrade={vi.fn()} /></View></QueryClientProvider>)
     try {
       const rows = detail.root.findAll((node) => node.type === ListRow)
       expect(rows.some((row) => row.props.title === 'habits.form.habitTypeAvoid')).toBe(true)
-      for (const row of rows) {
-        const rendered = await mount(<ListRow {...(row.props as unknown as ListRowProps)} />)
-        try { assertRow(rendered.toJSON(), width, scale, row.props.placement === 'column') }
-        finally { await act(() => rendered.update(<></>)) }
-      }
+      assertComposition(detail.toJSON(), width, scale, 16)
     } finally { await act(() => detail.update(<></>)); queryClient.clear() }
-    const profile = await mount(<QueryClientProvider client={queryClient}><ProfileAstraContent profile={createMockProfile({ hasProAccess: true })} patchProfile={vi.fn()} /><PushDevicesRow tokens={tokens} count={1} max={5} currentDeviceRegistered supported loading={false} error={false} permissionStatus="granted" registrationStatus="idle" onToggle={vi.fn()} onOpenSettings={vi.fn()} onRetry={vi.fn()} /></QueryClientProvider>)
+    const profile = await mount(<QueryClientProvider client={queryClient}><View><ProfileAstraContent profile={createMockProfile({ hasProAccess: true })} patchProfile={vi.fn()} /><PushDevicesRow tokens={tokens} count={1} max={5} currentDeviceRegistered supported loading={false} error={false} permissionStatus="granted" registrationStatus="idle" onToggle={vi.fn()} onOpenSettings={vi.fn()} onRetry={vi.fn()} /></View></QueryClientProvider>)
     try {
       const rows = profile.root.findAll((node) => node.type === ListRow).filter((row) => row.props.toggle)
       expect(rows).toHaveLength(3)
-      for (const row of rows) {
-        const rendered = await mount(<ListRow {...(row.props as unknown as ListRowProps)} />)
-        try { assertRow(rendered.toJSON(), width, scale) }
-        finally { await act(() => rendered.update(<></>)) }
-      }
+      assertComposition(profile.toJSON(), width, scale, 16)
     } finally { await act(() => profile.update(<></>)); queryClient.clear() }
   })
 })

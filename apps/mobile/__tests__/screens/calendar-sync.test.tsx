@@ -1,3 +1,4 @@
+import { SettingsGroup } from '@/components/ui/settings-group';
 import { PersonalText } from '@/components/ui/personal-text'
 import React from "react";
 import { Resvg } from "@resvg/resvg-js";
@@ -1121,10 +1122,11 @@ describe("CalendarSyncScreen", () => {
 
   it("lists imported habits and keeps partial failures visible", async () => {
     const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana';
-    mocks.eventsQuery.data = { status: "connected", events: buildEvents(2).map((event, index) => index === 0 ? { ...event, title: habitName } : event) };
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(3).map((event, index) => index === 0 ? { ...event, title: habitName } : event) };
     mocks.bulkMutateAsync.mockResolvedValue({
       results: [
         { status: "Success", habitId: "h1", title: habitName, error: null },
+        { status: "Success", habitId: "h2", title: "Event 2", error: null },
         { status: "Failed", habitId: null, title: "Event 1", error: "boom" },
       ],
     });
@@ -1164,6 +1166,9 @@ describe("CalendarSyncScreen", () => {
         node.type === "ListRow" && node.props.children === habitName,
     );
     expect(doneRows).toHaveLength(1);
+    const group = tree.root.findAllByType(SettingsGroup).find((node: TestNode) => React.Children.count(node.props.children) === 2);
+    expect(group).toBeDefined();
+    expect(group.findAll((node: TestNode & { type?: unknown }) => node.type === "View" && (StyleSheet.flatten(node.props.style) as ViewStyle | undefined)?.height === StyleSheet.hairlineWidth)).toHaveLength(1);
     expect(doneRows[0]!.props.chevron).toBe(false);
     expect(doneRows[0]!.props.textMode).toBe("personal");
     const goToHabits = tree.root.find(
