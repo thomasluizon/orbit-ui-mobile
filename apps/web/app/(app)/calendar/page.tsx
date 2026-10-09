@@ -285,7 +285,7 @@ function CalendarPageContent({
   const logHabit = useLogHabit()
 
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
-  const [weekAnchor, setWeekAnchor] = useState(() => parseAPIDate(todayKey))
+  const [weekAnchor, setWeekAnchor] = useState<Date | null>(null)
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [agendaOffset, setAgendaOffset] = useState(0)
   const [rangeOffset, setRangeOffset] = useState(0)
@@ -356,14 +356,14 @@ function CalendarPageContent({
   const { dayMap, isLoading, error, refresh } = monthQuery
 
   const weekStart = useMemo(
-    () => startOfWeek(weekAnchor, { weekStartsOn }),
+    () => startOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
     // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [weekAnchor, weekStartsOn],
+    [todayKey, weekAnchor, weekStartsOn],
   )
   const weekEnd = useMemo(
-    () => endOfWeek(weekAnchor, { weekStartsOn }),
+    () => endOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
     // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [weekAnchor, weekStartsOn],
+    [todayKey, weekAnchor, weekStartsOn],
   )
   const rangeEnd = useMemo(
     () => resolveCalendarRangeEnd(parseAPIDate(todayKey), rangeOffset),
@@ -462,12 +462,12 @@ function CalendarPageContent({
 
   const prevWeek = useCallback(() => {
     setWeekSlide('left')
-    setWeekAnchor((a) => subWeeks(a, 1))
-  }, [setWeekAnchor, setWeekSlide])
+    setWeekAnchor((a) => subWeeks(a ?? parseAPIDate(todayKey), 1))
+  }, [setWeekAnchor, setWeekSlide, todayKey])
   const nextWeek = useCallback(() => {
     setWeekSlide('right')
-    setWeekAnchor((a) => addWeeks(a, 1))
-  }, [setWeekAnchor, setWeekSlide])
+    setWeekAnchor((a) => addWeeks(a ?? parseAPIDate(todayKey), 1))
+  }, [setWeekAnchor, setWeekSlide, todayKey])
   const goToCurrentWeek = useCallback(() => {
     setWeekSlide(null)
     setWeekAnchor(parseAPIDate(todayKey))

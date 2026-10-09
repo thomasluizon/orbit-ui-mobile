@@ -486,6 +486,33 @@ describe("CalendarScreen views (mobile)", () => {
     }
   });
 
+  it.each([false, true])('uses profile today after loading while preserving explicit week navigation: %s', (navigated) => {
+    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayTime: (time) => time ?? '' });
+    const previousZone = process.env.TZ;
+    process.env.TZ = 'UTC';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'));
+    state.profile = undefined;
+    let tree!: Tree;
+    try {
+      TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+      pressView(tree, 'week');
+      if (navigated) {
+        const next = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.nextWeek')[0]!;
+        TestRenderer.act(() => next.props.onPress());
+      }
+      state.profile = { weekStartDay: 1, timeZone: 'America/Sao_Paulo', hasProAccess: true };
+      TestRenderer.act(() => tree.update(<CalendarScreen />));
+      expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(navigated ? ['2026-10-12', '2026-10-18'] : ['2026-09-28', '2026-10-04']);
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ');
+      else process.env.TZ = previousZone;
+      vi.useRealTimers();
+      clock.mockRestore();
+    }
+  });
+
   it('pages the agenda query and restores the days ahead from its header', () => {
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });

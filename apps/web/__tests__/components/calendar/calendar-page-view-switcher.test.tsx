@@ -403,6 +403,27 @@ describe('CalendarPage view switcher', () => {
     }
   })
 
+  it.each([false, true])('uses profile today after loading while preserving explicit week navigation: %s', (navigated) => {
+    const previousZone = process.env.TZ
+    process.env.TZ = 'UTC'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'))
+    profileQueryState.profile = undefined
+    try {
+      const page = render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+      const current = () => screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })
+      if (navigated) fireEvent.click(screen.getByRole('button', { name: 'common.nextWeek' }))
+      profileQueryState.profile = { weekStartDay: 1, timeZone: 'America/Sao_Paulo', hasProAccess: true }
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(navigated ? 'Oct 12 to Oct 18' : 'Sep 28 to Oct 4')
+    } finally {
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ')
+      else process.env.TZ = previousZone
+      vi.useRealTimers()
+    }
+  })
+
   it('puts every week pager control in the header before the selector and preserves the view while paging', () => {
     render(<CalendarPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))

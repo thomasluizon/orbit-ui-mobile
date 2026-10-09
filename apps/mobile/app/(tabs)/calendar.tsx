@@ -324,7 +324,7 @@ function CalendarScreenContent({
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
-  const [weekAnchor, setWeekAnchor] = useState(() => parseAPIDate(todayKey));
+  const [weekAnchor, setWeekAnchor] = useState<Date | null>(null);
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [agendaOffset, setAgendaOffset] = useState(0);
   const [rangeOffset, setRangeOffset] = useState(0);
@@ -389,12 +389,12 @@ function CalendarScreenContent({
   const { dayMap, isLoading, error, refresh } = monthQuery;
 
   const weekStart = useMemo(
-    () => startOfWeek(weekAnchor, { weekStartsOn }),
-    [weekAnchor, weekStartsOn],
+    () => startOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
+    [todayKey, weekAnchor, weekStartsOn],
   );
   const weekEnd = useMemo(
-    () => endOfWeek(weekAnchor, { weekStartsOn }),
-    [weekAnchor, weekStartsOn],
+    () => endOfWeek(weekAnchor ?? parseAPIDate(todayKey), { weekStartsOn }),
+    [todayKey, weekAnchor, weekStartsOn],
   );
   const rangeEnd = useMemo(
     () => resolveCalendarRangeEnd(parseAPIDate(todayKey), rangeOffset),
@@ -478,12 +478,12 @@ function CalendarScreenContent({
 
   const prevWeek = useCallback(() => {
     setWeekSlide("left");
-    setWeekAnchor((a) => subWeeks(a, 1));
-  }, [setWeekAnchor, setWeekSlide]);
+    setWeekAnchor((a) => subWeeks(a ?? parseAPIDate(todayKey), 1));
+  }, [setWeekAnchor, setWeekSlide, todayKey]);
   const nextWeek = useCallback(() => {
     setWeekSlide("right");
-    setWeekAnchor((a) => addWeeks(a, 1));
-  }, [setWeekAnchor, setWeekSlide]);
+    setWeekAnchor((a) => addWeeks(a ?? parseAPIDate(todayKey), 1));
+  }, [setWeekAnchor, setWeekSlide, todayKey]);
   const goToCurrentWeek = useCallback(() => {
     setWeekSlide(null);
     setWeekAnchor(parseAPIDate(todayKey));
