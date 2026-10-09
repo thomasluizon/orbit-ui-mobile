@@ -23,15 +23,30 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
   const page = control.page()
   expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
   await control.evaluate((element) => {
+    element.setAttribute('data-test-touch-control', 'true')
     element.addEventListener('touchstart', () => element.setAttribute('data-test-touch-held', 'true'), { passive: true })
-    for (const event of ['touchend', 'touchcancel']) element.addEventListener(event, () => element.removeAttribute('data-test-touch-held'))
+    for (const event of ['touchend', 'touchcancel']) element.addEventListener(event, (touch) => {
+      touch.preventDefault()
+      element.removeAttribute('data-test-touch-held')
+    }, { passive: false })
   })
   const bounds = (await control.boundingBox())!
   const session = await page.context().newCDPSession(page)
-  const gesture = session.send('Input.synthesizeTapGesture', {
-    x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2, duration: 5000, gestureSourceType: 'touch',
-  })
+  await session.send('DOM.enable')
+  await session.send('CSS.enable')
+  const { root } = await session.send('DOM.getDocument', { depth: 0 })
+  const { nodeId } = await session.send('DOM.querySelector', { nodeId: root.nodeId, selector: '[data-test-touch-control]' })
   try {
+    try {
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart', touchPoints: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }],
+      })
+      await expect(control).toHaveAttribute('data-test-touch-held', 'true')
+    } finally {
+      await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    }
+    await expect(control).not.toHaveAttribute('data-test-touch-held')
+    await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
     await expect.poll(() => control.evaluate((element) => {
       const probe = document.createElement('span')
       probe.style.background = 'var(--bg-hover)'
@@ -40,12 +55,12 @@ async function expectTouchPressFill(control: Locator, separateBody?: Locator) {
       document.body.append(probe)
       const expected = getComputedStyle(probe).backgroundColor
       probe.remove()
-      return { painted: getComputedStyle(element).backgroundColor === expected, held: element.hasAttribute('data-test-touch-held') }
-    }), { message: 'touch press paints --bg-hover without hover media support' }).toEqual({ painted: true, held: true })
+      return getComputedStyle(element).backgroundColor === expected
+    }), { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
     await expectFillShape(control, 'touch press')
     if (separateBody) await expect(separateBody).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   } finally {
-    await gesture
+    await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] })
     await session.detach()
   }
 }

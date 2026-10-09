@@ -43,12 +43,29 @@ describe('personal ListRow text in Chromium', () => {
       const control = kind === 'body' ? body : action
       await control.scrollIntoViewIfNeeded()
       await control.evaluate((element) => {
+        element.setAttribute('data-test-touch-control', 'true')
         element.addEventListener('touchstart', () => element.setAttribute('data-test-touch-held', 'true'), { passive: true })
-        for (const event of ['touchend', 'touchcancel']) element.addEventListener(event, () => element.removeAttribute('data-test-touch-held'))
+        for (const event of ['touchend', 'touchcancel']) element.addEventListener(event, (touch) => {
+          touch.preventDefault()
+          element.removeAttribute('data-test-touch-held')
+        }, { passive: false })
       })
       const box = (await control.boundingBox())!
-      const gesture = session.send('Input.synthesizeTapGesture', { x: box.x + box.width / 2, y: box.y + box.height / 2, duration: 5000, gestureSourceType: 'touch' })
+      await session.send('DOM.enable')
+      await session.send('CSS.enable')
+      const { root } = await session.send('DOM.getDocument', { depth: 0 })
+      const { nodeId } = await session.send('DOM.querySelector', { nodeId: root.nodeId, selector: '[data-test-touch-control]' })
       try {
+        try {
+          await session.send('Input.dispatchTouchEvent', {
+            type: 'touchStart', touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+          })
+          await expect.poll(() => control.getAttribute('data-test-touch-held')).toBe('true')
+        } finally {
+          await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        }
+        await expect.poll(() => control.getAttribute('data-test-touch-held')).toBeNull()
+        await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
         await expect.poll(() => control.evaluate((element) => {
           const probe = document.createElement('span')
           probe.style.background = 'var(--bg-hover)'
@@ -57,8 +74,8 @@ describe('personal ListRow text in Chromium', () => {
           document.body.append(probe)
           const expected = getComputedStyle(probe).backgroundColor
           probe.remove()
-          return { painted: getComputedStyle(element).backgroundColor === expected, held: element.hasAttribute('data-test-touch-held') }
-        }), { message: 'touch press paints --bg-hover without hover media support' }).toEqual({ painted: true, held: true })
+          return getComputedStyle(element).backgroundColor === expected
+        }), { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
         const corners = await control.evaluate((element) => {
           const style = getComputedStyle(element)
           return [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius]
@@ -79,9 +96,9 @@ describe('personal ListRow text in Chromium', () => {
           expect(await body.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
         }
       } finally {
-        await gesture
+        await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] })
+        await session.detach()
       }
-      await session.detach()
     } finally { await page.close() }
   })
 
