@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -10,6 +11,7 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { AccountNavigationRow } from '@/app/(app)/profile/_components/account-navigation-row'
 import { ListRow } from '@/components/ui/list-row'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -25,6 +27,63 @@ describe('personal ListRow text in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each((['light', 'dark'] as const).flatMap((mode) => (['body', 'action'] as const).map((kind) => ({ mode, kind }))))('paints the $kind touch press fill in $mode', async ({ mode, kind }) => {
+    const markup = renderToStaticMarkup(<ListRow title="Open day" description="Selected day" accessibilityLabel="Open day" href="/?date=2026-09-04"
+      action={{ icon: 'chevron-down', label: 'View details', onPress: vi.fn() }} />)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${stylesheet}</style><body>${markup}</body></html>`)
+      await page.bringToFront()
+      expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
+      const session = await page.context().newCDPSession(page)
+      const body = page.getByRole('link', { name: 'Open day' })
+      const action = page.getByRole('button', { name: 'View details' })
+      const control = kind === 'body' ? body : action
+      await control.scrollIntoViewIfNeeded()
+      await control.evaluate((element) => {
+        element.addEventListener('touchstart', () => element.setAttribute('data-test-touch-held', 'true'), { passive: true })
+        for (const event of ['touchend', 'touchcancel']) element.addEventListener(event, () => element.removeAttribute('data-test-touch-held'))
+      })
+      const box = (await control.boundingBox())!
+      const gesture = session.send('Input.synthesizeTapGesture', { x: box.x + box.width / 2, y: box.y + box.height / 2, duration: 5000, gestureSourceType: 'touch' })
+      try {
+        await expect.poll(() => control.evaluate((element) => {
+          const probe = document.createElement('span')
+          probe.style.background = 'var(--bg-hover)'
+          probe.style.position = 'fixed'
+          probe.style.pointerEvents = 'none'
+          document.body.append(probe)
+          const expected = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          return { painted: getComputedStyle(element).backgroundColor === expected, held: element.hasAttribute('data-test-touch-held') }
+        }), { message: 'touch press paints --bg-hover without hover media support' }).toEqual({ painted: true, held: true })
+        const corners = await control.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius]
+        })
+        if (control === body) {
+          expect(corners).toEqual(['12px', '12px', '12px', '12px'])
+          const secondary = await body.locator('[data-slot="list-row-description"]').evaluate((element) => {
+            const probe = document.createElement('span')
+            probe.style.color = 'var(--fg-2)'
+            document.body.append(probe)
+            const expected = getComputedStyle(probe).color
+            probe.remove()
+            return { color: getComputedStyle(element).color, expected }
+          })
+          expect(secondary.color).toBe(secondary.expected)
+        } else {
+          expect(corners.every((corner) => Number.parseFloat(corner) >= box.width / 2)).toBe(true)
+          expect(await body.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+        }
+      } finally {
+        await gesture
+      }
+      await session.detach()
+    } finally { await page.close() }
+  })
 
   it.each([1, 2])('gives the composed account row two-line geometry at %s text scale', async (textScale) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
