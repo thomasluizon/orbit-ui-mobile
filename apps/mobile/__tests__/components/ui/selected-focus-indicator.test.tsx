@@ -87,15 +87,18 @@ function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>) {
   })
   expect(choices().length).toBeGreaterThan(1)
   for (let index = 0; index < choices().length; index += 1) {
-    const selected = Boolean(choices()[index].props.accessibilityState.selected || choices()[index].props.accessibilityState.checked)
-    expect(ringCount(choices()[index])).toBe(selected ? 1 : 0)
+    let choice = choices()[index]
+    const selected = Boolean(choice.props.accessibilityState.selected || choice.props.accessibilityState.checked)
+    expect(ringCount(choice)).toBe(selected ? 1 : 0)
     const target = {}
     const event = { target, currentTarget: target }
-    TestRenderer.act(() => choices()[index].props.onFocus?.(event))
-    expect(ringCount(choices()[index])).toBe(1)
-    TestRenderer.act(() => choices()[index].props.onBlur?.(event))
-    const settledSelected = Boolean(choices()[index].props.accessibilityState.selected || choices()[index].props.accessibilityState.checked)
-    expect(ringCount(choices()[index])).toBe(settledSelected ? 1 : 0)
+    TestRenderer.act(() => choice.props.onFocus?.(event))
+    choice = choices()[index]
+    expect(ringCount(choice)).toBe(1)
+    TestRenderer.act(() => choice.props.onBlur?.(event))
+    choice = choices()[index]
+    const settledSelected = Boolean(choice.props.accessibilityState.selected || choice.props.accessibilityState.checked)
+    expect(ringCount(choice)).toBe(settledSelected ? 1 : 0)
   }
 }
 
@@ -107,13 +110,14 @@ it('TimeField options use one indicator with and without selection', () => {
   TestRenderer.act(() => tree!.unmount())
 })
 
-it('emoji options and category chips share the focus rule', () => {
+it.each([false, true])('emoji options and category chips share the focus rule, category selected %s', (selectCategory) => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<HabitEmojiSelector selectedEmoji="😀" tokens={tokens} styles={createStyles(tokens)} onSelect={vi.fn()} />) })
   TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
-  verifyAllChoices(tree)
-  const category = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityState?: { selected?: boolean } }; findAllByType: (type: string) => unknown[] }) => node.props.accessibilityState?.selected === false && node.findAllByType('Text').length === 1)
-  TestRenderer.act(() => category.props.onPress())
+  if (selectCategory) {
+    const category = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityState?: { selected?: boolean } }; findAllByType: (type: string) => unknown[] }) => node.props.accessibilityState?.selected === false && node.findAllByType('Text').length === 1)
+    TestRenderer.act(() => category.props.onPress())
+  }
   verifyAllChoices(tree)
   TestRenderer.act(() => tree!.unmount())
 })
