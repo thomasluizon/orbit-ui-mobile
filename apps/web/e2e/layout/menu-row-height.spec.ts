@@ -8,6 +8,7 @@ import { setLayoutProfileSession } from './profile-session'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { resolveWebThemeVariables } from '../../lib/theme-dom'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { restPointerOutside } from './pointer-rest'
 import { test } from './upgrade-fixtures'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
@@ -61,6 +62,8 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       const destructive = items.last()
       await expect(destructive).toHaveAttribute('data-destructive')
       await expect(destructive).toHaveCSS('border-top-width', '1px')
+      await restPointerOutside(menu)
+      await expect(destructive).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
       const icon = destructive.locator('svg')
       const label = destructive.locator('.orbit-menu-label')
       const iconColour = await icon.evaluate((element) => getComputedStyle(element).color)
