@@ -1,0 +1,108 @@
+name: Mobile Android Build
+
+# Proves that Expo prebuild and the complete native module graph compile.
+
+on:
+  pull_request:
+    branches: [main, redesign/main]
+    paths:
+      - "apps/mobile/**"
+      - "packages/shared/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/mobile-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Android release build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    env:
+      # Capture mode omits the Firebase configuration that only releases supply.
+      EXPO_PUBLIC_CAPTURE_MODE: "true"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_NO_METRO_WORKSPACE_ROOT: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle caching
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Read the build's NDK version
+        id: ndk
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Expo's expoLibs catalog imports React Native's version catalog.
+          catalog=$(node -p 'require.resolve("react-native/package.json", { paths: ["./apps/mobile"] })')
+          version=$(sed -n 's/^ndkVersion = "\([0-9.]*\)"$/\1/p' "$(dirname "$catalog")/gradle/libs.versions.toml")
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Cannot read the NDK version from the native build's version catalog."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "path=$ANDROID_HOME/ndk/$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Android NDK
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.ndk.outputs.path }}
+          key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
+
+      - name: Install and verify the Android NDK
+        shell: bash
+        env:
+          NDK_VERSION: ${{ steps.ndk.outputs.version }}
+          NDK_PATH: ${{ steps.ndk.outputs.path }}
+        run: |
+          set -euo pipefail
+          if [ -d "$NDK_PATH" ]; then
+            echo "Using cached or preinstalled Android NDK $NDK_VERSION."
+          else
+            echo "Installing Android NDK $NDK_VERSION with sdkmanager."
+            if ! sdkmanager --sdk_root="$ANDROID_HOME" --install "ndk;$NDK_VERSION"; then
+              echo "::error::Android NDK $NDK_VERSION installation failed before Gradle; rerun to retry the SDK download."
+              exit 1
+            fi
+          fi
+          if ! grep -Fqx "Pkg.Revision = $NDK_VERSION" "$NDK_PATH/source.properties" ||
+             [ ! -s "$NDK_PATH/build/cmake/android.toolchain.cmake" ]; then
+            echo "::error::Android NDK $NDK_VERSION is incomplete or has the wrong revision; Gradle will not start."
+            exit 1
+          fi
+          if ! compiler=$(find "$NDK_PATH/toolchains/llvm/prebuilt" -path '*/bin/clang' -print -quit) ||
+             [ ! -x "$compiler" ] || ! "$compiler" --version; then
+            echo "::error::Android NDK $NDK_VERSION compiler verification failed; Gradle will not start."
+            exit 1
+          fi
+          echo "Verified Android NDK $NDK_VERSION before Gradle."
+
+      # Runs the Expo prebuild and the Gradle release assemble across the whole
+      # native module graph, which is where a broken native dependency or a
+      # Gradle change actually surfaces. ARM slices only, matching what ships;
+      # the x86_64 slice existed for the emulator that no longer runs here.
+      - name: Build the release APK
+        run: npm run android:apk -w @orbit/mobile
