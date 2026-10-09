@@ -80,6 +80,7 @@ async function fetchWithSession<T>(
   schema: ZodType<T> | undefined,
   intendedAccountId: string | null,
   recordUpstream?: RecordProxyUpstream,
+  renderToken?: string,
 ): Promise<T> {
   const accountIntent = intendedAccountId?.startsWith('{')
     ? accountIntentSchema.parse(JSON.parse(intendedAccountId) as unknown)
@@ -95,7 +96,7 @@ async function fetchWithSession<T>(
     'Accept-Language': language,
   })
 
-  let session = await resolveServerSession()
+  let session = renderToken ? { token: renderToken, refreshFailed: false } : await resolveServerSession()
   if (!session.token) {
     throw unauthorizedError(session.refreshFailed)
   }
@@ -107,7 +108,7 @@ async function fetchWithSession<T>(
   })
   recordUpstream?.(res)
 
-  if (res.status === 401 && path !== API.auth.refresh) {
+  if (!renderToken && res.status === 401 && path !== API.auth.refresh) {
     session = await resolveServerSession({ forceRefresh: true })
     if (session.token) {
       assertIntendedAccountStillHolds(session.token, accountIntent.accountId)
@@ -141,6 +142,16 @@ export async function serverAuthFetch<T = unknown>(
   schema?: ZodType<T>,
 ): Promise<T> {
   return fetchWithSession(path, init, schema, null)
+}
+
+export async function serverRenderFetch<T = unknown>(
+  path: string,
+  init: ReadInit = {},
+  schema?: ZodType<T>,
+): Promise<T | null> {
+  const session = await resolveServerSession({ allowRefresh: false })
+  if (!session.token) return null
+  return fetchWithSession(path, init, schema, null, undefined, session.token)
 }
 
 /**

@@ -12,7 +12,7 @@ import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { RouteContext } from '@/components/navigation/route-context'
 import { normalizeThemeMode, resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
-import { serverAuthFetch } from '@/lib/server-fetch'
+import { serverRenderFetch } from '@/lib/server-fetch'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
@@ -39,8 +39,8 @@ const variablesByScheme = Object.fromEntries(
 async function loadInitialTheme(hasSessionCookie: boolean, cookieTheme: string | undefined) {
   if (hasSessionCookie) {
     try {
-      const profile = await serverAuthFetch(API.profile.get, { cache: 'no-store', signal: AbortSignal.timeout(10000) }, profileSchema)
-      return normalizeThemeMode(profile.themePreference ?? cookieTheme)
+      const profile = await serverRenderFetch(API.profile.get, { cache: 'no-store', signal: AbortSignal.timeout(10000) }, profileSchema)
+      return normalizeThemeMode(profile?.themePreference ?? cookieTheme)
     } catch (error) {
       // WHY: Public routes must still render when the profile API or session is unavailable; https://github.com/thomasluizon/orbit-tickets/issues/1311.
       captureException(error)
