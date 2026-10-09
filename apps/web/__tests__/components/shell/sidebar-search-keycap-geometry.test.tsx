@@ -9,6 +9,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { CommandPalette } from '@/components/command/command-palette'
 import { useShellStore } from '@/stores/shell-store'
@@ -95,6 +96,19 @@ describe('sidebar and palette keycap geometry in Chromium', () => {
         shadow: measured.expectedShadow, font: measured.sidebar.font, size: '12px', color: measured.expectedColor })
       for (const keycap of measured.footer) expect.soft(keycap).toEqual(measured.sidebar)
       expect.soft(measured.markedCount).toBe(4)
+      for (const state of ['rest', 'hover', 'press']) {
+        if (state !== 'rest') await page.locator('[data-shell-sidebar] button').hover()
+        if (state === 'press') await page.mouse.down()
+        try {
+          const paint = await page.locator('[data-shell-sidebar] button kbd').evaluate((keycap) => {
+            keycap.parentElement!.getAnimations().forEach((animation) => animation.finish())
+            const layers: string[] = []
+            for (let ancestor: Element | null = keycap; ancestor; ancestor = ancestor.parentElement) layers.unshift(getComputedStyle(ancestor).backgroundColor)
+            return { color: getComputedStyle(keycap).color, layers }
+          })
+          expect.soft(contrastOnSurface(paint.color, paint.layers), `${theme} ${state}`).toBeGreaterThanOrEqual(4.5)
+        } finally { if (state === 'press') await page.mouse.up() }
+      }
     } finally { await page.close() }
   })
 })
