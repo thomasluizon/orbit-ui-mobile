@@ -6,6 +6,7 @@ import { API } from '@orbit/shared/api'
 import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
 import { z, type ZodType } from 'zod'
 import { observeProxyFailure, type RecordProxyUpstream } from './proxy-failure-log'
+import { normalizeUpstreamResponse } from './upstream-starting-response'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 const accountIntentSchema = z.object({
@@ -121,6 +122,7 @@ async function fetchWithSession<T>(
     }
   }
 
+  res = await normalizeUpstreamResponse(res)
   if (!res.ok) {
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
     throw createApiClientError(res.status, error, `Failed with status ${res.status}`, res.headers.get('retry-after'))
@@ -175,7 +177,7 @@ export async function serverPublicFetch<T = unknown>(
 ): Promise<T | null> {
   const language = await getServerRequestLanguage()
   const appVersion = process.env.APP_VERSION
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -185,6 +187,7 @@ export async function serverPublicFetch<T = unknown>(
     },
   })
 
+  res = await normalizeUpstreamResponse(res)
   if (res.status === 404) return null
   if (!res.ok) {
     const error = await res.json().catch(() => null) as Record<string, unknown> | null

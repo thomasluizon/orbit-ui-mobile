@@ -63,7 +63,7 @@ export {
   CALENDAR_MONTH_GRID_GEOMETRY,
   CALENDAR_GRID_GAP_CONTENT_BREAKPOINT,
   formatCalendarMonthHeading,
-  formatCalendarWeekLabel,
+  formatCalendarSpanEnds,
   resolveCalendarMonthDisplayState,
   type CalendarMonthDisplayState,
 } from './calendar-month-state'
@@ -290,6 +290,7 @@ export {
   formatLocaleDate,
   formatLocaleDayMonth,
   formatCalendarDayTitle,
+  formatCalendarAgendaHeading,
   formatWeekdayLabels,
   formatLocaleDateTime,
   formatLocaleTime,
@@ -319,6 +320,7 @@ export {
   filterRecurringEntries,
   resolveCalendarEventsDisplayState,
   calendarEntryOutcome,
+  orderCalendarDayEntries,
 } from './calendar-entries'
 export type { CalendarEventsDisplayState } from './calendar-entries'
 export {

@@ -19,6 +19,10 @@ function getBodyPadding(compact: boolean, hasTrailing: boolean) {
   return compact && hasTrailing ? 0 : 4
 }
 
+function hasSupportingLine({ description, textMode, value }: Readonly<Pick<WebListRowProps, 'description' | 'textMode' | 'value'>>) {
+  return !!description || (textMode === 'personal' && !!value)
+}
+
 function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean, hasTrailing: boolean) {
   const paddingBlock = getBodyPadding(compact, hasTrailing)
   const paddingInline = inset ? 16 : 0
@@ -53,12 +57,12 @@ function titleClass(textMode: WebListRowProps['textMode'], wrapTitle: boolean | 
   return textMode === 'label' || wrapTitle ? 'break-words' : 'truncate'
 }
 
-function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description, value, readOnly, personalExpanded }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'personalExpanded'>>) {
+function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, value, compact = !hasSupportingLine({ description, textMode, value }), readOnly, personalExpanded }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'personalExpanded'>>) {
   const Title = textMode === 'personal' ? PersonalText : 'span'
   const Description = textMode === 'personal' ? PersonalText : 'span'
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing, readOnly === true && textMode === 'label' && !!trailing && !value), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
-    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: textMode ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</Title>
+    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: textMode ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value)) }}>{title}</Title>
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.875rem' : 14, lineHeight: 1.4 }}>{description}</Description> : null}
   </span>
 }
@@ -124,11 +128,11 @@ function rowControl(props: WebListRowProps, children: ReactNode, bodyStyle: Retu
 
 export function ListRow(original: Readonly<WebListRowProps>) {
   const { props, Chevron, contentId } = useRowDisclosure(original)
-  const { accessibilityLabel, action, chevron = true, compact = !props.description, inset = true, href, inForm = false, onClick, readOnly = false } = props
+  const { accessibilityLabel, action, chevron = true, compact = !hasSupportingLine(props), inset = true, href, inForm = false, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const content = <span id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing)}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={props.textMode ? { width: 24, minHeight: 24 } : { width: TOUCH_TARGET_MIN, height: 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.8} /></span> : null}</span>
   const compactForm = inForm && props.compact === true
-  const bodyStyle = getBodyStyle(compact, !!action, inset, !!props.description, compactForm, !!props.trailing)
+  const bodyStyle = getBodyStyle(compact, !!action, inset, hasSupportingLine(props), compactForm, !!props.trailing)
 
   const actionBody = rowControl(props, content, bodyStyle)
 
