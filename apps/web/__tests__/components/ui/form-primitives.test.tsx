@@ -112,9 +112,7 @@ describe('form primitives on web', () => {
     )
     fireEvent.click(screen.getByRole('checkbox', { name: 'Done' }))
     expect(onChange).toHaveBeenCalledWith(false)
-    expect(container.querySelector('[aria-hidden="true"]')).toHaveStyle({
-      background: 'var(--status-done)',
-    })
+    expect(container.querySelector('[data-slot="checkbox-box"] rect')).toHaveAttribute('fill', 'var(--status-done)')
 
     rerender(<Checkbox checked={false} onChange={onChange} as="span" />)
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
