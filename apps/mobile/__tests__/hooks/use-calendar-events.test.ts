@@ -55,7 +55,7 @@ describe('mobile useCalendarEvents', () => {
       1,
       expect.objectContaining({
         queryKey: [...calendarKeys.all, 'manual-fetch', 'UTC'],
-        retry: false,
+        retry: expect.any(Function),
       }),
     )
     expect(mocks.useQuery).toHaveBeenNthCalledWith(

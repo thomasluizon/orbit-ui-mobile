@@ -53,7 +53,6 @@ describe('mobile query client', () => {
   it.each([
     createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized'),
     createApiClientError(403, { error: 'Pro access required', errorCode: 'PAY_GATE' }, 'Forbidden'),
-    createApiClientError(429, { error: 'Too many requests' }, 'Too many requests'),
   ])('does not retry a final response with status $status', (error) => {
     const retry = queryClient.getDefaultOptions().queries?.retry as (
       failureCount: number,
@@ -227,4 +226,47 @@ describe('mobile query client', () => {
     expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
     expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache')
   })
+})
+
+it('keeps a 429 read pending until the retry returns data', async () => {
+  vi.useFakeTimers()
+  const client = queryClient
+  const queryKey = habitKeys.list({})
+  const error = Object.assign(createApiClientError(429, null, 'Unavailable'), { retryAfter: '60' })
+  const queryFn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(['Recovered'])
+  const states: string[] = []
+  const unsubscribe = client.getQueryCache().subscribe(() => {
+    const status = client.getQueryState(queryKey)?.status
+    if (status) states.push(status)
+  })
+  const result = client.fetchQuery({ queryKey, queryFn }).catch((failure: unknown) => failure)
+  try {
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(client.getQueryState(queryKey)?.status).toBe('pending')
+    expect(queryFn).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await result).toEqual(['Recovered'])
+    expect(states).not.toContain('error')
+    queryFn.mockRejectedValueOnce(error).mockResolvedValue(['Updated'])
+    const refetch = client.fetchQuery({ queryKey, queryFn, staleTime: 0 })
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(client.getQueryData(queryKey)).toEqual(['Recovered'])
+    expect(client.getQueryState(queryKey)?.status).toBe('success')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await refetch).toEqual(['Updated'])
+    const exhaustedKey = habitKeys.list({ search: 'exhausted' })
+    const exhausted = client.fetchQuery({
+      queryKey: exhaustedKey,
+      queryFn: () => Promise.reject(createApiClientError(429, null, 'Unavailable')),
+    }).catch((failure: unknown) => failure)
+    await vi.advanceTimersByTimeAsync(124_999)
+    expect(client.getQueryState(exhaustedKey)?.status).toBe('pending')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await exhausted).toMatchObject({ status: 429 })
+    expect(client.getQueryState(exhaustedKey)?.status).toBe('error')
+  } finally {
+    unsubscribe()
+    client.clear()
+    vi.useRealTimers()
+  }
 })

@@ -20,6 +20,24 @@ async function box(element: Locator) {
   })
 }
 
+async function expectNavigationPaint(navigation: Locator) {
+  const controls = navigation.locator('button')
+  for (const control of await controls.all()) {
+    const paint = await control.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, ring: getComputedStyle(button).boxShadow, radius: getComputedStyle(button).borderRadius }))
+    expect(paint.background).toBe('rgba(0, 0, 0, 0)')
+    const isChevron = await control.evaluate((button) => !button.textContent.trim())
+    if (isChevron) {
+      expect(paint.ring).toContain('1.5px')
+      expect(paint.ring).toContain('inset')
+      await expect(control).toHaveCSS('width', '48px')
+      await expect(control).toHaveCSS('height', '48px')
+    } else {
+      expect(paint.ring).toBe('none')
+      expect(paint.radius).toBe('12px')
+    }
+  }
+}
+
 for (const width of [320, 412, 600, 840]) {
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     for (const mode of ['light', 'dark'] as const) {
@@ -53,22 +71,14 @@ for (const width of [320, 412, 600, 840]) {
             expect(segments.top, view).toBe(initialTop)
             const navigation = header.locator('[data-testid$="-navigation"]')
             expect((await box(navigation)).height).toBe(48)
-            const controls = navigation.locator('button')
-            for (const control of await controls.all()) {
-              const paint = await control.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, ring: getComputedStyle(button).boxShadow }))
-              expect(paint.background).toBe('rgba(0, 0, 0, 0)')
-              const isChevron = await control.evaluate((button) => !button.textContent.trim())
-              if (isChevron || view === 'week' || view === 'agenda') {
-                expect(paint.ring).toContain('1.5px')
-                expect(paint.ring).toContain('inset')
-              }
-            }
+            await expectNavigationPaint(navigation)
           }
-          const current = header.getByRole('button', { name: new RegExp(`, ${words.dates.today}$`) })
           const firstDay = page.getByTestId('calendar-agenda-day').first()
           const initialDay = await firstDay.textContent()
           await header.getByRole('button', { name: words.common.nextWeek, exact: true }).click()
           await expect.poll(() => firstDay.textContent()).not.toBe(initialDay)
+          const periodLabel = await header.locator('[data-calendar-period-title]').innerText()
+          const current = header.getByRole('button', { name: words.calendar.period.goToCurrent.replace('{period}', periodLabel), exact: true })
           await current.click()
           await expect.poll(() => firstDay.textContent()).toBe(initialDay)
           expect((await box(firstDay)).top - (await box(selector)).bottom).toBe(24)

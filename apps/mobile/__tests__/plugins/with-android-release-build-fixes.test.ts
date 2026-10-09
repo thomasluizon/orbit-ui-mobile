@@ -15,6 +15,91 @@ type ResourceXML = AndroidConfig.Resources.ResourceXML
 const TEMPLATE_DEFAULT = '-Xmx2048m -XX:MaxMetaspaceSize=512m'
 const CLOBBERED_VALUE = '-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
 
+const ROOT_GRADLE_TEMPLATE = `buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
+
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"
+`
+
+async function resolveRootGradle(contents: string, language: 'groovy' | 'kt' = 'groovy'): Promise<string> {
+  const config = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
+  const gradleMod = config.mods?.android?.projectBuildGradle
+  if (!gradleMod) throw new Error('plugin registered no projectBuildGradle mod')
+
+  const modConfig: ExportedConfigWithProps<AndroidConfig.Paths.GradleProjectFile> = {
+    ...config,
+    modResults: { contents, language, path: 'android/build.gradle' },
+    modRequest: {
+      projectRoot: '.', platformProjectRoot: '.', modName: 'projectBuildGradle',
+      platform: 'android', introspect: false,
+    },
+    modRawConfig: config,
+  }
+  return (await gradleMod(modConfig)).modResults.contents
+}
+
+describe('withAndroidReleaseBuildFixes shared Android NDK', () => {
+  it('sets the app and every library NDK before Expo can evaluate native projects', async () => {
+    const contents = await resolveRootGradle(ROOT_GRADLE_TEMPLATE)
+    const ndkMarker = contents.indexOf('// orbit-android-shared-ndk-version')
+    expect(ndkMarker).toBeGreaterThanOrEqual(0)
+    expect(ndkMarker).toBeLessThan(contents.indexOf('apply plugin: "expo-root-project"'))
+    expect(contents).toContain('["com.android.application", "com.android.library"].each')
+    expect(contents).toContain('subproject.extensions.getByName("android").ndkVersion = rootProject.ext.ndkVersion')
+    expect(contents).toContain('subproject.extensions.getByName("androidComponents").finalizeDsl')
+    expect(contents).toContain('android.ndkVersion = rootProject.ext.ndkVersion')
+  })
+
+  it('preserves CMake staging and never duplicates the policy on repeated prebuilds', async () => {
+    const previous = await resolveRootGradle(ROOT_GRADLE_TEMPLATE)
+    const contents = await resolveRootGradle(previous)
+    expect(contents).toBe(previous)
+    expect(contents.match(/\/\/ orbit-android-shared-ndk-version/g)).toHaveLength(1)
+    expect(contents.match(/\/\/ orbit-android-library-cmake-staging-dir/g)).toHaveLength(1)
+    expect(contents).toContain('buildStagingDirectory = file(')
+  })
+
+  it('updates a root that already has the CMake staging policy', async () => {
+    const current = await resolveRootGradle(ROOT_GRADLE_TEMPLATE)
+    const previous = current.replace(/\/\/ orbit-android-shared-ndk-version[\s\S]*?\n}\n\n/, '')
+    expect(previous).not.toContain('orbit-android-shared-ndk-version')
+    const updated = await resolveRootGradle(previous)
+    expect(updated).toContain('android.ndkVersion = rootProject.ext.ndkVersion')
+    expect(updated.match(/\/\/ orbit-android-library-cmake-staging-dir/g)).toHaveLength(1)
+    expect(updated.indexOf('// orbit-android-shared-ndk-version')).toBeLessThan(
+      updated.indexOf('apply plugin: "expo-root-project"'),
+    )
+    expect(await resolveRootGradle(updated)).toBe(updated)
+  })
+
+  it('stops prebuild if the root cannot register the policy before Expo evaluates projects', async () => {
+    await expect(resolveRootGradle('allprojects {}')).rejects.toThrow(
+      'Cannot register the shared Android NDK policy before expo-root-project.',
+    )
+    await expect(resolveRootGradle(ROOT_GRADLE_TEMPLATE, 'kt')).rejects.toThrow(
+      'The shared Android NDK policy requires a Groovy root build.gradle.',
+    )
+  })
+})
+
 async function resolveJvmArgs(startingValue: string | null): Promise<string> {
   const config = withAndroidReleaseBuildFixes({ name: 'Orbit', slug: 'orbit' }) as ExportedConfig
   const gradlePropertiesMod = config.mods?.android?.gradleProperties

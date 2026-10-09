@@ -123,7 +123,7 @@ async function fetchWithSession<T>(
 
   if (!res.ok) {
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
-    throw createApiClientError(res.status, error, `Failed with status ${res.status}`)
+    throw createApiClientError(res.status, error, `Failed with status ${res.status}`, res.headers.get('retry-after'))
   }
   if (res.status === 204) return null as T
   const text = await res.text()
@@ -188,7 +188,7 @@ export async function serverPublicFetch<T = unknown>(
   if (res.status === 404) return null
   if (!res.ok) {
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
-    throw createApiClientError(res.status, error, `Failed with status ${res.status}`)
+    throw createApiClientError(res.status, error, `Failed with status ${res.status}`, res.headers.get('retry-after'))
   }
   const text = await res.text()
   if (!text) return null

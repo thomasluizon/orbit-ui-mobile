@@ -60,11 +60,7 @@ describe('profile server actions', () => {
   })
 
   function mockApiResponse(body: unknown, status = 200) {
-    mockFetch.mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      json: () => Promise.resolve(body),
-    })
+    mockFetch.mockImplementation(async () => Response.json(body, { status }))
   }
 
   function mock204() {
@@ -405,11 +401,7 @@ describe('profile server actions', () => {
     })
 
     it('throws with status code when no error body', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: () => Promise.reject(new Error('No JSON')),
-      })
+      mockFetch.mockResolvedValue(new Response(null, { status: 500 }))
 
       await expect(resetAccount('account-a')).rejects.toThrow('500')
     })

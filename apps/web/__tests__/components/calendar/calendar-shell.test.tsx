@@ -12,7 +12,6 @@ Element.prototype.scrollIntoView = vi.fn()
 
 import {
   CalendarHeader,
-  CalendarWeekNav,
   CalendarLegend,
 } from '@/app/(app)/calendar/_components/calendar-shell'
 
@@ -104,7 +103,7 @@ describe('Calendar shell helpers', () => {
         onNextMonth={vi.fn()}
         onCurrentMonth={vi.fn()}
         onSelectMonth={vi.fn()}
-        periodNavigation={<CalendarWeekNav weekLabel="Apr 6 to 12" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} />}
+        period={{ view: 'week', label: "Apr 6 to 12", previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }}
         viewSelector={<div role="group" aria-label="Calendar views" />}
       />,
     )
@@ -122,22 +121,14 @@ describe('Calendar shell helpers', () => {
     const onCurrentWeek = vi.fn()
 
     render(
-      <CalendarWeekNav
-        weekLabel="Jun 16 - 22"
-        previousWeekLabel="common.previousWeek"
-        nextWeekLabel="common.nextWeek"
-        currentWeekLabel="calendar.goToCurrentWeek"
-        onPreviousWeek={onPreviousWeek}
-        onNextWeek={onNextWeek}
-        onCurrentWeek={onCurrentWeek}
-      />,
+      <CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'week', label: "Jun 16 to Jun 22", previousLabel: "common.previousWeek", nextLabel: "common.nextWeek", onPrevious: onPreviousWeek, onNext: onNextWeek, onCurrent: onCurrentWeek }} />,
     )
 
-    expect(screen.getByText('Jun 16 - 22')).toBeInTheDocument()
+    expect(screen.getByText('Jun 16 to Jun 22')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('common.previousWeek'))
     fireEvent.click(screen.getByLabelText('common.nextWeek'))
-    fireEvent.click(screen.getByLabelText('Jun 16 - 22, calendar.goToCurrentWeek'))
+    fireEvent.click(screen.getByLabelText('calendar.period.goToCurrent'))
 
     expect(onPreviousWeek).toHaveBeenCalledTimes(1)
     expect(onNextWeek).toHaveBeenCalledTimes(1)

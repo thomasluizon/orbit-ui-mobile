@@ -45,10 +45,8 @@ export function formatCalendarMonthHeading(month: Date, todayKey: string, locale
   return { month: isCurrentYear ? capitalizeFirstLetter(label) : label, year: isCurrentYear ? undefined : String(month.getFullYear()) }
 }
 
-export function formatCalendarWeekLabel(start: Date, end: Date, locale: string): string {
+export function formatCalendarSpanEnds(start: Date, end: Date, locale: string): { start: string; end: string } {
   const dateLocale = locale === 'pt-BR' ? ptBR : enUS
   const pattern = locale === 'pt-BR' ? 'd MMM' : 'MMM d'
-  const startLabel = format(start, pattern, { locale: dateLocale })
-  const endLabel = format(end, start.getMonth() === end.getMonth() ? 'd' : pattern, { locale: dateLocale })
-  return `${startLabel} - ${endLabel}`
+  return { start: format(start, pattern, { locale: dateLocale }), end: format(end, pattern, { locale: dateLocale }) }
 }

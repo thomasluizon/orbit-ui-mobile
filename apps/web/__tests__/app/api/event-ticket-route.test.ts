@@ -28,3 +28,13 @@ it('reports a definitive session rejection to the event connection', async () =>
   expect(response.status).toBe(401)
   expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
 })
+
+it.each([429, 503])('passes upstream %s and Retry-After through the ticket route', async (status) => {
+  serverAuthMutate.mockRejectedValue(Object.assign(
+    createApiClientError(status, null, 'Unavailable'), { retryAfter: '60' },
+  ))
+  const response = await POST()
+  expect(response.status).toBe(status)
+  expect(response.headers.get('retry-after')).toBe('60')
+  expect(response.headers.get('cache-control')).toBe('private, no-store')
+})
