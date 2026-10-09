@@ -507,6 +507,9 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('textbox', { name: 'habits.form.description' })).toHaveValue(mocks.detail!.description ?? '')
     expect(screen.getByRole('switch', { name: 'habits.form.habitTypeAvoid' })).toBeInTheDocument()
     expect(screen.getByLabelText('habits.form.exactTime')).toBeInTheDocument()
+    const fields = document.getElementById('habit-detail-fields')!
+    expect(fields.parentElement).toHaveStyle({ gap: '12px' })
+    expect(fields).not.toHaveStyle({ marginTop: '12px' })
   })
 
   it('waits for the account day before querying an unpinned detail', () => {

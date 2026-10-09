@@ -767,6 +767,10 @@ describe('HabitDetailScreen', () => {
     expect(tree.root.findAllByProps({ label: 'habits.form.description' })).not.toHaveLength(0)
     expect(tree.root.findAllByProps({ label: 'habits.form.habitTypeAvoid' })).not.toHaveLength(0)
     expect(tree.root.findAllByProps({ label: 'habits.form.exactTime' })).not.toHaveLength(0)
+    const fields = tree.root.findAllByProps({ nativeID: 'habit-detail-fields' })[0]!
+    const columnStyle = StyleSheet.flatten(fields.parent.props.style)
+    const fieldsStyle = StyleSheet.flatten(fields.props.style)
+    expect((columnStyle.gap ?? 0) + (fieldsStyle.paddingTop ?? 0)).toBe(12)
   })
 
   it('waits for the account day before querying an unpinned detail', () => {
@@ -1859,7 +1863,7 @@ describe('HabitDetailScreen', () => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const disclosure = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.moreDetails')!
+    const disclosure = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.moreDetails'))!
     TestRenderer.act(() => disclosure.props.onPress())
     const geometry = measureProfileRow(tree.toJSON(), width, scale)
     const rowTitles = geometry.parts.filter((part) => part.slot === 'list-row-title')
@@ -1883,12 +1887,12 @@ describe('HabitDetailScreen', () => {
     useUIStore.getState().setAstraConversationOpen(false)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!
     TestRenderer.act(() => ask.props.onPressIn())
     const fill = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'list-row-body').find((node: TestNode) => (StyleSheet.flatten(node.props.style) as import('react-native').ViewStyle).left === -16)!
     expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, left: -16, right: -16 })
     TestRenderer.act(() => ask.props.onPressOut())
-    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!.props.onPress())
+    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!.props.onPress())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
     if (draft) {
