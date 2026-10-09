@@ -23,7 +23,7 @@ for (const width of [320, 360, 384, 412]) {
         await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/profile/preferences')
         const surface = page.getByTestId('profile-settings-group-preferences')
-        await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(4)
+        await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(6)
         await expect(surface.locator('[data-slot="list-row-value"]')).toHaveCount(4)
         for (const label of [
           words.profile.settingsRows.timezone, profile.timeZone!,
@@ -37,6 +37,9 @@ for (const width of [320, 360, 384, 412]) {
         await expect(surface.getByRole('switch', { name: words.settings.homeScreen.showGeneral, exact: true })).toBeVisible()
         await expectLabelsFit(page, surface)
         for (const row of await surface.locator('.orbit-list-row-body').all()) await expectInteractionFill(row)
+        const choices = surface.getByRole('group', { name: words.profile.settingsRows.theme, exact: true })
+        await expect(choices.getByRole('button')).toHaveCount(2)
+        await expect(choices.locator('button[aria-pressed="true"]')).toHaveCount(1)
       })
     })
   }

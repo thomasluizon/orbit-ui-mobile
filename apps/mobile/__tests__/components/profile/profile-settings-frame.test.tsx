@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { Text } from 'react-native'
 import {
   ProfileSettingsFrame,
-  ProfileValueRow,
 } from '@/components/profile/profile-settings-frame'
 
 const TestRenderer = require('react-test-renderer')
@@ -44,19 +43,4 @@ describe('ProfileSettingsFrame', () => {
       node.type === 'Text' && node.props.accessibilityRole === 'header')).toHaveLength(1)
   })
 
-  it('pads a value and control row on the row grid', () => {
-    let tree!: ReturnType<typeof TestRenderer.create>
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ProfileValueRow label="Theme" value="Dark" control={<Text>Change</Text>} />,
-      )
-    })
-
-    expect(tree.root.findByProps({ testID: 'profile-value-row' }).props.style).toEqual(
-      expect.objectContaining({ minHeight: 48, paddingHorizontal: 16, paddingVertical: 12, flexWrap: 'wrap' }),
-    )
-    expect(tree.root.findByProps({ testID: 'profile-value-row' }).findAllByType('View').at(-1)?.props.style).toEqual(
-      expect.objectContaining({ maxWidth: '100%', flexShrink: 1 }),
-    )
-  })
 })

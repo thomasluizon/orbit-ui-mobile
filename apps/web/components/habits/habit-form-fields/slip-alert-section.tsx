@@ -1,9 +1,8 @@
+import { ListRow } from '@/components/ui/list-row'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
-import { ChevronRight, ShieldAlert } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
 
 interface SlipAlertSectionProps {
   inline?: boolean
@@ -20,52 +19,11 @@ export function SlipAlertSection({
 
   return (
     <div className={inline ? "flex flex-col gap-3" : "flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]"}>
-      {hasProAccess ? (
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <ShieldAlert size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
-              <span
-                className="text-[var(--fg-1)]"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
-              >
-                {t('habits.form.slipAlert')}
-              </span>
-            </div>
-            <span className="text-[14px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
-              {t('habits.form.slipAlertDescription')}
-            </span>
-          </div>
-          <Switch
-            checked={slipAlertEnabled}
-            onChange={onToggle}
-            label={t('habits.form.slipAlert')}
-          />
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-3 text-left"
-          onClick={() => requestHabitCreateNavigation(() => router.push('/upgrade'))}
-        >
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <ShieldAlert size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />
-              <span
-                className="text-[var(--fg-3)]"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
-              >
-                {t('habits.form.slipAlert')}
-              </span>
-              <Badge >{t('common.proBadge')}</Badge>
-            </div>
-            <span className="text-[14px] text-[var(--fg-3)]" style={{ marginLeft: 32 }}>
-              {t('habits.form.slipAlertDescription')}
-            </span>
-          </div>
-          <ChevronRight size={20} strokeWidth={1.8} className="shrink-0 text-[var(--fg-3)]" aria-hidden="true" />
-        </button>
-      )}
+      {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Create fSlip controls this label under D42. */}
+      <ListRow placement={inline ? "column" : undefined} icon="shield-alert" title={t('habits.form.slipAlert')} description={t('habits.form.slipAlertDescription')}
+        toggle={hasProAccess ? { checked: slipAlertEnabled, onChange: onToggle } : undefined}
+        trailing={!hasProAccess ? <Badge>{t('common.proBadge')}</Badge> : undefined} chevron={!hasProAccess}
+        onClick={!hasProAccess ? () => requestHabitCreateNavigation(() => router.push('/upgrade')) : undefined} />
     </div>
   )
 }

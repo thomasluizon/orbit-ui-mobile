@@ -29,7 +29,8 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-vi.mock('@/components/ui/switch', () => ({
+vi.mock('@/components/ui/switch', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/switch')>(),
   Switch: ({ checked, label }: { checked: boolean; label: string }) =>
     React.createElement('SwitchMock', {
       accessibilityLabel: label,
@@ -144,7 +145,7 @@ describe('mobile calendar events reconciliation', () => {
     })
 
     const findSwitches = () => (tree.root as unknown as TestNode).findAll(
-      (node) => node.type === 'SwitchMock',
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'switch',
     )
     await TestRenderer.act(async () => {
       await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(2))

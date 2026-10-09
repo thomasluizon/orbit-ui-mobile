@@ -1,4 +1,5 @@
 import React from 'react'
+import { __setWindowDimensions } from '../../../test-mocks/react-native'
 import { afterEach, expect, it, vi } from 'vitest'
 import { StyleSheet, Text, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga, { type Node as YogaNode } from 'yoga-layout'
@@ -7,7 +8,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { ProfileAstraContent } from '@/app/(tabs)/profile/_components/profile-astra-content'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
-import { Switch } from '@/components/ui/switch'
 import { i18n } from '@/lib/i18n'
 
 vi.unmock('react-i18next')
@@ -20,7 +20,7 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMock
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityRole?: string }
+  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityRole?: string; 'data-slot'?: string }
   children: (HostRow | string)[] | null
 }
 
@@ -54,6 +54,7 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   applySize(node, style)
   if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
   if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
+  if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.alignSelf === 'flex-start') node.setAlignSelf(Yoga.ALIGN_FLEX_START)
@@ -70,7 +71,7 @@ function layoutHost(host: HostRow, texts: Map<string, { node: YogaNode; width: n
   const declared = host.props.style
   const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
   applyStyle(node, style)
-  if (host.props.accessibilityRole === 'switch') controls.push(node)
+  if (host.props['data-slot'] === 'switch-track') controls.push(node)
   const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
   if (host.type === 'Text' && label) {
     const scaledStyle = { ...style, fontSize: Number(style.fontSize) * scale }
@@ -100,10 +101,11 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
   return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight() }
 }
 
-afterEach(async () => { await i18n.changeLanguage('en') })
+afterEach(async () => { await i18n.changeLanguage('en'); __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }) })
 const cases = (['pt-BR', 'en'] as const).flatMap((locale) => [320, 360, 384, 412].flatMap((width) => [false, true].flatMap((hasProAccess) => [1, 2].map((scale) => ({ locale, width, hasProAccess, scale })))))
 it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAccess, scale $scale', async ({ locale, width, hasProAccess, scale }) => {
   await i18n.changeLanguage(locale)
+  __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
   const profile = createMockProfile({ hasProAccess, isTrialActive: false, aiMessagesUsed: 0, aiMessagesLimit: 15, aiSummaryEnabled: true, proactiveAstraEnabled: true })
   let tree!: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfileAstraContent profile={profile} patchProfile={vi.fn()} />) })
@@ -132,17 +134,16 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
       expect(measured.node.getComputedHeight(), label).toBeGreaterThanOrEqual(style.lineHeight * scale)
     }
     for (const row of tree.root.findAllByType(ListRow)) expect(row.props.textMode).toBe('label')
-    const switches = tree.root.findAllByType(Switch)
+    const switches = tree.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.toggle)
     expect(switches).toHaveLength(hasProAccess ? 2 : 0)
     expect(controls).toHaveLength(switches.length)
     for (const [index, control] of switches.entries()) {
-      const offset = position(texts.get(control.props.label)!.node).top - position(controls[index]!).top
-      expect(offset).toBeGreaterThanOrEqual(0)
-      expect(offset).toBeLessThanOrEqual(4)
-      expect(controls[index]!.getComputedHeight()).toBe(48)
+      const offset = position(texts.get(control.props.title)!.node).top - position(controls[index]!).top
+      expect(Math.abs(offset + 23.8 * scale / 2 - controls[index]!.getComputedHeight() / 2)).toBeLessThanOrEqual(1)
+      expect(controls[index]!.getComputedHeight()).toBe(28)
       expect(controls[index]!.getComputedWidth()).toBe(48)
-      expect(labels).toContain(control.props.label)
-      expect(control.props.checked).toBe(true)
+      expect(labels).toContain(control.props.title)
+      expect(control.props.toggle.checked).toBe(true)
     }
     expect(tree.root.findAllByType(RowList)).toHaveLength(1)
   } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
