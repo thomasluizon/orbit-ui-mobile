@@ -3,6 +3,7 @@ import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -243,13 +244,17 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail()
     expect(nodes(tree, 'View')[0]?.props.style).toMatchObject({
       backgroundColor: 'rgba(250,250,250,0.04)',
-      borderColor: 'rgba(255,255,255,0.10)',
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineStyle: 'solid',
+      outlineColor: 'rgba(255,255,255,0.10)',
       borderRadius: 20,
-      borderWidth: 1,
+      paddingHorizontal: 24,
       paddingVertical: 24,
+      gap: 16,
     })
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 16)).toBe(true)
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 8)).toBe(true)
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 4)).toBe(true)
+    expect(nodes(tree, 'Text').find((node) => node.props.children === 'nothing due')?.props.style).toContainEqual(expect.objectContaining({ fontFamily: 'GeistMono_400Regular' }))
     expect(nodes(tree, 'Text').some((node) => node.props.children === 'Sunday, Jun 15')).toBe(true)
     expect(nodes(tree, 'Pressable').some((node) => node.props.accessibilityLabel === 'Show recurring habits')).toBe(false)
   })
@@ -655,14 +660,10 @@ describe('CalendarDayDetail (mobile)', () => {
   it('routes the panel row through the supplied Today callback', () => {
     const onGoToDay = vi.fn()
     const tree = renderDetail({ onGoToDay })
-    const routeRow = nodes(tree, 'ListRowMock').at(-1)
-    expect(routeRow?.props).toMatchObject({
-      title: 'Open this day on Today',
-      textMode: 'label',
-      icon: 'external-link',
-      chevron: false,
-      onClick: onGoToDay,
-    })
+    const routeRow = nodes(tree, 'ListRowMock').find((row) => row.props.accessibilityLabel === en.calendar.goToDay)
+    expect(routeRow?.props).toMatchObject({ compact: true, icon: 'external-link', title: en.calendar.goToDay, textMode: 'label', chevron: false })
+    TestRenderer.act(() => (routeRow?.props.onClick as () => void)())
+    expect(onGoToDay).toHaveBeenCalledOnce()
   })
 
   it('searches a busy day only after opening its events sheet', () => {
