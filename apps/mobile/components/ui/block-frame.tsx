@@ -1,4 +1,6 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { ActionRow } from './action-row'
+
+import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type {
   BlockFrameItem,
   BlockFrameItemStatus,
@@ -9,7 +11,7 @@ import {
   PROPOSED_RADIUS,
   resolveBlockFrameRows,
 } from '@orbit/shared/contracts/blocks'
-import { useRef, type ReactNode } from 'react'
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import {
@@ -24,6 +26,8 @@ import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const actionHitPadding = (TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2
 
 type FrameRowProps = Readonly<{
   item: BlockFrameItem
@@ -147,19 +151,6 @@ function LoadingBody({ rows, tokens, hasActions }: Readonly<{
   )
 }
 
-function ActionRow({ children, disabled }: Readonly<{ children: ReactNode; disabled: boolean }>) {
-  return (
-    <View
-      accessibilityState={{ disabled }}
-      importantForAccessibility={disabled ? 'no-hide-descendants' : 'auto'}
-      pointerEvents={disabled ? 'none' : 'auto'}
-      style={styles.actionContent}
-    >
-      {children}
-    </View>
-  )
-}
-
 function FrameRows({ frameProps, tokens }: Readonly<{
   frameProps: Readonly<BlockFrameProps>
   tokens: AppTokensV2
@@ -221,7 +212,14 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
         <Text style={[styles.confirmNote, { color: tokens.fg2 }]}>{frameProps.confirmNote}</Text>
       ) : null}
       {canRenderActions && frameProps.actions != null ? (
-        <ActionRow disabled={frameProps.state === 'acting'}>{frameProps.actions}</ActionRow>
+        <View
+          accessibilityState={{ disabled: frameProps.state === 'acting' }}
+          importantForAccessibility={frameProps.state === 'acting' ? 'no-hide-descendants' : 'auto'}
+          pointerEvents={frameProps.state === 'acting' ? 'none' : 'auto'}
+          style={styles.actionGuard}
+        >
+          <ActionRow>{frameProps.actions}</ActionRow>
+        </View>
       ) : null}
     </View>
   )
@@ -335,7 +333,7 @@ const styles = StyleSheet.create({
   staleMessage: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14 },
   refreshButton: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12 },
   refreshLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
-  actionRow: { gap: 12 },
-  actionContent: { gap: 12 },
+  actionRow: { gap: 12, padding: actionHitPadding, margin: -actionHitPadding },
+  actionGuard: { padding: actionHitPadding, margin: -actionHitPadding },
   confirmNote: { fontFamily: 'Geist_400Regular', fontSize: 14 },
 })

@@ -65,7 +65,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
             : null
             : <Text style={{ color: tokens.fg2, fontSize: 14 }}>{page.text}</Text>}
         </View>}
-        actions={<View style={{ gap: 12 }}>
+        actions={<View style={{ flexBasis: '100%', minWidth: 0 }}>
           <Pager
             index={index}
             count={pages.length}
