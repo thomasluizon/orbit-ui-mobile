@@ -110,6 +110,8 @@ describe('notification row targets in Chromium', () => {
       for (const [index, element] of titleElements.entries()) {
         const measured = await element.evaluate(measureTitleWords)
         expect(measured.splitWords).toEqual([])
+        expect(measured.visibleLines).toBeGreaterThan(0)
+        expect(index === 0 ? measured.textOverflow : measured.lineClamp).toBe(index === 0 ? 'ellipsis' : '2')
         expect(measured.visibleLines).toBeLessThanOrEqual(index === 0 ? 1 : 2)
         expect(measured.height).toBeLessThanOrEqual(measured.lineHeight * (index === 0 ? 1 : 2) + 1)
         expect(measured.overflow).toBe('hidden')
