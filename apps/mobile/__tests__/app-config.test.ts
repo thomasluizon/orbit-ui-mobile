@@ -1,12 +1,15 @@
 import { createRequire } from 'node:module'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import appJson from '../app.json'
 
 const require = createRequire(import.meta.url)
 const createConfig = require('../app.config.js') as () => typeof appJson.expo
 
 describe('Android app variant', () => {
-  afterEach(() => { delete process.env.ORBIT_APP_VARIANT })
+  afterEach(() => {
+    delete process.env.ORBIT_APP_VARIANT
+    vi.unstubAllEnvs()
+  })
 
   it('keeps the default production config byte identical', () => {
     delete process.env.ORBIT_APP_VARIANT
@@ -33,5 +36,22 @@ describe('Android app variant', () => {
   it('rejects an unknown variant', () => {
     process.env.ORBIT_APP_VARIANT = 'unknown'
     expect(() => createConfig()).toThrow('Unknown Orbit app variant')
+  })
+
+  it.each(['true', '1'])('omits Firebase configuration for the compile gate with capture mode %s', (value) => {
+    vi.stubEnv('EXPO_PUBLIC_CAPTURE_MODE', value)
+    expect(createConfig().android.googleServicesFile).toBeUndefined()
+    expect(appJson.expo.android.googleServicesFile).toBe('./google-services.json')
+  })
+
+  it.each(['', 'false', '0'])('keeps Firebase configuration for release builds with capture mode %s', (value) => {
+    vi.stubEnv('EXPO_PUBLIC_CAPTURE_MODE', value)
+    expect(createConfig().android.googleServicesFile).toBe('./google-services.json')
+  })
+
+  it('omits Firebase configuration for the staging compile gate', () => {
+    process.env.ORBIT_APP_VARIANT = 'staging'
+    vi.stubEnv('EXPO_PUBLIC_CAPTURE_MODE', 'true')
+    expect(createConfig().android.googleServicesFile).toBeUndefined()
   })
 })

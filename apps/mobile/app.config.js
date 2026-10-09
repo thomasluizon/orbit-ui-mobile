@@ -13,8 +13,10 @@ function withAndroidReleaseBuildFixesPlugin(plugins) {
 
 module.exports = () => {
   const baseConfig = appJson.expo ?? {}
+  const captureMode = ['1', 'true'].includes(process.env.EXPO_PUBLIC_CAPTURE_MODE?.trim().toLowerCase())
   const productionConfig = {
     ...baseConfig,
+    ...(captureMode ? { android: { ...baseConfig.android, googleServicesFile: undefined } } : {}),
     plugins: withAndroidReleaseBuildFixesPlugin(baseConfig.plugins),
   }
   const variant = process.env.ORBIT_APP_VARIANT ?? 'production'
