@@ -5,10 +5,9 @@ import { StyleSheet, Text, View } from 'react-native'
 import Animated, { Easing, Keyframe } from 'react-native-reanimated'
 import { useController, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import type { HabitFormCommonProps } from '@orbit/shared/utils'
-import {
+import { toTime24,
   buildHabitAstraFallbackCopy,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
@@ -442,7 +441,7 @@ export function HabitFormFields({
               <TimeField
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
-                value={dueTime as Time24 | ''}
+                value={toTime24(dueTime)}
                 onChange={controller.setDueTime}
                 onClear={controller.clearDueTime}
               />

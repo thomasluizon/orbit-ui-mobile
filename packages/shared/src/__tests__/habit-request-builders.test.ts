@@ -58,6 +58,27 @@ describe('habit-request-builders', () => {
     }
   })
 
+  it('keeps fractional-second API times and their reminders through a title-only edit', () => {
+    const habit = createMockHabit({
+      dueTime: '21:00:00.1230000',
+      dueEndTime: '22:00:00.1230000',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      relativeReminders: [{ minutesBefore: 15 }],
+    })
+    const editor = buildEditHabitFormState(habit)
+    const form = { ...editor.formValues, title: 'Read before bed' }
+    const request = buildUpdateHabitRequest(form, false, editor.originalEndDate, editor.reminderTimes, [])
+
+    expect(request).toMatchObject({
+      title: 'Read before bed',
+      dueTime: '21:00',
+      dueEndTime: '22:00',
+      reminderEnabled: true,
+      relativeReminders: [{ minutesBefore: 15 }],
+    })
+  })
+
   it('round-trips before, at, after, and day-before reminders in one request field', () => {
     const form = makeFormData({
       dueTime: '09:00',
