@@ -42,7 +42,9 @@ describe('Week and agenda geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
-  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch }, {
+    ignoreDefaultArgs: ['--hide-scrollbars'],
+  })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
@@ -103,7 +105,7 @@ describe('Week and agenda geometry in Chromium', () => {
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        await page.evaluate(() => { const scroller = document.querySelector<HTMLElement>('.thin-scrollbar')!; scroller.scrollTop = 380 })
+        await page.evaluate(() => { const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!; scroller.scrollTop = 380 })
         const geometry = await page.evaluate(() => {
           const box = (node: Element) => { const rect = node.getBoundingClientRect(); return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height } }
           const band = document.querySelector('[data-testid="time-grid-all-day-band"]')!
@@ -139,6 +141,23 @@ describe('Week and agenda geometry in Chromium', () => {
           }
           expectNoOverlap(column.targets)
         }
+        const lastRow = await page.locator('[data-time-grid-scroller]').evaluate((scroller: HTMLElement) => {
+          scroller.scrollTop = scroller.scrollHeight
+          scroller.scrollLeft = scroller.scrollWidth
+          const bounds = scroller.getBoundingClientRect()
+          const lastColumn = scroller.querySelector('[data-testid="time-grid-day-column"]:last-child')!
+          const lastEvent = lastColumn.querySelector('[data-testid="time-grid-event"]:last-child')!
+          const eventBounds = lastEvent.getBoundingClientRect()
+          return { bottom: eventBounds.bottom, top: eventBounds.top, right: eventBounds.right,
+            viewportBottom: bounds.top + scroller.clientHeight, viewportRight: bounds.left + scroller.clientWidth,
+            viewportTop: bounds.top, horizontalGutter: scroller.offsetHeight - scroller.clientHeight,
+            paddingBottom: getComputedStyle(scroller).paddingBottom }
+        })
+        expect(lastRow.horizontalGutter).toBe(4)
+        expect(lastRow.paddingBottom).toBe('0px')
+        expect(lastRow.bottom).toBeLessThanOrEqual(lastRow.viewportBottom)
+        expect(lastRow.right).toBeLessThanOrEqual(lastRow.viewportRight)
+        expect(lastRow.top).toBeGreaterThanOrEqual(lastRow.viewportTop)
       }
       await page.emulateMedia({ reducedMotion: 'reduce' })
       expect(await page.locator('[data-testid="time-grid-event"]').first().evaluate((target) => Number.parseFloat(getComputedStyle(target).transitionDuration))).toBeLessThanOrEqual(0.001)

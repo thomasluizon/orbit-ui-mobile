@@ -1609,20 +1609,9 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
    SCROLLBAR STYLING
    ═══════════════════════════════════════════════════════ */
 
-.thin-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--hairline) transparent;
-  padding-bottom: 10px;
-}
-.thin-scrollbar::-webkit-scrollbar {
-  height: 3px;
-}
-.thin-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.thin-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--hairline);
-  border-radius: var(--radius-full);
+@property --scrollbar-hover-repaint {
+  syntax: '*';
+  inherits: false;
 }
 
 ::-webkit-scrollbar {
@@ -1630,13 +1619,31 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   height: 4px;
 }
 
-::-webkit-scrollbar-track {
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--hairline);
+  background: transparent;
   border-radius: var(--radius-full);
+  transition: background-color var(--dur-hover-control) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* WHY: Hover needs style invalidation to repaint scrollbars: https://developer.chrome.com/docs/css-ui/scrollbar-styling */
+  *:hover {
+    --scrollbar-hover-repaint: ;
+  }
+  *:hover::-webkit-scrollbar-thumb {
+    background: var(--hairline);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::-webkit-scrollbar-thumb {
+    transition-duration: 0.01ms;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
