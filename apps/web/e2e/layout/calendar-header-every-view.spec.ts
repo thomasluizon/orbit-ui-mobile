@@ -30,6 +30,7 @@ for (const width of [320, 412, 600, 840]) {
             (route) => route.fulfill({ json: calendarMonth }))
           await page.goto('/calendar')
           await expect(page.getByTestId('calendar-grid-card')).toBeVisible()
+          await expect(page.getByTestId('calendar-grid-card').getByRole('progressbar')).toHaveCount(0)
           await page.evaluate(({ mode, variables }) => {
             document.documentElement.classList.remove('light', 'dark')
             document.documentElement.classList.add(mode)
@@ -45,10 +46,11 @@ for (const width of [320, 412, 600, 840]) {
                 : view === 'range' ? page.getByRole('region').filter({ has: page.getByTestId('month-grid-days') }).locator('.orbit-calendar-grid-card')
                   : page.getByTestId('calendar-agenda-day').first()
             await expect(body).toBeVisible()
+            await expect.poll(async () => (await box(body)).top - (await box(selector)).bottom,
+              `${view} body clearance`).toBe(24)
             const segments = await box(selector)
             initialTop ??= segments.top
             expect(segments.top, view).toBe(initialTop)
-            expect((await box(body)).top - segments.bottom, `${view} body clearance`).toBe(24)
             const navigation = header.locator('[data-testid$="-navigation"]')
             expect((await box(navigation)).height).toBe(48)
             const controls = navigation.locator('button')

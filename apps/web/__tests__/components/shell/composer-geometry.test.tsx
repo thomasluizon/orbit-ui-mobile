@@ -332,7 +332,37 @@ describe('Composer compact geometry in Chromium', () => {
     }, 30_000,
   )
 
-  it('releases chip allocation when a mounted habit detail strip grows and shrinks', async () => {
+  it.each([en, ptBR])('hugs every returning conversation suggestion across supported widths', async messages => {
+    const { suggestions } = liveChipSuggestions('returning', messages)
+    const page = await browser.newPage({ viewport: { width: 320, height: 740 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ state: 'idle', value: '', suggestions, words: messages.shell.composer })}</script>`)
+      await page.addScriptTag({ content: composerScript })
+      await loadAppFonts(page)
+      const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
+      for (const width of [320, 412, 600, 840, 1100, 1352, 320]) {
+        await page.setViewportSize({ width, height: 740 })
+        await vi.waitFor(async () => {
+          const measured = await strip.evaluate(element => {
+            element.scrollLeft = 0
+            const bounds = element.getBoundingClientRect()
+            return { available: element.parentElement!.getBoundingClientRect().width, viewport: bounds.width,
+              chips: [...element.querySelectorAll('button')].map(button => {
+                const style = getComputedStyle(button)
+                return { label: button.textContent, width: button.getBoundingClientRect().width,
+                  content: button.querySelector('[data-suggestion-content]')!.getBoundingClientRect().width,
+                  padding: parseFloat(style.paddingInlineStart) + parseFloat(style.paddingInlineEnd) }
+              }) }
+          })
+          const evidence = JSON.stringify({ width, measured })
+          expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
+          for (const chip of measured.chips) expect(Math.abs(chip.width - chip.content - chip.padding), evidence).toBeLessThanOrEqual(1)
+        })
+      }
+    } finally { await page.close() }
+  })
+
+  it('keeps content widths when a mounted habit detail strip grows and shrinks', async () => {
     const { suggestions } = liveChipSuggestions('habitDetail', en)
     expect(suggestions.map(chip => chip.id)).toEqual(['habitDetail.pauseThisWeek', 'habitDetail.rename'])
     const configuration = { state: 'idle', value: '', suggestions, words: en.shell.composer }
@@ -347,12 +377,17 @@ describe('Composer compact geometry in Chromium', () => {
         const bounds = element.getBoundingClientRect()
         const chips = [...element.querySelectorAll('button')].map(button => {
           const chip = button.getBoundingClientRect()
-          return { left: chip.left - bounds.left, right: chip.right - bounds.left, width: chip.width }
+          const style = getComputedStyle(button)
+          return { left: chip.left - bounds.left, right: chip.right - bounds.left, width: chip.width,
+            maximum: parseFloat(style.maxWidth),
+            content: button.querySelector('[data-suggestion-content]')!.getBoundingClientRect().width,
+            padding: parseFloat(style.paddingInlineStart) + parseFloat(style.paddingInlineEnd) }
         })
         const partial = chips.find(chip => chip.left < bounds.width && chip.right > bounds.width)
         return { clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
           available: element.parentElement!.getBoundingClientRect().width,
-          chips, peek: partial ? bounds.width - partial.left : 0 }
+          chips, peek: partial ? bounds.width - partial.left : 0,
+          hidden: partial ? partial.right - bounds.width : 0 }
       })
       for (const width of [208, 459, 208, 459]) {
         await page.locator('#root').evaluate((element, nextWidth) => { element.style.width = `${nextWidth}px` }, width)
@@ -360,13 +395,17 @@ describe('Composer compact geometry in Chromium', () => {
           const measured = await measure()
           expect(measured.clientWidth).toBe(width - 32)
           expect(measured.available).toBe(measured.clientWidth)
+          for (const chip of measured.chips) {
+            expect(chip.maximum, JSON.stringify(measured)).toBe(width - 64)
+            expect(Math.abs(chip.width - chip.content - chip.padding), JSON.stringify(measured)).toBeLessThanOrEqual(1)
+          }
           if (width === 459) {
             expect(measured.scrollWidth, JSON.stringify(measured)).toBe(measured.clientWidth)
             expect(measured.chips.every(chip => chip.left >= 0 && chip.right <= measured.clientWidth)).toBe(true)
           } else {
             expect(measured.scrollWidth).toBeGreaterThan(measured.clientWidth)
             expect(measured.peek).toBeGreaterThanOrEqual(16)
-            expect(measured.peek).toBeLessThanOrEqual(32)
+            expect(measured.hidden).toBeGreaterThanOrEqual(16)
           }
         })
       }
@@ -378,7 +417,7 @@ describe('Composer compact geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([en, ptBR])('reserves a 16 to 32 pixel peek for live Today chips at 320 with doubled text', async (messages) => {
+  it.each([en, ptBR])('keeps a readable peek for live Today chips at 320 with doubled text', async (messages) => {
     const chips = buildComposerChips({ surface: 'today', status: 'success', habits: [], totalHabitCount: 0,
       profile: createMockProfile() })
     const labels = messages.shell.composer.chips.today
@@ -398,11 +437,12 @@ describe('Composer compact geometry in Chromium', () => {
           return { label: button.textContent, left: bounds.left, right: bounds.right, width: bounds.width }
         })
         const partial = controls.find((control) => control.left < viewport.right && control.right > viewport.right)
-        return { availableWidth: viewport.width, controls, peek: partial ? viewport.right - partial.left : 0 }
+        return { availableWidth: viewport.width, controls, peek: partial ? viewport.right - partial.left : 0,
+          hidden: partial ? partial.right - viewport.right : 0 }
       })
       const evidence = JSON.stringify(measured)
       expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
-      expect(measured.peek, evidence).toBeLessThanOrEqual(32)
+      expect(measured.hidden, evidence).toBeGreaterThanOrEqual(16)
     } finally { await page.close() }
   })
 
@@ -418,7 +458,7 @@ describe('Composer compact geometry in Chromium', () => {
         await loadAppFonts(page)
         const strip = page.getByRole('group', { name: messages.shell.composer.suggestionsLabel })
         await strip.waitFor()
-        for (const width of [320, 360, 384, 412, 640, 768, 900, 1023, 412, 320]) {
+        for (const width of [320, 360, 384, 412, 600, 840, 1100, 1352, 412, 320]) {
           await page.setViewportSize({ width, height: 740 })
           await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
           const measured = await strip.evaluate(element => {
@@ -439,6 +479,7 @@ describe('Composer compact geometry in Chromium', () => {
             const partial = controls.find(control => control.left < viewport.right && control.right > viewport.right)
             return { viewport: viewport.width, available: element.parentElement!.getBoundingClientRect().width,
               overflow: element.scrollWidth > element.clientWidth, peek: partial ? viewport.right - partial.left : 0,
+              hidden: partial ? partial.right - viewport.right : 0,
               documentWidth: document.documentElement.scrollWidth, controls }
           })
           const evidence = JSON.stringify({ width, fontScale, surface, scenario, measured })
@@ -446,7 +487,7 @@ describe('Composer compact geometry in Chromium', () => {
           expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           if (measured.overflow) {
             expect(measured.peek, evidence).toBeGreaterThanOrEqual(16)
-            expect(measured.peek, evidence).toBeLessThanOrEqual(32)
+            expect(measured.hidden, evidence).toBeGreaterThanOrEqual(16)
             expect(measured.controls[0]!.right - measured.controls[0]!.left, evidence).toBeLessThan(measured.viewport)
           } else expect(measured.viewport, evidence).toBeCloseTo(measured.available, 1)
           for (const control of measured.controls) {

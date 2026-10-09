@@ -69,7 +69,7 @@ function mountSurface(surface: string) {
 }
 
 const surfaces = [
-  { surface: 'years', selector: '.thin-scrollbar button' },
+  { surface: 'years', selector: '[data-focus-inset] button' },
   { surface: 'checklist', selector: '[role="checkbox"]' },
   { surface: 'emoji categories', selector: '[aria-label="habits.form.emojiCategories"] button' },
   { surface: 'time options', selector: '[role="radio"][tabindex="0"]' },
@@ -84,7 +84,9 @@ describe('other clipped control containers in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
-  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+  registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch }, {
+    ignoreDefaultArgs: ['--hide-scrollbars'],
+  })
   beforeAll(async () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
     HTMLElement.prototype.scrollIntoView = vi.fn()
