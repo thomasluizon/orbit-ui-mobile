@@ -20,7 +20,7 @@ import {
   parseAPIDate,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import { useUIStore } from '@/stores/ui-store';
 import CalendarScreen from "@/app/(tabs)/calendar";
@@ -38,7 +38,7 @@ vi.mock('react-native', async (importOriginal) => {
   const native = await importOriginal<typeof import('react-native')>()
   return { ...native, FlatList: React.forwardRef((props: React.ComponentProps<typeof native.FlatList>, ref) => {
     React.useImperativeHandle(ref, () => ({ scrollToOffset: rootScrollMocks.scrollToOffset }))
-    return <native.FlatList {...props} />
+    return <native.FlatList {...props}>{React.isValidElement(props.ListHeaderComponent) ? props.ListHeaderComponent : null}{React.isValidElement(props.ListFooterComponent) ? props.ListFooterComponent : null}</native.FlatList>
   }) }
 })
 
@@ -392,6 +392,40 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  it.each(['month', 'week', 'range', 'agenda'])('keeps the %s frame mounted and its inset equal when the profile resolves', (view) => {
+    state.profile = undefined;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const findHost = (testID: string) => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)[0]!;
+    const findRadio = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]!;
+    TestRenderer.act(() => { findRadio().props.onPress(); });
+    const radio = findRadio();
+    const header = findHost('calendar-header-group');
+    const heading = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0]!;
+    const options = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0]!;
+    const topInset = () => {
+      type InsetNode = TestNode & { parent: InsetNode | null };
+      const host = findHost('calendar-header-group') as InsetNode;
+      let inset = Number(StyleSheet.flatten<ViewStyle>(host.props.style).paddingTop ?? 0);
+      for (let ancestor = host.parent; ancestor; ancestor = ancestor.parent) {
+        if (typeof ancestor.type !== 'string') continue;
+        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.style).paddingTop ?? 0);
+        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle).paddingTop ?? 0);
+      }
+      return inset;
+    };
+    const loadingInset = topInset();
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false };
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    expect.soft(findRadio() === radio).toBe(true);
+    expect.soft(findHost('calendar-header-group') === header).toBe(true);
+    expect.soft(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0] === heading).toBe(true);
+    expect.soft(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0] === options).toBe(true);
+    expect.soft(topInset()).toBe(loadingInset);
+    expect.soft(topInset()).toBe(12);
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it.each([320, 412, 600, 840])('keeps all view switches aligned with 24 dp body clearance at %i dp', (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
     type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
@@ -1733,8 +1767,9 @@ describe("CalendarScreen views (mobile)", () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
     scrollTo.mockClear()
+    rootScrollMocks.scrollToOffset.mockClear()
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
-    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     TestRenderer.act(() => tree.unmount())
     __setScrollToImpl(() => {})
   })
@@ -1747,6 +1782,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
     if (view !== 'month') pressView(tree, view)
     scrollTo.mockClear()
+    rootScrollMocks.scrollToOffset.mockClear()
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
     if (view === 'month') expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     else expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })

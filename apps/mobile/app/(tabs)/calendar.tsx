@@ -180,22 +180,12 @@ export default function CalendarScreen() {
   const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
   const [view, setView] = useState<CalendarView>('month');
   const monthQuery = useCalendarData(currentMonth);
-  if (!profile) {
-    return (
-      <CalendarProfileState
-        failed={Boolean(profileError)}
-        onRetry={() => void refetchProfile()}
-        currentMonth={currentMonth}
-        setSelectedDay={setSelectedDay}
-        view={view}
-        setView={setView}
-      />
-    );
-  }
 
   return (
     <CalendarScreenContent
       profile={profile}
+      profileError={profileError}
+      onRetryProfile={() => void refetchProfile()}
       currentMonth={currentMonth}
       selectedDay={selectedDay}
       setSelectedDay={setSelectedDay}
@@ -206,82 +196,59 @@ export default function CalendarScreen() {
   );
 }
 
-function CalendarProfileState({
-  failed,
-  onRetry,
-  currentMonth,
-  setSelectedDay,
-  view,
-  setView,
-}: Readonly<{ failed: boolean; onRetry: () => void; currentMonth: Date; setSelectedDay: Dispatch<SetStateAction<string>>; view: CalendarView; setView: Dispatch<SetStateAction<CalendarView>> }>) {
-  const { t, i18n } = useTranslation();
-  const { currentScheme, currentTheme } = useAppTheme();
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  );
+function CalendarLoadError({ onRetry, tokens }: Readonly<{ onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(), []);
-  const clearance = useShellScrollerClearance();
-  const scrollRef = useRef<ScrollView>(null);
-  useRootScrollToTop('calendario', useCallback(() => {
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, []));
+  return <View style={styles.errorWrap}>
+    <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+      <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
+      <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+    </View>
+  </View>;
+}
 
-  return (
-    <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <ScreenReaderHeading title={t('nav.calendar')} />
-      <CalendarOptions tokens={tokens} />
-      <ScrollView ref={scrollRef} style={styles.profileStateWrap} contentContainerStyle={[styles.profileScrollContent, { paddingBottom: clearance }]}>
-        {failed ? (
-          <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-            <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
-            <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
-          </View>
-        ) : (
-          <View style={styles.profileLoading}>
-            <CalendarHeader
-              currentMonth={currentMonth}
-              todayKey={formatAPIDate(new Date())}
-              previousMonthLabel={t('common.previousMonth')}
-              nextMonthLabel={t('common.nextMonth')}
-              onPreviousMonth={() => setSelectedDay(formatAPIDate(subMonths(currentMonth, 1)))}
-              onNextMonth={() => setSelectedDay(formatAPIDate(addMonths(currentMonth, 1)))}
-              onCurrentMonth={() => setSelectedDay(formatAPIDate(new Date()))}
-              onSelectMonth={(month, year) => setSelectedDay(formatAPIDate(new Date(year, month, 1)))}
-              tokens={tokens}
-              viewSelector={<SegmentedControl<CalendarView> fullWidth options={[
-                { value: 'month', label: t('calendar.view.month') },
-                { value: 'week', label: t('calendar.view.week') },
-                { value: 'range', label: t('calendar.view.range') },
-                { value: 'agenda', label: t('calendar.view.agenda') },
-              ]} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
-            />
-            <CalendarGrid
-              gridDays={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays}
-              weekdayHeaders={[]}
-              selectedDay={null}
-              isLoading
-              onSelectDay={() => undefined}
-              language={i18n.language}
-              t={t}
-              tokens={tokens}
-              todayKey={formatAPIDate(new Date())}
-            />
-            <CalendarInlineDaySlot loading selected={false} label={t('calendar.loading')} tokens={tokens}>{null}</CalendarInlineDaySlot>
-            <View style={styles.listFooter}><CalendarStats
-              stats={[
-                { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
-                { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
-                { key: 'missed', value: 0, label: t('calendar.missedCount') },
-              ]}
-              state="loading"
-              loadingLabel={t('calendar.loading')}
-            /></View>
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
+function CalendarProfileBody({ currentMonth, error, onRetry, tokens }: Readonly<{ currentMonth: Date; error: Error | null; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
+  const { t, i18n } = useTranslation();
+  const styles = useMemo(() => createStyles(), []);
+  if (error) return <CalendarLoadError onRetry={onRetry} tokens={tokens} />;
+  return <>
+    <CalendarGrid
+      gridDays={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays}
+      weekdayHeaders={[]}
+      selectedDay={null}
+      isLoading
+      onSelectDay={() => undefined}
+      language={i18n.language}
+      t={t}
+      tokens={tokens}
+      todayKey={formatAPIDate(new Date())}
+    />
+    <CalendarInlineDaySlot loading selected={false} label={t('calendar.loading')} tokens={tokens}>{null}</CalendarInlineDaySlot>
+    <View style={styles.listFooter}><CalendarStats
+      stats={[
+        { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
+        { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
+        { key: 'missed', value: 0, label: t('calendar.missedCount') },
+      ]}
+      state="loading"
+      loadingLabel={t('calendar.loading')}
+    /></View>
+  </>;
+}
+
+function CalendarBody({ profileReady, currentMonth, profileError, onRetryProfile, error, onRetry, tokens, children }: Readonly<{
+  profileReady: boolean;
+  currentMonth: Date;
+  profileError: Error | null;
+  onRetryProfile: () => void;
+  error: string | null;
+  onRetry: () => void;
+  tokens: ReturnType<typeof createTokensV2>;
+  children: ReactNode;
+}>) {
+  if (!profileReady) return <CalendarProfileBody currentMonth={currentMonth} error={profileError} onRetry={onRetryProfile} tokens={tokens} />;
+  if (error) return <CalendarLoadError onRetry={onRetry} tokens={tokens} />;
+  return children;
 }
 
 interface CalendarScreenContentProps {
@@ -294,7 +261,9 @@ interface CalendarScreenContentProps {
     | 'googleCalendarAutoSyncEnabled'
     | 'googleCalendarAutoSyncStatus'
     | 'googleCalendarLastSyncedAt'
-  >;
+  > | undefined;
+  profileError: Error | null;
+  onRetryProfile: () => void;
   currentMonth: Date;
   selectedDay: string;
   setSelectedDay: Dispatch<SetStateAction<string>>;
@@ -303,9 +272,25 @@ interface CalendarScreenContentProps {
   setView: Dispatch<SetStateAction<CalendarView>>;
 }
 
+function resolveProfileSettings(profile: CalendarScreenContentProps['profile']) {
+  return {
+    weekStartsOn: profile?.weekStartDay ?? 1,
+    hasProAccess: profile?.hasProAccess ?? false,
+    timeZone: profile?.timeZone ?? null,
+    autoSyncState: profile ? {
+      enabled: profile.googleCalendarAutoSyncEnabled,
+      status: profile.googleCalendarAutoSyncStatus,
+      lastSyncedAt: profile.googleCalendarLastSyncedAt,
+      hasGoogleConnection: profile.hasGoogleConnection,
+    } : undefined,
+  };
+}
+
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into ./calendar/_components/*; the remaining hook wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function CalendarScreenContent({
   profile,
+  profileError,
+  onRetryProfile,
   currentMonth,
   selectedDay,
   setSelectedDay,
@@ -326,7 +311,8 @@ function CalendarScreenContent({
   const { sheetRef, closeSheet } = useSheetHost();
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
   const { displayTime } = useTimeFormat();
-  const todayKey = useCurrentDate(profile.timeZone);
+  const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveProfileSettings(profile);
+  const todayKey = useCurrentDate(timeZone);
   const setCalendarHasError = useUIStore((state) => state.setCalendarHasError);
   const logHabit = useLogHabit();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -334,7 +320,6 @@ function CalendarScreenContent({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const weekStartsOn = profile.weekStartDay;
   const styles = useMemo(() => createStyles(), []);
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
@@ -357,7 +342,7 @@ function CalendarScreenContent({
   const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, params.import === '1');
   const importRequested = useAccountBoundRouteRequest(routeRequestKey);
   useClearStaleCalendarImportRoute(routeRequestKey, importRequested);
-  const showImportSheet = shouldOpenCalendarImportSheet(profile.hasProAccess, isImportOpen, importRequested);
+  const showImportSheet = shouldOpenCalendarImportSheet(hasProAccess, isImportOpen, importRequested);
   const openImport = useCallback((eventId: string | null) => {
     const open = () => {
       setIsDayDetailOpen(false);
@@ -366,13 +351,13 @@ function CalendarScreenContent({
     };
     if (isDayDetailOpen && view === 'week') closeSheet(open);
     else open();
-  }, [closeSheet, isDayDetailOpen, setInitialImportEventId, setIsImportOpen, view]);
+  }, [closeSheet, isDayDetailOpen, setInitialImportEventId, setIsImportOpen, view, setIsDayDetailOpen]);
   const closeImport = useCallback(() => {
     setIsImportOpen(false);
     setInitialImportEventId(null);
     if (importRequested) router.replace('/calendar');
   }, [importRequested, router, setInitialImportEventId, setIsImportOpen]);
-  const { data: connectedCalendars } = useCalendars({ enabled: profile.hasProAccess });
+  const { data: connectedCalendars } = useCalendars({ enabled: hasProAccess });
   const showEventSource = (connectedCalendars?.length ?? 0) > 1;
   const showRecurring = useUIStore((state) => state.calendarShowRecurring);
   const {
@@ -381,26 +366,21 @@ function CalendarScreenContent({
     error: calendarEventsError,
     refetch: refetchCalendarEvents,
   } = useCalendarEvents({
-    enabled: profile.hasProAccess,
-    timeZone: profile.timeZone,
+    enabled: hasProAccess,
+    timeZone: timeZone,
   });
   useCalendarAutoSyncState({
-    enabled: profile.hasProAccess,
-    initialData: {
-      enabled: profile.googleCalendarAutoSyncEnabled,
-      status: profile.googleCalendarAutoSyncStatus,
-      lastSyncedAt: profile.googleCalendarLastSyncedAt,
-      hasGoogleConnection: profile.hasGoogleConnection,
-    },
+    enabled: hasProAccess,
+    initialData: autoSyncState,
   });
   const openOrbitPro = useCallback(() => {
     closeSheet(() => {
       setIsDayDetailOpen(false);
       router.push('/upgrade');
     });
-  }, [closeSheet, router]);
+  }, [closeSheet, router, setIsDayDetailOpen]);
   const calendarEventsState = resolveCalendarEventsDisplayState({
-    enabled: profile.hasProAccess,
+    enabled: hasProAccess,
     isPending: calendarEventsPending,
     error: calendarEventsError,
     resultStatus: calendarEventsResult?.status,
@@ -445,7 +425,7 @@ function CalendarScreenContent({
   } = useCalendarRange(
     gridStartDate,
     gridEndDate,
-    view === "week" || view === "range" || view === "agenda",
+    Boolean(profile) && (view === "week" || view === "range" || view === "agenda"),
   );
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
@@ -478,36 +458,36 @@ function CalendarScreenContent({
     setMonthSlide("left");
     const month = subMonths(currentMonth, 1);
     setSelectedDay(formatAPIDate(month));
-  }, [currentMonth, setSelectedDay]);
+  }, [currentMonth, setSelectedDay, setMonthSlide]);
 
   const nextMonth = useCallback(() => {
     setMonthSlide("right");
     const month = addMonths(currentMonth, 1);
     setSelectedDay(formatAPIDate(month));
-  }, [currentMonth, setSelectedDay]);
+  }, [currentMonth, setSelectedDay, setMonthSlide]);
 
   const selectMonth = useCallback((month: number, year: number) => {
     setMonthSlide(null);
     setSelectedDay(formatAPIDate(new Date(year, month, 1)));
-  }, [setSelectedDay]);
+  }, [setSelectedDay, setMonthSlide]);
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null);
     setSelectedDay(todayKey);
-  }, [setSelectedDay, todayKey]);
+  }, [setSelectedDay, todayKey, setMonthSlide]);
 
   const prevWeek = useCallback(() => {
     setWeekSlide("left");
     setWeekAnchor((a) => subWeeks(a, 1));
-  }, []);
+  }, [setWeekAnchor, setWeekSlide]);
   const nextWeek = useCallback(() => {
     setWeekSlide("right");
     setWeekAnchor((a) => addWeeks(a, 1));
-  }, []);
+  }, [setWeekAnchor, setWeekSlide]);
   const goToCurrentWeek = useCallback(() => {
     setWeekSlide(null);
     setWeekAnchor(parseAPIDate(todayKey));
-  }, [todayKey]);
+  }, [todayKey, setWeekAnchor, setWeekSlide]);
 
   const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: nextMonth,
@@ -519,21 +499,21 @@ function CalendarScreenContent({
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
     setIsDayDetailOpen(true);
-  }, [setSelectedDay]);
+  }, [setSelectedDay, setIsDayDetailOpen]);
   const selectMonthDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
   }, [setSelectedDay]);
 
   const closeDayDetail = useCallback(() => {
     setIsDayDetailOpen(false);
-  }, []);
+  }, [setIsDayDetailOpen]);
 
   const previousRange = useCallback(() => {
     setRangeOffset((offset) => offset - 1);
-  }, []);
+  }, [setRangeOffset]);
   const nextRange = useCallback(() => {
     setRangeOffset((offset) => Math.min(0, offset + 1));
-  }, []);
+  }, [setRangeOffset]);
 
   const viewOptions = useMemo(
     () => [
@@ -593,10 +573,10 @@ function CalendarScreenContent({
 
   const selectedCalendarEvents = useMemo(
     () =>
-      profile.hasProAccess && calendarEventsResult?.status === "connected"
+      hasProAccess && calendarEventsResult?.status === "connected"
         ? filterCalendarSyncEventsByDate(calendarEventsResult.events, selectedDay)
         : [],
-    [calendarEventsResult, profile.hasProAccess, selectedDay],
+    [calendarEventsResult, hasProAccess, selectedDay],
   );
 
   const filteredEntries = useMemo(
@@ -696,6 +676,11 @@ function CalendarScreenContent({
     router.push(buildHabitCreateHref({ from: '/calendar' }));
   }, [router]);
 
+  const openGoogleCalendar = () => {
+    if (hasProAccess) openImport(null);
+    else router.push('/upgrade');
+  };
+
   const calendarHeader = (
       <CalendarHeader
         currentMonth={currentMonth}
@@ -724,6 +709,7 @@ function CalendarScreenContent({
   const listHeader = (
     <>
       {calendarHeader}
+      <CalendarBody profileReady={Boolean(profile)} currentMonth={currentMonth} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
       <CalendarGrid
         gridDays={gridDays}
         weekdayHeaders={weekdayHeaders}
@@ -772,6 +758,7 @@ function CalendarScreenContent({
             tokens={tokens}
           />
       </CalendarInlineDaySlot>
+      </CalendarBody>
     </>
   );
 
@@ -787,32 +774,54 @@ function CalendarScreenContent({
     </View>
   );
 
+  const viewBody = {
+    week: (
+      <CalendarWeekView
+        columns={gridColumns}
+        dayMap={displayRangeDayMap}
+        slideDirection={weekSlide}
+        isLoading={rangeLoading}
+        onSelectDay={onSelectDay}
+        displayTime={displayTime}
+        language={i18n.language}
+        allDayLabel={t("calendar.timeGrid.noSetTime")}
+        nowLabel={t("calendar.timeGrid.now")}
+        timeZone={timeZone}
+        t={t}
+        tokens={tokens}
+      />
+    ),
+    range: (
+      <CalendarRangeView
+        model={rangeModel}
+        weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
+        rangeLabel={rangeLabel}
+        isLoading={rangeLoading}
+        loadingLabel={t("common.loading")}
+        stats={rangeStatTiles}
+        language={i18n.language}
+        t={t}
+      />
+    ),
+    agenda: (
+      <CalendarAgendaView
+        startDate={agendaStart}
+        dayMap={displayRangeDayMap}
+        displayTime={displayTime}
+        todayKey={todayKey}
+        isLoading={rangeLoading}
+        loadingLabel={t("common.loading")}
+      />
+    ),
+    month: null,
+  }[view];
+
   return (
     <SafeAreaView edges={['left', 'right']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <ScreenReaderHeading title={t('nav.calendar')} />
-      <CalendarOptions tokens={tokens} onGoogleCalendar={() => profile.hasProAccess ? openImport(null) : router.push('/upgrade')} />
+      <CalendarOptions tokens={tokens} onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
 
-      {activeError && (
-        <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={{ paddingBottom: clearance }}>
-          {calendarHeader}
-          <View style={styles.errorWrap}>
-            <View
-              style={[
-                styles.errorCard,
-                { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-              ]}
-            >
-              <Text style={[styles.errorText, { color: tokens.fg2 }]}>
-                {t("calendar.loadError")}
-              </Text>
-              <PillButton variant="ghost" onClick={() => void activeRefresh()}>
-                {t("common.retry")}
-              </PillButton>
-            </View>
-          </View>
-        </ScrollView>
-      )}
-      {!activeError && view === "month" && (
+      {view === "month" && (
         <FlatList
           ref={listRef}
           style={styles.container}
@@ -820,12 +829,12 @@ function CalendarScreenContent({
           keyExtractor={(_item, index) => String(index)}
           renderItem={null}
           ListHeaderComponent={listHeader}
-          ListFooterComponent={listFooter}
+          ListFooterComponent={profile && !activeError ? listFooter : undefined}
           contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
         />
       )}
-      {!activeError && view !== "month" && (
+      {view !== "month" && (
         <ScrollView
           ref={scrollRef}
           style={styles.container}
@@ -833,42 +842,9 @@ function CalendarScreenContent({
           showsVerticalScrollIndicator={false}
         >
           {calendarHeader}
-          {view === "week" ? (
-            <CalendarWeekView
-              columns={gridColumns}
-              dayMap={displayRangeDayMap}
-              slideDirection={weekSlide}
-              isLoading={rangeLoading}
-              onSelectDay={onSelectDay}
-              displayTime={displayTime}
-              language={i18n.language}
-              allDayLabel={t("calendar.timeGrid.noSetTime")}
-              nowLabel={t("calendar.timeGrid.now")}
-              timeZone={profile.timeZone}
-              t={t}
-              tokens={tokens}
-            />
-          ) : view === "range" ? (
-            <CalendarRangeView
-              model={rangeModel}
-              weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
-              rangeLabel={rangeLabel}
-              isLoading={rangeLoading}
-              loadingLabel={t("common.loading")}
-              stats={rangeStatTiles}
-              language={i18n.language}
-              t={t}
-            />
-          ) : (
-            <CalendarAgendaView
-              startDate={agendaStart}
-              dayMap={displayRangeDayMap}
-              displayTime={displayTime}
-              todayKey={todayKey}
-              isLoading={rangeLoading}
-              loadingLabel={t("common.loading")}
-            />
-          )}
+          <CalendarBody profileReady={Boolean(profile)} currentMonth={currentMonth} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
+            {viewBody}
+          </CalendarBody>
         </ScrollView>
       )}
 
@@ -934,24 +910,13 @@ function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
 
-
     listFooter: {
       paddingTop: 24,
     },
 
-
     errorWrap: {
       paddingHorizontal: 16,
       paddingBottom: 12,
-    },
-    profileStateWrap: {
-      flex: 1,
-    },
-    profileScrollContent: {
-      paddingTop: 12,
-    },
-    profileLoading: {
-      gap: 0,
     },
     emptyMonth: {
       alignItems: 'flex-start',

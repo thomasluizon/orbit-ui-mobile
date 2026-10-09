@@ -350,6 +350,37 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe('CalendarPage view switcher', () => {
+  it.each(['month', 'week', 'range', 'agenda'])('keeps the %s radio and frame mounted when the profile resolves', (selectedView) => {
+    profileQueryState.profile = undefined
+    const page = render(<CalendarPage />)
+    const heading = screen.getByRole('heading', { name: 'nav.calendar' })
+    const options = screen.getByRole('button', { name: 'calendar.options' })
+    const header = screen.getByTestId('calendar-header-group')
+    const radio = screen.getByRole('radio', { name: `calendar.view.${selectedView}` })
+    fireEvent.click(radio)
+    radio.focus()
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+    page.rerender(<CalendarPage />)
+    expect(radio.isConnected).toBe(true)
+    expect(radio).toHaveFocus()
+    expect(screen.getByTestId('calendar-header-group')).toBe(header)
+    expect(screen.getByRole('heading', { name: 'nav.calendar' })).toBe(heading)
+    expect(screen.getByRole('button', { name: 'calendar.options' })).toBe(options)
+  })
+
+  it('keeps the month picker open when the profile resolves', () => {
+    profileQueryState.profile = undefined
+    const page = render(<CalendarPage />)
+    const picker = screen.getByRole('button', { name: /calendar.monthPicker/ })
+    fireEvent.click(picker)
+    expect(picker).toHaveAttribute('aria-expanded', 'true')
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+    page.rerender(<CalendarPage />)
+    expect(picker.isConnected).toBe(true)
+    expect(picker).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'close-overlay' })).toBeInTheDocument()
+  })
+
   it('returns Semana to profile today across a device week boundary', () => {
     const previousZone = process.env.TZ
     process.env.TZ = 'UTC'
