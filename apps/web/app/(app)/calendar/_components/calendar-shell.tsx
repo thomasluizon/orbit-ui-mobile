@@ -65,9 +65,9 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
       {period ? <button type="button" data-calendar-period-title className={`${titleButton} orbit-calendar-span-title`}
         style={{ padding: '8px 16px', maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' }}
         aria-label={t('calendar.period.goToCurrent', { period: period.label })} onClick={period.onCurrent}><span>{period.label}</span></button> :
-      <button type="button" className={`${titleButton} gap-1 whitespace-nowrap`} style={{ padding: '8px 16px', fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--fg-1)' }}
+      <button type="button" className={`${titleButton} gap-1 whitespace-nowrap`} style={{ padding: '8px 16px', maxWidth: '100%', fontFamily: 'var(--font-display)', fontSize: '1.375rem', lineHeight: 1.2, fontWeight: 500, color: 'var(--fg-1)' }}
         aria-label={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId} onClick={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
-        <span>{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>
+        <span className="min-w-0 whitespace-normal break-words">{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>
         <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
       </button>}
       <button type="button" className={`${headerButton} disabled:opacity-40`} aria-label={period?.nextLabel ?? nextMonthLabel} onClick={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>

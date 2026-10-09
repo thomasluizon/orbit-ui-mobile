@@ -34,6 +34,14 @@ for (const width of [320, 412, 1100, 1352]) {
           const controls = navigation.getByRole('button')
           await expect(controls).toHaveCount(3)
           await page.mouse.move(0, 0)
+          await expect.poll(() => controls.nth(1).evaluate((title) => ({
+            pointerInside: title.contains(document.elementFromPoint(0, 0)),
+            hovered: title.matches(':hover'),
+          }))).toEqual({ pointerInside: false, hovered: false })
+          await controls.nth(1).evaluate(async (title) => {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+            await Promise.all(title.getAnimations().filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished))
+          })
           const geometry = await controls.evaluateAll((buttons) => buttons.map((button) => {
             const bounds = button.getBoundingClientRect(); const style = getComputedStyle(button)
             const row = button.parentElement!.getBoundingClientRect()

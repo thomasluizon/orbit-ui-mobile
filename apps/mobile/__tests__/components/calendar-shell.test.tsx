@@ -10,6 +10,7 @@ import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-opti
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Sheet } from "@/components/ui/sheet";
 import { createTokensV2 } from "@/lib/theme";
+import { measureProfileRow } from '../support/profile-row-geometry';
 import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useUIStore } from "@/stores/ui-store";
 import {
@@ -66,6 +67,7 @@ beforeEach(() => {
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
+  toJSON: () => Parameters<typeof measureProfileRow>[0];
   unmount: () => void;
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 };
@@ -228,6 +230,11 @@ describe('CalendarHeader shared navigation', () => {
       previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={tokens}
       period={view === 'month' ? undefined : { view, label: 'Oct 5 to Oct 11', previousLabel: 'Previous', nextLabel: 'Next', onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn(), nextDisabled: view === 'range' }} />); });
     expect(tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.endsWith('-navigation'))).toHaveLength(1);
+    for (const width of [320, 412, 600, 840]) {
+      const geometry = measureProfileRow(tree.toJSON().children![0] as Parameters<typeof measureProfileRow>[0], width, 1);
+      expect(geometry.height).toBe(48);
+      expect(geometry.controls.map((control) => control.height)).toEqual([48, 48, 48]);
+    }
     const controls = tree.root.findAll((node) => node.type === 'Pressable');
     expect(controls).toHaveLength(3);
     for (const index of [0, 2]) expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });

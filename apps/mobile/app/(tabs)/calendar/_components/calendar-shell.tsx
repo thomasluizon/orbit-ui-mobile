@@ -78,7 +78,7 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
       {period ? <CalendarTitleControl tokens={tokens} accessibilityLabel={t('calendar.period.goToCurrent', { period: period.label })} onPress={period.onCurrent}>
         <Text style={styles.span}>{period.label}</Text>
       </CalendarTitleControl> : <CalendarTitleControl tokens={tokens} accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
-        <Text style={styles.title} numberOfLines={1}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>
+        <Text style={styles.title}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>
         <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
       </CalendarTitleControl>}
       <Pressable accessibilityRole="button" accessibilityLabel={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled} accessibilityState={{ disabled: period?.nextDisabled }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed, period?.nextDisabled && { opacity: 0.4 }]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
@@ -120,7 +120,7 @@ function createStyles(tokens: Tokens) {
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' },
     titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
     pressed: { backgroundColor: tokens.bgHover },
-    title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, color: tokens.fg1 },
+    title: { flexShrink: 1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 26.4, color: tokens.fg1 },
     span: { fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
     year: { color: tokens.fg2 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
