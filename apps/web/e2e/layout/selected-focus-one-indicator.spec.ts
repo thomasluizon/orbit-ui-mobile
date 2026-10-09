@@ -3,7 +3,7 @@ import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
+import { calendarMonthResponseSchema, habitDetailSchema, habitMetricsSchema } from '@orbit/shared/types/habit'
 import { inspectControlAccentRings } from './focus-indicators'
 import { completeInstallOnboarding } from './install-onboarding'
 import { LAYOUT_ORIGIN } from '../support/env'
@@ -93,9 +93,11 @@ for (const width of [412, 1352]) {
       test.describe(`one selection and focus indicator at ${width}, ${locale}, ${theme}`, () => {
         test.use({ appLocale: locale, subscriptionState: 'free', layoutProfile: { themePreference: theme }, viewport: { width, height: 915 } })
 
-        test('calendar segments keep one ring through every arrow-key selection', async ({ page }) => {
+        test('calendar segments keep one ring through every arrow-key selection', async ({ page, context }) => {
           await completeInstallOnboarding(page)
+          await context.route(`${LAYOUT_ORIGIN}${API.habits.calendarMonth}*`, (route) => route.fulfill({ json: calendarMonthResponseSchema.parse({ habits: [], logs: {} }) }))
           await page.goto('/calendar')
+          await expect(page.getByTestId('calendar-grid-card')).toBeVisible()
           const month = page.getByRole('radio', { name: words.calendar.view.month, exact: true })
           const labels = [words.calendar.view.month, words.calendar.view.week, words.calendar.view.range, words.calendar.view.agenda]
           for (let index = 0; index < labels.length; index += 1) {
@@ -180,8 +182,7 @@ for (const width of [412, 1352]) {
           await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
           await page.goto(`/habits/${habit.id}`)
-          await page.getByRole('button', { name: words.habits.detail.moreDetails, exact: true }).click()
-          const fields = page.locator('#habit-detail-fields')
+          const fields = page.getByRole('main')
           const monday = fields.getByRole('button', { name: words.dates.daysLong.monday, exact: true })
           const tuesday = fields.getByRole('button', { name: words.dates.daysLong.tuesday, exact: true })
           await expectRings(monday, 1)
@@ -254,9 +255,11 @@ for (const width of [412, 1352]) {
 
 test.describe('compact calendar track geometry', () => {
   test.use({ appLocale: 'pt-BR', viewport: { width: 320, height: 915 } })
-  test('follows the inset geometry and keeps every pt-BR label whole', async ({ page }) => {
+  test('follows the inset geometry and keeps every pt-BR label whole', async ({ page, context }) => {
     await completeInstallOnboarding(page)
+    await context.route(`${LAYOUT_ORIGIN}${API.habits.calendarMonth}*`, (route) => route.fulfill({ json: calendarMonthResponseSchema.parse({ habits: [], logs: {} }) }))
     await page.goto('/calendar')
+    await expect(page.getByTestId('calendar-grid-card')).toBeVisible()
     const track = page.getByRole('radiogroup', { name: ptBR.calendar.view.switchLabel, exact: true })
     const geometry = await track.evaluate((element) => {
       const style = getComputedStyle(element)

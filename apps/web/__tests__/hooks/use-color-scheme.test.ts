@@ -146,6 +146,19 @@ describe('useColorScheme', () => {
     expect(result.current.currentTheme).toBe('light')
   })
 
+  it.each(['applyTheme', 'syncThemeFromProfile'] as const)('shares %s changes with another mounted hook', (update) => {
+    const chooser = renderHook(() => useColorScheme())
+    const preferences = renderHook(() => useColorScheme())
+
+    act(() => chooser.result.current[update]('light'))
+
+    expect(chooser.result.current.currentTheme).toBe('light')
+    expect(preferences.result.current.currentTheme).toBe('light')
+    act(() => preferences.result.current.toggleTheme())
+    expect(chooser.result.current.currentTheme).toBe('dark')
+    expect(preferences.result.current.currentTheme).toBe('dark')
+  })
+
   it('does not restore the old theme after another account replaces the tab', async () => {
     const { updateThemePreference } = await import('@/lib/actions/profile')
     let rejectUpdate: ((error: unknown) => void) | undefined

@@ -26,6 +26,21 @@ describe('selection yields to keyboard focus', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   for (const theme of ['dark', 'light'] as const) {
+    it(`a selected inner DateField circle yields to its focused button, ${theme}`, async () => {
+      const { container } = render(<button type="button"><span className="orbit-selection-ring orbit-selection-ring-hairline" data-selected>Today</span></button>)
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style>${container.innerHTML}`)
+        const control = page.locator('button')
+        expect(await inspectControlAccentRings(control)).toEqual(['span:shadow'])
+        await page.keyboard.press('Tab')
+        expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
+        expect(await inspectControlAccentRings(control)).toEqual(['button:outline'])
+        expect(await page.locator('span').evaluate((circle) => getComputedStyle(circle).boxShadow)).toBe('none')
+        await page.keyboard.press('Tab')
+        expect(await inspectControlAccentRings(control)).toEqual(['span:shadow'])
+      } finally { cleanup(); await page.close() }
+    })
     it(`selected theme choice keeps its foreground label under hovered keyboard focus, ${theme}`, async () => {
       const page = await browser.newPage()
       try {

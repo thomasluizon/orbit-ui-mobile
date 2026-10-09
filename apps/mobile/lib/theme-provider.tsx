@@ -79,7 +79,11 @@ export function ThemeProvider({
     () => resolveActiveScheme(profile) ?? resolveAccessibleColorScheme(null, true),
   )
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(
-    captureTheme ?? (systemScheme === 'light' ? 'light' : 'dark'),
+    () => captureTheme ?? (
+      profile?.themePreference === 'dark' || profile?.themePreference === 'light'
+        ? profile.themePreference
+        : systemScheme === 'light' ? 'light' : 'dark'
+    ),
   )
   const [transitionSnapshot, setTransitionSnapshot] = useState<TransitionSnapshot | null>(null)
   /** React 19 forbids reading a ref during render, so this stable value is memoized. */

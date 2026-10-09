@@ -36,7 +36,7 @@ describe('field indicator readers in Chromium', () => {
       </style><button class="today-astra-line">Astra</button>`)
       await page.keyboard.press('Tab')
       expect((await inspectFocusedRing(page))?.indicators).toEqual(['button:outline'])
-      expect(await inspectControlAccentRings(page.locator('button'))).toHaveLength(0)
+      expect(await inspectControlAccentRings(page.locator('button'))).toEqual(['button:outline'])
     } finally {
       await page.close()
     }

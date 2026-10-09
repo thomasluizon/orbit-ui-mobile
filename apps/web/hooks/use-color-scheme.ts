@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
@@ -14,19 +14,12 @@ import {
 } from '@/lib/actions/profile'
 import {
   applyThemeTokensToDOM,
-  normalizeThemeMode,
 } from '@/lib/theme-dom'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { useIsClient } from '@/hooks/use-is-client'
-
-function getCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null
-  const match = new RegExp(`(?:^|; )${name}=([^;]*)`).exec(document.cookie)
-  return match?.[1] ? decodeURIComponent(match[1]) : null
-}
+import { useCurrentTheme, setCurrentTheme } from '@/stores/theme-store'
 
 function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`
@@ -34,13 +27,10 @@ function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 
 export function useColorScheme() {
   const queryClient = useQueryClient()
-  const isClient = useIsClient()
   const t = useTranslations()
   const { showPersistentError } = useAppToast()
   const currentScheme: ColorScheme = 'orange'
-  const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() =>
-    normalizeThemeMode(getCookie('orbit_theme_mode')),
-  )
+  const currentTheme = useCurrentTheme()
 
   useEffect(() => {
     setCookie('orbit_color_scheme', currentScheme)
@@ -55,7 +45,6 @@ export function useColorScheme() {
     queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
       profile ? { ...profile, themePreference: theme } : profile,
     )
-    setCookie('orbit_theme_mode', theme)
     setCurrentTheme(theme)
     applyThemeTokensToDOM(currentScheme, theme, true)
 
@@ -69,7 +58,6 @@ export function useColorScheme() {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
           profile && previousProfile ? { ...profile, themePreference: previousProfile.themePreference } : profile,
         )
-        setCookie('orbit_theme_mode', prev)
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)
       })
@@ -92,7 +80,6 @@ export function useColorScheme() {
         ? dbThemePreference
         : null
     if (dbTheme && dbTheme !== currentTheme) {
-      setCookie('orbit_theme_mode', dbTheme)
       setCurrentTheme(dbTheme)
       applyThemeTokensToDOM(currentScheme, dbTheme)
     }
@@ -107,7 +94,6 @@ export function useColorScheme() {
     if (dbThemePreference === 'dark' || dbThemePreference === 'light') return
     const detected: ThemeMode =
       globalThis.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-    setCookie('orbit_theme_mode', detected)
     setCurrentTheme(detected)
     applyThemeTokensToDOM(currentScheme, detected)
     updateThemePreferenceAction({ themePreference: detected }, getHeldAccountId()).catch((error: unknown) => {
@@ -119,7 +105,7 @@ export function useColorScheme() {
 
   return {
     currentScheme,
-    currentTheme: isClient ? currentTheme : 'dark',
+    currentTheme,
     applyTheme,
     toggleTheme,
     syncThemeFromProfile,

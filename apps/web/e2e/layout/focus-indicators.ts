@@ -205,7 +205,7 @@ async function inspectControlRings(target: Locator, focusedControl: boolean) {
         const label = `${element.tagName.toLowerCase()}${pseudo ?? ''}`
         const rings: string[] = []
         const outlineVisible = style.outlineColor !== 'transparent' && (style.outlineColor.match(/[\d.]+/g)?.map(Number)[3] ?? 1) > 0
-        if (!['none', 'hidden'].includes(style.outlineStyle) && Number.parseFloat(style.outlineWidth) > 0 && outlineVisible && (focusedControl || accent(style.outlineColor))) rings.push(`${label}:outline`)
+        if (!['none', 'hidden'].includes(style.outlineStyle) && Number.parseFloat(style.outlineWidth) > 0 && outlineVisible && (element === control && focusedControl || accent(style.outlineColor) || !pseudo && element.matches(':focus-visible'))) rings.push(`${label}:outline`)
         for (const shadow of style.boxShadow.split(/,(?![^()]*\))/)) {
           const color = shadow.match(/rgba?\([^)]*\)/)?.[0]
           const lengths = shadow.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g)?.map(Number.parseFloat)
