@@ -176,7 +176,7 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
 
 export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
-  const [selectedDay, setSelectedDay] = useState(() => formatAPIDate(new Date()));
+  const [selectedDay, setSelectedDay] = useAccountScopedState(() => formatAPIDate(new Date()));
   const currentMonth = useMemo(() => calendarMonthForDay(selectedDay), [selectedDay]);
   const [view, setView] = useState<CalendarView>('month');
   const monthQuery = useCalendarData(currentMonth);
@@ -324,11 +324,11 @@ function CalendarScreenContent({
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
-  const [weekAnchor, setWeekAnchor] = useState<Date | null>(null);
+  const [weekAnchor, setWeekAnchor] = useAccountScopedState<Date | null>(null);
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
-  const [agendaOffset, setAgendaOffset] = useState(0);
-  const [rangeOffset, setRangeOffset] = useState(0);
-  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
+  const [agendaOffset, setAgendaOffset] = useAccountScopedState(0);
+  const [rangeOffset, setRangeOffset] = useAccountScopedState(0);
+  const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false);
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
   const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
   const disclosedWeekDay = view === 'week' ? selectedDay : null

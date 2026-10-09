@@ -285,10 +285,10 @@ function CalendarPageContent({
   const logHabit = useLogHabit()
 
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
-  const [weekAnchor, setWeekAnchor] = useState<Date | null>(null)
+  const [weekAnchor, setWeekAnchor] = useAccountScopedState<Date | null>(null)
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
-  const [agendaOffset, setAgendaOffset] = useState(0)
-  const [rangeOffset, setRangeOffset] = useState(0)
+  const [agendaOffset, setAgendaOffset] = useAccountScopedState(0)
+  const [rangeOffset, setRangeOffset] = useAccountScopedState(0)
   const [isDayDetailOpen, setIsDayDetailOpen] = useAccountScopedState(false)
   const [isEventsOpen, setIsEventsOpen] = useAccountScopedState(false)
   const [expandedHabitTitle, setExpandedHabitTitle] = useAccountScopedState<string | null>(null)
@@ -302,7 +302,7 @@ function CalendarPageContent({
   const [importActionState, setImportActionState] = useAccountScopedState<CalendarImportActionState | null>(null)
   const importActionRef = useRef<CalendarImportActionHandle>(null)
   const commitCalendarImport = useCallback(() => importActionRef.current?.importSelected(), [])
-  const [initialImportEventId, setInitialImportEventId] = useState<string | null>(null)
+  const [initialImportEventId, setInitialImportEventId] = useAccountScopedState<string | null>(null)
   const reviewRequested = searchParams.get('mode') === 'review'
   const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, searchParams.get('import') === '1')
   const importRequested = useAccountBoundRouteRequest(routeRequestKey)

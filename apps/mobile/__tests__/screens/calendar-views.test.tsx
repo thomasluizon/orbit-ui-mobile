@@ -25,7 +25,7 @@ import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import { useUIStore } from '@/stores/ui-store';
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
-import { advanceAccountGeneration } from '@/lib/session-epoch';
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -392,6 +392,65 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  it.each(['week', 'range', 'agenda'])('resets the %s period only on account replacement', (view) => {
+    const profile = { weekStartDay: 1 as const, timeZone: 'UTC', hasProAccess: false };
+    state.profile = profile;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      pressView(tree, view);
+      const bounds = () => state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate);
+      const initialPeriod = bounds();
+      const header = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]!;
+      const radio = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]!;
+      const next = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === (view === 'range' ? 'calendar.range.previous' : 'common.nextWeek'))[0]!;
+      TestRenderer.act(() => { next.props.onPress(); });
+      const browsedPeriod = bounds();
+      expect(browsedPeriod).not.toEqual(initialPeriod);
+
+      state.profile = undefined;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(bounds()).toEqual(browsedPeriod);
+      TestRenderer.act(() => { advanceSessionEpoch(); });
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(bounds()).toEqual(browsedPeriod);
+
+      state.profile = undefined;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); advanceAccountGeneration(); });
+      expect(bounds()).toEqual(initialPeriod);
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(bounds()).toEqual(initialPeriod);
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]).toBe(header);
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]).toBe(radio);
+      expect(radio.props.accessibilityState.checked).toBe(true);
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
+  it('closes the previous account day sheet and resets its selected day on account replacement', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      pressView(tree, 'week');
+      const week = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
+      TestRenderer.act(() => { week.props.onSelectDay('2026-09-10'); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1);
+      TestRenderer.act(() => { advanceSessionEpoch(); tree.update(<CalendarScreen />); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1);
+      expect(calendarDayDetailProps.current?.selectedDate).toBe('2026-09-10');
+
+      TestRenderer.act(() => { advanceAccountGeneration(); });
+      expect.soft(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0);
+      pressView(tree, 'month');
+      expect(calendarGridProps.current!.selectedDay).toBe(formatAPIDate(new Date()));
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
   it.each(['month', 'week', 'range', 'agenda'])('keeps the %s frame mounted and its inset equal when the profile resolves', (view) => {
     state.profile = undefined;
     let tree!: Tree;

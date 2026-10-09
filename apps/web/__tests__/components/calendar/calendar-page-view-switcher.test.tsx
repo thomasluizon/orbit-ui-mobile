@@ -1274,6 +1274,40 @@ describe('CalendarPage view switcher', () => {
 
     afterEach(() => vi.unstubAllGlobals())
 
+    it.each(['week', 'range', 'agenda'])('resets the %s period only on account replacement', async (view) => {
+      const profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+      profileQueryState.profile = profile
+      const page = render(<CalendarPage />)
+      const radio = screen.getByRole('radio', { name: `calendar.view.${view}` })
+      fireEvent.click(radio)
+      const current = () => screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })
+      const initialPeriod = current().textContent
+      fireEvent.click(screen.getByRole('button', { name: view === 'range' ? 'calendar.range.previous' : 'common.nextWeek' }))
+      const browsedPeriod = current().textContent
+      expect(browsedPeriod).not.toBe(initialPeriod)
+      radio.focus()
+
+      profileQueryState.profile = undefined
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(browsedPeriod!)
+      expect(radio).toHaveFocus()
+      await recoverSameAccount('user-1')
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(browsedPeriod!)
+
+      profileQueryState.profile = undefined
+      page.rerender(<CalendarPage />)
+      await replaceAccountWith('user-2')
+      expect(current()).toHaveTextContent(initialPeriod!)
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(current()).toHaveTextContent(initialPeriod!)
+      expect(screen.getByRole('radio', { name: `calendar.view.${view}` })).toBe(radio)
+      expect(radio).toHaveFocus()
+      expect(radio).toHaveAttribute('aria-checked', 'true')
+    })
+
     it('closes the day panel the previous account opened and returns to today', async () => {
       render(<CalendarPage />)
       fireEvent.click(screen.getByTestId('month-view'))
