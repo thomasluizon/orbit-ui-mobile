@@ -59,11 +59,11 @@ function buildPreferenceRows(
   )
 
   return [
-    <ListRow key="timezone" compact textMode="label" chevron={false} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
+    <ListRow key="timezone" compact textMode="label" title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
     /* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 99 controls this label under D42. */
-    <ListRow key="week-start" compact textMode="label" chevron={false} title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
-    <ListRow key="clock" compact textMode="label" chevron={false} title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
-    <ListRow key="language" compact textMode="label" chevron={false} title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
+    <ListRow key="week-start" compact textMode="label" title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
+    <ListRow key="clock" compact textMode="label" title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
+    <ListRow key="language" compact textMode="label" title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
     <ProfileValueRow key="theme" label={t('profile.settingsRows.theme')} control={themeChoice} />,
     <View key="show-general" style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 4 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
