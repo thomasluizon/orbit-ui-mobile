@@ -35,7 +35,7 @@ const approvedLabels = [
 ] as const
 
 describe.each([
-  { locale: 'en', messages: en, column: 1, parentLabel: 'Back to parent habit' },
+  { locale: 'en', messages: en, column: 1, parentLabel: 'Back to the parent habit' },
   { locale: 'pt-BR', messages: ptBR, column: 2, parentLabel: 'Voltar para o hábito principal' },
 ] as const)('approved back copy in $locale', ({ messages, column, parentLabel }) => {
   it.each(approvedLabels)('renders %s from the real catalog', (route, english, portuguese) => {
