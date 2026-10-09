@@ -243,7 +243,7 @@ export function CalendarTimeGrid({
       >
         <div
           ref={bodyRef}
-          className="thin-scrollbar"
+          data-time-grid-scroller=""
           style={{ overflow: 'auto', maxHeight: SCROLLER_MAX_HEIGHT, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div className="sticky top-0 z-[3]" style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
