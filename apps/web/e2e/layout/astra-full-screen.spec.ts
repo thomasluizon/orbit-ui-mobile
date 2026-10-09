@@ -40,7 +40,9 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
             contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
           }))
           await page.goto('/')
-          const column = await page.locator('[data-shell-column]').boundingBox()
+          const columnLocator = page.locator('[data-shell-column]')
+          const column = await columnLocator.boundingBox()
+          const topInset = await columnLocator.evaluate(element => parseFloat(getComputedStyle(element).paddingTop))
           expect(column).not.toBeNull()
           const pinned = page.locator('[data-shell-pinned-slot] [data-composer-root]')
           await expect(pinned).toHaveCount(viewport.width < 1024 ? 1 : 0)
@@ -63,7 +65,7 @@ for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
           const box = (await conversation.boundingBox())!
           for (const edge of ['x', 'width'] as const) expect(Math.abs(box[edge] - column![edge])).toBeLessThanOrEqual(0.5)
           expect(Math.abs(box.x - viewport.left)).toBeLessThanOrEqual(0.5)
-          expect(Math.abs(box.y - (viewport.width >= 1024 ? column!.y : 0))).toBeLessThanOrEqual(0.5)
+          expect(Math.abs(box.y - (viewport.width >= 1024 ? column!.y + topInset : 0))).toBeLessThanOrEqual(0.5)
           expect(Math.abs(box.y + box.height - viewport.height)).toBeLessThanOrEqual(0.5)
           const composer = (await conversation.locator('[data-composer-root]').boundingBox())!
           expect(Math.abs(composer.y + composer.height - box.y - box.height)).toBeLessThanOrEqual(0.5)

@@ -27,6 +27,18 @@ for (const locale of ['en', 'pt-BR'] as const) {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
       const words = locale === 'pt-BR' ? ptBR : en
 
+      test('preserves the Calendário column and pinned header top inset', async ({ page }) => {
+        await page.goto('/calendar')
+        const header = page.getByTestId('calendar-shell-header')
+        await expect(header).toBeVisible()
+        const inset = await header.evaluate(element => {
+          const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
+          const header = element.getBoundingClientRect()
+          return { columnTop: column.top, headerTop: header.top, inset: header.top - column.top }
+        })
+        expect(inset).toEqual({ columnTop: 0, headerTop: width < 1024 ? 0 : 32, inset: width < 1024 ? 0 : 32 })
+      })
+
       test('insets Perfil and preserves Progresso spacing', async ({ page, context }) => {
         await context.route(
           (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,

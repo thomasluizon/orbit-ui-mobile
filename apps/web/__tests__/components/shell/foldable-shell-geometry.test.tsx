@@ -79,6 +79,61 @@ describe('Foldable shell geometry', () => {
     },
   )
 
+  it.each([320, 412, 600, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top }))))(
+    'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top }) => {
+      const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
+        astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
+        conversation={<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <header style={{ minHeight: 56 }}>Astra</header>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>Thread</div>
+          <div data-conversation-composer="" style={{ minHeight: 88 }}>Composer</div>
+        </div>} conversationLabel="Astra" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
+        <h1>Today</h1>
+      </ShellWide>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const session = await page.context().newCDPSession(page)
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left: 0, right: 0 } })
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
+          const header = document.querySelector('[data-shell-conversation] header')!.getBoundingClientRect()
+          const composer = document.querySelector('[data-conversation-composer]')!.getBoundingClientRect()
+          return { layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom }
+        })
+        expect(geometry.layerTop).toBe(width < 1024 ? 0 : Math.max(32, top))
+        expect(geometry.headerTop).toBe(width < 1024 ? top : Math.max(32, top))
+        expect(geometry.bottom).toBe(915)
+        expect(geometry.composerBottom).toBe(width < 1024 ? 915 - 34 : 915)
+      } finally { await page.close() }
+    },
+  )
+
+  it.each(['profile', 'progress', 'calendar'])(
+    'preserves the wide column top inset for %s', async (destination) => {
+      const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation"
+        astraRow={{ label: en.chat.title, onOpen: vi.fn() }}
+        header={destination === 'calendar' ? <div style={{ height: 48 }}>Calendar header</div> : undefined}>
+        <div data-first-content="" style={{ paddingTop: destination === 'progress' ? 16 : 0 }}>Content</div>
+      </ShellWide>)
+      const page = await browser.newPage({ viewport: { width: 1352, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
+          const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
+          const content = document.querySelector('[data-first-content]')!.getBoundingClientRect()
+          const padding = parseFloat(getComputedStyle(document.querySelector('[data-first-content]')!).paddingTop)
+          return { column: content.top + padding - column.top, scroller: content.top + padding - scroller.top,
+            scrollerTop: scroller.top }
+        })
+        expect(geometry.column).toBe(destination === 'profile' ? 32 : destination === 'progress' ? 48 : 80)
+        expect(geometry.scroller).toBe(destination === 'progress' ? 16 : 0)
+        expect(geometry.scrollerTop).toBe(destination === 'calendar' ? 80 : 32)
+      } finally { await page.close() }
+    },
+  )
+
   it.each([1100, 1440].flatMap((width) => [en, ptBR].flatMap((words) => [1, 2].map((textScale) => ({ width, words, textScale })))))
     ('keeps the sidebar account tokens on one line at $width and text scale $textScale', async ({ width, words, textScale }) => {
       const name = 'W'.repeat(60)
@@ -381,7 +436,7 @@ describe('Foldable shell geometry', () => {
         const composer = document.querySelector('[data-shell-conversation] [data-composer-root]')!.getBoundingClientRect()
         const scroller = document.querySelector('[data-shell-scroller]')!
         return { left: layer.left, right: layer.right, top: layer.top, bottom: layer.bottom,
-          columnLeft: column.left, columnRight: column.right, columnTop: column.top,
+          columnLeft: column.left, columnRight: column.right, columnTop: column.top + parseFloat(getComputedStyle(document.querySelector('[data-shell-column]')!).paddingTop),
           composerBottom: composer.bottom, visible: getComputedStyle(scroller).visibility,
           panelCount: document.querySelectorAll('[data-shell-conversation="panel"]').length,
           inert: scroller.closest('[inert]') !== null,

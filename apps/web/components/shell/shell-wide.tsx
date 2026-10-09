@@ -272,8 +272,8 @@ function ShellWideBackground({
     >
       {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} /> : null}
 
-      <div className="relative flex h-dvh min-w-0 flex-1 justify-center pt-[var(--safe-top)] lg:px-8 lg:pt-[max(32px,var(--safe-top))]">
-        <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+      <div className="relative flex h-dvh min-w-0 flex-1 justify-center lg:px-8">
+        <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(32px,var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
           <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
             className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
           {props.header !== undefined ? <div data-shell-header="" data-focus-inset="" className={`overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
@@ -294,7 +294,7 @@ function ShellWideBackground({
             aria-label={props.conversationLabel}
             tabIndex={-1}
             data-shell-conversation="overlay"
-            className="z-modal fixed inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-0 lg:pt-0 lg:pb-0"
+            className="z-modal fixed inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-[max(32px,var(--safe-top))] lg:pt-0 lg:pb-0"
             style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
           ><main className="h-full">{props.conversation}</main></div> : null}
         </div>
