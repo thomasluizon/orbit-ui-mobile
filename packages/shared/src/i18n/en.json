@@ -387,6 +387,7 @@
   },
   "dates": {
     "today": "Today",
+    "todayWithDate": "Today, {date}",
     "goToToday": "Go to today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
@@ -984,9 +985,7 @@
   },
   "calendar": {
     "agenda": {
-      "today": "Today",
-      "empty": "Nothing scheduled",
-      "timedEntryLabel": "{title}, {time}"
+      "empty": "Nothing scheduled"
     },
     "legend": {
       "loggable": "can log",
@@ -1046,6 +1045,9 @@
       "week": "Week",
       "range": "Range",
       "agenda": "Agenda"
+    },
+    "period": {
+      "goToCurrent": "{period}, go to today"
     },
     "range": {
       "label": "{start} to {end}",
@@ -1635,6 +1637,8 @@
       "retry": "Retry the {count} that failed"
     },
     "operation": {
+      "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
+      "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
       "unknown": "Astra operation",
       "pendingTitle": "Awaiting confirmation",
       "pending": "Nothing has changed yet",

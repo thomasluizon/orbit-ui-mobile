@@ -1,7 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { habitKeys, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BackHandler } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { extractBackendStatus, formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { canRevealCompletedDrillChildren, countCompletedDrillChildren, getVisibleDrillChildren, normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
 import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
@@ -37,6 +39,7 @@ export function useDrillNavigation(
   view: HabitVisibilityView = 'all',
   todayStr = formatAPIDate(new Date()),
 ): DrillNavigationState {
+  const queryClient = useQueryClient()
   const { t } = useTranslation()
   const [drillStack, setDrillStack] = useState<string[]>([])
   const [drillChildrenMap, setDrillChildrenMap] = useState(
@@ -87,7 +90,14 @@ export function useDrillNavigation(
       feedbackPendingRef.current = showFeedback
       if (showFeedback) setDrillLoading(true)
       try {
-        const detail = await fetchHabitDetail(habitId)
+        void queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId), exact: true })
+        const detail = await queryClient.fetchQuery({
+          queryKey: habitKeys.detail(habitId),
+          queryFn: () => fetchHabitDetail(habitId),
+          staleTime: 0,
+          retry: (failureCount, error) => extractBackendStatus(error) === 429 && shouldRetryQuery(failureCount, error),
+          retryDelay: queryRetryDelay,
+        })
         const normalized = normalizeHabitDetailForDrill(detail, todayStr)
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
         setDrillParentInfo(normalized.parent)
@@ -111,7 +121,7 @@ export function useDrillNavigation(
         }
       }
     },
-    [t, todayStr],
+    [queryClient, t, todayStr],
   )
 
   const drillInto = useCallback(

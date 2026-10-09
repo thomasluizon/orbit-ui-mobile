@@ -375,11 +375,7 @@ describe('useHabits', () => {
   })
 
   it('handles fetch error', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'Server error' }),
-    })
+    mockFetch.mockResolvedValue(Response.json({ error: 'Server error' }, { status: 500 }))
 
     const { result } = renderHook(
       () => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }),

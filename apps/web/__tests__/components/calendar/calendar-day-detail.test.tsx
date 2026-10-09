@@ -43,7 +43,7 @@ vi.mock('next-intl', () => ({
     if (key === 'calendar.dayDetail.completionSummary') {
       return `${String(params?.done)} of ${String(params?.total)} logged`
     }
-    if (key === 'dates.today') return detailLocale.language === 'en' ? en.dates.today : ptBR.dates.today
+    if (key === 'dates.todayWithDate') return (detailLocale.language === 'en' ? en.dates.todayWithDate : ptBR.dates.todayWithDate).replace('{date}', String(params?.date))
     return translations[key] ?? key
   },
   useLocale: () => detailLocale.language,
@@ -596,10 +596,12 @@ describe('CalendarDayDetail', () => {
 
   it('leaves for Today through the panel row with the selected date', () => {
     renderDetail()
-    expect(screen.getByRole('link', { name: 'Open this day on Today' })).toHaveAttribute(
+    const link = screen.getByRole('link', { name: 'Open this day on Today' })
+    expect(link).toHaveAttribute(
       'href',
       '/?date=2025-06-15',
     )
+    expect(link).toHaveClass('orbit-list-row-body')
     expect(screen.getByText(personalText('Open this day on Today'))).toHaveClass('break-words')
   })
 

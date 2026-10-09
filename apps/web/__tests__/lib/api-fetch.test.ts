@@ -45,11 +45,49 @@ vi.stubGlobal('fetch', mockFetch)
 
 const originalLocation = globalThis.location
 
-import { apiFetch, fetchJson, ApiError } from '@/lib/api-fetch'
+import { apiFetch, fetchJson, ApiError, fetchWithUpgradeGuidance } from '@/lib/api-fetch'
 import { useAppToastStore } from '@/stores/app-toast-store'
 const toastError = vi.fn()
 
 describe('apiFetch', () => {
+  it('wakes the public API once per minute for starting refusals without publishing an error', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://api-staging.useorbit.org/')
+    const wake = vi.fn(async (_input: string, _init?: RequestInit) => new Response(null))
+    mockFetch.mockImplementation((input: string, init?: RequestInit) => init?.mode === 'no-cors'
+      ? wake(input, init)
+      : Promise.resolve(Response.json({ error: 'Upstream service is starting', errorCode: 'UPSTREAM_STARTING' }, { status: 503, headers: { 'Retry-After': '5' } })))
+    try {
+      for (let count = 0; count < 3; count++) {
+        await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503, retryAfter: '5' })
+      }
+      expect(wake).toHaveBeenCalledOnce()
+      expect(wake).toHaveBeenCalledWith('https://api-staging.useorbit.org/health', { mode: 'no-cors', cache: 'no-store' })
+      vi.advanceTimersByTime(59_999)
+      await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503 })
+      expect(wake).toHaveBeenCalledOnce()
+      vi.advanceTimersByTime(1)
+      await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503 })
+      expect(wake).toHaveBeenCalledTimes(2)
+      expect(toastError).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    { status: 429, errorCode: 'RATE_LIMITED' },
+    { status: 503, errorCode: 'INTERNAL_SERVER_ERROR' },
+    { status: 500, errorCode: 'UPSTREAM_STARTING' },
+  ])('does not wake the API for $status/$errorCode', async ({ status, errorCode }) => {
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Unavailable', errorCode }, { status }))
+    const response = await fetchWithUpgradeGuidance('/api/habits')
+    expect(response.status).toBe(status)
+    expect(mockFetch).toHaveBeenCalledOnce()
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
     mockLogout.mockReset()
@@ -134,8 +172,8 @@ describe('apiFetch', () => {
   it('throws ApiError with status 401', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
-      status: 401,
       headers: new Headers(),
+      status: 401,
       json: () => Promise.resolve({ error: 'Token expired' }),
     })
 
@@ -159,6 +197,7 @@ describe('apiFetch', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.resolve({ error: 'Upgrade required', code: 'PAY_GATE' }),
     })
@@ -181,6 +220,7 @@ describe('apiFetch', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.resolve({ error: 'Upgrade required', code: 'PAY_GATE' }),
     })
@@ -203,6 +243,7 @@ describe('apiFetch', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.resolve({
         error: 'Gamification is a Pro feature. Upgrade to unlock!',
@@ -227,6 +268,7 @@ describe('apiFetch', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.resolve({ error: 'You do not own this habit', code: 'NO_PERMISSION' }),
     })
@@ -239,6 +281,7 @@ describe('apiFetch', () => {
   it('flags upgrade required on a 426 without toast', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 426,
       json: () =>
         Promise.resolve({
@@ -257,6 +300,7 @@ describe('apiFetch', () => {
   it('flags upgrade required on a 426 with a null minVersion when absent', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 426,
       json: () => Promise.resolve({ error: 'Upgrade required' }),
     })
@@ -268,6 +312,7 @@ describe('apiFetch', () => {
   it('shows validation error toast on 400', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 400,
       json: () => Promise.resolve({ error: en.habits.form.titleRequired }),
     })
@@ -279,6 +324,7 @@ describe('apiFetch', () => {
   it('shows not found toast on 404', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 404,
       json: () => Promise.resolve({ error: 'Habit not found' }),
     })
@@ -290,6 +336,7 @@ describe('apiFetch', () => {
   it('shows conflict toast on 409', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 409,
       json: () => Promise.resolve({ error: 'Already exists' }),
     })
@@ -298,20 +345,28 @@ describe('apiFetch', () => {
     expect(toastError).toHaveBeenCalledWith('Conflict: Already exists')
   })
 
-  it('shows rate limit toast on 429', async () => {
+  it('keeps a background read 429 quiet and preserves Retry-After', async () => {
+    mockFetch.mockResolvedValue(Response.json({ error: 'Rate limited', retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }, { status: 429, headers: { 'Retry-After': '60' } }))
+    await expect(apiFetch('/api/test')).rejects.toMatchObject({ status: 429, retryAfter: '60' })
+    expect(toastError).not.toHaveBeenCalled()
+  })
+
+  it('shows rate limit toast on a mutation 429', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 429,
       json: () => Promise.resolve({ error: 'Slow down' }),
     })
 
-    await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+    await expect(apiFetch('/api/test', { method: 'POST' })).rejects.toThrow(ApiError)
     expect(toastError).toHaveBeenCalledWith('Too many requests: Slow down')
   })
 
   it('shows server error toast on 500', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 500,
       json: () => Promise.resolve({ error: 'Internal server error' }),
     })
@@ -321,14 +376,10 @@ describe('apiFetch', () => {
   })
 
   it('lets a caller handle a 503 without a global toast', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: () => Promise.resolve({
-        error: 'Payment service temporarily unavailable',
-        code: 'PAYMENT_SERVICE_UNAVAILABLE',
-      }),
-    })
+    mockFetch.mockResolvedValue(Response.json({
+      error: 'Payment service temporarily unavailable',
+      code: 'PAYMENT_SERVICE_UNAVAILABLE',
+    }, { status: 503 }))
 
     await expect(
       apiFetch('/api/subscriptions/plans', undefined, undefined, {
@@ -341,6 +392,7 @@ describe('apiFetch', () => {
   it('shows server error toast on 502', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 502,
       json: () => Promise.resolve({}),
     })
@@ -352,6 +404,7 @@ describe('apiFetch', () => {
   it('uses generic title when no backend error message', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 418,
       json: () => Promise.resolve({}),
     })
@@ -363,6 +416,7 @@ describe('apiFetch', () => {
   it('handles body parse failure gracefully', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 500,
       json: () => Promise.reject(new Error('Invalid JSON')),
     })

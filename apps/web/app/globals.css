@@ -111,8 +111,22 @@
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
+.orbit-list-row-body:is(:active, :focus-visible):not(:disabled) {
+  background-color: var(--bg-hover);
+  --orbit-list-row-secondary: var(--fg-2);
+}
+
 .orbit-list-row-action {
   transition: background-color var(--dur-hover-control) var(--ease-standard), transform 150ms var(--ease-out);
+}
+
+.orbit-list-row-body:active:not(:disabled):not(:has(button:active, a:active, [role="button"]:active)) {
+  background: var(--bg-hover);
+  --orbit-list-row-secondary: var(--fg-2);
+}
+
+.orbit-list-row-action:active:not(:disabled) {
+  background: var(--bg-hover);
 }
 
 @layer components {

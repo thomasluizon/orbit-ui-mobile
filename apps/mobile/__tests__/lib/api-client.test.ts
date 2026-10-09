@@ -81,6 +81,14 @@ describe('mobile apiClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('preserves Retry-After on a read without opening the throttle screen', async () => {
+    getTokenMock.mockResolvedValue('token')
+    useThrottleStore.getState().clear()
+    fetchMock.mockResolvedValue(Response.json({ error: 'Rate limited', retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }, { status: 429, headers: { 'Retry-After': '60' } }))
+    await expect(apiClient('/api/habits')).rejects.toMatchObject({ status: 429, retryAfter: '60' })
+    expect(useThrottleStore.getState().error).toBeNull()
+  })
+
   it('opens the countdown for a refused request without retrying its write', async () => {
     getTokenMock.mockResolvedValue('token')
     const payload = { error: 'Too many requests', requestId: 'real-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }

@@ -6536,6 +6536,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6567,6 +6568,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6598,6 +6600,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6629,6 +6632,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6660,6 +6664,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6691,6 +6696,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6722,6 +6728,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6753,6 +6760,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",

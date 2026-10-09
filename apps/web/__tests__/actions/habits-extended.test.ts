@@ -32,12 +32,7 @@ describe('habit server actions (extended)', () => {
   })
 
   function mockApiResponse(body: unknown, status = 200) {
-    mockFetch.mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      json: () => Promise.resolve(body),
-      text: () => Promise.resolve(JSON.stringify(body)),
-    })
+    mockFetch.mockImplementation(async () => Response.json(body, { status }))
   }
 
   function mock204() {

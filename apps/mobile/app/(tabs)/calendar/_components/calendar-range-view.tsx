@@ -1,46 +1,14 @@
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, View, useWindowDimensions } from 'react-native'
 import { format } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import type { TFunction } from 'i18next'
 import { CALENDAR_GRID_GAP_CONTENT_BREAKPOINT, CALENDAR_MONTH_GRID_GEOMETRY, type CalendarRangeModel } from '@orbit/shared/utils'
-import type { AppTokensV2 } from '@/lib/theme'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
-
-interface CalendarRangeNavigationProps {
-  rangeLabel: string
-  previousRangeLabel: string
-  nextRangeLabel: string
-  onPreviousRange: () => void
-  onNextRange: () => void
-  nextRangeDisabled: boolean
-  tokens: AppTokensV2
-}
-
-export function CalendarRangeNavigation({ rangeLabel, previousRangeLabel, nextRangeLabel, onPreviousRange, onNextRange, nextRangeDisabled, tokens }: Readonly<CalendarRangeNavigationProps>) {
-  return (
-    <View testID="calendar-range-navigation" style={styles.header}>
-      <Text style={[styles.rangeLabel, { color: tokens.fg2 }]}>
-        {rangeLabel}
-      </Text>
-      <View style={styles.controls}>
-        <Pressable accessibilityRole="button" accessibilityLabel={previousRangeLabel} onPress={onPreviousRange}
-          style={({ pressed }) => [styles.iconButton, { borderColor: tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>
-          <ChevronLeft size={20} strokeWidth={2} color={tokens.fg2} />
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={nextRangeLabel} onPress={onNextRange} disabled={nextRangeDisabled} accessibilityState={{ disabled: nextRangeDisabled }}
-          style={({ pressed }) => [styles.iconButton, { borderColor: tokens.hairlineStrong, backgroundColor: pressed ? tokens.bgHover : 'transparent' }, nextRangeDisabled && { opacity: 0.4 }]}>
-          <ChevronRight size={20} strokeWidth={2} color={tokens.fg2} />
-        </Pressable>
-      </View>
-    </View>
-  )
-}
 
 interface CalendarRangeViewProps {
   model: CalendarRangeModel
@@ -127,19 +95,7 @@ export function CalendarRangeView({
 
 const styles = StyleSheet.create({
   container: { gap: 16 },
-  header: { minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  controls: { flexDirection: 'row', flexShrink: 0, gap: 12 },
   grid: { width: '100%', alignSelf: 'center', paddingHorizontal: CALENDAR_MONTH_GRID_GEOMETRY.inlineInset },
-  iconButton: { minHeight: 48, minWidth: 48, borderWidth: 1.5, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  rangeLabel: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 48,
-    textAlignVertical: 'center',
-    fontFamily: 'GeistMono_400Regular',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-  },
   daySlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
   loadingCell: { width: '100%', maxWidth: MONTH_GRID_TARGET_MIN },
 })
