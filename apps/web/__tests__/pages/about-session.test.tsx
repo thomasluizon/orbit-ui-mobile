@@ -129,7 +129,7 @@ beforeEach(() => {
   mocks.fetch.mockReset()
   mocks.fetch.mockResolvedValue(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 })))
   vi.stubGlobal('fetch', mocks.fetch)
-  useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
+  useAuthStore.setState({ isAuthenticated: false, sessionInactive: false, sessionRefreshFailed: false, user: null, expiresAt: null })
   useUIStore.setState(useUIStore.getInitialState())
   useAppToastStore.setState({ currentToast: null, queue: [] })
 })
@@ -272,22 +272,70 @@ it('carries conversation provenance while closing its overlay', () => {
   expect(useUIStore.getState().astraConversationOpen).toBe(false)
 })
 
-it.each(['auth_token', 'refresh_token'])('restores the destination shell on a hard load of About with %s', async (cookieName) => {
+it.each(['auth_token', 'refresh_token'])('preserves the destination shell while a hard load of About restores %s', async (cookieName) => {
   mocks.cookie = `${cookieName}=session-placeholder`
-  let resolveSession!: (response: Response) => void
-  mocks.fetch.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 }))))
-  mocks.fetch.mockReturnValueOnce(new Promise<Response>((resolve) => { resolveSession = resolve }))
+  let resolveSession!: () => void
+  const sessionReady = new Promise<void>((resolve) => { resolveSession = resolve })
+  mocks.fetch.mockImplementation(async () => {
+    await sessionReady
+    return new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000, userId: null, refreshFailed: false }))
+  })
   render(await RootLayout({ children: <QueryAppLayout><p>About content</p></QueryAppLayout> }), { container: document })
-  expect(screen.getByText('About content')).toBeInTheDocument()
+  const content = screen.getByText('About content')
+  const shell = screen.queryByRole('main', { name: 'Destination shell' })
+  expect.soft(shell).toContainElement(content)
+  expect(useAuthStore.getState().isAuthenticated).toBe(false)
   expect(mocks.fetch).toHaveBeenCalledWith('/api/auth/session', { headers: expect.any(Headers) })
-  await act(async () => resolveSession(new Response(JSON.stringify({ expiresAt: Date.now() + 3_600_000 }))))
+  await act(async () => resolveSession())
   expect(screen.getByRole('main', { name: 'Destination shell' })).toHaveTextContent('About content')
+  expect.soft(screen.getByRole('main', { name: 'Destination shell' })).toBe(shell)
+  expect(screen.getByText('About content')).toBe(content)
   cleanup()
   mocks.fetch.mockClear()
   mocks.cookie = ''
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
   render(await RootLayout({ children: <QueryAppLayout><p>Public About content</p></QueryAppLayout> }), { container: document })
   expect(screen.getByText('Public About content')).toBeInTheDocument()
+  expect(screen.queryByRole('main', { name: 'Destination shell' })).not.toBeInTheDocument()
+  expect(mocks.fetch).not.toHaveBeenCalled()
+})
+
+it.each(['auth_token', 'refresh_token'])('includes the About destination shell in server markup with %s', async (cookieName) => {
+  mocks.cookie = `${cookieName}=session-placeholder`
+  const html = renderToString(await RootLayout({ children: <QueryAppLayout><p>About content</p></QueryAppLayout> }))
+  expect(html).toContain('Destination shell')
+  expect(html).toContain('About content')
+  expect(mocks.fetch).not.toHaveBeenCalled()
+})
+
+it('returns About to its public layout when session refresh is confirmed failed', async () => {
+  mocks.cookie = 'refresh_token=session-placeholder'
+  mocks.fetch.mockImplementation(async () => new Response(JSON.stringify({ expiresAt: null, userId: null, refreshFailed: true }), { status: 401 }))
+  render(await RootLayout({ children: <QueryAppLayout><p>About content</p></QueryAppLayout> }), { container: document })
+  expect(screen.getByRole('main', { name: 'Destination shell' })).toBeInTheDocument()
+  await waitFor(() => expect(useAuthStore.getState().sessionRefreshFailed).toBe(true))
+  expect(screen.queryByRole('main', { name: 'Destination shell' })).not.toBeInTheDocument()
+  expect(screen.getByText('About content')).toBeInTheDocument()
+  expect(useAuthStore.getState().isAuthenticated).toBe(false)
+})
+
+it('keeps About in its initial shell through a retryable session error', async () => {
+  mocks.cookie = 'auth_token=session-placeholder'
+  mocks.fetch.mockImplementation(async () => new Response(JSON.stringify({ expiresAt: null, userId: null, refreshFailed: false }), { status: 500 }))
+  render(await RootLayout({ children: <QueryAppLayout><p>About content</p></QueryAppLayout> }), { container: document })
+  const shell = screen.getByRole('main', { name: 'Destination shell' })
+  const content = screen.getByText('About content')
+  await act(async () => { await useAuthStore.getState().checkSession() })
+  expect(screen.getByRole('main', { name: 'Destination shell' })).toBe(shell)
+  expect(screen.getByText('About content')).toBe(content)
+  expect(useAuthStore.getState().isAuthenticated).toBe(false)
+})
+
+it('keeps another public route outside the app shell while a cookie is present', async () => {
+  mocks.pathname = '/terms/x'
+  mocks.cookie = 'auth_token=session-placeholder'
+  render(await RootLayout({ children: <QueryAppLayout><AppNotFound /></QueryAppLayout> }), { container: document })
+  expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
   expect(screen.queryByRole('main', { name: 'Destination shell' })).not.toBeInTheDocument()
   expect(mocks.fetch).not.toHaveBeenCalled()
 })

@@ -10,7 +10,7 @@ export function SupportSuccessState({ email, onBack }: Readonly<{ email: string;
   return (
     <div
       className="flex min-w-0 flex-col items-start animate-scale-in"
-      style={{ padding: '48px 24px', gap: 16 }}
+      style={{ padding: '48px 0', gap: 16 }}
     >
       <span
         className="flex items-center justify-center rounded-full bg-[var(--fg-1)] text-[var(--bg)]"

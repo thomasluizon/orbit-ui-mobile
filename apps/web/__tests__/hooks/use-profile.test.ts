@@ -28,13 +28,14 @@ vi.stubGlobal('fetch', mockFetch)
 
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: {
+  useHeldAccountId: () => 'account-a',
+  useAuthStore: Object.assign((selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }), {
     getState: () => ({
       logout: boundaryMocks.logout,
       confirmSessionRefreshFailure: boundaryMocks.confirmSessionRefreshFailure,
       recoverSessionRefreshFailure: boundaryMocks.recoverSessionRefreshFailure,
     }),
-  },
+  }),
 }))
 
 vi.mock('next-intl', () => ({

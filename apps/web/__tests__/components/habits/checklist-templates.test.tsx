@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { name: string }) => key === 'common.showFullText' ? `Show full text: ${values?.name}` : key,
 }))
 
 const mockTemplates = vi.fn<() => { data: ChecklistTemplate[] }>(() => ({ data: [] }))
@@ -267,4 +267,19 @@ describe('ChecklistTemplates across an account change', () => {
 
     expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toHaveValue('Account A checklist')
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full template name %s without loading it', (name) => {
+    mockTemplates.mockReturnValue({ data: [{ id: 'template-1', name, items: ['Run'] }] })
+    const onLoad = vi.fn()
+    render(<ChecklistTemplates items={[]} onLoad={onLoad} />)
+    openTemplates()
+    const picker = screen.getByRole('dialog')
+    const title = [...picker.querySelectorAll('[data-personal-text]')].find((element) => element.getAttribute('aria-label') === name)!
+    expect(title).toHaveAttribute('aria-label', name)
+    fireEvent.click(screen.getByRole('button', { name: `Show full text: ${name}`, expanded: false }))
+    expect(onLoad).not.toHaveBeenCalled()
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.close' }).at(-1)!)
+    fireEvent.click([...picker.querySelectorAll('button')].find((button) => button.getAttribute('aria-label') === name && !button.hasAttribute('aria-expanded'))!)
+    expect(onLoad).toHaveBeenCalledWith([{ text: 'Run', isChecked: false }])
+  })
+
 })

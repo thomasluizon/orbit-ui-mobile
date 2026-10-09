@@ -16,6 +16,10 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({ syncThemeFromProfile: vi.fn(), detectAndSaveThemeIfNeeded: vi.fn() }),
 }))
 vi.mock('@/hooks/use-session-reset', () => ({ useAccountGeneration: () => 0 }))
+vi.mock('@/stores/auth-store', () => ({
+  useHeldAccountId: () => 'account-a',
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }),
+}))
 vi.mock('@/app/(app)/use-today-page', () => ({
   useTodayPage: () => ({
     nav: { dateStr: '2026-09-28', today: '2026-09-28' },

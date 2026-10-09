@@ -1,3 +1,5 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BulkCreateResponse } from '@orbit/shared/types/habit'
@@ -167,4 +169,15 @@ describe('BreakdownSuggestion (mobile)', () => {
     expect(bulkCreate).toHaveBeenCalledTimes(2)
     expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Laundry' }] })
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full parent heading %s', async (name) => {
+    const title = `chat.breakdown.title:${JSON.stringify({ name })}`
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<BreakdownSuggestion {...defaultProps} parentName={name} />) })
+    await expectPersonalTextLayout(tree.root, title)
+    await act(() => pressTextControl(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name: title })}`, false)[0]!))
+    expect(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name: title })}`, true)).toHaveLength(1)
+    expect(bulkCreate).not.toHaveBeenCalled()
+    await act(() => tree.update(<></>))
+  })
+
 })

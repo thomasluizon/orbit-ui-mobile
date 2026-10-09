@@ -2,7 +2,7 @@ import { TOUCH_TARGET_MIN, SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
-  billingStack: { gap: 24, paddingHorizontal: 16 },
+  billingStack: { width: '100%', maxWidth: 560, alignSelf: 'flex-start', gap: 24, paddingHorizontal: 16 },
   billingCard: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 12 },
   billingWell: { borderRadius: 12, padding: 16, gap: 12 },
   billingBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
   billingMeta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'] },
   billingHeading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 27, letterSpacing: -0.44, flexShrink: 0 },
   pricingSections: {
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
     maxWidth: 652,
     width: '100%',
     gap: 32,
