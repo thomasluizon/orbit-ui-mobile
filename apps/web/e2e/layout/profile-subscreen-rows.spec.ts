@@ -40,10 +40,10 @@ async function expectChevron(row: Locator) {
   expect(geometry.right).toBeLessThanOrEqual(geometry.slotRight)
 }
 
-for (const width of [412, 1280]) {
+for (const width of [320, 412, 1280]) {
   for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     test.describe(`${locale} profile subscreen rows at ${width}px`, () => {
-      const profile = profileSchema.parse({ ...profileFixture, language: locale, name: 'Ana', email: 'a@b.co', timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })
+      const profile = profileSchema.parse({ ...profileFixture, language: locale, name: 'Ana Silva', email: 'a@b.co', timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })
       test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: profile })
       test.beforeEach(async ({ context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
@@ -61,8 +61,10 @@ for (const width of [412, 1280]) {
           await expect(row.locator('svg').first()).toHaveAttribute('width', '24')
           alignment.push(await row.evaluate((element) => {
             const icon = element.querySelector('svg')!.getBoundingClientRect()
-            const title = element.querySelector('[data-slot="list-row-title"], [data-slot="settings-row-label"]')!.getBoundingClientRect()
-            return { iconX: icon.x, iconWidth: icon.width, iconHeight: icon.height, titleX: title.x }
+            const title = element.querySelector('[data-slot="list-row-title"], [data-slot="settings-row-label"]')!
+            const text = document.createRange()
+            text.selectNodeContents(title)
+            return { iconX: icon.x, iconWidth: icon.width, iconHeight: icon.height, titleX: text.getBoundingClientRect().x }
           }))
         }
         for (const row of alignment) expect(row).toEqual(alignment[0])
@@ -74,6 +76,13 @@ for (const width of [412, 1280]) {
           await expectChevron(row)
         }
         await expectGlyph(actions.first().locator('svg').first(), renderToStaticMarkup(createElement(User, { size: 24 })))
+        const exportTitle = actions.nth(1).locator('[data-slot="list-row-title"]')
+        await expect(exportTitle).toHaveText(locale === 'pt-BR' ? words.dataExport.button : words.profile.settingsRows.export)
+        expect(await exportTitle.evaluate((element) => {
+          const text = document.createRange()
+          text.selectNodeContents(element)
+          return text.getBoundingClientRect().width <= element.getBoundingClientRect().width + 1 && text.getClientRects().length === 1
+        })).toBe(true)
         const trash = actions.last().locator('svg').first()
         await expectGlyph(trash, renderToStaticMarkup(createElement(Trash2, { size: 24 })))
         expect(await trash.evaluate((element) => {

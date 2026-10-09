@@ -580,6 +580,30 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1280].map((width) => ({ locale, width }))))('aligns account titles and keeps the export label whole in $locale at $width', async ({ locale, width }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({ name: 'Ana', email: 'a@b.co' })
+    const tree = await renderProfileSubscreen('account')
+    try {
+      const rows = tree.root.findAllByType(ListRow)
+      const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow> }) => {
+        let rowTree!: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+        try { return { title: row.props.title, ...measureProfileRow(rowTree.toJSON(), Math.min(width, 560) - 32, 1) } }
+        finally { TestRenderer.act(() => rowTree.unmount()) }
+      })
+      expect(measured).toHaveLength(4)
+      for (const row of measured) {
+        const title = row.texts.find(({ label }) => label === row.title)!
+        expect(title.left, row.title).toBe(measured[0]!.texts[0]!.left)
+        expect(title.clipped, row.title).toBe(false)
+        expect(title.lines, row.title).toBe(1)
+      }
+      expect(measured[1]!.title).toBe(locale === 'pt-BR' ? ptBR.dataExport.button : en.profile.settingsRows.export)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([412, 840].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
     .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
     const tree = await renderProfileSubscreen(screen)

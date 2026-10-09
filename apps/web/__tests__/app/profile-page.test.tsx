@@ -269,9 +269,9 @@ describe('ProfilePage', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 412, 1280].flatMap((width) => (['account', 'preferences'] as const).map((surface) => ({ locale, width, surface })))))('aligns subscreen glyphs and preserves labels in $surface in $locale at $width', async ({ locale, width, surface }) => {
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 412, 1280].flatMap((width) => ['Ana', 'Ana Silva'].flatMap((name) => (['account', 'preferences'] as const).map((surface) => ({ locale, width, surface, name }))))))('aligns subscreen glyphs and preserves labels in $surface in $locale at $width for $name', async ({ locale, width, surface, name }) => {
       translateProMessages(locale as 'en' | 'pt-BR')
-      mockProfileState.current.profile = createMockProfile({ name: 'Ana', email: 'a@b.co', timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })
+      mockProfileState.current.profile = createMockProfile({ name, email: 'a@b.co', timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })
       const Destination = PROFILE_ROUTES[surface]
       const { container } = render(<Destination />)
       const page = await browser.newPage({ viewport: { width, height: 1600 } })
@@ -283,7 +283,7 @@ describe('ProfilePage', () => {
           const range = document.createRange()
           range.selectNodeContents(title)
           const icons = Array.from(row.querySelectorAll('svg')).map((icon) => ({ x: icon.getBoundingClientRect().x, width: icon.getBoundingClientRect().width, height: icon.getBoundingClientRect().height }))
-          return { label: title.textContent, titleX: title.getBoundingClientRect().x, available: title.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, icons, overflow: row.scrollWidth > row.clientWidth }
+          return { label: title.textContent, titleX: range.getBoundingClientRect().x, available: title.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, icons, overflow: row.scrollWidth > row.clientWidth }
         }))
         expect(geometry).toHaveLength(4)
         for (const row of geometry) {

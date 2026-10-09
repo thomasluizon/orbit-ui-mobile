@@ -13,6 +13,7 @@ import { Icon } from '@/components/ui/icon'
 type WebListRowProps = Omit<ListRowProps, 'onClick'> & {
   onClick?: MouseEventHandler<HTMLElement>
   titleTranslate?: 'no'
+  personalTextInsetStart?: boolean
 }
 
 function getBodyPadding(compact: boolean, hasTrailing: boolean) {
@@ -53,13 +54,13 @@ function titleClass(textMode: WebListRowProps['textMode'], wrapTitle: boolean | 
   return textMode === 'label' || wrapTitle ? 'break-words' : 'truncate'
 }
 
-function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description, value, readOnly, personalExpanded }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'personalExpanded'>>) {
+function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, compact = !description, value, readOnly, personalExpanded, personalTextInsetStart }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'personalExpanded' | 'personalTextInsetStart'>>) {
   const Title = textMode === 'personal' ? PersonalText : 'span'
   const Description = textMode === 'personal' ? PersonalText : 'span'
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing, readOnly === true && textMode === 'label' && !!trailing && !value), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
-    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: textMode ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</Title>
-    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.875rem' : 14, lineHeight: 1.4 }}>{description}</Description> : null}
+    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: textMode ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle), paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.875rem' : 14, lineHeight: 1.4, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
   </span>
 }
 

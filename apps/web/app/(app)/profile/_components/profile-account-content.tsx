@@ -66,7 +66,7 @@ export function ProfileAccountContent({ profile }: Readonly<ProfileContentProps>
   return (
     <>
       <RowList>
-        <ListRow key="account" icon={<ProfileNavIcon iconKey="account" />} textMode="personal" personalExpanded wrapTitle title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? t('profile.editName.title'), email: profile?.email ?? '' })} description={profile?.email} onClick={() => setShowEditName(true)} />
+        <ListRow key="account" icon={<ProfileNavIcon iconKey="account" />} textMode="personal" personalExpanded personalTextInsetStart={false} wrapTitle title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? t('profile.editName.title'), email: profile?.email ?? '' })} description={profile?.email} onClick={() => setShowEditName(true)} />
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 106 controls this label under D42. */}
         <ListRow key="export" compact={!exportError} icon={icon(Download)} title={t('profile.settingsRows.export')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} onClick={() => void exportData()} />
         {analyticsEnabled === null ? null : (
