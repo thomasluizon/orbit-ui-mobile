@@ -2036,7 +2036,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   max-width: 560px;
   padding: 64px 16px 32px;
   color: var(--fg-1);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .error-surface--in-shell {
   max-width: none;
@@ -2060,6 +2060,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   font-size: 16px;
   line-height: 1.55;
   color: var(--fg-2);
+  overflow-wrap: anywhere;
   text-wrap: pretty;
 }
 @media (min-width: 64rem) {

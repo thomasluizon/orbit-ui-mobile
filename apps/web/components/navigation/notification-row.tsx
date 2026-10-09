@@ -1,5 +1,6 @@
 'use client'
 
+import { PersonalText } from '@/components/ui/personal-text'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 
 import { useTranslations } from 'next-intl'
@@ -35,8 +36,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex items-baseline gap-2">
-            <span data-notification-title="" className="min-w-0 flex-1 text-base"
-              style={{ lineHeight: 1.4, fontWeight: item.isRead ? 400 : 500, color: item.isRead ? 'var(--fg-2)' : 'var(--fg-1)', overflowWrap: 'anywhere' }}>{item.title}</span>
+            <PersonalText data-notification-title="" className="min-w-0 flex-1 text-base"
+              style={{ lineHeight: 1.4, fontWeight: item.isRead ? 400 : 500, color: item.isRead ? 'var(--fg-2)' : 'var(--fg-1)' }}>{item.title}</PersonalText>
             <span className="shrink-0 font-mono text-xs text-[var(--fg-2)]">
               {formatNotificationRelativeTime(item.createdAtUtc, (key, values) => t(`notifications.${key}`, values))}
             </span>

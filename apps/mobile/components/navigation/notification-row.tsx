@@ -1,4 +1,5 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
+import { PersonalText } from '@/components/ui/personal-text'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
 import { useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
@@ -45,10 +46,10 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         </View>
         <View style={styles.content}>
           <View style={styles.topRow}>
-            <Text testID="notification-title" style={[styles.title, {
+            <View style={styles.titleSlot}><PersonalText testID="notification-title" style={[styles.title, {
               fontFamily: item.isRead ? 'Geist_400Regular' : 'Geist_500Medium',
               color: item.isRead ? tokens.fg2 : tokens.fg1,
-            }]}>{item.title}</Text>
+            }]}>{item.title}</PersonalText></View>
             <Text style={[styles.meta, { color: tokens.fg2 }]}>
               {formatNotificationRelativeTime(item.createdAtUtc, (key, values) => t(`notifications.${key}`, values))}
             </Text>
@@ -83,7 +84,8 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 999 },
   content: { flex: 1, minWidth: 0, gap: 4 },
   topRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  title: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 22.4 },
+  titleSlot: { flex: 1, minWidth: 0 },
+  title: { fontSize: 16, lineHeight: 22.4 },
   meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
   body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   target: { flexDirection: 'row', alignItems: 'center', gap: 8 },

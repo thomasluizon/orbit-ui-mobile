@@ -18,7 +18,7 @@ export default function NotFoundScreen() {
   return (
     <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={[styles.root, clearance > 0 ? { paddingBottom: clearance } : undefined]}>
       <OrbitMark size={40} />
-      <Text accessibilityRole="header" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
+      <Text accessibilityRole="header" textBreakStrategy="simple" android_hyphenationFrequency="none" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>
       <PillLink onPress={() => router.replace('/')}>{t('notFoundPage.action')}</PillLink>
     </ScrollView>
