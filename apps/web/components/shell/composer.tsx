@@ -75,7 +75,7 @@ function AttachmentTray({
 
 function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 'suggestions'> & { label: string }>) {
   const layoutRef = useRef<HTMLDivElement>(null)
-  const [layout, setLayout] = useState({ availableWidth: 0, visibleWidth: 0, firstChipMinWidth: 0 })
+  const [layout, setLayout] = useState({ availableWidth: 0, gap: COMPOSER_CHIP_GAP })
   useEffect(() => {
     const host = layoutRef.current!
     const observer = new ResizeObserver(() => {
@@ -85,8 +85,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
         return content.getBoundingClientRect().width + parseFloat(buttonStyle.paddingInlineStart) + parseFloat(buttonStyle.paddingInlineEnd)
       })
       const next = { availableWidth, ...resolveComposerStripLayout(availableWidth, chipWidths) }
-      setLayout(previous => previous.availableWidth === next.availableWidth && previous.visibleWidth === next.visibleWidth
-        && previous.firstChipMinWidth === next.firstChipMinWidth ? previous : next)
+      setLayout(previous => previous.availableWidth === next.availableWidth && previous.gap === next.gap ? previous : next)
     })
     observer.observe(host)
     host.querySelectorAll('[data-suggestion-content]').forEach(content => observer.observe(content))
@@ -100,15 +99,15 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
         role="group"
         data-focus-inset=""
         onFocusCapture={revealFocusedControl}
-        style={{ width: layout.visibleWidth || undefined }}
-        className="flex min-w-0 items-start gap-[8px] overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ gap: layout.gap }}
+        className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {suggestions.map((suggestion, index) => (
+        {suggestions.map(suggestion => (
           <button
             key={suggestion.id}
             type="button"
             aria-label={suggestion.label}
-            style={{ maxWidth, minWidth: index === 0 ? layout.firstChipMinWidth : undefined }}
+            style={{ maxWidth }}
             onClick={(event) => {
               const root = event.currentTarget.closest('[data-composer-root]')
               if (root instanceof HTMLElement) root.focus()
