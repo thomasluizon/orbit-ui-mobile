@@ -5,10 +5,14 @@ import { geist, geistMono, spaceGrotesk } from './fonts'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
 import { neutralColors, skeletonPulseIterations } from '@orbit/shared/theme'
+import { API } from '@orbit/shared/api'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { captureException } from '@sentry/nextjs'
 import { PostHogProvider } from '@/components/posthog-provider'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { RouteContext } from '@/components/navigation/route-context'
-import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
+import { normalizeThemeMode, resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
+import { serverRenderFetch } from '@/lib/server-fetch'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
@@ -32,10 +36,18 @@ const variablesByScheme = Object.fromEntries(
     },
   ]),
 )
-const defaultThemeStyle = {
-  ...resolveWebThemeVariables('orange', 'dark'),
-  '--skeleton-pulse-iterations': skeletonPulseIterations,
-} as CSSProperties
+async function loadInitialTheme(hasSessionCookie: boolean, cookieTheme: string | undefined) {
+  if (hasSessionCookie) {
+    try {
+      const profile = await serverRenderFetch(API.profile.get, { cache: 'no-store', signal: AbortSignal.timeout(10000) }, profileSchema)
+      return normalizeThemeMode(profile?.themePreference ?? cookieTheme)
+    } catch (error) {
+      // WHY: Public routes must still render when the profile API or session is unavailable; https://github.com/thomasluizon/orbit-tickets/issues/1311.
+      captureException(error)
+    }
+  }
+  return normalizeThemeMode(cookieTheme)
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
@@ -91,14 +103,15 @@ export default async function RootLayout({
   const applePlatform = /Mac|iPhone|iPad|iPod|iOS/i.test(platform)
   const cookieStore = await cookies()
   const hasSessionCookie = Boolean(cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(REFRESH_COOKIE)?.value)
+  const initialTheme = await loadInitialTheme(hasSessionCookie, cookieStore.get('orbit_theme_mode')?.value)
+  const initialThemeStyle = {
+    ...resolveWebThemeVariables('orange', initialTheme),
+    colorScheme: initialTheme,
+    '--skeleton-pulse-iterations': skeletonPulseIterations,
+  } as CSSProperties
   const themeBootstrapScript = `
     try {
-      const cookie = document.cookie
-      const readCookie = (name) => {
-        const match = cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
-        return match ? decodeURIComponent(match[1]) : null
-      }
-      const themeName = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
+      const themeName = ${JSON.stringify(initialTheme)}
       const root = document.documentElement
 
       if (themeName === 'dark') {
@@ -130,8 +143,8 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`dark scheme-orange ${geist.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
-      style={defaultThemeStyle}
+      className={`${initialTheme} scheme-orange ${geist.variable} ${spaceGrotesk.variable} ${geistMono.variable}`}
+      style={initialThemeStyle}
       suppressHydrationWarning
     >
       <head>

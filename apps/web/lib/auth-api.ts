@@ -261,10 +261,11 @@ export async function tryRefreshSession(options?: {
 export async function resolveServerSession(options?: {
   forceRefresh?: boolean
   refreshThresholdMs?: number
+  allowRefresh?: boolean
 }): Promise<ResolvedServerSession> {
   const cookieStore = await getCookieStore()
   const authToken = getCookieValue(cookieStore, AUTH_COOKIE)
-  const refreshToken = getCookieValue(cookieStore, REFRESH_COOKIE)
+  const refreshToken = options?.allowRefresh === false ? null : getCookieValue(cookieStore, REFRESH_COOKIE)
 
   return resolveSessionTokens({
     authToken,
