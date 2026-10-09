@@ -178,10 +178,10 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
     expect(onSelectMonth).not.toHaveBeenCalled();
     pressByAccessibilityLabel(tree, "April, calendar.monthPicker");
     nativeSheet.dismiss.mockRejectedValueOnce(new Error("Dismissal rejected"));
-    await TestRenderer.act(() => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
+    await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
     expect(onSelectMonth).not.toHaveBeenCalled();
     expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
-    await TestRenderer.act(() => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
+    await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, "April"); await Promise.resolve(); });
     finishNativeDismissal(tree);
     expect(onSelectMonth).toHaveBeenCalledExactlyOnceWith(3, 2026);
   });

@@ -226,6 +226,7 @@ describe('Week and agenda geometry in Chromium', () => {
       const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([name, value]) => `${name}:${value}`).join(';')
       await page.setContent(`<!doctype html><style>${stylesheet}:root{${variables}}</style>${container.innerHTML}`)
       await loadAppFonts(page)
+      expect(await page.locator('[data-slot="list-row-value"]').count(), 'each Agenda row has a supporting value').toBe(4)
       const geometry = await page.evaluate(() => {
         const headings = [...document.querySelectorAll('h2')].map((heading) => {
           const range = document.createRange(); range.selectNodeContents(heading)

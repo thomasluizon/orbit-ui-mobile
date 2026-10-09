@@ -94,13 +94,12 @@ function useRowDisclosure(original: Readonly<ListRowProps & { ref?: Ref<View> }>
   return { props, ChevronIcon }
 }
 
-function useRowInteraction(disabled: boolean, hoverColor: string) {
+function useRowInteraction(disabled: boolean) {
   const [pressed, setPressed] = useState(false)
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
   const highlighted = !disabled && (pressed || focused || hovered)
   return { pressed, highlighted,
-    background: (pressing: boolean) => !disabled && (pressing || highlighted) ? { backgroundColor: hoverColor } : null,
     onPressIn: () => setPressed(true), onPressOut: () => setPressed(false),
     onFocus: () => setFocused(true), onBlur: () => setFocused(false),
     onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false),
@@ -112,7 +111,7 @@ export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) 
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { ref, accessibilityLabel, expanded, icon, description, trailing, danger = false, action, chevron = true, compact = !hasSupportingLine(props), inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
-  const interaction = useRowInteraction(disabled, tokens.bgHover)
+  const interaction = useRowInteraction(disabled)
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const compactForm = inForm && props.compact === true
@@ -135,7 +134,7 @@ export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) 
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable ref={ref} focusOffset={-6} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled, expanded }} disabled={disabled} onPress={onClick} onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), interaction.background(pressed)]}>{body}</Pressable>
+        <Pressable ref={ref} focusOffset={-6} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled, expanded }} disabled={disabled} onPress={onClick} onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), !disabled && (pressed || interaction.highlighted) ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: description ? 8 : 4, marginEnd: inset ? compactForm ? 12 : 16 : 0 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>

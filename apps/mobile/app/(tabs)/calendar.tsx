@@ -339,7 +339,7 @@ function CalendarScreenContent({
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
-  const [weekAnchor, setWeekAnchor] = useState(() => new Date());
+  const [weekAnchor, setWeekAnchor] = useState(() => parseAPIDate(todayKey));
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [agendaOffset, setAgendaOffset] = useState(0);
   const [rangeOffset, setRangeOffset] = useState(0);
@@ -506,8 +506,8 @@ function CalendarScreenContent({
   }, []);
   const goToCurrentWeek = useCallback(() => {
     setWeekSlide(null);
-    setWeekAnchor(new Date());
-  }, []);
+    setWeekAnchor(parseAPIDate(todayKey));
+  }, [todayKey]);
 
   const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: nextMonth,

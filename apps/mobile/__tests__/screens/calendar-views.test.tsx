@@ -1,6 +1,7 @@
 import { format as formatDate } from 'date-fns/format'
 import { ptBR as portugueseDates } from 'date-fns/locale/pt-BR'
 import React from "react";
+import * as timeFormatHook from '@/hooks/use-time-format'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
@@ -421,6 +422,33 @@ describe("CalendarScreen views (mobile)", () => {
         if (month) TestRenderer.act(() => month.update(<></>));
       }
     } finally { TestRenderer.act(() => tree.unmount()); }
+  });
+
+  it('returns Semana to profile today across a device week boundary', () => {
+    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayTime: (time) => time ?? '' });
+    const previousZone = process.env.TZ;
+    process.env.TZ = 'UTC';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'));
+    state.profile = { weekStartDay: 1, timeZone: 'America/Sao_Paulo', hasProAccess: true };
+    let tree!: Tree;
+    try {
+      TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+      pressView(tree, 'week');
+      const current = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', go to today'))[0]!;
+      expect.soft(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(['2026-09-28', '2026-10-04']);
+      const next = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.nextWeek')[0]!;
+      TestRenderer.act(() => next.props.onPress());
+      expect.soft(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(['2026-10-05', '2026-10-11']);
+      TestRenderer.act(() => current().props.onPress());
+      expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(['2026-09-28', '2026-10-04']);
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ');
+      else process.env.TZ = previousZone;
+      vi.useRealTimers();
+      clock.mockRestore();
+    }
   });
 
   it('pages the agenda query and restores the days ahead from its header', () => {

@@ -350,6 +350,28 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe('CalendarPage view switcher', () => {
+  it('returns Semana to profile today across a device week boundary', () => {
+    const previousZone = process.env.TZ
+    process.env.TZ = 'UTC'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'))
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'America/Sao_Paulo', hasProAccess: true }
+    try {
+      render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+      const current = () => screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })
+      expect.soft(current()).toHaveTextContent('Sep 28 to Oct 4')
+      fireEvent.click(screen.getByRole('button', { name: 'common.nextWeek' }))
+      expect.soft(current()).toHaveTextContent('Oct 5 to Oct 11')
+      fireEvent.click(current())
+      expect(current()).toHaveTextContent('Sep 28 to Oct 4')
+    } finally {
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ')
+      else process.env.TZ = previousZone
+      vi.useRealTimers()
+    }
+  })
+
   it('puts every week pager control in the header before the selector and preserves the view while paging', () => {
     render(<CalendarPage />)
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
