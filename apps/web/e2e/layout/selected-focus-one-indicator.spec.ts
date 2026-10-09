@@ -232,6 +232,7 @@ for (const width of [412, 1352]) {
           await goal.locator('button[aria-haspopup="dialog"]').click()
           const datePicker = page.getByRole('dialog', { name: words.common.selectDate, exact: true })
           const today = datePicker.locator('button[data-day="2026-09-04"]')
+          await expect(today).toBeFocused()
           await expectRings(today, 0)
           await keyboardFocus(page, today)
           await expectRings(today, 1)
