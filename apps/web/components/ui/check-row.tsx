@@ -65,8 +65,9 @@ function PersonalCheckRow({ label, onOpenLabel, labelExpanded, labelControls, ch
         {value !== undefined ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
       </button>
       <button type="button" role="checkbox" aria-label={label} aria-checked={checked} disabled={disabled || loading} onClick={() => onChange(!checked)} data-loading={loading ? '' : undefined} className="orbit-check-row-control relative grid size-[24px] shrink-0 place-items-center rounded-[12px] border-0 bg-transparent transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:opacity-60">
-        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" />
-        <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+        <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill grid place-items-center p-3">
+          <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
+        </span>
       </button>
     </div>
   )

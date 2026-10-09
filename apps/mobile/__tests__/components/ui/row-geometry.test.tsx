@@ -159,6 +159,20 @@ describe('canonical row geometry in Yoga', () => {
     finally { await act(() => date.update(<></>)) }
   })
 
+  it.each([false, true])('keeps the checkbox graphic inside its personal control fill, checked %s', async (checked) => {
+    const tree = await mount(<CheckRow label="Family calendar" textMode="personal" checked={checked} onChange={vi.fn()} onOpenLabel={vi.fn()} />)
+    try {
+      const control = tree.root.findAll((node) => node.type === Pressable && node.props.accessibilityRole === 'checkbox')[0]!
+      const fill = control.findAll((node) => node.type === View && node.props['data-press-fill'] === '')[0]!
+      expect(fill.findAll((node) => node.type === View && node.props['data-slot'] === 'checkbox-box')).toHaveLength(1)
+      expect(control.props.hitSlop).toBe(12)
+      const geometry = measureProfileRow(tree.toJSON(), 412, 1)
+      const body = geometry.parts.find((part) => part.slot === 'list-row-body')!
+      const checkbox = geometry.parts.find((part) => part.slot === 'checkbox-box')!
+      expect(body.right - checkbox.right).toBe(16)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+
   it.each(matrix)('measures the owning habit form, detail fields and profile compositions at $width and scale $scale', async ({ width, scale }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

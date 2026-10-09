@@ -73,7 +73,7 @@ export function CheckRow({
 
 const styles = StyleSheet.create({
   labelFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
-  controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden' },
+  controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: 12 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   personalCopy: { minWidth: 0, flex: 1, minHeight: 24, justifyContent: 'center', gap: 4, borderRadius: 12 },
   personalControl: { height: 24, width: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
@@ -93,21 +93,21 @@ function PersonalCheckRow({ label, onOpenLabel, labelExpanded, checked, onChange
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}
       </PersonalControl>
-      <PersonalControl tokens={tokens} fillStyle={styles.controlFill} hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
+      <PersonalControl tokens={tokens} fillStyle={styles.controlFill} containContent hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
         <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
       </PersonalControl>
     </View>
   )
 }
 
-function PersonalControl({ tokens, fillStyle, children, ...props }: Readonly<PressableProps & { tokens: ReturnType<typeof createTokensV2>; fillStyle: ViewStyle }>) {
+function PersonalControl({ tokens, fillStyle, containContent = false, children, ...props }: Readonly<PressableProps & { tokens: ReturnType<typeof createTokensV2>; fillStyle: ViewStyle; containContent?: boolean }>) {
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [pressed, setPressed] = useState(false)
   return <NativePressable {...props} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}>
     {(state) => <>
-      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]} />
-      {typeof children === 'function' ? children(state) : children}
+      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]}>{containContent ? (typeof children === 'function' ? children(state) : children) : null}</View>
+      {containContent ? null : typeof children === 'function' ? children(state) : children}
     </>}
   </NativePressable>
 }
