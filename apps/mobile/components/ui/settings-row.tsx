@@ -83,6 +83,7 @@ export function SettingsRow({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { fontScale } = useWindowDimensions()
+  const compactControl = textMode === 'label' && !!children && !desc
   const Label = textMode === 'personal' ? PersonalText : Text
   const [expanded, setExpanded] = useState(false)
   const { expandedState, onAction: handlePress } = resolveSettingsRowText({ textMode, expanded, onAction: onPress, onToggle: () => setExpanded((current) => !current) })
@@ -99,6 +100,7 @@ export function SettingsRow({
       accessibilityLabel={label}
       style={({ pressed }) => [
         styles.row,
+        compactControl ? styles.controlRow : null,
         textMode === 'label' && fontScale > 1.3 ? styles.largeTextRow : null,
         textMode === 'personal' ? styles.personalRow : null,
         {
@@ -110,14 +112,14 @@ export function SettingsRow({
       ]}
     >
       {LeadingIcon ? (
-        <View style={styles.iconSlot}>
+        <View style={[styles.iconSlot, compactControl ? styles.controlIcon : null]}>
           <LeadingIcon size={24} color={rowColors.iconColor} strokeWidth={1.5} />
         </View>
       ) : null}
       {leadingDot ? (
         <View style={[styles.dot, { backgroundColor: leadingDot }]} />
       ) : null}
-      <View style={[styles.titleBlock, textMode === 'personal' ? styles.personalTextBlock : null]}>
+      <View style={[styles.titleBlock, compactControl ? styles.controlText : null, textMode === 'personal' ? styles.personalTextBlock : null]}>
         <Label
           expanded={textMode === 'personal' ? expanded : undefined}
           style={[styles.title, labelPresentation(textMode, expanded).style, { color: titleColor }]}
@@ -136,6 +138,9 @@ export function SettingsRow({
 }
 
 const styles = StyleSheet.create({
+  controlRow: { minHeight: 52, paddingVertical: 0 },
+  controlText: { minHeight: 48, justifyContent: 'center' },
+  controlIcon: { minHeight: 48, justifyContent: 'center' },
   largeTextRow: { alignItems: 'flex-start' },
   personalRow: { flexDirection: 'column', alignItems: 'stretch' },
   personalTextBlock: { flex: 0, width: '100%' },

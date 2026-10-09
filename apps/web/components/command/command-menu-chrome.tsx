@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { CommandGroup, CommandInput } from 'cmdk'
 import { ArrowLeft, Search } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
+import { Keycap } from '@/components/ui/keycap'
 
 export const GROUP_CLASS =
   'mb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.06em] [&_[cmdk-group-heading]]:text-[var(--fg-3)] [&_[cmdk-group-heading]]:font-mono'
@@ -33,13 +34,7 @@ export function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string
   return (
     <span className="flex items-center gap-2">
       {keys.map((key) => (
-        <kbd
-          key={key}
-          className="t-meta flex h-6 min-w-6 items-center justify-center rounded-[8px] px-1"
-          style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
-        >
-          {key}
-        </kbd>
+        <Keycap key={key}>{key}</Keycap>
       ))}
       <span className="t-meta lowercase">{label}</span>
     </span>
