@@ -11,7 +11,6 @@ function SegmentOption<TValue extends string>({
   onChange,
   option,
   selected,
-  fullWidth,
   fontScale,
   tokens,
 }: Readonly<{
@@ -19,7 +18,6 @@ function SegmentOption<TValue extends string>({
   onChange: (value: TValue) => void
   option: SegmentedControlOption<TValue>
   selected: boolean
-  fullWidth: boolean
   fontScale: number
   tokens: ReturnType<typeof createTokensV2>
 }>) {
@@ -43,7 +41,6 @@ function SegmentOption<TValue extends string>({
       onPress={onActivate}
       style={({ pressed }) => [
         styles.option,
-        fullWidth ? { flexGrow: 1, flexBasis: fontScale > 1.3 ? '40%' : 0, minHeight: 48, paddingHorizontal: 4 } : { flexBasis: 112 * fontScale, flexGrow: 1, flexShrink: 0 },
         selected
           ? { backgroundColor: tokens.bgHover }
           : styles.unselected,
@@ -81,7 +78,6 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
           onChange={props.onChange}
           option={option}
           selected={option.value === props.value}
-          fullWidth={Boolean(props.fullWidth)}
           fontScale={fontScale}
           tokens={tokens}
         />
@@ -113,8 +109,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: TOUCH_TARGET_MIN,
     minWidth: 0,
-    flexShrink: 1,
-    paddingHorizontal: 12,
+    flexBasis: 'auto',
+    flexGrow: 1,
+    flexShrink: 0,
+    maxWidth: '100%',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   unselected: {
     borderColor: 'transparent',

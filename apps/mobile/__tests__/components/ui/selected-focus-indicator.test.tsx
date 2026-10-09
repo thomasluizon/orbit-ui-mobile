@@ -58,6 +58,10 @@ describe('selected controls share one focus indicator', () => {
     const group = tree!.root.findByProps({ accessibilityRole: 'radiogroup' })
     expect(StyleSheet.flatten(group.props.style)).toMatchObject({ padding: 4, gap: 4, borderRadius: 12, backgroundColor: tokens.bgWell })
     expect(StyleSheet.flatten(group.props.style).borderWidth ?? 0).toBe(0)
+    for (const option of tree!.root.findAllByType('Pressable')) {
+      const style = typeof option.props.style === 'function' ? option.props.style({ pressed: false }) : option.props.style
+      expect(StyleSheet.flatten(style).paddingHorizontal).toBeGreaterThanOrEqual(8)
+    }
     TestRenderer.act(() => tree!.unmount())
   })
 })

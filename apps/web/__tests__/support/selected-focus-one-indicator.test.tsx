@@ -4,6 +4,8 @@ import { render, cleanup } from '@testing-library/react'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Chip } from '@/components/ui/chip'
 import { RadioRow } from '@/components/ui/select-check'
@@ -92,23 +94,72 @@ describe('selection yields to keyboard focus', () => {
     }
   }
 
-  it('keeps four inset segments and whole pt-BR labels at 320', async () => {
+  for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    for (const width of [320, 360, 384, 412]) {
+      for (const fullWidth of [false, true]) {
+        it(`contains label-sized segments in ${locale} at ${width}, fullWidth ${fullWidth}`, async () => {
+          const choices = [{ value: 'month', label: words.calendar.view.month }, { value: 'week', label: words.calendar.view.week }, { value: 'range', label: words.calendar.view.range }, { value: 'agenda', label: words.calendar.view.agenda }] as const
+          const page = await browser.newPage({ viewport: { width, height: 706 } })
+          try {
+            await page.setContent(`<style>${stylesheet} body { margin:0; padding:16px; }</style>${render(<SegmentedControl label="View" options={choices} value="month" onChange={() => {}} fullWidth={fullWidth} />).container.innerHTML}`)
+            await loadAppFonts(page)
+            const geometry = await segmentGeometry(page)
+            expect(geometry).toMatchObject({ padding: '4px', gap: '4px', radius: '12px', shadow: 'none' })
+            expect(new Set(geometry.labels.map((label) => label.top)).size).toBe(1)
+            const remaining = geometry.labels.map((label) => label.segmentWidth - label.width)
+            expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+            for (const label of geometry.labels) {
+              expect(label.fontSize).toBe('14px')
+              expect(label.paddingLeft).toBe(8)
+              expect(label.paddingRight).toBe(8)
+              expect(label.width).toBeLessThanOrEqual(label.available)
+              expect(label.lines).toBe(1)
+              expect(label.height).toBeGreaterThanOrEqual(48)
+            }
+          } finally { cleanup(); await page.close() }
+        })
+      }
+    }
+  }
+
+  it.each([false, true])('contains large schedule labels without clipping, fullWidth %s', async (fullWidth) => {
     const page = await browser.newPage({ viewport: { width: 320, height: 706 } })
+    const words = ptBR.onboarding.flow.when
+    const choices = [{ value: 'fixed', label: words.fixedMode }, { value: 'flexible', label: words.flexibleMode }, { value: 'interval', label: words.intervalMode }, { value: 'oneTime', label: words.oneTimeMode }] as const
     try {
-      await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value};`).join('')} } body { margin:0; padding:16px; }</style>${render(<SegmentedControl label="View" options={options} value="Mês" onChange={() => {}} fullWidth />).container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet} html { font-size:32px; } body { margin:0; padding:16px; }</style>${render(<SegmentedControl label="Schedule" options={choices} value="fixed" onChange={() => {}} fullWidth={fullWidth} />).container.innerHTML}`)
       await loadAppFonts(page)
-      const geometry = await page.locator('[role="radiogroup"]').evaluate((track) => {
-        const style = getComputedStyle(track)
-        return { padding: style.padding, gap: style.gap, radius: style.borderRadius, shadow: style.boxShadow, labels: [...track.querySelectorAll('button span')].map((label) => {
-          const range = document.createRange(); range.selectNodeContents(label)
-          const rect = range.getBoundingClientRect()
-          return { label: label.textContent, width: rect.width, available: label.getBoundingClientRect().width, top: label.getBoundingClientRect().top }
-        }) }
-      })
-      process.stdout.write(`Segment label geometry: ${JSON.stringify(geometry)}\n`)
-      expect(geometry).toMatchObject({ padding: '4px', gap: '4px', radius: '12px', shadow: 'none' })
-      expect(new Set(geometry.labels.map((label) => label.top)).size).toBe(1)
-      for (const label of geometry.labels) expect(label.width).toBeLessThanOrEqual(label.available)
+      const geometry = await segmentGeometry(page)
+      expect(geometry.trackWidth).toBeLessThanOrEqual(288)
+      expect(geometry.scrollWidth).toBeLessThanOrEqual(288)
+      for (const label of geometry.labels) {
+        expect(label.fontSize).toBe('28px')
+        expect(label.width).toBeLessThanOrEqual(label.available)
+        expect(label.textHeight).toBeLessThanOrEqual(label.height)
+        expect(label.whiteSpace).toBe('normal')
+        expect(label.overflow).toBe('visible')
+        expect(label.textOverflow).not.toBe('ellipsis')
+      }
     } finally { cleanup(); await page.close() }
   })
 })
+
+async function segmentGeometry(page: import('@playwright/test').Page) {
+  return page.locator('[role="radiogroup"]').evaluate((track) => {
+    const style = getComputedStyle(track)
+    return { padding: style.padding, gap: style.gap, radius: style.borderRadius, shadow: style.boxShadow,
+      trackWidth: track.getBoundingClientRect().width, scrollWidth: track.scrollWidth,
+      labels: [...track.querySelectorAll('button span')].map((label) => {
+        const range = document.createRange(); range.selectNodeContents(label)
+        const rect = range.getBoundingClientRect()
+        const segment = label.parentElement!
+        const segmentStyle = getComputedStyle(segment)
+        const labelStyle = getComputedStyle(label)
+        return { width: rect.width, available: label.getBoundingClientRect().width, top: segment.getBoundingClientRect().top,
+          segmentWidth: segment.getBoundingClientRect().width, height: segment.getBoundingClientRect().height,
+          textHeight: rect.height, lines: range.getClientRects().length, fontSize: segmentStyle.fontSize,
+          whiteSpace: labelStyle.whiteSpace, overflow: labelStyle.overflow, textOverflow: labelStyle.textOverflow,
+          paddingLeft: Number.parseFloat(segmentStyle.paddingLeft), paddingRight: Number.parseFloat(segmentStyle.paddingRight) }
+      }) }
+  })
+}
