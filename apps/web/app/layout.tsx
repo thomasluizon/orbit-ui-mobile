@@ -12,6 +12,7 @@ import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
 import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
+import { SessionCookieProvider } from '@/lib/session-cookie-provider'
 import { KeyboardPlatformProvider } from '@/components/shell/keyboard-platform-provider'
 import './globals.css'
 
@@ -149,9 +150,11 @@ export default async function RootLayout({
                 <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
                 <NavigationHistoryTracker />
               </Suspense>
-              <KeyboardPlatformProvider applePlatform={applePlatform}>
-                {children}
-              </KeyboardPlatformProvider>
+              <SessionCookieProvider hasSessionCookie={hasSessionCookie}>
+                <KeyboardPlatformProvider applePlatform={applePlatform}>
+                  {children}
+                </KeyboardPlatformProvider>
+              </SessionCookieProvider>
               <ThrottleScreen />
             </RouteContext>
           </NextIntlClientProvider>

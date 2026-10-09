@@ -12,7 +12,7 @@ import {
   resolveUpgradeHeader,
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
-import type { SubscriptionPortalState } from '@orbit/shared/utils'
+import type { SubscriptionPortalState, SubscriptionScreenContent, SubscriptionScreenState } from '@orbit/shared/utils'
 import { PageHeader } from '@/components/ui/page-header'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
@@ -38,6 +38,11 @@ import { useHeldAccountId } from '@/stores/auth-store'
 
 
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
+
+function upgradeBodyClassName(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean) {
+  const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
+  return `w-full flex-1 px-4 pt-4 ${isPitch ? 'max-w-[652px]' : 'max-w-[560px]'}`
+}
 
 export default function UpgradePage() {
   const t = useTranslations()
@@ -248,7 +253,7 @@ export default function UpgradePage() {
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}
       />
-      <div data-upgrade-screen="" className="mx-auto w-full max-w-[652px] flex-1 px-4 pt-4" data-state={screenState} aria-busy={screenState === 'loading'}>
+      <div data-upgrade-screen="" className={upgradeBodyClassName(screenState, model.content, Boolean(lapsedNoticeStatus))} data-state={screenState} aria-busy={screenState === 'loading'}>
         {screenState === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </div>
