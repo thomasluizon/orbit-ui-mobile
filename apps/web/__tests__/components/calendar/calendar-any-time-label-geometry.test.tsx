@@ -8,6 +8,8 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
+import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { CalendarTimeGrid, type TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -19,6 +21,12 @@ const columns: TimeGridColumn[] = Array.from({ length: 7 }, (_, index) => ({
   isToday: false,
   isFuture: false,
 }))
+const dayMap = buildCalendarDayMap({
+  habits: [null, null, null, '08:00', '21:00'].map((dueTime, index) => createMockHabitScheduleItem({
+    id: `label-fit-${index}`, title: `Organizar as anotações e preparar a semana ${index}`, dueTime,
+    scheduledDates: columns.map((column) => column.dateStr),
+  })), logs: {},
+}, { from: columns[0]!.dateStr, to: columns[6]!.dateStr }, new Date(2026, 9, 8, 12))
 
 describe('Calendar any-time gutter geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -34,7 +42,7 @@ describe('Calendar any-time gutter geometry in Chromium', () => {
   for (const [locale, words, dateLocale] of [['en', en, enUS], ['pt-BR', ptBR, portugueseDateLocale]] as const) {
     it.each([320, 360, 384, 412, 1352])(`keeps the ${locale} gutter whole at %ipx and 200% text`, async (width) => {
       const { container } = render(<NextIntlClientProvider locale={locale} messages={words} timeZone="UTC">
-        <CalendarTimeGrid columns={columns} dayMap={new Map()} onSelectDay={vi.fn()} displayTime={(time) => time}
+        <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={(time) => time}
           dateFnsLocale={dateLocale} allDayLabel={words.calendar.timeGrid.noSetTime} nowLabel={words.calendar.timeGrid.now} timeZone="UTC" />
       </NextIntlClientProvider>)
       const page = await browser.newPage({ viewport: { width, height: 915 } })

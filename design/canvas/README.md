@@ -57,6 +57,18 @@ The unit geometry fixtures include crowded lanes and long titles. Whole-page lay
 rendering remain verification boundaries: the layout workflow owns page evidence, and the unit
 screen tests verify native scroll ownership without an emulator.
 
+### Any-time label amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Week and range time-grid gutter | The shared no-time label fits the 96 minimum gutter in both locales at default text size, including crowded days; accessibility text can wrap and grow the aligned day band. Chromium unit geometry covers 320, 360, 384, 412 and 1352; native unit geometry covers the same widths at font scale 1 and measured growth at font scale 2. The CI label-fit case covers 320, 412 and 1352. |
+| Agenda row value | Untimed entries use the amended shared wording in both locales; populated row tests retain complete accessible announcements and ordering. |
+| Entry details meta line | The existing shared no-time key supplies the amended wording beside the status on both platforms; existing details tests retain complete titles and disclosure behavior. |
+| Calendar drawing | Both locale variants follow the shared gutter wording, padding and line-height contract. |
+
+Loading, empty and error states retain their existing controls; this amendment changes the shared
+no-time wording and gutter geometry rather than the calendar's state or disclosure behavior.
+
 **Precedence is a ladder, defined in `DESIGN.md` D42.** `## Information architecture` outranks every
 drawing on whether a surface should exist. `## Bans` outranks every drawing, so a granted export
 never authorises a banned value. **Below those two the drawing wins**, over `DESIGN.md` prose, a

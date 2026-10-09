@@ -149,7 +149,9 @@ describe("CalendarTimeGrid (mobile)", () => {
   for (const [language, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     it.each([320, 360, 384, 412, 1352])(`fits the ${language} any-time label on one line at font scale 1 and %ipx`, (width) => {
       vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 });
-      const tree = renderGrid([column('2026-10-05')], new Map(), vi.fn(), false, displayTime, 'UTC', tokens, language, words.calendar.timeGrid.noSetTime);
+      const day = column('2026-10-05');
+      const entries = [null, null, null, '08:00', '21:00'].map((dueTime, index) => makeEntry({ habitId: `label-fit-${index}`, dueTime, title: `Organizar as anotações e preparar a semana ${index}` }));
+      const tree = renderGrid([day], new Map([[day.dateStr, entries]]), vi.fn(), false, displayTime, 'UTC', tokens, language, words.calendar.timeGrid.noSetTime);
       const label = hostsByTestID(tree, 'time-grid-any-time-label')[0]!;
       const labelStyle = resolveStyle(label.props.style);
       const cell = hostParent(label);
@@ -168,9 +170,9 @@ describe("CalendarTimeGrid (mobile)", () => {
     });
   }
 
-  it('grows and aligns an empty any-time lane to the measured accessibility label', () => {
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('grows and aligns an empty %s any-time lane to the measured accessibility label', (language, words) => {
     vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 320, height: 915, scale: 1, fontScale: 2 });
-    const tree = renderGrid([column('2026-10-05')], new Map());
+    const tree = renderGrid([column('2026-10-05')], new Map(), vi.fn(), false, displayTime, 'UTC', tokens, language, words.calendar.timeGrid.noSetTime);
     const label = hostsByTestID(tree, 'time-grid-any-time-label')[0]!;
     TestRenderer.act(() => label.props.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 80, height: 120 } } }));
     const cell = hostParent(hostsByTestID(tree, 'time-grid-any-time-label')[0]!);
