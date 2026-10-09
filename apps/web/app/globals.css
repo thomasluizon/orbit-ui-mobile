@@ -111,6 +111,34 @@
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
+.orbit-habit-rename::before {
+  content: '';
+  position: absolute;
+  inset-block: -8px;
+  inset-inline: -16px;
+  border-radius: 12px;
+  transition: background-color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-habit-rename:focus-visible {
+  outline: none;
+}
+
+.orbit-habit-rename:focus-visible::before {
+  outline: 2px solid var(--fg-1);
+  outline-offset: -6px;
+}
+
+.orbit-habit-rename:is(:active, :focus-visible)::before {
+  background-color: var(--bg-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-habit-rename:hover::before {
+    background-color: var(--bg-hover);
+  }
+}
+
 .orbit-list-row-body:is(:active, :focus-visible):not(:disabled) {
   background-color: var(--bg-hover);
   --orbit-list-row-secondary: var(--fg-2);

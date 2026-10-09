@@ -1081,7 +1081,15 @@ describe('HabitDetailScreen', () => {
       typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
     expect(renameControls).toHaveLength(1)
     expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
-    expect(StyleSheet.flatten(renameControls[0]!.props.style({ pressed: false }))).toMatchObject({ minWidth: 48, minHeight: 48, top: -8, bottom: -8, left: -16, right: -16 })
+    expect(textsOf(renameControls[0])).toContain(title)
+    expect(StyleSheet.flatten(renameControls[0]!.props.style)).toMatchObject({ minWidth: 48, minHeight: 32, position: 'relative' })
+    expect(renameControls[0]!.props.hitSlop).toEqual({ top: 8, bottom: 8, left: 16, right: 16 })
+    const fill = renameControls[0]!.findAllByType('View').find((node: TestNode) => viewStyle(node).top === -8)!
+    expect(viewStyle(fill)).toMatchObject({ minWidth: 48, minHeight: 48, top: -8, bottom: -8, left: -16, right: -16, borderRadius: 12 })
+    TestRenderer.act(() => { renameControls[0]!.props.onFocus() })
+    expect(viewStyle(fill)).toMatchObject({ outlineWidth: 2, outlineOffset: -6, backgroundColor: createTokensV2('orange', 'dark').bgHover })
+    TestRenderer.act(() => { renameControls[0]!.props.onPress() })
+    expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBe(title)
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {

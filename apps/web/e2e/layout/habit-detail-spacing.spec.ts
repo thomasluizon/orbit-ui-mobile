@@ -1,3 +1,4 @@
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { expect, test } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -47,6 +48,9 @@ for (const width of [412, 1280]) {
           await page.goto(`/habits/${habitId}`)
           const column = page.locator('[data-habit-detail-content]')
           await expect(column.locator('h1 > button')).toHaveText(habit.title)
+          const hit = await column.locator('h1 > button').evaluate(readExpandedControlGeometry)
+          expect(hit.height).toBeGreaterThanOrEqual(48)
+          expect(hit.edgeHits).toEqual([true, true, true, true])
           await expect(column.locator('.habit-detail-strip > p').first()).toHaveText(ptBr.habits.detail.lastThirtyDays)
           await expect(column.locator('[data-habit-detail-tags]')).toHaveCount(hasTags ? 1 : 0)
           await expect(column.locator('[data-habit-detail-description]')).toHaveCount(hasDescription ? 1 : 0)

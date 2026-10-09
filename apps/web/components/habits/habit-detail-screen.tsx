@@ -193,8 +193,9 @@ function HabitHeader({ habit, completed, logged, overdue, progress, summary, onR
             <><h1 ref={headingRef} tabIndex={-1} className="sr-only">{habit.title}</h1><input autoFocus value={title} maxLength={200} aria-label={t('rename')} onChange={(event) => setTitle(event.target.value)} onBlur={() => void save()} onKeyDown={(event) => { if (event.key === 'Enter') void save() }} data-focus-perimeter="" className="w-full border-0 border-b-2 border-[var(--hairline-strong)] bg-transparent font-display text-[22px] font-medium tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)] outline-none focus-visible:border-[var(--primary)] forced-colors:border-[CanvasText] forced-colors:focus-visible:border-[Highlight]" /></>
           ) : (
             <h1 aria-label={habit.title} ref={headingRef} tabIndex={-1} style={{ outlineOffset: 2 }} className="orbit-focus-inset relative flow-root min-h-[32px] max-w-full font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] sm:text-[28px] text-[var(--fg-1)]">
-              <button type="button" aria-label={habit.title} onClick={() => setEditing(true)} style={{ outlineOffset: -6, insetBlock: -8, insetInline: -16 }} className="orbit-list-row-body orbit-focus-inset absolute min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-[12px] border-0 bg-transparent" />
-              <PersonalText aria-hidden="true" data-personal-text-visual-copy="" unclamped style={{ position: 'relative', pointerEvents: 'none' }}>{habit.title}</PersonalText>
+              <button type="button" aria-label={habit.title} onClick={() => setEditing(true)} className="orbit-habit-rename relative block min-h-[32px] min-w-[var(--touch-min)] w-full rounded-[12px] border-0 bg-transparent text-left">
+                <PersonalText unclamped style={{ position: 'relative', pointerEvents: 'none' }}>{habit.title}</PersonalText>
+              </button>
             </h1>
           )}
           {summary ? <p className="mt-1 truncate font-mono text-xs tabular-nums text-[var(--fg-3)]">{summary}</p> : null}

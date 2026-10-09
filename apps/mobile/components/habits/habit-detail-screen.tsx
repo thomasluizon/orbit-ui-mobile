@@ -1,4 +1,3 @@
-import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
@@ -184,6 +183,7 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
   const [editing, setEditing] = useState(false)
   const [descriptionOpen, setDescriptionOpen] = useState(false)
   const [renameHovered, setRenameHovered] = useState(false)
+  const [renameFocused, setRenameFocused] = useState(false)
   const titleType = responsiveTypeStyle('habitTitle', width)
   const titleLineHeight = resolveResponsiveTypeRole('habitTitle', width).size * 1.4
   const [title, setTitle] = useState(habit.title)
@@ -208,7 +208,12 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
         </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <View style={styles.renameFrame}><InsetFocusPressable focusOffset={-6} accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} style={({ pressed }) => [styles.renameTarget, pressed || renameHovered ? { backgroundColor: tokens.bgHover } : null]} /><View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></View></View>}
+          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
+            {({ pressed }) => <>
+              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.renameFill, pressed || renameHovered || renameFocused ? { backgroundColor: tokens.bgHover } : null, renameFocused ? { outlineWidth: 2, outlineOffset: -6, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null]} />
+              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></View>
+            </>}
+          </Pressable>}
           {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
       </View>
@@ -654,7 +659,7 @@ const styles = StyleSheet.create({
   headerSpacer: { flex: 1 },
   headerCopy: { width: '100%', minWidth: 0, gap: 4 },
   renameFrame: { minWidth: TOUCH_TARGET_MIN, minHeight: 32, position: 'relative' },
-  renameTarget: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12, overflow: 'hidden' },
+  renameFill: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },

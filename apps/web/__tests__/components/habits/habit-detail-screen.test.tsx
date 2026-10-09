@@ -28,6 +28,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { readFieldIndicators, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
 
 const mocks = vi.hoisted(() => ({
@@ -2013,17 +2014,19 @@ describe('HabitDetailScreen', () => {
         await page.setContent(`<style>${stylesheet}:root { ${variables} } body { background: var(--bg); }</style>${container.innerHTML}`)
         const title = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
         const button = title.getByRole('button')
+        expect(await button.textContent()).toBe(mocks.detail!.title)
         expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toEqual([])
         await page.locator('[data-habit-detail-header-row] > div').first().getByRole('button').last().focus()
         await page.keyboard.press('Tab')
         const target = button
         expect(await target.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
         expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toHaveLength(1)
-        expect(await readOutlineVisibility(target)).toMatchObject({ width: 2, visible: true, clippedBy: [] })
-        const clearance = await target.evaluate((element) => {
+        expect(await readOutlineVisibility(target, '::before')).toMatchObject({ width: 2, visible: true, clippedBy: [] })
+        const hit = await target.evaluate(readExpandedControlGeometry)
+        expect(hit.edgeHits).toEqual([true, true, true, true])
+        const clearance = await target.evaluate((element, bounds) => {
           const heading = element.closest('h1')!
-          const style = getComputedStyle(element)
-          const bounds = element.getBoundingClientRect()
+          const style = getComputedStyle(element, '::before')
           const summary = heading.nextElementSibling!.getBoundingClientRect()
           const offset = Number.parseFloat(style.outlineOffset)
           const outerEdge = offset + Number.parseFloat(style.outlineWidth)
@@ -2034,7 +2037,7 @@ describe('HabitDetailScreen', () => {
             glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
             summaryGap: summary.top - bounds.bottom - outerEdge,
           }
-        })
+        }, hit)
         expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
         expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
         await title.focus()
@@ -2050,7 +2053,10 @@ describe('HabitDetailScreen', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        const geometry = await page.getByRole('heading', { level: 1, name: mocks.detail!.title }).evaluate((heading) => {
+        const heading = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
+        const hit = await heading.getByRole('button').evaluate(readExpandedControlGeometry)
+        expect(hit.edgeHits).toEqual([true, true, true, true])
+        const geometry = await heading.evaluate((heading, hit) => {
           const button = heading.querySelector('button')!
           const summary = heading.nextElementSibling!
           const row = heading.closest('[data-habit-detail-header-row]')!
@@ -2065,11 +2071,11 @@ describe('HabitDetailScreen', () => {
             titleX: text.left,
             summaryX: summary.getBoundingClientRect().left,
             controlsX: controls.getBoundingClientRect().left,
-            hitHeight: button.getBoundingClientRect().height,
+            hitHeight: hit.height,
             rowHeight: row.getBoundingClientRect().height,
             baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
           }
-        })
+        }, hit)
         expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
         expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
         expect(geometry.hitHeight).toBeGreaterThanOrEqual(48)

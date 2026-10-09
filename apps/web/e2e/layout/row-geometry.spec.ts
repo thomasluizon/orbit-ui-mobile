@@ -1,3 +1,4 @@
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -140,8 +141,11 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
       expect(Math.abs(gap - 12)).toBeLessThanOrEqual(0.5)
       await assertRows(detail)
       await assertColumnRows(detail)
+      const titleHit = await detail.locator('h1 > button').evaluate(readExpandedControlGeometry)
+      expect(titleHit.height).toBeGreaterThanOrEqual(48)
+      expect(titleHit.edgeHits).toEqual([true, true, true, true])
       const edges = await detail.evaluate((element) => {
-        const title = element.querySelector('h1 [data-personal-text]')!
+        const title = element.querySelector('h1 > button > [data-personal-text]')!
         const labels = [...element.querySelectorAll('[data-slot="list-row-title"]')]
         const icons = labels.filter((label) => label.closest('.orbit-list-row-shell')!.querySelector('[data-slot="list-row-icon"]')).map((label) => label.closest('.orbit-list-row-shell')!.querySelector('[data-slot="list-row-icon"]')!.getBoundingClientRect().left)
         const date = element.querySelector('[data-slot="date-row-label"]')
