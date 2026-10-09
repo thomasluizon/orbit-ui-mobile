@@ -205,6 +205,21 @@ describe('habit-form-state', () => {
     expect(state.formValues.intervalWeeks).toBe(2)
   })
 
+  it('normalizes seconds-bearing detail times and rejects malformed detail times', () => {
+    const habit = makeHabit({ dueTime: '08:30:00', dueEndTime: '09:00:00' })
+    const detail = makeDetail({ dueTime: '21:00:00', dueEndTime: '22:30:45' })
+    expect(buildEditHabitFormState(habit, detail).formValues).toMatchObject({ dueTime: '21:00', dueEndTime: '22:30' })
+    const invalid = makeDetail({ dueTime: '25:00:00', dueEndTime: '22:30 trailing' })
+    expect(buildEditHabitFormState(habit, invalid).formValues).toMatchObject({ dueTime: '', dueEndTime: '' })
+  })
+
+  it('normalizes parent times and rejects malformed parent times', () => {
+    expect(buildParentHabitFormState(makeHabit({ dueTime: '21:00:00', dueEndTime: '22:30:45' })).formValues)
+      .toMatchObject({ dueTime: '21:00', dueEndTime: '22:30' })
+    expect(buildParentHabitFormState(makeHabit({ dueTime: '25:00:00', dueEndTime: '22:30 trailing' })).formValues)
+      .toMatchObject({ dueTime: '', dueEndTime: '' })
+  })
+
   it('resolves modes from mutually exclusive schedule fields', () => {
     expect(resolveHabitFormMode(makeHabit({ isGeneral: true, frequencyUnit: null }))).toBe('general')
     expect(resolveHabitFormMode(makeHabit({ isFlexible: true }))).toBe('flexible')

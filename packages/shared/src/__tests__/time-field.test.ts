@@ -9,7 +9,36 @@ import {
   selectTimeFieldHour,
   selectTimeFieldMinute,
   selectTimeFieldPeriod,
+  toTime24,
 } from '../utils/time-field'
+
+describe('API time conversion', () => {
+  it.each([
+    ['21:00', '21:00'],
+    ['21:00:00', '21:00'],
+    ['00:30:59', '00:30'],
+    ['23:59:59', '23:59'],
+    [null, ''],
+    [undefined, ''],
+    ['', ''],
+    ['9:00', ''],
+    ['24:00:00', ''],
+    ['21:60:00', ''],
+    ['21:00:60', ''],
+    ['21:00:00.000', ''],
+    ['21:00 trailing', ''],
+    [' 21:00', ''],
+  ])('converts %s to the TimeField wire value %s', (value, expected) => {
+    expect(toTime24(value)).toBe(expected)
+  })
+
+  it('presents and opens a seconds-bearing API time at its stored hour and minute', () => {
+    const value = toTime24('21:00:00')
+    expect(presentTimeFieldValue(value, 'h23')).toBe('21:00')
+    expect(presentTimeFieldValue(value, 'h12')).toBe('9:00 pm')
+    expect(initialTimeFieldPickerDraft(value, new Date(2026, 7, 28, 9, 15))).toEqual({ hour24: 21, minute: 0 })
+  })
+})
 
 describe('time field input formatting', () => {
   it('inserts the separator for a numeric keypad buffer and accepts pasted forms', () => {

@@ -1,9 +1,10 @@
 'use client'
 
+import { toTime24 } from '@orbit/shared/utils'
+
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ActionRow } from '@/components/ui/action-row'
 
-import type { Time24 } from '@orbit/shared/contracts/forms'
 import { TimeField } from '@/components/ui/time-field'
 import { useTimeFormat } from '@/hooks/use-time-format'
 
@@ -44,7 +45,7 @@ function ListRowFields({ field, row, rowLabel, labels, busy, change }: Readonly<
       {busy ? <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderSameDay} selected={row.when === 'same_day'} onSelect={() => change('when', 'same_day')} />}
       {busy ? <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} disabled reason={labels.acting} /> : <RadioRow label={labels.reminderDayBefore} selected={row.when === 'day_before'} onSelect={() => change('when', 'day_before')} />}
     </RadioGroup>
-    <TimeField label={`${rowLabel}: ${labels.reminderTime}`} value={(typeof row.time === 'string' ? row.time : '') as Time24 | ''} onChange={(next) => change('time', next)} disabled={busy} />
+    <TimeField label={`${rowLabel}: ${labels.reminderTime}`} value={toTime24(typeof row.time === 'string' ? row.time : '')} onChange={(next) => change('time', next)} disabled={busy} />
   </>
   return <Input label={rowLabel} value={typeof row.value === 'string' || typeof row.value === 'number' ? String(row.value) : ''} onChange={(next) => change('value', next)} disabled={busy} kind="number" />
 }
@@ -109,7 +110,7 @@ function EditPendingOperationSheet({ item, items, draft, labels, busy, stale, er
           const days = (draft.days ?? '').split(',').map((day) => day.trim())
           return <fieldset key={field.field}><legend className="mb-2 text-sm">{label}</legend><div className="flex flex-wrap gap-2">{PENDING_OPERATION_WEEKDAYS.map((day) => <button key={day} type="button" aria-pressed={days.includes(day)} disabled={busy} onClick={() => onChange('days', PENDING_OPERATION_WEEKDAYS.filter((name) => name === day ? !days.includes(name) : days.includes(name)).join(', '))} className="min-h-[var(--touch-min)] rounded-full border border-[var(--hairline)] px-3 text-sm enabled:hover:bg-[var(--bg-hover)] aria-pressed:border-[var(--primary)] aria-pressed:bg-[var(--selection-bg)] aria-pressed:enabled:hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]">{labels.dayLabels[day]}</button>)}</div></fieldset>
         }
-        if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={(draft[field.field] ?? '') as Time24 | ''} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
+        if (field.valueType === 'time') return <TimeField key={field.field} label={label} value={toTime24(draft[field.field])} onChange={(value) => onChange(field.field, value)} disabled={busy} error={error ? labels.invalid : undefined} />
         return <Input
           key={field.field}
           label={label}

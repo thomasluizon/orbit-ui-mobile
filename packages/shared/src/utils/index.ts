@@ -368,6 +368,7 @@ export {
   selectTimeFieldHour,
   selectTimeFieldMinute,
   selectTimeFieldPeriod,
+  toTime24,
 } from './time-field'
 export { buildPreferencePickerModel } from './preference-picker'
 export type { PreferencePicker, PreferencePickerModel, PreferencePickerValues } from './preference-picker'
