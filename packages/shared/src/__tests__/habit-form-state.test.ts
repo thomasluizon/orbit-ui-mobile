@@ -209,6 +209,8 @@ describe('habit-form-state', () => {
     const habit = makeHabit({ dueTime: '08:30:00', dueEndTime: '09:00:00' })
     const detail = makeDetail({ dueTime: '21:00:00', dueEndTime: '22:30:45' })
     expect(buildEditHabitFormState(habit, detail).formValues).toMatchObject({ dueTime: '21:00', dueEndTime: '22:30' })
+    const fractional = makeDetail({ dueTime: '21:00:00.1230000', dueEndTime: '22:00:00.1230000' })
+    expect(buildEditHabitFormState(habit, fractional).formValues).toMatchObject({ dueTime: '21:00', dueEndTime: '22:00' })
     const invalid = makeDetail({ dueTime: '25:00:00', dueEndTime: '22:30 trailing' })
     expect(buildEditHabitFormState(habit, invalid).formValues).toMatchObject({ dueTime: '', dueEndTime: '' })
   })
@@ -216,6 +218,8 @@ describe('habit-form-state', () => {
   it('normalizes parent times and rejects malformed parent times', () => {
     expect(buildParentHabitFormState(makeHabit({ dueTime: '21:00:00', dueEndTime: '22:30:45' })).formValues)
       .toMatchObject({ dueTime: '21:00', dueEndTime: '22:30' })
+    expect(buildParentHabitFormState(makeHabit({ dueTime: '21:00:00.1230000', dueEndTime: '22:00:00.1230000' })).formValues)
+      .toMatchObject({ dueTime: '21:00', dueEndTime: '22:00' })
     expect(buildParentHabitFormState(makeHabit({ dueTime: '25:00:00', dueEndTime: '22:30 trailing' })).formValues)
       .toMatchObject({ dueTime: '', dueEndTime: '' })
   })

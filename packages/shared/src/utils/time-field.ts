@@ -5,7 +5,7 @@ const TWO_DIGITS_PATTERN = /^\d{2}$/
 const THREE_OR_FOUR_DIGITS_PATTERN = /^\d{3,4}$/
 const TIME_24_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/
 const TIME_12_PATTERN = /^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i
-const API_TIME_PATTERN = /^((?:[01]\d|2[0-3]):[0-5]\d)(?::[0-5]\d)?$/
+const API_TIME_PATTERN = /^((?:[01]\d|2[0-3]):[0-5]\d)(?::[0-5]\d(?:\.\d{1,7})?)?$/
 
 export function toTime24(value: string | null | undefined): Time24 | '' {
   if (!value) return ''
