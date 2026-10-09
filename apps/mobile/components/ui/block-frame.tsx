@@ -19,6 +19,8 @@ import {
   ShieldAlert,
   XCircle,
 } from '@/components/ui/icons'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Proposed } from '@/components/ui/proposed'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -68,16 +70,26 @@ function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean
   return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }, wrap && { lineHeight: 12 * 1.4 }]}>{meta}</Text>
 }
 
+function getRowLayout(item: BlockFrameItem) {
+  const fullWidthLabel = item.wrapLabel && typeof item.label !== 'string' && typeof item.label !== 'number'
+  return {
+    row: [styles.row, fullWidthLabel ? { flexDirection: 'column' as const, alignItems: 'stretch' as const } : undefined],
+    words: [styles.rowWords, fullWidthLabel ? { flex: 0, width: '100%' as const } : undefined],
+    trailing: [styles.trailing, fullWidthLabel ? { alignSelf: 'flex-end' as const } : undefined],
+  }
+}
+
 function FrameRow(props: FrameRowProps) {
   const { item, frameState, statusLabel, onEditItem, tokens } = props
+  const rowLayout = getRowLayout(item)
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <View
-      style={styles.row}
+      style={rowLayout.row}
       testID={`block-frame-item-${item.id}-${status ?? 'pending'}${item.proposed ? '-proposed' : ''}`}
     >
-      <View style={styles.rowWords}>
+      <View style={rowLayout.words}>
         {typeof item.label === 'string' || typeof item.label === 'number' ? (
           <Text numberOfLines={item.wrapLabel ? undefined : 1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
             {item.label}
@@ -88,7 +100,7 @@ function FrameRow(props: FrameRowProps) {
           <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
         ) : null}
       </View>
-      <View style={styles.trailing}>
+      <View style={rowLayout.trailing}>
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <Pressable
@@ -215,16 +227,29 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem, tokens
   )
 }
 
-export function BlockFrame(props: Readonly<BlockFrameProps>) {
+function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFrameProps>; tokens: AppTokensV2 }>) {
   const titleRef = useRef<Text>(null)
+  const personalTitleRef = useRef<View>(null)
   const titleFocused = useRef(false)
   const focusTitle = () => {
     if (!props.focusTitleOnMount || titleFocused.current) return
-    const tag = findNodeHandle(titleRef.current)
+    const tag = findNodeHandle(props.titleMode === 'typed' ? personalTitleRef.current : titleRef.current)
     if (tag == null) return
     AccessibilityInfo.setAccessibilityFocus(tag)
     titleFocused.current = true
   }
+  return (
+      <View style={[styles.header, props.titleMode === 'typed' && { flexDirection: 'column', alignItems: 'stretch' }]}>
+        {props.titleMode === 'typed' ? <View onLayout={props.focusTitleOnMount ? focusTitle : undefined}><PersonalText accessibilityRef={personalTitleRef} accessibilityRole="header" style={[styles.title, { flex: 0, color: tokens.fg1 }]}>{props.title}</PersonalText></View> : <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+          {props.count !== null && (props.count !== undefined || props.items.length > 0) ? <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text> : null}
+          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly>{props.title}</PersonalTextDetails> : null}
+        </View>
+      </View>
+  )
+}
+
+export function BlockFrame(props: Readonly<BlockFrameProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const missingLabels = findMissingBlockFrameLabels(props)
@@ -244,12 +269,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
       ]}
       testID={`block-frame-${props.state}`}
     >
-      <View style={styles.header}>
-        <Text ref={titleRef} onLayout={props.focusTitleOnMount ? focusTitle : undefined} numberOfLines={props.wrapTitle ? undefined : 1} style={[styles.title, { color: tokens.fg1 }]}>{props.title}</Text>
-        {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
-          <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text>
-        ) : null}
-      </View>
+      <FrameHeader props={props} tokens={tokens} />
       <Text accessibilityLiveRegion="polite" style={[styles.staleMessage, { color: tokens.fg2 }]}>
         {props.state === 'stale' ? props.staleMessage : ''}
       </Text>

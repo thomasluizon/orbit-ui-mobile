@@ -1,3 +1,6 @@
+import { renderedText } from '@/__tests__/support/react-test-renderer'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ActionResult } from '@orbit/shared/types/chat'
@@ -71,7 +74,7 @@ describe('ActionChips (mobile)', () => {
 
     expect(frame.props.state).toBe('partiallyFailed')
     expect(frame.props.items[0].meta).toBe('chat.operation.status.Failed')
-    expect(JSON.stringify(tree.toJSON())).not.toContain('database unavailable')
+    expect(renderedText(tree.toJSON())).not.toContain('database unavailable')
   })
 
   it('does not describe a nameless failed create as created or unknown', () => {
@@ -96,7 +99,7 @@ describe('ActionChips (mobile)', () => {
     })])
     const frame = tree.root.findByType('BlockFrame')
 
-    expect(frame.props.items[0].label).toBe(
+    expect(renderedText(frame.props.items[0].label)).toBe(
       'Não foi possível criar Perspirex Strong - Semana 2 (Manutenção)',
     )
   })
@@ -109,7 +112,7 @@ describe('ActionChips (mobile)', () => {
     ])
     const frame = tree.root.findByType('BlockFrame')
 
-    expect(frame.props.items.map((item: { label: string }) => item.label)).toEqual([
+    expect(frame.props.items.map((item: { label: React.ReactNode }) => renderedText(item.label))).toEqual([
       'Não foi possível criar Morning walk',
       'Não foi possível atualizar Read ten pages',
       'Não foi possível apagar Drink water',
@@ -120,7 +123,7 @@ describe('ActionChips (mobile)', () => {
     const tree = renderActions([makeActionResult({ type: 'create_habit' })])
     const frame = tree.root.findByType('BlockFrame')
 
-    expect(frame.props.items[0].label).toBe('Criou Meditate')
+    expect(renderedText(frame.props.items[0].label)).toBe('Criou Meditate')
   })
 
   it('opens a successful navigable result', () => {
@@ -141,7 +144,19 @@ describe('ActionChips (mobile)', () => {
     const tree = renderActions([makeActionResult({ type: 'UnexpectedServerSymbol' })])
     const frame = tree.root.findByType('BlockFrame')
 
-    expect(frame.props.items[0].label).toBe('chat.action.completed')
+    expect(renderedText(frame.props.items[0].label)).toBe('chat.action.completed')
     expect(JSON.stringify(tree.toJSON())).not.toContain('UnexpectedServerSymbol')
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full attempted entity %s', async (name) => {
+    const label = `Não foi possível criar ${name}`
+    const onChipClick = vi.fn()
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<ActionChips actions={[makeActionResult({ type: 'create_habit', status: 'Failed', entityName: name, entityId: null })]} onChipClick={onChipClick} />) })
+    await expectPersonalTextLayout(tree.root, label)
+    await act(() => pressTextControl(expandedTextControls(tree.root, label, false)[0]!))
+    expect(expandedTextControls(tree.root, label, true)).toHaveLength(1)
+    expect(onChipClick).not.toHaveBeenCalled()
+    await act(() => tree.update(<></>))
+  })
+
 })

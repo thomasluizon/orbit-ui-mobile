@@ -1,3 +1,4 @@
+import { expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
@@ -74,7 +75,7 @@ describe('Astra record list on mobile', () => {
 
   it('shows no tag destination chip', () => {
     const tree = render(<RecordListCard recordList={{ kind: 'tags', totalCount: 1, items: [{ id: 'tag-1', title: 'Focus' }] }} />)
-    expect(tree.root.findAll((node: any) => node.type === Pressable)).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.type === Pressable && String(node.props.accessibilityLabel).startsWith('chat.recordList.open'))).toHaveLength(0)
   })
 
   it('can page again after switching accounts during a pending page', async () => {
@@ -101,4 +102,19 @@ describe('Astra record list on mobile', () => {
     await TestRenderer.act(async () => { finish(); await Promise.resolve() })
     expect(tree.root.findAll((node: any) => node.type === Pressable && String(node.props?.accessibilityLabel).startsWith('notifications.markRead'))).toHaveLength(1)
   })
+  it.each(['UnbrokenToken' .repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses typed text without changing selection for %s', async (name) => {
+    const onToggle = vi.fn()
+    const element = <RecordListCard recordList={{ kind: 'tags', totalCount: 1, items: [{ id: 'long-record', title: name }] }} />
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(element) })
+    const disclosure = expandedTextControls(tree.root, name, false)[0]!
+    expect(disclosure).toBeDefined()
+    await expectPersonalTextLayout(tree.root, name, 2)
+    await TestRenderer.act(() => pressTextControl(disclosure))
+    expect(expandedTextControls(tree.root, name, true)).toHaveLength(1)
+    expect(tree.root.findAll((node) => String(node.type) === 'ScrollView' && node.props.horizontal === true).length).toBeGreaterThan(0)
+    expect(onToggle).not.toHaveBeenCalled()
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
 })
