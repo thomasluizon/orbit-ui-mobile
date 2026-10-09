@@ -88,9 +88,9 @@ export function CalendarRangeView({
     >
       {isLoading ? (
         <>
-          <div className="orbit-calendar-grid-frame" style={{ paddingInline: 4 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
+          <div className="orbit-calendar-grid-frame" style={{ paddingInline: 16 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
             {Array.from({ length: gridCellCount }, (_, index) => (
-              <span key={index} style={{ width: MONTH_GRID_TARGET_MIN, height: MONTH_GRID_TARGET_MIN }}>
+              <span key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}>
                 {index === 0 ? (
                   <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
                 ) : (
@@ -103,9 +103,9 @@ export function CalendarRangeView({
         </>
       ) : (
         <>
-          <div className="orbit-calendar-grid-frame" style={{ paddingInline: 4 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
+          <div className="orbit-calendar-grid-frame" style={{ paddingInline: 16 }}><div className="orbit-calendar-grid-card"><MonthGrid weekdayLabels={[...weekdayLabels]} gap="var(--calendar-grid-gap)" label={rangeLabel}>
             {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
-              <span key={`leading-${index}`} aria-hidden="true" style={{ width: MONTH_GRID_TARGET_MIN, height: MONTH_GRID_TARGET_MIN }} />
+              <span key={`leading-${index}`} aria-hidden="true" style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }} />
             ))}
             {model.days.map((day) => (
               <DayCell

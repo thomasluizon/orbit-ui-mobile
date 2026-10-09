@@ -65,6 +65,37 @@ function expectTextContrast(tree: RowTree, row: RowNode, layers: string[], state
 }
 
 describe('calendar import row press contrast', () => {
+  it.each((['dark', 'light'] as const).flatMap((mode) =>
+    ['plain', 'selected', 'blocked'].map((state) => ({ mode, state })),
+  ))('keeps the $state row rounded without a separator in $mode', ({ mode, state }) => {
+    theme.currentTheme = mode
+    const tokens = createTokensV2('orange', mode)
+    const blocked = state === 'blocked'
+    let tree!: RowTree
+    void act(() => {
+      tree = create(<CalendarSyncEventRow
+        event={blocked ? { ...event, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' } : event}
+        weekStartDay={1} selected={state === 'selected'} isReviewMode={false} suggestionId={null}
+        dismissPending={false} styles={createStyles()} tokens={tokens}
+        t={((key: string) => key) as TFunction} onToggle={vi.fn()} onDismiss={vi.fn()}
+      />) as unknown as RowTree
+      trees.push(tree)
+    })
+    const row = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox')[0]!
+    expect(row.props.disabled).toBe(blocked)
+    expect(row.props.accessibilityState).toEqual({ checked: state === 'selected', disabled: blocked })
+    if (blocked) expect(row.props.accessibilityHint).toBe('calendar.importIssue.ordinalWeekday')
+    const rowStyle = row.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
+    for (const pressed of blocked ? [false] : [false, true]) {
+      const flattened = StyleSheet.flatten(rowStyle({ pressed }))
+      expect(flattened).not.toHaveProperty('borderBottomWidth')
+      expect(flattened).not.toHaveProperty('borderBottomColor')
+      expect(flattened.borderRadius).toBe(12)
+      expect(flattened.overflow).toBe('hidden')
+      expect(flattened.backgroundColor).toBe(pressed ? tokens.bgHover : blocked ? tokens.bgElev : state === 'selected' ? tintFromPrimary(tokens, 0.06) : 'transparent')
+    }
+  })
+
   it.each((['dark', 'light'] as const).flatMap((mode) => [false, true].flatMap((selected) =>
     [false, true].map((blocked) => ({ mode, selected, blocked })),
   )))('keeps native text readable in $mode, selected: $selected, blocked: $blocked', ({ mode, selected, blocked }) => {

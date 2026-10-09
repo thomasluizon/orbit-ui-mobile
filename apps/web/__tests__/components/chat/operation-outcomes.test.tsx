@@ -13,14 +13,28 @@ const push = vi.fn()
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/components/ui/block-frame', () => ({
-  BlockFrame: ({ title, items, actions }: BlockFrameProps) => <section>
+  BlockFrame: ({ title, items, actions, irreversibleLabel, confirmNote }: BlockFrameProps) => <section>
     <h2>{title}</h2>
-    {items.map((item) => <div key={item.id}><span>{item.label}</span><span>{item.meta}</span><span>{item.status}</span></div>)}
+    {items.map((item) => <div key={item.id}><span>{item.label}</span><span>{item.meta}</span><span>{item.status}</span>{item.irreversible ? <span>{irreversibleLabel}</span> : null}</div>)}
+    {items.some((item) => item.irreversible) ? <span>{confirmNote}</span> : null}
     {actions}
   </section>,
 }))
 
 describe('OperationOutcomes on web', () => {
+
+  it.each(['Low', 'Destructive', 'High'] as const)('keeps %s internal risk out of terminal outcome treatment', (riskClass) => {
+    const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [
+      { ...makeAgentOperationResult('Failed', 1), riskClass },
+      { ...makeAgentOperationResult('Denied', 2), riskClass },
+      { ...makeAgentOperationResult('UnsupportedByPolicy', 3), riskClass },
+    ] })).outcomes
+    render(<OperationOutcomes outcomes={outcomes} />)
+    expect(screen.queryByText('chat.operation.irreversible')).not.toBeInTheDocument()
+    expect(screen.queryByText('chat.operation.confirmNote')).not.toBeInTheDocument()
+    expect(screen.getByText('chat.operation.outcome.Failed')).toBeInTheDocument()
+  })
+
   beforeEach(() => push.mockReset())
 
   it('renders localized typed outcomes and keeps policy recovery on Profile', () => {

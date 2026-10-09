@@ -54,11 +54,11 @@ describe('shared React-free state decisions', () => {
   })
 
   it('derives the pending card action and frame', () => {
-    expect(getPendingOperationCardPresentation('Destructive', 'StepUp', false, undefined))
+    expect(getPendingOperationCardPresentation(true, 'StepUp', false, undefined))
       .toEqual({ destructive: true, action: 'stepUp', frameState: 'resting' })
-    expect(getPendingOperationCardPresentation('High', 'None', true, undefined))
+    expect(getPendingOperationCardPresentation(false, 'None', true, undefined))
       .toEqual({ destructive: false, action: 'buttons', frameState: 'acting' })
-    expect(getPendingOperationCardPresentation('High', 'None', false, 'failed'))
+    expect(getPendingOperationCardPresentation(false, 'None', false, 'failed'))
       .toEqual({ destructive: false, action: 'none', frameState: 'partiallyFailed' })
   })
 

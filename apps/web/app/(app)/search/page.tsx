@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { ActionRow } from '@/components/ui/action-row'
 
 import { useRouter } from 'next/navigation'
@@ -33,6 +34,16 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
   const t = useTranslations()
   const router = useRouter()
   const { isOnline } = useOffline()
+  const [inputModality, setInputModality] = useState('keyboard')
+  const [selectedValue, setSelectedValue] = useState('')
+  useEffect(() => {
+    if (inputModality !== 'keyboard') return
+    const restorePointerHover = () => setInputModality('pointer')
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(restorePointerHover)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [inputModality, selectedValue])
   const [createRefusal, setCreateRefusal] = useAccountScopedState(false)
   const entries = buildSearchEntries(search.data, search.query, null)
   const hasQuery = search.text.trim().length > 0
@@ -40,7 +51,11 @@ function HabitSearch({ search, onCreateHabit }: Readonly<{ search: ReturnType<ty
     if (!isOnline) { setCreateRefusal(true); return }
     onCreateHabit(search.query)
   }
-  return <Command shouldFilter={false} disablePointerSelection label={t('habits.search.title')} className="flex flex-col gap-4">
+  function changeSelection(value: string) {
+    setInputModality('keyboard')
+    setSelectedValue(value)
+  }
+  return <Command shouldFilter={false} disablePointerSelection value={selectedValue} onValueChange={changeSelection} label={t('habits.search.title')} data-input-modality={inputModality} className="group/search flex flex-col gap-4">
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={null} onBack={() => {}} searchMode />
     {hasQuery && <CommandList label={t('habits.search.title')} aria-busy={search.busy} className="px-4 py-2">
       {search.showLoading && <Searching />}

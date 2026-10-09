@@ -2,6 +2,7 @@ import React from 'react'
 import { View } from 'react-native'
 import { afterEach, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
+import { ChatEmptyState } from '@/components/chat/chat-empty-state'
 import { AstraConversation } from '@/components/chat/conversation'
 import { useUIStore } from '@/stores/ui-store'
 import { measureSafeArea, type GeometryTree } from '@/__tests__/support/safe-area-geometry'
@@ -23,7 +24,6 @@ await vi.hoisted(async () => {
   load.cache[svgPath] = svgModule
 })
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('@/hooks/use-astra-suggestions', () => ({ useAstraSuggestions: () => null }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => <View testID="conversation-composer" style={{ height: 48 }} /> }))
 
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
@@ -47,6 +47,8 @@ it.each([0, 24, 48].flatMap((top) => [true, false].map((safeAreaTop) => ({ top, 
         conversation={<AstraConversation chat={chat} />} conversationLabel="chat.title" />) as GeometryTree
     })
     try {
+      const empty = tree.root.findAll((node) => node.type === ChatEmptyState)[0]!.findAll((node: { type: unknown }) => node.type === 'ScrollView')[0]!
+      expect(empty.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(0)
       const geometry = measureSafeArea(tree.toJSON(), (host) => {
         if (host.props.testID === 'shell-conversation') return 'layer'
         if (host.props.testID === 'nav-header-plain') return 'header'

@@ -16,7 +16,6 @@ import { ChevronDown, X } from '@/components/ui/icons'
 import { WorkingMark } from '@/components/ui/toast'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useUIStore } from '@/stores/ui-store'
-import { useChatStore } from '@/stores/chat-store'
 import { ChatEmptyState } from './chat-empty-state'
 import { FollowUpChips } from './follow-up-chips'
 
@@ -84,7 +83,6 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   const t = useTranslations()
   const router = useRouter()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
-  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion)
   const close = useCallback(() => setAstraConversationOpen(false), [setAstraConversationOpen])
   const {
     chatContainerRef,
@@ -196,12 +194,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
         aria-busy={isTyping || streamingMessageId !== null || activeSteps.length > 0 || isPendingOperationBusy}
         aria-label={t('chat.title')}
       >
-        {showSuggestions && <ChatEmptyState
-          onSelectSuggestion={(s) => void sendMessage(s)}
-          contextualAction={contextualSuggestion?.id === 'progress-create-goal'
-            ? { label: contextualSuggestion.label, onSelect: () => void sendMessage(contextualSuggestion.prompt) }
-            : undefined}
-        />}
+        {showSuggestions && <ChatEmptyState />}
 
         <div className="flex flex-col gap-4">
         {messages.map((msg, index) => (

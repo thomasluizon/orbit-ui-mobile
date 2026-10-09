@@ -131,7 +131,7 @@ const webRules = [
   "local/no-dynamic-tailwind-class", "local/no-scroll-listener-motion", "local/no-space-x-y",
   "local/react19-api", "local/require-focus-replacement", "local/no-sparkle-ai-marker",
   "local/icon-size-grid", "local/no-pill-radius-on-static", "local/max-button-words",
-  "local/spacing-scale",
+  "local/spacing-scale", "local/hover-transition",
 ]
 const mobileRules = [
   "local/no-comments", "local/spacing-scale", "local/no-gorhom-sheet",

@@ -210,6 +210,71 @@ describe('habit search', () => {
     expect(mocks.push).toHaveBeenLastCalledWith('/habits/walk')
   })
 
+  it.each([false, true])('releases keyboard hover suppression after the selection paint before pointer entry with prior pointer movement=%s', async (priorPointerMovement) => {
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'title', value: null }] }),
+    ]))
+    const view = mount(true)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    const first = await screen.findByRole('option', { name: 'Open Walk in the name' })
+    const second = screen.getByRole('option', { name: 'Open Run in the name' })
+    const root = view.container.querySelector('[cmdk-root]')
+    await waitFor(() => expect(first).toHaveAttribute('aria-selected', 'true'))
+    if (priorPointerMovement) fireEvent.pointerMove(second)
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+    expect(root).toHaveAttribute('data-input-modality', 'pointer')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(first).toHaveAttribute('aria-selected', 'false')
+    expect(second).toHaveAttribute('aria-selected', 'true')
+    expect(root).toHaveAttribute('data-input-modality', 'keyboard')
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+    expect(root).toHaveAttribute('data-input-modality', 'keyboard')
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    expect(first).toHaveAttribute('aria-selected', 'true')
+    expect(second).toHaveAttribute('aria-selected', 'false')
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+    expect(root).toHaveAttribute('data-input-modality', 'keyboard')
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(resolve)) })
+    expect(root).toHaveAttribute('data-input-modality', 'pointer')
+    fireEvent.pointerEnter(second)
+    expect(root).toHaveAttribute('data-input-modality', 'pointer')
+    expect(first).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('paints a query-driven selection reset immediately after hover suppression expires', async () => {
+    mocks.query.mockReturnValue(result([
+      createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
+      createMockHabit({ id: 'run', title: 'Run', searchMatches: [{ field: 'title', value: null }] }),
+    ]))
+    const view = mount(true)
+    const input = screen.getByRole('combobox')
+    fireEvent.change(input, { target: { value: 'walk' } })
+    const first = await screen.findByRole('option', { name: 'Open Walk in the name' })
+    const second = screen.getByRole('option', { name: 'Open Run in the name' })
+    const root = view.container.querySelector('[cmdk-root]')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(second).toHaveAttribute('aria-selected', 'true')
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+    expect(root).toHaveAttribute('data-input-modality', 'pointer')
+
+    fireEvent.change(input, { target: { value: 'walk ' } })
+
+    expect(input).toHaveValue('walk ')
+    expect(screen.getAllByRole('option')).toEqual([first, second])
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false')
+    expect(first).toHaveAttribute('aria-selected', 'true')
+    expect(second).toHaveAttribute('aria-selected', 'false')
+    expect(root).toHaveAttribute('data-input-modality', 'keyboard')
+    await act(async () => { await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))) })
+    expect(root).toHaveAttribute('data-input-modality', 'pointer')
+    fireEvent.pointerEnter(second)
+    expect(first).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(mocks.push).toHaveBeenLastCalledWith('/habits/walk')
+  })
+
   it('does not offer destinations on the compact search page', async () => {
     render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
     const input = screen.getByRole('combobox')

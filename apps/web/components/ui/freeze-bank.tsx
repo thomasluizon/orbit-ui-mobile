@@ -16,12 +16,12 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
         <StatTile value={props.tierValue} label={props.tierLabel} />
       </div>
       <div className="flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]">
-        <div className="flex flex-wrap gap-3">
-          <div className="flex flex-col gap-1">
+        <div className="flex gap-3 max-[22.5rem]:flex-col">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="font-display text-[22px] font-medium tabular-nums text-[var(--fg-1)]">{props.banked} <span className="text-[14px] text-[var(--fg-3)]">/ {props.ceiling}</span></p>
             <p className="text-[12px] text-[var(--fg-3)]">{props.words.bankedLabel}</p>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
             <p className="font-display text-[22px] font-medium tabular-nums text-[var(--fg-1)]">{props.usedThisMonth}</p>
             <p className="text-[12px] text-[var(--fg-3)]">{props.words.usedLabel}</p>
           </div>

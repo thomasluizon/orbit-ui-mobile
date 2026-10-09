@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  computeHabitDayProgress,
   computeParentSettlementDecision,
   computeParentPromptProgress,
 } from '../utils/habit-list-progress'
@@ -24,6 +25,33 @@ describe('rebaseSelectedIds', () => {
       ['removed-locally'],
       ['added-locally'],
     )).toEqual(['persisted', 'added-by-authority', 'added-locally'])
+  })
+})
+
+describe('computeHabitDayProgress', () => {
+  it('counts general habits by completion whatever their schedule', () => {
+    const habits = [
+      createMockHabit({ id: 'general-done', isGeneral: true, isCompleted: true, scheduledDates: [] }),
+      createMockHabit({ id: 'general-open', isGeneral: true, scheduledDates: [] }),
+    ]
+
+    expect(computeHabitDayProgress(habits, scheduledToday)).toEqual({ done: 1, total: 2 })
+  })
+
+  it('counts due, overdue and logged habits and leaves unscheduled ones out', () => {
+    const habits = [
+      createMockHabit({ id: 'due-done', scheduledDates: [TODAY], isCompleted: true }),
+      createMockHabit({ id: 'due-open', scheduledDates: [TODAY] }),
+      createMockHabit({ id: 'overdue', scheduledDates: [], isOverdue: true }),
+      createMockHabit({ id: 'logged-in-range', scheduledDates: [], isLoggedInRange: true }),
+      createMockHabit({ id: 'not-due', scheduledDates: ['2026-06-23'] }),
+    ]
+
+    expect(computeHabitDayProgress(habits, scheduledToday)).toEqual({ done: 2, total: 4 })
+  })
+
+  it('returns an empty count for no habits', () => {
+    expect(computeHabitDayProgress([], scheduledToday)).toEqual({ done: 0, total: 0 })
   })
 })
 

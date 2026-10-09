@@ -4,9 +4,16 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
+import { AccountNavigationRow } from '@/app/(app)/profile/_components/account-navigation-row'
 import { ListRow } from '@/components/ui/list-row'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 
 describe('personal ListRow text in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -18,6 +25,26 @@ describe('personal ListRow text in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([1, 2])('gives the composed account row two-line geometry at %s text scale', async (textScale) => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <div style={{ width: 288 }}><AccountNavigationRow profile={createMockProfile({ name: 'Ana', email: 'a@b.co' })} submenu={PROFILE_SUBMENUS[0]!} /></div>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}:root { font-size: ${16 * textScale}px; --fg-3: #777777; }</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const measured = await page.locator('.orbit-list-row-body').evaluate((body) => {
+        const email = body.querySelector('[data-slot="list-row-description"]')!
+        const style = getComputedStyle(body)
+        const emailStyle = getComputedStyle(email)
+        return { height: body.getBoundingClientRect().height, minimum: parseFloat(style.minHeight), paddingTop: style.paddingTop, paddingBottom: style.paddingBottom, fontSize: parseFloat(emailStyle.fontSize), color: emailStyle.color }
+      })
+      expect(measured).toMatchObject({ minimum: 68, paddingTop: '12px', paddingBottom: '12px', fontSize: 14 * textScale, color: 'rgb(119, 119, 119)' })
+      if (textScale === 1) expect(Math.abs(measured.height - 68)).toBeLessThanOrEqual(1)
+      else expect(measured.height).toBeGreaterThan(68)
+    } finally { await page.close() }
+  })
 
   it('keeps each name word on one line in a 288px column and clamps the title to two lines', async () => {
     const name = 'Pessoa com um nome completo escrito no próprio perfil'

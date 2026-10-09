@@ -21,7 +21,7 @@ function getDisabledStyle(disabled: boolean) {
 }
 
 function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean, hasTrailing: boolean) {
-  return [styles.body, hasDescription && !compact ? styles.descriptionBody : null, compact ? styles.compactBody : null, compactForm ? styles.formBody : null, !inset ? styles.bareBody : null, hasAction ? styles.bodyWithAction : null, compact && hasAction ? { minHeight: TOUCH_TARGET_MIN + 8 } : null, compact && hasTrailing ? styles.controlRowBody : null]
+  return [styles.body, compact && !hasDescription ? styles.compactBody : null, compactForm && !hasDescription ? styles.formBody : null, !inset ? styles.bareBody : null, hasDescription ? styles.descriptionBody : null, hasAction ? styles.bodyWithAction : null, compact && !hasDescription && hasAction ? { minHeight: TOUCH_TARGET_MIN + 8 } : null, compact && !hasDescription && hasTrailing ? styles.controlRowBody : null]
 }
 
 function RowValue({ value, wrap, color, personal, expanded }: Readonly<{ value: string | undefined; wrap: boolean; color: string; personal?: boolean; expanded?: boolean }>) {
@@ -60,7 +60,7 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
   const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing, keepsControlInline), keepsControlInline ? styles.labelControlText : null]}>
     <Title {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Title>
-    {description ? <Description {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'personal' ? styles.personalDescription : null, { color: valueColor }]}>{description}</Description> : null}
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
   return arrangeRowText({ textMode, wrapValue, trailing }, text, rowValue, keepsControlInline)
@@ -121,7 +121,7 @@ export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) 
         <Pressable ref={ref} focusOffset={-6} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled, expanded }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), pressed ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
       )}
       {action ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: !compact && inset && description ? 16 : 4, marginEnd: inset ? compactForm ? 12 : 16 : 0 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: description ? 8 : 4, marginEnd: inset ? compactForm ? 12 : 16 : 0 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
           {({ pressed }) => (
             <AnimatedContent style={[PRESS_TRANSITION, styles.control, pressed ? { transform: [{ scale: 0.96 }] } : null]}>
               <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
   formRow: { marginHorizontal: 8, borderRadius: 12, overflow: 'hidden' },
   body: { minHeight: 56, paddingVertical: 4, paddingHorizontal: 16, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12, overflow: 'hidden' },
-  descriptionBody: { minHeight: 76, paddingVertical: 16 },
+  descriptionBody: { minHeight: 68, paddingVertical: 12 },
   compactBody: { minHeight: 52, paddingVertical: 4 },
   formBody: { paddingHorizontal: 12 },
   bareBody: { minHeight: 52, paddingVertical: 4, paddingHorizontal: 0, paddingStart: 0, paddingEnd: 0 },
@@ -158,7 +158,6 @@ const styles = StyleSheet.create({
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
   wrappedTitle: { lineHeight: 23.8 },
   chevron: { width: 24, minHeight: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
-  personalDescription: { fontSize: 12, lineHeight: 16.8 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
   wrappedValue: { flexShrink: 0, maxWidth: '100%' },

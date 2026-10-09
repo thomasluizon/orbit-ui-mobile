@@ -1,3 +1,5 @@
+import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
@@ -19,6 +21,27 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 
 const viewports = [1352, 1100, 412, 320]
+const deletionSubjects = [
+  { subject: 'habits', capabilityId: 'habits.bulk.delete', actionKey: 'deleteHabits',
+    english: ['The habit and everything inside it leave your list.', '# habits and everything inside them leave your list.'],
+    portuguese: ['O hábito e tudo dentro dele saem da sua lista.', '# hábitos e tudo dentro deles saem da sua lista.'] },
+  { subject: 'goals', capabilityId: 'goals.delete', actionKey: 'deleteGoal',
+    english: ['The goal leaves your list.', '# goals leave your list.'],
+    portuguese: ['A meta sai da sua lista.', '# metas saem da sua lista.'] },
+  { subject: 'tags', capabilityId: 'tags.delete', actionKey: 'deleteTag',
+    english: ['The tag leaves your list.', '# tags leave your list.'],
+    portuguese: ['A tag sai da sua lista.', '# tags saem da sua lista.'] },
+  { subject: 'alerts', capabilityId: 'notifications.delete', actionKey: 'deleteNotifications',
+    english: ['The alert leaves your list.', '# alerts leave your list.'],
+    portuguese: ['O aviso sai da sua lista.', '# avisos saem da sua lista.'] },
+  { subject: 'memories', capabilityId: 'user-facts.delete', actionKey: 'deleteUserFacts',
+    english: ['The memory leaves your list.', '# memories leave your list.'],
+    portuguese: ['A memória sai da sua lista.', '# memórias saem da sua lista.'] },
+  { subject: 'templates', capabilityId: 'checklist-templates.write', actionKey: 'deleteChecklistTemplate',
+    english: ['The template leaves your list.', '# templates leave your list.'],
+    portuguese: ['O modelo sai da sua lista.', '# modelos saem da sua lista.'] },
+]
+const countedActions = ['createHabits', 'rescheduleHabits', 'updateHabitEmojis', 'setCalendarSync', 'dismissCalendarImport', 'markAllNotificationsRead']
 const locales = ['en', 'pt-BR'] as const
 const message = makeHeldHabitMessage({ habitList: habitListCardFixture })
 const operation = message.pendingOperations![0]!
@@ -30,11 +53,11 @@ function setViewport(width: number) {
   vi.stubGlobal('matchMedia', vi.fn((query: string) => ({ matches: width >= Number(query.match(/\d+/)?.[0]), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
 }
 
-function ConversationPreview({ locale }: Readonly<{ locale: typeof locales[number] }>) {
+function ConversationPreview({ locale, counted }: Readonly<{ locale: typeof locales[number]; counted: string | undefined }>) {
   const messages = locale === 'en' ? en : pt
   return <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
     <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} onCreate={vi.fn()} createLabel={messages.nav.createHabit} conversationLabel={messages.chat.title} conversation={<div style={{ padding: 16 }}>
-      <MessageBubble message={message} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />
+      <MessageBubble message={counted ? { ...message, pendingOperations: [{ ...makeCreateHabitsPreview(), actionKey: counted }] } : message} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />
     </div>} />
   </NextIntlClientProvider>
 }
@@ -52,17 +75,18 @@ describe('Pending preview geometry in Chromium', () => {
       const font = readFileSync(require.resolve(`@expo-google-fonts/geist/${folder}`)).toString('base64')
       return `@font-face { font-family: TestGeist; font-weight: ${weight}; src: url(data:font/ttf;base64,${font}); }`
     }).join('\n')
-    stylesheet = `${compiled.css}\n${fonts}\n:root { --font-sans: TestGeist; }`
+    const displayFont = readFileSync(require.resolve('@expo-google-fonts/space-grotesk/500Medium/SpaceGrotesk_500Medium.ttf')).toString('base64')
+    stylesheet = `${compiled.css}\n${fonts}\n@font-face { font-family: TestSpaceGrotesk; font-weight: 500; src: url(data:font/ttf;base64,${displayFont}); }\n:root { --font-sans: TestGeist; --font-display: TestSpaceGrotesk; }`
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(viewports.flatMap((width) => locales.map((locale) => ({ width, locale }))))('keeps the action row on one line at $width in $locale', async ({ width, locale }) => {
+  it.each(viewports.flatMap((width) => locales.flatMap((locale) => [undefined, ...countedActions].map((counted) => ({ width, locale, counted })))))('keeps controls readable at $width in $locale with counted action $counted', async ({ width, locale, counted }) => {
     setViewport(width)
     const messages = locale === 'en' ? en : pt
-    const { container } = render(<ConversationPreview locale={locale} />)
-    expect(screen.getByText(messages.habits.frequency.everyDay)).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Beber água' })).toHaveLength(1)
+    const { container } = render(<ConversationPreview locale={locale} counted={counted} />)
+    if (!counted) expect(screen.getByText(messages.habits.frequency.everyDay)).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: counted ? 'Habit 1' : 'Beber água' })).toHaveLength(1)
     expect(screen.queryByText('Day')).not.toBeInTheDocument()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -82,8 +106,8 @@ describe('Pending preview geometry in Chromium', () => {
         const visiblePrimary = Array.from(document.querySelectorAll('[data-variant="primary"]')).filter((button) => button.getBoundingClientRect().width > 0).length
         return { buttons, rowLeft: rowBounds.left, rowRight: rowBounds.right, moreWidth, moreRowWidth, visiblePrimary }
       }, messages.chat.habitList.more)
-      expect(geometry.buttons.map((button) => button.label)).toEqual([messages.chat.operation.approve, messages.chat.operation.edit, messages.chat.operation.reject])
-      if (width >= 360) expect(new Set(geometry.buttons.map((button) => button.top)).size).toBe(1)
+      expect(geometry.buttons.map((button) => button.label)).toEqual([counted ? new IntlMessageFormat((messages.chat.operation.approveCount as Record<string, string>)[counted] ?? (messages.chat.operation.approveAction as Record<string, string>)[counted]!, locale).format({ count: 12 }) : messages.chat.operation.approve, messages.chat.operation.edit, messages.chat.operation.reject])
+      if (!counted && width >= 360) expect(new Set(geometry.buttons.map((button) => button.top)).size).toBe(1)
       for (const button of geometry.buttons) {
         expect(button.left).toBeGreaterThanOrEqual(geometry.rowLeft)
         expect(button.right).toBeLessThanOrEqual(geometry.rowRight)
@@ -92,6 +116,34 @@ describe('Pending preview geometry in Chromium', () => {
       expect(geometry.buttons[0]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
       expect(geometry.visiblePrimary).toBe(1)
       expect(geometry.moreWidth).toBeLessThan(geometry.moreRowWidth)
+    } finally { await page.close() }
+  })
+
+  it.each(locales.flatMap((locale) => deletionSubjects.flatMap((target) => [1, 12, 120].map((count) => ({ locale, ...target, count })))))('keeps the $subject deletion heading on one line for $count in $locale at 320', async ({ locale, capabilityId, actionKey, count, english, portuguese }) => {
+    setViewport(320)
+    const messages = locale === 'en' ? en : pt
+    const pendingOperation = { ...makeDeleteHabitsPreview(count), capabilityId, actionKey }
+    render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><PendingOperationCard pendingOperation={pendingOperation} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} /></NextIntlClientProvider>)
+    fireEvent.click(screen.getAllByRole('button').find((button) => button.dataset.variant === 'primary')!)
+    await waitFor(() => expect(document.querySelector('.orbit-sheet-title')).not.toBeNull())
+    const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div class="dark">${document.body.innerHTML}</div>`)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.evaluate(() => {
+        const title = document.querySelector<HTMLElement>('.orbit-sheet-title')!
+        const range = document.createRange()
+        range.selectNodeContents(title)
+        const bounds = range.getBoundingClientRect()
+        const available = title.getBoundingClientRect()
+        return { text: title.textContent, lines: new Set(Array.from(range.getClientRects(), (rect) => rect.top)).size, width: bounds.width, available: available.width }
+      })
+      expect(geometry.text).not.toMatch(/\d/)
+      const consequence = (locale === 'en' ? english : portuguese)[count === 1 ? 0 : 1]!.replace('#', String(count))
+      const expectedBody = `${consequence} ${locale === 'en' ? 'There is no way to restore this here.' : 'Não há como restaurar por aqui.'}`
+      expect(screen.getByText(expectedBody)).toBeInTheDocument()
+      expect(geometry.lines).toBe(1)
+      expect(geometry.width).toBeLessThanOrEqual(geometry.available + 0.5)
     } finally { await page.close() }
   })
 

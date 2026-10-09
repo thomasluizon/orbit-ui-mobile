@@ -1,5 +1,6 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { Pressable, StyleSheet, View } from 'react-native'
+import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatusRing } from '@/components/ui/status-ring'
 import { createTokensV2 } from '@/lib/theme'
@@ -10,12 +11,13 @@ interface HabitLogButtonProps {
   completed?: boolean
   logged: boolean
   onPress: () => void
+  status?: StatusRingProps['status']
   progress?: number
   disabled?: boolean
   disabledReason?: string
 }
 
-export function HabitLogButton({ label, logged, completed = logged, onPress, progress, disabled = false, disabledReason }: Readonly<HabitLogButtonProps>) {
+export function HabitLogButton({ label, logged, completed = logged, onPress, status = 'empty', progress, disabled = false, disabledReason }: Readonly<HabitLogButtonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   return (
@@ -29,8 +31,8 @@ export function HabitLogButton({ label, logged, completed = logged, onPress, pro
       style={({ pressed }) => [styles.button, disabled ? { opacity: 0.4 } : null, pressed && !disabled ? { backgroundColor: tokens.bgHover } : null]}
     >
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        {progress === undefined || completed ? (
-          <StatusRing status={completed ? 'done' : 'empty'} size={30} label="" />
+        {progress === undefined || logged ? (
+          <StatusRing status={completed ? 'done' : status} size={30} label="" />
         ) : (
           <ProgressRing value={progress} size={30} label="" />
         )}

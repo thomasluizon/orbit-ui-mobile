@@ -33,6 +33,7 @@ import requireFocusReplacement from "../../eslint-rules/require-focus-replacemen
 import noSparkleAiMarker from "../../eslint-rules/no-sparkle-ai-marker.cjs"
 import iconSizeGrid from "../../eslint-rules/icon-size-grid.cjs"
 import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cjs"
+import hoverTransition from "../../eslint-rules/hover-transition.cjs"
 import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
 import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
 import noMutatingServerAuthFetch from "../../eslint-rules/no-mutating-server-auth-fetch.cjs"
@@ -118,6 +119,7 @@ export default [
           "no-sparkle-ai-marker": noSparkleAiMarker,
           "icon-size-grid": iconSizeGrid,
           "no-pill-radius-on-static": noPillRadiusOnStatic,
+          "hover-transition": hoverTransition,
           "will-change-discipline": willChangeDiscipline,
           "max-button-words": maxButtonWords,
           "no-mutating-server-auth-fetch": noMutatingServerAuthFetch,
@@ -183,6 +185,7 @@ export default [
       "local/no-sparkle-ai-marker": "error",
       "local/icon-size-grid": "error",
       "local/no-pill-radius-on-static": "error",
+      "local/hover-transition": "error",
       "local/max-button-words": ["error", { controls: maxButtonWordControls }],
 
       // `error` with zero recorded violations. The baseline that once carried them is deleted,

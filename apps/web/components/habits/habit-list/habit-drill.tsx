@@ -75,7 +75,7 @@ export function HabitDrill({
           <button
             type="button"
             aria-label={t('common.back')}
-            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+            className="flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-1)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
             style={{
               width: TOUCH_TARGET_MIN,
               height: TOUCH_TARGET_MIN,

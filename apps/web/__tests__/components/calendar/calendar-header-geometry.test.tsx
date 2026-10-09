@@ -283,7 +283,7 @@ describe('Calendar header geometry in Chromium', () => {
 
   it.each([320, 600, 840, 1100, 1352].flatMap((width) => [false, true].map((isLoading) => ({ width, isLoading }))))('fills a seven-column month grid at $width (loading=$isLoading)', async ({ width, isLoading }) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
-      <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
+      <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" selectedDateStr="2026-02-01" weekStartsOn={0} isLoading={isLoading} />
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -295,7 +295,7 @@ describe('Calendar header geometry in Chromium', () => {
         card: document.querySelector('[data-testid="calendar-grid-card"]')!.getBoundingClientRect().width,
         gridScroll: document.querySelector('[data-testid="calendar-grid"]')!.scrollWidth,
         gridWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth,
-        contentWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth - 8,
+        contentWidth: document.querySelector('[data-testid="calendar-grid"]')!.clientWidth - 32,
         placeholders: [...document.querySelectorAll<HTMLElement>('[data-variant="grid"] span')].map((placeholder, index) => {
           const grid = document.querySelector<HTMLElement>('[data-cols="7"]')!
           const style = getComputedStyle(grid)
@@ -314,6 +314,59 @@ describe('Calendar header geometry in Chromium', () => {
       for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 1)
       expect(geometry.targets).toHaveLength(isLoading ? 0 : 28)
       for (const target of geometry.targets) { expect(target.width).toBeCloseTo(target.columnWidth, 1); expect(target.height).toBeGreaterThanOrEqual(44) }
+    } finally { await page.close() }
+  })
+
+  it.each([320, 339, 340, 360, 363, 363.5, 364, 365, 412, 600, 840, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
+    (['month', 'range'] as const).flatMap((view) => [{ width, isLoading, view, locale: 'en', messages: en }, { width, isLoading, view, locale: 'pt-BR', messages: ptBR }]),
+  )))('aligns $view tracks and contained rings at $width in $locale (loading=$isLoading)', async ({ width, isLoading, view, locale, messages }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width }}>
+      <CalendarHeader currentMonth={new Date(2026, 1, 1)} todayKey="2026-02-08" previousMonthLabel="Previous" nextMonthLabel="Next"
+        onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
+        viewSelector={<SegmentedControl fullWidth options={[{ value: 'month', label: messages.calendar.view.month }, { value: 'week', label: messages.calendar.view.week }, { value: 'agenda', label: messages.calendar.view.agenda }, { value: 'range', label: messages.calendar.view.range }]} value={view} onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
+      {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()}
+        todayKey="2026-02-08" selectedDateStr="2026-02-01" weekStartsOn={0} isLoading={isLoading} />
+        : <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={isLoading} loadingLabel={messages.calendar.loading}
+          stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: messages.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: messages.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: messages.calendar.missedCount }]} />}
+    </div></NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: Math.ceil(width), height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const geometry = await page.evaluate(() => {
+        const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-card')!
+        const grid = frame.querySelector<HTMLElement>('[data-testid="month-grid-days"], [data-cols="7"]')!
+        const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
+        const bounds = grid.getBoundingClientRect()
+        const gap = Number.parseFloat(getComputedStyle(grid).columnGap)
+        const slots = [...grid.children].map((slot) => {
+          const box = slot.getBoundingClientRect()
+          const disc = (slot.matches('[data-outcome]') ? slot.querySelector(':scope > span') : slot.querySelector('[data-outcome] > span')) ?? slot.querySelector('[data-variant="grid"] span')
+          const visual = disc?.getBoundingClientRect()
+          const future = slot.querySelector('[role="img"]:not([data-outcome])')
+          const futureBox = future?.getBoundingClientRect()
+          const numeral = future?.firstElementChild?.getBoundingClientRect()
+          return { futureWidth: futureBox?.width, futureCentered: !numeral || Math.abs(numeral.left + numeral.width / 2 - box.left - box.width / 2) <= 0.5, width: box.width, height: box.height, contained: !visual || (visual.left >= box.left - 0.5 && visual.right <= box.right + 0.5), square: !visual || Math.abs(visual.width - visual.height) <= 0.5 }
+        })
+        return { gap, left: bounds.left, right: bounds.right, switchLeft: selector.left, switchRight: selector.right, slots,
+          scrollWidth: document.documentElement.scrollWidth, selected: grid.querySelector('[data-selected="true"]')?.getBoundingClientRect().width }
+      })
+      expect(Math.abs(geometry.left - geometry.switchLeft)).toBeLessThanOrEqual(0.5)
+      expect(Math.abs(geometry.right - geometry.switchRight)).toBeLessThanOrEqual(0.5)
+      expect(geometry.gap).toBe(width < 364 ? 0 : 4)
+      expect(geometry.slots.length).toBeGreaterThanOrEqual(14)
+      for (const slot of geometry.slots) {
+        expect(slot.width).toBeCloseTo((width - 32 - 6 * geometry.gap) / 7, 1)
+        expect(slot.height).toBeGreaterThanOrEqual(44)
+        expect(slot.contained).toBe(true)
+        expect(slot.futureCentered).toBe(true)
+        if (slot.futureWidth !== undefined) expect(slot.futureWidth).toBeCloseTo(slot.width, 1)
+        if (!isLoading) expect(slot.square).toBe(true)
+        expect(slot.width).toBeCloseTo(geometry.slots[0]!.width, 1)
+      }
+      if (view === 'month' && !isLoading) expect(geometry.selected).toBeCloseTo(geometry.slots[0]!.width, 1)
+      if (width === 320) expect(geometry.scrollWidth).toBeLessThanOrEqual(width)
     } finally { await page.close() }
   })
 
@@ -422,7 +475,7 @@ describe('Calendar header geometry in Chromium', () => {
             return new Set([...range.getClientRects()].map((box) => box.top)).size > 1
           }).map((word) => word[0])
           return { pageWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
-            cardWidth: frame.firstElementChild!.getBoundingClientRect().width, frameContentWidth: frame.clientWidth - 8,
+            cardWidth: frame.firstElementChild!.getBoundingClientRect().width, frameContentWidth: frame.clientWidth - 32,
             frameWidth: frame.getBoundingClientRect().width, sectionContentWidth: frame.parentElement!.clientWidth,
             days: [...frame.querySelectorAll<HTMLElement>('[data-outcome]')].map((day) => ({ width: day.getBoundingClientRect().width, height: day.getBoundingClientRect().height, columnWidth: Number.parseFloat(getComputedStyle(day.parentElement!).gridTemplateColumns.split(' ')[0]!) })),
             splitWords,

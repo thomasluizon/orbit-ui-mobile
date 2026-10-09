@@ -1,5 +1,10 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildComposerChips } from '@orbit/shared/chat'
+import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
+import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
+import { Composer } from '@/components/shell/composer'
+import { ChatEmptyState } from '@/components/chat/chat-empty-state'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Shell412 } from '@/components/shell/shell-412'
@@ -35,7 +40,7 @@ const mocks = vi.hoisted(() => ({
       onChangeValue: vi.fn(),
       onSend: vi.fn(),
       suggestions: [] as { id: string; label: string; onSelect: () => void }[],
-      state: 'atLimit' as const,
+      state: 'atLimit',
       limitReason: 'limit reason',
     },
     hasProAccess: false,
@@ -87,16 +92,6 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
-vi.mock('@/lib/theme', () => ({
-  createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
-}))
-vi.mock('@/components/shell/composer', () => ({
-  Composer: (props: { limitRecovery?: React.ReactNode }) =>
-    React.createElement('Composer', props, props.limitRecovery),
-}))
-vi.mock('@/components/chat/chat-empty-state', () => ({
-  ChatEmptyState: React.forwardRef((props) => React.createElement('ChatEmptyState', props)),
-}))
 vi.mock('@/components/message-bubble', () => ({
   MessageBubble: (props: Record<string, unknown>) => React.createElement('MessageBubble', props),
 }))
@@ -129,9 +124,6 @@ vi.mock('@/components/ui/pill-button', () => ({
       },
       React.createElement('Text', null, props.children),
     ),
-}))
-vi.mock('@/components/chat/conversation.styles', () => ({
-  createStyles: () => new Proxy({}, { get: () => ({}) }),
 }))
 
 type TestNode = {
@@ -189,7 +181,7 @@ function press(node: TestNode | undefined) {
 }
 
 function findByType(root: TestNode, type: string): TestNode | undefined {
-  return root.findAll((node) => node.type === type)[0]
+  return root.findAll((node) => node.type === (type === 'Composer' ? Composer : type === 'ChatEmptyState' ? ChatEmptyState : type))[0]
 }
 
 function nodeText(node: unknown): string {
@@ -215,6 +207,7 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.speechError = null
     mocks.composer.streamingMessageId = null
     mocks.composer.flatListRef.current = null
+    mocks.composer.composerProps.state = 'atLimit'
     mocks.composer.composerProps.suggestions = []
     useChatStore.getState().setContextualSuggestion(null)
   })
@@ -269,37 +262,61 @@ describe('ChatScreen composer recoveries', () => {
     expect(findByLabel(tree.root, 'ads.watchForMessages')).toBeUndefined()
   })
 
-  it('keeps live composer suggestions available in a new and populated thread', async () => {
-    mocks.composer.composerProps.suggestions = [{ id: 'one', label: 'One', onSelect: vi.fn() }, { id: 'two', label: 'Two', onSelect: vi.fn() }, { id: 'three', label: 'Three', onSelect: vi.fn() }]
+  function liveSuggestions(surface: 'today' | 'progress' = 'today') {
+    const chips = buildComposerChips({
+      surface, status: 'success', habits: [createMockHabit({ title: 'Walking' })],
+      totalHabitCount: 1, profile: createMockProfile(),
+      contextualSuggestion: useChatStore.getState().contextualSuggestion,
+    })
+    return toComposerSuggestions(chips.map(chip => ({
+      id: chip.id, label: chip.label ?? chip.key,
+      onSelect: () => mocks.composer.sendMessage(chip.prompt ?? chip.promptKey ?? chip.key),
+    })))
+  }
+
+  function renderedChips(root: TestNode) {
+    return root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button'
+      && mocks.composer.composerProps.suggestions.some(chip => chip.label === node.props.accessibilityLabel))
+  }
+
+  it('renders only live composer chips in a new and populated thread', async () => {
+    mocks.composer.composerProps.state = 'idle'
+    mocks.composer.composerProps.suggestions = [...liveSuggestions()]
     const tree = await renderScreen()
-    expect(findByType(tree.root, 'ChatEmptyState')).toBeDefined()
-    expect(findByType(tree.root, 'Composer')?.props.suggestions).toEqual(mocks.composer.composerProps.suggestions)
+    const empty = findByType(tree.root, 'ChatEmptyState')!
+
+    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(renderedChips(tree.root).map(node => node.props.accessibilityLabel)).toEqual(
+      mocks.composer.composerProps.suggestions.map(chip => chip.label),
+    )
+    expect(tree.root.findAll(node => node.type === 'ScrollView' && node.props.accessibilityLabel === 'shell.composer.suggestionsLabel')).toHaveLength(1)
     mocks.composer.messages = [{ id: 'message-1', role: 'user', content: 'Hello', timestamp: new Date() }]
     mocks.composer.showSuggestions = false
     TestRenderer.act(() => tree.update(<AstraConversation chat={mocks.composer as never} />))
     expect(findByType(tree.root, 'ChatEmptyState')).toBeUndefined()
-    expect((findByType(tree.root, 'Composer')?.props.suggestions as { id: string }[]).map((chip) => chip.id)).toEqual(['one', 'two', 'three'])
+    expect(renderedChips(tree.root)).toHaveLength(mocks.composer.composerProps.suggestions.length)
   })
 
-  it('keeps a requested Progress action reachable in a new conversation', async () => {
+  it('renders the requested Progress action once in the composer and sends its prompt', async () => {
     useChatStore.getState().setContextualSuggestion({ id: 'progress-create-goal', label: 'Create a goal', prompt: 'Help me make a goal' })
+    mocks.composer.composerProps.state = 'idle'
+    mocks.composer.composerProps.suggestions = [...liveSuggestions('progress')]
     const tree = await renderScreen()
-    expect(findByType(tree.root, 'Composer')?.props.suggestions).toEqual(mocks.composer.composerProps.suggestions)
-    const action = findByType(tree.root, 'ChatEmptyState')?.props.contextualAction as { onSelect: () => void }
-    TestRenderer.act(() => action.onSelect())
+    const actions = tree.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Create a goal')
+
+    expect(actions).toHaveLength(1)
+    TestRenderer.act(() => press(actions[0]))
     expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Help me make a goal')
   })
 
-  it('sends the selected empty-state suggestion', async () => {
+  it('renders no suggestion chip anywhere at the daily limit', async () => {
+    mocks.composer.composerProps.suggestions = [...liveSuggestions()]
     const tree = await renderScreen()
-    const emptyState = findByType(tree.root, 'ChatEmptyState')
+    const empty = findByType(tree.root, 'ChatEmptyState')!
 
-    TestRenderer.act(() => {
-      const selectSuggestion = emptyState?.props.onSelectSuggestion as ((value: string) => void)
-      selectSuggestion('Plan my morning')
-    })
-
-    expect(mocks.composer.sendMessage).toHaveBeenCalledWith('Plan my morning')
+    expect(empty.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'button')).toHaveLength(0)
+    expect(renderedChips(tree.root)).toHaveLength(0)
+    expect(tree.root.findAll(node => node.type === 'ScrollView' && node.props.accessibilityLabel === 'shell.composer.suggestionsLabel')).toHaveLength(0)
   })
 
   it('renders the feed and routes goal and habit actions', async () => {
