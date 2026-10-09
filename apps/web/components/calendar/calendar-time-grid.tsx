@@ -19,6 +19,7 @@ const BLOCK_HORIZONTAL_INSET = 4
 const MIN_LANE_WIDTH = 96
 const HEADER_HEIGHT = 52
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
+const SCROLLER_VARIABLES = { '--time-grid-tail': '8rem' }
 
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
@@ -270,7 +271,7 @@ export function CalendarTimeGrid({
           ref={bodyRef}
           data-testid="time-grid-hour-scroller"
           className="thin-scrollbar"
-          style={{ overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ ...SCROLLER_VARIABLES, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div className="sticky top-0 z-[3]" style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div

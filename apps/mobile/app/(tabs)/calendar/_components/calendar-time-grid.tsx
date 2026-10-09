@@ -202,7 +202,7 @@ function AllDayChip({ label, accessibilityLabel, onPress, tokens, fontScale, mor
   more?: boolean;
 }>) {
   return <InsetFocusPressable testID={more ? 'time-grid-all-day-more' : 'time-grid-all-day-event'} accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
-    style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: 0, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
+    style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: 0, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
     <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: 8, borderRadius: 8, backgroundColor: tokens.bgWell, borderWidth: 1, borderColor: tokens.hairline, justifyContent: 'center' }}>
       <Text numberOfLines={1} ellipsizeMode="tail" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{label}</Text>
     </View>
