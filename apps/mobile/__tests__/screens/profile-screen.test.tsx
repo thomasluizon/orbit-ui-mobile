@@ -604,6 +604,28 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1280].map((width) => ({ locale, width }))))('keeps the export title and preparing value readable in $locale at $width', async ({ locale, width }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    mockApiClient.mockReturnValueOnce(new Promise(() => {}))
+    const messages = locale === 'pt-BR' ? ptBR : en
+    const tree = await renderProfileSubscreen('account')
+    let rowTree!: ReturnType<typeof TestRenderer.create>
+    try {
+      const exportRow = tree.root.findAllByType(ListRow)[1]!
+      await TestRenderer.act(async () => { exportRow.props.onClick(); await Promise.resolve() })
+      expect(mockApiClient).toHaveBeenCalledWith(API.profile.export)
+      expect(exportRow.props.value).toBe(messages.dataExport.preparing)
+      TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, exportRow.props)) })
+      const measured = measureProfileRow(rowTree!.toJSON(), Math.min(width, 560) - 32, 1)
+      expect(measured.texts.map(({ label }) => label)).toEqual([messages.profile.settingsRows.export, messages.dataExport.preparing])
+      for (const text of measured.texts) {
+        expect(text.clipped, text.label).toBe(false)
+        expect(text.lines, text.label).toBe(1)
+      }
+    } finally { TestRenderer.act(() => { rowTree?.unmount(); tree.unmount() }) }
+  })
+
   it.each([412, 840].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
     .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
     const tree = await renderProfileSubscreen(screen)

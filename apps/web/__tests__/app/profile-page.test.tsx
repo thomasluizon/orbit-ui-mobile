@@ -297,6 +297,34 @@ describe('ProfilePage', () => {
       } finally { await page.close() }
     })
 
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 412, 1280].map((width) => ({ locale, width }))))('keeps the export title and preparing value readable in $locale at $width', async ({ locale, width }) => {
+      translateProMessages(locale as 'en' | 'pt-BR')
+      mockExportUserData.mockReturnValueOnce(new Promise(() => {}))
+      const messages = locale === 'pt-BR' ? ptBR : en
+      const { container } = render(<ProfileAccountRoute />)
+      fireEvent.click(screen.getByRole('button', { name: messages.profile.settingsRows.export }))
+      expect(mockExportUserData).toHaveBeenCalledOnce()
+      expect(container).toHaveTextContent(messages.dataExport.preparing)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(() => {
+          const row = document.querySelectorAll('.orbit-list-row-shell')[1]!
+          return Array.from(row.querySelectorAll<HTMLElement>('[data-slot="list-row-title"], [data-slot="list-row-value"]')).map((text) => {
+            const range = document.createRange()
+            range.selectNodeContents(text)
+            return { label: text.textContent, width: text.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, lines: range.getClientRects().length }
+          })
+        })
+        expect(geometry.map(({ label }) => label)).toEqual([messages.profile.settingsRows.export, messages.dataExport.preparing])
+        for (const text of geometry) {
+          expect(text.textWidth, text.label!).toBeLessThanOrEqual(text.width + 1)
+          expect(text.lines, text.label!).toBe(1)
+        }
+      } finally { await page.close() }
+    })
+
     it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 412].flatMap((width) => [1, 2].flatMap((textScale) => ['free', 'trial', 'paid', 'lifetime'].map((plan) => ({ locale, width, textScale, plan }))))))('keeps $plan Perfil rows readable in $locale at $width px and $textScale text scale', async ({ locale, width, textScale, plan }) => {
       translateProMessages(locale as 'en' | 'pt-BR')
       mockProfileState.current.profile = createMockProfile({
