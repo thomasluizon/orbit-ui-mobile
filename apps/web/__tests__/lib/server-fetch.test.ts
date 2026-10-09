@@ -47,12 +47,7 @@ describe('createHabit action error boundary', () => {
     [429, 'RATE_LIMITED', 'Rate limited'],
     [500, 'INTERNAL_SERVER_ERROR', 'Server failed'],
   ])('returns upstream %i details without throwing', async (status, errorCode, message) => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      headers: new Headers(),
-      status,
-      json: () => Promise.resolve({ error: message, errorCode }),
-    })
+    mockFetch.mockResolvedValue(Response.json({ error: message, errorCode }, { status }))
     await expect(createHabit({ title: 'Test' }, null)).resolves.toMatchObject({
       ok: false,
       status,
@@ -62,8 +57,25 @@ describe('createHabit action error boundary', () => {
   })
 
   it('carries upstream Retry-After for the event ticket boundary', async () => {
-    mockFetch.mockResolvedValue(Response.json(null, { status: 429, headers: { 'Retry-After': '60' } }))
+    mockFetch.mockResolvedValue(Response.json({ error: 'Rate limited', errorCode: 'RATE_LIMITED' }, { status: 429, headers: { 'Retry-After': '60' } }))
     await expect(serverAuthMutate('/api/events/ticket', { method: 'POST' }, null)).rejects.toMatchObject({ status: 429, retryAfter: '60' })
+  })
+
+  it.each(['authenticated', 'public', 'ticket'])('maps a plain upstream 429 in the %s server fetch', async (boundary) => {
+    mockFetch.mockResolvedValue(new Response('Too Many Requests', { status: 429, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
+    const request = boundary === 'public' ? serverPublicFetch('/api/config')
+      : boundary === 'ticket' ? serverAuthMutate(API.events.ticket, { method: 'POST' }, null)
+      : serverAuthFetch(API.habits.list)
+    await expect(request).rejects.toMatchObject({ status: 503, code: 'UPSTREAM_STARTING', retryAfter: '5' })
+  })
+
+  it.each(['authenticated', 'public', 'ticket'])('preserves the rate-limit envelope in the %s server fetch', async (boundary) => {
+    const payload = { error: 'Rate limited', errorCode: 'RATE_LIMITED', requestId: 'request-reference' }
+    mockFetch.mockResolvedValue(Response.json(payload, { status: 429, headers: { 'Retry-After': '60' } }))
+    const request = boundary === 'public' ? serverPublicFetch('/api/config')
+      : boundary === 'ticket' ? serverAuthMutate(API.events.ticket, { method: 'POST' }, null)
+      : serverAuthFetch(API.habits.list)
+    await expect(request).rejects.toMatchObject({ status: 429, code: 'RATE_LIMITED', retryAfter: '60', data: payload })
   })
 
   it('returns an uncoded edge 403 from an HTML response', async () => {

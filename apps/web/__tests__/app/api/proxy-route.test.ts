@@ -32,6 +32,29 @@ function createRequest(
 }
 
 describe('catch-all API proxy route', () => {
+  it.each([
+    { body: 'Too Many Requests', contentType: 'text/plain; charset=utf-8' },
+    { body: '<html>Too Many Requests</html>', contentType: 'text/html' },
+    { body: JSON.stringify({ message: 'Too Many Requests' }), contentType: 'application/json' },
+  ])('maps a non-envelope upstream 429 ($contentType) to a starting response', async ({ body, contentType }) => {
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: 'test-token', expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(new Response(body, { status: 429, headers: { 'Content-Type': contentType } }))
+    const response = await GET(createRequest('habits'), { params: Promise.resolve({ path: ['habits'] }) })
+    expect(response.status).toBe(503)
+    expect(response.headers.get('retry-after')).toBe('5')
+    expect(await response.json()).toMatchObject({ errorCode: 'UPSTREAM_STARTING' })
+  })
+
+  it('preserves the API rate-limit envelope and headers unchanged', async () => {
+    const body = JSON.stringify({ error: 'Rate limited', errorCode: 'RATE_LIMITED', requestId: 'request-reference' })
+    vi.mocked(resolveServerSession).mockResolvedValue({ token: 'test-token', expiresAt: null, refreshed: false, refreshFailed: false })
+    mockFetch.mockResolvedValue(new Response(body, { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } }))
+    const response = await GET(createRequest('habits'), { params: Promise.resolve({ path: ['habits'] }) })
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('60')
+    expect(await response.text()).toBe(body)
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
     vi.mocked(resolveServerSession).mockReset()

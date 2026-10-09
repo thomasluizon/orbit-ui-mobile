@@ -21,7 +21,7 @@ export async function POST(): Promise<NextResponse> {
   } catch (error: unknown) {
     if (!(error instanceof ApiClientError)) throw error
     if (error.status === 429 || error.status === 503) {
-      return NextResponse.json({ error: error.message }, {
+      return NextResponse.json(error.data ?? { error: error.message }, {
         status: error.status,
         headers: {
           'Cache-Control': 'private, no-store',
