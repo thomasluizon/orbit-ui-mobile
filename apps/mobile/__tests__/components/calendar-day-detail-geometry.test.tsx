@@ -39,8 +39,8 @@ const events: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({
 }))
 
 describe('Android day card geometry', () => {
-  it.each([320, 360].flatMap((width) => [false, true].map((loggable) => ({ width, loggable }))))('fits pt-BR titles at $width with loggable=$loggable using Android styles and fonts', async ({ width, loggable }) => {
-    await i18n.changeLanguage('pt-BR')
+  it.each([320, 360].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('fits titles at $width with loggable=$loggable in $locale using Android styles and fonts', async ({ width, loggable, locale }) => {
+    await i18n.changeLanguage(locale)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarDayDetail selectedDate="2026-09-12" title="Hoje, 12 de setembro"
       filteredEntries={[{ habitId: 'habit-1', title: 'Caminhar pelo bairro depois do trabalho', status: 'completed', isBadHabit: false, dueTime: '08:00', isOneTime: false }, { habitId: 'habit-2', title: 'Ler', status: 'upcoming', isBadHabit: false, dueTime: null, isOneTime: false }]}
@@ -77,6 +77,13 @@ describe('Android day card geometry', () => {
         expect(disclosure.inlineClearance).toBeGreaterThanOrEqual(8)
         expect(eventTexts.reduce((count, text) => count + text.lines, 0), JSON.stringify(eventTexts)).toBeLessThanOrEqual(2)
         if (scale === 1) {
+          const route = measured.controls.find((control) => control.accessibilityLabel === i18n.t('calendar.goToDay'))!
+          const routeLabel = measured.texts.find((text) => text.label === i18n.t('calendar.goToDay'))!
+          expect(routeLabel.lines, JSON.stringify(routeLabel)).toBe(1)
+          expect(routeLabel.clipped).toBe(false)
+          expect(routeLabel.right).toBeLessThanOrEqual(route.right - 16)
+          expect(route.left).toBe(24)
+          expect(route.right).toBe(width - 32 - 24)
           for (const text of eventTexts) expect(text.clipped).toBe(false)
           expect(habitTexts.reduce((count, text) => count + text.lines, 0)).toBe(2)
           expect(habitRow.height).toBeGreaterThanOrEqual(68)
@@ -87,6 +94,8 @@ describe('Android day card geometry', () => {
           expect(text.right, JSON.stringify(text)).toBeLessThanOrEqual(width - 32)
         }
       }
+      expect(cardStyle).toMatchObject({ outlineWidth: 1, outlineOffset: -1, outlineStyle: 'solid', outlineColor: createTokensV2('purple', 'dark').hairlineGhost })
+      expect(cardStyle.boxShadow).toBeUndefined()
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 })

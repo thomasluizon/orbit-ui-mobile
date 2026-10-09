@@ -7,12 +7,15 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile({ hasProAccess: true, uses24HourClock: true }) }) }))
+
+const locales = [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }]
 
 const events: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({
   id: `event-${index}`, title: index === 0 ? '1:1 FutureProofing Engineering' : `Evento ${index}`,
@@ -31,8 +34,8 @@ describe('day card compact geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 360, 412, 1280].flatMap((width) => [false, true].map((loggable) => ({ width, loggable }))))('fits titles and targets at $width with loggable=$loggable', async ({ width, loggable }) => {
-    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
+  it.each([320, 360, 384, 412, 1280].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('fits titles and targets at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <div style={{ padding: 16 }}><CalendarDayDetail dateStr="2026-09-12" today="2026-09-12"
         entries={[{ habitId: 'habit-1', title: 'Caminhar pelo bairro depois do trabalho', status: 'completed', isBadHabit: false, dueTime: '08:00', isOneTime: false }, { habitId: 'habit-2', title: 'Ler', status: 'upcoming', isBadHabit: false, dueTime: null, isOneTime: false }]}
         calendarEvents={events} showEventSource calendarEventsState="ready" loggable={loggable} showRecurring pendingEntryStates={new Map()}

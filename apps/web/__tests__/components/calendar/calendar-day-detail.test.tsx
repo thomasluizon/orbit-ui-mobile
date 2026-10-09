@@ -602,7 +602,7 @@ describe('CalendarDayDetail', () => {
       '/?date=2025-06-15',
     )
     expect(link).toHaveClass('orbit-list-row-body')
-    expect(screen.getByText(personalText('Open this day on Today'))).toHaveClass('break-words')
+    expect(link).toHaveStyle({ paddingInline: '16px', paddingBlock: '12px' })
   })
 
   it('keeps the title, summary and route within a 24px inset card', () => {

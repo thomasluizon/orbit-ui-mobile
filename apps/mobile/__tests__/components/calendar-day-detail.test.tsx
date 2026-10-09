@@ -3,6 +3,7 @@ import { buildCalendarDayMap } from '@orbit/shared/utils'
 import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import React from 'react'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -243,7 +244,10 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail()
     expect(nodes(tree, 'View')[0]?.props.style).toMatchObject({
       backgroundColor: 'rgba(250,250,250,0.04)',
-      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)',
+      outlineWidth: 1,
+      outlineOffset: -1,
+      outlineStyle: 'solid',
+      outlineColor: 'rgba(255,255,255,0.10)',
       borderRadius: 20,
       paddingHorizontal: 24,
       paddingVertical: 24,
@@ -656,14 +660,20 @@ describe('CalendarDayDetail (mobile)', () => {
   it('routes the panel row through the supplied Today callback', () => {
     const onGoToDay = vi.fn()
     const tree = renderDetail({ onGoToDay })
-    const routeRow = nodes(tree, 'ListRowMock').at(-1)
-    expect(routeRow?.props).toMatchObject({
-      title: 'Open this day on Today',
-      textMode: 'label',
-      icon: 'external-link',
-      chevron: false,
-      onClick: onGoToDay,
-    })
+    const routeRow = nodes(tree, 'Pressable').find((row) => row.props.accessibilityLabel === en.calendar.goToDay)
+    expect(routeRow?.props.accessibilityRole).toBe('button')
+    TestRenderer.act(() => (routeRow?.props.onPress as () => void)())
+    expect(onGoToDay).toHaveBeenCalledOnce()
+    const route = () => nodes(tree, 'Pressable').find((row) => row.props.accessibilityLabel === en.calendar.goToDay)!
+    const background = () => StyleSheet.flatten((route().props.style as (state: { pressed: boolean }) => ViewStyle)({ pressed: false })).backgroundColor
+    TestRenderer.act(() => (route().props.onHoverIn as () => void)())
+    expect(background()).toBe(createTokensV2('purple', 'dark').bgHover)
+    TestRenderer.act(() => (route().props.onHoverOut as () => void)())
+    expect(background()).toBeUndefined()
+    TestRenderer.act(() => (route().props.onFocus as (event: object) => void)({ target: 1, currentTarget: 1 }))
+    expect(background()).toBe(createTokensV2('purple', 'dark').bgHover)
+    TestRenderer.act(() => (route().props.onBlur as (event: object) => void)({ target: 1, currentTarget: 1 }))
+    expect(background()).toBeUndefined()
   })
 
   it('searches a busy day only after opening its events sheet', () => {
