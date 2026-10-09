@@ -155,7 +155,8 @@ for (const width of [412, 1352]) for (const locale of ['en', 'pt-BR'] as const) 
         })
         expect(separators).toBe(1)
       } else {
-        await expect(page).toHaveURL(/\/upgrade/)
+        await expect(page).toHaveURL(/\/calendar/)
+        await expect(page.getByRole('dialog', { name: words.calendar.calendars.title, exact: true })).toHaveCount(0)
       }
     })
   })

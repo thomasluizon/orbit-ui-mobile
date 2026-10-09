@@ -141,14 +141,14 @@ describe('Profile API key row geometry', () => {
       const measured = await page.evaluate((textScale) => {
         const title = document.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
         const control = document.querySelector<HTMLElement>('[role="switch"]')!
-        title.style.fontSize = `${17 * textScale}px`
+        document.documentElement.style.fontSize = `${16 * textScale}px`
         const titleBox = title.getBoundingClientRect()
         const switchBox = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
         const range = document.createRange()
         range.selectNodeContents(title)
         const style = getComputedStyle(title)
         const rowBox = title.closest('.orbit-list-row-shell')!.getBoundingClientRect()
-        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, firstLineAligned: Math.abs(titleBox.top + titleBox.height / 2 - switchBox.top - switchBox.height / 2) <= 1, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
+        return { lines: range.getClientRects().length, textOverflow: style.textOverflow, unclipped: titleBox.top >= rowBox.top && titleBox.bottom <= rowBox.bottom, rowHeight: rowBox.height, titleFits: title.scrollWidth <= title.clientWidth, firstLineAligned: Math.abs(titleBox.top + parseFloat(style.lineHeight) / 2 - switchBox.top - switchBox.height / 2) <= 1, separated: titleBox.right <= switchBox.left, switchWidth: switchBox.width, switchHeight: switchBox.height, switches: document.querySelectorAll('[role="switch"]').length, text: document.body.textContent }
       }, textScale)
       expect(measured.textOverflow).not.toBe('ellipsis')
       expect(measured.unclipped).toBe(true)

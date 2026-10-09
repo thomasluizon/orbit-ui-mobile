@@ -543,12 +543,12 @@ describe('HabitDetailScreen', () => {
     const titleStyle = StyleSheet.flatten(visibleTitle.props.style as { fontSize: number; lineHeight: number })
     expect(titleStyle.lineHeight / titleStyle.fontSize).toBeGreaterThanOrEqual(1.4)
     const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
-    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
+    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style ?? {}).width === '100%')[0]!
     expect(copy.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(1)
     expect(StyleSheet.flatten(header.props.style)).toEqual({ gap: 12 })
     expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 4 })
     const views = header.findAll((node: TestNode) => node.type === 'View')
-    const controls = views.find((node: TestNode) => StyleSheet.flatten(node.props.style as ViewStyle).flexDirection === 'row')!
+    const controls = views.find((node: TestNode) => StyleSheet.flatten(node.props.style ?? {}).flexDirection === 'row')!
     expect(views.indexOf(controls)).toBeLessThan(views.indexOf(copy))
     expect(controls.findAllByType('HabitLogButton')).toHaveLength(1)
     expect(controls.findAllByType('PillButton').map((node: TestNode) => node.props.label)).toContain('habits.detail.rename')
@@ -1738,7 +1738,7 @@ describe('HabitDetailScreen', () => {
     expect(tags).toHaveLength(hasTags ? 1 : 0)
     expect(description).toHaveLength(hasDescription ? 1 : 0)
     const header = tree.root.findAllByType('View').find((node: TestNode) => node.props.testID === 'habit-detail-header-row')!
-    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
+    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style ?? {}).width === '100%')[0]!
     let parent = header.parent
     while (typeof parent.type !== 'string') parent = parent.parent
     const slots = parent.findAll((node: { type: unknown; parent: { type: unknown; parent: unknown } | null }) => {

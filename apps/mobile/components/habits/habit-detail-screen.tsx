@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
   headerSpacer: { flex: 1 },
   headerCopy: { width: '100%', minWidth: 0, gap: 4 },
   renameFrame: { minWidth: TOUCH_TARGET_MIN, minHeight: 32, position: 'relative' },
-  renameTarget: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
+  renameTarget: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12, overflow: 'hidden' },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },

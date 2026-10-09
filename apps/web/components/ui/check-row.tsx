@@ -24,7 +24,7 @@ export function CheckRow({
   return (
     <button
       data-slot="list-row-body"
-      style={{ minHeight: error || description ? 68 : 52 }}
+      style={{ minHeight: error || description ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}
       type="button"
       role="checkbox"
       aria-checked={checked}
@@ -34,10 +34,10 @@ export function CheckRow({
       data-checked={checked ? '' : undefined}
       data-loading={loading ? '' : undefined}
       data-error={error ? '' : undefined}
-      className="group/check-row orbit-hover-text flex w-full items-center gap-3 rounded-[12px] border-0 bg-transparent px-4 py-3 text-left transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
+      className="group/check-row orbit-hover-text flex w-full items-center rounded-[12px] border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
     >
       <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
+      <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
         <span
           className={`text-base font-medium ${checked ? 'text-[var(--fg-3)] group-hover/check-row:text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}
         >
@@ -58,8 +58,8 @@ export function CheckRow({
 
 function PersonalCheckRow({ label, onOpenLabel, labelExpanded, labelControls, checked, onChange, description, error, value, disabled, loading }: Readonly<CheckRowProps>) {
   return (
-    <div data-slot="list-row-body" className="flex min-w-0 items-center gap-3 px-4 py-3" style={{ minHeight: error || description || value !== undefined ? 68 : 52 }}>
-      <button type="button" onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} className="orbit-check-row-label orbit-hover-text relative flex min-w-0 flex-1 flex-col justify-center gap-1 rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
+    <div data-slot="list-row-body" className="flex min-w-0 items-center" style={{ minHeight: error || description || value !== undefined ? 68 : 52, paddingInline: 16, paddingBlock: 12, gap: 12 }}>
+      <button type="button" onClick={onOpenLabel} aria-label={label} aria-expanded={labelExpanded} aria-controls={labelControls} style={{ gap: 4 }} className="orbit-check-row-label orbit-hover-text relative flex min-w-0 flex-1 flex-col justify-center rounded-[12px] border-0 bg-transparent text-start transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)]">
         <span aria-hidden="true" data-press-fill="" className="orbit-check-row-fill" /><PersonalText className="text-base font-medium text-[var(--fg-1)]">{label}</PersonalText>
         {error || description ? <span className={`text-sm ${error ? 'text-[var(--status-bad-text)]' : 'text-[var(--fg-2)]'}`}>{error ?? description}</span> : null}
         {value !== undefined ? <span className="font-mono text-sm tabular-nums text-[var(--fg-2)]">{value}</span> : null}
