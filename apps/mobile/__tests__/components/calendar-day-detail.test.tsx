@@ -243,13 +243,14 @@ describe('CalendarDayDetail (mobile)', () => {
     const tree = renderDetail()
     expect(nodes(tree, 'View')[0]?.props.style).toMatchObject({
       backgroundColor: 'rgba(250,250,250,0.04)',
-      borderColor: 'rgba(255,255,255,0.10)',
+      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.10)',
       borderRadius: 20,
-      borderWidth: 1,
+      paddingHorizontal: 24,
       paddingVertical: 24,
+      gap: 16,
     })
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { paddingHorizontal?: number } | undefined)?.paddingHorizontal === 16)).toBe(true)
-    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 8)).toBe(true)
+    expect(nodes(tree, 'View').some((node) => (node.props.style as { gap?: number } | undefined)?.gap === 4)).toBe(true)
+    expect(nodes(tree, 'Text').find((node) => node.props.children === 'nothing due')?.props.style).toContainEqual(expect.objectContaining({ fontFamily: 'GeistMono_400Regular' }))
     expect(nodes(tree, 'Text').some((node) => node.props.children === 'Sunday, Jun 15')).toBe(true)
     expect(nodes(tree, 'Pressable').some((node) => node.props.accessibilityLabel === 'Show recurring habits')).toBe(false)
   })

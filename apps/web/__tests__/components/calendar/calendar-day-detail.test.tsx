@@ -608,11 +608,11 @@ describe('CalendarDayDetail', () => {
   it('keeps the title, summary and route within a 24px inset card', () => {
     const { container } = renderDetail({ entries: [makeEntry()] })
     const card = container.querySelector('section') as HTMLElement
-    expect(card.style.paddingBlock).toBe('24px')
+    expect(card).toHaveStyle({ padding: '24px' })
     expect(card).toContainElement(screen.getByRole('heading', { level: 2 }))
     expect(card).toContainElement(screen.getByText(personalText('1 of 1 logged')))
     expect(card).toContainElement(screen.getByRole('link', { name: 'Open this day on Today' }))
-    expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '16px' })
+    expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ gap: '4px' })
     expect(screen.getByRole('button', { name: 'Meditate, done' })).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()
   })

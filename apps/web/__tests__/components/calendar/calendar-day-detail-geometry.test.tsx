@@ -31,10 +31,10 @@ describe('day card compact geometry', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 360].flatMap((width) => [false, true].map((loggable) => ({ width, loggable }))))('fits titles and targets at $width with loggable=$loggable', async ({ width, loggable }) => {
+  it.each([320, 360, 412, 1280].flatMap((width) => [false, true].map((loggable) => ({ width, loggable }))))('fits titles and targets at $width with loggable=$loggable', async ({ width, loggable }) => {
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
       <div style={{ padding: 16 }}><CalendarDayDetail dateStr="2026-09-12" today="2026-09-12"
-        entries={[{ habitId: 'habit-1', title: 'Caminhar no parque', status: 'completed', isBadHabit: false, dueTime: '08:00', isOneTime: false }]}
+        entries={[{ habitId: 'habit-1', title: 'Caminhar pelo bairro depois do trabalho', status: 'completed', isBadHabit: false, dueTime: '08:00', isOneTime: false }, { habitId: 'habit-2', title: 'Ler', status: 'upcoming', isBadHabit: false, dueTime: null, isOneTime: false }]}
         calendarEvents={events} showEventSource calendarEventsState="ready" loggable={loggable} showRecurring pendingEntryStates={new Map()}
         onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
       </div>
@@ -49,12 +49,35 @@ describe('day card compact geometry', () => {
           const headline = [...document.querySelectorAll<HTMLElement>('span')].find((span) => span.textContent === '1:1 FutureProofing Engineering')!
           const titleRange = document.createRange()
           titleRange.selectNodeContents(headline)
+          const card = document.querySelector('section')!
+          const cardBox = card.getBoundingClientRect()
+          const groups = [...card.firstElementChild!.children] as HTMLElement[]
+          const title = card.querySelector('h2')!
+          const summary = title.nextElementSibling!
+          const summaryStyle = getComputedStyle(summary)
+          const label = card.querySelector<HTMLButtonElement>('button[aria-label="Caminhar pelo bairro depois do trabalho"]')
+          const dayRows = [...groups[1]!.children] as HTMLElement[]
           const labels = [...document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')].map((label) => {
             const range = document.createRange()
             range.selectNodeContents(label)
             return { text: label.textContent, lines: new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size, clipped: label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth }
           })
           return {
+            cardPadding: [getComputedStyle(card).paddingTop, getComputedStyle(card).paddingRight, getComputedStyle(card).paddingBottom, getComputedStyle(card).paddingLeft],
+            titleInset: { left: title.getBoundingClientRect().left - cardBox.left, top: title.getBoundingClientRect().top - cardBox.top },
+            summaryGap: summary.getBoundingClientRect().top - title.getBoundingClientRect().bottom,
+            summaryFont: summaryStyle.fontFamily,
+            summarySize: Number.parseFloat(summaryStyle.fontSize),
+            groupGaps: groups.slice(1).map((group, index) => group.getBoundingClientRect().top - groups[index]!.getBoundingClientRect().bottom),
+            bottomInset: cardBox.bottom - groups.at(-1)!.getBoundingClientRect().bottom,
+            rowInsets: [...card.querySelectorAll<HTMLElement>('button:not([role="checkbox"]), a')].map((target) => {
+              const fill = target.parentElement?.parentElement === groups[1] ? target.parentElement! : target
+              const box = fill.getBoundingClientRect()
+              return [box.left - cardBox.left, cardBox.right - box.right]
+            }),
+            dayGap: dayRows[1]!.getBoundingClientRect().top - dayRows[0]!.getBoundingClientRect().bottom,
+            labelMinimum: label ? Number.parseFloat(getComputedStyle(label).minHeight) : null,
+            labelPadding: label ? [getComputedStyle(label).paddingTop, getComputedStyle(label).paddingLeft] : null,
             width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
             eventClipped: headline.scrollHeight > headline.clientHeight || headline.scrollWidth > headline.clientWidth,
             eventHeight: headline.getBoundingClientRect().height, eventLineHeight: Number.parseFloat(getComputedStyle(headline).lineHeight),
@@ -67,6 +90,19 @@ describe('day card compact geometry', () => {
             }),
           }
         })
+        expect(geometry.cardPadding).toEqual(['24px', '24px', '24px', '24px'])
+        expect(geometry.titleInset).toEqual({ left: 24, top: 24 })
+        expect(geometry.summaryGap).toBeCloseTo(4)
+        expect(geometry.summaryFont).toContain('Geist Mono')
+        expect(geometry.summarySize).toBe(12 * scale)
+        expect(geometry.bottomInset).toBeCloseTo(24)
+        geometry.groupGaps.forEach((gap) => expect(gap).toBeCloseTo(16))
+        geometry.rowInsets.forEach((insets) => expect(insets).toEqual([24, 24]))
+        expect(geometry.dayGap).toBeCloseTo(0)
+        if (loggable) {
+          expect(geometry.labelMinimum).toBeGreaterThanOrEqual(68)
+          expect(geometry.labelPadding).toEqual([`${12 * scale}px`, `${16 * scale}px`])
+        }
         expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.width)
         expect(geometry.eventHeight).toBeLessThanOrEqual(geometry.eventLineHeight * 2 + 1)
         if (scale === 1) {
