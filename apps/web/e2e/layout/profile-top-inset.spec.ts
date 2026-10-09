@@ -6,10 +6,18 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
+import { emptyCalendarMonth } from './calendar-month-fixture'
 
 const goals = paginatedGoalResponseSchema.parse({
   items: Array.from({ length: 3 }, (_, index) => createMockGoal({ id: `inset-goal-${index}` })),
   page: 1, pageSize: 100, totalCount: 3, totalPages: 1,
+})
+
+test.beforeEach(async ({ context }) => {
+  await context.route(
+    (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
+    (route) => route.fulfill({ json: emptyCalendarMonth }),
+  )
 })
 
 async function measureTopInset(content: Locator) {
