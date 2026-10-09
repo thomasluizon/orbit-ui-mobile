@@ -64,6 +64,7 @@ describe('settings switch centres in Chromium', () => {
           return { label: label.textContent, height: row.getBoundingClientRect().height, labelHeight: labelBounds.height,
             lineHeight: parseFloat(getComputedStyle(label).lineHeight), fontSize: parseFloat(getComputedStyle(label).fontSize),
             offset: labelBounds.top + labelBounds.height / 2 - switchBounds.top - switchBounds.height / 2,
+            firstLineOffset: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight) / 2 - switchBounds.top - switchBounds.height / 2,
             topOffset: labelBounds.top - switchBounds.top, switchHeight: switchBounds.height }
         }))
         expect(rows).toHaveLength(3)
@@ -78,7 +79,7 @@ describe('settings switch centres in Chromium', () => {
             else expect(row.height).toBeGreaterThanOrEqual(row.switchHeight)
           } else {
             expect(scale).toBe(2)
-            expect(Math.abs(row.offset), row.label).toBeLessThanOrEqual(1)
+            expect(Math.abs(row.firstLineOffset), row.label).toBeLessThanOrEqual(1)
             expect(row.height).toBeGreaterThan(52)
           }
         }

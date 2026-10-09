@@ -1036,7 +1036,7 @@
       "action": "See Pro"
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
-    "goToDay": "Open this day on Today",
+    "goToDay": "Open in Today",
     "goToCurrentMonth": "Go to current month",
     "goToCurrentWeek": "Go to current week",
     "view": {
@@ -1063,7 +1063,8 @@
       "rangeMaxDays": "Range limited to {max} days.",
       "empty": "Nothing scheduled",
       "moreLabel": "{count} more",
-      "untimedCount": "{count} without a set time"
+      "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
+      "moreCountLabel": "{count, plural, =0 {+# more habits on this day} one {+# more habit on this day} other {+# more habits on this day}}"
     },
     "status": {
       "completed": "done",

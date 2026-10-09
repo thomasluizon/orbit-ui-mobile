@@ -68,8 +68,8 @@ test('keeps the leading-icon copy pill two pixels tighter at its start', async (
   }))
 
   await page.goto('/')
-  await page.getByRole('button', { name: ptBr.todayAstra.openConversation }).click()
-  const panel = page.locator('[data-shell-conversation="panel"]')
+  await page.getByRole('button', { name: ptBr.chat.title }).click()
+  const panel = page.locator('[data-shell-conversation="overlay"]')
   await expect(panel).toBeVisible()
   await panel.locator('[data-composer-input]').fill('Como começo?')
   await panel.getByRole('button', { name: ptBr.shell.composer.send }).click()

@@ -507,7 +507,7 @@ describe('ProfilePage', () => {
 
     it.each([320, 412, 600, 840, 1023, 1024, 1352])('insets the first account card at %ipx and preserves the wide shell', async (width) => {
       const { container } = render(
-        <ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
+        <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
           <ProfilePage />
         </ShellWide>,
       )
@@ -521,9 +521,10 @@ describe('ProfilePage', () => {
           const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
           const row = document.querySelector('[data-root-notification-header]')!.getBoundingClientRect()
           const bell = document.querySelector('[data-root-notification-header] button')!.getBoundingClientRect()
-          return { columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
+          return { columnTop: column.top, columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
             headerHeight: row.height, trailingInset: scroller.left + scrollElement.clientWidth - bell.right }
         })
+        expect(geometry.columnTop).toBe(0)
         expect(geometry.columnInset).toBe(width < 1024 ? 76 : 32)
         expect(geometry.scrollerInset).toBe(width < 1024 ? 76 : 0)
         expect(geometry.headerHeight).toBe(width < 1024 ? 48 : 0)
@@ -1411,7 +1412,7 @@ describe('ProfilePage', () => {
 })
 
 it('places the Perfil bell inside the destination scroller and opens Avisos', () => {
-  const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
+  const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
   const row = container.querySelector<HTMLElement>('[data-root-notification-header]')!
   expect(container.querySelector('[data-shell-scroller]')).toContainElement(row)
   fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))

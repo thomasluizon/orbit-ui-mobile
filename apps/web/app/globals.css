@@ -2116,6 +2116,10 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
+.orbit-sidebar-astra:active {
+  --primary-soft: var(--primary-text);
+}
+
 .light :is(.orbit-hover-text, .orbit-menu-item, .orbit-list-row-body, [data-habit-row-body]):active:not(:disabled) {
   --fg-3: var(--fg-2);
 }

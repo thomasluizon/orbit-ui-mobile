@@ -148,7 +148,7 @@ describe('Hoje header geometry', () => {
     const surfaces = width < 1024 ? [<TodayDateControl key="today" {...props} isTodaySelected />, <CalendarOptions key="calendar" />,
       <RootNotificationHeader key="progress" />, <RootNotificationHeader key="profile" />] : [
       <TodayDateControl key="today" {...props} isTodaySelected />, <CalendarOptions key="calendar" />,
-      <ShellWide key="sidebar" items={[]} activeId="hoje" navLabel={messages.nav.today} notifications={<NotificationBell />}><div /></ShellWide>,
+      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} key="sidebar" items={[]} activeId="hoje" navLabel={messages.nav.today} notifications={<NotificationBell />}><div /></ShellWide>,
     ]
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
     try {

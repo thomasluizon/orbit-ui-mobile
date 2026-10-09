@@ -51,26 +51,27 @@ describe('Week and agenda geometry in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(['dark', 'light'] as const)('fills the untimed summary hit area at radius 8 in %s', async (theme) => {
+  it.each(['dark', 'light'] as const)('keeps the named chip at 28 inside its 48 hit area in %s', async (theme) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       <CalendarTimeGrid columns={[{ date, dateStr, isToday: false, isFuture: false }]}
         dayMap={new Map([[dateStr, [{ ...entry, dueTime: null }]]])} onSelectDay={vi.fn()}
         displayTime={timeLabel} dateFnsLocale={enUS} allDayLabel={en.calendar.timeGrid.noSetTime}
         nowLabel={en.calendar.timeGrid.now} timeZone="UTC" />
     </NextIntlClientProvider>)
+    container.style.cssText = 'height:100vh;display:flex;flex-direction:column'
     const page = await browser.newPage()
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', theme)).map(([name, value]) => `${name}:${value}`).join(';')
-      await page.setContent(`<html class="${theme}"><style>${stylesheet}\n:root{${variables}}</style>${container.innerHTML}</html>`)
+      await page.setContent(`<html class="${theme}"><style>${stylesheet}\n:root{${variables}}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div></html>`)
       await loadAppFonts(page)
       for (const width of [412, 1280]) {
         await page.setViewportSize({ width, height: 915 })
-        await page.locator('[data-testid="time-grid-all-day-summary"]').hover()
+        await page.locator('[data-testid="time-grid-all-day-event"]').hover()
         await page.waitForFunction(() => {
-          const button = document.querySelector('[data-testid="time-grid-all-day-summary"]')!
+          const button = document.querySelector('[data-testid="time-grid-all-day-event"]')!
           return button.getAnimations().every((animation) => animation.playState === 'finished')
         })
-        const fill = await page.locator('[data-testid="time-grid-all-day-summary"]').evaluate((button) => {
+        const fill = await page.locator('[data-testid="time-grid-all-day-event"]').evaluate((button) => {
           const style = getComputedStyle(button)
           const rect = button.getBoundingClientRect()
           const probe = document.createElement('span')
@@ -78,7 +79,9 @@ describe('Week and agenda geometry in Chromium', () => {
           button.append(probe)
           const expected = getComputedStyle(probe).backgroundColor
           probe.remove()
-          return { width: rect.width, height: rect.height, background: style.backgroundColor, expected,
+          const chip = button.firstElementChild!
+          const chipStyle = getComputedStyle(chip)
+          return { chipHeight: chip.getBoundingClientRect().height, chipRadius: chipStyle.borderRadius, width: rect.width, height: rect.height, background: style.backgroundColor, expected,
             radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius],
             padding: [style.paddingLeft, style.paddingRight, style.paddingTop, style.paddingBottom] }
         })
@@ -86,22 +89,45 @@ describe('Week and agenda geometry in Chromium', () => {
         expect(fill.height).toBeGreaterThanOrEqual(48)
         expect(fill.background).toBe(fill.expected)
         expect(fill.background).not.toBe('rgba(0, 0, 0, 0)')
+        expect(fill.chipHeight).toBe(28)
+        expect(fill.chipRadius).toBe('8px')
         expect(fill.radii).toEqual(['8px', '8px', '8px', '8px'])
-        expect(fill.padding).toEqual(['8px', '8px', '8px', '8px'])
+        expect(fill.padding).toEqual(['0px', '0px', '0px', '0px'])
       }
+      const touchPage = await browser.newPage({ hasTouch: true })
+      try {
+        await touchPage.setContent(`<html class="${theme}"><style>${stylesheet}\n:root{${variables}}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div></html>`)
+        const chip = touchPage.locator('[data-testid="time-grid-all-day-event"]')
+        const bounds = (await chip.boundingBox())!
+        await touchPage.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+        await touchPage.mouse.down()
+        await touchPage.waitForFunction(() => document.querySelector('[data-testid="time-grid-all-day-event"]')!.getAnimations().every((animation) => animation.playState === 'finished'))
+        const active = await chip.evaluate((element) => {
+          const probe = document.createElement('span')
+          probe.style.backgroundColor = 'var(--bg-hover)'
+          element.append(probe)
+          const expected = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          return { background: getComputedStyle(element).backgroundColor, expected, radius: getComputedStyle(element).borderRadius }
+        })
+        expect(active.background).toBe(active.expected)
+        expect(active.radius).toBe('8px')
+        await touchPage.mouse.up()
+      } finally { await touchPage.close() }
     } finally { await page.close() }
   })
 
   it.each(locales.flatMap((settings) => [false, true].map((crowded) => ({ ...settings, crowded }))))('keeps week labels and every crowded target clear in $locale at 320 and 200% text (crowded=$crowded)', async ({ locale, messages, dateLocale, crowded }) => {
     const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 8, 30 + index), dateStr: `day-${index}`, isToday: index === 0, isFuture: index > 0 }))
-    const entries = [entry, { ...entry, habitId: 'second' }, { ...entry, habitId: 'adjacent', dueTime: '09:00' }, { ...entry, habitId: 'last', dueTime: '23:59' }, { ...entry, habitId: 'untimed', dueTime: null }]
+    const entries = [entry, { ...entry, habitId: 'second' }, { ...entry, habitId: 'adjacent', dueTime: '09:00' }, { ...entry, habitId: 'last', dueTime: '23:59' }, { ...entry, habitId: 'untimed', dueTime: null, title: 'Sweep-Supercalifragilisticexpialidocious-Token-Habit' }, { ...entry, habitId: 'untimed-words', dueTime: null }, { ...entry, habitId: 'untimed-avoid', dueTime: null, isBadHabit: true }]
     const dayMap = new Map(columns.map((column) => [column.dateStr, crowded ? entries : entries.filter((item) => item.habitId !== 'second')]))
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={timeLabel} dateFnsLocale={dateLocale} allDayLabel={messages.calendar.timeGrid.noSetTime} nowLabel={messages.calendar.timeGrid.now} timeZone="UTC" />
     </NextIntlClientProvider>)
+    container.style.cssText = 'height:100vh;display:flex;flex-direction:column'
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       for (const scale of [1, 2]) {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
@@ -114,8 +140,9 @@ describe('Week and agenda geometry in Chromium', () => {
           return { page: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth, band: box(band),
             headers: headers.map(box),
             labels: labels.map((label) => ({ ...box(label), parent: box(label.parentElement!), font: Number.parseFloat(getComputedStyle(label).fontSize) })),
-            summaries: [...document.querySelectorAll('[data-testid="time-grid-all-day-summary"]')].map((button) => ({ ...box(button), parent: box(button.parentElement!) })),
-            columns: [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => ({ ...box(column), targets: [...column.querySelectorAll('[data-testid="time-grid-event"]')].map(box) })),
+            summaries: [...document.querySelectorAll('[data-testid="time-grid-all-day-event"], [data-testid="time-grid-all-day-more"]')].map((button) => ({ ...box(button), parent: box(button.parentElement!) })),
+            chipTargets: [...band.querySelectorAll('button')].map(box),
+            columns: [...document.querySelectorAll('[data-testid="time-grid-day-column"]')].map((column) => ({ ...box(column), targets: [...column.querySelectorAll('[data-testid="time-grid-event"]')].map((target) => ({ ...box(target), name: target.querySelector('[data-testid="time-grid-event-name"]')?.textContent, rings: target.querySelectorAll('[data-status]').length, fonts: [...target.querySelectorAll<HTMLElement>('*')].map((element) => Number.parseFloat(getComputedStyle(element).fontSize)) })) })),
           }
         })
         expect(geometry.scroll).toBe(geometry.page)
@@ -128,6 +155,7 @@ describe('Week and agenda geometry in Chromium', () => {
           expect(label.left).toBeGreaterThanOrEqual(label.parent.left)
           expect(label.right).toBeLessThanOrEqual(label.parent.right)
         }
+        expectNoOverlap(geometry.chipTargets)
         for (const summary of geometry.summaries) {
           expect(summary.width).toBeGreaterThanOrEqual(48)
           expect(summary.height).toBeGreaterThanOrEqual(48)
@@ -135,6 +163,9 @@ describe('Week and agenda geometry in Chromium', () => {
         }
         for (const column of geometry.columns) {
           for (const target of column.targets) {
+            expect(target.name).toBe(longTitle)
+            expect(target.rings).toBe(1)
+            expect(target.fonts.every((size) => size >= 12 * scale)).toBe(true)
             expect(target.width).toBeGreaterThanOrEqual(48)
             expect(target.height).toBeGreaterThanOrEqual(48)
             expect(target.bottom).toBeLessThanOrEqual(column.bottom)
@@ -198,7 +229,7 @@ describe('Week and agenda geometry in Chromium', () => {
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
-      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.setContent(`<style>${stylesheet}</style><div style="height:100vh;display:flex;flex-direction:column">${container.innerHTML}</div>`)
       await loadAppFonts(page)
       let defaultHeight = 0
       for (const scale of [1, 2]) {

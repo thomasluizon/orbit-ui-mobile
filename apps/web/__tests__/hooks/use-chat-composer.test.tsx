@@ -249,7 +249,7 @@ function textFile(name: string, content: string, size = content.length) {
 function ComposerConversationHarness({ conversationReady = true }: { conversationReady?: boolean }) {
   const chat = useChatComposer({ pathname: '/profile' })
   const open = useUIStore((state) => state.astraConversationOpen)
-  return <ShellWide
+  return <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
     items={[]}
     activeId="perfil"
     navLabel="Navigation"
@@ -1666,7 +1666,7 @@ describe('web useChatComposer streaming send', () => {
 
     function TodayComposer() {
       const chat = useChatComposer({ pathname: '/', totalHabitCount: 1 })
-      return <ShellWide items={[]} activeId="hoje" navLabel="Navigation" composer={<Composer {...chat.composerProps} />} />
+      return <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation" composer={<Composer {...chat.composerProps} />} />
     }
 
     const view = render(<TodayComposer />)

@@ -42,7 +42,7 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
     onClick={() => openEvent(event.id)}
   />)
   return <>
-    <View style={[styles.list, { paddingHorizontal: 8 }]}>{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</View>
+    <View style={styles.inlineList}>{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</View>
     {!sheetOnly && calendarEvents.length > 3 ? <ListRow textMode="label" title={t('calendar.dayDetail.viewAllEventsLabel')} value={`(${calendarEvents.length})`} accessibilityLabel={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /> : null}
     {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={finishClose}>
       <View style={styles.list}>
@@ -60,6 +60,7 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
 }
 
 const styles = StyleSheet.create({
+  inlineList: { gap: 4 },
   list: { gap: 8 },
   count: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, fontVariant: ['tabular-nums'] },
   empty: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },

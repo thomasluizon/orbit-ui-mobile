@@ -96,6 +96,7 @@ describe('SettingsRow switch geometry', () => {
       const geometry = measureProfileRow(tree.toJSON(), 288, fontScale)
       const label = geometry.texts.find((text) => text.label === title)!
       const control = geometry.controls.filter((control) => control.accessibilityLabel === title).at(-1)!
+      const track = geometry.parts.find((part) => part.slot === 'switch-track')!
       expect(control.height).toBeGreaterThanOrEqual(48)
       expect(label.clipped).toBe(false)
       if (label.lines === 1) {
@@ -104,7 +105,7 @@ describe('SettingsRow switch geometry', () => {
         else expect(geometry.height).toBeGreaterThan(52)
       } else {
         expect(fontScale).toBe(2)
-        expect(Math.abs(label.top + label.height / 2 - control.top - control.height / 2)).toBeLessThanOrEqual(1)
+        expect(Math.abs(label.top + label.height / label.lines / 2 - track.top - track.height / 2)).toBeLessThanOrEqual(1)
         expect(geometry.height).toBeGreaterThan(52)
       }
     } finally { await act(() => tree.update(<></>)) }

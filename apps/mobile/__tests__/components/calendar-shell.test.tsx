@@ -254,8 +254,8 @@ describe('CalendarHeader shared navigation', () => {
 
 describe("CalendarLegend (mobile)", () => {
   it.each([
-    [en, ["all logged", "part done", "nothing logged", "can log"], "Range", "Open this day on Today", ["Previous range", "Next range"], ["done", "not logged", "indulged", "resisted"]],
-    [ptBR, ["tudo registrado", "em parte", "nada registrado", "pode registrar"], "Período", "Abrir este dia no Hoje", ["Período anterior", "Período seguinte"], ["feito", "sem registro", "cedeu", "resistiu"]],
+    [en, ["all logged", "part done", "nothing logged", "can log"], "Range", "Open in Today", ["Previous range", "Next range"], ["done", "not logged", "indulged", "resisted"]],
+    [ptBR, ["tudo registrado", "em parte", "nada registrado", "pode registrar"], "Período", "Abrir no Hoje", ["Período anterior", "Período seguinte"], ["feito", "sem registro", "cedeu", "resistiu"]],
   ])("uses the drawn calendar words in each locale", (locale, legendWords, rangeWord, dayLink, rangePager, statusWords) => {
     expect([locale.calendar.legend.full, locale.calendar.legend.partial, locale.calendar.legend.none, locale.calendar.legend.loggable]).toEqual(legendWords);
     expect([locale.calendar.dayCell.full, locale.calendar.dayCell.partial, locale.calendar.dayCell.none]).toEqual(legendWords.slice(0, 3));

@@ -5,7 +5,7 @@ import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pr
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
 import { cloneElement, isValidElement, useState } from 'react'
-import { Pressable as NativePressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { SwitchTrack } from '@/components/ui/switch'
@@ -60,16 +60,20 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
   const Title = textMode === 'personal' ? PersonalText : Text
   const Description = textMode === 'personal' ? PersonalText : Text
   const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly)
-  const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null]}>
+  const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null, toggle ? { minHeight: 28 } : null]}>
     <Title data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)), { color: titleColor }]}>{title}</Title>
     {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
-  return arrangeRowText({ textMode, wrapValue, trailing }, text, rowValue, keepsControlInline)
+  return useArrangedRowText({ textMode, wrapValue, trailing }, text, rowValue, keepsControlInline)
 }
 
-function arrangeRowText({ textMode, wrapValue, trailing }: Readonly<Pick<ListRowProps, 'textMode' | 'wrapValue' | 'trailing'>>, text: ReactNode, rowValue: ReactNode, keepsControlInline: boolean) {
-  return textMode === 'personal' ? <View style={{ flex: 1, minWidth: 0, gap: 4 }}>{text}{rowValue}</View> : wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View data-slot="list-row-trailing" style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
+function useArrangedRowText({ textMode, wrapValue, trailing }: Readonly<Pick<ListRowProps, 'textMode' | 'wrapValue' | 'trailing'>>, text: ReactNode, rowValue: ReactNode, keepsControlInline: boolean) {
+  const { fontScale } = useWindowDimensions()
+  if (textMode === 'personal') return <View style={{ flex: 1, minWidth: 0, gap: 4 }}>{text}{rowValue}</View>
+  if (!wrapValue && textMode !== 'label') return <>{text}{rowValue}</>
+  const trailingStyle = keepsControlInline ? { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' as const } : null
+  return <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View data-slot="list-row-trailing" style={[styles.trailing, trailingStyle]}>{trailing}</View> : null}</View>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -157,15 +161,17 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   const column = props.placement === 'column'
   const bodyStyle = getBodyStyle(hasSupportingLine(props), column)
   const rowTrailing = rowAccessory(props)
+  const { fontScale } = useWindowDimensions()
+  const switchLine = props.toggle ? { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' as const } : null
   const body: ReactNode = (
     <AnimatedContent data-slot="list-row-content" style={[reducedMotion ? null : PRESS_TRANSITION, styles.bodyContent, rowContentStyle(props, rowTrailing), props.toggle ? styles.switchContent : null, interaction.pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
-        <View data-slot="list-row-icon" importantForAccessibility="no-hide-descendants" style={styles.iconSlot}>
+        <View data-slot="list-row-icon" importantForAccessibility="no-hide-descendants" style={[styles.iconSlot, switchLine]}>
           {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}
       <RowTextContent {...props} trailing={rowTrailing} titleColor={titleColor} valueColor={interaction.highlighted ? tokens.fg2 : tokens.fg3} />
-      {rowTrailing && props.textMode !== 'label' ? <View data-slot="list-row-trailing" style={styles.trailing}>{rowTrailing}</View> : null}
+      {rowTrailing && props.textMode !== 'label' ? <View data-slot="list-row-trailing" style={[styles.trailing, switchLine]}>{rowTrailing}</View> : null}
       {!readOnly && !props.toggle && chevron ? <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={styles.chevron}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.5} /></View> : null}
     </AnimatedContent>
   )
@@ -199,8 +205,8 @@ const styles = StyleSheet.create({
   textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
   labelContent: { minHeight: 24, alignItems: 'flex-start' },
-  switchContent: { alignItems: 'center' },
-  labelControlContent: { flexWrap: 'nowrap', alignItems: 'center' },
+  switchContent: { alignItems: 'flex-start' },
+  labelControlContent: { flexWrap: 'nowrap', alignItems: 'flex-start' },
   labelControlText: { flexBasis: 0, flexShrink: 1 },
   labelTextBlock: { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' },
   wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },

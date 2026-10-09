@@ -9,6 +9,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { plural } from '@/lib/plural'
 import { createStyles } from './notification-bell.styles'
+import { useUIStore } from '@/stores/ui-store'
 
 export function NotificationBell() {
   const router = useRouter()
@@ -16,8 +17,14 @@ export function NotificationBell() {
   const { visibleUnreadCount: count } = useNotificationInbox()
   return <NotificationBellDisplay count={count}
     onPress={pathname === '/notifications' ? undefined : () => requestHabitCreateNavigation(
-      () => router.push('/notifications'),
-      () => router.replace('/notifications'),
+      () => {
+        useUIStore.getState().setAstraConversationOpen(false)
+        router.push('/notifications')
+      },
+      () => {
+        useUIStore.getState().setAstraConversationOpen(false)
+        router.replace('/notifications')
+      },
     )} />
 }
 
