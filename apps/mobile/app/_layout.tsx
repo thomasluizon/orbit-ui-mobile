@@ -121,6 +121,12 @@ function useComposerGeneralPreference(pathname: string): boolean {
   return snapshot.accountId === accountId && snapshot.value
 }
 
+function AccountAutomaticEffects({ profile }: Readonly<{ profile: ReturnType<typeof useProfile>['profile'] }>) {
+  useTimezoneAutoSync(profile)
+  useOnboardingFlush()
+  return null
+}
+
 function RootLayoutNav() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -133,7 +139,6 @@ function RootLayoutNav() {
   const captureReady = useCaptureReady()
   const { profile } = useProfile()
   const today = useCurrentDate(profile?.timeZone)
-  useTimezoneAutoSync(profile)
   const hasProAccess = useHasProAccess()
   const { count: totalHabitCount, isLoaded: habitCountLoaded } = useHabitCountLoaded()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
@@ -154,7 +159,6 @@ function RootLayoutNav() {
     totalHabitCount: habitCountLoaded ? totalHabitCount : null,
     includeGeneral,
   })
-  useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
   const isNotFound = topSegment === '+not-found'
@@ -315,7 +319,12 @@ function RootLayoutNav() {
         ) : null}
       </View>
 
-      {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
+      {isAuthenticated ? (
+        <>
+          <AccountAutomaticEffects profile={profile} />
+          <GlobalOverlays profile={profile} />
+        </>
+      ) : null}
       {!isAuthenticated ? <AppToast /> : null}
     </>
   )

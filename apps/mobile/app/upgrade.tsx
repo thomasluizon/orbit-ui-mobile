@@ -64,9 +64,9 @@ function UpgradeContent({
       </View>
     )
   } else if (state === 'load-failed') {
-    body = <ErrorState message={t('upgrade.billing.error')} action={
+    body = <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.error')} action={
       <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.billing.retry')}</PillButton>
-    } />
+    } /></View>
   } else {
     body = content === 'pitch' ? pitchContent : billingContent
   }
@@ -325,9 +325,12 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   padBlock: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 8,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
 })
