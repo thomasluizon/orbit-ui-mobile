@@ -42,6 +42,7 @@ vi.mock('expo-application', () => ({ get nativeApplicationVersion() { return moc
 vi.mock('expo-constants', () => ({ default: { get expoConfig() { return { version: mocks.configVersion } } } }))
 
 vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined,
   useRouter: () => ({ push: mocks.push }),
 }))
 

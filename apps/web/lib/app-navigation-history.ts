@@ -7,9 +7,16 @@ export type AppNavigationAction = 'init' | 'push' | 'replace' | 'pop'
 
 const APP_NAVIGATION_HISTORY_STORAGE_KEY = 'orbit-app-navigation-history'
 const MAX_APP_NAVIGATION_ENTRIES = 50
+const historyListeners = new Set<() => void>()
+
+export function subscribeAppNavigationHistory(listener: () => void): () => void {
+  historyListeners.add(listener)
+  return () => { historyListeners.delete(listener) }
+}
 
 export function clearAppNavigationHistory(): void {
   if (canUseSessionStorage()) globalThis.sessionStorage.removeItem(APP_NAVIGATION_HISTORY_STORAGE_KEY)
+  historyListeners.forEach((listener) => listener())
 }
 
 function createEmptyState(): AppNavigationHistoryState {
@@ -83,6 +90,7 @@ function writeAppNavigationHistory(state: AppNavigationHistoryState): void {
       APP_NAVIGATION_HISTORY_STORAGE_KEY,
       JSON.stringify(trimState(state)),
     )
+    historyListeners.forEach((listener) => listener())
   } catch {
   }
 }

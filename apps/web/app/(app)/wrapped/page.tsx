@@ -1,7 +1,6 @@
 'use client'
 
 import { Suspense, useState } from 'react'
-import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import {
   parseWrappedRouteSelection,
@@ -9,6 +8,7 @@ import {
   type WrappedRouteSelection,
 } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
@@ -41,8 +41,8 @@ function WrappedPageRoute() {
 function WrappedPageContent({ initialSelection }: Readonly<{
   initialSelection: WrappedRouteSelection
 }>) {
-  const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const [selection, setSelection] = useState(initialSelection)
   const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
@@ -90,7 +90,7 @@ function WrappedPageContent({ initialSelection }: Readonly<{
           <AppBar
             title=""
             titleIsHeading={false}
-            backLabel={t('common.backToProfile')}
+            backLabel={backLabel}
             onBack={() => goBackOrFallback('/profile')}
           />
         ) : null}

@@ -40,7 +40,9 @@ const mocks = vi.hoisted<{
   safeAreaTop: 0,
 }))
 
-vi.mock('expo-router', () => ({ useLocalSearchParams: () => mocks.params }))
+vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined,
+  useLocalSearchParams: () => mocks.params }))
 
 vi.mock('react-native-safe-area-context', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()

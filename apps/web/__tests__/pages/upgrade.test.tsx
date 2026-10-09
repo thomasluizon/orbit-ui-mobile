@@ -15,9 +15,11 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import type { Profile } from '@orbit/shared/types/profile'
 import { setAccountId } from '@/lib/account-scope'
 import * as apiFetch from '@/lib/api-fetch'
+import { readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
 import { RouteContext } from '@/components/navigation/route-context'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/upgrade', useSearchParams: () => new URLSearchParams(globalThis.location.search) }))
+const navigation = vi.hoisted(() => ({ real: false, back: vi.fn(), replace: vi.fn(), push: vi.fn() }))
+vi.mock('next/navigation', () => ({ useRouter: () => navigation, usePathname: () => '/upgrade', useSearchParams: () => new URLSearchParams(globalThis.location.search) }))
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -64,9 +66,10 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({
-  useGoBackOrFallback: () => mockGoBackOrFallback,
-}))
+vi.mock('@/hooks/use-go-back-or-fallback', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-go-back-or-fallback')>()
+  return { useGoBackOrFallback: () => navigation.real ? actual.useGoBackOrFallback() : mockGoBackOrFallback }
+})
 
 vi.mock('@/lib/actions/subscription', () => ({
   openCustomerPortal: (...args: unknown[]) => mockOpenCustomerPortal(...args),
@@ -182,6 +185,45 @@ import UpgradePage from '@/app/(app)/upgrade/page'
 import { holdAccount } from '@/__tests__/support/account-change'
 
 describe('UpgradePage', () => {
+  describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
+    it.each([
+      { source: '/profile', from: '', destination: messages.nav.profile },
+      { source: '/profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: '/calendar?view=month', from: '', destination: messages.nav.calendar },
+      { source: '/habits/new?draft=retained', from: '', destination: messages.habits.form.newHabit },
+      { source: '/', from: '', destination: messages.nav.today },
+      { source: '/calendar', from: '/profile/astra', destination: messages.nav.calendar },
+      { source: '/chat', from: '', destination: messages.chat.title },
+      { source: null, from: '', destination: messages.nav.profile },
+      { source: null, from: '/profile/astra', destination: messages.profile.groups.astra },
+    ])('names and returns to $source with from=$from', ({ source, from, destination }) => {
+      navigation.real = true
+      mockLocale.value = locale
+      const route = from ? `/upgrade?from=${encodeURIComponent(from)}` : '/upgrade'
+      history.replaceState({}, '', route)
+      navigation.back.mockImplementation(() => {
+        const { entries, index } = readAppNavigationHistory()
+        updateAppNavigationHistory(entries[index - 1], 'pop')
+      })
+      if (source) updateAppNavigationHistory(source, 'init')
+      updateAppNavigationHistory(route, source ? 'push' : 'init')
+      render(<UpgradePage />)
+      const label = source === '/profile' || (!source && !from)
+        ? messages.common.backToProfile
+        : source === '/' ? messages.common.backToToday : messages.common.backToDestination.replace('{destination}', destination)
+      fireEvent.click(screen.getByRole('button', { name: label }))
+      if (source) {
+        expect(navigation.back).toHaveBeenCalledExactlyOnceWith()
+        expect(navigation.replace).not.toHaveBeenCalled()
+        const restored = readAppNavigationHistory()
+        expect(restored.entries[restored.index]).toBe(source)
+      } else {
+        expect(navigation.replace).toHaveBeenCalledExactlyOnceWith(from || '/profile')
+        expect(navigation.back).not.toHaveBeenCalled()
+      }
+    })
+  })
+
   describe('pitch heading geometry', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
@@ -273,6 +315,10 @@ describe('UpgradePage', () => {
     mockIsBillingError = false
     mockUseBilling.mockClear()
     mockOpenCustomerPortal.mockReset()
+    navigation.real = false
+    navigation.back.mockClear()
+    navigation.replace.mockClear()
+    sessionStorage.clear()
     mockGoBackOrFallback.mockReset()
     mockRefetchStatus.mockReset().mockResolvedValue(undefined)
     mockRefetchBilling.mockReset().mockResolvedValue(undefined)
