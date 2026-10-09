@@ -61,7 +61,7 @@ screen tests verify native scroll ownership without an emulator.
 
 | Paired web and Android surface | Contract and evidence |
 |---|---|
-| Week and range time-grid gutter | The shared no-time label fits the 96 minimum gutter in both locales at default text size, including crowded days; accessibility text can wrap and grow the aligned day band. Chromium unit geometry covers 320, 360, 384, 412 and 1352; native unit geometry covers the same widths at font scale 1 and measured growth at font scale 2. The CI label-fit case covers 320, 412 and 1352. |
+| Week time-grid gutter | The shared no-time label fits the 96 minimum gutter in both locales at default text size, including crowded days; accessibility text can wrap and grow the aligned day band. Chromium unit geometry covers 320, 360, 384, 412 and 1352; native unit geometry covers the same widths at font scale 1 and measured growth at font scale 2. The CI label-fit case covers 320, 412 and 1352. |
 | Agenda row value | Untimed entries use the amended shared wording in both locales; populated row tests retain complete accessible announcements and ordering. |
 | Entry details meta line | The existing shared no-time key supplies the amended wording beside the status on both platforms; existing details tests retain complete titles and disclosure behavior. |
 | Calendar drawing | Both locale variants follow the shared gutter wording, padding and line-height contract. |
