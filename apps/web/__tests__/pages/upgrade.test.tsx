@@ -185,7 +185,7 @@ import UpgradePage from '@/app/(app)/upgrade/page'
 import { holdAccount } from '@/__tests__/support/account-change'
 
 describe('UpgradePage', () => {
-  describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
+  describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const)('back destination in $locale', ({ locale, messages }) => {
     it.each([
       { source: '/profile', from: '', destination: messages.nav.profile },
       { source: '/profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
@@ -203,7 +203,7 @@ describe('UpgradePage', () => {
       history.replaceState({}, '', route)
       navigation.back.mockImplementation(() => {
         const { entries, index } = readAppNavigationHistory()
-        updateAppNavigationHistory(entries[index - 1], 'pop')
+        updateAppNavigationHistory(entries[index - 1]!, 'pop')
       })
       if (source) updateAppNavigationHistory(source, 'init')
       updateAppNavigationHistory(route, source ? 'push' : 'init')
