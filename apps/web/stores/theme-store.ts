@@ -6,10 +6,10 @@ import { normalizeThemeMode } from '@/lib/theme-dom'
 
 const listeners = new Set<() => void>()
 
-function getCurrentTheme(): ThemeMode {
+export function getCurrentTheme(): ThemeMode {
   if (typeof document === 'undefined') return 'dark'
   const match = /(?:^|; )orbit_theme_mode=([^;]*)/.exec(document.cookie)
-  return normalizeThemeMode(match?.[1] ? decodeURIComponent(match[1]) : null)
+  return normalizeThemeMode(document.documentElement.style.colorScheme || (match?.[1] ? decodeURIComponent(match[1]) : null))
 }
 
 function subscribe(listener: () => void) {
@@ -19,6 +19,7 @@ function subscribe(listener: () => void) {
 
 export function setCurrentTheme(theme: ThemeMode) {
   document.cookie = `orbit_theme_mode=${theme}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Strict; Secure`
+  document.documentElement.style.setProperty('color-scheme', theme)
   for (const listener of listeners) listener()
 }
 

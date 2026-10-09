@@ -54,7 +54,10 @@ Object.defineProperty(document, 'cookie', {
   configurable: true,
 })
 
-const mockSetProperty = vi.fn()
+let bootstrapTheme = ''
+const mockSetProperty = vi.fn((property: string, value: string) => {
+  if (property === 'color-scheme') bootstrapTheme = value
+})
 const mockClassList = {
   add: vi.fn(),
   remove: vi.fn(),
@@ -62,7 +65,7 @@ const mockClassList = {
 
 Object.defineProperty(document, 'documentElement', {
   value: {
-    style: { setProperty: mockSetProperty },
+    style: { setProperty: mockSetProperty, get colorScheme() { return bootstrapTheme } },
     classList: mockClassList,
   },
   writable: true,
@@ -105,6 +108,7 @@ describe('useColorScheme', () => {
   beforeEach(() => {
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     mockCookies = {}
+    bootstrapTheme = ''
     heldAccount.id = null
     accountGeneration.current = 0
     showPersistentError.mockClear()
@@ -134,6 +138,15 @@ describe('useColorScheme', () => {
     mockCookies['orbit_theme_mode'] = 'light'
     const { result } = renderHook(() => useColorScheme())
     expect(result.current.currentTheme).toBe('light')
+  })
+
+  it.each([undefined, 'dark'])('preserves the server light theme with cookie %s', (cookieTheme) => {
+    bootstrapTheme = 'light'
+    if (cookieTheme) mockCookies['orbit_theme_mode'] = cookieTheme
+    const { result } = renderHook(() => useColorScheme())
+    expect(result.current.currentTheme).toBe('light')
+    expect(mockSetProperty).toHaveBeenCalledWith('color-scheme', 'light')
+    expect(mockClassList.add).not.toHaveBeenCalledWith('dark')
   })
 
   it('applyTheme updates current theme', () => {

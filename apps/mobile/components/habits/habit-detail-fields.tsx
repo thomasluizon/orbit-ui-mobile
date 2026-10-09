@@ -8,8 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
 import type { HabitDetailPatch, ReminderChanges } from '@orbit/shared/hooks'
-import type { Time24 } from '@orbit/shared/contracts/forms'
-import { buildHabitDaysList, buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitReminderLabel, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
+import { toTime24, buildHabitDaysList, buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitReminderLabel, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS, toggleHabitDaySelection } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
 import { ListRow } from '@/components/ui/list-row'
@@ -140,7 +139,7 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
   }
   return (
     <View style={styles.fields}>
-      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
+      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={toTime24(habit.dueTime)} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
       <View style={{ gap: 8 }}>
         {!habit.dueTime ? <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel> : null}
         {habit.dueTime ? <ReminderSection inline tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => changeReminders({ offsets })} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError}>

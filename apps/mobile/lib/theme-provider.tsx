@@ -80,7 +80,7 @@ export function ThemeProvider({
   )
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(
     () => captureTheme ?? (
-      profile?.themePreference === 'dark' || profile?.themePreference === 'light'
+      profile?.themePreference === 'light' || profile?.themePreference === 'dark'
         ? profile.themePreference
         : systemScheme === 'light' ? 'light' : 'dark'
     ),

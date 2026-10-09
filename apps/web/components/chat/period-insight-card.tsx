@@ -62,7 +62,7 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
           <h4 className="text-sm font-medium text-[var(--fg-1)]">{t(page.titleKey)}</h4>
           {body}
         </div>}
-        actions={<div className="flex flex-col gap-3">
+        actions={<div className="basis-full min-w-0">
           <Pager
             index={index}
             count={pages.length}

@@ -7,8 +7,7 @@ import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
 import type { HabitDetailPatch, ReminderChanges } from '@orbit/shared/hooks'
-import type { Time24 } from '@orbit/shared/contracts/forms'
-import {
+import { toTime24,
   buildHabitDaysList,
   type HabitDayOption,
   buildHabitDetailSchedulePatch,
@@ -137,7 +136,7 @@ export function HabitDetailFields({ open = true, habit, hasProAccess, relationsh
   }
   return (
     <div className="flex flex-col gap-6">
-      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={(habit.dueTime ?? '') as Time24 | ''} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
+      <TimeField commitTypedClearOnBlur label={t('habits.form.exactTime')} hint={t('habits.form.anyTimeHint')} value={toTime24(habit.dueTime)} onChange={(time) => { const patch = buildHabitDetailTimePatch(time, habit); if (patch) void onPatch(patch) }} onClear={() => { const patch = buildHabitDetailTimePatch('', habit); if (patch) void onPatch(patch) }} />
       <section className="flex flex-col gap-2">
         {!habit.dueTime ? <FormSectionLabel>{t('habits.form.reminders')}</FormSectionLabel> : null}
         {habit.dueTime ? <ReminderSection inline reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => changeReminders({ offsets })} onToggleReminder={() => changeReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} scheduledReminderCount={reminderHabit.scheduledReminders.length} onValidationError={showError} t={t}>

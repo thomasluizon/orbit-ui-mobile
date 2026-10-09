@@ -19,7 +19,7 @@ import { getHeldAccountId } from '@/stores/auth-store'
 import { reportsAccountChanged } from '@/app/actions/action-result'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { getAccountGeneration } from '@/lib/session-epoch'
-import { useCurrentTheme, setCurrentTheme } from '@/stores/theme-store'
+import { getCurrentTheme, useCurrentTheme, setCurrentTheme } from '@/stores/theme-store'
 
 function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Strict; Secure`
@@ -33,7 +33,9 @@ export function useColorScheme() {
   const currentTheme = useCurrentTheme()
 
   useEffect(() => {
+    if (currentTheme !== getCurrentTheme()) return
     setCookie('orbit_color_scheme', currentScheme)
+    setCookie('orbit_theme_mode', currentTheme)
     applyThemeTokensToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])
 

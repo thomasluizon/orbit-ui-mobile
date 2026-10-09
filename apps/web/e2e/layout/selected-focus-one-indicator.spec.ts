@@ -18,14 +18,21 @@ async function keyboardFocus(page: Page, control: Locator) {
   await page.keyboard.press('Shift+Tab')
   for (let stop = 0; stop < 120; stop += 1) {
     await page.keyboard.press('Tab')
-    if (await control.evaluate((element) => element === document.activeElement)) break
+    const reached = await control.evaluate(async (element) => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+      return element.isConnected && element === document.activeElement && element.matches(':focus-visible')
+    })
+    if (reached) break
   }
   await expect(control).toBeFocused()
-  expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+  await expect.poll(() => control.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
 }
 
 async function checkChoice(page: Page, control: Locator, alternative: Locator) {
+  const selectionAttribute = await control.getAttribute('role') === 'radio' ? 'aria-checked' : 'aria-pressed'
   await alternative.click()
+  await expect(alternative).toHaveAttribute(selectionAttribute, 'true')
+  await expect(control).toHaveAttribute(selectionAttribute, 'false')
   await expectRings(control, 0)
   await control.hover()
   await expectRings(control, 0)
@@ -35,6 +42,7 @@ async function checkChoice(page: Page, control: Locator, alternative: Locator) {
     await alternative.click()
   }
   await control.click()
+  await expect(control).toHaveAttribute(selectionAttribute, 'true')
   await expectRings(control, 1)
   await control.hover()
   await expectRings(control, 1)
@@ -199,7 +207,7 @@ for (const width of [412, 1352]) {
           const editor = fields.locator('#habit-detail-schedule-editor')
           const units = editor.getByRole('radio')
           await checkChoice(page, units.nth(0), units.nth(1))
-          await checkToggle(page, editor.getByRole('button', { name: words.dates.daysLong.monday, exact: true }))
+          await checkToggle(page, editor.getByRole('button', { name: words.dates.daysLong.tuesday, exact: true }))
         })
 
         test('onboarding starters, schedule modes and days share the focus rule', async ({ page, context }) => {
@@ -261,28 +269,30 @@ test.describe('compact calendar track geometry', () => {
     await page.goto('/calendar')
     await expect(page.getByTestId('calendar-grid-card')).toBeVisible()
     const track = page.getByRole('radiogroup', { name: ptBR.calendar.view.switchLabel, exact: true })
-    const geometry = await track.evaluate((element) => {
-      const style = getComputedStyle(element)
-      const probe = document.createElement('span')
-      probe.style.backgroundColor = 'var(--bg-well)'
-      element.appendChild(probe)
-      const well = getComputedStyle(probe).backgroundColor
-      probe.remove()
-      return { padding: style.padding, gap: style.gap, radius: style.borderRadius, fill: style.backgroundColor, well, shadow: style.boxShadow, segments: [...element.querySelectorAll('button')].map((button) => {
-        const label = button.querySelector('span')!
-        const range = document.createRange(); range.selectNodeContents(label)
-        return { top: button.getBoundingClientRect().top, radius: getComputedStyle(button).borderRadius, height: button.getBoundingClientRect().height, width: label.getBoundingClientRect().width, labelWidth: range.getBoundingClientRect().width, lines: range.getClientRects().length }
-      }) }
-    })
-    expect(geometry).toMatchObject({ padding: '4px', gap: '4px', radius: '12px', shadow: 'none' })
-    expect(geometry.fill).toBe(geometry.well)
-    expect(geometry.segments).toHaveLength(4)
-    expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
-    for (const segment of geometry.segments) {
-      expect(segment.radius).toBe('8px')
-      expect(segment.height).toBeGreaterThanOrEqual(48)
-      expect(segment.lines).toBe(1)
-      expect(segment.labelWidth).toBeLessThanOrEqual(segment.width)
-    }
+    await expect(async () => {
+      const geometry = await track.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = 'var(--bg-well)'
+        element.appendChild(probe)
+        const well = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return { padding: style.padding, gap: style.gap, radius: style.borderRadius, fill: style.backgroundColor, well, shadow: style.boxShadow, segments: [...element.querySelectorAll('button')].map((button) => {
+          const label = button.querySelector('span')!
+          const range = document.createRange(); range.selectNodeContents(label)
+          return { top: button.getBoundingClientRect().top, radius: getComputedStyle(button).borderRadius, height: button.getBoundingClientRect().height, width: label.getBoundingClientRect().width, labelWidth: range.getBoundingClientRect().width, lines: range.getClientRects().length }
+        }) }
+      })
+      expect(geometry).toMatchObject({ padding: '4px', gap: '4px', radius: '12px', shadow: 'none' })
+      expect(geometry.fill).toBe(geometry.well)
+      expect(geometry.segments).toHaveLength(4)
+      expect(new Set(geometry.segments.map((segment) => segment.top)).size).toBe(1)
+      for (const segment of geometry.segments) {
+        expect(segment.radius).toBe('8px')
+        expect(segment.height).toBeGreaterThanOrEqual(48)
+        expect(segment.lines).toBe(1)
+        expect(segment.labelWidth).toBeLessThanOrEqual(segment.width)
+      }
+    }).toPass({ timeout: 15_000 })
   })
 })

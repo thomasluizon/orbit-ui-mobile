@@ -1,3 +1,4 @@
+import { toTime24 } from '@orbit/shared/utils'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PillButton } from "@/components/ui/pill-button";
@@ -198,7 +199,7 @@ export function ScheduledReminderSection({
               <View style={sectionStyles.timeRow}>
                 <TimeField
                   label={t("habits.form.scheduledReminderTimePlaceholder")}
-                  value={time}
+                  value={toTime24(time)}
                   onChange={setTime}
                   onClear={() => setTime("")}
                 />

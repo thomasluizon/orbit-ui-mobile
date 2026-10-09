@@ -329,9 +329,7 @@ function createRenderers() {
     editSheet: () => 'edit-sheet',
     removeItem: (label, _disabled, onClick) => { record.buttons.push({ label, onClick }); return label },
     notice: (message) => message,
-    actionRow: (...children) => children.join('|'),
     fragment: (...children) => children.filter(Boolean).join('|'),
-    spacer: () => 'spacer',
     rejected: (message) => message,
   }
   return { record, render }
@@ -523,7 +521,7 @@ describe('pending operation card view', () => {
     expect(record.frame?.count).toBe(operation.changeTargetCount)
     expect(record.frame?.items.every((item) => item.label !== '')).toBe(true)
     expect(record.frame?.items[0]).toMatchObject({ proposed: true, wrapLabel: true, wrapMeta: true, meta: 'Sep 26, 2026 · Send reminders' })
-    expect(record.frame?.actions).toBe('Approve|Edit item|spacer|Reject')
+    expect(record.frame?.actions).toBe('Reject|Edit item|Approve')
     expect(record.buttons.map(({ label }) => label)).toContain('Reject')
     record.buttons.find(({ label }) => label === 'Remove Run')?.onClick()
     expect(card.revision.rejectItem).toHaveBeenCalledWith('habit-1')
@@ -539,7 +537,7 @@ describe('pending operation card view', () => {
     expect(output).toBe('frame|confirm')
     expect(record.frame).toMatchObject({
       state: 'resting', items: [{ irreversible: true, status: undefined }],
-      actions: 'Approve|spacer|Reject',
+      actions: 'Reject|Approve',
     })
     expect(record.buttons.map(({ label }) => label)).toEqual(['Reject', 'Approve'])
     record.buttons[1]?.onClick()

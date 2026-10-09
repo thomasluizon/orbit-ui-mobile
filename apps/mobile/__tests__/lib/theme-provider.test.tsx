@@ -39,6 +39,7 @@ async function setup(previous: ThemeMode) {
   client.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: previous }))
   const chooser: { current: ThemeContextValue | null } = { current: null }
   const destination: { profile?: Profile; theme: ThemeContextValue | null } = { theme: null }
+  const renderedThemes: (ThemeMode | undefined)[] = []
   let showDestination = () => {}
   function Destination() {
     destination.profile = useProfile({ enabled: false }).profile
@@ -47,6 +48,7 @@ async function setup(previous: ThemeMode) {
   }
   function Navigation() {
     chooser.current = useAppTheme()
+    renderedThemes.push(chooser.current.currentTheme)
     const [mounted, setMounted] = useState(false)
     showDestination = () => setMounted(true)
     return mounted ? <Destination /> : null
@@ -65,7 +67,7 @@ async function setup(previous: ThemeMode) {
   const flushNotifications = async () => {
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
   }
-  return { client, chooser, destination, mountDestination, flushNotifications }
+  return { client, chooser, destination, mountDestination, flushNotifications, renderedThemes }
 }
 
 afterEach(async () => {
@@ -89,6 +91,14 @@ describe('mobile theme choice across profile consumers', () => {
     expect(chooser.current?.currentTheme).toBe(previous)
     expect(destination.theme?.currentTheme).toBe(previous)
   })
+
+  it('renders a restored light profile in light from its first frame on a dark system', async () => {
+    const { chooser, renderedThemes } = await setup('light')
+    expect(renderedThemes).toEqual(['light'])
+    expect(chooser.current?.currentTheme).toBe('light')
+    expect(getRuntimeTheme().themeMode).toBe('light')
+  })
+
   it('waits for stored-session validation before persisting a missing theme', async () => {
     auth.isAuthenticated = false
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

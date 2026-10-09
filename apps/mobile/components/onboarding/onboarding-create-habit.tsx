@@ -2,9 +2,8 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import type { Time24 } from '@orbit/shared/contracts/forms'
 import { MAX_HABIT_INTERVAL_WEEKS, type FrequencyUnit } from '@orbit/shared/types/habit'
-import { canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
+import { toTime24, canRepeatOnboardingScheduleWeeks, clampOnboardingRepeatWeeks, getOnboardingScheduleMode, type OnboardingSchedule, type OnboardingScheduleMode } from '@orbit/shared/utils'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Chip } from '@/components/ui/chip'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -98,7 +97,7 @@ export function OnboardingCreateHabit(props: Readonly<Props>) {
     {mode === 'fixed' ? <><Text style={[styles.label, { color: tokens.fg2 }]}>{t('onboarding.flow.when.daysLabel')}</Text><View style={styles.days}>{DAYS.map((day) => <Chip key={day} active={schedule.days.includes(day)} accessibilityLabel={t(`onboarding.flow.when.daysLong.${day.toLowerCase()}`)} onPress={() => props.onToggleDay(day)}>{t(`onboarding.flow.when.days.${day.toLowerCase()}`)}</Chip>)}</View></> : null}
     {mode === 'interval' ? <><SegmentedControl label={t('onboarding.flow.when.frequencyUnitLabel')} value={schedule.frequencyUnit ?? 'Week'} options={frequencyUnitOptions} onChange={props.onFrequencyUnitChange} /><Stepper value={schedule.frequencyQuantity ?? 1} minimum={1} lessLabel={t('onboarding.flow.when.frequencyLess')} moreLabel={t('onboarding.flow.when.frequencyMore')} description={t(`onboarding.flow.when.cadence.intervalUnit.${intervalUnit}`, { count: intervalCount })} colors={tokens} onChange={props.onQuantityChange} /></> : null}
     {canRepeatOnboardingScheduleWeeks(schedule, props.canSaveRepeatWeeks) ? <Stepper value={schedule.intervalWeeks} minimum={1} maximum={MAX_HABIT_INTERVAL_WEEKS} lessLabel={t('onboarding.flow.when.intervalLess')} moreLabel={t('onboarding.flow.when.intervalMore')} description={t('onboarding.flow.when.interval', { count: schedule.intervalWeeks })} colors={tokens} onChange={props.onIntervalWeeksChange} /> : null}
-    <TimeField label={t('onboarding.flow.when.timeLabel')} value={schedule.dueTime as Time24 | ''} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('onboarding.flow.when.timeHint')} />
+    <TimeField label={t('onboarding.flow.when.timeLabel')} value={toTime24(schedule.dueTime)} onChange={props.onTimeChange} onClear={() => props.onTimeChange('')} hint={t('onboarding.flow.when.timeHint')} />
   </View>
   const correctScheduleLabel = props.emoji
     ? `${t('onboarding.flow.when.correctSchedule')}. ${t('onboarding.flow.when.emojiLabel')}`

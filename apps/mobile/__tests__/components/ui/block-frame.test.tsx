@@ -1,10 +1,12 @@
 import type { ReactElement } from 'react'
 import type { BlockFrameItem, BlockFrameProps } from '@orbit/shared/contracts/blocks'
-import { act, create } from 'react-test-renderer'
+import { act, create, type ReactTestRendererJSON } from 'react-test-renderer'
+import Yoga, { type Node as YogaNode } from 'yoga-layout'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as ReactNative from 'react-native'
-import { AccessibilityInfo, Pressable, Text } from 'react-native'
+import { AccessibilityInfo, Pressable, StyleSheet, Text, type ViewStyle, type TextStyle } from 'react-native'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { Button } from '@/components/ui/pill-button'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -31,6 +33,8 @@ interface TestNode {
 interface TestTree {
   readonly root: TestNode
   update(element: ReactElement): void
+  toJSON(): ReactTestRendererJSON
+  unmount(): void
 }
 
 const items: readonly BlockFrameItem[] = [
@@ -57,6 +61,53 @@ function prop<T>(node: TestNode, name: string): T {
 
 function textValues(tree: TestTree): unknown[] {
   return tree.root.findAllByType('Text').map((node) => prop(node, 'children'))
+}
+
+type LayoutStyle = ViewStyle & TextStyle
+
+function applyActionStyle(node: YogaNode, style: LayoutStyle) {
+  node.setFlex(style.flex)
+  node.setWidth(style.width as number | `${number}%` | undefined)
+  node.setMaxWidth(style.maxWidth as number | `${number}%` | undefined)
+  node.setHeight(style.height as number | `${number}%` | undefined)
+  node.setMinWidth(typeof style.minWidth === 'number' ? style.minWidth : undefined)
+  node.setMinHeight(typeof style.minHeight === 'number' ? style.minHeight : undefined)
+  node.setGap(Yoga.GUTTER_ALL, style.gap as number | undefined)
+  node.setPadding(Yoga.EDGE_ALL, style.padding as number | undefined)
+  node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal as number | undefined)
+  node.setPadding(Yoga.EDGE_VERTICAL, style.paddingVertical as number | undefined)
+  node.setPadding(Yoga.EDGE_START, style.paddingStart as number | undefined)
+  node.setMargin(Yoga.EDGE_ALL, style.margin as number | undefined)
+  node.setMargin(Yoga.EDGE_VERTICAL, style.marginVertical as number | undefined)
+  node.setBorder(Yoga.EDGE_ALL, style.borderWidth)
+  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
+  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
+  if (style.justifyContent === 'flex-end') node.setJustifyContent(Yoga.JUSTIFY_FLEX_END)
+  if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
+  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
+  if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
+}
+
+function buildActionLayout(host: ReactTestRendererJSON, nodes: Map<string, YogaNode>, config: ReturnType<typeof Yoga.Config.create>): YogaNode {
+  const node = Yoga.Node.create(config)
+  const renderedStyle = typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style
+  const style = (StyleSheet.flatten(renderedStyle) ?? {}) as LayoutStyle
+  applyActionStyle(node, style)
+  if (typeof host.props.testID === 'string') nodes.set(host.props.testID, node)
+  if (host.type === 'Text') {
+    const label = (Array.isArray(host.children) ? host.children : []).filter(child => typeof child === 'string').join('')
+    node.setMeasureFunc(() => ({ width: label.length * (style.fontSize ?? 14) / 2, height: style.lineHeight ?? 20 }))
+  } else {
+    for (const child of Array.isArray(host.children) ? host.children : []) {
+      if (typeof child !== 'string') node.insertChild(buildActionLayout(child, nodes, config), node.getChildCount())
+    }
+  }
+  return node
+}
+
+function absoluteLeft(node: YogaNode): number {
+  const parent = node.getParent()
+  return node.getComputedLeft() + (parent ? absoluteLeft(parent) : 0)
 }
 
 afterEach(() => {
@@ -281,7 +332,61 @@ describe('BlockFrame on mobile', () => {
     expect(tree.root.findAll((node) => node.type === 'Text' && prop(node, 'testID') === 'action')).toHaveLength(1)
     const body = tree.root.find((node) => node.type === 'ScrollView' && prop(node, 'testID') === 'block-frame-body')
     expect(body.findAllByProps({ testID: 'action' })).toHaveLength(0)
-    expect(tree.root.find((node) => node.type === 'View' && prop(node, 'testID') === 'block-frame-action-row')).toBeDefined()
+    expect(tree.root.find((node) => node.type === 'View' && prop(node, 'testID') === 'action-row')).toBeDefined()
+  })
+
+  it.each([412, 1280])('hugs a lone pill at the trailing content edge at %i', (width) => {
+    const tree = render(<BlockFrame {...frame({ actions: <Button variant="ghost" size="md" onClick={vi.fn()}>Abrir Perfil</Button> })} />)
+    const config = Yoga.Config.create()
+    config.setPointScaleFactor(0)
+    const nodes = new Map<string, YogaNode>()
+    const layout = buildActionLayout(tree.toJSON(), nodes, config)
+    try {
+      layout.calculateLayout(width, undefined)
+      const pill = nodes.get('button-ghost-sm') ?? nodes.get('button-ghost-md')!
+      const contentEnd = width - layout.getComputedPadding(Yoga.EDGE_RIGHT) - layout.getComputedBorder(Yoga.EDGE_RIGHT)
+      expect(pill.getComputedWidth()).toBeLessThan(width - 50)
+      expect(absoluteLeft(pill) + pill.getComputedWidth()).toBeCloseTo(contentEnd, 1)
+      expect(nodes.has('action-row')).toBe(true)
+      expect(nodes.has('button-ghost-sm')).toBe(true)
+      const row = nodes.get('action-row')!
+      const guard = row.getParent()!
+      const footer = guard.getParent()!
+      for (const parent of [guard, footer]) {
+        expect(absoluteLeft(pill) + pill.getComputedWidth() + 2).toBeLessThanOrEqual(absoluteLeft(parent) + parent.getComputedWidth())
+        expect(parent.getComputedHeight()).toBeGreaterThanOrEqual(pill.getComputedHeight() + 4)
+      }
+    } finally {
+      layout.freeRecursive()
+      config.free()
+      void act(() => tree.unmount())
+    }
+  })
+
+  it.each([200, 412])('keeps paired pills 12 apart with trailing wrapped lines at %i', (width) => {
+    const tree = render(<BlockFrame {...frame({ actions: <><Button variant="ghost" onClick={vi.fn()}>Reject</Button><Button onClick={vi.fn()}>Approve</Button></> })} />)
+    const config = Yoga.Config.create()
+    config.setPointScaleFactor(0)
+    const nodes = new Map<string, YogaNode>()
+    const layout = buildActionLayout(tree.toJSON(), nodes, config)
+    try {
+      layout.calculateLayout(width, undefined)
+      const first = nodes.get('button-ghost-sm')!
+      const last = nodes.get('button-primary-sm')!
+      const contentEnd = width - layout.getComputedPadding(Yoga.EDGE_RIGHT) - layout.getComputedBorder(Yoga.EDGE_RIGHT)
+      expect(absoluteLeft(last) + last.getComputedWidth()).toBeCloseTo(contentEnd, 1)
+      if (width === 412) {
+        expect(first.getComputedTop()).toBeCloseTo(last.getComputedTop(), 1)
+        expect(absoluteLeft(last) - absoluteLeft(first) - first.getComputedWidth()).toBeCloseTo(12, 1)
+      } else {
+        expect(last.getComputedTop()).toBeGreaterThan(first.getComputedTop())
+        expect(absoluteLeft(first) + first.getComputedWidth()).toBeCloseTo(contentEnd, 1)
+      }
+    } finally {
+      layout.freeRecursive()
+      config.free()
+      void act(() => tree.unmount())
+    }
   })
 
   it('throws every missing runtime label in development', () => {
