@@ -1635,6 +1635,8 @@
       "retry": "Tentar os {count} que faltaram"
     },
     "operation": {
+      "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
+      "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
       "unknown": "Operação da Astra",
       "pendingTitle": "Aguardando confirmação",
       "pending": "Nada mudou ainda",

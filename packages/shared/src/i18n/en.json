@@ -1635,6 +1635,8 @@
       "retry": "Retry the {count} that failed"
     },
     "operation": {
+      "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
+      "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
       "unknown": "Astra operation",
       "pendingTitle": "Awaiting confirmation",
       "pending": "Nothing has changed yet",

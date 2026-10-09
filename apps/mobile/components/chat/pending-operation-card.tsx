@@ -188,7 +188,7 @@ const pendingOperationRenderers = {
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
-  notice: (message) => <Text accessibilityRole="text" accessibilityLiveRegion="polite">{message}</Text>,
+  notice: (message) => <PreviewNotice message={message} />,
   actionRow: (...children) => <PreviewActions>{children}</PreviewActions>,
   spacer: () => <View style={{ flex: 1 }} />,
   rejected: (message) => <RejectedPreview message={message} />,
@@ -196,6 +196,12 @@ const pendingOperationRenderers = {
 
 function PreviewActions({ children }: Readonly<{ children: React.ReactNode }>) {
   return <View testID="preview-actions" style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</View>
+}
+
+function PreviewNotice({ message }: Readonly<{ message: string }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <Text accessibilityRole="text" accessibilityLiveRegion="polite" style={{ color: tokens.fg2, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 14 * 1.55 }}>{message}</Text>
 }
 
 function PreviewButton({ label, variant, ...props }: Readonly<import('@orbit/shared/chat').PendingOperationButtonSpec>) {
