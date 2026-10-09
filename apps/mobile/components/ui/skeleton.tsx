@@ -116,6 +116,8 @@ function GridSkeleton({ props, tokens, opacity }: Readonly<{
           width: props.cols * props.cell + (props.cols - 1) * props.gap,
           maxWidth: props.cols === 1 ? '100%' : undefined,
           height: props.rows * props.cell + (props.rows - 1) * props.gap,
+          alignItems: props.circular ? 'center' : undefined,
+          justifyContent: props.circular ? 'center' : undefined,
         },
       ]}
       testID="skeleton-grid-shape"
@@ -123,7 +125,7 @@ function GridSkeleton({ props, tokens, opacity }: Readonly<{
       {Array.from({ length: props.rows * props.cols }, (_, index) => (
         <Block
           key={index}
-          style={{ width: props.cell, maxWidth: '100%', height: props.cell }}
+          style={props.circular ? { width: '100%', maxWidth: props.cell, aspectRatio: 1, borderRadius: radius.full } : { width: props.cell, maxWidth: '100%', height: props.cell }}
           tokens={tokens}
           opacity={opacity}
         />

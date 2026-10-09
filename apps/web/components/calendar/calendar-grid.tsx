@@ -24,76 +24,29 @@ interface CalendarGridProps {
   dayMap: Map<string, CalendarDayEntry[]>
   onSelectDay: (dateStr: string) => void
   selectedDateStr?: string | null
-  rangeStart?: string | null
-  rangeEnd?: string | null
   isLoading?: boolean
   weekStartsOn: 0 | 1
   todayKey: string
-  interaction?: 'write-window' | 'range-picker'
-}
-
-function isInRange(dateStr: string, rangeStart: string | null, rangeEnd: string | null): boolean {
-  if (!rangeStart || !rangeEnd) return false
-  const start = rangeStart < rangeEnd ? rangeStart : rangeEnd
-  const end = rangeStart < rangeEnd ? rangeEnd : rangeStart
-  return dateStr >= start && dateStr <= end
 }
 
 interface CalendarGridDayProps {
   cell: CalendarMonthDay
   future: boolean
-  inRange: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
   words: DayCellWords
   futureWord: string
   selectedWord: string
   label: string
-  interaction: 'write-window' | 'range-picker'
   todayKey: string
   tabIndex: 0 | -1
   onKeyDown: (dateStr: string, event: KeyboardEvent<HTMLButtonElement>) => void
-}
-
-type CalendarFutureDayProps = {
-  accessibleName: string
-  cell: CalendarMonthDay
-}
-
-function CalendarFutureNumeral({ cell }: Readonly<Pick<CalendarFutureDayProps, 'cell'>>) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        color: 'var(--fg-2)',
-        fontFamily: 'var(--font-mono)',
-        fontSize: 14,
-        fontVariantNumeric: 'tabular-nums',
-      }}
-    >
-      {cell.day}
-    </span>
-  )
-}
-
-function CalendarFutureDay(props: Readonly<CalendarFutureDayProps>) {
-  return (
-    <span role="img" aria-label={props.accessibleName} className="inline-flex w-full items-center justify-center" style={{ minHeight: MONTH_GRID_TARGET_MIN }}>
-      <CalendarFutureNumeral cell={props.cell} />
-    </span>
-  )
-}
-
-function calendarDayBackground(selected: boolean, inRange: boolean, raised: boolean): string {
-  if (selected || inRange) return 'var(--selection-bg)'
-  return raised ? 'var(--bg-well)' : 'transparent'
 }
 
 function CalendarGridDayBody({
   accessibleName,
   cell,
   dayCell,
-  future,
   onSelectDay,
   selected,
   today,
@@ -103,53 +56,36 @@ function CalendarGridDayBody({
   accessibleName: string
   cell: CalendarMonthDay
   dayCell: ReadOnlyDayCellProps
-  future: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
   today: boolean
   tabIndex: 0 | -1
   onKeyDown: CalendarGridDayProps['onKeyDown']
 }>) {
-  const contents = future && cell.isCurrentMonth
-    ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} />
-    : <DayCell {...dayCell} />
-  return (
-    <>
-      <span aria-hidden="true" style={{ width: '100%' }}>{contents}</span>
-      {cell.isCurrentMonth ? (
-        <button
-          type="button"
-          tabIndex={tabIndex}
-          onKeyDown={(event) => onKeyDown(cell.dateStr, event)}
-          aria-current={today ? 'date' : undefined}
-          aria-label={accessibleName}
-          aria-pressed={selected}
-          data-testid={`calendar-day-select-${cell.dateStr}`}
-          onClick={() => onSelectDay(cell.dateStr)}
-          className="absolute inset-0 rounded-full border-0 bg-transparent p-0 cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-        />
-      ) : null}
-    </>
-  )
+  const contents = <span aria-hidden="true" className="pointer-events-none w-full"><DayCell {...dayCell} /></span>
+  if (!cell.isCurrentMonth) return contents
+  return <button type="button" tabIndex={tabIndex} onKeyDown={(event) => onKeyDown(cell.dateStr, event)}
+    aria-current={today ? 'date' : undefined} aria-label={accessibleName} aria-pressed={selected}
+    data-testid={`calendar-day-select-${cell.dateStr}`} onClick={() => onSelectDay(cell.dateStr)}
+    className="orbit-day-target group relative inline-flex w-full items-center justify-center border-0 bg-transparent p-0 cursor-pointer" style={{ minHeight: MONTH_GRID_TARGET_MIN }}>
+    {contents}
+  </button>
 }
 
 function CalendarGridDay({
   cell,
   future,
-  inRange,
   onSelectDay,
   selected,
   words,
   futureWord,
   selectedWord,
   label,
-  interaction,
   todayKey,
   tabIndex,
   onKeyDown,
 }: Readonly<CalendarGridDayProps>) {
-  const writable = interaction === 'write-window'
-    && cell.isCurrentMonth
+  const writable = cell.isCurrentMonth
     && isCalendarDayLoggable(cell.dateStr, todayKey)
   const today = cell.dateStr === todayKey
   const selectedLabel = selected ? `${label}, ${selectedWord}` : label
@@ -158,6 +94,9 @@ function CalendarGridDay({
     done: cell.completedCount,
     scheduled: cell.totalCount,
     today,
+    selected,
+    raised: writable,
+    future: future && cell.isCurrentMonth,
     outsideMonth: !cell.isCurrentMonth,
     label: selectedLabel,
     words,
@@ -167,12 +106,10 @@ function CalendarGridDay({
   const accessibleName = future
     ? `${selectedLabel}, ${futureWord}`
     : buildDayCellAccessibleName(dayCell, resolvedOutcome, !writable)
-  const raised = writable
 
   return (
     <span
       data-calendar-date={cell.dateStr}
-      data-in-range={inRange ? 'true' : undefined}
       data-selected={selected ? 'true' : undefined}
       style={{
         position: 'relative',
@@ -180,16 +117,12 @@ function CalendarGridDay({
         placeItems: 'center',
         width: '100%',
         minHeight: MONTH_GRID_TARGET_MIN,
-        borderRadius: 999,
-        background: calendarDayBackground(selected, inRange, raised),
-        boxShadow: selected ? 'inset 0 0 0 2px var(--primary)' : 'none',
       }}
     >
       <CalendarGridDayBody
         accessibleName={accessibleName}
         cell={cell}
         dayCell={dayCell}
-        future={future}
         onSelectDay={onSelectDay}
         selected={selected}
         today={today}
@@ -242,12 +175,9 @@ export function CalendarGrid({
   dayMap,
   onSelectDay,
   selectedDateStr = null,
-  rangeStart = null,
-  rangeEnd = null,
   isLoading = false,
   weekStartsOn,
   todayKey,
-  interaction = 'write-window',
 }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -282,7 +212,7 @@ export function CalendarGrid({
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <div role="progressbar" aria-label={t('calendar.loading')} aria-busy="true" data-rows={Math.ceil(gridDays.length / 7)} data-cols={7}
             style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 'var(--calendar-grid-gap)', justifyItems: 'center' }}>
-            {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
+            {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
           </div>
         </div>
       </div>
@@ -305,18 +235,12 @@ export function CalendarGrid({
         >
           {gridDays.map((cell) => {
             const future = cell.dateStr > todayKey
-            const selected = cell.isCurrentMonth && (
-              cell.dateStr === selectedDateStr ||
-              cell.dateStr === rangeStart ||
-              cell.dateStr === rangeEnd
-            )
-            const inRange = cell.isCurrentMonth && isInRange(cell.dateStr, rangeStart, rangeEnd)
+            const selected = cell.isCurrentMonth && cell.dateStr === selectedDateStr
             return (
               <CalendarGridDay
                 key={cell.dateStr}
                 cell={cell}
                 future={future}
-                inRange={inRange}
                 onSelectDay={selectDay}
                 tabIndex={cell.dateStr === focusedDate ? 0 : -1}
                 onKeyDown={onKeyDown}
@@ -325,7 +249,6 @@ export function CalendarGrid({
                 futureWord={t('calendar.dayCell.future')}
                 selectedWord={t('calendar.dayCell.selected')}
                 label={displayWeekdayDate(cell.date, true)}
-                interaction={interaction}
                 todayKey={todayKey}
               />
             )

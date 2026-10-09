@@ -14,6 +14,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarHeader, CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
 import { buildCalendarRangeModel, formatCalendarWeekLabel } from '@orbit/shared/utils'
 import { CalendarRangeNavigation, CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { DayCell } from '@/components/dates/day-cell'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -55,6 +56,50 @@ describe('Calendar header geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('paints circles inside full-column targets at $width in $locale', async ({ width, locale, messages }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
+    const words = { none: 'none', partial: 'partial', full: 'full', notScheduled: 'not scheduled', of: 'of', today: 'today', readOnly: 'read only' }
+    for (const view of ['month', 'range', 'history'] as const) {
+      const { container, unmount } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+        {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" selectedDateStr="2026-02-08" weekStartsOn={0} />
+          : view === 'range' ? <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={false} loadingLabel="Loading" stats={[{ key: 'bestStreak', value: 1, label: 'Streak' }, { key: 'totalLogs', value: 1, label: 'Logs' }, { key: 'missed', value: 1, label: 'Missed' }]} />
+            : <div style={{ width: 97 }}><DayCell day={8} today habitHistory done={1} scheduled={1} words={words} /></div>}
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('purple', 'dark'))
+        const geometry = await page.evaluate(() => {
+          const cell = document.querySelector<HTMLElement>('[aria-current="date"][data-outcome], [aria-current="date"]')!
+          const slot = cell.closest('[data-calendar-date]') ?? cell
+          const bounds = slot.getBoundingClientRect()
+          const boxes = [slot, ...slot.querySelectorAll<HTMLElement>('*')].flatMap((element) => {
+            const style = getComputedStyle(element)
+            if (style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.boxShadow === 'none' && style.outlineStyle === 'none' && Number.parseFloat(style.borderWidth) === 0) return []
+            const box = element.getBoundingClientRect()
+            return [{ width: box.width, height: box.height, radius: Number.parseFloat(style.borderRadius), center: box.left + box.width / 2, ring: style.boxShadow }]
+          })
+          const disc = slot.querySelector<HTMLElement>('[data-day-disc]') ?? slot.querySelector<HTMLElement>('[data-outcome] > span') ?? slot.querySelector('span')!
+          const discBox = disc.getBoundingClientRect()
+          const header = document.querySelector('[data-testid="month-grid-header"]')?.getBoundingClientRect()
+          const days = document.querySelector('[data-testid="month-grid-days"]')?.getBoundingClientRect()
+          return { boxes, center: bounds.left + bounds.width / 2, disc: { width: discBox.width, height: discBox.height }, headerGap: header && days ? days.top - header.bottom : undefined }
+        })
+        expect(geometry.boxes.length).toBeGreaterThan(0)
+        for (const box of geometry.boxes) {
+          expect(box.width, view).toBeLessThanOrEqual(44.5)
+          expect(Math.abs(box.width - box.height), view).toBeLessThanOrEqual(0.5)
+          expect(box.radius, view).toBeGreaterThanOrEqual(box.width / 2)
+          expect(Math.abs(box.center - geometry.center), view).toBeLessThanOrEqual(0.5)
+        }
+        expect(geometry.disc.width, view).toBeCloseTo(34, 1)
+        expect(geometry.disc.height, view).toBeCloseTo(34, 1)
+        expect(geometry.boxes.filter((box) => box.ring.includes('2px'))).toHaveLength(1)
+        if (view !== 'history') expect(geometry.headerGap).toBeCloseTo(8, 1)
+      } finally { await page.close(); unmount() }
+    }
+  })
 
   it.each(['light', 'dark'] as const)('paints ghost chevrons and a transparent month title in %s mode', async (mode) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">

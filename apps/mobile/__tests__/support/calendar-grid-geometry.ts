@@ -103,3 +103,38 @@ export function measureGrid(host: GeometryHost | GeometryHost[], width: number, 
     }
   } finally { root.freeRecursive(); config.free() }
 }
+
+export function measureDaySurface(host: GeometryHost | GeometryHost[], width: number) {
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(0)
+  const records: { node: YogaNode; column?: YogaNode; testID?: string; style: ViewStyle; day: boolean }[] = []
+  function build(current: GeometryHost, column?: YogaNode, day = false): YogaNode {
+    const node = Yoga.Node.create(config)
+    const declared = current.props.style
+    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+    applyGridStyle(node, style)
+    const currentColumn = style.flex === 1 ? node : column
+    const currentDay = day || Boolean(current.props.testID?.startsWith('calendar-day-slot-') || current.props.testID?.startsWith('day-cell-'))
+    records.push({ node, column: currentColumn, testID: current.props.testID, style, day: currentDay })
+    for (const child of current.children ?? []) {
+      if (typeof child !== 'string') node.insertChild(build(child, currentColumn, currentDay), node.getChildCount())
+    }
+    return node
+  }
+  const root = build(Array.isArray(host) ? { props: {}, children: host } : host)
+  const bounds = (node: YogaNode) => {
+    let left = 0
+    let top = 0
+    let ancestor: YogaNode | null = node
+    while (ancestor) { left += ancestor.getComputedLeft(); top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
+    const width = node.getComputedWidth()
+    const height = node.getComputedHeight()
+    return { left, top, width, height, centerX: left + width / 2, centerY: top + height / 2 }
+  }
+  try {
+    root.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
+    return records.map(({ node, column, testID, style, day }) => ({
+      testID, style, day, ...bounds(node), column: bounds(column ?? root),
+    }))
+  } finally { root.freeRecursive(); config.free() }
+}

@@ -23,9 +23,9 @@ export function MonthGrid({
     : []
 
   return (
-    <View accessibilityRole="summary" accessibilityLabel={label} testID={`month-grid-${columns}-columns`}>
+    <View accessibilityRole="summary" accessibilityLabel={label} testID={`month-grid-${columns}-columns`} style={{ rowGap: 8 }}>
       {columns > 0 ? (
-        <View testID="month-grid-header" style={[styles.row, { columnGap: numericGap, marginBottom: numericGap }]}>
+        <View testID="month-grid-header" style={[styles.row, { columnGap: numericGap }]}>
           {weekdayLabels.map((weekday, index) => (
             <View key={`${weekday}-${index}`} style={styles.cellSlot}>
               <Text style={[styles.weekday, { color: tokens.fg3 }]}>{weekday}</Text>

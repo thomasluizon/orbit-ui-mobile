@@ -19,7 +19,7 @@ function PressFill() {
     <span
       aria-hidden="true"
       data-press-fill=""
-      className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100"
+      className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100 group-active:opacity-100"
     />
   )
 }
@@ -53,10 +53,11 @@ function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProp
   return (
     <span
       aria-hidden="true"
+      data-day-disc=""
       className="relative inline-flex items-center justify-center"
       style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, ...ringStyle(outcome) }}
     >
-      {outcome === 'full' && props.loggable && !props.outsideMonth ? <PressFill /> : null}
+      {outcome === 'full' ? <PressFill /> : null}
       {outcome === 'partial' ? <PartialArc fraction={fraction} size={size} /> : null}
       <span
         className={`relative ${numeralClass}`}
@@ -82,10 +83,11 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
   return (
     <span
       aria-hidden="true"
+      data-day-disc=""
       className="relative inline-flex items-center justify-center"
       style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, background: outcome === 'full' ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
     >
-      {outcome === 'full' && props.loggable && !props.outsideMonth ? <PressFill /> : null}
+      {outcome === 'full' ? <PressFill /> : null}
       <span className={`relative ${numeralClass}`} style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums', fontWeight: props.today ? 500 : 400 }}>{props.day}</span>
       {missed ? <span className="absolute rounded-full bg-[var(--status-empty)]" style={{ width: 3, height: 3, bottom: 4 }} /> : null}
     </span>
@@ -95,46 +97,37 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
 export function DayCell(props: Readonly<DayCellProps>) {
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? MONTH_GRID_TARGET_MIN
+  const statusSize = 34
   const interactive = Boolean(props.loggable) && !props.outsideMonth
   const commonProps = {
     'aria-current': props.today ? ('date' as const) : undefined,
     'aria-label': buildDayCellAccessibleName(props, outcome),
-    'data-outcome': outcome,
+    'data-outcome': props.future ? undefined : outcome,
     'data-outside-month': props.outsideMonth ? '' : undefined,
     'data-state': outcome,
-    style: {
-      width: props.size ?? '100%',
-      minHeight: size,
-      boxShadow: props.today ? 'inset 0 0 0 2px var(--primary)' : 'none',
-      opacity: props.outsideMonth ? 0 : 1,
-    },
+    style: { width: '100%', minHeight: Math.max(size, MONTH_GRID_TARGET_MIN), opacity: props.outsideMonth ? 0 : 1 },
   }
-  const contents = props.habitHistory
-    ? <HabitHistoryContents props={props} outcome={outcome} size={size} />
-    : <DayCellContents props={props} outcome={outcome} size={size} />
+  const contents = props.future
+    ? <span style={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{props.day}</span>
+    : props.habitHistory
+      ? <HabitHistoryContents props={props} outcome={outcome} size={statusSize} />
+      : <DayCellContents props={props} outcome={outcome} size={statusSize} />
+  const circle = <span
+    data-day-circle=""
+    className="orbit-day-circle relative inline-flex items-center justify-center rounded-full"
+    style={{ width: '100%', maxWidth: size, aspectRatio: 1, background: props.selected ? 'var(--selection-bg)' : props.loggable || props.raised ? 'var(--bg-well)' : 'transparent', '--day-ring': props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none' } as CSSProperties}
+  >
+    <PressFill />
+    {contents}
+  </span>
 
   if (interactive) {
-    return (
-      <button
-        {...commonProps}
-        type="button"
-        onClick={props.onPress}
-        className="group relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 cursor-pointer transition-transform duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-      >
-        <PressFill />
-        {contents}
-      </button>
-    )
+    return <button {...commonProps} type="button" onClick={props.onPress}
+      aria-pressed={props.selected}
+      className="orbit-day-target group relative inline-flex shrink-0 items-center justify-center border-0 bg-transparent p-0 cursor-pointer">
+      {circle}
+    </button>
   }
-
-  return (
-    <div
-      {...commonProps}
-      role="img"
-      aria-hidden={props.outsideMonth ? true : undefined}
-      className="inline-flex shrink-0 items-center justify-center rounded-full"
-    >
-      {contents}
-    </div>
-  )
+  return <span {...commonProps} role="img" aria-hidden={props.outsideMonth ? true : undefined}
+    className="inline-flex shrink-0 items-center justify-center">{circle}</span>
 }

@@ -92,9 +92,9 @@ export function CalendarRangeView({
             {Array.from({ length: gridCellCount }, (_, index) => (
               <span key={index} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}>
                 {index === 0 ? (
-                  <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} label={loadingLabel} />
                 ) : (
-                  <Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
+                  <Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped />
                 )}
               </span>
             ))}

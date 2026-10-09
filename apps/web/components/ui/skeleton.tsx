@@ -61,7 +61,7 @@ function BarChartSkeleton() {
   )
 }
 
-function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps, { variant: 'grid' }>>) {
+function GridSkeleton({ rows, cols, cell, gap, circular }: Readonly<Extract<SkeletonProps, { variant: 'grid' }>>) {
   return (
     <div
       className="grid"
@@ -70,6 +70,8 @@ function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps,
         justifyContent: cols === 1 ? 'center' : undefined,
         gridTemplateRows: `repeat(${rows}, ${cell}px)`,
         gap,
+        alignItems: circular ? 'center' : undefined,
+        justifyItems: circular ? 'center' : undefined,
       }}
       data-rows={rows}
       data-cols={cols}
@@ -77,7 +79,7 @@ function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps,
       data-gap={gap}
     >
       {Array.from({ length: rows * cols }, (_, index) => (
-        <span key={index} className={blockClass} style={{ width: cell, maxWidth: '100%', height: cell }} />
+        <span key={index} className={blockClass} style={circular ? { width: '100%', maxWidth: cell, aspectRatio: 1, borderRadius: 999 } : { width: cell, maxWidth: '100%', height: cell }} />
       ))}
     </div>
   )
