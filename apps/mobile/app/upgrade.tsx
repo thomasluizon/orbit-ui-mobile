@@ -309,14 +309,14 @@ export default function UpgradeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={contentFrameStyle}>
-        <UpgradeContent
-          state={model.state}
-          content={model.content}
-          billingContent={billingDashboard}
-          pitchContent={pitchContent}
-          onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
-          t={t}
-        />
+          <UpgradeContent
+            state={model.state}
+            content={model.content}
+            billingContent={billingDashboard}
+            pitchContent={pitchContent}
+            onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
+            t={t}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>

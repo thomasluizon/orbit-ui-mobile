@@ -684,6 +684,19 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => { rowTree?.unmount(); tree.unmount() }) }
   })
 
+  it.each([600, 840, 1352])('fills the compact Perfil column and caps wide content at %i', async (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const tree = await renderProfileScreen()
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width, 1)
+      for (const testID of ['profile-settings-group-you', 'profile-settings-group-ending']) {
+        const box = measured.boxes.find((box) => box.testID === testID)!
+        expect(box.left).toBe(16)
+        expect(box.width).toBe(width < 1024 ? width - 32 : 560)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([412, 600, 840, 1352].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
     .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })

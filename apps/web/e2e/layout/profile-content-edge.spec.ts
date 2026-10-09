@@ -16,14 +16,14 @@ const habits = [0, 1, 2].map((position) => makeHabitScheduleItem({
   children: [], hasSubHabits: false, scheduledDates: [selectedDate], dueDate: selectedDate,
 }))
 
-async function assertRowEdge(row: Locator, expectedLeft: number) {
+async function assertRowEdge(row: Locator, expectedLeft: number, expectedWidth: number) {
   await expect(row).toBeVisible()
   const bounds = await row.evaluate((element) => {
     const rect = element.getBoundingClientRect()
     return { left: rect.left, width: rect.width }
   })
   expect(Math.abs(bounds.left - expectedLeft)).toBeLessThanOrEqual(0.5)
-  expect(bounds.width).toBeLessThanOrEqual(560)
+  expect(bounds.width).toBeCloseTo(expectedWidth, 0)
   const fill = row.locator('[data-slot="list-row-body"]').first()
   if (await fill.count()) {
     await expect(fill).toHaveCSS('padding-block-start', '12px')
@@ -52,20 +52,21 @@ for (const locale of ['en', 'pt-BR'] as const) {
       await expect(page.getByTestId('habit-row').first()).toHaveAttribute('data-habit-title', habits[0]!.title)
       await page.evaluate(() => document.fonts.ready)
       const todayLeft = await page.getByTestId('habit-row').first().evaluate((element) => element.getBoundingClientRect().left)
+      const contentWidth = width < 1024 ? await page.getByTestId('habit-row').first().evaluate((element) => element.getBoundingClientRect().width) : 560
 
       await page.goto('/profile')
       const groups = page.getByTestId('profile-settings-groups')
       const accountRow = page.getByTestId('profile-settings-group-you').locator('.orbit-row-list > div').first()
       await expect(accountRow).toContainText(profile.name)
       await page.evaluate(() => document.fonts.ready)
-      await assertRowEdge(accountRow, todayLeft)
-      expect(await groups.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(560)
-      for (const panel of await groups.locator('.orbit-row-list').all()) await assertRowEdge(panel, todayLeft)
+      await assertRowEdge(accountRow, todayLeft, contentWidth)
+      expect(await groups.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(contentWidth + 32, 0)
+      for (const panel of await groups.locator('.orbit-row-list').all()) await assertRowEdge(panel, todayLeft, contentWidth)
       if (width === 600 || width === 840) {
         const bellInset = await page.locator('[data-root-notification-header]').evaluate((element) =>
           element.getBoundingClientRect().left + 16)
         expect(Math.abs(bellInset - todayLeft)).toBeLessThanOrEqual(0.5)
-        await assertRowEdge(accountRow, bellInset)
+        await assertRowEdge(accountRow, bellInset, contentWidth)
       }
 
       for (const screen of ['account', 'preferences', 'astra', 'notifications']) {
@@ -75,9 +76,9 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await expect(firstRow).toBeVisible()
         await expect(group.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        await assertRowEdge(firstRow, todayLeft)
-        expect(await group.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(560)
-        if (screen === 'astra') await assertRowEdge(group.getByTestId('astra-allowance-panel'), todayLeft)
+        await assertRowEdge(firstRow, todayLeft, contentWidth)
+        expect(await group.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(contentWidth + 32, 0)
+        if (screen === 'astra') await assertRowEdge(group.getByTestId('astra-allowance-panel'), todayLeft, contentWidth)
         const back = page.getByRole('button', { name: words.common.backToProfile })
         await expect(back).toBeVisible()
         const backLeft = await back.evaluate((element) => element.getBoundingClientRect().left)

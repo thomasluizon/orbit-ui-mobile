@@ -8,8 +8,6 @@ import { subscriptionStatusSchema } from '@orbit/shared/types/profile'
 import AboutScreen from '@/app/about'
 import SupportScreen from '@/app/support'
 import UpgradeScreen from '@/app/upgrade'
-import { PricingSection } from '@/components/upgrade/pricing-section'
-import { ProPitch } from '@/components/upgrade/pro-pitch'
 import { __resetTestHostConfig, __setWindowDimensions } from '@/test-mocks/react-native'
 
 const mocks = vi.hoisted(() => ({
@@ -86,15 +84,15 @@ function styleOf(node: ReactTestInstance): ViewStyle {
   return StyleSheet.flatten(node.props.style) ?? {}
 }
 
-describe.each([412, 840])('sub-screen start edges at %ipx', (width) => {
-  it('starts About at 16 with its inset inside the 620 box', async () => {
+describe.each([412, 840, 1352])('sub-screen start edges at %ipx', (width) => {
+  it('starts About at 16 with the gutter outside its wide content cap', async () => {
     const tree = await renderScreen(<AboutScreen />, width)
     try {
       const content = tree.root.findAll((node) => node.props.testID === 'about-content')[0]!
       const identity = tree.root.findAll((node) => node.props.testID === 'about-identity')[0]!
       const [box, body] = layout(width, [styleOf(content), styleOf(identity)])
       expect(body!.left).toBe(16)
-      expect(box!.width).toBe(Math.min(width, 620))
+      expect(box!.width).toBe(width < 1024 ? width : 652)
       expect(body!.width).toBe(box!.width - 32)
     } finally { await TestRenderer.act(() => tree.update(<></>)) }
   })
@@ -154,15 +152,13 @@ describe.each([412, 840])('sub-screen start edges at %ipx', (width) => {
       try {
         const pitch = state === 'free' || state === 'offline'
         const scroll = tree.root.findAll((node) => node.props.contentContainerStyle !== undefined)[0]!
-        const root = pitch ? firstView(tree.root.findAll((node) => node.type === PricingSection)[0]!) : firstView(scroll)
-        const section = pitch ? firstView(tree.root.findAll((node) => node.type === ProPitch)[0]!) : null
-        const headingSection = section?.findAll((node) => node.type === View && styleOf(node).paddingHorizontal === 16)[0]
-        const [box, ...children] = layout(width, [
-          styleOf(root), ...(section ? [styleOf(section), styleOf(headingSection!), {}] : [{}]),
-        ])
-        expect.soft(children.at(-1)!.left).toBe(16)
+        const root = firstView(scroll)
+        const content = root.findAll((node) => node.type === View)[1]!
+        const [box, body] = layout(width, [styleOf(root), styleOf(content)])
+        expect.soft(body!.left).toBe(16)
         expect.soft(box!.left).toBe(0)
-        expect.soft(box!.width).toBe(Math.min(width, pitch ? 652 : 560))
+        expect.soft(box!.width).toBe(width < 1024 ? width : (pitch ? 652 : 560) + 32)
+        expect.soft(body!.width).toBe(width < 1024 ? width - 32 : pitch ? 652 : 560)
       } finally { await TestRenderer.act(() => tree.update(<></>)) }
     })
 })
