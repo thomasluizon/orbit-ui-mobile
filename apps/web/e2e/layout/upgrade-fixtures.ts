@@ -2,6 +2,7 @@ import { test as base } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { profileSchema, subscriptionStatusSchema, type Profile, type SupportedLocale } from '@orbit/shared/types/profile'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
+import type { HabitTag } from '@orbit/shared/types/habit'
 import { billingDetailsSchema } from '@orbit/shared/types/subscription'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { billingDetailsFixture } from '../../test-support/hermetic/mock-api/fixtures/subscriptions'
@@ -97,16 +98,18 @@ export const test = base.extend<{
   appLocale: SupportedLocale
   layoutProfile: Partial<Profile>
   layoutCalendars: UserCalendar[] | undefined
+  layoutTags: HabitTag[] | undefined
 }>({
   subscriptionState: ['free', { option: true }],
   appLocale: ['en', { option: true }],
   layoutProfile: [{}, { option: true }],
   layoutCalendars: [undefined, { option: true }],
-  page: async ({ page, context, subscriptionState, appLocale, layoutProfile, layoutCalendars }, runTest) => {
+  layoutTags: [undefined, { option: true }],
+  page: async ({ page, context, subscriptionState, appLocale, layoutProfile, layoutCalendars, layoutTags }, runTest) => {
     const subscription = subscriptionFixtures[subscriptionState]
     const profile = profileSchema.parse({ ...profileFixture, ...subscription, language: appLocale, ...layoutProfile })
     await context.addCookies([{ name: 'i18n_locale', value: appLocale, url: LAYOUT_ORIGIN }])
-    await setLayoutProfileSession(context, profile, layoutCalendars)
+    await setLayoutProfileSession(context, profile, layoutCalendars, layoutTags)
     await context.route(`${LAYOUT_ORIGIN}${API.subscription.status}`, (route) => route.fulfill({ json: subscription }))
     await context.route(
       (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.subscription.plans,

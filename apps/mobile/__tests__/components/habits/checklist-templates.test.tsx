@@ -1,3 +1,5 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
@@ -13,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string, values?: { name: string }) => key === 'common.showFullText' ? `${key}:${JSON.stringify(values)}` : key }),
 }))
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -61,12 +63,12 @@ interface TestRendererApi {
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
 function listRow(tree: TestTree, title: string): TestNode {
-  return tree.root.findAll((node) => node.type === 'ListRow' && node.props.title === title)[0]!
+  return tree.root.findAll((node) => node.type === 'ListRow' && node.props.title === title || node.type === 'Pressable' && node.props.accessibilityLabel === title && node.props.accessibilityState === undefined)[0]!
 }
 
 function press(node: TestNode, prop = 'onClick') {
   TestRenderer.act(() => {
-    ;(node.props[prop] as () => void)()
+    ;((node.props[prop] ?? node.props.onPress) as () => void)()
   })
 }
 
@@ -142,10 +144,28 @@ describe('ChecklistTemplates mobile', () => {
     mocks.templates = [{ id: 'template-1', name: 'Workout', items: ['Run'] }]
     const { tree } = renderTemplates()
     press(listRow(tree, 'habits.form.useTemplate'))
-    const action = listRow(tree, 'Workout').props.action as { onPress: () => void }
-    TestRenderer.act(() => action.onPress())
+    press(listRow(tree, 'common.delete: Workout'), 'onPress')
     const onError = mocks.remove.mock.calls[0]![1].onError as () => void
     onError()
     expect(mocks.showError).toHaveBeenCalledWith('habits.form.deleteTemplateError')
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full template name %s without loading it', async (name) => {
+    mocks.templates = [{ id: 'template-1', name, items: ['Run'] }]
+    const onLoad = vi.fn()
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<ChecklistTemplates items={[]} onLoad={onLoad} />) })
+    const entry = tree.root.findAll((node) => String(node.type) === 'ListRow' && node.props.title === 'habits.form.useTemplate')[0]!
+    await act(() => { (entry.props.onClick as () => void)() })
+    await expectPersonalTextLayout(tree.root, name)
+    await act(() => pressTextControl(expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)[0]!))
+    expect(onLoad).not.toHaveBeenCalled()
+    const load = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && !(node.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded && node.props.accessibilityState === undefined)[0]!
+    await act(() => pressTextControl(load))
+    expect(mocks.closeSheet).toHaveBeenCalledOnce()
+    const afterClose = mocks.closeSheet.mock.calls[0]![0]
+    await act(() => afterClose())
+    expect(onLoad).toHaveBeenCalledWith([{ text: 'Run', isChecked: false }])
+    await act(() => tree.update(<></>))
+  })
+
 })

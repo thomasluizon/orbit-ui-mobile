@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -82,7 +83,7 @@ export function useShellComposerSlot(
 
 export function useShellHeaderSlot(renderer: ComposerRenderer, refreshKey: string) {
   const host = useContext(ShellHeaderSlotContext)
-  useEffect(() => host?.register(renderer), [host, refreshKey, renderer])
+  useLayoutEffect(() => host?.register(renderer), [host, refreshKey, renderer])
   return host !== null
 }
 

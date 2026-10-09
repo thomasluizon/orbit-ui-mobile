@@ -107,6 +107,7 @@
     "openIn": "Open in {target}"
   },
   "common": {
+    "showFullText": "Show full text: {name}",
     "options": "Options",
     "backToToday": "Back to today",
     "backToParentHabit": "Back to parent habit",
