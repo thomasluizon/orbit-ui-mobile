@@ -394,10 +394,11 @@ describe('ProfilePage', () => {
           const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
           const row = document.querySelector('[data-root-notification-header]')!.getBoundingClientRect()
           const bell = document.querySelector('[data-root-notification-header] button')!.getBoundingClientRect()
-          return { columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
+          return { columnTop: column.top, columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
             headerHeight: row.height, trailingInset: scroller.left + scrollElement.clientWidth - bell.right }
         })
-        expect(geometry.columnInset).toBe(width < 1024 ? 76 : 32)
+        expect(geometry.columnTop).toBe(width < 1024 ? 0 : 32)
+        expect(geometry.columnInset).toBe(width < 1024 ? 76 : 0)
         expect(geometry.scrollerInset).toBe(width < 1024 ? 76 : 0)
         expect(geometry.headerHeight).toBe(width < 1024 ? 48 : 0)
         if (width < 1024) expect(geometry.trailingInset).toBe(16)

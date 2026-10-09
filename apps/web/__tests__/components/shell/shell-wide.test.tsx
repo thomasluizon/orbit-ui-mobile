@@ -267,6 +267,8 @@ describe('ShellWide', () => {
 
     expect(container.querySelector('[data-shell-conversation="panel"]')).toBeNull()
     const conversation = screen.getByRole('dialog', { name: 'Astra conversation' })
+    expect(within(conversation).getByRole('main')).toBeVisible()
+    expect(screen.getAllByRole('main')).toHaveLength(1)
     expect(conversation.closest('[data-shell-column]')).toHaveStyle({ maxWidth: '740px' })
     expect(container.querySelector('[data-shell-background]')).toHaveAttribute('inert')
     expect(container.querySelector('[data-shell-sidebar]')).toBeInTheDocument()

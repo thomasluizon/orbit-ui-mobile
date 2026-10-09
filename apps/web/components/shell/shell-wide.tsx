@@ -101,7 +101,7 @@ function SidebarAstraRow({ row, open, conversationId }: Readonly<{
             aria-expanded={open}
             aria-controls={open ? conversationId : undefined}
             onClick={row.onOpen}
-            className={`orbit-hover-text flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-start text-[14px] font-medium transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] ${open ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]' : 'text-[var(--fg-3)]'}`}
+            className={`orbit-hover-text flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-start text-[14px] font-medium transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] ${open ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)] active:text-[var(--primary-text)]' : 'text-[var(--fg-3)]'}`}
           >
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
             <span translate="no" className="whitespace-nowrap">{row.label}</span>
@@ -292,7 +292,7 @@ function ShellWideBackground({
             data-shell-conversation="overlay"
             className="z-modal fixed inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-0 lg:pt-0 lg:pb-0"
             style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
-          >{props.conversation}</div> : null}
+          ><main className="h-full">{props.conversation}</main></div> : null}
         </div>
       </div>
     </div>
