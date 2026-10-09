@@ -84,9 +84,9 @@ export function ProfileAccountContent({ profile }: Readonly<ProfileContentProps>
           </SettingsRow>
         )}
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 429 controls this label under D42. */}
-        <ListRow key="fresh-start" compact icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} onClick={() => setShowFreshStart(true)} />
+        <ListRow key="fresh-start" textMode="label" compact icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} onClick={() => setShowFreshStart(true)} />
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 430 controls this label under D42. */}
-        <ListRow key="delete" compact icon={icon(Trash2)} title={t('profile.settingsRows.deleteAccount')} danger onClick={() => setShowDeleteAccount(true)} />
+        <ListRow key="delete" textMode="label" compact icon={icon(Trash2)} title={t('profile.settingsRows.deleteAccount')} danger onClick={() => setShowDeleteAccount(true)} />
       </RowList>
       <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
       <FreshStartModal open={showFreshStart} onClose={() => setShowFreshStart(false)} />

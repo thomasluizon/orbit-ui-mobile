@@ -194,11 +194,11 @@ vi.mock('@/components/gamification/streak-badge', () => ({
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({
-  FreshStartModal: () => null,
+  FreshStartModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="profile.freshStart.heading" /> : null,
 }))
 
 vi.mock('@/app/(app)/profile/_components/delete-account-modal', () => ({
-  DeleteAccountModal: () => null,
+  DeleteAccountModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="profile.deleteAccount.headingAreYouSure" /> : null,
 }))
 
 vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
@@ -231,6 +231,17 @@ import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscr
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfilePage', () => {
+  it.each([
+    ['profile.settingsRows.editName', 'profile.editName.title'],
+    ['profile.settingsRows.startOver', 'profile.freshStart.heading'],
+    ['profile.settingsRows.deleteAccount', 'profile.deleteAccount.headingAreYouSure'],
+  ] as const)('opens the owned dialog from the %s account action', (label, heading) => {
+    render(<ProfileAccountRoute />)
+    expect(screen.queryByRole('dialog', { name: heading })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(screen.getByRole('dialog', { name: heading })).toBeInTheDocument()
+  })
+
   it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((surface) => ({ locale, surface }))))('renders the drawn subscreen row glyphs in $surface in $locale', ({ locale, surface }) => {
     translateProMessages(locale as 'en' | 'pt-BR')
     const Destination = PROFILE_ROUTES[surface]
@@ -293,6 +304,37 @@ describe('ProfilePage', () => {
           expect.soft(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
           expect(row.overflow, row.label!).toBe(false)
           if (surface === 'account') expect(row.icons[0]!.x).toBe(geometry[0]!.icons[0]!.x)
+        }
+      } finally { await page.close() }
+    })
+
+    it.each((['en', 'pt-BR'] as const).flatMap((locale) => [360, 384, 412].map((width) => ({ locale, width }))))('keeps all account action titles whole in $locale at $width px and 2 text scale', async ({ locale, width }) => {
+      translateProMessages(locale)
+      mockProfileState.current.profile = createMockProfile({ name: 'Ana Silva', email: 'a@b.co' })
+      const { container } = render(<ProfileAccountRoute />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(() => {
+          const rows = Array.from(document.querySelectorAll('.orbit-list-row-shell'))
+          const defaults = rows.map((row) => row.getBoundingClientRect().height)
+          document.documentElement.style.fontSize = '32px'
+          return rows.map((row, index) => {
+            const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+            const range = document.createRange()
+            range.selectNodeContents(title)
+            const bounds = title.getBoundingClientRect()
+            const fragments = Array.from(range.getClientRects())
+            const style = getComputedStyle(title)
+            return { label: title.textContent, height: row.getBoundingClientRect().height, defaultHeight: defaults[index]!, fontSize: parseFloat(style.fontSize), clipped: fragments.some((fragment) => fragment.left < bounds.left - 1 || fragment.right > bounds.right + 1 || fragment.bottom > bounds.bottom + 1) }
+          })
+        })
+        expect(geometry).toHaveLength(4)
+        for (const row of geometry) {
+          expect.soft(row.fontSize, row.label!).toBe(34)
+          expect.soft(row.clipped, row.label!).toBe(false)
+          expect.soft(row.height, row.label!).toBeGreaterThan(row.defaultHeight)
         }
       } finally { await page.close() }
     })

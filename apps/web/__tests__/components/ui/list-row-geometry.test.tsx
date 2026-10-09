@@ -46,6 +46,29 @@ describe('personal ListRow text in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each([undefined, true, false].flatMap((inset) => ['Ana', 'Ana Silva'].map((name) => ({ inset, name }))))('keeps the personal text start inset $inset for $name without removing other padding', async ({ inset, name }) => {
+    const { container } = render(<div style={{ width: 288 }}>
+      <ListRow title={name} description="a@b.co" textMode="personal" personalExpanded personalTextInsetStart={inset} onClick={vi.fn()} />
+    </div>)
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const geometry = await page.evaluate(() => {
+        const body = document.querySelector('.orbit-list-row-body')!
+        return ['list-row-title', 'list-row-description'].map((slot) => {
+          const text = document.querySelector(`[data-slot="${slot}"]`)!
+          const range = document.createRange()
+          range.selectNodeContents(text)
+          const padded = text.hasAttribute('data-personal-text-expanded') && text.parentElement!.classList.contains('p-1') ? text.parentElement! : text
+          const style = getComputedStyle(padded)
+          return { inset: range.getBoundingClientRect().left - body.getBoundingClientRect().left, paddingEnd: parseFloat(style.paddingInlineEnd), paddingTop: parseFloat(style.paddingTop), paddingBottom: parseFloat(style.paddingBottom) }
+        })
+      })
+      for (const text of geometry) expect(text).toMatchObject({ inset: inset === false ? 16 : 20, paddingEnd: 4, paddingTop: 4, paddingBottom: 4 })
+    } finally { await page.close() }
+  })
+
   it('keeps each name word on one line in a 288px column and clamps the title to two lines', async () => {
     const name = 'Pessoa com um nome completo escrito no próprio perfil'
     const { container } = render(<div style={{ width: 288 }}>

@@ -604,6 +604,46 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
+  it.each([
+    ['profile.settingsRows.editName', 'profile.editName.title'],
+    ['profile.settingsRows.startOver', 'profile.freshStart.heading'],
+    ['profile.settingsRows.deleteAccount', 'profile.deleteAccount.headingAreYouSure'],
+  ] as const)('opens the owned sheet from the %s account action', async (label, heading) => {
+    mockRealListRow.current = true
+    const screen = await renderProfileSubscreen('account')
+    try {
+      const sheets = () => screen.root.findAll((node: { type: unknown; props: { title?: string } }) => node.type === 'SheetStub' && node.props.title === heading)
+      expect(sheets()).toHaveLength(0)
+      const row = screen.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.accessibilityLabel === label || row.props.title === label)!
+      await TestRenderer.act(() => { row.props.onClick() })
+      expect(sheets()).toHaveLength(1)
+    } finally { TestRenderer.act(() => screen.unmount()) }
+  })
+
+  it.each((['en', 'pt-BR'] as const).flatMap((locale) => [360, 384, 412].map((width) => ({ locale, width }))))('keeps all account action titles whole in $locale at $width dp and 2 text scale', async ({ locale, width }) => {
+    translateProMessages(locale)
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({ name: 'Ana Silva', email: 'a@b.co' })
+    const screen = await renderProfileSubscreen('account')
+    try {
+      const rows = screen.root.findAllByType(ListRow)
+      expect(rows).toHaveLength(4)
+      for (const row of rows) {
+        let rowTree!: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+        try {
+          const defaultSize = measureProfileRow(rowTree.toJSON(), width - 32, 1)
+          const largeText = measureProfileRow(rowTree.toJSON(), width - 32, 2)
+          const title = largeText.texts.find(({ label }) => label === row.props.title)!
+          expect.soft(title.clipped, row.props.title).toBe(false)
+          expect.soft(title.right, row.props.title).toBeLessThanOrEqual(width - 32)
+          expect.soft(title.bottom, row.props.title).toBeLessThanOrEqual(largeText.height)
+          expect.soft(largeText.height, row.props.title).toBeGreaterThan(defaultSize.height)
+        } finally { TestRenderer.act(() => rowTree.unmount()) }
+      }
+    } finally { TestRenderer.act(() => screen.unmount()) }
+  })
+
   it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1280].map((width) => ({ locale, width }))))('keeps the export title and preparing value readable in $locale at $width', async ({ locale, width }) => {
     translateProMessages(locale as 'en' | 'pt-BR')
     mockRealListRow.current = true
