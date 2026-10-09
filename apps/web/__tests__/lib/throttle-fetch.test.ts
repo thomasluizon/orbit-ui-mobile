@@ -88,7 +88,7 @@ describe('client response throttle adapter', () => {
     [200, JSON.stringify({ text: 'log water' })],
   ])('preserves status %s and its body without inventing a timed throttle', async (status, body) => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(body, { status })))
-    const response = await fetchWithThrottle('/api/example')
+    const response = await fetchWithThrottle('/api/example', { method: 'POST' })
     expect(response.status).toBe(status)
     expect(await response.text()).toBe(body)
     expect(useThrottleStore.getState().error).toBeNull()
@@ -98,6 +98,13 @@ describe('client response throttle adapter', () => {
     const failure = new TypeError('Failed to fetch')
     vi.stubGlobal('fetch', vi.fn(async () => { throw failure }))
     await expect(fetchWithThrottle('/api/example')).rejects.toBe(failure)
+    expect(useThrottleStore.getState().error).toBeNull()
+  })
+
+  it('throws a read 429 with Retry-After without publishing a throttle deadline', async () => {
+    useThrottleStore.getState().clear()
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json(payload, { status: 429, headers: { 'Retry-After': '60' } })))
+    await expect(fetchWithThrottle('/api/example')).rejects.toMatchObject({ status: 429, retryAfter: '60' })
     expect(useThrottleStore.getState().error).toBeNull()
   })
 })

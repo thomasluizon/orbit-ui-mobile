@@ -31,14 +31,10 @@ describe('API key server actions', () => {
   })
 
   it('returns a serializable challenge result for the confirmed 428 error', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 428,
-      json: () => Promise.resolve({
+    mockFetch.mockResolvedValue(Response.json({
         error: 'Confirm the emailed code before creating an API key.',
         errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED',
-      }),
-    })
+    }, { status: 428 }))
 
     await expect(createApiKey({ name: 'CI key' }, 'account-a')).resolves.toEqual({
       ok: true,
@@ -50,11 +46,7 @@ describe('API key server actions', () => {
   })
 
   it('keeps unrelated create failures on the error path', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'Internal error' }),
-    })
+    mockFetch.mockResolvedValue(Response.json({ error: 'Internal error' }, { status: 500 }))
 
     await expect(createApiKey({ name: 'CI key' }, 'account-a')).resolves.toEqual({
       ok: false,

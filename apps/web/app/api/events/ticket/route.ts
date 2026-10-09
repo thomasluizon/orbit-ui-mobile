@@ -19,7 +19,17 @@ export async function POST(): Promise<NextResponse> {
       apiBase: accountEventApiBase(),
     }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error: unknown) {
-    if (!(error instanceof ApiClientError) || error.status !== 401) throw error
+    if (!(error instanceof ApiClientError)) throw error
+    if (error.status === 429 || error.status === 503) {
+      return NextResponse.json({ error: error.message }, {
+        status: error.status,
+        headers: {
+          'Cache-Control': 'private, no-store',
+          ...(error.retryAfter ? { 'Retry-After': error.retryAfter } : {}),
+        },
+      })
+    }
+    if (error.status !== 401) throw error
     const refreshFailed = 'sessionRefreshFailed' in error && error.sessionRefreshFailed === true
     return NextResponse.json({ error: 'Unauthorized' }, {
       status: 401,

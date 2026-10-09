@@ -49,6 +49,7 @@ describe('createHabit action error boundary', () => {
   ])('returns upstream %i details without throwing', async (status, errorCode, message) => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status,
       json: () => Promise.resolve({ error: message, errorCode }),
     })
@@ -60,9 +61,15 @@ describe('createHabit action error boundary', () => {
     })
   })
 
+  it('carries upstream Retry-After for the event ticket boundary', async () => {
+    mockFetch.mockResolvedValue(Response.json(null, { status: 429, headers: { 'Retry-After': '60' } }))
+    await expect(serverAuthMutate('/api/events/ticket', { method: 'POST' }, null)).rejects.toMatchObject({ status: 429, retryAfter: '60' })
+  })
+
   it('returns an uncoded edge 403 from an HTML response', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 403,
       json: () => Promise.reject(new SyntaxError('Unexpected token')),
     })
@@ -134,6 +141,7 @@ describe('serverAuthFetch', () => {
     mockFetch
       .mockResolvedValueOnce({
         ok: false,
+        headers: new Headers(),
         status: 401,
         json: () => Promise.resolve({ error: 'Unauthorized' }),
       })
@@ -313,6 +321,7 @@ describe('serverPublicFetch', () => {
   it('returns null for a 404 without invoking the schema', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 404,
       json: () => Promise.resolve(null),
     })
@@ -418,6 +427,7 @@ describe('serverAuthMutate', () => {
       })
     mockFetch.mockResolvedValueOnce({
       ok: false,
+      headers: new Headers(),
       status: 401,
       json: () => Promise.resolve(null),
     })
@@ -457,6 +467,7 @@ describe('serverAuthMutate', () => {
       })
     mockFetch.mockResolvedValue({
       ok: false,
+      headers: new Headers(),
       status: 401,
       json: () => Promise.resolve({ error: 'Unauthorized' }),
     })
