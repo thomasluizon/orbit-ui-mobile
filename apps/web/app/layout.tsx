@@ -39,7 +39,7 @@ const variablesByScheme = Object.fromEntries(
 async function loadInitialTheme(hasSessionCookie: boolean, cookieTheme: string | undefined) {
   if (hasSessionCookie) {
     try {
-      const profile = await serverAuthFetch(API.profile.get, { cache: 'no-store' }, profileSchema)
+      const profile = await serverAuthFetch(API.profile.get, { cache: 'no-store', signal: AbortSignal.timeout(10000) }, profileSchema)
       return normalizeThemeMode(profile.themePreference ?? cookieTheme)
     } catch (error) {
       // WHY: Public routes must still render when the profile API or session is unavailable; https://github.com/thomasluizon/orbit-tickets/issues/1311.

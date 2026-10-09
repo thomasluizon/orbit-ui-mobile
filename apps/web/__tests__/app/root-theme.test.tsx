@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { JSDOM } from 'jsdom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
@@ -11,6 +10,13 @@ import RootLayout from '@/app/layout'
 import { captureException } from '@sentry/nextjs'
 
 const requestCookies = vi.hoisted(() => new Map<string, string>())
+const { JSDOM } = require('jsdom') as {
+  JSDOM: new (markup: string, options: {
+    runScripts: 'dangerously'
+    url: string
+    beforeParse: (window: Window) => void
+  }) => { window: Window }
+}
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
 vi.mock('next/headers', () => ({
   cookies: async () => ({ get: (name: string) => requestCookies.has(name) ? { value: requestCookies.get(name) } : undefined }),
@@ -56,8 +62,10 @@ describe('root theme before hydration', () => {
     for (const [property, value] of Object.entries(resolveWebThemeVariables('orange', 'light'))) {
       expect(root.style.getPropertyValue(property)).toBe(value)
     }
-    Object.defineProperty(page, 'cookie', { value: cookieTheme ? `orbit_theme_mode=${cookieTheme}` : '' })
-    const bootstrapped = new JSDOM(page.documentElement.outerHTML, { runScripts: 'dangerously' })
+    const bootstrapped = new JSDOM(page.documentElement.outerHTML, {
+      runScripts: 'dangerously', url: 'https://theme.test',
+      beforeParse: (window) => { if (cookieTheme) window.document.cookie = `orbit_theme_mode=${cookieTheme}` },
+    })
     expect(bootstrapped.window.document.documentElement.classList.contains('light')).toBe(true)
     expect(bootstrapped.window.document.documentElement.style.colorScheme).toBe('light')
     bootstrapped.window.close()
