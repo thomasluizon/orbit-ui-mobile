@@ -1,8 +1,9 @@
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import { ActionRow } from '@/components/ui/action-row'
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
 import { useHabitDetailFieldsState } from '@/hooks/use-habit-detail-fields-state'
@@ -53,7 +54,7 @@ function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onS
 
 function FrequencyUnitOption({ label, selected, tokens, onSelect }: Readonly<{ label: string; selected: boolean; tokens: Tokens; onSelect: () => void }>) {
   const { elementRef, onActivate, ...navigationProps } = useRadioGroupItem({ disabled: false, onSelect, selected })
-  return <Pressable {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} style={({ pressed }) => [styles.chip, { borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={onActivate}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{label}</Text></Pressable>
+  return <Pressable selectionRingWidth={1} {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: selected }} style={({ pressed }) => [styles.chip, { borderColor: tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={onActivate}><Text numberOfLines={1} style={[styles.chipText, { color: tokens.fg1 }]}>{label}</Text></Pressable>
 }
 
 function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]; tokens: Tokens; onChange: (unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]) => void }>) {
@@ -85,7 +86,7 @@ function WeekdayChips({ days, tokens, onChange }: Readonly<{ days: string[]; tok
     unitYear: t('habits.form.unitYear'),
   }, profile?.weekStartDay)
   const toggle = (day: string) => onChange(toggleHabitDaySelection(days, day, HABIT_DETAIL_WEEKDAYS, days.length === 0))
-  return <View style={styles.days}>{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = days.length === 0 || days.includes(day); return <Pressable key={day} accessibilityRole="button" accessibilityLabel={accessibleLabel} accessibilityState={{ selected }} style={({ pressed }) => [styles.dayChip, { borderWidth: selected ? 1.5 : 1, borderColor: selected ? tokens.primary : tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{label.charAt(0)}</Text></Pressable> })}</View>
+  return <View style={styles.days}>{daysList.map(({ value: day, label, accessibleLabel }) => { const selected = days.length === 0 || days.includes(day); return <Pressable selectionRingWidth={1.5} key={day} accessibilityRole="button" accessibilityLabel={accessibleLabel} accessibilityState={{ selected }} style={({ pressed }) => [styles.dayChip, { borderWidth: selected ? 1.5 : 1, borderColor: tokens.hairline, backgroundColor: pressed ? tokens.bgHover : selected ? tokens.primaryDim : tokens.bgWell }]} onPress={() => toggle(day)}><Text style={[styles.chipText, { color: tokens.fg1 }]}>{label.charAt(0)}</Text></Pressable> })}</View>
 }
 
 function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {

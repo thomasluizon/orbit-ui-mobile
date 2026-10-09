@@ -143,7 +143,7 @@
 .orbit-profile-theme-choice[data-selected] {
   color: var(--fg-1);
   background: var(--primary-dim);
-  box-shadow: inset 0 0 0 1.5px var(--primary);
+  --selection-ring-width: 1.5px;
 }
 
 .habit-form-disclosure {
@@ -1473,7 +1473,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .chip-active {
   background: var(--selection-bg);
   color: var(--fg-1);
-  box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.45);
+  --selection-ring-width: 1px;
+  --selection-ring-color: rgba(var(--primary-rgb), 0.45);
 }
 .chip-period {
   background: var(--bg-well);
@@ -1481,7 +1482,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .chip-period.chip-active {
   background: var(--primary-dim);
-  box-shadow: inset 0 0 0 1.5px var(--primary);
+  --selection-ring-width: 1.5px;
 }
 .chip-filled {
   background: var(--primary);
@@ -2082,3 +2083,14 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     white-space: normal;
   }
 }
+
+.orbit-selection-ring-thin { --selection-ring-width: 1.5px; }
+.orbit-selection-ring-hairline { --selection-ring-width: 1px; }
+:is(.orbit-selection-ring[data-selected], .orbit-selection-ring[aria-checked="true"], .orbit-selection-ring[aria-pressed="true"], .orbit-selection-ring[aria-selected="true"], .chip-active, .orbit-profile-theme-choice[data-selected]):not(:focus-visible):not(:has(:focus-visible)) {
+  box-shadow: inset 0 0 0 var(--selection-ring-width, 2px) var(--selection-ring-color, var(--primary));
+}
+:is(.orbit-selection-ring, .chip-active, .orbit-profile-theme-choice[data-selected]):is(:focus-visible, :has(:focus-visible)),
+:focus-visible .orbit-selection-ring {
+  box-shadow: none;
+}
+.chip-period.chip-active { --selection-ring-color: var(--primary); }

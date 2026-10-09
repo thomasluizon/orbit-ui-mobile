@@ -1,5 +1,6 @@
 import { forwardRef, useMemo, useState } from 'react'
-import { Pressable, type PressableProps, type View } from 'react-native'
+import { selectedBorderStyle } from './selected-focus-indicator'
+import { Pressable, type ColorValue, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -10,10 +11,12 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 interface MotionPressableProps extends PressableProps {
   active?: boolean
   focusInset?: boolean
+  selectionRingWidth?: number
+  selectionRingColor?: ColorValue
 }
 
 export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(function MotionPressable(
-  { active = false, focusInset = false, style, children, onPressIn, onPressOut, onFocus, onBlur, ...props },
+  { active = false, focusInset = false, selectionRingWidth, selectionRingColor, style, children, onPressIn, onPressOut, onFocus, onBlur, ...props },
   ref,
 ) {
   const [pressed, setPressed] = useState(false)
@@ -32,6 +35,7 @@ export const MotionPressable = forwardRef<View, Readonly<MotionPressableProps>>(
       onPressOut={(event) => { setPressed(false); onPressOut?.(event) }}
       style={[
         typeof style === 'function' ? style({ pressed }) : style,
+        selectedBorderStyle(Boolean(props.accessibilityState?.selected || props.accessibilityState?.checked), focused, selectionRingWidth, selectionRingColor ?? tokens.primary),
         focused && focusInset && !props.disabled ? { outlineWidth: 2, outlineOffset: -4, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null,
         {
           transform: [{ scale: !prefersReducedMotion && (pressed || active) ? 0.96 : 1 }],

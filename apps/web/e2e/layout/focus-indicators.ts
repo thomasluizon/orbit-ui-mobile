@@ -170,3 +170,56 @@ export async function inspectFocusedRing(page: Page) {
     return { focused: describe(focused), focusVisible: focused.matches(':focus-visible'), indicators }
   })
 }
+
+export async function inspectControlAccentRings(target: Locator) {
+  return target.evaluate((control) => {
+    for (const animation of document.getAnimations()) animation.finish()
+    const bounds = control.getBoundingClientRect()
+    const ancestors: Element[] = []
+    for (let parent = control.parentElement; parent; parent = parent.parentElement) {
+      const rect = parent.getBoundingClientRect()
+      if (['top', 'right', 'bottom', 'left'].every((side) => Math.abs(rect[side as keyof DOMRect] as number - (bounds[side as keyof DOMRect] as number)) <= 8)) ancestors.push(parent)
+    }
+    const primary = getComputedStyle(control).getPropertyValue('--primary').trim()
+    const probe = document.createElement('span')
+    probe.style.color = primary
+    control.appendChild(probe)
+    const channels = getComputedStyle(probe).color.match(/[\d.]+/g)?.slice(0, 3).map(Number)
+    probe.remove()
+    const accent = (color: string) => {
+      const values = color.match(/[\d.]+/g)?.map(Number)
+      return channels && values && channels.every((channel, index) => channel === values[index]) && (values[3] ?? 1) > 0
+    }
+    const visible = (element: Element) => {
+      for (let owner: Element | null = element; owner; owner = owner.parentElement) {
+        const style = getComputedStyle(owner)
+        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false
+      }
+      return true
+    }
+    return [control, ...control.querySelectorAll('*'), ...ancestors].flatMap((element) => {
+      if (!visible(element)) return []
+      return [null, '::before', '::after'].flatMap((pseudo) => {
+        const style = getComputedStyle(element, pseudo)
+        if (pseudo && (['none', 'normal'].includes(style.content) || Number(style.opacity) === 0)) return []
+        const label = `${element.tagName.toLowerCase()}${pseudo ?? ''}`
+        const rings: string[] = []
+        if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && accent(style.outlineColor)) rings.push(`${label}:outline`)
+        for (const shadow of style.boxShadow.split(/,(?![^()]*\))/)) {
+          const color = shadow.match(/rgba?\([^)]*\)/)?.[0]
+          const lengths = shadow.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g)?.map(Number.parseFloat)
+          if (color && accent(color) && lengths && lengths.length >= 4 && lengths[2] === 0 && lengths[3] !== 0) rings.push(`${label}:shadow`)
+        }
+        if (['Top', 'Right', 'Bottom', 'Left'].some((side) => Number.parseFloat(style.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0 && !['none', 'hidden'].includes(style.getPropertyValue(`border-${side.toLowerCase()}-style`)) && accent(style.getPropertyValue(`border-${side.toLowerCase()}-color`)))) rings.push(`${label}:border`)
+        return rings
+      })
+    })
+  })
+}
+
+export async function inspectFocusedControlRings(page: Page) {
+  const focused = page.locator(':focus')
+  if (await focused.count() !== 1) return null
+  const state = await focused.evaluate((element) => ({ focused: element.tagName.toLowerCase(), focusVisible: element.matches(':focus-visible') }))
+  return { ...state, indicators: await inspectControlAccentRings(focused) }
+}

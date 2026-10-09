@@ -259,10 +259,11 @@ export function DateField({
                           })}
                           aria-pressed={!!isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center overflow-hidden rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
                           onClick={() => selectDay(day)}
                         >
                           <span
+                            data-selected={isToday || undefined}
                             className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors ${
                               isCurrentMonth
                                 ? 'text-[var(--fg-1)]'
@@ -273,7 +274,7 @@ export function DateField({
                                 : ''
                             } ${
                               isToday && !isSelected
-                                ? 'shadow-[inset_0_0_0_1px_var(--primary)]'
+                                ? 'orbit-selection-ring orbit-selection-ring-hairline'
                                 : ''
                             }`}
                           >

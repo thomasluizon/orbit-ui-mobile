@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -73,7 +73,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
     {
       paddingLeft: ROW_INDENTS[Math.min(5, Math.max(0, Math.trunc(depth)))],
       backgroundColor: selected ? tokens.selectionBg : 'transparent',
-      borderColor: selected ? tokens.primary : 'transparent',
+      borderColor: 'transparent',
       opacity: disabled ? 0.5 : 1,
     },
   ]
@@ -83,7 +83,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
   return disabled ? (
     <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
-    <Pressable
+    <InsetFocusPressable selectionRingWidth={1.5}
       {...navigationProps}
       ref={elementRef}
       accessibilityRole="radio"
@@ -95,7 +95,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
         pressed ? { backgroundColor: tokens.bgHover } : null,
         pressed && !prefersReducedMotion ? { transform: [{ scale: 0.96 }] } : null,
       ]}
-    >{({ pressed }) => content(pressed)}</Pressable>
+    >{({ pressed }) => content(pressed)}</InsetFocusPressable>
   )
 }
 
