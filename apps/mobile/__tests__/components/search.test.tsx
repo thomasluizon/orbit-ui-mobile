@@ -101,7 +101,7 @@ async function expectMatchContrast(row: import('react-test-renderer').ReactTestI
   const match = row.findAll((node) => String(node.type) === 'Text' && renderedText(node.props.children).startsWith(label))[0]!
   let matchStyle = StyleSheet.flatten(match.props.style) as TextStyle
   expect(matchStyle).toMatchObject({ color: tokens.fg3, fontSize: 12, fontFamily: 'GeistMono_400Regular' })
-  const fragments = match.findAll((node) => String(node.type) === 'Text' && node !== match)
+  const fragments = row.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityLabel === '“walking”')
   expect(fragments).toHaveLength(hasFragment ? 1 : 0)
   for (const pressed of [false, true]) {
     await TestRenderer.act(() => pressed ? (row.props.onPressIn as () => void)() : (row.props.onPressOut as () => void)())
@@ -320,7 +320,7 @@ describe('mobile search', () => {
     await mount()
     await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
     const disclosure = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityState as { expanded?: boolean } | undefined)?.expanded === false)[0]!
-    expect(disclosure.props.accessibilityLabel).toBe(title)
+    expect(disclosure.props.accessibilityLabel).toBe(en.common.showFullText.replace('{name}', title))
     await TestRenderer.act(() => { (disclosure.props.onPress as () => void)() })
     expect(disclosure.props.accessibilityState).toMatchObject({ expanded: true })
     expect(text()).toContain(title)

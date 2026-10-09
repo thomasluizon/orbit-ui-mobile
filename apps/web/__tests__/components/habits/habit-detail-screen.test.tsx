@@ -890,6 +890,16 @@ describe('HabitDetailScreen', () => {
     expect(mocks.refetch).not.toHaveBeenCalled()
   })
 
+  it.each(['UnbrokenToken'.repeat(24), 'A tag name with many words describing the people and activities I enjoy'])('discloses the full habit detail tag %s', (name) => {
+    mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: [{ id: 'long-tag', name, color: '#808080' }] })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const tags = document.querySelector('[data-habit-detail-tags]')!
+    const disclosure = within(tags as HTMLElement).getByRole('button', { name, expanded: false })
+    fireEvent.click(disclosure)
+    expect(within(tags as HTMLElement).getByRole('button', { name, expanded: true })).toBeInTheDocument()
+    expect(tags.querySelector('[data-personal-text-expanded]')).not.toBeNull()
+  })
+
   it('shows authoritative tags and moves linked goals into the inline details', () => {
     mocks.allHabits.set('habit-1', makeScopedParent())
     mocks.scopedHabits.set('habit-1', makeScopedParent())

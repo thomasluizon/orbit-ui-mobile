@@ -37,6 +37,7 @@ type SettledPlainVariant = Extract<SettledVariant, { onEditItem?: never }>
 type ExpectedCommon = {
   readonly title: string
   readonly wrapTitle?: boolean
+  readonly titleMode?: 'label' | 'typed'
   readonly focusTitleOnMount?: boolean
   readonly count?: React.ReactNode
   readonly items: readonly ExpectedBlockFrameItem[]

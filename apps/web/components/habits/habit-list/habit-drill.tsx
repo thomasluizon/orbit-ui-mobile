@@ -5,6 +5,8 @@ import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ReactNode } from 'react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { ArrowLeft } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
@@ -71,7 +73,22 @@ export function HabitDrill({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex min-w-0 flex-col gap-2">
-        <div className="flex items-center" style={{ gap: 12, padding: '8px 16px 0' }}>
+        <div className="flex min-w-0 flex-col" style={{ gap: 12, padding: '8px 16px 0' }}>
+          <div className="min-w-0 w-full">
+            <h2
+              className="min-w-0"
+              style={{
+                margin: 0,
+                color: 'var(--fg-1)',
+                fontFamily: 'var(--font-display)',
+                fontSize: 20,
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              <PersonalText>{drill.currentParent?.title ?? ''}</PersonalText>
+            </h2>
+            <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             aria-label={t('common.back')}
@@ -85,20 +102,6 @@ export function HabitDrill({
           >
             <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
-          <div className="min-w-0 flex-1">
-            <h2
-              className="truncate"
-              style={{
-                margin: 0,
-                color: 'var(--fg-1)',
-                fontFamily: 'var(--font-display)',
-                fontSize: 20,
-                fontWeight: 500,
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {drill.currentParent?.title ?? ''}
-            </h2>
             <p
               style={{
                 margin: 0,
@@ -114,6 +117,8 @@ export function HabitDrill({
                 total: drill.drillChildren.length,
               })}
             </p>
+              <PersonalTextDetails iconOnly>{drill.currentParent?.title ?? ''}</PersonalTextDetails>
+            </div>
           </div>
         </div>
 
