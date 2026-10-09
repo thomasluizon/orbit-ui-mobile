@@ -370,8 +370,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           </>
         )}
       >
-        <RouteTransitionShell>
-          <div>{children}</div>
+        <RouteTransitionShell className="has-[[data-page-viewport]]:h-full">
+          {children}
         </RouteTransitionShell>
       </DestinationShell>
 

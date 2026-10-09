@@ -60,7 +60,7 @@ for (const width of [320, 412, 600, 840]) {
           for (const view of ['month', 'week', 'range', 'agenda'] as const) {
             await selector.getByRole('radio', { name: words.calendar.view[view], exact: true }).click()
             const body = view === 'month' ? page.getByTestId('calendar-grid-card')
-              : view === 'week' ? page.getByTestId('time-grid-any-time-label')
+              : view === 'week' ? page.getByTestId('calendar-time-grid')
                 : view === 'range' ? page.getByRole('region').filter({ has: page.getByTestId('month-grid-days') }).locator('.orbit-calendar-grid-card')
                   : page.getByTestId('calendar-agenda-day').first()
             await expect(body).toBeVisible()

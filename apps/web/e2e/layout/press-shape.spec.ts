@@ -220,7 +220,7 @@ for (const width of [412, 1280] as const) {
       await expect(periodTitle).toHaveAccessibleName(ptBr.calendar.period.goToCurrent.replace('{period}', periodLabel))
       await expectFullTouchTarget(periodTitle, 12)
       await expectInteractionFill(periodTitle)
-      await expectFullTouchTarget(page.getByTestId('time-grid-all-day-summary').first(), 8)
+      await expectFullTouchTarget(page.getByTestId('time-grid-all-day-event').first(), 8)
     })
 
     test.describe('calendar review targets', () => {

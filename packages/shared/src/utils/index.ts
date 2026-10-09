@@ -292,6 +292,7 @@ export {
   formatCalendarDayTitle,
   formatCalendarAgendaHeading,
   formatWeekdayLabels,
+  formatCalendarWeekday,
   formatLocaleDateTime,
   formatLocaleTime,
   getSystemLocale,

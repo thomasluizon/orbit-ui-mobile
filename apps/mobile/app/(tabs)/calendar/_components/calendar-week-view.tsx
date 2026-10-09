@@ -54,6 +54,7 @@ export function CalendarWeekView({
     <Animated.View
       key={columns[0]?.dateStr ?? "week"}
       entering={weekEntering}
+      style={{ flex: 1, minHeight: 0 }}
     >
       <CalendarTimeGrid
         columns={columns}
