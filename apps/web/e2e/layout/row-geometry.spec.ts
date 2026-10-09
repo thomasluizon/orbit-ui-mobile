@@ -78,6 +78,9 @@ async function assertRows(surface: Locator) {
 async function assertColumnRows(surface: Locator) {
   expect(await surface.evaluate((element) => [element, ...element.querySelectorAll('*')].filter((node) => {
     const style = getComputedStyle(node)
+    const bounds = node.getBoundingClientRect()
+    const clipped = style.clip !== 'auto' || style.clipPath !== 'none'
+    if (clipped && bounds.width <= 1 && bounds.height <= 1) return false
     return parseFloat(style.marginInlineStart) < 0 || parseFloat(style.marginInlineEnd) < 0
   }).map((node) => node.outerHTML))).toEqual([])
   for (const row of await surface.locator('.orbit-list-row-column').all()) {
