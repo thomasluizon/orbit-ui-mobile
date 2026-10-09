@@ -16,6 +16,7 @@ import { fetchJson } from '@/lib/api-fetch'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
+import { useAuthStore, useHeldAccountId } from '@/stores/auth-store'
 
 export const PreloadedProfileContext = createContext<Profile | undefined>(undefined)
 
@@ -29,6 +30,9 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
   const queryClient = useQueryClient()
   const locale = useLocale()
   const isClient = useIsClient()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const heldAccountId = useHeldAccountId()
+  const accountReady = isAuthenticated && heldAccountId !== null
   const contextProfile = useContext(PreloadedProfileContext)
   const accountGeneration = useAccountGeneration()
   const [preloadAccountGeneration] = useState(accountGeneration)
@@ -53,22 +57,23 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
   const profileLanguage = profile?.language
 
   useEffect(() => {
-    if (!profile) return
+    if (!accountReady || !profile) return
     syncThemeFromProfile(profile.themePreference)
     detectAndSaveThemeIfNeeded(profile.themePreference)
     // react-doctor-disable-next-line exhaustive-deps -- profile selects query.data or initialData and is already in deps; react-doctor does not resolve the derived value; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [
+    accountReady,
     profile,
     syncThemeFromProfile,
     detectAndSaveThemeIfNeeded,
   ])
 
   useEffect(() => {
-    if (!profileLanguage || profileLanguage === locale) return
+    if (!accountReady || !profileLanguage || profileLanguage === locale) return
     writeLocaleCookie(profileLanguage)
     globalThis.location.reload()
     // react-doctor-disable-next-line exhaustive-deps -- profileLanguage aliases profile.language and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [profileLanguage, locale])
+  }, [accountReady, profileLanguage, locale])
 
   const invalidate = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: profileKeys.all })

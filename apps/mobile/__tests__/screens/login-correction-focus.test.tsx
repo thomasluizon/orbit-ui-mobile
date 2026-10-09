@@ -132,6 +132,53 @@ it('returns focus to the editable OTP after a pending wrong-code rejection', asy
   TestRenderer.act(() => tree.update(<></>))
 })
 
+it('recovers email focus after pending verification validation on every remount', async () => {
+  mocks.apiClient.mockReset()
+  mocks.getStoredReferralCode.mockResolvedValue(undefined)
+  let tree!: import('react-test-renderer').ReactTestRenderer
+  await TestRenderer.act(() => { tree = TestRenderer.create(<><LoginContent /><TextInput accessibilityLabel="Another field" /></>); return Promise.resolve() })
+  const input = (label: string) => tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === label)[0]!
+  const generalRegion = tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLiveRegion === 'polite').at(-1)!
+  expect(generalRegion.findAll((node) => String(node.type) === 'Text')).toHaveLength(0)
+  try {
+    await TestRenderer.act(() => Promise.resolve((input('auth.email').props.onChangeText as (value: string) => void)('user@test.com')))
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      mocks.apiClient.mockResolvedValueOnce({})
+      await TestRenderer.act(() => Promise.resolve((input('auth.email').props.onSubmitEditing as () => void)()))
+      let rejectValidation!: (error: unknown) => void
+      mocks.apiClient.mockImplementationOnce(() => new Promise((_, reject) => { rejectValidation = reject }))
+      const code = input('auth.verificationCode')
+      await TestRenderer.act(() => Promise.resolve((code.props.onChangeText as (value: string) => void)('123456')))
+      expect(code.props.editable).toBe(false)
+      __setTouchMode(false)
+      const away = input('Another field')
+      TestRenderer.act(() => __focusHost(away.props.__nativeTag as number))
+      expect(__getFocusedNativeTag()).toBe(away.props.__nativeTag)
+      await TestRenderer.act(() => {
+        rejectValidation(createApiClientError(400, {
+          errors: { Email: ['Email failure'], Other: ['Other failure', 'Second failure'] },
+        }, 'Validation failed'))
+        return Promise.resolve()
+      })
+      const email = input('auth.email')
+      expect(tree.root.findAll((node) => String(node.type) === 'TextInput' && node.props.accessibilityLabel === 'auth.verificationCode')).toHaveLength(0)
+      expect(email.props.editable).toBe(true)
+      expect(email.props.accessibilityHint).toBe('Email failure')
+      expect(__getFocusedNativeTag()).toBe(email.props.__nativeTag)
+      expect(email.props.value).toBe(attempt === 0 ? 'user@test.com' : 'corrected@test.com')
+      expect(tree.root.findAll((node) => String(node.type) === 'View' && node.props.accessibilityLiveRegion === 'polite').at(-1)).toBe(generalRegion)
+      expect(generalRegion.findAll((node) => String(node.type) === 'Text' && node.props.children === 'Other failure\nSecond failure')).toHaveLength(1)
+      if (attempt === 0) {
+        await TestRenderer.act(() => Promise.resolve((email.props.onChangeText as (value: string) => void)('corrected@test.com')))
+        expect(email.props.accessibilityHint).toBeUndefined()
+        expect(generalRegion.findAll((node) => String(node.type) === 'Text')).toHaveLength(0)
+      }
+    }
+  } finally {
+    TestRenderer.act(() => tree.update(<></>))
+  }
+})
+
 it.each([
   { step: 'email', mixed: true }, { step: 'code', mixed: true },
   { step: 'email', mixed: false }, { step: 'code', mixed: false },
