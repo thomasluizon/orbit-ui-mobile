@@ -32,7 +32,7 @@ export function ProfileSettingsFrame({
   return (
     <div
       data-testid="profile-settings-groups"
-      className="flex w-full max-w-[560px] flex-col px-4"
+      className="orbit-content-frame flex flex-col"
       style={{ gap: 32 }}
     >
       {PROFILE_SETTINGS_GROUPS.map((group) => (

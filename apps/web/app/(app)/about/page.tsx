@@ -34,7 +34,7 @@ function AboutFact({ id, label, value }: Readonly<AboutFactProps>) {
 
 function AboutAccountFact({ label, value }: Readonly<Pick<AboutFactProps, 'label' | 'value'>>) {
   const [expanded, setExpanded] = useState(false)
-  return <PersonalTextAction label={`${label} ${value}`} contentClassName="flex min-w-0 flex-wrap min-h-[48px] w-full rounded-[12px] p-2 text-start" contentStyle={{ columnGap: 12, rowGap: 4 }} control={<button type="button" aria-label={`${label} ${value}`} aria-expanded={expanded} aria-controls="about-account-value" onClick={() => setExpanded(!expanded)}
+  return <PersonalTextAction label={`${label} ${value}`} className="-mx-2" contentClassName="flex min-w-0 flex-wrap min-h-[48px] rounded-[12px] p-2 text-start" contentStyle={{ columnGap: 12, rowGap: 4 }} control={<button type="button" aria-label={`${label} ${value}`} aria-expanded={expanded} aria-controls="about-account-value" onClick={() => setExpanded(!expanded)}
     className="orbit-hover-text flex min-w-0 flex-wrap min-h-[48px] w-full cursor-pointer rounded-[12px] border-0 bg-transparent p-2 text-start touch-manipulation transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
     data-testid="about-fact-account" style={{ columnGap: 12, rowGap: 4 }}>
     <span data-testid="about-fact-account-label" style={{ flex: '1 1 auto', minWidth: 0, color: 'var(--fg-3)', fontSize: 14, lineHeight: 1.5 }}>{label}</span>
@@ -58,7 +58,7 @@ export default function AboutPage() {
   const appVersion = getAppVersion()
 
   return (
-    <div className="min-w-0 md:w-full md:max-w-[620px]">
+    <div className="min-w-0 w-full">
       <div className="flex min-w-0 flex-col">
         <PageHeader
           backLabel={t('common.backToProfile')}
@@ -67,8 +67,9 @@ export default function AboutPage() {
         />
         <div className="min-h-0 min-w-0 flex-1">
           <div
-            className="flex min-w-0 flex-col p-4"
+            className="orbit-content-frame flex flex-col py-4"
             data-testid="about-content"
+            data-content-cap="about"
             style={{ gap: 24 }}
           >
             <div

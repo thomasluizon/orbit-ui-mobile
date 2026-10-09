@@ -1,7 +1,7 @@
 import React from 'react'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
-import { __setScrollToImpl } from '../../test-mocks/react-native'
+import { __setScrollToImpl, __setWindowDimensions } from '../../test-mocks/react-native'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -684,8 +684,9 @@ describe('ProfileScreen', () => {
     } finally { TestRenderer.act(() => { rowTree?.unmount(); tree.unmount() }) }
   })
 
-  it.each([412, 840].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
+  it.each([412, 600, 840, 1352].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
     .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     const tree = await renderProfileSubscreen(screen)
     const column = Yoga.Node.create()
     const scroller = Yoga.Node.create()
@@ -712,8 +713,8 @@ describe('ProfileScreen', () => {
       content.insertChild(firstRow, 0)
       column.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
       expect(scroller.getComputedLeft() + content.getComputedLeft() + firstRow.getComputedLeft()).toBe(16)
-      expect(content.getComputedWidth()).toBe(Math.min(width, 560))
-      expect(firstRow.getComputedWidth()).toBe(content.getComputedWidth() - 32)
+      expect(content.getComputedWidth()).toBe(width < 1024 ? width : 592)
+      expect(firstRow.getComputedWidth()).toBe(width < 1024 ? width - 32 : 560)
       const back = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
         node.type === 'Pressable' && node.props.accessibilityLabel === 'common.backToProfile')[0]!
       let header = back.parent!

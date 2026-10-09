@@ -37,8 +37,8 @@ export function CalendarAgendaView({
     <div
       data-testid="calendar-agenda-view"
       aria-busy={isLoading}
-      className="flex max-w-[560px] flex-col"
-      style={{ gap: 16, padding: '0 16px 24px' }}
+      className="orbit-content-frame flex flex-col"
+      style={{ gap: 16, paddingBottom: 24 }}
     >
       {isLoading ? dates.map((date, index) => (
         <div key={formatAPIDate(date)} data-testid="calendar-agenda-loading-day">

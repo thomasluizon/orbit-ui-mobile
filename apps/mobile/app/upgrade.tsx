@@ -1,3 +1,4 @@
+import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { getProfileTrialEndHint } from '@orbit/shared/utils/profile-navigation'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Linking, ScrollView, StyleSheet, View } from 'react-native'
@@ -169,6 +170,8 @@ export default function UpgradeScreen() {
     portalState,
   })
   const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
+  const isPitch = model.state !== 'loading' && model.state !== 'load-failed' && !lapsedNoticeStatus && model.content === 'pitch'
+  const contentFrameStyle = useContentFrameStyle(isPitch ? 652 : 560)
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -260,6 +263,7 @@ export default function UpgradeScreen() {
   ) : (
     <>
       <PricingSection
+        inset={false}
         focusOnMount={showPitch}
         profile={status}
         plans={plans}
@@ -304,6 +308,7 @@ export default function UpgradeScreen() {
         contentContainerStyle={[styles.scrollContent, clearance > 0 ? { paddingBottom: clearance } : undefined]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={contentFrameStyle}>
         <UpgradeContent
           state={model.state}
           content={model.content}
@@ -312,6 +317,7 @@ export default function UpgradeScreen() {
           onRetry={() => { void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()]) }}
           t={t}
         />
+        </View>
       </ScrollView>
     </SafeAreaView>
   )
@@ -325,10 +331,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   padBlock: {
-    width: '100%',
-    maxWidth: 560,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
     paddingVertical: 16,
     gap: 8,
     alignItems: 'stretch',

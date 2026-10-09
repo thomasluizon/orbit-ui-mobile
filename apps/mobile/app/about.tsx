@@ -1,3 +1,4 @@
+import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -37,7 +38,7 @@ function AboutFact({ id, label, value, labelColor, valueColor }: Readonly<AboutF
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: pressed ? tokens.fg2 : labelColor }]}>{label}</Text><ChevronDown size={20} strokeWidth={1.5} color={pressed ? tokens.fg2 : labelColor} accessible={false} style={expanded ? { transform: [{ rotate: '180deg' }] } : undefined} /></View>
     <PersonalText expanded={expanded} testID={`about-fact-${id}-value`} style={[styles.factValue, { color: valueColor }]}>{value}</PersonalText>
   </>
-  if (id === 'account') return <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={`${label} ${value}`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} testID={`about-fact-${id}`} style={({ pressed }) => [styles.factRow, { minHeight: 48, padding: 8, borderRadius: 12, overflow: 'hidden', flexDirection: 'column', alignItems: 'stretch', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</Pressable>
+  if (id === 'account') return <Pressable onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} accessibilityRole="button" accessibilityLabel={`${label} ${value}`} accessibilityState={{ expanded }} onPress={() => setExpanded(!expanded)} testID={`about-fact-${id}`} style={({ pressed }) => [styles.factRow, { minHeight: 48, padding: 8, marginHorizontal: -8, borderRadius: 12, overflow: 'hidden', flexDirection: 'column', alignItems: 'stretch', backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}>{content}</Pressable>
   return (
     <View testID={`about-fact-${id}`} style={styles.factRow}>
       <Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: labelColor }]}>
@@ -70,6 +71,7 @@ function ProfileAccountFact({
 
 export default function AboutScreen() {
   const { width } = useWindowDimensions()
+  const contentFrameStyle = useContentFrameStyle(620)
   const { t } = useTranslation()
   const pageEnd = useShellPageEnd()
   const router = useRouter()
@@ -98,7 +100,7 @@ export default function AboutScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: pageEnd.paddingBottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View testID="about-content" style={styles.content}>
+        <View testID="about-content" style={[contentFrameStyle, styles.content]}>
           <View testID="about-identity" style={styles.identity}>
             <OrbitMark size={48} accent />
             <Text accessibilityLanguage="en" style={[styles.appName, width >= 768 && styles.appNameWide, { color: tokens.fg1 }]}>
@@ -155,7 +157,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, minWidth: 0 },
   container: { flex: 1, minWidth: 0 },
   scrollContent: { minWidth: 0 },
-  content: { minWidth: 0, width: '100%', maxWidth: 620, alignSelf: 'flex-start', gap: 24, paddingHorizontal: 16, paddingTop: 16 },
+  content: { gap: 24, paddingTop: 16 },
   identity: { minWidth: 0, alignItems: 'flex-start', gap: 12 },
   appName: {
     fontFamily: 'SpaceGrotesk_600SemiBold',

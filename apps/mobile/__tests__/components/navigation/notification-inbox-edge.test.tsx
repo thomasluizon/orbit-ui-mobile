@@ -62,8 +62,8 @@ function leadingEdge(node: YogaNode): number {
 afterEach(() => __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }))
 
 describe('Avisos content edge on Android', () => {
-  it.each([412, 840].flatMap((width) => states.map((state) => ({ width, state }))))(
-    'keeps a full window header and capped leading list at $width in $state', async ({ width, state }) => {
+  it.each([412, 600, 840, 1352].flatMap((width) => states.map((state) => ({ width, state }))))(
+    'keeps a full window header and drawn content width at $width in $state', async ({ width, state }) => {
       __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
       inbox.state = state
       inbox.items = state === 'populated' ? [0, 1, 2].map((index) => createMockNotification({ id: `edge-${index}` })) : []
@@ -82,8 +82,9 @@ describe('Avisos content edge on Android', () => {
         expect(nodes.get(screen)!.getComputedWidth()).toBe(width)
         expect(nodes.get(header)!.getComputedWidth()).toBe(width)
         expect(leadingEdge(nodes.get(header)!)).toBe(0)
-        expect(list.getComputedWidth()).toBe(Math.min(width, 560))
-        expect(firstRow.getComputedWidth()).toBe(list.getComputedWidth() - 32)
+        expect(list.getComputedWidth()).toBe(width < 1024 ? width : 592)
+        expect(firstRow.getComputedWidth()).toBe(width < 1024 ? width - 32 : 560)
+        expect(list.getChild(list.getChildCount() - 1).getComputedWidth()).toBe(firstRow.getComputedWidth())
       } finally {
         layout.freeRecursive()
         await act(() => renderer!.unmount())

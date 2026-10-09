@@ -2228,3 +2228,23 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
     background: var(--bg-hover);
   }
 }
+
+.orbit-content-frame {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 16px;
+}
+
+@media (min-width: 1024px) {
+  .orbit-content-frame {
+    max-width: calc(560px + 32px);
+  }
+
+  .orbit-content-frame[data-content-cap="about"] {
+    max-width: calc(620px + 32px);
+  }
+
+  .orbit-content-frame[data-content-cap="pitch"] {
+    max-width: calc(652px + 32px);
+  }
+}
