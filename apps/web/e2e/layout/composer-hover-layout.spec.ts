@@ -25,7 +25,6 @@ for (const width of [412, 1280]) {
       const actions = composer.getByRole('button', { name: en.shell.composer.actions, exact: true })
       await actions.click()
       const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
-      await page.addStyleTag({ content: '.orbit-menu-item,[data-composer-controls] button{--test-hover:0}.orbit-menu-item:hover,[data-composer-controls] button:hover{--test-hover:1}' })
       for (const name of [en.shell.composer.attach.file, en.shell.composer.attach.image]) {
         const control = menu.getByRole('menuitem', { name, exact: true })
         await expect(control).toBeDisabled()

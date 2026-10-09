@@ -22,7 +22,7 @@ beforeAll(async () => {
   const source = resolve(process.cwd(), 'app/globals.css')
   const theme = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
   stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-    + `:root{${theme}}.orbit-menu-item{--test-hover:0}.orbit-menu-item:hover{--test-hover:1}`
+    + `:root{${theme}}`
   const buildOptions = {
     stdin: { contents: `import React, { useRef, useState } from 'react'; import { createRoot } from 'react-dom/client';
       import { AnchoredPopover } from './components/ui/popover-positioner';
