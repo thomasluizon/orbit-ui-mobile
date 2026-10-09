@@ -28,6 +28,23 @@ describe('personal ListRow text in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([412, 1352])('shares the inset, trailing edge and block padding at %s', async (width) => {
+    const markup = renderToStaticMarkup(<ListRow title="Tags" value="3" trailing={<span>Pro</span>} onClick={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      const geometry = await page.getByRole('button', { name: /Tags/ }).evaluate((body) => {
+        const style = getComputedStyle(body)
+        const content = body.firstElementChild!
+        const first = content.firstElementChild!.getBoundingClientRect()
+        const last = content.lastElementChild!.getBoundingClientRect()
+        const bounds = body.getBoundingClientRect()
+        return { start: first.left - bounds.left, end: bounds.right - last.right, padding: style.paddingBlock, minimum: style.minHeight, chevronWidth: last.width }
+      })
+      expect(geometry).toEqual({ start: 16, end: 16, padding: '12px', minimum: '52px', chevronWidth: 24 })
+    } finally { await page.close() }
+  })
+
   it.each((['light', 'dark'] as const).flatMap((mode) => (['body', 'action'] as const).map((kind) => ({ mode, kind }))))('paints the $kind touch press fill in $mode', async ({ mode, kind }) => {
     const markup = renderToStaticMarkup(<ListRow title="Open day" description="Selected day" accessibilityLabel="Open day" href="/?date=2026-09-04"
       action={{ icon: 'chevron-down', label: 'View details', onPress: vi.fn() }} />)

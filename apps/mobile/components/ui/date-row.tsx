@@ -17,7 +17,7 @@ export function DateRow({ label, value, note }: Readonly<DateRowProps>) {
 }
 
 const styles = StyleSheet.create({
-  root: { width: '100%', gap: 4, paddingHorizontal: 16, paddingVertical: 12 },
+  root: { width: '100%', gap: 4, paddingVertical: 12 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 16, fontVariant: ['tabular-nums'] },
   note: { fontFamily: 'Geist_400Regular', fontSize: 14 },

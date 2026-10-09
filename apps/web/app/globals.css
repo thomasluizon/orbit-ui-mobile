@@ -141,10 +141,44 @@
   outline-offset: -2px;
 }
 
-.orbit-list-row-form {
-  margin-inline: 8px;
+.orbit-list-row-column .orbit-list-row-body::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -16px;
   border-radius: 12px;
-  overflow: hidden;
+}
+
+.orbit-list-row-outset {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -16px;
+  border-radius: 12px;
+  pointer-events: none;
+  transition: background-color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-list-row-column .orbit-list-row-body:is(:active, :focus-visible):not(:disabled) {
+  background: transparent;
+  outline: none;
+}
+
+.orbit-list-row-column .orbit-list-row-body:is(:active, :focus-visible):not(:disabled) > .orbit-list-row-outset {
+  background: var(--bg-hover);
+}
+
+.orbit-list-row-column .orbit-list-row-body:focus-visible > .orbit-list-row-outset {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled) {
+    background: transparent;
+  }
+  .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled) > .orbit-list-row-outset {
+    background: var(--bg-hover);
+  }
 }
 
 .orbit-profile-theme-choice {
@@ -2102,4 +2136,19 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-calendar-figure-caption {
     white-space: normal;
   }
+}
+
+.orbit-check-row-label::before {
+  content: '';
+  position: absolute;
+  inset-block: -12px;
+  inset-inline: 0;
+  border-radius: 12px;
+}
+
+.orbit-check-row-control::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 12px;
 }
