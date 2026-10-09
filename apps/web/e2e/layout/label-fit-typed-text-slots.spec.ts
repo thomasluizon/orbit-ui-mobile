@@ -11,7 +11,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
-import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const day = '2026-09-04'
@@ -38,9 +37,8 @@ for (const width of [320, 1352]) {
         const child = habitScheduleItemSchema.parse(makeHabitScheduleItem({ id: 'child-habit', title: 'Read', children: [], hasSubHabits: false, dueDate: day, scheduledDates: [day] }))
         const parent = habitScheduleItemSchema.parse(makeHabitScheduleItem({ id: 'parent-habit', title: name, children: [child], hasSubHabits: true, dueDate: day, scheduledDates: [day] }))
         const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ ...emptyHabitsPageFixture, items: [parent], totalCount: 1 })
-        test.use({ appLocale: locale, layoutProfile: profile, viewport: { width, height: 915 } })
+        test.use({ appLocale: locale, layoutProfile: profile, layoutTags: [tags, { scope: 'test' }], viewport: { width, height: 915 } })
         test.beforeEach(async ({ context }) => {
-          await setLayoutProfileSession(context, profile, undefined, tags)
           await context.route((url) => url.pathname === API.goals.list, (route) => route.fulfill({ json: goals }))
           await context.route((url) => url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
           await context.route((url) => url.pathname === API.habits.get(parent.id), (route) => route.fulfill({ json: habitDetailSchema.parse({ ...makeHabitDetail(), id: parent.id, title: name, children: [{ ...makeHabitDetailChild(), id: child.id, title: child.title, dueDate: day }] }) }))
