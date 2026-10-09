@@ -542,6 +542,30 @@ describe('PendingOperationCard', () => {
     expect(screen.getByRole('button', { name: 'chat.operation.stepUpAction' })).toBeEnabled()
   })
 
+  it('shows one boolean editor label inside the switch and preserves its draft while saving', async () => {
+    const booleanItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'reminder_enabled', valueType: 'boolean', newValue: 'true', proposedValue: true, isEditable: true }] }
+    let finishRevision!: (result: PendingOperationRevisionResponse) => void
+    revise.mockImplementation(() => new Promise((resolve) => { finishRevision = resolve }))
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items: [booleanItem], changeTargetCount: 1 })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
+    const body = screen.getByRole('dialog', { name: 'chat.operation.editTitle: Run' })
+    const label = 'chat.operation.field.reminder_enabled'
+    expect(within(body).getAllByText(label)).toHaveLength(1)
+    const control = within(body).getByRole('switch', { name: label })
+    expect(within(control).getByText(label)).toBeInTheDocument()
+    expect(control).toBeChecked()
+    fireEvent.click(control)
+    expect(control).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { reminder_enabled: false } }],
+    })
+    expect(control).toBeDisabled()
+    await act(async () => { finishRevision({ ok: false, error: 'invalid_revision' }) })
+    expect(control).toBeEnabled()
+    expect(control).not.toBeChecked()
+  })
+
   it('keeps an unsaved edit when switching items', () => {
     render(<PendingOperationCard pendingOperation={preview} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getAllByRole('button', { name: 'chat.operation.edit' })[0]!)

@@ -926,6 +926,7 @@ describe('CalendarSyncPage', () => {
     const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana'
     const events = [
       { id: 'e1', title: habitName, description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      { id: 'e3', title: 'Read', description: null, startDate: '2025-06-01', startTime: '12:00', endTime: '13:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
       { id: 'e2', title: 'Team Meeting', description: null, startDate: '2025-06-01', startTime: '10:00', endTime: '11:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
     ]
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -945,6 +946,7 @@ describe('CalendarSyncPage', () => {
         options.onSuccess({
           results: [
             { status: 'Success', habitId: 'h1', title: habitName, error: null },
+            { status: 'Success', habitId: 'h2', title: 'Read', error: null },
             { status: 'Failed', habitId: null, title: 'Team Meeting', error: 'boom' },
           ],
         })
@@ -963,6 +965,8 @@ describe('CalendarSyncPage', () => {
     })
     expect(screen.getByText(personalText(habitName))).toBeInTheDocument()
     const importedHabit = screen.getByRole('button', { name: habitName })
+    const group = importedHabit.closest('.orbit-list-row-shell')!.parentElement!.parentElement!
+    expect(Array.from(group.querySelectorAll('[aria-hidden="true"]')).filter((node) => (node as HTMLElement).style.height === '1px')).toHaveLength(1)
     expect(importedHabit).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(importedHabit)
     expect(importedHabit).toHaveAttribute('aria-expanded', 'true')

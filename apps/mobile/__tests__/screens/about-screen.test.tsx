@@ -174,7 +174,7 @@ describe('AboutScreen', () => {
       const style = destination.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
       const body = StyleSheet.flatten(style({ pressed: false }))
       expect(body.minHeight).toBe(52)
-      expect(body.paddingVertical).toBe(4)
+      expect(body.paddingVertical).toBe(12)
       expect(destination.findAll((node) => node.type === 'View' && flattenedStyle(node).minHeight === 24).length).toBeGreaterThan(0)
     }
     TestRenderer.act(() => tree.unmount())

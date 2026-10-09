@@ -7,8 +7,7 @@ import tailwind from '@tailwindcss/postcss'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { renderSettingsRowMarkup } from '../../../e2e/layout/settings-row-markup'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SettingsGroupRow } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -79,17 +78,17 @@ describe('settings text geometry in Chromium', () => {
     })
   }
 
-  it.each([['SettingsRow', SettingsRow], ['SettingsGroupRow', SettingsGroupRow]] as const)('gives typed text the full width and removes the two-line clamp after disclosure in %s', async (_name, Row) => {
+  it.each([['ListRow', ListRow]] as const)('gives typed text the full width and removes the two-line clamp after disclosure in %s', async (_name, Row) => {
     const title = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana'
     const { container, getByRole } = render(<div style={{ width: 320 }}>
-      <Row label={title} textMode="personal" accessory="none" />
+      <Row title={title} textMode="personal" chevron={false} />
     </div>)
     const disclosure = getByRole('button', { name: title })
     const page = await browser.newPage()
     const readGeometry = async () => {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      return page.locator('[data-slot="settings-row-label"]').evaluate((label) => {
+      return page.locator('[data-slot="list-row-title"]').evaluate((label) => {
         const row = (label.closest('[data-personal-text-content]') ?? label.closest('button'))!
         const style = getComputedStyle(row)
         const labelStyle = getComputedStyle(label)

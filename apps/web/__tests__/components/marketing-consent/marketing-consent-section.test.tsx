@@ -59,7 +59,7 @@ describe('MarketingConsentSection', () => {
     profileValue = { marketingEmailConsent: false }
     const { container } = renderSection()
     expect(container.querySelectorAll('svg')).toHaveLength(1)
-    expect(container.querySelector('[data-slot="list-row-title"]')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-slot="list-row-title"]')).toBeInTheDocument()
   })
 
   it('reflects explicit consent off', () => {

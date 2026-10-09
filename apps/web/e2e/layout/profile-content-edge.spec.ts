@@ -24,6 +24,11 @@ async function assertRowEdge(row: Locator, expectedLeft: number) {
   })
   expect(Math.abs(bounds.left - expectedLeft)).toBeLessThanOrEqual(0.5)
   expect(bounds.width).toBeLessThanOrEqual(560)
+  const fill = row.locator('[data-slot="list-row-body"]').first()
+  if (await fill.count()) {
+    await expect(fill).toHaveCSS('padding-block-start', '12px')
+    await expect(fill).toHaveCSS('padding-inline-start', '16px')
+  }
 }
 
 for (const locale of ['en', 'pt-BR'] as const) {

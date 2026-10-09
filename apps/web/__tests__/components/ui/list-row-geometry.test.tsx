@@ -28,6 +28,59 @@ describe('personal ListRow text in Chromium', () => {
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+  it.each([412, 1352])('shares the inset, trailing edge and block padding at %s', async (width) => {
+    const markup = renderToStaticMarkup(<ListRow title="Tags" value="3" trailing={<span>Pro</span>} onClick={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      const geometry = await page.getByRole('button', { name: /Tags/ }).evaluate((body) => {
+        const style = getComputedStyle(body)
+        const content = body.firstElementChild!
+        const first = content.firstElementChild!.getBoundingClientRect()
+        const last = content.lastElementChild!.getBoundingClientRect()
+        const bounds = body.getBoundingClientRect()
+        return { start: first.left - bounds.left, end: bounds.right - last.right, padding: style.paddingBlock, minimum: style.minHeight, chevronWidth: last.width }
+      })
+      expect(geometry).toEqual({ start: 16, end: 16, padding: '12px', minimum: '52px', chevronWidth: 24 })
+    } finally { await page.close() }
+  })
+
+  it.each((['light', 'dark'] as const).flatMap((mode) => [412, 1352].map((width) => ({ mode, width }))))('matches the column fill, focus and hit bounds in $mode at $width', async ({ mode, width }) => {
+    const markup = renderToStaticMarkup(<ListRow title="Tags" placement="column" onClick={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body><button id="focus-start">Start</button><main style="padding:32px">${markup}</main></body></html>`)
+      const control = page.getByRole('button', { name: 'Tags', exact: true })
+      const fill = control.locator('[data-press-fill]')
+      const bounds = (await control.boundingBox())!
+      const painted = (await fill.boundingBox())!
+      expect(painted.x).toBe(bounds.x - 16)
+      expect(painted.width).toBe(bounds.width + 32)
+      expect(painted.height).toBe(bounds.height)
+      await control.evaluate((element) => { element.addEventListener('click', () => element.setAttribute('data-activated', 'true')) })
+      for (const x of [painted.x + 2, painted.x + painted.width - 2]) {
+        await control.evaluate((element) => element.removeAttribute('data-activated'))
+        await page.mouse.click(x, painted.y + painted.height / 2)
+        expect(await control.getAttribute('data-activated')).toBe('true')
+      }
+      await page.mouse.move(0, 0)
+      await page.locator('#focus-start').focus()
+      await page.keyboard.press('Tab')
+      expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      const focus = await fill.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const body = getComputedStyle(element.parentElement!)
+        return { outline: style.outlineWidth, offset: style.outlineOffset, radius: style.borderRadius, fill: style.backgroundColor, bodyOutline: body.outlineStyle }
+      })
+      expect(focus).toMatchObject({ outline: '2px', offset: '-2px', radius: '12px', bodyOutline: 'none' })
+      await expect.poll(() => fill.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+      await control.evaluate((element) => element.removeAttribute('data-activated'))
+      await page.keyboard.press('Space')
+      expect(await control.getAttribute('data-activated')).toBe('true')
+    } finally { await page.close() }
+  })
+
   it.each((['light', 'dark'] as const).flatMap((mode) => (['body', 'action'] as const).map((kind) => ({ mode, kind }))))('paints the $kind touch press fill in $mode', async ({ mode, kind }) => {
     const markup = renderToStaticMarkup(<ListRow title="Open day" description="Selected day" accessibilityLabel="Open day" href="/?date=2026-09-04"
       action={{ icon: 'chevron-down', label: 'View details', onPress: vi.fn() }} />)
@@ -141,7 +194,7 @@ describe('personal ListRow text in Chromium', () => {
           return { inset: range.getBoundingClientRect().left - body.getBoundingClientRect().left, paddingEnd: parseFloat(style.paddingInlineEnd), paddingTop: parseFloat(style.paddingTop), paddingBottom: parseFloat(style.paddingBottom) }
         })
       })
-      for (const text of geometry) expect(text).toMatchObject({ inset: inset === false ? 16 : 20, paddingEnd: 4, paddingTop: 4, paddingBottom: 4 })
+      for (const text of geometry) expect(text).toMatchObject({ inset: inset === false ? 16 : 20, paddingEnd: 4, paddingTop: 0, paddingBottom: 0 })
     } finally { await page.close() }
   })
 

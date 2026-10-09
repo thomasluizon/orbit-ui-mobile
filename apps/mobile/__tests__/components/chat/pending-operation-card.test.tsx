@@ -565,6 +565,32 @@ describe('PendingOperationCard (mobile)', () => {
     expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
   })
 
+  it('shows one boolean editor label inside the switch and preserves its draft while saving', async () => {
+    const booleanItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'reminder_enabled', valueType: 'boolean', newValue: 'true', proposedValue: true, isEditable: true }] }
+    let finishRevision!: (result: PendingOperationRevisionResponse) => void
+    const revise = vi.fn<RevisePendingOperation>(() => new Promise((resolve) => { finishRevision = resolve }))
+    const { tree } = renderCard({ ...preview, items: [booleanItem], changeTargetCount: 1 }, revise)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    const body = tree.root.findByProps({ testID: 'sheet-body-slot' }) as ReactTestInstance
+    const label = 'chat.operation.field.reminder_enabled'
+    expect(body.findAll((node: ReactTestInstance) => node.type === Text && node.props.children === label)).toHaveLength(1)
+    const control = body.findAll((node: ReactTestInstance) => node.type === Pressable)[0]!
+    expect(control.props.accessibilityRole).toBe('switch')
+    expect(control.props.accessibilityLabel).toBe(label)
+    expect(control.findAll((node: ReactTestInstance) => node.type === Text && node.props.children === label).length > 0).toBe(true)
+    expect(control.props.accessibilityState).toMatchObject({ checked: true })
+    TestRenderer.act(() => (control.props.onPress as () => void)())
+    expect(control.props.accessibilityState).toMatchObject({ checked: false })
+    TestRenderer.act(() => press(tree, 'common.save').props.onPress())
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { reminder_enabled: false } }],
+    })
+    expect(control.props.disabled).toBe(true)
+    await TestRenderer.act(async () => { finishRevision({ ok: false, error: 'invalid_revision' }); await Promise.resolve() })
+    expect(control.props.disabled).toBe(false)
+    expect(control.props.accessibilityState).toMatchObject({ checked: false })
+  })
+
   it('uses theme foreground for every editor label and weekday chip', () => {
     const fields = [
       { ...firstItem.fields[0]!, field: 'reminder_enabled', valueType: 'boolean', newValue: 'true' },
@@ -576,7 +602,7 @@ describe('PendingOperationCard (mobile)', () => {
     const foreground = createTokensV2('purple', 'dark').fg1
     for (const label of ['chat.operation.field.reminder_enabled', 'chat.operation.field.days', 'dates.daysLong.monday']) {
       const text = body.findAllByType(Text).find((node: any) => node.props.children === label)
-      expect(text?.props.style).toMatchObject({ color: foreground })
+      expect(StyleSheet.flatten(text?.props.style)).toMatchObject({ color: foreground })
     }
     expect(body.findAllByType(ScrollView)).toHaveLength(0)
   })

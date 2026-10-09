@@ -5,7 +5,6 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { habitKeys } from '@orbit/shared/query'
 import { updateAiSummary, updateProactiveAstra } from '@/lib/actions/profile'
 import { useAccountScopedMutation } from '@/hooks/use-account-scoped-mutation'
-import { Switch } from '@/components/ui/switch'
 
 export interface AstraSettingsController {
   aiSummaryEnabled: boolean
@@ -66,24 +65,4 @@ export function useAstraSettingsController(
     onToggleSummary: () => aiSummaryMutation.mutate(!aiSummaryEnabled),
     onToggleProactive: () => proactiveMutation.mutate(!proactiveAstraEnabled),
   }
-}
-
-interface AstraSettingsSwitchProps {
-  checked: boolean
-  pending: boolean
-  label: string
-  onToggle: () => void
-}
-
-export function AstraSettingsSwitch({
-  checked,
-  pending,
-  label,
-  onToggle,
-}: Readonly<AstraSettingsSwitchProps>) {
-  return (
-    <fieldset disabled={pending} className="m-0 border-0 p-0">
-      <Switch checked={checked} onChange={onToggle} label={label} />
-    </fieldset>
-  )
 }

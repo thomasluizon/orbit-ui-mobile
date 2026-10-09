@@ -449,10 +449,17 @@ vi.mock('@/components/ui/sheet', () => ({
 
 vi.mock('@/components/ui/list-row', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/ui/list-row')>()
+  function roleOf(props: React.ComponentProps<typeof actual.ListRow>) {
+    if (props.toggle) return 'switch'
+    return !props.readOnly && props.onClick ? 'button' : undefined
+  }
+  function stateOf(props: React.ComponentProps<typeof actual.ListRow>) {
+    return props.toggle ? { checked: props.toggle.checked, disabled: !!props.disabled || !!props.toggle.pending, busy: !!props.toggle.pending } : undefined
+  }
   return {
     ListRow: (props: React.ComponentProps<typeof actual.ListRow>) => {
       if (mockRealListRow.current) return React.createElement(actual.ListRow, props)
-      const { icon, danger, title, description, value, trailing, onClick, accessibilityLabel, ref, chevron = true, action, readOnly = false } = props
+      const { icon, danger, title, description, value, trailing, toggle, disabled, onClick, accessibilityLabel, ref, chevron = true, action, readOnly = false } = props
       return React.createElement(
         'SettingsRowStub',
         {
@@ -461,10 +468,12 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           danger,
           hint: description,
           value,
-          hasTrailing: Boolean(trailing),
-          onPress: readOnly ? undefined : onClick,
+          hasTrailing: Boolean(trailing || toggle),
+          onPress: toggle ? () => toggle.onChange(!toggle.checked) : readOnly ? undefined : onClick,
           chevron,
-          accessibilityRole: !readOnly && onClick ? 'button' : undefined,
+          accessibilityRole: roleOf(props),
+          accessibilityState: stateOf(props),
+          disabled: disabled || toggle?.pending,
           accessibilityLabel: accessibilityLabel ?? title,
           ref,
         },
@@ -474,6 +483,7 @@ vi.mock('@/components/ui/list-row', async (importOriginal) => {
           onPress: action.onPress,
         }) : null,
         trailing ?? null,
+        description ? React.createElement('Text', {}, description) : null,
       )
     },
   }
@@ -560,7 +570,7 @@ describe('ProfileScreen', () => {
     const tokens = createTokensV2('orange', 'dark')
     const tree = await renderProfileSubscreen(screen)
     try {
-      const rows = tree.root.findAllByType(ListRow)
+      const rows = tree.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => !row.props.toggle && !row.props.readOnly)
       expect(rows).toHaveLength(4)
       for (const [index, row] of rows.entries()) {
         const contents = row.findAll((node: { type: unknown }) =>
@@ -573,6 +583,12 @@ describe('ProfileScreen', () => {
           if (index === 3) expect(glyphs[0].props.color).toBe(tokens.statusBad)
         }
         expect(contents.at(-1).type, row.props.title).toBe('ChevronRight')
+        if (row.props.description) {
+          const geometry = measureProfileRow(tree.toJSON(), 412, 1)
+          const title = geometry.parts.find((part) => part.slot === 'list-row-title')!
+          const description = geometry.parts.find((part) => part.slot === 'list-row-description')!
+          expect(description.top - title.bottom).toBeCloseTo(4, 1)
+        }
         expect(glyphs.at(-1).props.size).toBe(24)
         expect(glyphs.at(-1).props.color).toBe(tokens.fg3)
         const decorativeChevron = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string }; findAllByType: (type: string) => unknown[] }) =>
@@ -588,7 +604,7 @@ describe('ProfileScreen', () => {
     mockProfileState.current.profile = createMockProfile({ name: 'Ana', email: 'a@b.co' })
     const tree = await renderProfileSubscreen('account')
     try {
-      const rows = tree.root.findAllByType(ListRow)
+      const rows = tree.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => !row.props.toggle && !row.props.readOnly)
       const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow> }) => {
         let rowTree!: ReturnType<typeof TestRenderer.create>
         TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
@@ -616,7 +632,7 @@ describe('ProfileScreen', () => {
     try {
       const sheets = () => screen.root.findAll((node: { type: unknown; props: { title?: string } }) => node.type === 'SheetStub' && node.props.title === heading)
       expect(sheets()).toHaveLength(0)
-      const row = screen.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.accessibilityLabel === label || row.props.title === label)!
+      const row = screen.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => !row.props.toggle && !row.props.readOnly).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.accessibilityLabel === label || row.props.title === label)!
       await TestRenderer.act(() => { row.props.onClick() })
       expect(sheets()).toHaveLength(1)
     } finally { TestRenderer.act(() => screen.unmount()) }
@@ -628,7 +644,7 @@ describe('ProfileScreen', () => {
     mockProfileState.current.profile = createMockProfile({ name: 'Ana Silva', email: 'a@b.co' })
     const screen = await renderProfileSubscreen('account')
     try {
-      const rows = screen.root.findAllByType(ListRow)
+      const rows = screen.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => !row.props.toggle && !row.props.readOnly)
       expect(rows).toHaveLength(4)
       for (const row of rows) {
         let rowTree!: ReturnType<typeof TestRenderer.create>
@@ -654,7 +670,7 @@ describe('ProfileScreen', () => {
     const tree = await renderProfileSubscreen('account')
     let rowTree!: ReturnType<typeof TestRenderer.create>
     try {
-      const exportRow = tree.root.findAllByType(ListRow)[1]!
+      const exportRow = tree.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => !row.props.toggle && !row.props.readOnly)[1]!
       await TestRenderer.act(async () => { exportRow.props.onClick(); await Promise.resolve() })
       expect(mockApiClient).toHaveBeenCalledWith(API.profile.export)
       expect(exportRow.props.value).toBe(messages.dataExport.preparing)
@@ -1737,7 +1753,8 @@ describe('ProfileScreen', () => {
     ])
     for (const row of rows) {
       expect(row.props.icon).toBeUndefined()
-      expect(row.props.readOnly).toBe(true)
+      expect(row.props.readOnly).not.toBe(true)
+      expect(row.props.toggle).toBeDefined()
       expect(row.props.chevron).toBe(false)
     }
     const controls = group.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) =>

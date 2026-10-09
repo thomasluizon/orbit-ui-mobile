@@ -60,7 +60,8 @@ import { useOffline } from '@/hooks/use-offline'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { CalendarPickerSection } from '@/components/calendar-sync/calendar-picker-section'
 import { CalendarSyncEventRow } from '@/components/calendar-sync/calendar-sync-event-row'
@@ -612,9 +613,9 @@ export function CalendarImportContent({ reviewMode, initialEventId, onClose, onG
                 importedCount,
               )}
             </SectionLabel>
-            {importResult?.habits.map((habit) => (
-              <SettingsRow key={habit.id} label={habit.title} textMode="personal" accessory="none" />
-            ))}
+            <SettingsGroup>{importResult?.habits.map((habit) => (
+              <ListRow key={habit.id} title={habit.title} textMode="personal" chevron={false} />
+            ))}</SettingsGroup>
             <View style={styles.actionPad}>
               <PillButton onClick={onGoToHabits}>
                 {t('calendar.goToHabits')}

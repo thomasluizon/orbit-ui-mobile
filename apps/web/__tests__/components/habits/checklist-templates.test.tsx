@@ -51,7 +51,9 @@ describe('ChecklistTemplates', () => {
     render(<ChecklistTemplates items={[]} onLoad={vi.fn()} />)
     const row = screen.getByRole('button', { name: 'habits.form.useTemplate' })
     expect(row.querySelector('[data-icon="template"] svg')).toBeInTheDocument()
-    expect(row).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInlineStart: '0px', paddingInlineEnd: '0px' })
+    expect(row).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px' })
+    expect(row.closest('.orbit-list-row-shell')).toHaveClass('orbit-list-row-column')
+    expect(row.querySelector('[data-press-fill]')).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px' })
     expect(row).not.toHaveTextContent('1')
   })
 

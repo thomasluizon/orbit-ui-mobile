@@ -168,7 +168,7 @@ describe('TrialExpiredModal (mobile)', () => {
       const label = tree!.root.findAll(
         (node) => String(node.type) === 'Text' && node.props.children === `trial.expired.${feature}`,
       )[0]!
-      const textBlock = parentView(parentView(label))
+      const textBlock = parentView(label)
       expect(parentView(pausedStatuses[index]!) === textBlock).toBe(true)
       expect(textBlock.findAll((node) => String(node.type) === 'Text').map((node) => node.props.children))
         .toEqual([`trial.expired.${feature}`, 'trial.expired.paused'])
