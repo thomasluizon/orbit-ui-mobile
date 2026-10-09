@@ -1,5 +1,8 @@
+import { createElement, type ReactNode } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { getQueryClient } from '@/lib/query-client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { act, cleanup, renderHook as renderHookBase, waitFor, type RenderHookOptions } from '@testing-library/react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import {
@@ -9,6 +12,13 @@ import {
 } from '@/__tests__/support/account-change'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+
+function renderHook<Result, Props>(callback: (props: Props) => Result, options?: RenderHookOptions<Props>) {
+  function Wrapper({ children }: Readonly<{ children: ReactNode }>) {
+    return createElement(QueryClientProvider, { client: getQueryClient() }, children)
+  }
+  return renderHookBase(callback, { ...options, wrapper: Wrapper })
+}
 
 const ACCOUNT_A_PARENT_TITLE = 'Account A morning routine'
 
