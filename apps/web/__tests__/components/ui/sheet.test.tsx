@@ -60,6 +60,18 @@ vi.mock('@/hooks/use-api-key-management', () => ({
   },
 }))
 
+const habitMenuActionCases = [
+  ['habits.actions.addSubHabit', 'onAddSubHabit'],
+  ['habits.actions.moveUnder', 'onMoveParent'],
+  ['habits.actions.skip', 'onSkip'],
+  ['habits.actions.reschedule', 'onReschedule'],
+  ['common.edit', 'onEdit'],
+  ['habits.actions.duplicate', 'onDuplicate'],
+  ['common.select', 'onEnterSelectMode'],
+  ['habits.actions.openSubHabits', 'onDrillInto'],
+  ['habits.actions.delete', 'onDelete'],
+] as const
+
 describe('Sheet', () => {
   it('opens the complete typed title with one press and preserves the underlying sheet', async () => {
     const title = 'Ler um capítulo inteiro do livro de história antes de dormir e anotar as ideias para conversar com meus amigos amanhã cedo.'
@@ -105,50 +117,46 @@ describe('Sheet', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
-  it('keeps every long habit menu action reachable at compact width and 200% text', async () => {
+  it.each(habitMenuActionCases)('keeps %s reachable in a long habit menu at compact width and 200% text', async (label, actionName) => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     const title = 'Read a chapter before bed '.repeat(8).slice(0, 200)
     expect(title).toHaveLength(200)
     const actions = { onAddSubHabit: vi.fn(), onMoveParent: vi.fn(), onSkip: vi.fn(),
       onReschedule: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(),
       onEnterSelectMode: vi.fn(), onDrillInto: vi.fn(), onDelete: vi.fn() }
-    const labels = ['habits.actions.addSubHabit', 'habits.actions.moveUnder', 'habits.actions.skip',
-      'habits.actions.reschedule', 'common.edit', 'habits.actions.duplicate',
-      'common.select', 'habits.actions.openSubHabits', 'habits.actions.delete']
+    const labels = habitMenuActionCases.map(([actionLabel]) => actionLabel)
     const stylesheet = document.createElement('style')
     stylesheet.textContent = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
     document.head.append(stylesheet)
     const { unmount } = render(<HabitRow habit={createMockHabit({ title, isOverdue: true })} state="overdue"
       hasSubHabits hasProAccess actions={actions} />)
     try {
-      for (const [index, label] of labels.entries()) {
-        fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
-        const dialog = await screen.findByRole('dialog', { name: title })
-        dialog.style.width = '320px'
-        dialog.style.fontSize = '200%'
-        const heading = screen.getByRole('button', { name: title })
-        const headingStyle = getComputedStyle(heading)
-        expect(headingStyle.flexGrow).toBe('1')
-        expect(Number.parseFloat(headingStyle.minWidth)).toBe(0)
-        expect(headingStyle.width).toBe('100%')
-        expect(heading.firstElementChild).toHaveClass('line-clamp-2')
-        const items = screen.getAllByRole('menuitem')
-        expect(items.map((item) => item.textContent)).toEqual(labels)
-        for (const item of items) {
-          expect(item).toBeEnabled()
-          expect(item.closest('[data-slot="sheet-body"]')).not.toBeNull()
-          item.focus()
-          expect(item).toHaveFocus()
-        }
-        await userEvent.click(heading)
-        expect(dialog.querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
-        expect(heading).toHaveAttribute('aria-expanded', 'true')
-        await userEvent.click(heading)
-        expect(heading).toHaveAttribute('aria-expanded', 'false')
-        fireEvent.click(screen.getByRole('menuitem', { name: label }))
-        await waitFor(() => expect(Object.values(actions)[index]).toHaveBeenCalledOnce())
-        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      fireEvent.click(screen.getByRole('button', { name: 'habits.actions.more' }))
+      const dialog = await screen.findByRole('dialog', { name: title })
+      dialog.style.width = '320px'
+      dialog.style.fontSize = '200%'
+      const heading = screen.getByRole('button', { name: title })
+      const headingStyle = getComputedStyle(heading)
+      expect(headingStyle.flexGrow).toBe('1')
+      expect(Number.parseFloat(headingStyle.minWidth)).toBe(0)
+      expect(headingStyle.width).toBe('100%')
+      expect(heading.firstElementChild).toHaveClass('line-clamp-2')
+      const items = screen.getAllByRole('menuitem')
+      expect(items.map((item) => item.textContent)).toEqual(labels)
+      for (const item of items) {
+        expect(item).toBeEnabled()
+        expect(item.closest('[data-slot="sheet-body"]')).not.toBeNull()
+        item.focus()
+        expect(item).toHaveFocus()
       }
+      await userEvent.click(heading)
+      expect(dialog.querySelector('[data-slot="sheet-body"]')).toHaveTextContent(title)
+      expect(heading).toHaveAttribute('aria-expanded', 'true')
+      await userEvent.click(heading)
+      expect(heading).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(screen.getByRole('menuitem', { name: label }))
+      await waitFor(() => expect(actions[actionName]).toHaveBeenCalledOnce())
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     } finally {
       unmount()
       stylesheet.remove()
