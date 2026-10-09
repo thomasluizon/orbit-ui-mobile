@@ -583,6 +583,12 @@ describe('ProfileScreen', () => {
           if (index === 3) expect(glyphs[0].props.color).toBe(tokens.statusBad)
         }
         expect(contents.at(-1).type, row.props.title).toBe('ChevronRight')
+        if (row.props.description) {
+          const geometry = measureProfileRow(tree.toJSON(), 412, 1)
+          const title = geometry.parts.find((part) => part.slot === 'list-row-title')!
+          const description = geometry.parts.find((part) => part.slot === 'list-row-description')!
+          expect(description.top - title.bottom).toBeCloseTo(4, 1)
+        }
         expect(glyphs.at(-1).props.size).toBe(24)
         expect(glyphs.at(-1).props.color).toBe(tokens.fg3)
         const decorativeChevron = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string }; findAllByType: (type: string) => unknown[] }) =>

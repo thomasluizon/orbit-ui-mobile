@@ -54,9 +54,10 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   const Title = textMode === 'personal' ? PersonalText : 'span'
   const Description = textMode === 'personal' ? PersonalText : 'span'
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
+  const personalStackPadding = personalExpanded && description ? 0 : undefined
   return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
-    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value)), paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
-    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: 1.4, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
+    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value)), paddingBlock: personalStackPadding, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: 1.4, paddingBlock: personalStackPadding, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
   </span>
 }
 

@@ -194,7 +194,7 @@ describe('personal ListRow text in Chromium', () => {
           return { inset: range.getBoundingClientRect().left - body.getBoundingClientRect().left, paddingEnd: parseFloat(style.paddingInlineEnd), paddingTop: parseFloat(style.paddingTop), paddingBottom: parseFloat(style.paddingBottom) }
         })
       })
-      for (const text of geometry) expect(text).toMatchObject({ inset: inset === false ? 16 : 20, paddingEnd: 4, paddingTop: 4, paddingBottom: 4 })
+      for (const text of geometry) expect(text).toMatchObject({ inset: inset === false ? 16 : 20, paddingEnd: 4, paddingTop: 0, paddingBottom: 0 })
     } finally { await page.close() }
   })
 

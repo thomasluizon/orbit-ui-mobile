@@ -294,7 +294,9 @@ describe('ProfilePage', () => {
           const range = document.createRange()
           range.selectNodeContents(title)
           const icons = Array.from(row.querySelectorAll('svg')).map((icon) => ({ x: icon.getBoundingClientRect().x, width: icon.getBoundingClientRect().width, height: icon.getBoundingClientRect().height }))
-          return { label: title.textContent, titleX: range.getBoundingClientRect().x, available: title.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, icons, overflow: row.scrollWidth > row.clientWidth }
+          const description = row.querySelector('[data-slot="list-row-description"]')
+          return { label: title.textContent, titleX: range.getBoundingClientRect().x, available: title.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, icons, overflow: row.scrollWidth > row.clientWidth,
+            descriptionGap: description ? description.getBoundingClientRect().top - title.getBoundingClientRect().bottom : null }
         }))
         expect(geometry).toHaveLength(4)
         for (const row of geometry) {
@@ -303,6 +305,7 @@ describe('ProfilePage', () => {
           expect.soft(row.titleX, row.label!).toBe(geometry[0]!.titleX)
           expect.soft(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
           expect(row.overflow, row.label!).toBe(false)
+          if (row.descriptionGap !== null) expect(row.descriptionGap, row.label!).toBeCloseTo(4, 1)
           if (surface === 'account') expect(row.icons[0]!.x).toBe(geometry[0]!.icons[0]!.x)
         }
       } finally { await page.close() }
