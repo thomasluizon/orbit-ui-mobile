@@ -1,6 +1,6 @@
 import type { AgentOperationResult, PendingAgentOperation } from '../types/ai'
 import type { ChatMessage } from '../types/chat'
-import { getPendingOperationExecutionStatus, type PendingOperationExecutionResult } from '../hooks/pending-operation-card-core'
+import { getPendingOperationExecutionCanRetry, getPendingOperationExecutionStatus, type PendingOperationExecutionResult } from '../hooks/pending-operation-card-core'
 
 export interface PendingOperationMessageState {
   status?: 'done' | 'failed'
@@ -18,7 +18,7 @@ export function pendingOperationExecutionPatch(result: PendingOperationExecution
   return {
     status: getPendingOperationExecutionStatus(result),
     completedOperation: result.response?.operation,
-    canRetry: !result.ok,
+    canRetry: getPendingOperationExecutionCanRetry(result),
   }
 }
 

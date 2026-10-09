@@ -4,7 +4,6 @@ import { PersonalText } from '@/components/ui/personal-text'
 
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo } from 'react'
-import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
@@ -236,24 +235,16 @@ export function CalendarDayDetail({
     : t('calendar.dayDetail.nothingDue')
 
   const goToDay = (
-    <div style={{ paddingInline: 8 }}>
-    <Link
+    // eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing.
+    <ListRow
+      compact
       href={`/?date=${dateStr}`}
-      aria-label={t('calendar.goToDay')}
-      className="block"
-      style={{ color: 'inherit', textDecoration: 'none' }}
-    >
-      {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
-      <ListRow
-        compact
-        icon="external-link"
-        title={t('calendar.goToDay')}
-        textMode="label"
-        chevron={false}
-        readOnly
-      />
-    </Link>
-    </div>
+      accessibilityLabel={t('calendar.goToDay')}
+      icon="external-link"
+      title={t('calendar.goToDay')}
+      textMode="label"
+      chevron={false}
+    />
   )
 
   const body = (

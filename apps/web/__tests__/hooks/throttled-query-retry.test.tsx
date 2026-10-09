@@ -5,9 +5,9 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { API } from '@orbit/shared/api'
 import { subscriptionKeys } from '@orbit/shared/query'
-import { getErrorSurface } from '@orbit/shared/utils'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useBilling } from '@/hooks/use-billing'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
@@ -23,10 +23,10 @@ vi.mock('@/lib/actions/api-keys', () => ({ createApiKey: vi.fn(), revokeApiKey: 
 
 const clients: QueryClient[] = []
 
-function setupClient() {
+function setupClient(immediate = true) {
   const client = createQueryClient()
   const defaults = client.getDefaultOptions()
-  client.setDefaultOptions({ ...defaults, queries: { ...defaults.queries, retryDelay: 0 } })
+  client.setDefaultOptions({ ...defaults, queries: { ...defaults.queries, retryDelay: immediate ? 0 : defaults.queries?.retryDelay } })
   clients.push(client)
   function Wrapper({ children }: Readonly<{ children: ReactNode }>) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -57,49 +57,53 @@ describe('adapter query retry policy', () => {
     { name: 'calendar month', endpoint: API.habits.calendarMonth, useHook: () => useCalendarData(new Date(2026, 8, 1)).error },
     { name: 'reschedule suggestion', endpoint: API.habits.rescheduleSuggestion('habit-1'), useHook: () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }).error },
     { name: 'subscription status', endpoint: API.subscription.status, useHook: () => useSubscriptionStatus().error },
-  ])('makes one request for a timed 429 from $name', async ({ endpoint, useHook }) => {
+  ])('retries a background 429 from $name without showing a throttle screen', async ({ endpoint, useHook }) => {
     const payload = { error: 'Rate limited', requestId: 'request-reference', limit: 1, count: 2, retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }
-    const refusedFetch = vi.fn(() => Promise.resolve(Response.json(payload, { status: 429 })))
+    const refusedFetch = vi.fn(() => Promise.resolve(Response.json(payload, { status: 429, headers: { 'Retry-After': '60' } })))
     vi.stubGlobal('fetch', (input: string) => input.split('?')[0] === endpoint ? refusedFetch() : Promise.resolve(Response.json([])))
     const { client, wrapper } = setupClient()
     const { result } = renderHook(() => useHook(client), { wrapper })
-
-    expect(refusedFetch).toHaveBeenCalledOnce()
     await act(async () => {
-      await expect(client.refetchQueries({ type: 'active' }, { cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
+      await expect(client.refetchQueries({ type: 'active' }, { cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429, retryAfter: '60' })
     })
     await waitFor(() => expect(result.current).toBeTruthy())
-    expect(refusedFetch).toHaveBeenCalledTimes(1)
-    expect(getErrorSurface(useThrottleStore.getState().error)).toEqual({ retryAt: Date.parse(payload.retryAfterUtc), requestId: payload.requestId })
+    expect(refusedFetch).toHaveBeenCalledTimes(7)
+    expect(useThrottleStore.getState().error).toBeNull()
   })
 
-  it('keeps billing fetch idle through the wait until explicit successful recovery', async () => {
-    const payload = { error: 'Rate limited', requestId: 'request-reference', limit: 1, count: 2, retryAfterUtc: new Date(Date.now() + 60_000).toISOString() }
-    const fetchMock = vi.fn(() => Promise.resolve(Response.json(payload, { status: 429 })))
-    vi.stubGlobal('fetch', fetchMock)
-    const { wrapper } = setupClient()
-    const { result, rerender } = renderHook(() => useBilling(true), { wrapper })
+  it.each([
+    { name: 'calendar events', endpoint: API.calendar.events, useHook: () => useCalendarEvents({ timeZone: 'UTC' }).error },
+    { name: 'reschedule suggestion', endpoint: API.habits.rescheduleSuggestion('habit-1'), useHook: () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }).error },
+  ])('does not retry an offline 429 from $name', async ({ endpoint, useHook }) => {
+    const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const refusedFetch = vi.fn(async () => Response.json(null, { status: 429 }))
+    vi.stubGlobal('fetch', (input: string) => input.split('?')[0] === endpoint ? refusedFetch() : Promise.resolve(Response.json([])))
+    const { client, wrapper } = setupClient()
+    const { result } = renderHook(useHook, { wrapper })
+    try {
+      await act(async () => {
+        await expect(client.refetchQueries({ type: 'active' }, { cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
+      })
+      await waitFor(() => expect(result.current).toMatchObject({ status: 429 }))
+      expect(refusedFetch).toHaveBeenCalledOnce()
+    } finally {
+      offline.mockRestore()
+    }
+  })
 
-    expect(result.current.isFetching).toBe(true)
-    await act(async () => {
-      await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
-    })
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(result.current.error).toMatchObject({ status: 429, message: 'Rate limited' })
+  it('keeps billing pending through Retry-After until automatic recovery', async () => {
     vi.useFakeTimers()
-    vi.setSystemTime(Date.parse(payload.retryAfterUtc) - 60_000)
+    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(null, { status: 429, headers: { 'Retry-After': '60' } }))
+      .mockResolvedValue(new Response(null, { status: 404 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = setupClient(false)
+    const { result } = renderHook(() => useBilling(true), { wrapper })
     await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
-    rerender()
-    expect(Date.now()).toBeLessThan(Date.parse(payload.retryAfterUtc))
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-
-    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    useThrottleStore.getState().clear()
-    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 404 })))
-    await act(async () => { await result.current.refetch() })
-    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.isError).toBe(false)
+    expect(useThrottleStore.getState().error).toBeNull()
+    expect(fetchMock).toHaveBeenCalledOnce()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2) })
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(result.current.isSuccess).toBe(true)
     expect(result.current.billing).toBeNull()

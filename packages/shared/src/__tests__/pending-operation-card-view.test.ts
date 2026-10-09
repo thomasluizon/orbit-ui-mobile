@@ -211,7 +211,7 @@ const labels: PendingOperationCardLabels = {
   addListRow: 'Add', checklistLimit: '50 items max.', scheduledLimit: '5 reminders max.', checked: 'Done', reminderWhen: 'When', reminderSameDay: 'Same day', reminderDayBefore: 'Day before', reminderTime: 'Time',
   confirmBody: () => 'Confirm the action', confirmNote: 'Review it', confirmTitle: () => 'Confirm',
   irreversible: 'Irreversible', name: 'Delete habit', pending: 'Pending',
-  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', denied: 'Denied', unsupported: 'Profile only',
+  pendingTitle: 'Pending operation', open: 'Open', openNamed: (name) => `Open details: ${name}`, failed: 'Failed', retry: 'Try again', batchFailed: 'Ask Astra for failed items', unavailableRecovery: 'Ask Astra for a new preview', denied: 'Denied', unsupported: 'Profile only',
   stepUpAction: 'Verify', stepUpMessage: 'Verification required',
   more: (count) => `and ${count} more`,
 }

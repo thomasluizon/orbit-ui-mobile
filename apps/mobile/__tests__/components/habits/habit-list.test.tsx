@@ -5,7 +5,7 @@ import { measureSafeArea, type GeometryTree } from '../../support/safe-area-geom
 import { FlatList, StyleSheet, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, createApiClientError } from '@orbit/shared/utils'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toast } from '@/components/ui/app-toast'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -637,6 +637,34 @@ describe('HabitList', () => {
     accountHabitCount.count = 1
     accountHabitCount.isLoaded = true
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('keeps the Hoje habit list loading through 429 then renders the list', async () => {
+    const { queryClient } = await vi.importActual<typeof import('@/lib/query-client')>('@/lib/query-client')
+    vi.useFakeTimers()
+    skipFlow.active = true
+    queryClient.clear()
+    const habit = createMockHabitScheduleItem({ id: 'recovered', title: 'Recovered habit', scheduledDates: [TODAY] })
+    offlineMocks.apiClient.mockRejectedValueOnce(createApiClientError(429, null, 'Unavailable', '60'))
+      .mockResolvedValue({ items: [habit], totalCount: 1, totalPages: 1, page: 1, pageSize: 200 })
+    let tree: ReturnType<typeof TestRenderer.create>
+    try {
+      await TestRenderer.act(async () => {
+        tree = createTestTree(<QueryClientProvider client={queryClient}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} showCompleted onCreatePress={vi.fn()} /></QueryClientProvider>)
+        await Promise.resolve()
+      })
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+      expect(tree!.root.findAllByType(FlatList)[0].props.accessibilityState).toEqual({ busy: true })
+      expect(flattenText(tree!.toJSON())).not.toContain('habits.loadError')
+      expect(offlineMocks.apiClient).toHaveBeenCalledOnce()
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(2) })
+      expect(tree!.root.findAllByType(HabitRow).map((row: { props: { habit: HabitScheduleItem } }) => row.props.habit.title)).toContain('Recovered habit')
+      expect(flattenText(tree!.toJSON())).not.toContain('habits.loadError')
+    } finally {
+      if (tree) TestRenderer.act(() => (tree as unknown as { unmount: () => void }).unmount())
+      queryClient.clear()
+      vi.useRealTimers()
+    }
   })
 
   it.each(['normal', 'drill', 'loading', 'error'] as const)('scrolls the actual %s list handle and forwards upward offsets', (surface) => {
