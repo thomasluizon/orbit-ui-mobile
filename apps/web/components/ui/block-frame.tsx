@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from './action-row'
+
 import { useEffect, useRef } from 'react'
 import type {
   BlockFrameItem,
@@ -160,7 +162,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
       ) : null}
       {canRenderActions && frameProps.actions != null ? (
         <fieldset className="contents" disabled={frameProps.state === 'acting'}>
-          {frameProps.actions}
+          <ActionRow>{frameProps.actions}</ActionRow>
         </fieldset>
       ) : null}
     </div>

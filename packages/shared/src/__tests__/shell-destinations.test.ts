@@ -58,3 +58,10 @@ describe('resolveShellChrome', () => {
     }
   })
 })
+
+it('keeps Hoje composer compact and habit detail composer at every width', () => {
+  expect(resolveShellChrome('/', 'hoje', false).composer).toBe(false)
+  expect(resolveShellChrome('/', 'hoje', true).composer).toBe(true)
+  expect(resolveShellChrome('/habits/h1', 'hoje', false).composer).toBe(true)
+  expect(resolveShellChrome('/habits/h1', 'hoje', true).composer).toBe(true)
+})

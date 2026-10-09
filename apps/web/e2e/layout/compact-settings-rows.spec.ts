@@ -1,3 +1,6 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ChevronRight } from '../../components/ui/icons'
 import { expect, type Locator } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -70,7 +73,15 @@ for (const width of [412, 1280]) {
         for (const [index, label] of labels.entries()) {
           const row = rows.nth(index).getByRole('button')
           await expect(row).toContainText(label)
-          await expect(row.locator('svg')).toHaveCount(0)
+          await expect(row.locator('svg')).toHaveCount(1)
+          const chevron = row.locator('svg')
+          await expect(chevron).toHaveAttribute('width', '24')
+          await expect(chevron).toHaveAttribute('height', '24')
+          expect(await chevron.evaluate((element, markup) => {
+            const expected = new DOMParser().parseFromString(markup, 'text/html').querySelector('svg')!
+            const title = element.closest('button')!.querySelector('[data-slot="list-row-title"]')!
+            return element.getBoundingClientRect().width === 24 && element.getBoundingClientRect().height === 24 && element.innerHTML === expected.innerHTML && Boolean(title.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING) && element.parentElement === element.parentElement!.parentElement!.lastElementChild
+          }, renderToStaticMarkup(createElement(ChevronRight, { size: 24 })))).toBe(true)
           await row.scrollIntoViewIfNeeded()
           await expect(row).toBeVisible()
           await assertCompactTarget(row)
@@ -78,7 +89,7 @@ for (const width of [412, 1280]) {
         await page.getByRole('button', { name: messages.common.backToProfile, exact: true }).click()
         await page.locator('a[href="/profile/account"]').click()
         const exportRow = page.getByTestId('profile-settings-group-account').getByRole('button', { name: messages.profile.settingsRows.export, exact: true })
-        await expect(exportRow.locator('svg')).toHaveCount(1)
+        await expect(exportRow.locator('svg')).toHaveCount(2)
         await assertCompactTarget(exportRow)
       })
     })

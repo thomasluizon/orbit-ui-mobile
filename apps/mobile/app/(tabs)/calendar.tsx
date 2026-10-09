@@ -838,7 +838,8 @@ function CalendarScreenContent({
         <ScrollView
           ref={scrollRef}
           style={styles.container}
-          contentContainerStyle={{ paddingBottom: clearance }}
+          contentContainerStyle={{ paddingBottom: clearance, ...(view === "week" ? { flex: 1 } : {}) }}
+          scrollEnabled={view !== "week"}
           showsVerticalScrollIndicator={false}
         >
           {calendarHeader}

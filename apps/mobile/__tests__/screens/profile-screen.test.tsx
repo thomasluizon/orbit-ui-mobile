@@ -17,6 +17,7 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { ListRow } from '@/components/ui/list-row'
+import { createTokensV2 } from '@/lib/theme'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 import ProfileAccountRoute from '@/app/profile/account'
@@ -245,10 +246,12 @@ vi.mock('@/stores/auth-store', () => {
   return { useAuthStore }
 })
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mockSetAstraConversationOpen; astraConversationOpen: boolean }) => unknown) =>
-    selector({ setAstraConversationOpen: mockSetAstraConversationOpen, astraConversationOpen: mockConversationOpen.current }),
-}))
+vi.mock('@/stores/ui-store', () => {
+  const getState = () => ({ setAstraConversationOpen: mockSetAstraConversationOpen, astraConversationOpen: mockConversationOpen.current })
+  const useUIStore = (selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState())
+  useUIStore.getState = getState
+  return { useUIStore }
+})
 
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: true }),
@@ -551,6 +554,120 @@ function findButtonByText(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfileScreen', () => {
+  it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((screen) => ({ locale, screen }))))('renders the drawn subscreen row glyphs in $screen in $locale', async ({ locale, screen }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    const tokens = createTokensV2('orange', 'dark')
+    const tree = await renderProfileSubscreen(screen)
+    try {
+      const rows = tree.root.findAllByType(ListRow)
+      expect(rows).toHaveLength(4)
+      for (const [index, row] of rows.entries()) {
+        const contents = row.findAll((node: { type: unknown }) =>
+          typeof node.type === 'string' && ['User', 'Download', 'RotateCcw', 'Trash2', 'ChevronRight', 'Text'].includes(node.type))
+        const glyphs = contents.filter((node: { type: unknown }) => node.type !== 'Text')
+        expect(glyphs, row.props.title).toHaveLength(screen === 'account' ? 2 : 1)
+        if (screen === 'account') {
+          expect(contents[0].type).toBe(['User', 'Download', 'RotateCcw', 'Trash2'][index])
+          expect(glyphs[0].props.size).toBe(24)
+          if (index === 3) expect(glyphs[0].props.color).toBe(tokens.statusBad)
+        }
+        expect(contents.at(-1).type, row.props.title).toBe('ChevronRight')
+        expect(glyphs.at(-1).props.size).toBe(24)
+        expect(glyphs.at(-1).props.color).toBe(tokens.fg3)
+        const decorativeChevron = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string }; findAllByType: (type: string) => unknown[] }) =>
+          node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants' && node.findAllByType('ChevronRight').length === 1)
+        expect(decorativeChevron).toHaveLength(1)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1280].map((width) => ({ locale, width }))))('aligns account titles and keeps the export label whole in $locale at $width', async ({ locale, width }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({ name: 'Ana', email: 'a@b.co' })
+    const tree = await renderProfileSubscreen('account')
+    try {
+      const rows = tree.root.findAllByType(ListRow)
+      const measured: ({ title: string } & ReturnType<typeof measureProfileRow>)[] = rows.map((row: { props: React.ComponentProps<typeof ListRow> }) => {
+        let rowTree!: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+        try { return { title: row.props.title, ...measureProfileRow(rowTree.toJSON(), Math.min(width, 560) - 32, 1) } }
+        finally { TestRenderer.act(() => rowTree.unmount()) }
+      })
+      expect(measured).toHaveLength(4)
+      for (const row of measured) {
+        const title = row.texts.find(({ label }) => label === row.title)!
+        expect(title.left, row.title).toBe(measured[0]!.texts[0]!.left)
+        expect(title.clipped, row.title).toBe(false)
+        expect(title.lines, row.title).toBe(1)
+      }
+      expect(measured[1]!.title).toBe(locale === 'pt-BR' ? ptBR.dataExport.button : en.profile.settingsRows.export)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
+  it.each([
+    ['profile.settingsRows.editName', 'profile.editName.title'],
+    ['profile.settingsRows.startOver', 'profile.freshStart.heading'],
+    ['profile.settingsRows.deleteAccount', 'profile.deleteAccount.headingAreYouSure'],
+  ] as const)('opens the owned sheet from the %s account action', async (label, heading) => {
+    mockRealListRow.current = true
+    const screen = await renderProfileSubscreen('account')
+    try {
+      const sheets = () => screen.root.findAll((node: { type: unknown; props: { title?: string } }) => node.type === 'SheetStub' && node.props.title === heading)
+      expect(sheets()).toHaveLength(0)
+      const row = screen.root.findAllByType(ListRow).find((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.accessibilityLabel === label || row.props.title === label)!
+      await TestRenderer.act(() => { row.props.onClick() })
+      expect(sheets()).toHaveLength(1)
+    } finally { TestRenderer.act(() => screen.unmount()) }
+  })
+
+  it.each((['en', 'pt-BR'] as const).flatMap((locale) => [360, 384, 412].map((width) => ({ locale, width }))))('keeps all account action titles whole in $locale at $width dp and 2 text scale', async ({ locale, width }) => {
+    translateProMessages(locale)
+    mockRealListRow.current = true
+    mockProfileState.current.profile = createMockProfile({ name: 'Ana Silva', email: 'a@b.co' })
+    const screen = await renderProfileSubscreen('account')
+    try {
+      const rows = screen.root.findAllByType(ListRow)
+      expect(rows).toHaveLength(4)
+      for (const row of rows) {
+        let rowTree!: ReturnType<typeof TestRenderer.create>
+        TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, row.props)) })
+        try {
+          const defaultSize = measureProfileRow(rowTree.toJSON(), width - 32, 1)
+          const largeText = measureProfileRow(rowTree.toJSON(), width - 32, 2)
+          const title = largeText.texts.find(({ label }) => label === row.props.title)!
+          expect.soft(title.clipped, row.props.title).toBe(false)
+          expect.soft(title.right, row.props.title).toBeLessThanOrEqual(width - 32)
+          expect.soft(title.bottom, row.props.title).toBeLessThanOrEqual(largeText.height)
+          expect.soft(largeText.height, row.props.title).toBeGreaterThan(defaultSize.height)
+        } finally { TestRenderer.act(() => rowTree.unmount()) }
+      }
+    } finally { TestRenderer.act(() => screen.unmount()) }
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1280].map((width) => ({ locale, width }))))('keeps the export title and preparing value readable in $locale at $width', async ({ locale, width }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    mockApiClient.mockReturnValueOnce(new Promise(() => {}))
+    const messages = locale === 'pt-BR' ? ptBR : en
+    const tree = await renderProfileSubscreen('account')
+    let rowTree!: ReturnType<typeof TestRenderer.create>
+    try {
+      const exportRow = tree.root.findAllByType(ListRow)[1]!
+      await TestRenderer.act(async () => { exportRow.props.onClick(); await Promise.resolve() })
+      expect(mockApiClient).toHaveBeenCalledWith(API.profile.export)
+      expect(exportRow.props.value).toBe(messages.dataExport.preparing)
+      TestRenderer.act(() => { rowTree = TestRenderer.create(React.createElement(ListRow, exportRow.props)) })
+      const measured = measureProfileRow(rowTree!.toJSON(), Math.min(width, 560) - 32, 1)
+      expect(measured.texts.map(({ label }) => label)).toEqual([messages.profile.settingsRows.export, messages.dataExport.preparing])
+      for (const text of measured.texts) {
+        expect(text.clipped, text.label).toBe(false)
+        expect(text.lines, text.label).toBe(1)
+      }
+    } finally { TestRenderer.act(() => { rowTree?.unmount(); tree.unmount() }) }
+  })
+
   it.each([412, 840].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
     .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
     const tree = await renderProfileSubscreen(screen)

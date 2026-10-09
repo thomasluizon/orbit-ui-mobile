@@ -9,7 +9,9 @@ import {
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { resetAccountQueries } from '@orbit/shared/query'
+import { profileKeys, QUERY_STALE_TIMES, resetAccountQueries } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
+import { profileSchema } from '@orbit/shared/types/profile'
 import { useFonts } from 'expo-font'
 import {
   Geist_400Regular,
@@ -48,6 +50,7 @@ import { useConfig } from '@/hooks/use-config'
 import { applyPostHogGate, captureScreen, posthog } from './posthog'
 import { retirePersistentReminder } from './retired-persistent-reminder'
 import { captureError } from './sentry'
+import { apiClient } from './api-client'
 
 void SplashScreen.preventAutoHideAsync()
 void retirePersistentReminder().catch(captureError)
@@ -138,6 +141,24 @@ function AuthInitializer({
 
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
+        await queryClient.prefetchQuery({
+          queryKey: profileKeys.detail(),
+          queryFn: async ({ signal }) => {
+            const controller = new AbortController()
+            const abort = () => controller.abort()
+            signal.addEventListener('abort', abort, { once: true })
+            const timeout = setTimeout(abort, 10000)
+            try {
+              return await apiClient(API.profile.get, { signal: controller.signal, skipAuthRecovery: true }, profileSchema)
+            } finally {
+              clearTimeout(timeout)
+              signal.removeEventListener('abort', abort)
+            }
+          },
+          staleTime: QUERY_STALE_TIMES.profile,
+          retry: false,
+          networkMode: 'always',
+        })
         syncWidgetDataSafely()
       } else {
         await resetAccountQueries(queryClient, 'signed-out')

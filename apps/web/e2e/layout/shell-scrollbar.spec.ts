@@ -124,7 +124,11 @@ for (const width of [1352, 1100, 600]) {
       await expectRestingEdge(page)
       await page.goto('/')
       await expect(page.locator('[data-today-header-actions]')).toBeVisible()
-      await expect(page.locator('[data-composer-input]')).toBeVisible()
+      if (width < 1024) await expect(page.locator('[data-shell-pinned-slot] [data-composer-input]')).toBeVisible()
+      else {
+        await expect(page.locator('[data-shell-pinned-slot] [data-composer-input]')).toHaveCount(0)
+        await expect(page.locator('[data-shell-astra-row]')).toBeVisible()
+      }
       await page.evaluate(() => document.fonts.ready)
       await expectScrollbarGeometry(page)
     })

@@ -35,6 +35,10 @@ function QueryAppLayout({ children }: { children: import('react').ReactNode }) {
 }
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers(), cookies: async () => new RequestCookies(new Headers({ cookie: mocks.cookie })) }))
+vi.mock('@/lib/server-fetch', async () => {
+  const { profileFixture } = await import('../../test-support/hermetic/mock-api/fixtures/profile')
+  return { serverAuthFetch: async () => profileFixture }
+})
 vi.mock('@/app/fonts', () => ({ geist: {}, geistMono: {}, spaceGrotesk: {} }))
 vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getMessages: async () => ({}) }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'en', NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }))
@@ -205,12 +209,12 @@ it.each([false, true])('renders an authenticated unknown path without a composer
   expect(screen.getByRole('heading', { name: 'notFoundPage.title' })).toBeInTheDocument()
 })
 
-it.each([false, true])('keeps the Hoje composer at wide=%s', (wide) => {
+it.each([false, true])('keeps the Hoje composer only in the compact shell at wide=%s', (wide) => {
   mocks.pathname = '/'
   mocks.wide = wide
   useAuthStore.setState({ isAuthenticated: true })
   render(<QueryAppLayout><p>Today content</p></QueryAppLayout>)
-  expect(screen.getByTestId('composer')).toBeInTheDocument()
+  expect(screen.queryByTestId('composer') !== null).toBe(!wide)
 })
 
 it('renders an unauthenticated unknown public path without the shell', () => {

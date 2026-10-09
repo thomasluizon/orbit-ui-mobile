@@ -212,7 +212,7 @@ describe('rendered light hover contrast', () => {
     }
 
     if (width === 1352) it('keeps the sidebar account email readable', async () => {
-      const { container, unmount } = render(<ShellWide items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
+      const { container, unmount } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')

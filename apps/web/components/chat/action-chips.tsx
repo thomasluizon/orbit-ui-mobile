@@ -40,9 +40,9 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
           ) : undefined,
         }
       })}
-      actions={model.conflicts.length > 0 ? model.conflicts.map((conflict) => (
+      body={model.conflicts.length > 0 ? <div className="flex flex-col gap-3">{model.conflicts.map((conflict) => (
         <ConflictWarning key={conflict.key} warning={conflict.warning} />
-      )) : undefined}
+      ))}</div> : undefined}
     />
   )
 }

@@ -103,7 +103,8 @@ for (const width of [600, 1100]) {
           await page.evaluate(() => document.fonts.ready)
           const rowRight = await row.evaluate((element) => element.getBoundingClientRect().right)
 
-          for (const path of ['/', `/habits/${habit.id}`]) {
+          if (width >= 1024) await expect(page.locator('[data-shell-pinned-slot] [data-composer-root]')).toHaveCount(0)
+          for (const path of width < 1024 ? ['/', `/habits/${habit.id}`] : [`/habits/${habit.id}`]) {
             if (path !== '/') {
               await page.goto(path)
               await expect(page.locator('[data-habit-detail-content] h1')).toHaveText(habit.title)

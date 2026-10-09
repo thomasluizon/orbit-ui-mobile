@@ -44,7 +44,7 @@ describe('Foldable shell geometry', () => {
     { width: 844, top: 0, bottom: 0, left: 0, right: 0 },
   ])(
     'keeps compact shell chrome inside insets at $width with top $top', async ({ width, top, bottom, left, right }) => {
-      const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
+      const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation"
         header={<button type="button" style={{ minHeight: 48 }}>Header</button>}
         composer={<button type="button" style={{ minHeight: 56 }}>Composer</button>}
         tabBar={<nav style={{ minHeight: 80 }}><button type="button" style={{ minHeight: 48 }}>Today</button></nav>}
@@ -79,11 +79,66 @@ describe('Foldable shell geometry', () => {
     },
   )
 
+  it.each([320, 412, 600, 1100].flatMap((width) => [24, 48].map((top) => ({ width, top }))))(
+    'applies one safe top inset to the full-screen conversation at $width with top $top', async ({ width, top }) => {
+      const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
+        astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
+        conversation={<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <header style={{ minHeight: 56 }}>Astra</header>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>Thread</div>
+          <div data-conversation-composer="" style={{ minHeight: 88 }}>Composer</div>
+        </div>} conversationLabel="Astra" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
+        <h1>Today</h1>
+      </ShellWide>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        const session = await page.context().newCDPSession(page)
+        await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left: 0, right: 0 } })
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
+          const header = document.querySelector('[data-shell-conversation] header')!.getBoundingClientRect()
+          const composer = document.querySelector('[data-conversation-composer]')!.getBoundingClientRect()
+          return { layerTop: layer.top, headerTop: header.top, bottom: layer.bottom, composerBottom: composer.bottom }
+        })
+        expect(geometry.layerTop).toBe(width < 1024 ? 0 : Math.max(32, top))
+        expect(geometry.headerTop).toBe(width < 1024 ? top : Math.max(32, top))
+        expect(geometry.bottom).toBe(915)
+        expect(geometry.composerBottom).toBe(width < 1024 ? 915 - 34 : 915)
+      } finally { await page.close() }
+    },
+  )
+
+  it.each(['profile', 'progress', 'calendar'])(
+    'preserves the wide column top inset for %s', async (destination) => {
+      const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation"
+        astraRow={{ label: en.chat.title, onOpen: vi.fn() }}
+        header={destination === 'calendar' ? <div style={{ height: 48 }}>Calendar header</div> : undefined}>
+        <div data-first-content="" style={{ paddingTop: destination === 'progress' ? 16 : 0 }}>Content</div>
+      </ShellWide>)
+      const page = await browser.newPage({ viewport: { width: 1352, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        const geometry = await page.evaluate(() => {
+          const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
+          const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
+          const content = document.querySelector('[data-first-content]')!.getBoundingClientRect()
+          const padding = parseFloat(getComputedStyle(document.querySelector('[data-first-content]')!).paddingTop)
+          return { column: content.top + padding - column.top, scroller: content.top + padding - scroller.top,
+            scrollerTop: scroller.top }
+        })
+        expect(geometry.column).toBe(destination === 'profile' ? 32 : destination === 'progress' ? 48 : 80)
+        expect(geometry.scroller).toBe(destination === 'progress' ? 16 : 0)
+        expect(geometry.scrollerTop).toBe(destination === 'calendar' ? 80 : 32)
+      } finally { await page.close() }
+    },
+  )
+
   it.each([1100, 1440].flatMap((width) => [en, ptBR].flatMap((words) => [1, 2].map((textScale) => ({ width, words, textScale })))))
     ('keeps the sidebar account tokens on one line at $width and text scale $textScale', async ({ width, words, textScale }) => {
       const name = 'W'.repeat(60)
       const email = `${'W'.repeat(48)}@example.com`
-      const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
+      const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={words.nav.mainNavigation} account={name} accountEmail={email} />)
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const largeText = textScale === 2 ? '[data-shell-account-name] { font-size: 28px; } [data-shell-account-email] { font-size: 24px; }' : ''
@@ -123,7 +178,7 @@ describe('Foldable shell geometry', () => {
     'keeps the full Create target revealable at $width with a 120px height budget and nav=$navigationEnabled', async ({ width, navigationEnabled }) => {
     const action = <div className="p-4"><HabitCreateActions presentation="screen" pending={false} empty={false}
       subHabit={false} online formId="create-habit" onCancel={vi.fn()} /></div>
-    const flow = navigationEnabled ? { items: [], activeId: '', navLabel: en.nav.mainNavigation, composer: action } : { nav: false as const, action }
+    const flow = navigationEnabled ? { astraRow: { label: en.chat.title, onOpen: vi.fn() }, items: [], activeId: '', navLabel: en.nav.mainNavigation, composer: action } : { nav: false as const, action }
     const { container } = render(<ShellWide {...flow}
       header={<AppBar title={en.habits.createHabit} onBack={vi.fn()} backLabel={en.common.back} />}
     >
@@ -208,7 +263,7 @@ describe('Foldable shell geometry', () => {
   it.each([320, 412, 500, 740, 1024, 1352])('aligns feedback and not-found content without reserving composer space at %ipx', async (width) => {
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
     useUIStore.getState().enqueueCelebration('all-done', { count: 1 })
-    const { container } = render(<ShellWide items={[]} activeId="" navLabel="Navigation"
+    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="" navLabel="Navigation"
       notice={<><CelebrationPanel /><Toast kind="neutral" message="Notification removed" /></>}
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <NotFoundContent inShell />
@@ -251,7 +306,7 @@ describe('Foldable shell geometry', () => {
   })
 
   it.each([360, 320])('budgets the real header, composer and tab bar inside a %ipx tall window', async (height) => {
-    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       header={<AppBar title={en.nav.today} onBack={vi.fn()} backLabel={en.common.back} />}
       composer={<Composer state="idle" value="" words={en.shell.composer}
         suggestions={toComposerSuggestions(['today', 'calendar', 'progress'].map((id) => ({ id, label: en.nav[id as 'today' | 'calendar' | 'progress'], onSelect: vi.fn() })))}
@@ -290,7 +345,7 @@ describe('Foldable shell geometry', () => {
   })
 
   it.each(windows)('centres content and chrome at $width by $height', async ({ width, height }) => {
-    const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
+    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel="Navigation"
       header={<h1>Screen</h1>} composer={<button type="button">Composer</button>}
       tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}>
       <div style={{ height: 1600 }}>Long screen</div>
@@ -329,7 +384,7 @@ describe('Foldable shell geometry', () => {
   })
 
   it.each([412, 1023, 1024, 1352])('clears navigation without reserving composer space at %ipx', async (width) => {
-    const { container } = render(<ShellWide items={[]} activeId="calendario" navLabel="Navigation"
+    const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="calendario" navLabel="Navigation"
       tabBar={<nav style={{ height: 64 }}>Tabs</nav>}>
       <div style={{ height: 1600 }}>Long destination</div>
     </ShellWide>)
@@ -357,21 +412,47 @@ describe('Foldable shell geometry', () => {
     } finally { await page.close() }
   })
 
-  it.each(windows.filter(({ width }) => width < 1024))('aligns the compact conversation at $width by $height', async ({ width, height }) => {
+  it.each([
+    { width: 1352, height: 706, left: 422 }, { width: 1440, height: 900, left: 466 },
+    { width: 1100, height: 706, left: 296 }, { width: 840, height: 915, left: 50 },
+    { width: 412, height: 915, left: 0 },
+  ])('fills the conversation column at $width by $height', async ({ width, height, left }) => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: width >= 1024, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
     const { container } = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
-      conversation={<button type="button">Close conversation</button>} conversationLabel="Conversation" />)
+      astraRow={{ label: en.chat.title, onOpen: vi.fn() }} conversationOpen
+      conversation={<div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ minHeight: 56 }}>Header</div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}><div style={{ height: 1600 }}>Thread</div></div>
+        <Composer state="idle" value="" words={en.shell.composer} suggestions={[]} onChangeValue={vi.fn()} onSend={vi.fn()} />
+      </div>} conversationLabel="Conversation" tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
+      <h1>Today</h1>
+    </ShellWide>)
     const page = await browser.newPage({ viewport: { width, height } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-      const bounds = await page.locator('[data-shell-conversation="overlay"]').evaluate((element) => {
-        const rectangle = element.getBoundingClientRect()
-        return { width: rectangle.width, left: rectangle.left, right: rectangle.right, height: rectangle.height }
+      const geometry = await page.evaluate(() => {
+        const column = document.querySelector('[data-shell-column]')!.getBoundingClientRect()
+        const layer = document.querySelector('[data-shell-conversation]')!.getBoundingClientRect()
+        const composer = document.querySelector('[data-shell-conversation] [data-composer-root]')!.getBoundingClientRect()
+        const scroller = document.querySelector('[data-shell-scroller]')!
+        return { left: layer.left, right: layer.right, top: layer.top, bottom: layer.bottom,
+          columnLeft: column.left, columnRight: column.right, columnTop: column.top + parseFloat(getComputedStyle(document.querySelector('[data-shell-column]')!).paddingTop),
+          composerBottom: composer.bottom, visible: getComputedStyle(scroller).visibility,
+          panelCount: document.querySelectorAll('[data-shell-conversation="panel"]').length,
+          inert: scroller.closest('[inert]') !== null,
+          bottomHit: !!document.elementFromPoint(layer.left + layer.width / 2, innerHeight - 40)?.closest('[data-shell-conversation]') }
       })
-      expect(bounds.width).toBe(Math.min(width, 740))
-      expect(bounds.left).toBe((width - bounds.width) / 2)
-      expect(bounds.right).toBe(width - bounds.left)
-      expect(bounds.height).toBe(height)
-    } finally { await page.close() }
+      expect(geometry.panelCount).toBe(0)
+      expect(geometry.left).toBeCloseTo(left, 1)
+      expect(geometry.left).toBeCloseTo(geometry.columnLeft, 1)
+      expect(geometry.right).toBeCloseTo(geometry.columnRight, 1)
+      expect(geometry.top).toBe(width >= 1024 ? geometry.columnTop : 0)
+      expect(geometry.bottom).toBe(height)
+      expect(geometry.composerBottom).toBe(height)
+      expect(geometry.visible).toBe('hidden')
+      expect(geometry.inert).toBe(true)
+      expect(geometry.bottomHit).toBe(true)
+    } finally { await page.close(); vi.unstubAllGlobals() }
   })
 
 })

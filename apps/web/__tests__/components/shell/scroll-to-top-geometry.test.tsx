@@ -32,7 +32,7 @@ describe('Hoje back-to-top shell geometry in Chromium', () => {
     'keeps the $messages.common.top pill clear of the header, FAB and final row at $textScale text in $mode',
     async ({ messages, textScale, mode }) => {
       const { container } = render(
-        <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
+        <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation}
           header={<div style={{ minHeight: 48 }}>Header</div>}
           composer={<div style={{ minHeight: 48 }}>Composer</div>}
           tabBar={<div style={{ minHeight: 80 }}>Tabs</div>}

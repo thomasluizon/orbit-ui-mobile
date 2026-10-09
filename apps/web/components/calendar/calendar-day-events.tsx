@@ -40,7 +40,7 @@ export function CalendarDayEvents({ calendarEvents, showEventSource, onOpenImpor
     onClick={() => openEvent(event.id)}
   />)
   return <>
-    <div className="flex flex-col gap-2 px-2">{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</div>
+    <div className="flex flex-col gap-1">{sheetOnly ? null : eventRows(calendarEvents.slice(0, 3))}</div>
     {!sheetOnly && calendarEvents.length > 3 ? <ListRow textMode="label" title={t('calendar.dayDetail.viewAllEventsLabel')} value={`(${calendarEvents.length})`} accessibilityLabel={t('calendar.dayDetail.viewAllEvents', { count: calendarEvents.length })} onClick={onOpenEvents ?? (() => setLocalOpen(true))} /> : null}
     {open ? <Sheet ref={sheetRef} open title={t('calendar.dayDetail.eventsTitle')} onClose={finishClose}>
       <div className="flex flex-col gap-2">
