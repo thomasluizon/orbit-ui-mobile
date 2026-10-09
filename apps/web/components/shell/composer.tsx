@@ -53,7 +53,7 @@ function AttachmentTray({
         >
           <AttachmentIcon kind={attachment.kind} />
           <button type="button" aria-label={attachment.name} onClick={() => setSelectedName(attachment.name)}
-            className="min-h-[48px] min-w-0 flex-1 rounded-lg border-0 bg-transparent py-2 text-start text-sm text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+            className="min-h-[48px] min-w-0 flex-1 rounded-lg border-0 bg-transparent py-2 text-start text-sm text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
             <PersonalText>{attachment.name}</PersonalText>
           </button>
           <button
