@@ -58,6 +58,9 @@ jobs:
         with:
           ref: refs/heads/${{ inputs.branch }}
       - uses: docker/setup-buildx-action@v4
+        with:
+          # Use the engine's BuildKit so setup needs no Docker Hub driver image.
+          driver: docker
       - name: Resolve source
         id: source
         run: |
