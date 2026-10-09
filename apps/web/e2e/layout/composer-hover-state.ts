@@ -26,6 +26,16 @@ export async function hoverSettledComposerControl(control: Locator) {
   }), { message: 'the composer hover target has finished opening and holds its box across two frames' }).toBe(true)
   const bounds = (await control.boundingBox())!
   await control.page().mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
-  await expect.poll(() => control.evaluate((element) => element.matches(':hover')),
-    { message: 'the settled composer control matches :hover' }).toBe(true)
+  await expect.poll(() => control.evaluate(async (element) => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    const animating = document.getAnimations().some((animation) => {
+      const effect = animation.effect
+      return effect instanceof KeyframeEffect && effect.target instanceof Element
+        && (element.contains(effect.target) || effect.target.contains(element))
+        && effect.getComputedTiming().endTime !== Infinity
+        && (animation.pending || animation.playState === 'running' || animation.playState === 'paused')
+    })
+    return { hovered: element.matches(':hover'), animating }
+  }), { message: 'the composer control matches :hover and its hover paint has settled' })
+    .toEqual({ hovered: true, animating: false })
 }

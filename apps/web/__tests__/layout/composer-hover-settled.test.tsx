@@ -111,3 +111,15 @@ it('waits for the production menu opening transition before hovering', async () 
     expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
   } finally { await page.close() }
 })
+
+it('returns only after a hover fill transition has finished painting', async () => {
+  const page = await browser.newPage({ viewport: { width: 1280, height: 915 } })
+  try {
+    await page.setContent(`<!doctype html><style>${stylesheet}.orbit-menu-item:disabled:hover{background-color:rgb(100, 100, 100)}</style><div id="root"></div>`)
+    await page.addScriptTag({ content: menuScript })
+    await page.getByRole('button', { name: 'Actions', exact: true }).click()
+    const control = page.getByRole('menuitem', { name: 'File', exact: true })
+    await hoverSettledComposerControl(control)
+    expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(100, 100, 100)')
+  } finally { await page.close() }
+})
