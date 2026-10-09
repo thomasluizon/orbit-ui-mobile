@@ -6,6 +6,7 @@ import { serverAuthFetch, serverAuthMutate, serverPublicFetch } from '@/lib/serv
 import { createHabit, updateHabit } from '@/app/actions/habits'
 import { API } from '@orbit/shared/api'
 import { confirmPendingOperation, executePendingOperation } from '@/app/actions/chat'
+import { POST as eventTicket } from '@/app/api/events/ticket/route'
 
 const PINNED_TEST_TIME = new Date('2026-09-12T09:00:00.000Z')
 vi.setSystemTime(PINNED_TEST_TIME)
@@ -67,6 +68,14 @@ describe('createHabit action error boundary', () => {
       : boundary === 'ticket' ? serverAuthMutate(API.events.ticket, { method: 'POST' }, null)
       : serverAuthFetch(API.habits.list)
     await expect(request).rejects.toMatchObject({ status: 503, code: 'UPSTREAM_STARTING', retryAfter: '5' })
+  })
+
+  it('maps the live server-fetch ticket path from a plain refusal to a starting envelope', async () => {
+    mockFetch.mockResolvedValue(new Response('Too Many Requests', { status: 429, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
+    const response = await eventTicket()
+    expect(response.status).toBe(503)
+    expect(response.headers.get('retry-after')).toBe('5')
+    expect(await response.json()).toMatchObject({ errorCode: 'UPSTREAM_STARTING' })
   })
 
   it.each(['authenticated', 'public', 'ticket'])('preserves the rate-limit envelope in the %s server fetch', async (boundary) => {

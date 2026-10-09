@@ -476,6 +476,36 @@ describe('HabitList', () => {
     }
   })
 
+  it('shows the Hoje retry action only after upstream starting retries are exhausted', async () => {
+    vi.useFakeTimers()
+    skipFlow.active = true
+    skipFlow.retryRead = true
+    const client = createQueryClient()
+    const refused = vi.fn(async () => Response.json({ error: 'Unavailable', errorCode: 'UPSTREAM_STARTING' }, { status: 503, headers: { 'Retry-After': '5' } }))
+    vi.stubGlobal('fetch', (_input: RequestInfo | URL, init?: RequestInit) => init?.mode === 'no-cors' ? Promise.resolve(new Response(null)) : refused())
+    const rendered = render(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /></QueryClientProvider>)
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(124_999) })
+      expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0)
+      expect(screen.queryByText('habits.loadError')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+      expect(screen.getByText('habits.loadError')).toBeInTheDocument()
+      const retry = screen.getByRole('button', { name: 'common.retry' })
+      expect(refused).toHaveBeenCalledTimes(7)
+      expect(useThrottleStore.getState().error).toBeNull()
+      expect(useAppToastStore.getState().currentToast).toBeNull()
+      fireEvent.click(retry)
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(refused).toHaveBeenCalledTimes(8)
+      expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0)
+    } finally {
+      rendered.unmount()
+      client.clear()
+      vi.unstubAllGlobals()
+      vi.useRealTimers()
+    }
+  })
+
   it('keeps the Hoje list inset and content edge fixed at enlarged text in both selection modes', async () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
