@@ -199,8 +199,8 @@ describe('list primitives on mobile', () => {
     expect(bodyTexts.map((node) => node.props.children)).toContain('Synced')
     const leadingIcon = bodyControl
       .findAll((node) => typeof node.props.strokeWidth === 'number')
-      .find((node) => (node.props.strokeWidth as number) > 1.7)
-    expect(leadingIcon?.props.strokeWidth).toBeCloseTo(1.8)
+      .find((node) => node.props.strokeWidth === 1.5)
+    expect(leadingIcon?.props.strokeWidth).toBe(1.5)
     const valueText = bodyTexts.find((node) => node.props.children === 'Ready for a deliberately long reminder summary')
     expect(valueText?.props.numberOfLines).toBe(1)
     expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
