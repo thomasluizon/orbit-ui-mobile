@@ -64,10 +64,10 @@ function labelPresentation(textMode: SettingsRowProps['textMode'], expanded: boo
   return { className: undefined, lineHeight: textMode === 'label' || expanded ? 1.4 : 1.35, overflowWrap: textMode === 'personal' ? 'normal' as const : 'break-word' as const }
 }
 
-function settingsRowStyle(textMode: SettingsRowProps['textMode'], divider: boolean) {
+function settingsRowStyle(textMode: SettingsRowProps['textMode'], divider: boolean, compactControl: boolean) {
   return {
-        padding: '16px',
-        minHeight: 48,
+        padding: compactControl ? '0 16px' : '16px',
+        minHeight: compactControl ? 52 : 48,
         alignItems: textMode === 'label' ? 'flex-start' as const : 'stretch' as const,
         flexDirection: textMode === 'personal' ? 'column' as const : 'row' as const,
         gap: 12,
@@ -96,6 +96,7 @@ export function SettingsRow({
   ariaLabel,
   divider = true,
 }: Readonly<SettingsRowProps>) {
+  const compactControl = textMode === 'label' && !!children && !desc
   const Label = textMode === 'personal' ? PersonalText : 'span'
   const [expanded, setExpanded] = useState(false)
   const labelId = useId()
@@ -113,13 +114,13 @@ export function SettingsRow({
       aria-controls={controls}
       aria-label={ariaLabel}
       className={`orbit-hover-text w-full flex items-center overflow-hidden rounded-[12px] bg-transparent ${interactive ? 'cursor-pointer transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]' : ''}`}
-      style={settingsRowStyle(textMode, divider)}
+      style={settingsRowStyle(textMode, divider, compactControl)}
     >
       {LeadingIcon && (
         <span
           aria-hidden="true"
           className="inline-flex justify-center shrink-0"
-          style={{ width: 28 }}
+          style={{ width: 28, ...(compactControl ? { minHeight: 48, alignItems: 'center' } : {}) }}
         >
           <LeadingIcon size={24} strokeWidth={1.5} color={rowColors.iconColor} />
         </span>
@@ -131,7 +132,7 @@ export function SettingsRow({
           style={{ width: 8, height: 8, background: leadingDot }}
         />
       )}
-      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 4 }}>
+      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 4, ...(compactControl ? { minHeight: '3rem', justifyContent: 'center' } : {}) }}>
         <Label
           expanded={textMode === 'personal' ? expanded : undefined}
           id={labelId}
@@ -165,5 +166,5 @@ export function SettingsRow({
       <SettingsRowTrailing value={value} valueColor={valueColor} accessory={accessory} mono={mono}>{children}</SettingsRowTrailing>
     </RootTag>
   )
-  return textMode === 'personal' && interactive ? <PersonalTextAction label={ariaLabel ?? label} contentClassName="flex items-center w-full rounded-[12px]" contentStyle={settingsRowStyle(textMode, divider)} control={control} /> : control
+  return textMode === 'personal' && interactive ? <PersonalTextAction label={ariaLabel ?? label} contentClassName="flex items-center w-full rounded-[12px]" contentStyle={settingsRowStyle(textMode, divider, compactControl)} control={control} /> : control
 }

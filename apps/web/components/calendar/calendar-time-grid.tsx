@@ -282,7 +282,7 @@ export function CalendarTimeGrid({
             if (event.currentTarget.scrollLeft > 0 || event.currentTarget.scrollTop > 0) openingPosition.current = true
           }}
           data-testid="time-grid-hour-scroller"
-          className="thin-scrollbar"
+          data-time-grid-scroller=""
           style={{ ...SCROLLER_VARIABLES, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
           <div className="sticky top-0 z-[3]" style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>

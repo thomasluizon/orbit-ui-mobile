@@ -39,10 +39,9 @@ async function expectStripEdge(strip: Locator) {
     const host = element.parentElement!.getBoundingClientRect()
     const chips = [...element.querySelectorAll('button')].map(button => button.getBoundingClientRect())
     const partial = chips.find(chip => chip.left < viewport.right && chip.right > viewport.right)
-    const peek = partial ? viewport.right - partial.left : 0
     return Math.abs(host.right - viewport.right) <= 1
       && Math.abs(host.left - viewport.left) <= 1
-      && (element.scrollWidth <= element.clientWidth || (peek >= 16 && peek <= 32))
+      && (element.scrollWidth <= element.clientWidth || (partial !== undefined && viewport.right - partial.left >= 16 && partial.right - viewport.right >= 16))
   })).toBe(true)
   for (const chip of await strip.getByRole('button').all()) {
     await chip.focus()
