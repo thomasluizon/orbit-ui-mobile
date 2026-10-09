@@ -9,7 +9,7 @@ The calendar drawing governs the geometry; existing fill tokens retain their rol
 | Calendar month | calendar-grid and DayCell | calendar-grid and DayCell | none, partial, full, not scheduled, future, outside month, loggable, today, selected, today with selection, hover, press, keyboard focus |
 | Calendar period | calendar-range-view and DayCell | calendar-range-view and DayCell | none, partial, full, not scheduled, today, leading empty slot |
 | Habit month history | habit-detail-screen and DayCell | habit-detail-screen and DayCell | completed, missed, not scheduled, today, future, unavailable, outside month |
-| Month loading grid | calendar-grid and Skeleton | calendar-grid and Skeleton | circular placeholders in full-column slots |
+| Month loading grid | calendar-grid and Skeleton | calendar-grid and Skeleton | circular placeholders in full-column slots, seven tracks while profile preferences load |
 | Period loading grid | calendar-range-view and Skeleton | calendar-range-view and Skeleton | circular placeholders in full-column slots |
 | Weekday header | MonthGrid | MonthGrid | constant 8 gap to day rows, including narrow grids with no column gap |
 

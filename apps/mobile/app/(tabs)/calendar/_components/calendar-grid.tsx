@@ -9,6 +9,7 @@ import {
   buildDayCellAccessibleName,
   CALENDAR_MONTH_GRID_GEOMETRY,
   CALENDAR_GRID_GAP_CONTENT_BREAKPOINT,
+  formatWeekdayLabels,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
@@ -178,7 +179,7 @@ export function CalendarGrid({
   if (isLoading) {
     const loadingGrid = (
       <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
-        <CalendarGridLoading weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
+        <CalendarGridLoading weekdayLabels={weekdayHeaders.length > 0 ? weekdayHeaders.map((weekday) => weekday.label) : formatWeekdayLabels(language, 1)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
       </View>
     )
     return swipeGesture

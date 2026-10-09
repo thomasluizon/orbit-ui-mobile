@@ -27,7 +27,7 @@ function DayCellContents({ props, outcome, size, tokens, pressed }: ContentsProp
 
   return (
     <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
-      {pressed && outcome === 'full' ? <View pointerEvents="none" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} /> : null}
+      {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       {outcome === 'partial' ? (
         <Svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={styles.arc}>
           <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.statusEmpty} strokeWidth={stroke} />
@@ -58,7 +58,7 @@ function HabitHistoryContents({ props, outcome, size, tokens, pressed }: Content
   else if (missed) textColor = tokens.fg2
   return (
     <View testID="day-disc" style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
-      {pressed && outcome === 'full' ? <View pointerEvents="none" style={[styles.pressFill, { borderRadius: size / 2, backgroundColor: tokens.bgHover }]} /> : null}
+      {pressed && outcome === 'full' ? <PressFill size={size} tokens={tokens} /> : null}
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
       {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
     </View>

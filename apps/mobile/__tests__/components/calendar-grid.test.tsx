@@ -126,6 +126,21 @@ describe('CalendarGrid (mobile)', () => {
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-days' }).props.style).minHeight).toBeUndefined()
   })
 
+  it('keeps seven loading tracks before weekday preferences arrive', () => {
+    const days = buildCalendarMonthModel(new Date(2026, 8, 1), new Map(), 1, '2026-09-11').gridDays
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarGrid gridDays={days} weekdayHeaders={[]} selectedDay={null} isLoading
+        onSelectDay={vi.fn()} language="en" t={(key) => key} tokens={createTokensV2('purple', 'dark')} />)
+    })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'month-grid-7-columns')).toHaveLength(1)
+    const geometry = measureGrid(tree.toJSON(), 412, 'month', true)
+    expect(geometry.slots).toHaveLength(7)
+    expect(geometry.placeholders).toHaveLength(days.length)
+    for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 4)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-header' }).props.style).opacity).toBe(0)
+  })
+
   it('uses the grid skeleton geometry and withholds weekdays while loading', () => {
     const tokens = createTokensV2('purple', 'dark')
     const days = Array.from({ length: 42 }, (_, index) =>
