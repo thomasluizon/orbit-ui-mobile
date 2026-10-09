@@ -74,7 +74,7 @@ describe('personal ListRow text in Chromium', () => {
         return { outline: style.outlineWidth, offset: style.outlineOffset, radius: style.borderRadius, fill: style.backgroundColor, bodyOutline: body.outlineStyle }
       })
       expect(focus).toMatchObject({ outline: '2px', offset: '-2px', radius: '12px', bodyOutline: 'none' })
-      expect(focus.fill).not.toBe('rgba(0, 0, 0, 0)')
+      await expect.poll(() => fill.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
       await control.evaluate((element) => element.removeAttribute('data-activated'))
       await page.keyboard.press('Space')
       expect(await control.getAttribute('data-activated')).toBe('true')
