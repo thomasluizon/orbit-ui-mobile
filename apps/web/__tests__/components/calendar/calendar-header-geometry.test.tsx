@@ -541,7 +541,7 @@ describe('Calendar header geometry in Chromium', () => {
             title: titleText.textContent,
             titleLines: new Set([...range.getClientRects()].map((bounds) => Math.round(bounds.top))).size,
             targets,
-            segments: segments.map((button) => ({ width: button.getBoundingClientRect().width, labelWidth: button.firstElementChild!.getBoundingClientRect().width, contentWidth: button.clientWidth - 16, textWidth: button.firstElementChild!.scrollWidth })),
+            segments: segments.map((button) => ({ width: button.getBoundingClientRect().width, labelWidth: button.firstElementChild!.getBoundingClientRect().width, contentWidth: button.clientWidth - Number.parseFloat(getComputedStyle(button).paddingLeft) - Number.parseFloat(getComputedStyle(button).paddingRight), textWidth: button.firstElementChild!.scrollWidth })),
           }
         })
         expect(geometry.scrollWidth).toBe(geometry.pageWidth)
@@ -555,7 +555,7 @@ describe('Calendar header geometry in Chromium', () => {
           expect(target.reachable).toBe(true)
         }
         for (const segment of geometry.segments) expect(segment.textWidth).toBeLessThanOrEqual(segment.contentWidth + 1)
-        if (textScale === 1) expect(geometry.segments.map((segment) => segment.width)).toEqual([72, 72, 72, 72])
+        if (textScale === 1) expect(geometry.segments.map((segment) => segment.width)).toEqual([67, 67, 67, 67])
       }
     } finally { await page.close() }
   })

@@ -26,7 +26,7 @@ const TestRenderer = require('react-test-renderer')
 const tokens = createTokensV2('orange', 'dark')
 
 function ringCount(host: { props: { style: unknown }; findAllByType: (type: string) => { props: { style: unknown } }[] }) {
-  return [host, ...host.findAllByType('View')].reduce((count, node) => {
+  return [...new Set([host, ...host.findAllByType('View')])].reduce((count, node) => {
     const style = StyleSheet.flatten(typeof node.props.style === 'function' ? node.props.style({ pressed: false }) : node.props.style)
     return count + (style?.outlineWidth > 0 ? 1 : 0) + (style?.borderWidth > 0 && [tokens.primary, tintFromPrimary(tokens, 0.45)].includes(style.borderColor) ? 1 : 0)
   }, 0)
@@ -128,5 +128,13 @@ it('habit form day pills share one indicator', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<HabitUnderstanding value="Read" emoji="" days={['Monday']} dayOptions={[{ value: 'Monday', label: 'Mon', accessibleLabel: 'Monday' }, { value: 'Tuesday', label: 'Tue', accessibleLabel: 'Tuesday' }]} quantity={1} mode="fixed" sentence={null} consumed={[]} labels={buildHabitUnderstandingLabels((key) => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} />) })
   verifyAllChoices(tree)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it.each([false, true])('disabled RadioRow retains its selection perimeter, selected %s', (selected) => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<RadioRow label="Radio" selected={selected} disabled reason="Sending" />) })
+  const row = tree!.root.findAllByType('View').find((node: { props: { accessibilityRole?: string } }) => node.props.accessibilityRole === 'radio')
+  expect(ringCount(row)).toBe(selected ? 1 : 0)
   TestRenderer.act(() => tree!.unmount())
 })

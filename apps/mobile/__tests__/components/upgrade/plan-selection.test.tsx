@@ -162,7 +162,7 @@ describe('PlanSelection (mobile)', () => {
         node.type === 'View' && node.props.accessibilityRole === 'radiogroup',
     )[0]
     expect(StyleSheet.flatten(group.props.style)).toEqual(expect.objectContaining({
-      alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 0,
+      alignSelf: 'stretch', width: '100%', flexDirection: 'row', gap: 4, padding: 4,
     }))
     const segments = tree.root.findAll(
       (node: { type: unknown; props: Record<string, unknown> }) =>
@@ -171,7 +171,7 @@ describe('PlanSelection (mobile)', () => {
     expect(segments).toHaveLength(2)
     for (const segment of segments) {
       expect(StyleSheet.flatten(segment.props.style)).toEqual(expect.objectContaining({
-        width: '50%', minHeight: 48,
+        flexGrow: 1, flexBasis: 0, minHeight: 48,
       }))
     }
   })

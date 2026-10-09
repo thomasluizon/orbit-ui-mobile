@@ -44,7 +44,7 @@ function SegmentOption<TValue extends string>({
 export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
   return (
     <RadioGroup
-      style={props.fullWidth ? { gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, max(calc((100% - ${(props.options.length - 1) * 4}px) / ${props.options.length}), 4em)), 1fr))`, fontSize: '0.875rem' } : { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 8em), 1fr))', width: `calc(${props.options.length * 8}em + ${(props.options.length - 1) * 4 + 8}px)`, fontSize: '0.875rem' }}
+      style={props.fullWidth ? { gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, max(calc((100% - ${(props.options.length - 1) * 4}px) / ${props.options.length}), calc(4em + 0.5rem))), 1fr))`, fontSize: '0.875rem' } : { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 8em), 1fr))', width: `calc(${props.options.length * 8}em + ${(props.options.length - 1) * 4 + 8}px)`, fontSize: '0.875rem' }}
       aria-label={props.label}
       aria-disabled={props.disabled || undefined}
       data-disabled={props.disabled || undefined}

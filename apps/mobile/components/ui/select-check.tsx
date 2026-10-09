@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { selectedBorderStyle } from '@/components/ui/selected-focus-indicator'
 import { ChevronDown } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { StyleSheet, Text, View } from 'react-native'
@@ -81,7 +82,7 @@ export function RadioRow({ label, textMode, description, selected = false, onSel
     .filter(Boolean).join(', ')
 
   return disabled ? (
-    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
+    <View style={{ flexDirection: 'row', minWidth: 0, alignItems: 'center' }}><View {...navigationProps} ref={elementRef} accessibilityRole="radio" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked: selected, disabled: true }} style={[rowStyle, selectedBorderStyle(selected, false, 1.5, tokens.primary), { flex: 1, minWidth: 0 }]}>{content()}</View>{textMode === 'personal' ? <InsetFocusPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ expanded: disclosed }} onPress={() => setDisclosed(!disclosed)} style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><ChevronDown accessible={false} color={tokens.fg2} size={20} strokeWidth={2} style={disclosed ? { transform: [{ rotate: '180deg' }] } : undefined} /></InsetFocusPressable> : null}</View>
   ) : (
     <InsetFocusPressable selectionRingWidth={1.5}
       {...navigationProps}
