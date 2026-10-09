@@ -138,7 +138,8 @@ vi.mock("react-i18next", () => ({
       if (key === 'dates.todayWithDate') return messages.dates.todayWithDate.replace('{date}', String(params?.date));
       if (key === 'calendar.period.goToCurrent') return messages.calendar.period.goToCurrent.replace('{period}', String(params?.period));
       if (key === 'calendar.timeGrid.noSetTime') return messages.calendar.timeGrid.noSetTime;
-      if (key === 'calendar.agenda.timedEntryLabel') return messages.calendar.agenda.timedEntryLabel.replace('{title}', String(params?.title)).replace('{time}', String(params?.time));
+      if (key === 'calendar.entryLabel') return messages.calendar.entryLabel.replace('{title}', String(params?.title)).replace('{time}', String(params?.time)).replace('{status}', String(params?.status));
+      if (key === 'calendar.status.upcoming') return messages.calendar.status.upcoming;
       return params ? `${key}:${JSON.stringify(params)}` : key;
     },
     i18n: { language: state.language },
@@ -728,8 +729,9 @@ describe("CalendarScreen views (mobile)", () => {
     try {
       pressView(tree, 'agenda');
       const buttons = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button');
-      expect(buttons.some((node) => node.props.accessibilityLabel === `${title}, ${language === 'en' ? '9:00 AM' : '09:00'}`)).toBe(true);
-      expect(buttons.some((node) => node.props.accessibilityLabel === 'Untimed')).toBe(true);
+      const messages = language === 'en' ? en : ptBR;
+      expect(buttons.some((node) => node.props.accessibilityLabel === `${title}, ${language === 'en' ? '9:00 AM' : '09:00'}, ${messages.calendar.status.upcoming}`)).toBe(true);
+      expect(buttons.some((node) => node.props.accessibilityLabel === `Untimed, ${messages.calendar.timeGrid.noSetTime}, ${messages.calendar.status.upcoming}`)).toBe(true);
       expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0);
       const preview = tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!;
       expect(preview.props.numberOfLines).toBe(1);

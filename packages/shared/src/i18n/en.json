@@ -984,8 +984,7 @@
   },
   "calendar": {
     "agenda": {
-      "empty": "Nothing scheduled",
-      "timedEntryLabel": "{title}, {time}"
+      "empty": "Nothing scheduled"
     },
     "legend": {
       "loggable": "can log",

@@ -3,11 +3,12 @@ import { createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbi
 import { describe, expect, it, vi } from 'vitest'
 import { render as renderBase, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
-import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
+import { buildCalendarDayMap, createTimeDisplay, formatAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 import { NextIntlClientProvider } from 'next-intl'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import en from '@orbit/shared/i18n/en.json'
 
 const renderWithoutMessages = renderBase
 function render(element: React.ReactNode) {
@@ -47,6 +48,36 @@ function renderAgenda(isLoading = false) {
 }
 
 describe('CalendarAgendaView', () => {
+  for (const locale of ['en', 'pt-BR'] as const) {
+    it.each([
+      { outcome: 'completed', logged: true, bad: false, upcoming: false, dueTime: '08:00', en: 'done', pt: 'feito' },
+      { outcome: 'missed', logged: false, bad: false, upcoming: false, dueTime: '08:00', en: 'not logged', pt: 'sem registro' },
+      { outcome: 'upcoming', logged: false, bad: false, upcoming: true, dueTime: '08:00', en: 'scheduled', pt: 'agendado' },
+      { outcome: 'indulged', logged: true, bad: true, upcoming: false, dueTime: '08:00', en: 'indulged', pt: 'cedeu' },
+      { outcome: 'resisted', logged: false, bad: true, upcoming: false, dueTime: '08:00', en: 'resisted', pt: 'resistiu' },
+      { outcome: 'untimed', logged: false, bad: false, upcoming: true, dueTime: null, en: 'scheduled', pt: 'agendado' },
+    ])(`announces the full title, visible value and $outcome outcome in ${locale}`, (scenario) => {
+      const day = formatAPIDate(startDate)
+      const title = 'A full habit title with every preparation step and the complete destination '.repeat(8).trim()
+      const entries = buildCalendarDayMap({
+        habits: [createMockHabitScheduleItem({ id: scenario.outcome, title, scheduledDates: [day], dueTime: scenario.dueTime, isBadHabit: scenario.bad })],
+        logs: scenario.logged ? { [scenario.outcome]: [{ id: 'log', date: day, value: 1, createdAtUtc: '2026-10-05T12:00:00Z' }] } : {},
+      }, { from: day, to: day }, new Date(2026, 9, scenario.upcoming ? 5 : 6, 12))
+      renderWithoutMessages(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR} timeZone="UTC">
+        <CalendarAgendaView startDate={startDate} dayMap={entries} displayTime={createTimeDisplay(locale, locale === 'pt-BR').displayTime}
+          todayKey={day} isLoading={false} loadingLabel="common.loading" />
+      </NextIntlClientProvider>)
+      const value = scenario.dueTime ? locale === 'en' ? '8:00 AM' : '08:00' : locale === 'en' ? 'No set time' : 'Sem hora certa'
+      const row = screen.getByRole('button', { name: `${title}, ${value}, ${locale === 'en' ? scenario.en : scenario.pt}` })
+      expect(row.querySelector('[data-slot="list-row-value"]')).toHaveTextContent(value)
+      expect(screen.getAllByRole('button')).toHaveLength(1)
+      expect(row.querySelectorAll('button, a, input, [tabindex="0"]')).toHaveLength(0)
+      expect(row.querySelector('[data-status]')?.closest('[aria-hidden="true"]')).not.toBeNull()
+      expect(screen.queryByRole('img')).toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+  }
+
   it('lists seven days ahead with empty days preserved', () => {
     renderAgenda()
 
@@ -59,7 +90,7 @@ describe('CalendarAgendaView', () => {
   it('discloses a full name from a row with metadata beneath the title', () => {
     renderAgenda()
     const row = screen.getByRole('button', { name: /Morning walk/ })
-    expect(row).toHaveAccessibleName('Morning walk, 08:00')
+    expect(row).toHaveAccessibleName('Morning walk, 08:00, agendado')
     expect(row.querySelector('[data-slot="list-row-value"]')).toHaveTextContent('08:00')
     fireEvent.click(row)
     expect(screen.getByRole('dialog')).toHaveTextContent('Morning walk')
@@ -70,7 +101,7 @@ describe('CalendarAgendaView', () => {
     render(<CalendarAgendaView startDate={startDate} dayMap={new Map([[formatAPIDate(startDate), [entry({ title })]]])}
       displayTime={() => '8:00 AM'}
       todayKey={formatAPIDate(startDate)} isLoading={false} loadingLabel="common.loading" />)
-    expect(screen.getByRole('button', { name: `${title}, 8:00 AM` })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `${title}, 8:00 AM, agendado` })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 

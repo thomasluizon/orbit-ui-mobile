@@ -984,8 +984,7 @@
   },
   "calendar": {
     "agenda": {
-      "empty": "Nada agendado",
-      "timedEntryLabel": "{title}, {time}"
+      "empty": "Nada agendado"
     },
     "legend": {
       "loggable": "pode registrar",

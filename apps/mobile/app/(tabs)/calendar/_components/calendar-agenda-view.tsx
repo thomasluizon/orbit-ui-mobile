@@ -73,11 +73,12 @@ export function CalendarAgendaView({
               <View>
                 {entries.map((entry) => {
                   const outcome = calendarEntryOutcome(entry);
+                  const value = entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime');
                   return (
                   <ListRow
                     key={entry.habitId}
                     title={entry.title}
-                    value={entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime')}
+                    value={value}
                     wrapValue
                     textMode="personal"
                     chevron={false}
@@ -85,9 +86,7 @@ export function CalendarAgendaView({
                       <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
                       {outcome.status === 'bad' ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><X size={16} color={tokens.statusBad} strokeWidth={1.5} /></View> : null}
                     </View>}
-                    accessibilityLabel={entry.dueTime
-                      ? t('calendar.agenda.timedEntryLabel', { title: entry.title, time: displayTime(entry.dueTime) })
-                      : entry.title}
+                    accessibilityLabel={t('calendar.entryLabel', { title: entry.title, time: value, status: t(outcome.labelKey) })}
                     onClick={() => setSelectedEntry(entry)}
                   />
                   );
