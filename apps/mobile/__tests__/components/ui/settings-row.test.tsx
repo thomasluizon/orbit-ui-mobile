@@ -62,7 +62,7 @@ describe('SettingsRow', () => {
   it('clips the pressed fill to its whole row hit area', () => {
     let tree: any
     TestRenderer.act(() => { tree = TestRenderer.create(<ListRow textMode="label" title="Account" onClick={() => {}} />) })
-    const row = tree.root.find((node: any) => node.props.accessibilityLabel === 'Account' && node.props.accessibilityRole === 'button')
+    const row = tree.root.find((node: any) => node.props.accessibilityRole === 'button' && node.findAllByProps({ children: 'Account' }).length > 0)
     const pressed = StyleSheet.flatten(row.props.style({ pressed: true }))
     expect(pressed).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
   })

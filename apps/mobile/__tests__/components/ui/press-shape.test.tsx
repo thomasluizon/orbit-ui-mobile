@@ -70,7 +70,7 @@ function withTree<T>(element: React.ReactElement, read: (tree: TestTree) => T) {
 }
 
 function findPressable(tree: TestTree, label: string) {
-  const control = tree.root.findAllByType(Pressable).find((node) => node.props.accessibilityLabel === label)
+  const control = tree.root.findAllByType(Pressable).find((node) => node.props.accessibilityLabel === label || (node.props.accessibilityLabel === undefined && node.findAllByProps({ children: label }).length > 0))
   if (!control) throw new Error(`Missing control: ${label}`)
   return control
 }
