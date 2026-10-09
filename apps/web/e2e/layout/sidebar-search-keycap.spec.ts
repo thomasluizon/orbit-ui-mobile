@@ -37,6 +37,7 @@ for (const width of [1100, 1352, 1440]) {
               const style = getComputedStyle(keycap)
               const probe = document.createElement('span')
               probe.style.color = 'var(--fg-3)'
+              probe.style.fontFamily = 'var(--font-mono)'
               probe.style.boxShadow = 'inset 0 0 0 1px var(--hairline)'
               button.append(probe)
               const expected = getComputedStyle(probe)
@@ -45,7 +46,7 @@ for (const width of [1100, 1352, 1440]) {
                 keycap: { trailing: field.right - bounds.right, top: bounds.top - field.top, bottom: field.bottom - bounds.bottom },
                 paint: { height: bounds.height, padding: style.padding, radius: style.borderRadius, background: style.backgroundColor,
                   shadow: style.boxShadow, font: style.fontFamily, size: style.fontSize, color: style.color },
-                expectedColor: expected.color, expectedShadow: expected.boxShadow,
+                expectedColor: expected.color, expectedShadow: expected.boxShadow, expectedFont: expected.fontFamily,
               }
               probe.remove()
               return result
@@ -61,7 +62,7 @@ for (const width of [1100, 1352, 1440]) {
             expect(measured.paint.radius).toBe('8px')
             expect(measured.paint.background).toBe('rgba(0, 0, 0, 0)')
             expect(measured.paint.shadow).toBe(measured.expectedShadow)
-            expect(measured.paint.font).toContain('Geist Mono')
+            expect(measured.paint.font).toBe(measured.expectedFont)
             expect(measured.paint.size).toBe('12px')
             expect(measured.paint.color).toBe(measured.expectedColor)
             await expect(sidebarKeycap).toHaveAttribute('data-keycap', '')
