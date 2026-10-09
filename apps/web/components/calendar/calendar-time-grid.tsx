@@ -364,12 +364,12 @@ export function CalendarTimeGrid({
               <div
                 className="sticky left-0 z-[1] flex items-start justify-end"
                 style={{
-                  padding: '8px 8px 0',
+                  padding: 8,
                   borderBottom: '1px solid var(--hairline)',
                   ...pinnedPaneBackground,
                 }}
               >
-                <span data-testid="time-grid-any-time-label" style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', color: 'var(--fg-2)' }}>{allDayLabel}</span>
+                <span data-testid="time-grid-any-time-label" style={{ minWidth: 0, maxWidth: '100%', fontFamily: 'var(--font-sans)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-2)' }}>{allDayLabel}</span>
               </div>
               {perColumn.map(({ column, allDay }) => {
                 return (
