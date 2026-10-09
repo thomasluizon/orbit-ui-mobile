@@ -11,6 +11,7 @@ import { queryClient } from '@/lib/query-client'
 import { apiClient } from '@/lib/api-client'
 import { hideAsync } from 'expo-splash-screen'
 
+const { refreshSession } = vi.hoisted(() => ({ refreshSession: vi.fn() }))
 vi.mock('expo-router', () => ({ useGlobalSearchParams: () => ({}) }))
 vi.mock('expo-font', () => ({ useFonts: () => [true] }))
 vi.mock('expo-splash-screen', () => ({ preventAutoHideAsync: vi.fn(), hideAsync: vi.fn().mockResolvedValue(undefined) }))
@@ -27,8 +28,15 @@ vi.mock('@/stores/auth-store', () => {
   const state = { isAuthenticated: true, initialize: async () => {} }
   const useAuthStore = (select: (snapshot: typeof state) => unknown) => select(state)
   useAuthStore.getState = () => state
-  return { useAuthStore }
+  return {
+    useAuthStore,
+    getSessionGeneration: () => ({ epoch: 0, credentialVersion: 0 }),
+    isAuthTransitionInFlight: () => false,
+    refreshSession,
+  }
 })
+vi.mock('@/lib/secure-store', () => ({ getToken: () => Promise.resolve('session-token') }))
+vi.mock('@/lib/app-version', () => ({ buildAppVersionHeaders: () => ({}) }))
 vi.mock('@/stores/onboarding-draft-store', () => ({ useOnboardingDraftHydrated: () => true }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/theme-provider', async () => await import('../../lib/theme-provider'))
@@ -69,6 +77,7 @@ afterEach(async () => {
   await TestRenderer.act(() => { for (const unmount of unmounts.splice(0)) unmount() })
   onlineManager.setOnline(true)
   queryClient.clear()
+  vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
@@ -107,5 +116,19 @@ describe('native profile theme readiness', () => {
     await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(10000) })
     expect(tree.root.findByProps({ testID: 'theme-destination' }).props.accessibilityLabel).toBe('dark')
     expect(hideAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases startup after a profile 401 without waiting for session recovery', async () => {
+    vi.useFakeTimers()
+    const actual = await vi.importActual<typeof import('@/lib/api-client')>('@/lib/api-client')
+    vi.mocked(apiClient).mockImplementation(actual.apiClient)
+    refreshSession.mockImplementation(() => new Promise(() => {}))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })))
+    const tree = await mountProviders()
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(10000) })
+    expect(fetch).toHaveBeenCalled()
+    expect(refreshSession).toHaveBeenCalled()
+    expect(hideAsync).toHaveBeenCalledTimes(1)
+    expect(tree.root.findByProps({ testID: 'theme-destination' }).props.accessibilityLabel).toBe('dark')
   })
 })

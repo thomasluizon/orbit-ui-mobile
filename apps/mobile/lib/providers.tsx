@@ -149,7 +149,7 @@ function AuthInitializer({
             signal.addEventListener('abort', abort, { once: true })
             const timeout = setTimeout(abort, 10000)
             try {
-              return await apiClient(API.profile.get, { signal: controller.signal }, profileSchema)
+              return await apiClient(API.profile.get, { signal: controller.signal, skipAuthRecovery: true }, profileSchema)
             } finally {
               clearTimeout(timeout)
               signal.removeEventListener('abort', abort)
