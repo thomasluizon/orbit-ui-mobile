@@ -50,7 +50,7 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
     initialData,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
-    enabled: accountReady && (options?.enabled ?? true),
+    enabled: options?.enabled ?? true,
   })
 
   const profile = isClient ? query.data : initialData
@@ -91,7 +91,7 @@ export function useProfile(options?: { enabled?: boolean; initialData?: Profile 
   return {
     ...query,
     profile,
-    isLoading: (!accountReady && !profile) || (!isClient && !initialData) || query.isLoading,
+    isLoading: (!isClient && !initialData) || query.isLoading,
     invalidate,
     patchProfile,
   }

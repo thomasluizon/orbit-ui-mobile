@@ -25,7 +25,7 @@ export function useProfile(options?: { enabled?: boolean }) {
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: fetchProfile,
-    enabled: isAuthenticated && (options?.enabled ?? true),
+    enabled: options?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
   })

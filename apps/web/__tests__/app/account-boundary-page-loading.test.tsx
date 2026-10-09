@@ -106,7 +106,7 @@ describe('pages with a profile request held across the first account check', () 
   it('lets ProfilePage leave loading when its request answers', async () => {
     const answer = await holdProfileRequest()
     renderPage(<ProfilePage />)
-    expect(fetchJson.mock.calls.filter(([url]) => url === API.profile.get)).toHaveLength(0)
+    expect(fetchJson.mock.calls.filter(([url]) => url === API.profile.get)).toHaveLength(1)
     expect(screen.getByTestId('profile-state')).toHaveTextContent('profile.loading')
 
     respondWithAccount('user-1')
