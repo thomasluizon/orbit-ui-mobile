@@ -11,6 +11,8 @@ const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecma
 
 tester.run('hover-transition', require('../hover-transition.cjs'), {
   valid: [
+    '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] md:duration-[var(--dur-hover)] hover:ease-[var(--ease-standard)]" />',
+    '<div className="[&_button]:hover:bg-[var(--bg-hover)] [&_button]:transition-colors [&_button]:duration-[var(--dur-hover-control)] [&_button]:ease-[var(--ease-standard)] [&_span]:duration-150 [&_span]:ease-out" />',
     '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--status-dot-press-duration)]" style={{ transitionDuration: "var(--dur-hover-control), var(--status-dot-press-duration)", transitionTimingFunction: "var(--ease-standard), var(--ease-out)" } as CSSProperties} />',
     '<button className="hover:bg-[var(--bg-hover)] [transition-property:background-color,box-shadow,scale]" style={{ transition: "background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)" }} />',
     '<button data-fab="" className="transition-[background-color,transform] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)]" />',
@@ -37,6 +39,9 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
     '<button className="hover:bg-[var(--bg-hover)] motion-safe:transition-colors motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)]" />',
   ],
   invalid: [
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] md:duration-150" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:ease-out" />', errors: [{ messageId: 'timing' }] },
+    { code: '<div className="[&_button:enabled]:hover:bg-[var(--bg-hover)] [&_button]:transition-colors [&_button]:duration-[var(--dur-hover-control)] [&_button]:ease-[var(--ease-standard)] md:[&_button:enabled:active]:duration-150" />', errors: [{ messageId: 'duration' }] },
     { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" style={{ transitionDuration: "150ms, var(--dur-hover-control)" }} />', errors: [{ messageId: 'duration' }] },
     { code: '<button className="hover:bg-[var(--bg-hover)] habit-control-motion" style={{ transition: "background-color 240ms ease-out, scale 150ms var(--ease-out)" }} />', errors: [{ messageId: 'timing' }] },
     ...['duration-150', 'duration-200', 'duration-[var(--dur-fast)]', '[transition-duration:150ms]', '[transition-duration:150ms,var(--dur-hover-control)]'].map((duration) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,transform] ${duration} ease-[var(--ease-standard)]" />`, errors: [{ messageId: 'duration' }] })),

@@ -83,6 +83,13 @@ function coversTarget(transition, hover) {
   return transition.variants.every((variant) => variant === 'motion-safe' || hover.variants.some((hoverVariant) => variantCovers(variant, hoverVariant)))
 }
 
+function overlapsTarget(candidate, hover) {
+  const hoverTargets = hover.variants.filter(targetsDescendant)
+  const candidateTargets = candidate.variants.filter(targetsDescendant)
+  return hoverTargets.length === candidateTargets.length && candidateTargets.every((target, index) =>
+    variantCovers(target, hoverTargets[index]) || variantCovers(hoverTargets[index], target))
+}
+
 function backgroundIndexes(utility) {
   const properties = /^(?:transition-\[([^\]]+)\]|\[transition-property:([^\]]+)\])$/.exec(utility)
   if (properties === null) return [utility === 'transition-colors' || utility === 'transition' ? 1 : 0]
@@ -136,8 +143,10 @@ function timingProblem(classes, hover) {
     ['transition-duration', 'duration', ['var(--dur-hover-control)', 'var(--dur-hover)'], 'duration'],
     ['transition-timing-function', 'ease', ['var(--ease-standard)'], 'timing'],
   ]) {
-    const values = matching.map(({ utility }) => timingValues(utility, property, prefix)).filter((value) => value !== null)
-    if (values.length === 0 && !hasMotion) return message
+    const baseValues = matching.map(({ utility }) => timingValues(utility, property, prefix)).filter((value) => value !== null)
+    if (baseValues.length === 0 && !hasMotion) return message
+    const values = classes.filter((candidate) => overlapsTarget(candidate, hover))
+      .map(({ utility }) => timingValues(utility, property, prefix)).filter((value) => value !== null)
     if (values.some((list) => indexes.some((index) => !accepted.includes(list[index % list.length])))) return message
   }
   return null
