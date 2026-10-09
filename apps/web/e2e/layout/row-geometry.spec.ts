@@ -47,10 +47,32 @@ async function assertRow(row: Locator) {
   if (await control.count() && await control.isEnabled()) await expectInteractionFill(control)
 }
 
+async function assertPersonalCheckRow(body: Locator) {
+  const geometry = await body.evaluate((element) => {
+    const bounds = element.getBoundingClientRect()
+    const label = element.querySelector('.orbit-check-row-label')!
+    const box = element.querySelector('[data-slot="checkbox-box"]')!.getBoundingClientRect()
+    const style = getComputedStyle(element)
+    return { start: label.getBoundingClientRect().left - bounds.left, end: bounds.right - box.right,
+      minHeight: style.minHeight, paddingStart: style.paddingBlockStart, paddingEnd: style.paddingBlockEnd,
+      gap: parseFloat(style.gap), textGap: parseFloat(getComputedStyle(label).gap),
+      border: parseFloat(style.borderBottomWidth), supporting: label.children.length > 2 }
+  })
+  expect(Math.abs(geometry.start - 16)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(geometry.end - 16)).toBeLessThanOrEqual(0.5)
+  expect(geometry).toMatchObject({ minHeight: geometry.supporting ? '68px' : '52px', paddingStart: '12px', paddingEnd: '12px', gap: 12, textGap: 4, border: 0 })
+  for (const control of await body.getByRole('button').or(body.getByRole('checkbox')).all()) {
+    if (await control.isEnabled()) await expectInteractionFill(control)
+  }
+}
+
 async function assertRows(surface: Locator) {
   const rows = surface.locator('.orbit-list-row-shell')
   expect(await rows.count()).toBeGreaterThan(0)
   for (const row of await rows.all()) if (await row.isVisible()) await assertRow(row)
+  for (const body of await surface.locator('[data-slot="list-row-body"]:has(> .orbit-check-row-label)').all()) {
+    if (await body.isVisible()) await assertPersonalCheckRow(body)
+  }
 }
 
 async function assertColumnRows(surface: Locator) {
