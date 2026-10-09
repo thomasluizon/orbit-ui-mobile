@@ -544,6 +544,48 @@ describe("CalendarScreen views (mobile)", () => {
     }
   });
 
+  it.each(['agenda', 'week'] as const)('clears the %s entry details on account replacement while preserving same-account recovery', (view) => {
+    const profile = { weekStartDay: 1 as const, timeZone: 'UTC', hasProAccess: false };
+    state.profile = profile;
+    const title = 'Previous account private habit';
+    state.rangeMap = new Map([[formatAPIDate(new Date()), [makeEntry({ title, dueTime: '09:00' })]]]);
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      pressView(tree, view);
+      const radio = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]!;
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && (view === 'week' ? node.props.testID === 'time-grid-event' : node.props.accessibilityLabel?.startsWith(`${title},`)))[0]!;
+      expect(entry).toBeDefined();
+      TestRenderer.act(() => { entry.props.onPress(); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(1);
+      expect(hostTexts(tree)).toContain(title);
+
+      state.profile = undefined;
+      state.rangeMap = new Map();
+      state.monthMap = new Map();
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      TestRenderer.act(() => { advanceSessionEpoch(); });
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(1);
+      expect(hostTexts(tree)).toContain(title);
+
+      state.profile = undefined;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      TestRenderer.act(() => { advanceAccountGeneration(); });
+      expect.soft(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(0);
+      expect.soft(hostTexts(tree)).not.toContain(title);
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect.soft(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(0);
+      expect.soft(hostTexts(tree)).not.toContain(title);
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0] === radio).toBe(true);
+      expect(radio.props.accessibilityState.checked).toBe(true);
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
   it('closes the previous account day sheet and resets its selected day on account replacement', () => {
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });

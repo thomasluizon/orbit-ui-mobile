@@ -331,16 +331,16 @@ vi.mock('@/components/calendar/calendar-range-view', async (importOriginal) => {
   }
 })
 
-vi.mock('@/components/calendar/calendar-agenda-view', () => ({
-  CalendarAgendaView: (props: {
-    dayMap: ReadonlyMap<string, CalendarDayEntry[]>
-    isLoading: boolean
-  }) => {
-    agendaViewProps.dayMap = props.dayMap
-    agendaViewProps.isLoading = props.isLoading
-    return <div data-testid="agenda-view" />
-  },
-}))
+vi.mock('@/components/calendar/calendar-agenda-view', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/calendar/calendar-agenda-view')>()
+  return {
+    CalendarAgendaView: (props: React.ComponentProps<typeof actual.CalendarAgendaView>) => {
+      agendaViewProps.dayMap = props.dayMap
+      agendaViewProps.isLoading = props.isLoading
+      return <div data-testid="agenda-view"><actual.CalendarAgendaView {...props} /></div>
+    },
+  }
+})
 
 import CalendarPage from '@/app/(app)/calendar/page'
 import { DestinationShell } from '@/components/shell/destination-shell'
@@ -1423,6 +1423,41 @@ describe('CalendarPage view switcher', () => {
       expect(current()).toHaveTextContent(initialPeriod!)
       expect(screen.getByRole('radio', { name: `calendar.view.${view}` })).toBe(radio)
       expect(radio).toHaveFocus()
+      expect(radio).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it.each(['agenda', 'week'] as const)('clears the %s entry details on account replacement while preserving same-account recovery', async (view) => {
+      const profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+      profileQueryState.profile = profile
+      const title = 'Previous account private habit'
+      rangeDayMap = new Map([[formatAPIDate(new Date()), [{
+        ...monthEntry('private-habit', 'upcoming'), title, dueTime: '09:00',
+      }]]])
+      const page = render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+      const radio = screen.getByRole('radio', { name: `calendar.view.${view}` })
+      fireEvent.click(view === 'week' ? screen.getByTestId('time-grid-event') : screen.getByRole('button', { name: 'calendar.entryLabel' }))
+      expect(screen.getByRole('dialog', { name: 'calendar.entryDetails' })).toHaveTextContent(title)
+
+      profileQueryState.profile = undefined
+      rangeDayMap = new Map()
+      monthQueryState.dayMap = new Map()
+      page.rerender(<CalendarPage />)
+      await recoverSameAccount('user-1')
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(screen.getByRole('dialog', { name: 'calendar.entryDetails' })).toHaveTextContent(title)
+
+      profileQueryState.profile = undefined
+      page.rerender(<CalendarPage />)
+      await replaceAccountWith('user-2')
+      expect.soft(screen.queryByRole('dialog', { name: 'calendar.entryDetails' })).toBeNull()
+      expect.soft(document.body).not.toHaveTextContent(title)
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect.soft(screen.queryByRole('dialog', { name: 'calendar.entryDetails' })).toBeNull()
+      expect.soft(document.body).not.toHaveTextContent(title)
+      expect(screen.getByRole('radio', { name: `calendar.view.${view}` })).toBe(radio)
       expect(radio).toHaveAttribute('aria-checked', 'true')
     })
 

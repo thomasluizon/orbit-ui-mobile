@@ -10,6 +10,7 @@ import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDat
 import { X } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
 import { StatusRing } from '@/components/ui/status-ring'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CalendarEntryDetails } from './calendar-entry-details'
 
 const HOUR_HEIGHT = 48
@@ -183,7 +184,7 @@ export function CalendarTimeGrid({
   isLoading = false,
 }: Readonly<CalendarTimeGridProps>) {
   const t = useTranslations()
-  const [disclosure, setDisclosure] = useState<{ entries: CalendarDayEntry[]; title: string } | null>(null)
+  const [disclosure, setDisclosure] = useAccountScopedState<{ entries: CalendarDayEntry[]; title: string } | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [isPanePinned, setIsPanePinned] = useState(true)
   const [now, setNow] = useState<Date>(() => nowDate())
