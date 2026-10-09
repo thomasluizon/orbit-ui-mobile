@@ -15,6 +15,7 @@ import { SHELL_SCROLLER_CLEARANCE, ShellScrollerClearanceContext } from './shell
 
 function ShellBottomChrome({
   visible,
+  conversationOpen,
   navigationEnabled,
   pinnedSlot,
   notice,
@@ -24,6 +25,7 @@ function ShellBottomChrome({
   safeAreaBottom,
 }: Readonly<{
   visible: boolean
+  conversationOpen: boolean
   navigationEnabled: boolean
   pinnedSlot: ReactNode
   notice: ReactNode
@@ -46,7 +48,7 @@ function ShellBottomChrome({
       <View style={[styles.bottomColumn, { minHeight: actionMinimum }]}>
         {notice !== undefined ? <View testID="shell-notice" style={styles.notice}>{notice}</View> : null}
         {pinnedSlot !== undefined ? (
-          <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum }]}>
+          <View testID="shell-composer-band" style={[styles.composerBand, { minHeight: actionMinimum, display: conversationOpen ? 'none' : 'flex' }]}>
             <ScrollView testID="shell-pinned-slot" style={[styles.pinnedSlot, { minHeight: actionMinimum }]} keyboardShouldPersistTaps="handled">{pinnedSlot}</ScrollView>
           </View>
         ) : null}
@@ -155,8 +157,9 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
 
           <ShellBottomChrome
             visible={hasBottomChrome}
+            conversationOpen={conversationOpen}
             navigationEnabled={navigationEnabled}
-            pinnedSlot={conversationOpen ? undefined : pinnedSlot}
+            pinnedSlot={pinnedSlot}
             notice={notice}
             fab={props.fab}
             tabBar={props.tabBar}

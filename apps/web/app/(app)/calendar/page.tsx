@@ -271,6 +271,16 @@ interface CalendarPageContentProps {
 }
 
 
+function calendarPageLayout(view: CalendarView, hasError: boolean, header: ReactNode) {
+  const fillsPage = view === 'week' && !hasError
+  return {
+    viewportProps: { 'data-page-viewport': fillsPage ? '' : undefined },
+    pageClass: fillsPage ? 'relative flex h-full min-h-0 flex-col' : 'relative',
+    contentClass: fillsPage ? 'relative z-[1] flex min-h-0 flex-1 flex-col' : 'relative z-[1]',
+    header: view === 'week' ? <div className="shrink-0">{header}</div> : header,
+  }
+}
+
 // react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function CalendarPageContent({
   profile,
@@ -671,12 +681,14 @@ function CalendarPageContent({
     />
   )
 
+  const pageLayout = calendarPageLayout(view, Boolean(activeError), calendarHeader)
+
   return (
-    <div className="relative">
+    <div {...pageLayout.viewportProps} className={pageLayout.pageClass}>
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
-      <div className="relative z-[1]">
+      <div className={pageLayout.contentClass}>
         <CalendarOptions onGoogleCalendar={openGoogleCalendar} />
-        {calendarHeader}
+        {pageLayout.header}
 
         {activeError ? (
           <div style={{ padding: '0 16px 16px' }}>

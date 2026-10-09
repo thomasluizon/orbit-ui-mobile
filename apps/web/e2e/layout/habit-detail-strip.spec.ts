@@ -40,7 +40,9 @@ for (const { width, panelOpen } of [
       await page.goto(`/habits/${habitId}`)
       if (panelOpen) {
         await page.getByRole('button', { name: ptBr.todayAstra.openConversation }).click()
-        await expect(page.locator('[data-shell-conversation="panel"]')).toBeVisible()
+        await expect(page.locator('[data-shell-conversation="overlay"]')).toBeVisible()
+        await expect(page.locator('[data-shell-scroller]')).toBeHidden()
+        await page.getByRole('button', { name: ptBr.common.closeConversation }).click()
       }
       const strip = page.getByRole('group', { name: ptBr.habits.detail.lastThirtyDays })
       await expect(strip).toBeVisible()

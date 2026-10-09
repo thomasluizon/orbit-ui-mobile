@@ -67,7 +67,7 @@ describe('CelebrationPanel', () => {
     useUIStore.getState().enqueueCelebration('level-up', { level: 2 })
     const user = userEvent.setup()
     const { container } = render(
-      <ShellWide
+      <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
         items={[{ id: 'hoje', label: 'Today', icon: 'hoje' }]}
         activeId="hoje"
         navLabel="Main navigation"

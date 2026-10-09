@@ -419,7 +419,10 @@ describe("CalendarScreen views (mobile)", () => {
         if (switchTop === undefined) switchTop = top;
         expect.soft(top, view).toBe(switchTop);
         const firstBodyText = measured.texts.filter((text) => text.top >= bottom).sort((a, b) => a.top - b.top)[0]!;
-        expect.soft(firstBodyText.top - bottom, `${view} body clearance`).toBe(24);
+        const firstBodyTop = view === 'week'
+          ? Math.min(...measured.controls.filter((control) => control.top >= bottom).map((control) => control.top))
+          : firstBodyText.top;
+        expect.soft(firstBodyTop - bottom, `${view} body clearance`).toBe(24);
         if (month) TestRenderer.act(() => month.update(<></>));
       }
     } finally { TestRenderer.act(() => tree.unmount()); }

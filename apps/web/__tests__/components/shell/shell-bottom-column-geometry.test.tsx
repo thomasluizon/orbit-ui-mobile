@@ -34,7 +34,7 @@ describe('Shell bottom column geometry', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([320, 1280])('preserves notice shadow paint and pointer access at %ipx', async (width) => {
-    const view = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+    const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       composer={<Composer state="idle" value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       notice={<><UpdateAvailableBanner /><Toast kind="neutral" message="Habit saved" actionLabel="Undo" onAction={vi.fn()} /></>}
       tabBar={<nav style={{ height: 80 }}>Tabs</nav>}>
@@ -88,7 +88,7 @@ describe('Shell bottom column geometry', () => {
       atLimit: { state: 'atLimit', limitReason: en.shell.composer.limit.reason },
       offline: { state: 'offline', limitReason: en.shell.composer.offline.reason },
     } as const
-    const view = render(<ShellWide items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
+    const view = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={en.nav.mainNavigation}
       composer={<Composer {...composerStates[state]}
         value="" suggestions={[]} words={en.shell.composer} onChangeValue={vi.fn()} onSend={vi.fn()} />}
       notice={<Toast kind="neutral" message="Habit saved" />}

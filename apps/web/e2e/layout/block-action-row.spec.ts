@@ -25,8 +25,8 @@ for (const width of [412, 1280]) {
       test('hugs lone pills and keeps the preview pair at the trailing content edge', async ({ page, context }) => {
         await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, route => route.fulfill({ contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n` }))
         await page.goto('/')
-        await page.getByRole('button', { name: messages.todayAstra.openConversation, exact: true }).click()
-        const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation, exact: true }).click()
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Oi, como estou hoje?')
         await conversation.getByRole('button', { name: messages.shell.composer.send, exact: true }).click()
         const profile = conversation.getByRole('button', { name: messages.chat.operation.openProfile, exact: true })

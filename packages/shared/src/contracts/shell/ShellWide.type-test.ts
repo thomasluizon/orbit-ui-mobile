@@ -42,6 +42,7 @@ type ExpectedNav = {
   nav?: true
   items: ShellWideItem[]
   activeId: string
+  astraRow: { label: string; onOpen: () => void }
   onSelect?: (id: string) => void
   navLabel: string
   account?: string
@@ -54,6 +55,7 @@ type ExpectedFlow = {
   nav: false
   items?: never
   activeId?: never
+  astraRow?: never
   onSelect?: never
   onCreate?: never
   createLabel?: never
@@ -105,7 +107,7 @@ type FlowConversationVariant = Extract<ShellWideProps, { nav: false; conversatio
 
 type Destinations = ShellWideItem[]
 /** The smallest sidebar that is a state: destinations, a current one, and a landmark name. */
-type Sidebar = { items: Destinations; activeId: 'hoje'; navLabel: 'Navigation' }
+type Sidebar = { items: Destinations; activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }
 
 type WithCreate = Sidebar & { onCreate: () => void; createLabel: 'Novo habito' }
 type WithPalette = Sidebar & { onPalette: () => void; paletteLabel: 'Buscar'; paletteHint: 'Ctrl K' }
@@ -119,8 +121,8 @@ type DestinationWithAction = Sidebar & { action: React.ReactNode }
 type ConversationWithoutName = Sidebar & { conversation: React.ReactNode }
 type OpenWithoutConversation = Sidebar & { conversationOpen: true }
 type SidebarWithTabBar = Sidebar & { tabBar: React.ReactNode }
-type ItemWithoutId = { items: [{ label: 'Hoje' }]; activeId: 'hoje'; navLabel: 'Navigation' }
-type ItemWithoutLabel = { items: [{ id: 'hoje' }]; activeId: 'hoje'; navLabel: 'Navigation' }
+type ItemWithoutId = { items: [{ label: 'Hoje' }]; activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }
+type ItemWithoutLabel = { items: [{ id: 'hoje' }]; activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }
 
 export type ShellWideTypeContract = [
   Assert<IsExactWidth<Fields<NavPlainVariant>, Fields<ExpectedBase & ExpectedPlainConversation & ExpectedPlainCreate & ExpectedPlainPalette & ExpectedNav>>>,
@@ -163,10 +165,14 @@ export type ShellWideTypeContract = [
   Assert<IsExact<WithConversation, ShellWideProps>>,
   Assert<IsExact<{ nav: false; action: React.ReactNode }, ShellWideProps>>,
   Assert<IsExact<{ nav: false }, ShellWideProps>>,
+  // @ts-expect-error the Astra row is required with navigation
+  Assert<IsExact<Omit<Sidebar, 'astraRow'>, ShellWideProps>>,
+  // @ts-expect-error the Astra row is rejected without navigation
+  Assert<IsExact<{ nav: false; astraRow: Sidebar['astraRow'] }, ShellWideProps>>,
   // @ts-expect-error a sidebar with no destinations is not a state
-  Assert<IsExact<{ activeId: 'hoje'; navLabel: 'Navigation' }, ShellWideProps>>,
+  Assert<IsExact<{ activeId: 'hoje'; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }, ShellWideProps>>,
   // @ts-expect-error a nav with no current position is not a state
-  Assert<IsExact<{ items: Destinations; navLabel: 'Navigation' }, ShellWideProps>>,
+  Assert<IsExact<{ items: Destinations; navLabel: 'Navigation'; astraRow: { label: string; onOpen: () => void } }, ShellWideProps>>,
   // @ts-expect-error the nav landmark needs its accessible name
   Assert<IsExact<{ items: Destinations; activeId: 'hoje' }, ShellWideProps>>,
   // @ts-expect-error a destination without an id does not compile

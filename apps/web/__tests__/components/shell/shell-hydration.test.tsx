@@ -1,4 +1,4 @@
-import { act } from '@testing-library/react'
+import { act, within } from '@testing-library/react'
 import { hydrateRoot, type Root } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -11,7 +11,7 @@ function ShellHydrationProbe() {
   const { isSupported: speechSupported } = useSpeechToText()
 
   return (
-    <ShellWide
+    <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
       items={[{ id: 'hoje', label: 'Today', icon: 'hoje' }]}
       activeId="hoje"
       navLabel="Main navigation"
@@ -83,6 +83,7 @@ describe('app shell hydration', () => {
     expect(recoverableError).not.toHaveBeenCalled()
     expect(container.querySelectorAll('[data-shell-sidebar]')).toHaveLength(1)
     expect(container.querySelectorAll('[data-shell-tab-bar]')).toHaveLength(1)
-    expect(container.querySelector('button')).toHaveTextContent('Voice')
+    expect(container.querySelectorAll('[data-shell-astra-row]')).toHaveLength(width >= 1024 ? 1 : 0)
+    expect(within(container).getByRole('button', { name: 'Voice' })).toBeVisible()
   })
 })

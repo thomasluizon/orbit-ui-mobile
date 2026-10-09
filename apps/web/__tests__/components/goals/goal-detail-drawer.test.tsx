@@ -6,9 +6,10 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
 
 const nextIntl = vi.hoisted(() => ({ locale: 'en' }))
 
@@ -75,6 +76,7 @@ describe('GoalDetailDrawer', () => {
     updateProgressMutateAsync.mockClear()
     nextIntl.locale = 'en'
     deleteMutateAsync.mockClear()
+    useAppToastStore.setState({ currentToast: null, queue: [] })
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
   })
@@ -310,15 +312,51 @@ describe('GoalDetailDrawer', () => {
   })
 
   it('deletes the goal after confirming and closes the drawer', async () => {
-    deleteMutateAsync.mockResolvedValue(undefined)
+    let finishDelete!: () => void
+    deleteMutateAsync.mockReturnValueOnce(new Promise<void>((resolve) => { finishDelete = resolve }))
+    let finishExit!: () => void
+    const exitFinished = new Promise<void>((resolve) => { finishExit = resolve })
     const onOpenChange = vi.fn()
     render(<GoalDetailDrawer open={true} onOpenChange={onOpenChange} goalId="1" />)
+    const drawer = screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })
+    const getAnimations = vi.fn(() => drawer.hasAttribute('data-closed') ? [{ finished: exitFinished }] : [])
+    Object.defineProperty(drawer, 'getAnimations', { value: getAnimations })
+
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.delete' }))
+    expect(deleteMutateAsync).not.toHaveBeenCalled()
+    fireEvent.click(screen.getAllByRole('button', { name: 'goals.detail.delete' }).at(-1)!)
+
+    try {
+      await waitFor(() => expect(deleteMutateAsync).toHaveBeenCalledExactlyOnceWith('1'))
+      expect(onOpenChange).not.toHaveBeenCalled()
+      expect(drawer).toHaveAttribute('data-open')
+
+      await act(async () => { finishDelete() })
+      await waitFor(() => expect(drawer).toHaveAttribute('data-closed'))
+      await waitFor(() => expect(getAnimations).toHaveReturnedWith([{ finished: exitFinished }]))
+      expect(drawer).toBeInTheDocument()
+      expect(onOpenChange).not.toHaveBeenCalled()
+
+      await act(async () => { finishExit() })
+      await waitFor(() => expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(false))
+      expect(drawer).not.toBeInTheDocument()
+    } finally {
+      await act(async () => { finishExit() })
+    }
+  })
+
+  it('keeps the drawer open when confirmed deletion fails', async () => {
+    deleteMutateAsync.mockRejectedValueOnce(new Error('Delete failed'))
+    const onOpenChange = vi.fn()
+    render(<GoalDetailDrawer open onOpenChange={onOpenChange} goalId="1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.detail.delete' }))
     fireEvent.click(screen.getAllByRole('button', { name: 'goals.detail.delete' }).at(-1)!)
 
-    await waitFor(() => expect(deleteMutateAsync).toHaveBeenCalledWith('1'))
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    await screen.findByText('goals.errors.delete')
+    expect(deleteMutateAsync).toHaveBeenCalledExactlyOnceWith('1')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toHaveAttribute('data-open')
   })
 
 

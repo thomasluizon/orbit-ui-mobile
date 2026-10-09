@@ -81,7 +81,7 @@ for (const width of [320, 412, 600, 844]) {
           const actions = element.querySelector('[data-shell-bottom]')!
           return { shellTop: shell.getBoundingClientRect().top, shellBottom: shell.getBoundingClientRect().bottom, actionsBottom: actions.getBoundingClientRect().bottom }
         })
-        expect(geometry.shellTop).toBe(top)
+        expect(geometry.shellTop).toBe(0)
         expect(geometry.shellBottom).toBe(height)
         expect(geometry.actionsBottom).toBeLessThanOrEqual(height)
       })

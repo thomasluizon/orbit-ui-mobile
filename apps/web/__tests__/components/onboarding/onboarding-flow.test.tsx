@@ -5,7 +5,12 @@ import { runServerAction } from '@/lib/client-action'
 import { setApiFetchTranslate } from '@/lib/api-fetch'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 import React from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
@@ -28,6 +33,7 @@ const mocks = vi.hoisted(() => {
   return {
     finalFinish: undefined as (() => Promise<void>) | undefined,
     useRealPush: false,
+    useRealShell: false,
     dialogOpenChanges: vi.fn(),
     createHabit: vi.fn(),
     updateHabit: vi.fn(),
@@ -85,10 +91,16 @@ vi.mock('@/hooks/use-push-notification-preferences', async (importOriginal) => {
     requestWebPushPermission: mocks.requestPermissionOnly,
   }
 })
-vi.mock('@/components/shell/flow-shell', () => ({
-  FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => <div>{header}{notice}{children}{action}</div>,
-}))
-vi.mock('@/components/shell/shell-wide', () => ({ ShellWide: ({ children, tabBar, notice }: { children: React.ReactNode; tabBar?: React.ReactNode; notice?: React.ReactNode }) => <div>{children}<div data-shell-notice="">{notice}</div>{tabBar}</div> }))
+vi.mock('@/components/shell/flow-shell', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/shell/flow-shell')>()
+  return {
+  FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => mocks.useRealShell ? <original.FlowShell header={header} action={action} notice={notice} mode="onboarding">{children}</original.FlowShell> : <div>{header}{notice}{children}{action}</div>,
+  }
+})
+vi.mock('@/components/shell/shell-wide', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/components/shell/shell-wide')>()
+  return { ShellWide: (props: React.ComponentProps<typeof original.ShellWide> & { tabBar?: React.ReactNode }) => mocks.useRealShell ? <original.ShellWide {...props} /> : <div>{props.children}<div data-shell-notice="">{props.notice}</div>{props.tabBar}</div> }
+})
 vi.mock('@/components/navigation/bottom-tab-bar', () => ({ BottomTabBar: ({ items, onSelect }: { items: { id: string; label: string }[]; onSelect: (id: string) => void }) => <nav>{items.map((item) => <button key={item.id} type="button" onClick={() => onSelect(item.id)}>{item.label}</button>)}</nav> }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, onClick, disabled, loading, variant = 'primary', size = 'md', descriptionId }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; descriptionId?: string }) => <button type="button" disabled={disabled || loading} onClick={onClick} data-variant={variant} data-size={size} aria-describedby={descriptionId}>{children}</button>,
@@ -162,6 +174,7 @@ describe('OnboardingFlow state model', () => {
 
   beforeEach(() => {
     mocks.useRealPush = false
+    mocks.useRealShell = false
     vi.clearAllMocks()
     useVersionGateStore.setState(useVersionGateStore.getInitialState())
     setApiFetchTranslate((key) => key)
@@ -184,6 +197,48 @@ describe('OnboardingFlow state model', () => {
     useAppToastStore.setState({ currentToast: null, queue: [] })
     useUIStore.setState({ openOverlayIds: [] })
     mocks.liveActions.mockReturnValue(actions())
+  })
+
+  describe('onboarding popup safe-area geometry', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+    let stylesheet: string
+    registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    })
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([320, 412, 600].flatMap((width) => [24, 48].flatMap((top) =>
+      ['decision', 'done'].map((step) => ({ width, top, step })))))(
+      'applies one top inset in the real $step shell at $width with top $top', async ({ width, top, step }) => {
+        mocks.useRealShell = true
+        if (step === 'done') await reachDone(false)
+        else await act(async () => { mount(false) })
+        const popup = screen.getByRole('dialog')
+        const page = await browser.newPage({ viewport: { width, height: 915 } })
+        try {
+          const session = await page.context().newCDPSession(page)
+          await session.send('Emulation.setSafeAreaInsetsOverride', { insets: { top, bottom: 34, left: 0, right: 0 } })
+          await page.setContent(`<style>${stylesheet}</style>${popup.outerHTML}`)
+          const geometry = await page.evaluate(() => {
+            const shell = document.querySelector('[data-shell="wide"]')!.getBoundingClientRect()
+            const header = document.querySelector('[data-shell-header]')?.getBoundingClientRect()
+            const scroller = document.querySelector('[data-shell-scroller]')!.getBoundingClientRect()
+            const bottom = document.querySelector('[data-shell-bottom]')!.getBoundingClientRect()
+            return { shellTop: shell.top, shellBottom: shell.bottom, contentTop: header?.top ?? scroller.top,
+              bottom: bottom.bottom, controls: [...document.querySelectorAll('[data-shell-bottom] button')]
+                .map((control) => control.getBoundingClientRect().bottom) }
+          })
+          expect(geometry.contentTop).toBe(top)
+          expect(geometry.shellTop).toBe(0)
+          expect(geometry.shellBottom).toBe(915)
+          expect(geometry.bottom).toBe(915)
+          for (const bottom of geometry.controls) expect(bottom).toBeLessThanOrEqual(915 - 34)
+        } finally { await page.close() }
+      },
+    )
   })
 
   it.each(['suggestion', 'creation'])('announces a stale %s once before onboarding completes', async (operation) => {

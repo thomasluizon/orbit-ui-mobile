@@ -49,12 +49,13 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
 
 function bounds(node: YogaNode) {
   let top = 0
+  let left = 0
   let ancestor: YogaNode | null = node
-  while (ancestor) { top += ancestor.getComputedTop(); ancestor = ancestor.getParent() }
-  return { top, bottom: top + node.getComputedHeight(), contentTop: top + node.getComputedPadding(Yoga.EDGE_TOP) }
+  while (ancestor) { top += ancestor.getComputedTop(); left += ancestor.getComputedLeft(); ancestor = ancestor.getParent() }
+  return { left, width: node.getComputedWidth(), top, bottom: top + node.getComputedHeight(), contentTop: top + node.getComputedPadding(Yoga.EDGE_TOP) }
 }
 
-export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost) => string | undefined) {
+export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost) => string | undefined, viewport = { width: 412, height: 915 }) {
   const selected = new Map<string, YogaNode>()
   function build(host: GeometryHost): YogaNode {
     const node = Yoga.Node.create()
@@ -78,7 +79,7 @@ export function measureSafeArea(host: GeometryHost, select: (host: GeometryHost)
   }
   const layout = build(host)
   try {
-    layout.calculateLayout(412, 915, Yoga.DIRECTION_LTR)
+    layout.calculateLayout(viewport.width, viewport.height, Yoga.DIRECTION_LTR)
     return new Map([...selected].map(([key, node]) => [key, bounds(node)]))
   } finally { layout.freeRecursive() }
 }

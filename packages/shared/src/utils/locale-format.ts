@@ -187,6 +187,10 @@ export function formatCalendarDayTitle(
   }))
 }
 
+export function formatCalendarWeekday(date: DateInput, locale: string): string {
+  return capitalizeFirstLetter(formatLocaleDate(date, locale, { weekday: 'short' }))
+}
+
 export function formatCalendarAgendaHeading(
   date: string,
   locale: string,

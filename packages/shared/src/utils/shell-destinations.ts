@@ -45,11 +45,11 @@ export interface ShellChrome {
   flow: boolean
 }
 
-export function resolveShellChrome(pathname: string, lastDestination: ShellDestinationId = 'hoje'): ShellChrome {
+export function resolveShellChrome(pathname: string, lastDestination: ShellDestinationId = 'hoje', compact = true): ShellChrome {
   const destination = resolveShellDestination(pathname)
   return {
     activeId: pathname === '/search' ? lastDestination : destination ?? lastDestination,
-    composer: pathname === '/' || /^\/habits\/[^/]+$/.test(pathname),
+    composer: (compact && pathname === '/') || /^\/habits\/[^/]+$/.test(pathname),
     flow: pathname === '/wrapped' || pathname === '/upgrade' || pathname === '/habits/new',
   }
 }

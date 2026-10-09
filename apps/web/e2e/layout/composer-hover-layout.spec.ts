@@ -15,7 +15,10 @@ for (const width of [412, 1280]) {
       await setLayoutProfileSession(context, profile)
       await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       await page.goto('/')
-      const composer = page.locator('[data-shell-bottom] [data-composer-root]')
+      if (width >= 1024) await page.locator('[data-shell-astra-row]').click()
+      const composer = page.locator(width >= 1024
+        ? '[data-shell-conversation="overlay"] [data-composer-root]'
+        : '[data-shell-bottom] [data-composer-root]')
       await expect(composer).toHaveAttribute('data-state', 'atLimit')
       expect(await page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches)).toBe(true)
       const actions = composer.getByRole('button', { name: en.shell.composer.actions, exact: true })

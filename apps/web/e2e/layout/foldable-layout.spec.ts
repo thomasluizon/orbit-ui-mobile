@@ -129,8 +129,9 @@ for (const { width, height } of windows) {
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title, exact: true })).toBeVisible()
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0)
         await page.evaluate(() => document.fonts.ready)
-        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(['Hoje', 'Habit detail'].includes(name) ? 1 : 0)
-        await assertColumnGeometry(page, width, ['Hoje', 'Habit detail'].includes(name))
+        const hasComposer = name === 'Habit detail' || (name === 'Hoje' && width < 1024)
+        await expect(page.locator('[data-shell-pinned-slot]')).toHaveCount(hasComposer ? 1 : 0)
+        await assertColumnGeometry(page, width, hasComposer)
         await assertReachableControls(page.locator('[data-shell-column]').last())
       })
     }

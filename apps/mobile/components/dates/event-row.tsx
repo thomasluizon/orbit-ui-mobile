@@ -25,8 +25,8 @@ export function EventRow(props: Readonly<EventRowProps>) {
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 68, minWidth: 0, justifyContent: 'center', gap: 4, paddingVertical: 8, borderRadius: 12, overflow: 'hidden' },
-  interactive: { paddingHorizontal: 8, },
+  row: { minHeight: 68, minWidth: 0, justifyContent: 'center', gap: 4, paddingVertical: 12, borderRadius: 12, overflow: 'hidden' },
+  interactive: { paddingHorizontal: 16, },
   title: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4 },
   support: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, fontVariant: ['tabular-nums'] },
 })
