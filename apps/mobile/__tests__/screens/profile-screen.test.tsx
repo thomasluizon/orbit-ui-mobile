@@ -245,10 +245,12 @@ vi.mock('@/stores/auth-store', () => {
   return { useAuthStore }
 })
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mockSetAstraConversationOpen; astraConversationOpen: boolean }) => unknown) =>
-    selector({ setAstraConversationOpen: mockSetAstraConversationOpen, astraConversationOpen: mockConversationOpen.current }),
-}))
+vi.mock('@/stores/ui-store', () => {
+  const getState = () => ({ setAstraConversationOpen: mockSetAstraConversationOpen, astraConversationOpen: mockConversationOpen.current })
+  const useUIStore = (selector: (state: ReturnType<typeof getState>) => unknown) => selector(getState())
+  useUIStore.getState = getState
+  return { useUIStore }
+})
 
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: true }),

@@ -282,6 +282,7 @@ function DestinationShellContent({
         activeId={activeId}
         navLabel={t('nav.mainNavigation')}
         onSelect={(id) => navigate(id as BottomTab)}
+        onSidebarNavigate={() => useUIStore.getState().setAstraConversationOpen(false)}
         {...wideCreate}
         createRefusal={createRefusal}
         account={getAccountLabel(profile)}

@@ -39,7 +39,7 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
   return target.closest('[data-composer-root]')?.querySelector<HTMLElement>('[data-open-conversation]') ?? target
 }
 
-type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode }
+type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode; onSidebarNavigate?: () => void }
 
 function SidebarItem({
   item,
@@ -109,10 +109,15 @@ function SidebarAstraRow({ row, open, conversationId }: Readonly<{
           </button>
 }
 
-function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & { createRefusal?: ReactNode; layerOpen: boolean; wide: boolean; conversationId: string }>) {
+function ShellSidebar(props: Readonly<Extract<ResponsiveShellProps, { nav?: true }> & { layerOpen: boolean; wide: boolean; conversationId: string }>) {
   return (
     <aside
       data-shell-sidebar=""
+      onClickCapture={(event) => {
+        if (!props.layerOpen || !(event.target instanceof Element)) return
+        const control = event.target.closest('button, a[href]')
+        if (control && !control.hasAttribute('data-shell-astra-row')) props.onSidebarNavigate?.()
+      }}
       inert={props.layerOpen && !props.wide || undefined}
       className="z-sticky hidden h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex"
     >

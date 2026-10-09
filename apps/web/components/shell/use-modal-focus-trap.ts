@@ -23,6 +23,14 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
   )
 }
 
+function isOwnedMenuTarget(container: HTMLElement, target: Element): boolean {
+  const menu = target.closest('[role="menu"][id]')
+  return !!menu && Array.from(container.querySelectorAll('[aria-controls]')).some(
+    (control) => !control.closest('[inert], [hidden], [aria-hidden="true"]')
+      && control.getAttribute('aria-controls')?.split(/\s+/).includes(menu.id),
+  )
+}
+
 export function useModalFocusTrap(
   open: boolean,
   dialogRef: RefObject<HTMLElement | null>,
@@ -55,7 +63,7 @@ export function useModalFocusTrap(
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isTopModalFocusOwner(ownerId)) return
-      if (event.key !== 'Tab') return
+      if (event.key !== 'Tab' || event.defaultPrevented) return
       const focusable = getFocusableElements(dialog)
       if (focusable.length === 0) {
         event.preventDefault()
@@ -76,7 +84,7 @@ export function useModalFocusTrap(
 
     const handleFocusIn = (event: FocusEvent) => {
       if (!isTopModalFocusOwner(ownerId)) return
-      if (event.target instanceof Node && !dialog.contains(event.target)) focusFirst()
+      if (event.target instanceof Element && !dialog.contains(event.target) && !isOwnedMenuTarget(dialog, event.target)) focusFirst()
     }
 
     focusFirst()
