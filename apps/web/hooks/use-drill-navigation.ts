@@ -1,7 +1,7 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { habitKeys, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
+import { habitKeys, shouldRetryQuery, queryRetryDelay, isUpstreamStarting } from '@orbit/shared/query'
 
 import { useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
@@ -120,7 +120,7 @@ export function useDrillNavigation(
           queryKey: habitKeys.detail(parentId),
           queryFn: () => fetchHabitDetail(parentId),
           staleTime: 0,
-          retry: (failureCount, error) => navigator.onLine && extractBackendStatus(error) === 429 && shouldRetryQuery(failureCount, error),
+          retry: (failureCount, error) => navigator.onLine && (extractBackendStatus(error) === 429 || isUpstreamStarting(error)) && shouldRetryQuery(failureCount, error),
           retryDelay: queryRetryDelay,
         }), todayStr)
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return

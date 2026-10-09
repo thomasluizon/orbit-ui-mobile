@@ -45,11 +45,49 @@ vi.stubGlobal('fetch', mockFetch)
 
 const originalLocation = globalThis.location
 
-import { apiFetch, fetchJson, ApiError } from '@/lib/api-fetch'
+import { apiFetch, fetchJson, ApiError, fetchWithUpgradeGuidance } from '@/lib/api-fetch'
 import { useAppToastStore } from '@/stores/app-toast-store'
 const toastError = vi.fn()
 
 describe('apiFetch', () => {
+  it('wakes the public API once per minute for starting refusals without publishing an error', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    vi.stubEnv('NEXT_PUBLIC_EVENT_API_BASE', 'https://api-staging.useorbit.org/')
+    const wake = vi.fn(async (_input: string, _init?: RequestInit) => new Response(null))
+    mockFetch.mockImplementation((input: string, init?: RequestInit) => init?.mode === 'no-cors'
+      ? wake(input, init)
+      : Promise.resolve(Response.json({ error: 'Upstream service is starting', errorCode: 'UPSTREAM_STARTING' }, { status: 503, headers: { 'Retry-After': '5' } })))
+    try {
+      for (let count = 0; count < 3; count++) {
+        await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503, retryAfter: '5' })
+      }
+      expect(wake).toHaveBeenCalledOnce()
+      expect(wake).toHaveBeenCalledWith('https://api-staging.useorbit.org/health', { mode: 'no-cors', cache: 'no-store' })
+      vi.advanceTimersByTime(59_999)
+      await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503 })
+      expect(wake).toHaveBeenCalledOnce()
+      vi.advanceTimersByTime(1)
+      await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 503 })
+      expect(wake).toHaveBeenCalledTimes(2)
+      expect(toastError).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    { status: 429, errorCode: 'RATE_LIMITED' },
+    { status: 503, errorCode: 'INTERNAL_SERVER_ERROR' },
+    { status: 500, errorCode: 'UPSTREAM_STARTING' },
+  ])('does not wake the API for $status/$errorCode', async ({ status, errorCode }) => {
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Unavailable', errorCode }, { status }))
+    const response = await fetchWithUpgradeGuidance('/api/habits')
+    expect(response.status).toBe(status)
+    expect(mockFetch).toHaveBeenCalledOnce()
+  })
+
   beforeEach(() => {
     mockFetch.mockReset()
     mockLogout.mockReset()
@@ -338,15 +376,10 @@ describe('apiFetch', () => {
   })
 
   it('lets a caller handle a 503 without a global toast', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      headers: new Headers(),
-      status: 503,
-      json: () => Promise.resolve({
-        error: 'Payment service temporarily unavailable',
-        code: 'PAYMENT_SERVICE_UNAVAILABLE',
-      }),
-    })
+    mockFetch.mockResolvedValue(Response.json({
+      error: 'Payment service temporarily unavailable',
+      code: 'PAYMENT_SERVICE_UNAVAILABLE',
+    }, { status: 503 }))
 
     await expect(
       apiFetch('/api/subscriptions/plans', undefined, undefined, {

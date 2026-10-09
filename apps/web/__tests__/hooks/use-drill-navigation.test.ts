@@ -136,9 +136,9 @@ describe('useDrillNavigation', () => {
     mockFetch.mockReset()
   })
 
-  it('keeps children loading until a rate limited read recovers', async () => {
+  it.each([429, 503])('keeps children loading until a %s recovery read returns', async (status) => {
     vi.useFakeTimers()
-    mockFetch.mockResolvedValueOnce(Response.json(null, { status: 429, headers: { 'Retry-After': '60' } }))
+    mockFetch.mockResolvedValueOnce(Response.json(status === 503 ? { errorCode: 'UPSTREAM_STARTING' } : null, { status, headers: { 'Retry-After': '60' } }))
       .mockResolvedValue(Response.json(makeDetailResponse()))
     const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
     act(() => { void result.current.drillInto('parent1') })

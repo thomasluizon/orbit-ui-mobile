@@ -91,6 +91,25 @@ describe('adapter query retry policy', () => {
     }
   })
 
+  it.each([
+    { name: 'calendar events', endpoint: API.calendar.events, useHook: () => useCalendarEvents({ timeZone: 'UTC' }) },
+    { name: 'reschedule suggestion', endpoint: API.habits.rescheduleSuggestion('habit-1'), useHook: () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }) },
+  ])('keeps the $name override pending through a starting response', async ({ endpoint, useHook }) => {
+    vi.useFakeTimers()
+    const refusedFetch = vi.fn(async () => Response.json({ error: 'Unavailable', errorCode: 'UPSTREAM_STARTING' }, { status: 503, headers: { 'Retry-After': '5' } }))
+    vi.stubGlobal('fetch', (input: string) => input.split('?')[0] === endpoint ? refusedFetch() : Promise.resolve(Response.json([])))
+    const { wrapper } = setupClient(false)
+    const { result } = renderHook((): { isLoading: boolean; error: Error | null } => useHook(), { wrapper })
+    await act(async () => { await vi.advanceTimersByTimeAsync(124_999) })
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.error).toBeNull()
+    expect(refusedFetch).toHaveBeenCalledTimes(6)
+    await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(result.current.error).toMatchObject({ status: 503 })
+    expect(refusedFetch).toHaveBeenCalledTimes(7)
+    expect(useThrottleStore.getState().error).toBeNull()
+  })
+
   it('keeps billing pending through Retry-After until automatic recovery', async () => {
     vi.useFakeTimers()
     const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(null, { status: 429, headers: { 'Retry-After': '60' } }))

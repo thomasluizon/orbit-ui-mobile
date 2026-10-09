@@ -29,6 +29,17 @@ describe('shouldRetryQuery', () => {
 })
 
 describe('rate limited reads', () => {
+  it('gives upstream starting the same bounded recovery window as rate limits', () => {
+    const error = createApiClientError(503, { errorCode: 'UPSTREAM_STARTING' }, 'Unavailable', '5')
+    let total = 0
+    for (let attempt = 0; shouldRetryQuery(attempt, error); attempt++) {
+      total += queryRetryDelay(attempt, error)
+      expect(attempt).toBeLessThan(10)
+    }
+    expect(total).toBeGreaterThanOrEqual(90_000)
+    expect(total).toBeLessThanOrEqual(720_000)
+    expect(shouldRetryQuery(6, error)).toBe(false)
+  })
   it('retries long enough for a sleeping service with a bounded wait', () => {
     const error = createApiClientError(429, null, 'Unavailable')
     let total = 0

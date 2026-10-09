@@ -724,11 +724,7 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: async () => null,
-    }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(null, { status: 503 })))
 
     render(<UpgradePage />)
     const alert = screen.getByRole('alert')

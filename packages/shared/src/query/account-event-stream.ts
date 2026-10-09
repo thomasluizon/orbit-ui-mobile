@@ -1,5 +1,5 @@
 import { createApiClientError, extractBackendStatus } from '../utils/error-utils'
-import { errorRetryAfter } from './retry'
+import { errorRetryAfter, isUpstreamStarting } from './retry'
 import { accountEventPayloadSchema, type AccountEventPayload } from '../types/account-event'
 
 export type ParsedAccountEvent =
@@ -108,7 +108,7 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
     } catch (error: unknown) {
       retryAfter = errorRetryAfter(error)
       retry = Math.min(retry + 1, 5)
-      if (!opened && reportNextFailure && extractBackendStatus(error) !== 429 && streamIsActive(options.signal)) {
+      if (!opened && reportNextFailure && extractBackendStatus(error) !== 429 && !isUpstreamStarting(error) && streamIsActive(options.signal)) {
         reportNextFailure = false
         options.onFirstFailure?.(Date.now())
       }

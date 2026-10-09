@@ -201,11 +201,7 @@ describe('useCalendarEvents', () => {
   })
 
   it('falls back to a status message when the error body cannot be parsed', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: () => Promise.reject(new Error('no json')),
-    })
+    mockFetch.mockResolvedValue(new Response('Unavailable', { status: 503 }))
     const { result } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper: createWrapper() })
     expect(result.current.isFetching).toBe(true)
     await act(async () => { await expect(result.current.refetch({ cancelRefetch: false, throwOnError: true })).rejects.toThrow() })
