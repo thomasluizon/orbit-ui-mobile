@@ -28,7 +28,7 @@ describe('Shell scrollbar geometry and paint', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([1352, 1100, 600])('reserves 4px without painting at rest and reveals only hovered thumbs at %ipx', async (width) => {
-    const view = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation"
+    const view = render(<ShellWide items={[]} activeId="hoje" navLabel="Navigation" astraRow={{ label: 'Astra', onOpen: vi.fn() }}
       header={<button type="button">Header</button>}
       notice={<div>Notice</div>} composer={<button type="button">Composer</button>}
       tabBar={<nav>Tabs</nav>} fab={<button type="button">Create</button>}>

@@ -14,7 +14,7 @@ import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 /** Surface inventory:
- * Web empty conversation overlay and side panel; Android empty conversation.
+ * Web full-screen empty conversation; Android empty conversation.
  * Web and Android conversation composer strips.
  * Web and Android habit detail composer strips.
  */
@@ -73,8 +73,8 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
         await expect(page.getByTestId('habit-row').getByText(title, { exact: true })).toBeVisible()
-        await page.getByRole('button', { name: words.todayAstra.openConversation, exact: true }).click()
-        const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
+        await page.getByRole('button', { name: width >= 1024 ? words.chat.title : words.todayAstra.openConversation, exact: true }).click()
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
         const empty = conversation.getByRole('feed')
         await markRequiredLabels(empty.getByText(words.chat.empty.title, { exact: true }))
         await expect(empty.getByRole('button')).toHaveCount(0)

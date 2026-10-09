@@ -45,7 +45,7 @@ for (const width of [412, 1280] as const) {
         await page.goto(path)
         if (name === 'Onboarding') await expect(page.getByRole('dialog')).toBeVisible()
         if (name === 'Habit detail') await expect(page.getByRole('heading', { name: habit.title })).toBeVisible()
-        const hasComposer = ['Hoje', 'Habit detail'].includes(name)
+        const hasComposer = name === 'Habit detail' || (name === 'Hoje' && width < 1024)
         const hasPinnedSlot = hasComposer || name === 'Onboarding'
         const clearance = width < 1024 && hasPinnedSlot ? 96 : 32
         await expect(page.locator('[data-composer-root]')).toHaveCount(hasComposer ? 1 : 0)
