@@ -1,10 +1,11 @@
-import { useMemo, useState, type Ref } from 'react'
-import { Pressable, StyleSheet, View, type ColorValue, type PressableProps, type ViewStyle } from 'react-native'
+import { useMemo, useState, type ReactNode, type Ref } from 'react'
+import { Pressable, StyleSheet, View, type ColorValue, type PressableProps, type PressableStateCallbackType, type ViewStyle } from 'react-native'
 import { selectedBorderStyle } from './selected-focus-indicator'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
-export interface InsetFocusPressableProps extends PressableProps {
+export interface InsetFocusPressableProps extends Omit<PressableProps, 'children'> {
+  children?: ReactNode | ((state: PressableStateCallbackType & { focused: boolean }) => ReactNode)
   ref?: Ref<View>
   focusOffset?: number
   focusColor?: ColorValue
@@ -39,7 +40,7 @@ export function InsetFocusPressable({
       {(state) => {
         const shape = StyleSheet.flatten<ViewStyle | undefined>(typeof style === 'function' ? style(state) : style)
         return <>
-          {typeof children === 'function' ? children(state) : children}
+          {typeof children === 'function' ? children({ ...state, focused }) : children}
           {focused && !props.disabled ? <View
             pointerEvents="none"
             accessible={false}

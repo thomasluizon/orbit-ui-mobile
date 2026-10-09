@@ -7,7 +7,7 @@ import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Input } from '@/components/ui/input'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
+import { inspectControlAccentRings, inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('field indicator readers in Chromium', () => {
@@ -27,6 +27,37 @@ describe('field indicator readers in Chromium', () => {
   })
 
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it('preserves the neutral outline on the real Today Astra control class', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}
+        :root { ${Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([property, value]) => `${property}: ${value};`).join(' ')} }
+      </style><button class="today-astra-line">Astra</button>`)
+      await page.keyboard.press('Tab')
+      expect((await inspectFocusedRing(page))?.indicators).toEqual(['button:outline'])
+      expect(await inspectControlAccentRings(page.locator('button'))).toHaveLength(0)
+    } finally {
+      await page.close()
+    }
+  })
+
+  it('preserves a focused field perimeter on a wider owning wrapper', async () => {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>
+        :root { --primary: rgb(196, 83, 15); }
+        .field { width: 320px; padding: 16px; }
+        .field:focus-within { box-shadow: inset 0 0 0 2px var(--primary); }
+        textarea { width: 240px; border: 0; outline: none; }
+      </style><div class="field"><textarea name="message"></textarea></div>`)
+      await page.keyboard.press('Tab')
+      expect((await inspectFocusedRing(page))?.indicators).toEqual(['div:shadow'])
+      expect(await inspectControlAccentRings(page.locator('textarea'))).toHaveLength(0)
+    } finally {
+      await page.close()
+    }
+  })
 
   it.each([false, true])('reads the Input perimeter above an opaque fill, multiline %s', async (multiline) => {
     const properties = { label: 'Email', name: 'email', value: 'focus@example.com', onChange: () => {} }

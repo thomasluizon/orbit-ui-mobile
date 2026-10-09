@@ -171,14 +171,14 @@ export async function inspectFocusedRing(page: Page) {
   })
 }
 
-export async function inspectControlAccentRings(target: Locator) {
-  return target.evaluate((control) => {
+async function inspectControlRings(target: Locator, focusedControl: boolean) {
+  return target.evaluate((control, focusedControl) => {
     for (const animation of document.getAnimations()) animation.finish()
     const bounds = control.getBoundingClientRect()
     const ancestors: Element[] = []
-    for (let parent = control.parentElement; parent; parent = parent.parentElement) {
+    for (let parent = control.parentElement, level = 0; parent; parent = parent.parentElement, level += 1) {
       const rect = parent.getBoundingClientRect()
-      if ((['top', 'right', 'bottom', 'left'] as const).every((side) => Math.abs(rect[side] - bounds[side]) <= 8)) ancestors.push(parent)
+      if (focusedControl ? level < 6 : (['top', 'right', 'bottom', 'left'] as const).every((side) => Math.abs(rect[side] - bounds[side]) <= 8)) ancestors.push(parent)
     }
     const primary = getComputedStyle(control).getPropertyValue('--primary').trim()
     const probe = document.createElement('span')
@@ -204,7 +204,8 @@ export async function inspectControlAccentRings(target: Locator) {
         if (pseudo && (['none', 'normal'].includes(style.content) || Number(style.opacity) === 0)) return []
         const label = `${element.tagName.toLowerCase()}${pseudo ?? ''}`
         const rings: string[] = []
-        if (style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0 && accent(style.outlineColor)) rings.push(`${label}:outline`)
+        const outlineVisible = style.outlineColor !== 'transparent' && (style.outlineColor.match(/[\d.]+/g)?.map(Number)[3] ?? 1) > 0
+        if (!['none', 'hidden'].includes(style.outlineStyle) && Number.parseFloat(style.outlineWidth) > 0 && outlineVisible && (focusedControl || accent(style.outlineColor))) rings.push(`${label}:outline`)
         for (const shadow of style.boxShadow.split(/,(?![^()]*\))/)) {
           const color = shadow.match(/rgba?\([^)]*\)/)?.[0]
           const lengths = shadow.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g)?.map(Number.parseFloat)
@@ -214,12 +215,16 @@ export async function inspectControlAccentRings(target: Locator) {
         return rings
       })
     })
-  })
+  }, focusedControl)
+}
+
+export async function inspectControlAccentRings(target: Locator) {
+  return inspectControlRings(target, false)
 }
 
 export async function inspectFocusedControlRings(page: Page) {
   const focused = page.locator(':focus')
   if (await focused.count() !== 1) return null
   const state = await focused.evaluate((element) => ({ focused: element.tagName.toLowerCase(), focusVisible: element.matches(':focus-visible') }))
-  return { ...state, indicators: await inspectControlAccentRings(focused) }
+  return { ...state, indicators: await inspectControlRings(focused, true) }
 }

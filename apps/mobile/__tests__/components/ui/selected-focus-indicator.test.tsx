@@ -1,18 +1,22 @@
-import { StyleSheet } from 'react-native'
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { addDays, format } from 'date-fns'
 import { describe, expect, it, vi } from 'vitest'
 import { Chip } from '@/components/ui/chip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { RadioRow } from '@/components/ui/select-check'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { buildHabitUnderstandingLabels } from '@orbit/shared/utils'
+import { buildHabitUnderstandingLabels, formatLocaleDate } from '@orbit/shared/utils'
 import { TimeField } from '@/components/ui/time-field'
+import { DateField } from '@/components/ui/date-field'
 import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
 import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
 import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
 import { ProfilePreferencesContent } from '@/app/(tabs)/profile/_components/profile-preferences-content'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+
+vi.unmock('@/components/ui/date-field')
 
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => null }))
@@ -114,6 +118,32 @@ it('theme pills keep the selected tint while focus takes the perimeter', () => {
   let tree: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => { tree = TestRenderer.create(<ProfilePreferencesContent profile={createMockProfile()} patchProfile={vi.fn()} />) })
   verifyAllChoices(tree)
+  const unselected = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityRole?: string; accessibilityState?: { selected?: boolean } } }) => node.props.accessibilityRole === 'radio' && node.props.accessibilityState?.selected === false)
+  expect(StyleSheet.flatten(unselected.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover)
+  expect(ringCount(unselected)).toBe(0)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it.each(['empty', 'today', 'tomorrow'] as const)('DateField day focus replaces the today perimeter, value %s', (value) => {
+  const today = new Date()
+  const tomorrow = addDays(today, 1)
+  const selectedDate = value === 'empty' ? '' : format(value === 'today' ? today : tomorrow, 'yyyy-MM-dd')
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<DateField value={selectedDate} onChange={vi.fn()} />) })
+  TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
+  for (const day of [today, tomorrow]) {
+    const label = formatLocaleDate(day, 'en', { month: 'long', day: 'numeric', year: 'numeric' })
+    const control = () => tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === label)
+    const restingRings = day === today && value !== 'today' ? 1 : 0
+    expect(ringCount(control())).toBe(restingRings)
+    const target = {}
+    const event = { target, currentTarget: target }
+    TestRenderer.act(() => control().props.onFocus?.(event))
+    expect(ringCount(control())).toBe(1)
+    expect(control().findAllByType('View').filter((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten(node.props.style).outlineWidth === 2)).toHaveLength(1)
+    TestRenderer.act(() => control().props.onBlur?.(event))
+    expect(ringCount(control())).toBe(restingRings)
+  }
   TestRenderer.act(() => tree!.unmount())
 })
 

@@ -92,13 +92,17 @@ for (const width of [412, 1352]) {
       const words = locale === 'en' ? en : ptBR
       test.describe(`one selection and focus indicator at ${width}, ${locale}, ${theme}`, () => {
         test.use({ appLocale: locale, subscriptionState: 'free', layoutProfile: { themePreference: theme }, viewport: { width, height: 915 } })
-        test.beforeEach(async ({ page }) => { await completeInstallOnboarding(page) })
 
         test('calendar segments keep one ring through every arrow-key selection', async ({ page }) => {
+          await completeInstallOnboarding(page)
           await page.goto('/calendar')
           const month = page.getByRole('radio', { name: words.calendar.view.month, exact: true })
-          const week = page.getByRole('radio', { name: words.calendar.view.week, exact: true })
-          await checkChoice(page, month, week)
+          const labels = [words.calendar.view.month, words.calendar.view.week, words.calendar.view.range, words.calendar.view.agenda]
+          for (let index = 0; index < labels.length; index += 1) {
+            await checkChoice(page, page.getByRole('radio', { name: labels[index], exact: true }), page.getByRole('radio', { name: labels[(index + 1) % labels.length], exact: true }))
+          }
+          await month.click()
+          await keyboardFocus(page, month)
           for (const label of [words.calendar.view.week, words.calendar.view.range, words.calendar.view.agenda, words.calendar.view.month]) {
             await page.keyboard.press('ArrowRight')
             const segment = page.getByRole('radio', { name: label, exact: true })
@@ -109,6 +113,7 @@ for (const width of [412, 1352]) {
         })
 
         test('theme pills and timezone radios yield selection to focus', async ({ page }) => {
+          await completeInstallOnboarding(page)
           await page.goto('/profile/preferences')
           const selected = page.getByRole('button', { name: theme === 'dark' ? words.preferences.themeModeDark : words.preferences.themeModeLight, exact: true })
           const other = page.getByRole('button', { name: theme === 'dark' ? words.preferences.themeModeLight : words.preferences.themeModeDark, exact: true })
@@ -119,6 +124,8 @@ for (const width of [412, 1352]) {
           await expectRings(other, 1)
           await selected.click()
           await expectRings(selected, 1)
+          await selected.hover()
+          await expectRings(selected, 1)
           await keyboardFocus(page, selected)
           await expectRings(selected, 1)
           await page.getByRole('button', { name: words.profile.settingsRows.timezone, exact: false }).click()
@@ -127,6 +134,8 @@ for (const width of [412, 1352]) {
           await expectRings(radios.nth(1), 0)
           await radios.nth(1).hover()
           await expectRings(radios.nth(1), 0)
+          await expectRings(radios.first(), 1)
+          await radios.first().hover()
           await expectRings(radios.first(), 1)
           await sheet.getByRole('textbox').click()
           await keyboardFocus(page, radios.first())
@@ -140,12 +149,14 @@ for (const width of [412, 1352]) {
         })
 
         test('upgrade interval switch yields its selected ring', async ({ page }) => {
+          await completeInstallOnboarding(page)
           await page.goto('/upgrade')
           const radios = page.getByRole('radiogroup').getByRole('radio')
           await checkChoice(page, radios.nth(0), radios.nth(1))
         })
 
         test('habit form days, emoji choices, reminders and time options keep one ring', async ({ page }) => {
+          await completeInstallOnboarding(page)
           await page.goto('/habits/new')
           await page.getByRole('textbox', { name: words.habits.form.describe, exact: true }).fill(locale === 'en' ? 'Read every Monday' : 'Ler toda segunda-feira')
           await checkToggle(page, page.getByRole('button', { name: words.dates.daysLong.monday, exact: true }))
@@ -162,6 +173,7 @@ for (const width of [412, 1352]) {
         })
 
         test('habit detail frequency units and both day pill presentations keep one ring', async ({ page, context }) => {
+          await completeInstallOnboarding(page)
           const habit = habitDetailSchema.parse({ ...makeHabitDetail(), days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 })
           const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: null })
           await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
@@ -172,6 +184,8 @@ for (const width of [412, 1352]) {
           const fields = page.locator('#habit-detail-fields')
           const monday = fields.getByRole('button', { name: words.dates.daysLong.monday, exact: true })
           const tuesday = fields.getByRole('button', { name: words.dates.daysLong.tuesday, exact: true })
+          await expectRings(monday, 1)
+          await monday.hover()
           await expectRings(monday, 1)
           await keyboardFocus(page, monday)
           await expectRings(monday, 1)
@@ -189,9 +203,10 @@ for (const width of [412, 1352]) {
 
         test('onboarding starters, schedule modes and days share the focus rule', async ({ page, context }) => {
           await context.clearCookies()
-          await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
+          await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }, { name: 'orbit_theme_mode', value: theme, url: LAYOUT_ORIGIN }])
           await page.emulateMedia({ colorScheme: theme })
           await page.goto('/onboarding')
+          await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${theme}\\b`))
           const popup = page.getByRole('dialog')
           const starters = popup.locator('button.chip')
           await checkChoice(page, starters.nth(0), starters.nth(1))
@@ -202,6 +217,7 @@ for (const width of [412, 1352]) {
         })
 
         test('goal type switch and DateField today keep one indicator', async ({ page }) => {
+          await completeInstallOnboarding(page)
           await page.goto('/habits/new')
           await page.getByRole('button', { name: words.habits.form.moreDetails, exact: true }).click()
           await page.getByRole('button', { name: words.habits.form.goals, exact: false }).click()

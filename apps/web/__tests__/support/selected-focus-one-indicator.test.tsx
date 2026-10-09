@@ -26,6 +26,17 @@ describe('selection yields to keyboard focus', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   for (const theme of ['dark', 'light'] as const) {
+    it(`unselected theme choice paints hover without an accent ring, ${theme}`, async () => {
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style><button class="orbit-profile-theme-choice">Theme</button><span style="background:var(--bg-hover)">Hover</span>`)
+        const control = page.locator('button')
+        await control.hover()
+        const hoverFill = await page.locator('span').evaluate((element) => getComputedStyle(element).backgroundColor)
+        await expect.poll(() => control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(hoverFill)
+        expect(await inspectControlAccentRings(control)).toHaveLength(0)
+      } finally { await page.close() }
+    })
     for (const selected of [false, true]) {
       for (const surface of ['segment', 'chip', 'period', 'radio'] as const) {
         it(`${surface}, selected ${selected}, ${theme}`, async () => {

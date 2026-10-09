@@ -146,6 +146,10 @@
   --selection-ring-width: 1.5px;
 }
 
+.orbit-profile-theme-choice:not([data-selected]):is(:hover, :active) {
+  background: var(--bg-hover);
+}
+
 .habit-form-disclosure {
   transform-origin: center top;
   opacity: 1;
