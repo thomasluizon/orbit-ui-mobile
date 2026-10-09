@@ -72,7 +72,7 @@ function CardConversation({ operations }: { operations: CardOperation[] }) {
     if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }
   const chat = { chatContainerRef, threadScroll, scrollToBottom, messages: messagesFor(operations),
-    activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: false,
+    activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: operations.length === 0,
     canShowFollowUps: false, composerProps: { suggestions: [] }, handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController
   return <AstraConversation chat={chat} />
@@ -115,7 +115,7 @@ it.each([['refresh', 'revise'], ['breakdown', 'clarification']] as CardOperation
   expectBusy(false)
 })
 
-function renderScrollingConversation() {
+function renderScrollingConversation(operations: CardOperation[] = ['clarification']) {
   let height = 1400
   vi.stubGlobal('ResizeObserver', class {
     constructor(private callback: () => void) { resizeCallbacks.add(callback) }
@@ -128,10 +128,19 @@ function renderScrollingConversation() {
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrolling })
   Object.defineProperty(HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => height })
   Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 500 })
-  const view = render(<CardConversation operations={['clarification']} />)
+  const view = render(<CardConversation operations={operations} />)
   const feed = screen.getByRole('feed')
   return { view, feed, scrolling, grow: () => { height = 1800; for (const resize of resizeCallbacks) resize() } }
 }
+
+it('keeps the empty conversation at its first line on opening and content growth', async () => {
+  const owner = renderScrollingConversation([])
+  await act(async () => { await new Promise(requestAnimationFrame) })
+  expect(owner.feed.scrollTop).toBe(0)
+  await act(async () => { owner.grow(); await new Promise(requestAnimationFrame) })
+  expect(owner.feed.scrollTop).toBe(0)
+  expect(owner.scrolling).not.toHaveBeenCalled()
+})
 
 it('opens and reopens a retained thread at its newest message', async () => {
   const owner = renderScrollingConversation()

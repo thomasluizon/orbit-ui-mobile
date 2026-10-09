@@ -108,11 +108,11 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   const threadContentRef = useRef<HTMLDivElement>(null)
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
     chatContainerRef.current = element
-    if (element) {
-      threadScroll.followLatest()
-      element.scrollTo({ top: element.scrollHeight, behavior: 'auto' })
-      threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
-    }
+    if (!element) return
+    threadScroll.followLatest()
+    if (!element.querySelector('article')) return
+    element.scrollTo({ top: element.scrollHeight, behavior: 'auto' })
+    threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
   }, [chatContainerRef, threadScroll])
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     const content = threadContentRef.current
     if (!feed || !content) return
     const observer = new ResizeObserver(() => {
-      if (threadScroll.isFollowing()) scrollToBottom()
+      if (threadScroll.isFollowing() && feed.querySelector('article')) scrollToBottom()
     })
     observer.observe(feed)
     observer.observe(content)
