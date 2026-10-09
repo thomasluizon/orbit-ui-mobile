@@ -4,6 +4,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { prepareAgendaCalendar } from './calendar-agenda-fixtures'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
+import { restPointerOutside } from './pointer-rest'
 import { test } from './upgrade-fixtures'
 
 
@@ -33,20 +34,17 @@ for (const width of [320, 412, 1100, 1352]) {
           const navigation = header.locator('[data-testid$="-navigation"]')
           const controls = navigation.getByRole('button')
           await expect(controls).toHaveCount(3)
-          await page.mouse.move(0, 0)
-          await expect.poll(() => controls.nth(1).evaluate((title) => ({
-            pointerInside: title.contains(document.elementFromPoint(0, 0)),
-            hovered: title.matches(':hover'),
-          }))).toEqual({ pointerInside: false, hovered: false })
+          await restPointerOutside(header)
           await controls.nth(1).evaluate(async (title) => {
             await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
             await Promise.all(title.getAnimations().filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished))
           })
+          await expect(controls.nth(1)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
           const geometry = await controls.evaluateAll((buttons) => buttons.map((button) => {
             const bounds = button.getBoundingClientRect(); const style = getComputedStyle(button)
             const row = button.parentElement!.getBoundingClientRect()
             return { left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height,
-              rowLeft: row.left, rowRight: row.right, shadow: style.boxShadow, background: style.backgroundColor, radius: style.borderRadius }
+              rowLeft: row.left, rowRight: row.right, shadow: style.boxShadow, radius: style.borderRadius }
           }))
           expect(Math.abs((geometry[0]!.left - geometry[0]!.rowLeft) - (geometry[2]!.rowRight - geometry[2]!.right))).toBeLessThanOrEqual(1)
           for (const index of [0, 2]) {
@@ -54,7 +52,7 @@ for (const width of [320, 412, 1100, 1352]) {
             ring ??= geometry[index]!.shadow
             expect(geometry[index]!.shadow).toBe(ring); expect(ring).toContain('1.5px')
           }
-          expect(geometry[1]).toMatchObject({ shadow: 'none', background: 'rgba(0, 0, 0, 0)', radius: '12px' })
+          expect(geometry[1]).toMatchObject({ shadow: 'none', radius: '12px' })
           const title = controls.nth(1)
           await expectInteractionFill(title)
           await markRequiredLabels(title)

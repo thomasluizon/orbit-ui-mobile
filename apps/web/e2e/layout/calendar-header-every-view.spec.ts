@@ -6,6 +6,7 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { resolveWebThemeVariables } from '../../lib/theme-dom'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { restPointerOutside } from './pointer-rest'
 import { test } from './upgrade-fixtures'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
@@ -20,11 +21,12 @@ async function box(element: Locator) {
   })
 }
 
-async function expectNavigationPaint(navigation: Locator) {
+async function expectNavigationPaint(navigation: Locator, header: Locator) {
   const controls = navigation.locator('button')
   for (const control of await controls.all()) {
-    const paint = await control.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, ring: getComputedStyle(button).boxShadow, radius: getComputedStyle(button).borderRadius }))
-    expect(paint.background).toBe('rgba(0, 0, 0, 0)')
+    await restPointerOutside(header)
+    await expect(control).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+    const paint = await control.evaluate((button) => ({ ring: getComputedStyle(button).boxShadow, radius: getComputedStyle(button).borderRadius }))
     const isChevron = await control.evaluate((button) => !button.textContent.trim())
     if (isChevron) {
       expect(paint.ring).toContain('1.5px')
@@ -71,7 +73,7 @@ for (const width of [320, 412, 600, 840]) {
             expect(segments.top, view).toBe(initialTop)
             const navigation = header.locator('[data-testid$="-navigation"]')
             expect((await box(navigation)).height).toBe(48)
-            await expectNavigationPaint(navigation)
+            await expectNavigationPaint(navigation, header)
           }
           const firstDay = page.getByTestId('calendar-agenda-day').first()
           const initialDay = await firstDay.textContent()
