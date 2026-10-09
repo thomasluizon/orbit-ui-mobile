@@ -146,7 +146,7 @@
   --selection-ring-width: 1.5px;
 }
 
-.orbit-profile-theme-choice:not([data-selected]):is(:hover, :active) {
+.orbit-profile-theme-choice:not([data-selected]):active {
   background: var(--bg-hover);
 }
 
@@ -196,6 +196,10 @@
     color: var(--primary-soft);
     background: var(--primary-dim);
   }
+}
+
+.orbit-profile-theme-choice[data-selected]:focus-visible {
+  color: var(--fg-1);
 }
 
 @keyframes fade-in {

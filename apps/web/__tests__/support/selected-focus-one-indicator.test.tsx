@@ -26,6 +26,20 @@ describe('selection yields to keyboard focus', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   for (const theme of ['dark', 'light'] as const) {
+    it(`selected theme choice keeps its foreground label under hovered keyboard focus, ${theme}`, async () => {
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}:root { ${Object.entries(resolveWebThemeVariables('orange', theme)).map(([key, value]) => `${key}:${value};`).join('')} }</style><button class="orbit-profile-theme-choice" data-selected>Theme</button><span style="color:var(--fg-1);background:var(--primary-dim)">Selected</span>`)
+        const control = page.locator('button')
+        await control.hover()
+        await page.keyboard.press('Tab')
+        expect(await control.evaluate((button) => button.matches(':focus-visible'))).toBe(true)
+        const selectedStyle = await page.locator('span').evaluate((element) => ({ color: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor }))
+        await expect.poll(() => control.evaluate((element) => getComputedStyle(element).color)).toBe(selectedStyle.color)
+        expect(await control.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(selectedStyle.background)
+        expect(await inspectControlAccentRings(control)).toHaveLength(1)
+      } finally { await page.close() }
+    })
     it(`unselected theme choice paints hover without an accent ring, ${theme}`, async () => {
       const page = await browser.newPage()
       try {

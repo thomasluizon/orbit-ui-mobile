@@ -25,7 +25,7 @@ function Selector({ onChange }: Readonly<{ onChange: (value: GoalType) => void }
 describe('GoalTypeSelector', () => {
   it('uses the shared segmented control', () => {
     render(<Selector onChange={vi.fn()} />)
-    expect(screen.getByRole('radiogroup', { name: 'goals.form.type' })).toHaveClass('bg-[var(--bg-field)]')
+    expect(screen.getByRole('radiogroup', { name: 'goals.form.type' })).toHaveClass('bg-[var(--bg-well)]')
   })
 
   it('keeps one tab stop and moves selection and focus with radio keys', () => {
