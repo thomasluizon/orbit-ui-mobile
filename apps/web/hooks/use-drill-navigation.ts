@@ -1,5 +1,8 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
+import { habitKeys, shouldRetryQuery, queryRetryDelay, isUpstreamStarting } from '@orbit/shared/query'
+
 import { useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import {
@@ -11,7 +14,7 @@ import {
 } from '@orbit/shared/utils/drill-navigation'
 import type { HabitVisibilityOptions, HabitVisibilityView } from '@orbit/shared/utils/habit-visibility'
 import { API } from '@orbit/shared/api'
-import { formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { extractBackendStatus, formatAPIDate, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { hasOpenOverlay } from '@/lib/overlay-stack'
@@ -61,6 +64,7 @@ export function useDrillNavigation(
   view: HabitVisibilityView = 'all',
   todayStr = formatAPIDate(new Date()),
 ): DrillNavigationState {
+  const queryClient = useQueryClient()
   const t = useTranslations()
   const [drillStack, setDrillStack] = useAccountScopedState<string[]>(() => [])
   const [drillChildrenMap, setDrillChildrenMap] = useAccountScopedState(
@@ -111,7 +115,14 @@ export function useDrillNavigation(
       feedbackPendingRef.current = showFeedback
       if (showFeedback) setDrillLoading(true)
       try {
-        const normalized = await loadDrillChildren(habitId, fetchHabitDetail, todayStr)
+        void queryClient.cancelQueries({ queryKey: habitKeys.detail(habitId), exact: true })
+        const normalized = await loadDrillChildren(habitId, (parentId) => queryClient.fetchQuery({
+          queryKey: habitKeys.detail(parentId),
+          queryFn: () => fetchHabitDetail(parentId),
+          staleTime: 0,
+          retry: (failureCount, error) => navigator.onLine && (extractBackendStatus(error) === 429 || isUpstreamStarting(error)) && shouldRetryQuery(failureCount, error),
+          retryDelay: queryRetryDelay,
+        }), todayStr)
         if (requestIdRef.current !== requestId || activeParentIdRef.current !== habitId) return
         setDrillParentInfo(normalized.parent)
         setDrillChildrenMap((prev) =>
@@ -129,7 +140,7 @@ export function useDrillNavigation(
         }
       }
     },
-    [setDrillChildrenMap, setDrillError, setDrillLoading, setDrillParentInfo, t, todayStr],
+    [queryClient, setDrillChildrenMap, setDrillError, setDrillLoading, setDrillParentInfo, t, todayStr],
   )
 
   const drillInto = useCallback(

@@ -2,11 +2,12 @@
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { calendarKeys } from '@orbit/shared/query'
+import { calendarKeys, shouldRetryQuery, isUpstreamStarting } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { calendarEventsResponseSchema, type CalendarSyncEvent } from '@orbit/shared/types'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import {
+  extractBackendStatus,
   isCalendarSyncNotConnectedMessage,
   reconcileCalendarAutoSyncGrantRevocation,
   resolveCalendarEventsGrantRevocation,
@@ -64,7 +65,10 @@ export function useCalendarEvents(options: CalendarEventsQueryOptions) {
       return { status: 'connected', events }
     },
     enabled: options.enabled ?? true,
-    retry: false,
+    retry: (failureCount, error) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+      return (extractBackendStatus(error) === 429 || isUpstreamStarting(error)) && shouldRetryQuery(failureCount, error)
+    },
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

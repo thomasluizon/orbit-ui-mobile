@@ -28,7 +28,7 @@ permissions:
 jobs:
   build:
     name: Android release build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     env:
@@ -60,6 +60,61 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Read the build's NDK version
+        id: ndk
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Expo's expoLibs catalog imports React Native's version catalog.
+          catalog=$(node -p 'require.resolve("react-native/package.json", { paths: ["./apps/mobile"] })')
+          version=$(sed -n 's/^ndkVersion = "\([0-9.]*\)"$/\1/p' "$(dirname "$catalog")/gradle/libs.versions.toml")
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Cannot read the NDK version from the native build's version catalog."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "path=$ANDROID_HOME/ndk/$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Android NDK
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.ndk.outputs.path }}
+          key: ubuntu-24.04-x64-ndk-v1-${{ steps.ndk.outputs.version }}
+
+      - name: Install and verify the Android NDK
+        shell: bash
+        env:
+          NDK_VERSION: ${{ steps.ndk.outputs.version }}
+          NDK_PATH: ${{ steps.ndk.outputs.path }}
+        run: |
+          set -euo pipefail
+          if [ -d "$NDK_PATH" ]; then
+            echo "Using cached or preinstalled Android NDK $NDK_VERSION."
+          else
+            # The runner image installs sdkmanager here and leaves it off PATH.
+            sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+            if [ ! -x "$sdkmanager" ]; then
+              echo "::error::sdkmanager is missing at $sdkmanager; Gradle will not start."
+              exit 1
+            fi
+            echo "Installing Android NDK $NDK_VERSION with sdkmanager."
+            if ! "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "ndk;$NDK_VERSION"; then
+              echo "::error::Android NDK $NDK_VERSION installation failed before Gradle; rerun to retry the SDK download."
+              exit 1
+            fi
+          fi
+          if ! grep -Fqx "Pkg.Revision = $NDK_VERSION" "$NDK_PATH/source.properties" ||
+             [ ! -s "$NDK_PATH/build/cmake/android.toolchain.cmake" ]; then
+            echo "::error::Android NDK $NDK_VERSION is incomplete or has the wrong revision; Gradle will not start."
+            exit 1
+          fi
+          if ! compiler=$(find "$NDK_PATH/toolchains/llvm/prebuilt" -path '*/bin/clang' -print -quit) ||
+             [ ! -x "$compiler" ] || ! "$compiler" --version; then
+            echo "::error::Android NDK $NDK_VERSION compiler verification failed; Gradle will not start."
+            exit 1
+          fi
+          echo "Verified Android NDK $NDK_VERSION before Gradle."
 
       # Runs the Expo prebuild and the Gradle release assemble across the whole
       # native module graph, which is where a broken native dependency or a

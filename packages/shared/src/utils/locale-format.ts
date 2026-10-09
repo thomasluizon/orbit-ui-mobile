@@ -178,10 +178,10 @@ export function formatCalendarDayTitle(
   date: string,
   locale: string,
   today: string,
-  todayLabel: string,
+  todayWithDate: (date: string) => string,
 ): string {
   if (!date) return ''
-  if (date === today) return `${todayLabel}, ${formatLocaleDayMonth(date, locale)}`
+  if (date === today) return capitalizeFirstLetter(todayWithDate(formatLocaleDayMonth(date, locale)))
   return capitalizeFirstLetter(formatLocaleDate(date, locale, {
     weekday: 'long', day: 'numeric', month: 'long',
   }))
@@ -189,6 +189,16 @@ export function formatCalendarDayTitle(
 
 export function formatCalendarWeekday(date: DateInput, locale: string): string {
   return capitalizeFirstLetter(formatLocaleDate(date, locale, { weekday: 'short' }))
+}
+
+export function formatCalendarAgendaHeading(
+  date: string,
+  locale: string,
+  today: string,
+  todayWithDate: (date: string) => string,
+): string {
+  const dateLabel = formatLocaleDate(date, locale, { weekday: 'long', day: 'numeric', month: 'long' })
+  return capitalizeFirstLetter(date === today ? todayWithDate(dateLabel) : dateLabel)
 }
 
 export function formatWeekdayLabels(locale: string, weekStartsOn: 0 | 1): string[] {

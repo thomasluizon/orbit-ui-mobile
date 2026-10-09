@@ -5,6 +5,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
 }))
 
 vi.mock('@/hooks/use-date-format', () => ({
@@ -13,7 +14,8 @@ vi.mock('@/hooks/use-date-format', () => ({
   }),
 }))
 
-import { CalendarRangeNavigation, CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
+import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 
 function entry(status: CalendarDayEntry['status'], habitId = 'habit'): CalendarDayEntry {
   return { habitId, title: 'Habit', status, isBadHabit: false, dueTime: null, isOneTime: false }
@@ -35,7 +37,7 @@ function renderRange(isLoading = false) {
 
   const view = render(
     <>
-      <CalendarRangeNavigation rangeLabel="Jun 1 to Jun 14" previousRangeLabel="Previous range" nextRangeLabel="Next range" onPreviousRange={onPreviousRange} onNextRange={onNextRange} nextRangeDisabled={false} />
+      <CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'range', label: "Jun 1 to Jun 14", previousLabel: "Previous range", nextLabel: "Next range", onPrevious: onPreviousRange, onNext: onNextRange, onCurrent: vi.fn(), nextDisabled: false }} />
     <CalendarRangeView
       model={model}
       weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
@@ -67,7 +69,7 @@ describe('CalendarRangeView', () => {
     renderRange()
 
     expect(screen.getAllByRole('img')).toHaveLength(14)
-    expect(screen.getAllByRole('button')).toHaveLength(2)
+    expect(screen.getAllByRole('button')).toHaveLength(3)
     expect(screen.getByText('Logs').previousSibling).toHaveTextContent('4')
     expect(screen.getByText('Missed').previousSibling).toHaveTextContent('1')
     expect(screen.getByText('Best streak').previousSibling).toHaveTextContent('3')

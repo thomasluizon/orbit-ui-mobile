@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { configureAccountQueryDefaults, shouldRetryQuery } from '@orbit/shared/query'
+import { configureAccountQueryDefaults, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 
 export function createQueryClient(): QueryClient {
   const queryClient = new QueryClient({
@@ -11,6 +11,7 @@ export function createQueryClient(): QueryClient {
           if (typeof navigator !== 'undefined' && !navigator.onLine) return false
           return shouldRetryQuery(failureCount, error)
         },
+        retryDelay: queryRetryDelay,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
       },

@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createApiClientError } from '@orbit/shared/utils'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BackHandler } from '../../test-mocks/react-native'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitDetail, HabitDetailChild, NormalizedHabit } from '@orbit/shared/types/habit'
@@ -67,6 +69,14 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
   }
 }
 
+const clients: QueryClient[] = []
+
+afterEach(() => {
+  for (const client of clients) client.clear()
+  clients.length = 0
+  vi.useRealTimers()
+})
+
 interface DrillHarness {
   holder: { current: DrillNavigationState }
   rerender: (habitsById: Map<string, NormalizedHabit>, lastUpdated: number, visibilityOptions?: HabitVisibilityOptions) => void
@@ -78,6 +88,8 @@ function renderDrill(
   visibilityOptions?: HabitVisibilityOptions,
   today?: string,
 ): DrillHarness {
+  const client = new QueryClient()
+  clients.push(client)
   const holder = { current: null as unknown as DrillNavigationState }
   function Harness({
     habitsById: byId,
@@ -90,14 +102,14 @@ function renderDrill(
   let root: { update: (element: React.ReactElement) => void } | null = null
   TestRenderer.act(() => {
     root = TestRenderer.create(
-      <Harness habitsById={habitsById} lastUpdated={lastUpdated} visibilityOptions={visibilityOptions} />,
+      <QueryClientProvider client={client}><Harness habitsById={habitsById} lastUpdated={lastUpdated} visibilityOptions={visibilityOptions} /></QueryClientProvider>,
     )
   })
   return {
     holder,
     rerender: (byId, updated, options = visibilityOptions) => {
       TestRenderer.act(() => {
-        root?.update(<Harness habitsById={byId} lastUpdated={updated} visibilityOptions={options} />)
+        root?.update(<QueryClientProvider client={client}><Harness habitsById={byId} lastUpdated={updated} visibilityOptions={options} /></QueryClientProvider>)
       })
     },
   }
@@ -112,6 +124,37 @@ async function actAsync(callback: () => Promise<void>): Promise<void> {
 describe('mobile useDrillNavigation', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it('keeps children loading until a rate limited read recovers', async () => {
+    vi.useFakeTimers()
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(429, null, 'Rate limited', '60'))
+      .mockResolvedValue(makeDetail({ children: [makeChild()] }))
+    const { holder } = renderDrill()
+    TestRenderer.act(() => { void holder.current.drillInto('p1') })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+    expect(holder.current.drillLoading).toBe(true)
+    expect(holder.current.drillError).toBe('')
+    expect(mocks.apiClient).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(holder.current.drillLoading).toBe(false)
+    expect(holder.current.drillError).toBe('')
+    expect(holder.current.drillChildren.map((child) => child.id)).toEqual(['child'])
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a child read error only after the rate limit recovery window', async () => {
+    vi.useFakeTimers()
+    mocks.apiClient.mockRejectedValue(createApiClientError(429, null, 'Rate limited'))
+    const { holder } = renderDrill()
+    TestRenderer.act(() => { void holder.current.drillInto('p1') })
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(124_999) })
+    expect(holder.current.drillLoading).toBe(true)
+    expect(holder.current.drillError).toBe('')
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(holder.current.drillLoading).toBe(false)
+    expect(holder.current.drillError).not.toBe('')
+    expect(mocks.apiClient).toHaveBeenCalledTimes(7)
   })
 
   it('keeps a fetched overdue child on account Today when device Today differs', async () => {

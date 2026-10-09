@@ -13,6 +13,8 @@ import { resolve } from 'node:path'
 import { launchChrome, closeChrome } from '@/__tests__/support/chromium'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
+import { createQueryClient } from '@/lib/query-client'
+import { useThrottleStore } from '@/stores/throttle-store'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockHabit, createMockHabitScheduleChild, createMockHabitScheduleItem } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate, formatAPIDateInTimeZone, normalizeHabitQueryData } from '@orbit/shared/utils'
@@ -36,16 +38,22 @@ const accountHabitCount = vi.hoisted(() => ({ count: 0, isLoaded: true }))
 
 const skipFlow = vi.hoisted(() => ({
   active: false,
+  retryRead: false,
   items: [] as HabitScheduleItem[],
   original: [] as HabitScheduleItem[],
   mutate: vi.fn(),
 }))
 
 vi.mock('@/lib/server-fetch', () => ({ serverAuthMutate: skipFlow.mutate }))
-vi.mock('@/lib/api-fetch', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/lib/api-fetch')>()),
-  fetchJson: async () => ({ items: skipFlow.items, totalCount: skipFlow.items.length, totalPages: 1, page: 1, pageSize: 200 }),
-}))
+vi.mock('@/lib/api-fetch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/api-fetch')>()
+  return {
+    ...actual,
+    fetchJson: async (...args: Parameters<typeof actual.fetchJson>) => skipFlow.retryRead
+      ? actual.fetchJson(...args)
+      : ({ items: skipFlow.items, totalCount: skipFlow.items.length, totalPages: 1, page: 1, pageSize: 200 }),
+  }
+})
 
 function SkipToastHost() {
   const current = useAppToastStore((state) => state.currentToast)
@@ -434,6 +442,70 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
+  it.each([
+    { code: 'RATE_LIMITED', status: 429, failures: 1, retryAfter: '60', deadline: 60_000 },
+    { code: 'UPSTREAM_STARTING', status: 503, failures: 2, retryAfter: '5', deadline: 15_000 },
+  ])('keeps the Hoje habit list loading through $code then renders the list', async ({ code, status, failures, retryAfter, deadline }) => {
+    vi.useFakeTimers()
+    skipFlow.active = true
+    skipFlow.retryRead = true
+    const client = createQueryClient()
+    const habit = createMockHabitScheduleItem({ id: 'recovered', title: 'Recovered habit', scheduledDates: [TODAY] })
+    let requests = 0
+    const fetchMock = vi.fn(async () => ++requests <= failures
+      ? Response.json({ error: 'Unavailable', errorCode: code }, { status, headers: { 'Retry-After': retryAfter } })
+      : Response.json({ items: [habit], totalCount: 1, totalPages: 1, page: 1, pageSize: 200 }))
+    vi.stubGlobal('fetch', (_input: RequestInfo | URL, init?: RequestInit) => init?.mode === 'no-cors' ? Promise.resolve(new Response(null)) : fetchMock())
+    useThrottleStore.getState().clear()
+    const rendered = render(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /></QueryClientProvider>)
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(deadline - 1) })
+      expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0)
+      expect(screen.queryByText('habits.loadError')).toBeNull()
+      expect(useThrottleStore.getState().error).toBeNull()
+      expect(useAppToastStore.getState().currentToast).toBeNull()
+      expect(fetchMock).toHaveBeenCalledTimes(failures)
+      await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+      expect(screen.getByText(personalText('Recovered habit'))).toBeInTheDocument()
+      expect(screen.queryByText('habits.loadError')).toBeNull()
+    } finally {
+      rendered.unmount()
+      client.clear()
+      vi.unstubAllGlobals()
+      vi.useRealTimers()
+    }
+  })
+
+  it('shows the Hoje retry action only after upstream starting retries are exhausted', async () => {
+    vi.useFakeTimers()
+    skipFlow.active = true
+    skipFlow.retryRead = true
+    const client = createQueryClient()
+    const refused = vi.fn(async () => Response.json({ error: 'Unavailable', errorCode: 'UPSTREAM_STARTING' }, { status: 503, headers: { 'Retry-After': '5' } }))
+    vi.stubGlobal('fetch', (_input: RequestInfo | URL, init?: RequestInit) => init?.mode === 'no-cors' ? Promise.resolve(new Response(null)) : refused())
+    const rendered = render(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /></QueryClientProvider>)
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(124_999) })
+      expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0)
+      expect(screen.queryByText('habits.loadError')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+      expect(screen.getByText('habits.loadError')).toBeInTheDocument()
+      const retry = screen.getByRole('button', { name: 'common.retry' })
+      expect(refused).toHaveBeenCalledTimes(7)
+      expect(useThrottleStore.getState().error).toBeNull()
+      expect(useAppToastStore.getState().currentToast).toBeNull()
+      fireEvent.click(retry)
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(refused).toHaveBeenCalledTimes(8)
+      expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0)
+    } finally {
+      rendered.unmount()
+      client.clear()
+      vi.unstubAllGlobals()
+      vi.useRealTimers()
+    }
+  })
+
   it('keeps the Hoje list inset and content edge fixed at enlarged text in both selection modes', async () => {
     rowImplementation.actual = true
     const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, scheduledDates: [TODAY] })
@@ -896,6 +968,7 @@ describe('HabitList', () => {
     dragLocale.portuguese = false
     dragLocale.english = false
     skipFlow.active = false
+    skipFlow.retryRead = false
     useAppToastStore.setState({ currentToast: null, queue: [] })
     rowImplementation.actual = false
     accountDate.timeZone = undefined

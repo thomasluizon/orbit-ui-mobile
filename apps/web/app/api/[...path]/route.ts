@@ -4,6 +4,7 @@ import { API } from '@orbit/shared/api'
 import { getAccountIdFromToken, resolveServerSession } from '@/lib/auth-api'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
+import { normalizeUpstreamResponse } from '@/lib/upstream-starting-response'
 import {
   SESSION_REFRESH_FAILED_VALUE,
   SESSION_REFRESH_HEADER,
@@ -208,6 +209,7 @@ async function toNextResponse(
   source: Response,
   sessionRefreshFailed = false,
 ): Promise<NextResponse> {
+  source = await normalizeUpstreamResponse(source)
   const body = NULL_BODY_STATUSES.has(source.status) ? null : await source.text()
   const headers = buildResponseHeaders(source)
   if (sessionRefreshFailed) {

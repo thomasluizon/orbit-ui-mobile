@@ -89,12 +89,14 @@ describe('reminder permission notice hover geometry', () => {
   const cases = (['en', 'pt-BR'] as const).flatMap((locale) =>
     (['dark', 'light'] as const).flatMap((mode) =>
       [412, 840, 1100].flatMap((width) =>
-        (['relative', 'scheduled'] as const).map((editor) => ({ locale, mode, width, editor })),
+        (['relative', 'scheduled'] as const).flatMap((editor) =>
+          [false, true].map((initiallyHovered) => ({ locale, mode, width, editor, initiallyHovered })),
+        ),
       ),
     ),
   )
 
-  it.each(cases)('keeps the $editor fill perceptible at $width in $locale and $mode', async ({ locale, mode, width, editor }) => {
+  it.each(cases)('keeps the $editor fill perceptible at $width in $locale and $mode with initial hover $initiallyHovered', async ({ locale, mode, width, editor, initiallyHovered }) => {
     vi.stubGlobal('Notification', { permission: 'denied' })
     const messages = locale === 'en' ? en : ptBr
     const translate = ((key: string) => key === 'habits.form.reminderPermissionNeeded'
@@ -108,11 +110,31 @@ describe('reminder permission notice hover geometry', () => {
       await page.setContent(`<style>${stylesheet}:root{${variables}} body{background:var(--bg)}</style><div style="max-width:620px;margin:16px">${container.innerHTML}</div>`)
       await page.evaluate(() => document.fonts.ready)
       const control = page.getByRole('link', { name: messages.habits.form.reminderPermissionNeeded, exact: true })
-      const resting = await control.evaluate(readNoticePaint)
+      if (initiallyHovered) {
+        await control.hover()
+        expect(await control.evaluate((element) => element.matches(':hover'))).toBe(true)
+      }
+      const hoverBackgroundColor = await page.evaluate(() => {
+        const probe = document.createElement('span')
+        probe.style.backgroundColor = 'var(--bg-hover-opaque)'
+        document.body.append(probe)
+        const color = getComputedStyle(probe).backgroundColor
+        probe.remove()
+        return color
+      })
+      await page.mouse.move(width - 1, 914)
+      const resting = await vi.waitFor(async () => {
+        const paint = await control.evaluate(readNoticePaint)
+        expect(paint).toMatchObject({ hovered: false, backgroundColor: 'rgba(0, 0, 0, 0)' })
+        return paint
+      }, { timeout: 5_000 })
       expect(resting.height).toBeGreaterThanOrEqual(48)
       await control.hover()
-      await page.evaluate(() => new Promise(requestAnimationFrame))
-      const hovered = await control.evaluate(readNoticePaint)
+      const hovered = await vi.waitFor(async () => {
+        const paint = await control.evaluate(readNoticePaint)
+        expect(paint).toMatchObject({ hovered: true, backgroundColor: hoverBackgroundColor })
+        return paint
+      }, { timeout: 5_000 })
       expect(hovered.inlinePadding).toBeGreaterThanOrEqual(8)
       expect(hovered.blockPadding).toBeGreaterThanOrEqual(4)
       expect((Math.max(resting.backgroundLuminance, hovered.backgroundLuminance) + 0.05)
@@ -141,6 +163,8 @@ function readNoticePaint(element: HTMLElement | SVGElement) {
   }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index]!, 0)
   const style = getComputedStyle(element)
   return {
+    hovered: element.matches(':hover'),
+    backgroundColor: style.backgroundColor,
     height: element.getBoundingClientRect().height,
     inlinePadding: Math.min(Number.parseFloat(style.paddingLeft), Number.parseFloat(style.paddingRight)),
     blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)),

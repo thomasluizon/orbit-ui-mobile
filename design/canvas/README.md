@@ -22,6 +22,7 @@ that disagrees with production is a trap rather than an authority.
 | Native mobile rule | Hoje, Habit Detail and Astra Conversation use the attach menu composer; Hoje uses a whole-row proactive action, grouped date controls and top-centre back-to-top; Calendário moves repeat, Google Calendar and legends to disclosure and restructures day rows and figures; Progresso moves its legend to a sheet and long figures to rows; Perfil uses icon-led sub-menu rows; Avisos uses an options menu and root/sidebar bell examples. Habit Detail puts the emoji well, rename and header ring on a controls row above the full-width wrapping title and summary, with 12px metadata gaps and 24px to the strip. Every Progresso tab glyph is layout-dashboard. `native-mobile.js` renders the amended drawing primitives alongside the mirrored export. Composer, Shell412, TabBar, Menu, StatTile, ListRow, SegmentedControl, NavHeader, Badge and HabitRow contracts carry the matching rules | Product labels remain whole, typed text gets full width then two lines, rows grow at 200% text, and secondary content preserves selection in disclosure. Progresso and Perfil bell-only rows scroll. The touch floor follows the shared touch target amendment. |
 | Touch targets | `--touch-min` is 48px on web and 48 logical pixels on Android, from shared `TOUCH_TARGET_MIN`; small pills retain their visible geometry and reserve the expanded hit area; month-grid cells use their full column width and at least 44px | Controls stay usable with distinct, non-overlapping targets at compact widths. |
 | Perfil sub-menus | The account row opens Conta, followed by Preferências, Astra and Notificações; Mais do Orbit and sign out stay inline | Grouped navigation replaces the five-heading page so a setting is found without scrolling past every group. |
+| #1288 | Calendário shares one centred navigation row across all four views; span titles are borderless mono controls that return to today, and Agenda rows carry a time or no-time value, a status ring and entry details | Agenda keeps day order stable, lists no-time habits before timed habits and builds the today heading from one localized template. |
 | #1107 | `Orbit Pro`: outcomes move into each tier card, and loaded cards hug their content | The owner's decision puts the four Pro outcomes on each tier and removes the separate outcomes list. Price-loading reservations belong only to the loading state. |
 | Hoje composer | A one-line pill with inside Astra glyph, input, + menu and send appears on Hoje and habit detail; Hoje chips move into the conversation and habit detail chips stay in one scroll row; Calendário, Progresso and Perfil clear the bottom | The front door stays visible on Hoje and habit detail. An open conversation and disclosure preserve state. |
 | Onboarding final Pro step | Onboarding ends with the free Pro trial step, or the Orbit Pro paywall for an account not on a trial; paid Pro finishes normally | The owner’s decision replaces D69 item 17 and the Onboarding drawing’s no-plan and no-price rules for that final step only. |
@@ -205,6 +206,14 @@ app's.
 
 `CanvasControls` is deliberately absent. It is the canvas review bar, chrome for the drawing tool
 rather than a product surface.
+
+## Calendário Agenda amendment surfaces
+
+1. The shared Mês, Semana, Período and Agenda navigation, including paging, the current-span action, the disabled next range and the month picker, on web and Android.
+2. Agenda day headings and populated, loading and empty lists, with clock-formatted values, no-time values, ordered rows and status marks, on both platforms.
+3. The Mês selected-day card, with the same day order and complete today-title template, on both platforms.
+4. The Agenda entry-details sheet, preserving full habit text, time and status on both platforms.
+5. The granted Calendário drawing at both widths, including shared navigation and the Agenda details disclosure.
 
 ## `superseded/`
 

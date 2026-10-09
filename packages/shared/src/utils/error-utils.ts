@@ -37,6 +37,7 @@ type FriendlyErrorContext =
   | 'textless'
 
 export class ApiClientError extends Error {
+  retryAfter?: string | null
   status: number
   code?: string
   data?: unknown
@@ -47,6 +48,7 @@ export class ApiClientError extends Error {
     status: number,
     message: string,
     options?: {
+      retryAfter?: string | null
       code?: string
       data?: unknown
       errorDetails?: ValidationErrorDetails
@@ -55,6 +57,7 @@ export class ApiClientError extends Error {
   ) {
     super(message)
     this.name = 'ApiClientError'
+    this.retryAfter = options?.retryAfter
     this.status = status
     this.code = options?.code
     this.data = options?.data
@@ -217,6 +220,7 @@ export function createApiClientError(
   status: number,
   payload: unknown,
   fallbackMessage: string,
+  retryAfter?: string | null,
 ): ApiClientError {
   const wrapped = { data: payload }
   const message = extractBackendError(wrapped) ?? fallbackMessage
@@ -224,6 +228,7 @@ export function createApiClientError(
   const fieldErrors = extractBackendFieldErrors(wrapped)
 
   return new ApiClientError(status, message, {
+    retryAfter,
     code,
     data: payload,
     fieldErrors,

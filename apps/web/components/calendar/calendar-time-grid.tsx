@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDate } from '@orbit/shared/utils'
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDate, orderCalendarDayEntries } from '@orbit/shared/utils'
 
 import { X } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -197,7 +197,7 @@ export function CalendarTimeGrid({
   const perColumn = useMemo(
     () =>
       columns.map((column) => {
-        const entries = dayMap.get(column.dateStr) ?? []
+        const entries = orderCalendarDayEntries(dayMap.get(column.dateStr) ?? [])
         return {
           column,
           allDay: entries.filter((entry) => !entry.dueTime),

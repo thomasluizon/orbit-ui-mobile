@@ -25,6 +25,20 @@ const APP_STAGING_SNIPPET = `android {
 `
 
 const ROOT_STAGING_MARKER = 'orbit-android-library-cmake-staging-dir'
+const ROOT_NDK_MARKER = 'orbit-android-shared-ndk-version'
+const ROOT_NDK_SNIPPET = `// ${ROOT_NDK_MARKER}
+subprojects { subproject ->
+    ["com.android.application", "com.android.library"].each { pluginId ->
+        subproject.plugins.withId(pluginId) {
+            subproject.extensions.getByName("android").ndkVersion = rootProject.ext.ndkVersion
+            subproject.extensions.getByName("androidComponents").finalizeDsl { android ->
+                android.ndkVersion = rootProject.ext.ndkVersion
+            }
+        }
+    }
+}
+
+`
 const ROOT_STAGING_SNIPPET = `// ${ROOT_STAGING_MARKER}
 subprojects { subproject ->
     if (rootProject.hasProperty("${STAGING_DIR_MARKER}")) {
@@ -77,6 +91,7 @@ function withAndroidReleaseBuildFixes(config) {
     return mod
   })
 
+  nextConfig = withSharedAndroidNdkVersion(nextConfig)
   nextConfig = withRaisedReleaseBuildJvmMemory(nextConfig)
   nextConfig = withAndroidStyles(nextConfig, (mod) => {
     const appTheme = AndroidConfig.Styles.getAppThemeGroup()
@@ -105,6 +120,25 @@ function withAndroidReleaseBuildFixes(config) {
   })
 
   return nextConfig
+}
+
+function withSharedAndroidNdkVersion(config) {
+  return withProjectBuildGradle(config, (mod) => {
+    if (mod.modResults.language !== 'groovy') {
+      throw new Error('The shared Android NDK policy requires a Groovy root build.gradle.')
+    }
+    if (mod.modResults.contents.includes(ROOT_NDK_MARKER)) return mod
+
+    const injectionPattern = /(^|\n)(apply plugin:\s*["']expo-root-project["'])/
+    if (!injectionPattern.test(mod.modResults.contents)) {
+      throw new Error('Cannot register the shared Android NDK policy before expo-root-project.')
+    }
+    mod.modResults.contents = mod.modResults.contents.replace(
+      injectionPattern,
+      `$1${ROOT_NDK_SNIPPET}$2`,
+    )
+    return mod
+  })
 }
 
 function forceJvmFlag(value, pattern, flag) {
