@@ -63,6 +63,10 @@ for (const width of [412, 1280]) {
             const copy = heading.parentElement!
             const controls = row.firstElementChild!
             const titleButton = heading.querySelector('button')!
+            const titleRange = document.createRange()
+            titleRange.selectNodeContents(titleButton.querySelector('[data-personal-text]')!)
+            const titleTextBounds = titleRange.getBoundingClientRect()
+            const titleButtonBounds = titleButton.getBoundingClientRect()
             const summary = copy.querySelector('p')!
             const columnStyle = getComputedStyle(element)
             const headingStyle = getComputedStyle(heading)
@@ -108,8 +112,8 @@ for (const width of [412, 1280]) {
               titleWhiteSpace: titleButtonStyle.whiteSpace,
               titleOverflow: titleButtonStyle.textOverflow,
               titleLineClamp: titleButtonStyle.webkitLineClamp,
-              titleHorizontalOverflow: titleButton.scrollWidth > titleButton.clientWidth,
-              titleVerticalOverflow: titleButton.scrollHeight > titleButton.clientHeight,
+              titleHorizontalOverflow: titleTextBounds.left < titleButtonBounds.left - 0.5 || titleTextBounds.right > titleButtonBounds.right + 0.5,
+              titleVerticalOverflow: titleTextBounds.top < titleButtonBounds.top - 0.5 || titleTextBounds.bottom > titleButtonBounds.bottom + 0.5,
               contentHorizontalOverflow: element.scrollWidth > element.clientWidth,
               titleSize: headingStyle.fontSize,
               titleWeight: headingStyle.fontWeight,
