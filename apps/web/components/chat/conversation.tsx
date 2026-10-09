@@ -86,6 +86,9 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   const close = useCallback(() => setAstraConversationOpen(false), [setAstraConversationOpen])
   const {
     chatContainerRef,
+    threadScroll,
+    scrollToBottom,
+    trackCardOperation: trackOperation,
     messages,
     isTyping,
     streamingMessageId,
@@ -102,9 +105,32 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
     verifyStepUpForBubble,
     composerProps,
   } = chat
+  const threadContentRef = useRef<HTMLDivElement>(null)
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
     chatContainerRef.current = element
-  }, [chatContainerRef])
+    if (element) {
+      threadScroll.followLatest()
+      element.scrollTo({ top: element.scrollHeight, behavior: 'auto' })
+      threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
+    }
+  }, [chatContainerRef, threadScroll])
+
+  useEffect(() => {
+    const feed = chatContainerRef.current
+    const content = threadContentRef.current
+    if (!feed || !content) return
+    const observer = new ResizeObserver(() => {
+      if (threadScroll.isFollowing()) scrollToBottom()
+    })
+    observer.observe(feed)
+    observer.observe(content)
+    return () => observer.disconnect()
+  }, [chatContainerRef, scrollToBottom, threadScroll])
+
+  const trackCardOperation: ChatController['trackCardOperation'] = useCallback((operation) => {
+    threadScroll.followLatest()
+    return trackOperation(operation)
+  }, [trackOperation, threadScroll])
 
   const senderIdPrefix = useId()
   const announcedMessageIds = useRef(new Set<string>())
@@ -166,7 +192,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   }, [chatContainerRef, close])
 
   return (
-    <ChatCardOperationContext.Provider value={chat.trackCardOperation}>
+    <ChatCardOperationContext.Provider value={trackCardOperation}>
     <div className="relative flex h-full flex-col">
       <div className="relative z-10 shrink-0">
         <AppBar
@@ -188,6 +214,10 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
 
       <div
         ref={registerChatContainer}
+        onScroll={(event) => {
+          const feed = event.currentTarget
+          threadScroll.recordScroll(feed.scrollTop, feed.scrollHeight - feed.clientHeight)
+        }}
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
         style={{ padding: 16 }}
         role="feed"
@@ -196,7 +226,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
       >
         {showSuggestions && <ChatEmptyState />}
 
-        <div className="flex flex-col gap-4">
+        <div ref={threadContentRef} className="flex flex-col gap-4">
         {messages.map((msg, index) => (
           <article
             key={msg.id}

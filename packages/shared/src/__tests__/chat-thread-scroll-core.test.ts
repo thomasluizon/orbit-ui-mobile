@@ -14,12 +14,12 @@ describe('chat thread scroll', () => {
     expect(scroll.isFollowing()).toBe(true)
   })
 
-  it('resumes after a deliberate action without mistaking the first scroll for reading', () => {
+  it('resumes after a deliberate action and still detects an immediate upward scroll', () => {
     const scroll = createChatThreadScroll()
     scroll.recordScroll(800, 800)
     scroll.recordScroll(400, 800)
     scroll.followLatest()
-    scroll.recordScroll(200, 1000)
+    scroll.recordScroll(450, 1000)
     expect(scroll.isFollowing()).toBe(true)
     scroll.recordScroll(180, 1000)
     expect(scroll.isFollowing()).toBe(false)

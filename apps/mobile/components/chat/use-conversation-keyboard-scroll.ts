@@ -6,8 +6,11 @@ interface ScrollableConversation {
   scrollToOffset: (params: { offset: number; animated?: boolean }) => void
 }
 
+const alwaysFollow = () => true
+
 export function useConversationKeyboardScroll(
   listRef: RefObject<ScrollableConversation | null>,
+  shouldFollow: () => boolean = alwaysFollow,
 ) {
   const previousOffset = useRef(0)
   const keyboardVisible = useRef(false)
@@ -16,8 +19,8 @@ export function useConversationKeyboardScroll(
 
   const onComposerFocus = useCallback(() => {
     composerFocused.current = true
-    if (keyboardVisible.current) listRef.current?.scrollToEnd({ animated: false })
-  }, [listRef])
+    if (keyboardVisible.current && shouldFollow()) listRef.current?.scrollToEnd({ animated: false })
+  }, [listRef, shouldFollow])
 
   const onComposerBlur = useCallback(() => {
     composerFocused.current = false
@@ -25,9 +28,9 @@ export function useConversationKeyboardScroll(
 
   const restorePreviousOffset = useCallback(() => {
     if (!restoreOnLayout.current) return
-    listRef.current?.scrollToOffset({ offset: previousOffset.current, animated: false })
+    if (shouldFollow()) listRef.current?.scrollToOffset({ offset: previousOffset.current, animated: false })
     restoreOnLayout.current = false
-  }, [listRef])
+  }, [listRef, shouldFollow])
 
   const onScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
     if (!keyboardVisible.current && !restoreOnLayout.current) {
@@ -38,17 +41,19 @@ export function useConversationKeyboardScroll(
   const onLayout = useCallback(() => {
     if (restoreOnLayout.current) {
       restorePreviousOffset()
-    } else if (keyboardVisible.current && composerFocused.current) {
+    } else if (keyboardVisible.current && composerFocused.current && shouldFollow()) {
       listRef.current?.scrollToEnd({ animated: false })
     }
-  }, [listRef, restorePreviousOffset])
+  }, [listRef, restorePreviousOffset, shouldFollow])
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => {
       keyboardVisible.current = true
       restoreOnLayout.current = false
-      if (composerFocused.current) {
-        requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }))
+      if (composerFocused.current && shouldFollow()) {
+        requestAnimationFrame(() => {
+          if (shouldFollow()) listRef.current?.scrollToEnd({ animated: false })
+        })
       }
     })
     const hide = Keyboard.addListener('keyboardDidHide', () => {
@@ -60,7 +65,7 @@ export function useConversationKeyboardScroll(
       show.remove()
       hide.remove()
     }
-  }, [listRef, restorePreviousOffset])
+  }, [listRef, restorePreviousOffset, shouldFollow])
 
   return { onScroll, onLayout, onComposerFocus, onComposerBlur }
 }

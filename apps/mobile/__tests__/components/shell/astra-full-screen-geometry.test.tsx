@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { Composer } from '@/components/shell/composer'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
 import en from '@orbit/shared/i18n/en.json'
@@ -31,7 +32,7 @@ vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 const chat = {
-  flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
+  threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
   isTyping: false, streamingMessageId: null, showSuggestions: true,
   sendMessage: vi.fn(), scrollToBottom: vi.fn(), composerProps: { state: 'idle', value: '', suggestions: [], words: en.shell.composer, onChangeValue: vi.fn(), onSend: vi.fn() },
 } as unknown as ChatController

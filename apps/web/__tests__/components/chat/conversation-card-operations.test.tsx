@@ -1,4 +1,5 @@
-import { createRef } from 'react'
+import { createRef, useState } from 'react'
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
@@ -11,6 +12,9 @@ vi.mock('@/app/actions/chat', () => ({ refreshPendingOperation: mutations.refres
 vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) => open ? <button onClick={onConfirm}>Confirm breakdown</button> : null }))
 vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 
+const resizeCallbacks = new Set<() => void>()
+const originalScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight')
+const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
 const mutations = vi.hoisted(() => ({ refresh: vi.fn(), revise: vi.fn(), breakdown: vi.fn(), clarification: vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: mutations.breakdown, isPending: false }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: mutations.clarification, isPending: false }) }))
@@ -61,7 +65,13 @@ function deferOperation(operation: CardOperation) {
 const onExecuted = () => Promise.resolve()
 function CardConversation({ operations }: { operations: CardOperation[] }) {
   const tracked = useChatPendingOperations(onExecuted)
-  const chat = { chatContainerRef: createRef<HTMLDivElement>(), messages: messagesFor(operations),
+  const [threadScroll] = useState(createChatThreadScroll)
+  const [chatContainerRef] = useState(createRef<HTMLDivElement>)
+  const scrollToBottom = () => {
+    const feed = chatContainerRef.current
+    if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }
+  const chat = { chatContainerRef, threadScroll, scrollToBottom, messages: messagesFor(operations),
     activeSteps: [], isTyping: false, streamingMessageId: null, showSuggestions: false,
     canShowFollowUps: false, composerProps: { suggestions: [] }, handleBreakdownConfirmed: vi.fn(), ...tracked,
   } as unknown as ChatController
@@ -74,8 +84,16 @@ function start(operation: CardOperation) {
   } else fireEvent.click(screen.getByRole('button', { name: operation === 'refresh' ? 'chat.operation.refresh' : operation === 'revise' ? 'chat.operation.remove Beber água' : 'habits.clarification.quickAction.daily' }))
 }
 function expectBusy(busy: boolean) { expect(screen.getByRole('feed')).toHaveAttribute('aria-busy', String(busy)) }
-beforeEach(() => { vi.clearAllMocks(); holdAccount('user-1') })
-afterEach(cleanup)
+beforeEach(() => { vi.clearAllMocks(); HTMLElement.prototype.scrollTo = vi.fn(); holdAccount('user-1') })
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+  resizeCallbacks.clear()
+  if (originalScrollHeight) Object.defineProperty(HTMLElement.prototype, 'scrollHeight', originalScrollHeight)
+  else Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight')
+  if (originalClientHeight) Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight)
+  else Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight')
+})
 
 it.each(cardOperations.flatMap(operation => [false, true].map(failure => ({ operation, failure }))))('reports $operation busy until settlement (failure=$failure)', async ({ operation, failure }) => {
   const deferred = deferOperation(operation)
@@ -95,4 +113,56 @@ it.each([['refresh', 'revise'], ['breakdown', 'clarification']] as CardOperation
   expectBusy(true)
   await act(async () => { two.finish(true); await Promise.resolve() })
   expectBusy(false)
+})
+
+function renderScrollingConversation() {
+  let height = 1400
+  vi.stubGlobal('ResizeObserver', class {
+    constructor(private callback: () => void) { resizeCallbacks.add(callback) }
+    observe() {}
+    disconnect() { resizeCallbacks.delete(this.callback) }
+  })
+  const scrolling = vi.fn(function (this: HTMLElement, options: ScrollToOptions) {
+    if (typeof options === 'object') this.scrollTop = Math.max(0, Math.min(options.top ?? 0, this.scrollHeight - this.clientHeight))
+  })
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrolling })
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => height })
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 500 })
+  const view = render(<CardConversation operations={['clarification']} />)
+  const feed = screen.getByRole('feed')
+  return { view, feed, scrolling, grow: () => { height = 1800; for (const resize of resizeCallbacks) resize() } }
+}
+
+it('opens and reopens a retained thread at its newest message', async () => {
+  const owner = renderScrollingConversation()
+  await act(async () => { await new Promise(requestAnimationFrame) })
+  expect(owner.feed.scrollTop).toBe(900)
+  owner.feed.scrollTop = 163.5
+  fireEvent.scroll(owner.feed)
+  owner.view.unmount()
+  render(<CardConversation operations={['clarification']} />)
+  await act(async () => { await new Promise(requestAnimationFrame) })
+  expect(screen.getByRole('feed').scrollTop).toBe(900)
+})
+
+it.each([false, true])('reveals the clarification preview actions unless reading earlier messages (reading=%s)', async reading => {
+  let finish!: (response: unknown) => void
+  mutations.clarification.mockReturnValue(new Promise(resolve => { finish = resolve }))
+  const owner = renderScrollingConversation()
+  await act(async () => { await new Promise(requestAnimationFrame) })
+  start('clarification')
+  if (reading) {
+    owner.feed.scrollTop = 100
+    fireEvent.scroll(owner.feed)
+  }
+  owner.scrolling.mockClear()
+  const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+  await act(async () => {
+    finish({ ok: true, data: { operation: makeAgentOperationResult('PendingConfirmation', 1), pendingOperation } })
+    await Promise.resolve()
+  })
+  expect(screen.getByRole('button', { name: 'chat.operation.approve' })).toBeInTheDocument()
+  await act(async () => { owner.grow(); await new Promise(requestAnimationFrame) })
+  expect(owner.feed.scrollTop).toBe(reading ? 100 : 1300)
+  if (reading) expect(owner.scrolling).not.toHaveBeenCalled()
 })

@@ -5,13 +5,13 @@ import { useConversationKeyboardScroll } from '@/components/chat/use-conversatio
 
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
-async function renderScrollOwner() {
+async function renderScrollOwner(shouldFollow?: () => boolean) {
   const scrollToEnd = vi.fn()
   const scrollToOffset = vi.fn()
   const listRef = { current: { scrollToEnd, scrollToOffset } }
   let controls!: ReturnType<typeof useConversationKeyboardScroll>
   function ScrollOwner() {
-    controls = useConversationKeyboardScroll(listRef)
+    controls = useConversationKeyboardScroll(listRef, shouldFollow)
     return null
   }
   let tree!: import('react-test-renderer').ReactTestRenderer
@@ -23,6 +23,30 @@ async function renderScrollOwner() {
 }
 
 describe('conversation keyboard scroll', () => {
+  it('preserves earlier reading when a keyboard scroll is already queued', async () => {
+    const frames: (() => void)[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
+      frames.push(callback)
+      return frames.length
+    })
+    let following = true
+    const owner = await renderScrollOwner(() => following)
+    await TestRenderer.act(() => {
+      owner.controls().onComposerFocus()
+      __emitKeyboardEvent('keyboardDidShow')
+      following = false
+      for (const frame of frames) frame()
+      owner.controls().onLayout()
+      __emitKeyboardEvent('keyboardDidHide')
+      for (const frame of frames) frame()
+      owner.controls().onLayout()
+    })
+    expect(owner.scrollToEnd).not.toHaveBeenCalled()
+    expect(owner.scrollToOffset).not.toHaveBeenCalled()
+    await TestRenderer.act(() => { owner.tree.update(<></>) })
+    vi.unstubAllGlobals()
+  })
+
   it('shows the last message above the keyboard and restores the previous offset', async () => {
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
       callback(0)
