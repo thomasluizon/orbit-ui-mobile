@@ -9,6 +9,7 @@ export function MonthGrid({
   children,
   gap = 8,
   label,
+  loadingLabel,
   minimumDayGridHeight,
 }: Readonly<MonthGridProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -25,7 +26,7 @@ export function MonthGrid({
   return (
     <View accessibilityRole="summary" accessibilityLabel={label} testID={`month-grid-${columns}-columns`} style={{ rowGap: 8 }}>
       {columns > 0 ? (
-        <View testID="month-grid-header" style={[styles.row, { columnGap: numericGap }]}>
+        <View testID="month-grid-header" accessibilityElementsHidden={Boolean(loadingLabel)} importantForAccessibility={loadingLabel ? "no-hide-descendants" : "auto"} style={[styles.row, { columnGap: numericGap, opacity: loadingLabel ? 0 : undefined }]}>
           {weekdayLabels.map((weekday, index) => (
             <View key={`${weekday}-${index}`} style={styles.cellSlot}>
               <Text style={[styles.weekday, { color: tokens.fg3 }]}>{weekday}</Text>
@@ -33,7 +34,7 @@ export function MonthGrid({
           ))}
         </View>
       ) : null}
-      <View testID="month-grid-days" style={{ rowGap: numericGap, minHeight: minimumDayGridHeight }}>
+      <View testID="month-grid-days" accessibilityRole={loadingLabel ? "progressbar" : undefined} accessibilityLabel={loadingLabel} accessibilityState={loadingLabel ? { busy: true } : undefined} style={{ rowGap: numericGap, minHeight: minimumDayGridHeight }}>
         {columns > 0
           ? rows.map((row, rowIndex) => (
               <View key={rowIndex} testID={`month-grid-row-${rowIndex}`} style={[styles.row, { columnGap: numericGap }]}>

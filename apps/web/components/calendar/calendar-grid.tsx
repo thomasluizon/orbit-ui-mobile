@@ -210,10 +210,9 @@ export function CalendarGrid({
     return (
       <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '0 16px 8px' }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
-          <div role="progressbar" aria-label={t('calendar.loading')} aria-busy="true" data-rows={Math.ceil(gridDays.length / 7)} data-cols={7}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 'var(--calendar-grid-gap)', justifyItems: 'center' }}>
+          <MonthGrid weekdayLabels={weekdayLabels} gap="var(--calendar-grid-gap)" loadingLabel={t('calendar.loading')}>
             {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
-          </div>
+          </MonthGrid>
         </div>
       </div>
     )

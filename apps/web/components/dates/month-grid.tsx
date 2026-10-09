@@ -1,3 +1,4 @@
+import { Children } from 'react'
 import type { MonthGridProps } from '@orbit/shared/contracts/dates'
 
 export function MonthGrid({
@@ -5,6 +6,7 @@ export function MonthGrid({
   children,
   gap = 8,
   label,
+  loadingLabel,
   minimumDayGridHeight,
 }: Readonly<MonthGridProps>) {
   const columns = weekdayLabels.length
@@ -13,7 +15,7 @@ export function MonthGrid({
   return (
     <div role="group" aria-label={label} data-columns={columns} style={{ display: 'grid', gap: 8 }}>
       {columns > 0 ? (
-        <div className="grid justify-items-center" style={{ ...gridStyle, gap }} data-testid="month-grid-header">
+        <div className="grid justify-items-center" style={{ ...gridStyle, gap, opacity: loadingLabel ? 0 : undefined }} aria-hidden={loadingLabel ? true : undefined} data-testid="month-grid-header">
           {weekdayLabels.map((weekday, index) => (
             <span
               key={`${weekday}-${index}`}
@@ -35,6 +37,11 @@ export function MonthGrid({
         className="grid justify-items-center"
         style={{ ...gridStyle, alignContent: 'start', gap, minHeight: minimumDayGridHeight }}
         data-testid="month-grid-days"
+        role={loadingLabel ? "progressbar" : undefined}
+        aria-label={loadingLabel}
+        aria-busy={loadingLabel ? true : undefined}
+        data-cols={loadingLabel ? columns : undefined}
+        data-rows={loadingLabel ? Math.ceil(Children.count(children) / columns) : undefined}
       >
         {children}
       </div>

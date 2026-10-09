@@ -19,7 +19,7 @@ function PressFill() {
     <span
       aria-hidden="true"
       data-press-fill=""
-      className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover:opacity-100 group-active:opacity-100"
+      className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
     />
   )
 }
@@ -108,17 +108,18 @@ export function DayCell(props: Readonly<DayCellProps>) {
     style: { width: '100%', minHeight: Math.max(size, MONTH_GRID_TARGET_MIN), opacity: props.outsideMonth ? 0 : 1 },
   }
   const contents = props.future
-    ? <span style={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{props.day}</span>
+    ? <span data-day-future-numeral="" style={{ color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{props.day}</span>
     : props.habitHistory
       ? <HabitHistoryContents props={props} outcome={outcome} size={statusSize} />
       : <DayCellContents props={props} outcome={outcome} size={statusSize} />
   const circle = <span
     data-day-circle=""
-    className="orbit-day-circle relative inline-flex items-center justify-center rounded-full"
-    style={{ width: '100%', maxWidth: size, aspectRatio: 1, background: props.selected ? 'var(--selection-bg)' : props.loggable || props.raised ? 'var(--bg-well)' : 'transparent', '--day-ring': props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none' } as CSSProperties}
+    className="orbit-day-circle relative inline-flex items-center justify-center"
+    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, background: props.selected ? 'var(--selection-bg)' : props.loggable || props.raised ? 'var(--bg-well)' : 'transparent', '--day-ring': props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none' } as CSSProperties}
   >
     <PressFill />
     {contents}
+    <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0" style={{ borderRadius: 'inherit' }} />
   </span>
 
   if (interactive) {

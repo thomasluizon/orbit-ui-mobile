@@ -159,7 +159,7 @@ describe('CalendarGrid (mobile)', () => {
     expect(shapes).toHaveLength(days.length)
     for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44, gap: 0 })
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
-    expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-header' }).props.style).opacity).toBe(0)
     expect(tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')).toHaveLength(0)
   })
 

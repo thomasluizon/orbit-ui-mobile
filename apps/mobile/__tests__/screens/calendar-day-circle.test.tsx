@@ -88,6 +88,25 @@ describe('Calendar day circle', () => {
   })
   afterEach(() => vi.useRealTimers())
 
+  it.each([320, 412])('retains loading circle centres at $width', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    const snapshots: ReturnType<typeof measureDaySurface>[] = []
+    for (const loading of [true, false]) {
+      source.loading = loading
+      let screen!: CalendarTree
+      TestRenderer.act(() => { screen = TestRenderer.create(<CalendarScreen />) })
+      const header = monthHeader(screen)
+      const boxes = measureDaySurface(header.toJSON(), width)
+      snapshots.push(boxes.filter((box) => loading ? box.style.aspectRatio === 1 && box.style.backgroundColor : box.testID === 'day-circle'))
+      TestRenderer.act(() => { header.unmount(); screen.unmount() })
+    }
+    expect(snapshots[0]).toHaveLength(snapshots[1]!.length)
+    for (const [index, before] of snapshots[0]!.entries()) {
+      const after = snapshots[1]![index]!
+      for (const dimension of ['centerX', 'centerY', 'width', 'height'] as const) expect(before[dimension], dimension).toBeCloseTo(after[dimension], 4)
+    }
+  })
+
   it.each([320, 412])('keeps every painted state circular at $width', (width) => {
     source.loading = false
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })

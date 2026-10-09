@@ -101,6 +101,30 @@ describe('Calendar header geometry in Chromium', () => {
     }
   })
 
+  it.each([320, 412, 600, 1352])('retains loading circle centres at %ipx', async (width) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const snapshots: { x: number; y: number; width: number; height: number }[][] = []
+    try {
+      for (const isLoading of [true, false]) {
+        const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+          <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
+        </NextIntlClientProvider>)
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        snapshots.push(await page.evaluate((loading) => [...document.querySelectorAll(loading ? '[data-variant="grid"] span' : '[data-day-circle]')].map((element) => {
+          const box = element.getBoundingClientRect()
+          return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }
+        }), isLoading))
+        unmount()
+      }
+      expect(snapshots[0]).toHaveLength(snapshots[1]!.length)
+      for (const [index, before] of snapshots[0]!.entries()) {
+        const after = snapshots[1]![index]!
+        for (const dimension of ['x', 'y', 'width', 'height'] as const) expect(before[dimension], dimension).toBeCloseTo(after[dimension], 1)
+      }
+    } finally { await page.close() }
+  })
+
   it.each(['light', 'dark'] as const)('paints ghost chevrons and a transparent month title in %s mode', async (mode) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-04" previousMonthLabel="Previous" nextMonthLabel="Next"

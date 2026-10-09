@@ -260,7 +260,8 @@ describe('CalendarGrid', () => {
     const skeleton = screen.getByRole('progressbar')
     expect(skeleton).toHaveAttribute('data-cols', '7')
     expect(skeleton).toHaveAttribute('data-rows', '6')
-    expect(screen.queryByTestId('month-grid-header')).not.toBeInTheDocument()
+    expect(screen.getByTestId('month-grid-header')).toHaveStyle({ opacity: 0 })
+    expect(screen.getByTestId('month-grid-header')).toHaveAttribute('aria-hidden', 'true')
     expect(container.querySelector('[data-outcome]')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
@@ -312,7 +313,7 @@ describe('CalendarGrid', () => {
     expect(selectedSlot?.querySelector('[data-selected]')).not.toBeInTheDocument()
     const futureSlot = container.querySelector('[data-calendar-date="2025-06-20"]')
     expect(futureSlot?.querySelector('[data-outcome]')).not.toBeInTheDocument()
-    expect(futureSlot?.querySelector('[data-day-circle] > span:last-child')).toHaveStyle({ color: 'var(--fg-2)' })
+    expect(futureSlot?.querySelector('[data-day-future-numeral]')).toHaveStyle({ color: 'var(--fg-2)' })
   })
 
   it('derives the full outcome when all entries are complete', () => {

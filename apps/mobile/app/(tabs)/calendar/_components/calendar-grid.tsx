@@ -133,24 +133,16 @@ function CalendarGridDay({
   )
 }
 
-function CalendarGridLoading({ gridDays, gap, label }: Readonly<{ gridDays: GridDay[]; gap: 0 | 4; label: string }>) {
-  const columns = CALENDAR_MONTH_GRID_GEOMETRY.columns
-  const rows = Array.from({ length: Math.ceil(gridDays.length / columns) }, (_, index) =>
-    gridDays.slice(index * columns, (index + 1) * columns),
-  )
+function CalendarGridLoading({ gridDays, gap, label, weekdayLabels }: Readonly<{ gridDays: GridDay[]; gap: 0 | 4; label: string; weekdayLabels: string[] }>) {
   return (
     <View style={styles.loadingGrid}>
-      <View accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }} style={{ rowGap: gap }}>
-        {rows.map((row, index) => (
-          <View key={index} style={[styles.loadingRow, { columnGap: gap }]}>
-            {row.map((cell) => (
-              <View key={cell.dateStr} style={styles.loadingSlot}>
-                <View style={styles.loadingCell}><Skeleton variant="grid" circular rows={1} cols={1} cell={CALENDAR_MONTH_GRID_GEOMETRY.cell} gap={0} grouped /></View>
-              </View>
-            ))}
+      <MonthGrid weekdayLabels={weekdayLabels} gap={gap} loadingLabel={label}>
+        {gridDays.map((cell) => (
+          <View key={cell.dateStr} style={styles.loadingSlot}>
+            <View style={styles.loadingCell}><Skeleton variant="grid" circular rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></View>
           </View>
         ))}
-      </View>
+      </MonthGrid>
     </View>
   )
 }
@@ -186,7 +178,7 @@ export function CalendarGrid({
   if (isLoading) {
     const loadingGrid = (
       <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
-        <CalendarGridLoading gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
+        <CalendarGridLoading weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)} gridDays={gridDays} gap={gridGap} label={t('calendar.loading')} />
       </View>
     )
     return swipeGesture
@@ -243,8 +235,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  loadingRow: { flexDirection: 'row' },
-  loadingSlot: { flex: 1, minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
+  loadingSlot: { width: '100%', minHeight: MONTH_GRID_TARGET_MIN, alignItems: 'center' },
   loadingCell: { width: '100%', maxWidth: MONTH_GRID_TARGET_MIN },
   daySlot: {
     position: 'relative',

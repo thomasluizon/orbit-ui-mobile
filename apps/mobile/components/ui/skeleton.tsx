@@ -113,6 +113,8 @@ function GridSkeleton({ props, tokens, opacity }: Readonly<{
         styles.grid,
         {
           gap: props.gap,
+          flexDirection: props.circular && props.cols === 1 ? 'column' : 'row',
+          flexWrap: props.circular && props.cols === 1 ? 'nowrap' : 'wrap',
           width: props.cols * props.cell + (props.cols - 1) * props.gap,
           maxWidth: props.cols === 1 ? '100%' : undefined,
           height: props.rows * props.cell + (props.rows - 1) * props.gap,

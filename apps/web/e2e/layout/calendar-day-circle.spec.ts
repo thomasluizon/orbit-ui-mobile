@@ -45,7 +45,7 @@ async function expectCircle(slot: Locator, status = true, todayRing = false, tar
     const disc = slot.querySelector('[data-day-disc]')?.getBoundingClientRect()
     const button = slot.querySelector('button')
     return { boxes, centerX: bounds.left + bounds.width / 2, centerY: bounds.top + bounds.height / 2,
-      diameter: Math.min(44, bounds.width), disc: disc && { width: disc.width, height: disc.height, centerX: disc.left + disc.width / 2, centerY: disc.top + disc.height / 2 },
+      slotWidth: bounds.width, disc: disc && { width: disc.width, height: disc.height, centerX: disc.left + disc.width / 2, centerY: disc.top + disc.height / 2 },
       target: button && { width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height },
       hits: button && [bounds.left + 2, bounds.right - 2].map((x) => button.contains(document.elementFromPoint(x, bounds.top + bounds.height / 2))) }
   })
@@ -66,7 +66,7 @@ async function expectCircle(slot: Locator, status = true, todayRing = false, tar
   }
   if (todayRing) expect(geometry.boxes.filter((box) => box.primaryRing)).toHaveLength(1)
   if (target) {
-    expect(geometry.target!.width).toBeGreaterThanOrEqual(geometry.diameter)
+    expect(geometry.target!.width).toBeCloseTo(geometry.slotWidth, 1)
     expect(geometry.target!.height).toBeGreaterThanOrEqual(44)
     expect(geometry.hits).toEqual([true, true])
   }
@@ -126,21 +126,35 @@ for (const width of [320, 412, 600, 1352]) {
         await expectHeaderGap(history)
       })
 
-      test('keeps loading placeholders circular in both grids', async ({ page, context }) => {
-        let release!: () => void
-        const ready = new Promise<void>((resolve) => { release = resolve })
-        await page.clock.setFixedTime(new Date(`${today}T12:00:00Z`))
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth, async (route) => { await ready; await route.fulfill({ json: calendarMonth }) })
-        try {
-          await page.goto('/calendar')
-          for (const view of ['month', 'range'] as const) {
+      for (const view of ['month', 'range'] as const) {
+        test(`keeps ${view} loading circles in their loaded positions`, async ({ page, context }) => {
+          let release!: () => void
+          const ready = new Promise<void>((resolve) => { release = resolve })
+          await page.clock.setFixedTime(new Date(`${today}T12:00:00Z`))
+          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth, async (route) => { await ready; await route.fulfill({ json: calendarMonth }) })
+          try {
+            await page.goto('/calendar')
             await page.getByTestId('calendar-header-group').getByRole('radio', { name: words.calendar.view[view], exact: true }).click()
-            const placeholders = page.locator('.orbit-calendar-grid-card [data-variant="grid"]')
+            const grid = page.locator('.orbit-calendar-grid-card [data-testid="month-grid-days"]')
+            const placeholders = grid.locator('[data-variant="grid"]')
             await expect(placeholders.first()).toBeVisible()
+            await expectHeaderGap(grid)
             for (const placeholder of await placeholders.all()) await expectCircle(placeholder, false)
-          }
-        } finally { release() }
-      })
+            const before = await grid.evaluate((grid) => [...grid.children].map((slot) => {
+              const box = slot.querySelector('[data-variant="grid"] span')!.getBoundingClientRect()
+              return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }
+            }))
+            release()
+            await expect(placeholders).toHaveCount(0)
+            const after = await grid.evaluate((grid) => [...grid.children].flatMap((slot, index) => {
+              const box = slot.querySelector('[data-day-circle]')?.getBoundingClientRect()
+              return box ? [{ index, x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }] : []
+            }))
+            expect(after.length).toBeGreaterThanOrEqual(14)
+            for (const box of after) for (const dimension of ['x', 'y', 'width', 'height'] as const) expect(box[dimension]).toBeCloseTo(before[box.index]![dimension], 1)
+          } finally { release() }
+        })
+      }
     })
   }
 }
