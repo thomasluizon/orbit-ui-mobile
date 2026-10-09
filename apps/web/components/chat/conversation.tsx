@@ -109,6 +109,7 @@ export function AstraConversation({ chat, notice }: Readonly<{ chat: ChatControl
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
     chatContainerRef.current = element
     if (!element) return
+    threadScroll.recordScroll(element.scrollTop, element.scrollHeight - element.clientHeight)
     threadScroll.followLatest()
     if (!element.querySelector('article')) return
     element.scrollTo({ top: element.scrollHeight, behavior: 'auto' })

@@ -63,9 +63,9 @@ function deferOperation(operation: CardOperation) {
 }
 
 const onExecuted = () => Promise.resolve()
-function CardConversation({ operations }: { operations: CardOperation[] }) {
+function CardConversation({ operations, scrollOwner }: { operations: CardOperation[]; scrollOwner?: ReturnType<typeof createChatThreadScroll> }) {
   const tracked = useChatPendingOperations(onExecuted)
-  const [threadScroll] = useState(createChatThreadScroll)
+  const [threadScroll] = useState(() => scrollOwner ?? createChatThreadScroll())
   const [chatContainerRef] = useState(createRef<HTMLDivElement>)
   const scrollToBottom = () => {
     const feed = chatContainerRef.current
@@ -115,7 +115,7 @@ it.each([['refresh', 'revise'], ['breakdown', 'clarification']] as CardOperation
   expectBusy(false)
 })
 
-function renderScrollingConversation(operations: CardOperation[] = ['clarification']) {
+function renderScrollingConversation(operations: CardOperation[] = ['clarification'], scrollOwner?: ReturnType<typeof createChatThreadScroll>) {
   let height = 1400
   vi.stubGlobal('ResizeObserver', class {
     constructor(private callback: () => void) { resizeCallbacks.add(callback) }
@@ -128,7 +128,7 @@ function renderScrollingConversation(operations: CardOperation[] = ['clarificati
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', { configurable: true, value: scrolling })
   Object.defineProperty(HTMLElement.prototype, 'scrollHeight', { configurable: true, get: () => height })
   Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 500 })
-  const view = render(<CardConversation operations={operations} />)
+  const view = render(<CardConversation operations={operations} scrollOwner={scrollOwner} />)
   const feed = screen.getByRole('feed')
   return { view, feed, scrolling, grow: () => { height = 1800; for (const resize of resizeCallbacks) resize() } }
 }
@@ -140,6 +140,22 @@ it('keeps the empty conversation at its first line on opening and content growth
   await act(async () => { owner.grow(); await new Promise(requestAnimationFrame) })
   expect(owner.feed.scrollTop).toBe(0)
   expect(owner.scrolling).not.toHaveBeenCalled()
+})
+
+it('follows a new message after reopening an empty conversation with retained scroll state', async () => {
+  const scrollOwner = createChatThreadScroll()
+  scrollOwner.recordScroll(900, 900)
+  const owner = renderScrollingConversation([], scrollOwner)
+  expect(owner.feed.scrollTop).toBe(0)
+  await act(async () => {
+    owner.view.rerender(<CardConversation operations={['clarification']} scrollOwner={scrollOwner} />)
+    await new Promise(requestAnimationFrame)
+  })
+  owner.feed.scrollTop = 100
+  fireEvent.scroll(owner.feed)
+  expect(scrollOwner.isFollowing()).toBe(true)
+  await act(async () => { owner.grow(); await new Promise(requestAnimationFrame) })
+  expect(owner.feed.scrollTop).toBe(1300)
 })
 
 it('opens and reopens a retained thread at its newest message', async () => {
