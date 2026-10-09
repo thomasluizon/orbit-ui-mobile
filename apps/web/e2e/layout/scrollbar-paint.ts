@@ -3,6 +3,9 @@ import sharp from 'sharp'
 
 export async function measureScrollbarPaint(scroller: Locator, axis: 'vertical' | 'horizontal' = 'vertical') {
   const { clip, background, thumb } = await scroller.evaluate((element, axis) => {
+    if (window.visualViewport && window.visualViewport.scale !== 1) {
+      throw new Error(`measureScrollbarPaint needs visual viewport scale 1, got ${window.visualViewport.scale}`)
+    }
     const bounds = element.getBoundingClientRect()
     const style = getComputedStyle(element)
     const canvas = document.createElement('canvas')

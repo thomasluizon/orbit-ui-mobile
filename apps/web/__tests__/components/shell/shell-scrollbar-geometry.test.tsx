@@ -95,7 +95,7 @@ describe('Shell scrollbar geometry and paint', () => {
     const page = await browser.newPage({ viewport: { width: 600, height: 706 }, hasTouch: true, isMobile: true, colorScheme: mode })
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     try {
-      await page.setContent(`<!doctype html><style>${stylesheet}:root{${theme}}</style><div tabindex="0" data-scroll-probe style="overflow:auto;scrollbar-gutter:stable;width:200px;height:100px;background:var(--bg)"><div style="height:1600px"></div></div>`)
+      await page.setContent(`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>${stylesheet}:root{${theme}}</style><div tabindex="0" data-scroll-probe style="overflow:auto;scrollbar-gutter:stable;width:200px;height:100px;background:var(--bg)"><div style="height:1600px"></div></div>`)
       const probe = page.locator('[data-scroll-probe]')
       expect(await probe.evaluate(measureScrollbarGutter)).toBe(4)
       await probe.tap()
@@ -114,7 +114,7 @@ describe('Shell scrollbar geometry and paint', () => {
     const page = await browser.newPage({ viewport: { width: 600, height: 706 }, reducedMotion: 'reduce', colorScheme: mode })
     const theme = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
     try {
-      await page.setContent(`<!doctype html><style>${stylesheet}:root{${theme}}</style><div data-scroll-probe style="overflow:auto;scrollbar-gutter:stable;width:200px;height:100px;background:var(--bg)"><div style="height:1600px"></div></div>`)
+      await page.setContent(`<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>${stylesheet}:root{${theme}}</style><div data-scroll-probe style="overflow:auto;scrollbar-gutter:stable;width:200px;height:100px;background:var(--bg)"><div style="height:1600px"></div></div>`)
       const probe = page.locator('[data-scroll-probe]')
       await page.mouse.move(300, 300)
       const paint = await measureScrollbarPaint(probe)
