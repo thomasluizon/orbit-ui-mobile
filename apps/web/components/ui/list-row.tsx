@@ -40,8 +40,8 @@ function titleLineHeight(textMode: WebListRowProps['textMode'], wrapTitle: WebLi
   return textMode === 'label' || wrapTitle ? 1.4 : 1.25
 }
 
-function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebListRowProps['wrapValue'], wrapTitle: WebListRowProps['wrapTitle'], compact: boolean, hasTrailing: boolean) {
-  return { gap: 4, ...(compact && hasTrailing ? { paddingBlock: 4 } : {}), ...(wrapTitle && hasTrailing ? { minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' } : {}), ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' } : {}) }
+function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebListRowProps['wrapValue'], wrapTitle: WebListRowProps['wrapTitle'], compact: boolean, hasTrailing: boolean, inlineControl: boolean) {
+  return { gap: 4, ...(compact && hasTrailing ? { paddingBlock: inlineControl ? 0 : 4 } : {}), ...(wrapTitle && hasTrailing ? { minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' } : {}), ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' } : {}), ...(inlineControl ? { minHeight: '3rem', justifyContent: 'center' } : {}) }
 }
 
 function personalTextProps(textMode: WebListRowProps['textMode'], expanded: boolean | undefined) {
@@ -57,8 +57,8 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   const Title = textMode === 'personal' ? PersonalText : 'span'
   const Description = textMode === 'personal' ? PersonalText : 'span'
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
-  return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
-    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</Title>
+  return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing, readOnly === true && textMode === 'label' && !!trailing && !value), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
+    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: textMode ? '1.0625rem' : 17, fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle) }}>{title}</Title>
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: textMode === 'personal' ? '0.875rem' : 14, lineHeight: 1.4 }}>{description}</Description> : null}
   </span>
 }

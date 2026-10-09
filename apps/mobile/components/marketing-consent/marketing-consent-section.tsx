@@ -14,8 +14,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { createTokensV2 } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
+import type { createTokensV2 } from '@/lib/theme'
+import { useThemeTokens } from '@/hooks/use-theme-tokens'
 
 type Translate = ReturnType<typeof useTranslation>['t']
 type MarketingConsentStyles = ReturnType<typeof createStyles>
@@ -113,11 +113,7 @@ export function MarketingConsentSection({
   trailingRow,
 }: Readonly<{ showSectionLabel?: boolean; contained?: boolean; trailingRow?: ReactNode }>) {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
+  const tokens = useThemeTokens()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { profile, patchProfile, invalidate } = useProfile()
   const enabled = profile?.marketingEmailConsent === true

@@ -9,11 +9,17 @@ import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
 
+vi.mock('react-native', async () => ({
+  ...await import('../../test-mocks/react-native'),
+  Appearance: { getColorScheme: () => 'dark' },
+}))
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ i18n: { language: 'en' } }),
 }))
+const auth = vi.hoisted(() => ({ isAuthenticated: true }))
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (select: (state: { isAuthenticated: boolean }) => unknown) => select({ isAuthenticated: true }),
+  useAuthStore: (select: (state: { isAuthenticated: boolean }) => unknown) => select(auth),
 }))
 vi.mock('@/lib/api-client', () => ({ apiClient: vi.fn() }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn().mockResolvedValue(undefined) }))
@@ -61,11 +67,28 @@ async function setup(previous: ThemeMode) {
 
 afterEach(async () => {
   await act(() => { for (const unmount of unmounts.splice(0)) unmount() })
+  auth.isAuthenticated = true
   vi.clearAllMocks()
   vi.unstubAllGlobals()
 })
 
 describe('mobile theme choice across profile consumers', () => {
+  it('waits for stored-session validation before persisting a missing theme', async () => {
+    auth.isAuthenticated = false
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client.setQueryData(profileKeys.detail(), createMockProfile({ themePreference: null }))
+    let root: ReturnType<typeof TestRenderer.create>
+    const tree = <QueryClientProvider client={client}><ThemeProvider captureTheme={null}><React.Fragment /></ThemeProvider></QueryClientProvider>
+    await act(() => {
+      root = TestRenderer.create(tree)
+      unmounts.push(() => root.unmount())
+    })
+    expect(performQueuedApiMutation).not.toHaveBeenCalled()
+    auth.isAuthenticated = true
+    await act(() => root.update(<QueryClientProvider client={client}><ThemeProvider captureTheme={null}><React.Fragment /></ThemeProvider></QueryClientProvider>))
+    expect(performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ type: 'setThemePreference' }))
+  })
+
   it.each([['dark', 'light'], ['light', 'dark']] as const)(
     'keeps %s to %s after mounting another profile consumer', async (previous, chosen) => {
       let resolveSave: () => void = () => {}

@@ -440,8 +440,11 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+  scrollContent: { width: '100%', maxWidth: 620, alignSelf: 'flex-start', paddingHorizontal: 16, paddingTop: 16 },
   formBlock: {
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'flex-start',
     gap: 24,
   },
   formDescription: {
@@ -465,7 +468,6 @@ const styles = StyleSheet.create({
   },
   offlineText: { flex: 1, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   successBlock: {
-    paddingHorizontal: 24,
     paddingVertical: 48,
     alignItems: 'flex-start',
     gap: 16,

@@ -59,9 +59,7 @@ describe('ActionChips', () => {
       entityName: 'Perspirex Strong - Semana 2 (Manutenção)',
     })]} />)
 
-    expect(screen.getByText(
-      'Não foi possível criar Perspirex Strong - Semana 2 (Manutenção)',
-    )).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Não foi possível criar Perspirex Strong - Semana 2 (Manutenção)' })).toBeInTheDocument()
   })
 
   it('renders three failed attempts as distinguishable rows', () => {
@@ -71,15 +69,15 @@ describe('ActionChips', () => {
       makeActionResult({ type: 'delete_habit', status: 'Failed', entityName: 'Drink water' }),
     ]} />)
 
-    expect(screen.getByText('Não foi possível criar Morning walk')).toBeInTheDocument()
-    expect(screen.getByText('Não foi possível atualizar Read ten pages')).toBeInTheDocument()
-    expect(screen.getByText('Não foi possível apagar Drink water')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Não foi possível criar Morning walk' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Não foi possível atualizar Read ten pages' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Não foi possível apagar Drink water' })).toBeInTheDocument()
   })
 
   it('keeps the successful create label unchanged', () => {
     render(<ActionChips actions={[makeActionResult({ type: 'create_habit' })]} />)
 
-    expect(screen.getByText('Criou Meditate')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Criou Meditate' })).toBeInTheDocument()
   })
 
   it('opens a successful navigable result', () => {
@@ -102,4 +100,15 @@ describe('ActionChips', () => {
     expect(screen.getByText('chat.action.completed')).toBeInTheDocument()
     expect(screen.queryByText(/UnexpectedServerSymbol/)).not.toBeInTheDocument()
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full attempted entity %s', (name) => {
+    const label = `Não foi possível criar ${name}`
+    const onChipClick = vi.fn()
+    const { container } = render(<ActionChips actions={[makeActionResult({ type: 'create_habit', status: 'Failed', entityName: name, entityId: null })]} onChipClick={onChipClick} />)
+    const disclosure = screen.getByRole('button', { name: label, expanded: false })
+    expect(container.querySelector('[data-personal-text]')).toHaveAttribute('aria-label', label)
+    fireEvent.click(disclosure)
+    expect(screen.getByRole('button', { name: label, expanded: true })).toBeInTheDocument()
+    expect(onChipClick).not.toHaveBeenCalled()
+  })
+
 })

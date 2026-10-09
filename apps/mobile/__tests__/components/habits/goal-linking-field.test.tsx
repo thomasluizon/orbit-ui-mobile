@@ -1,3 +1,4 @@
+import { expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import React from 'react'
 import { FlatList, StyleSheet } from 'react-native'
@@ -14,7 +15,7 @@ vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string, values?: { name: string }) => key === 'common.showFullText' ? `${key}:${JSON.stringify(values)}` : key }),
 }))
 vi.mock('@tanstack/react-query', () => ({
   useQuery: () => ({ data: queryGoals }),
@@ -55,7 +56,7 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
     })
 
     await TestRenderer.act(() => {
-      tree.root.findByType('ListRow').props.onClick()
+      (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
     })
     await TestRenderer.act(() => {
       createGoalButton(tree.root).props.onPress()
@@ -68,7 +69,7 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
       tree.root.findByType('CreateGoalFromHabitSheet').props.onClose()
     })
     await TestRenderer.act(() => {
-      tree.root.findByType('ListRow').props.onClick()
+      (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
     })
     expect(tree.root.findAllByType('Sheet')).toHaveLength(1)
   })
@@ -89,7 +90,7 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     )
   })
   await TestRenderer.act(() => {
-    tree.root.findByType('ListRow').props.onClick()
+    (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)()
   })
 
   expect(StyleSheet.flatten(tree.root.findByType('BottomSheetAppTextInput').props.style)).toMatchObject({ paddingHorizontal: 16, minHeight: 54 })
@@ -105,4 +106,33 @@ it('selects a goal below the first viewport while the search keyboard is open', 
     row.root.findAll((node: { props: Record<string, unknown> }) => node.props.accessibilityRole === 'button')[0]!.props.onPress()
   })
   expect(onToggleGoal).toHaveBeenCalledWith('goal-20')
+
 })
+
+  it.each(['UnbrokenToken' .repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses typed text without changing selection for %s', async (name) => {
+    const onToggle = vi.fn()
+    queryGoals = [{ id: 'long-goal', title: name, status: 'Active', progressPercentage: 20 }]
+    const element = <GoalLinkingField selectedGoalIds={['long-goal']} atGoalLimit={false} onToggleGoal={onToggle} />
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(element) })
+    const disclosure = expandedTextControls(tree.root, name, false)[0]!
+    expect(disclosure).toBeDefined()
+    await expectPersonalTextLayout(tree.root, name, 1)
+    await TestRenderer.act(() => pressTextControl(disclosure))
+    expect(expandedTextControls(tree.root, name, true)).toHaveLength(1)
+    expect(tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ScrollView' && node.props.horizontal === true).length).toBeGreaterThan(0)
+    expect(onToggle).not.toHaveBeenCalled()
+    await TestRenderer.act(() => pressTextControl(expandedTextControls(tree.root, name, true)[0]!))
+    await TestRenderer.act(() => (tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'ListRow')[0]!.props.onClick as () => void)())
+    const row = tree.root.findAll((node: import('react-test-renderer').ReactTestInstance) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === name && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)[0]!
+    expect(row).toBeDefined()
+    await expectPersonalTextLayout(row, name)
+    const rowDisclosure = expandedTextControls(tree.root, `common.showFullText:${JSON.stringify({ name })}`, false)
+    expect(rowDisclosure).toHaveLength(1)
+    await TestRenderer.act(() => pressTextControl(rowDisclosure[0]!))
+    expect(onToggle).not.toHaveBeenCalled()
+    await TestRenderer.act(() => pressTextControl(rowDisclosure[0]!))
+    await TestRenderer.act(() => pressTextControl(row))
+    expect(onToggle).toHaveBeenCalledWith('long-goal')
+    await TestRenderer.act(() => tree.update(<></>))
+  })

@@ -65,7 +65,7 @@ describe('expanded RadioRow personal text in Chromium', () => {
             if (composition === 'list') return <ListRow title={label} textMode="personal" />;
             if (composition === 'settings') return <SettingsRow label={label} textMode="personal" />;
             if (composition === 'settingsGroup') return <SettingsGroupRow label={label} textMode="personal" />;
-            if (composition === 'details') return <PersonalTextDetails>{label}</PersonalTextDetails>;
+            if (composition === 'details') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><PersonalTextDetails>{label}</PersonalTextDetails></NextIntlClientProvider>;
             return <RadioGroup aria-label="Subjects" onCommit={() => document.getElementById('commits').textContent += 'commit'}>
               <RadioRow label={label} textMode="personal" selected={selected === 0} onSelect={() => select(0)} />
               <RadioRow label="Second" selected={selected === 1} onSelect={() => select(1)} />
