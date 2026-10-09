@@ -172,7 +172,7 @@ const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PersonalTextDetails proposed={item.proposed}>{item.label}</PersonalTextDetails> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
-  stepUp: (props) => <StepUp {...props} />,
+  stepUp: (props) => <div className="basis-full min-w-0"><StepUp {...props} /></div>,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <button
@@ -180,8 +180,6 @@ const pendingOperationRenderers = {
     className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] disabled:opacity-40 transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
   ><X aria-hidden="true" size={20} strokeWidth={1.5} /></button>,
   notice: (message) => <p role="status" className="text-sm text-[var(--fg-2)]">{message}</p>,
-  actionRow: (...children) => <div className="flex flex-wrap items-center gap-2" data-preview-actions="">{children}</div>,
-  spacer: () => <span className="flex-1" />,
   rejected: (message) => <p role="status" data-preview-rejection-status="" className={message ? 'flex items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-sm text-[var(--fg-2)]' : 'sr-only'}>{message ? <><XCircle aria-hidden="true" size={20} strokeWidth={1.5} className="shrink-0 text-[var(--fg-3)]" /><span className="min-w-0 flex-1 leading-[1.55]">{message}</span></> : null}</p>,
 } satisfies PendingOperationCardRenderers
 

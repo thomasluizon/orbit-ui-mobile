@@ -184,19 +184,13 @@ const pendingOperationRenderers = {
   blockFrame: (props) => <BlockFrame {...props} items={props.items.map((item) => ({ ...item, label: typeof item.label === 'string' && item.id !== 'remaining' ? <PersonalTextDetails proposed={item.proposed}>{item.label}</PersonalTextDetails> : item.label }))} />,
   button: ({ label, ...props }) => <PreviewButton label={label} {...props} />,
   confirmSheet: (props) => <ConfirmSheet {...props} />,
-  stepUp: (props) => <StepUp {...props} />,
+  stepUp: (props) => <View style={{ flexBasis: '100%', minWidth: 0 }}><StepUp {...props} /></View>,
   verification: (props) => <StepUpVerificationSheet {...props} />,
   editSheet: (props) => <EditPendingOperationSheet {...props} />,
   removeItem: (label, disabled, onClick) => <RemoveItemButton label={label} disabled={disabled} onClick={onClick} />,
   notice: (message) => <PreviewNotice message={message} />,
-  actionRow: (...children) => <PreviewActions>{children}</PreviewActions>,
-  spacer: () => <View style={{ flex: 1 }} />,
   rejected: (message) => <RejectedPreview message={message} />,
 } satisfies PendingOperationCardRenderers
-
-function PreviewActions({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <View testID="preview-actions" style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>{children}</View>
-}
 
 function PreviewNotice({ message }: Readonly<{ message: string }>) {
   const { currentScheme, currentTheme } = useAppTheme()
