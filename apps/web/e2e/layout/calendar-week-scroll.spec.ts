@@ -50,6 +50,33 @@ async function scrollHours(hour: Locator, position: 'start' | 'end') {
   }, position)
 }
 
+async function waitForWeekGeometry(scroller: Locator) {
+  await expect.poll(() => scroller.evaluate(async (element) => {
+    const measure = () => [element.clientHeight, element.scrollHeight, element.firstElementChild!.clientHeight,
+      element.firstElementChild!.getAttribute('data-pinning')]
+    const before = measure()
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    const middle = measure()
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    const after = measure()
+    return element.clientHeight > 0 && JSON.stringify(before) === JSON.stringify(middle)
+      && JSON.stringify(middle) === JSON.stringify(after)
+  })).toBe(true)
+}
+
+async function hasVisibleHour(scroller: Locator) {
+  return scroller.evaluate((element) => {
+    const viewport = element.getBoundingClientRect()
+    const pane = element.firstElementChild!
+    const top = pane.getAttribute('data-pinning') === 'pinned'
+      ? Math.max(viewport.top, pane.getBoundingClientRect().bottom) : viewport.top
+    return [...element.querySelectorAll('[data-testid="time-grid-hour-label"]')].some((hour) => {
+      const rect = hour.getBoundingClientRect()
+      return rect.top >= top && rect.bottom <= viewport.bottom
+    })
+  })
+}
+
 for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726 }, { width: 412, height: 640 }]) {
   for (const themeMode of ['dark', 'light'] as const) {
     test.describe(`Week scroll at ${viewport.width}x${viewport.height} in ${themeMode}`, () => {
@@ -66,13 +93,15 @@ for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726
         await page.goto('/calendar')
         await page.getByRole('radio', { name: ptBR.calendar.view.week, exact: true }).click()
         const hour = page.getByTestId('time-grid-hour-label').first()
+        const scroller = page.getByTestId('time-grid-hour-scroller')
         const header = page.getByTestId('time-grid-col-header').first().locator('..')
         const options = page.getByRole('button', { name: ptBR.calendar.options, exact: true })
         await expect(hour).toBeAttached()
         await expect.poll(async () => (await scrollAncestors(hour)).filter((ancestor) => ancestor.ownsScroll).length).toBe(1)
 
-        for (const textScale of [1, 2]) {
+        for (const textScale of viewport.width === 412 ? [1] : [1, 2]) {
           await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, textScale)
+          await waitForWeekGeometry(scroller)
           for (const position of ['start', 'end'] as const) {
             await scrollHours(hour, position)
             await expect.poll(async () => {
@@ -80,7 +109,8 @@ for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726
               const optionsBox = await options.boundingBox()
               if (!headerBox || !optionsBox) return false
               const ancestors = await scrollAncestors(hour)
-              const within = ancestors.every((ancestor) => headerBox.y >= ancestor.top - 1
+              const pinned = await scroller.getByTestId('time-grid-day-pane').getAttribute('data-pinning') === 'pinned'
+              const within = !pinned || ancestors.every((ancestor) => headerBox.y >= ancestor.top - 1
                 && headerBox.y + headerBox.height <= ancestor.bottom + 1)
               const overlaps = headerBox.x < optionsBox.x + optionsBox.width && optionsBox.x < headerBox.x + headerBox.width
                 && headerBox.y < optionsBox.y + optionsBox.height && optionsBox.y < headerBox.y + headerBox.height
@@ -89,6 +119,30 @@ for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726
           }
         }
       })
+
+      if (viewport.width !== 412) {
+        test('keeps one scroll owner and reachable hours at 200% text', async ({ page }) => {
+          await page.goto('/calendar')
+          await page.getByRole('radio', { name: ptBR.calendar.view.week, exact: true }).click()
+          const scroller = page.getByTestId('time-grid-hour-scroller')
+          const hour = page.getByTestId('time-grid-hour-label').first()
+          await expect(hour).toBeAttached()
+          await page.evaluate(() => { document.documentElement.style.fontSize = '32px' })
+          await waitForWeekGeometry(scroller)
+          await expect.poll(async () => (await scrollAncestors(hour)).filter((ancestor) => ancestor.ownsScroll).length).toBe(1)
+          const pane = scroller.getByTestId('time-grid-day-pane')
+          expect(await pane.evaluate((element) => element.getAttribute('data-pinning') === 'pinned'
+            ? element.clientHeight <= element.parentElement!.clientHeight / 2
+            : element.clientHeight > element.parentElement!.clientHeight / 2)).toBe(true)
+          await scroller.evaluate((element) => {
+            const pane = element.firstElementChild!
+            const label = element.querySelectorAll<HTMLElement>('[data-testid="time-grid-hour-label"]')[12]!
+            const paneHeight = pane.getAttribute('data-pinning') === 'pinned' ? pane.clientHeight : 0
+            element.scrollTop += label.getBoundingClientRect().top - element.getBoundingClientRect().top - paneHeight
+          })
+          await expect.poll(() => hasVisibleHour(scroller)).toBe(true)
+        })
+      }
     })
   }
 }

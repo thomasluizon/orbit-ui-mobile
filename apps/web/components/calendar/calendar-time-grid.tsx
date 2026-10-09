@@ -185,6 +185,7 @@ export function CalendarTimeGrid({
   const t = useTranslations()
   const [disclosure, setDisclosure] = useState<{ entries: CalendarDayEntry[]; title: string } | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [isPanePinned, setIsPanePinned] = useState(true)
   const [now, setNow] = useState<Date>(() => nowDate())
   const nowMinutes = getAccountDateTime(now, timeZone).minutes
 
@@ -223,7 +224,10 @@ export function CalendarTimeGrid({
     const node = bodyRef.current
     if (!node) return
     const open = () => {
-      const pinnedHeight = node.firstElementChild?.clientHeight ?? 0
+      const paneHeight = node.firstElementChild?.clientHeight ?? 0
+      const shouldPin = paneHeight <= node.clientHeight / 2
+      setIsPanePinned(shouldPin)
+      const pinnedHeight = shouldPin ? paneHeight : 0
       const hourLabels = node.querySelectorAll<HTMLElement>('[data-testid="time-grid-hour-label"]')
       const measuredHour = hourLabels[1]!.offsetTop - hourLabels[0]!.offsetTop
       const scale = measuredHour > 0 ? measuredHour / HOUR_HEIGHT : 1
@@ -234,7 +238,7 @@ export function CalendarTimeGrid({
       const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)))
       node.scrollTop = Math.max(0, columns.some(({ isToday }) => isToday)
         ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * scale - bodyHeight / 4
-        : firstTop * scale)
+        : firstTop * scale) + (shouldPin ? 0 : paneHeight)
       const todayColumn = node.querySelector<HTMLElement>('[data-today="true"]')
       if (todayColumn) {
         const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
@@ -283,9 +287,9 @@ export function CalendarTimeGrid({
           }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
-          style={{ ...SCROLLER_VARIABLES, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+          style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
         >
-          <div className="sticky top-0 z-[3]" style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
+          <div data-testid="time-grid-day-pane" data-pinning={isPanePinned ? 'pinned' : 'scrolling'} className={`${isPanePinned ? 'sticky top-0' : 'relative'} z-[3]`} style={{ minWidth: gridMinWidth, ...pinnedPaneBackground }}>
             <div
               className="grid"
               style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth, ...pinnedPaneBackground }}

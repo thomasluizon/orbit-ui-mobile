@@ -339,6 +339,24 @@ describe("CalendarTimeGrid (mobile)", () => {
     } finally { __setScrollToImpl(() => {}); }
   });
 
+  it("unpins oversized day lanes and repins at half the viewport after a layout", () => {
+    const tree = renderGrid([column('2025-06-16')], new Map());
+    const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+    const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+    TestRenderer.act(() => {
+      body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 400 } } });
+      pane().props.onLayout?.({ nativeEvent: { layout: { width: 800, height: 200 } } });
+    });
+    expect(body().props.stickyHeaderIndices).toEqual([0]);
+    TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 201 } } }));
+    expect(body().props.stickyHeaderIndices).toEqual([]);
+    let parent = hostsByTestID(tree, 'time-grid-col-header')[0]!.parent;
+    while (parent && parent !== body()) parent = parent.parent;
+    expect(parent).toBe(body());
+    TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 100 } } }));
+    expect(body().props.stickyHeaderIndices).toEqual([0]);
+  });
+
   it("opens the hour body with now in its upper third", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
@@ -347,10 +365,13 @@ describe("CalendarTimeGrid (mobile)", () => {
     try {
       const tree = renderGrid([{ ...column('2026-10-08'), isToday: true }], new Map());
       const body = hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
-      TestRenderer.act(() => body.props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } }));
+      TestRenderer.act(() => {
+        body.props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } });
+        hostsByTestID(tree, 'time-grid-day-pane')[0]!.props.onLayout({ nativeEvent: { layout: { width: 800, height: 120 } } });
+      });
       const y = scrollTo.mock.calls[0]![0].y;
-      expect(1032 - y).toBeGreaterThanOrEqual(0);
-      expect(1032 - y).toBeLessThanOrEqual(100);
+      expect(120 + 1032 - y).toBeGreaterThanOrEqual(120);
+      expect(120 + 1032 - y).toBeLessThanOrEqual(180);
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
   });
 

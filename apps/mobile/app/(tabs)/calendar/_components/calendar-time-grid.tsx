@@ -308,6 +308,8 @@ export function CalendarTimeGrid({
   const gutterScrollRef = useRef<ScrollView>(null);
   const columnsScrollRef = useRef<ScrollView>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
+  const [paneHeight, setPaneHeight] = useState(0);
+  const isPanePinned = paneHeight <= bodyHeight / 2;
   const [viewportWidth, setViewportWidth] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
   const [now, setNow] = useState<Date>(() => nowDate());
@@ -355,15 +357,17 @@ export function CalendarTimeGrid({
   const chipHeight = Math.max(48, 44.8 * fontScale);
   const allDayBandHeight = chipCount * chipHeight + (chipCount - 1) * 4 + 16 + 1;
   useEffect(() => {
-    if (opened.current || isLoading || bodyHeight <= 0) return;
+    if (opened.current || isLoading || bodyHeight <= 0 || paneHeight <= 0) return;
     const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)));
+    const visibleHourHeight = bodyHeight - (isPanePinned ? paneHeight : 0);
+    if (visibleHourHeight <= 0) return;
     const offset = Math.max(0, columns.some(({ isToday }) => isToday)
-      ? (nowMinutes / 60) * HOUR_HEIGHT * fontScale - bodyHeight / 4
-      : firstTop * fontScale);
+      ? (nowMinutes / 60) * HOUR_HEIGHT * fontScale - visibleHourHeight / 4
+      : firstTop * fontScale) + (isPanePinned ? 0 : paneHeight);
     scrollViewToY(bodyScrollRef.current, offset);
     scrollViewToY(gutterScrollRef.current, offset);
     opened.current = true;
-  }, [bodyHeight, columns, fontScale, isLoading, nowMinutes, perColumn]);
+  }, [bodyHeight, columns, fontScale, isLoading, isPanePinned, nowMinutes, paneHeight, perColumn]);
 
   const syncGutter = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollViewToY(gutterScrollRef.current, event.nativeEvent.contentOffset.y);
@@ -388,17 +392,18 @@ export function CalendarTimeGrid({
       <View testID="calendar-time-grid" style={styles.card}>
         <View style={styles.row}>
           <View style={[styles.gutter, { width: gutterWidth }]}>
-            <View style={[styles.gutterCorner, { height: headerHeight }]} />
-            <View style={[styles.gutterAllDay, { height: allDayBandHeight }]}><Text testID="time-grid-any-time-label" style={styles.anyTimeLabel}>{allDayLabel}</Text></View>
             <ScrollView
               ref={gutterScrollRef}
               style={{ flex: 1, minHeight: 0 }}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
+              stickyHeaderIndices={isPanePinned ? [0] : []}
             >
-              <View style={{ height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
+              <View style={{ height: paneHeight, backgroundColor: tokens.bgElev }}>
+                <View style={[styles.gutterCorner, { height: headerHeight }]} />
+                <View style={[styles.gutterAllDay, { height: allDayBandHeight }]}><Text testID="time-grid-any-time-label" style={styles.anyTimeLabel}>{allDayLabel}</Text></View>
+              </View>
+              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
                 {HOURS.map((hour) => (
                   <Text
                     key={hour}
@@ -423,55 +428,58 @@ export function CalendarTimeGrid({
             onScrollBeginDrag={() => { horizontalOpened.current = true; }}
           >
             <View style={styles.columnsContent}>
-              <View style={[styles.headerRow, { minHeight: headerHeight }]}>
-                {columns.map((column) => (
-                  <ColumnHeader
-                    key={column.dateStr}
-                    column={column}
-                    colWidth={colWidth}
-                    language={language}
-                    onSelectDay={onSelectDay}
-                    tokens={tokens}
-                    styles={styles}
-                  />
-                ))}
-              </View>
-
-              <View style={[styles.allDayRow, { minHeight: allDayBandHeight }]}>
-                {perColumn.map(({ column, allDay }) => {
-                  return (
-                    <View
-                      key={column.dateStr}
-                      testID="time-grid-all-day"
-                      style={[
-                        styles.allDayCell,
-                        {
-                          width: colWidth,
-                          borderLeftColor: column.isFuture
-                            ? tokens.hairlineGhost
-                            : tokens.hairline,
-                          borderBottomColor: column.isFuture
-                            ? tokens.hairlineGhost
-                            : tokens.hairline,
-                        },
-                      ]}
-                    >
-                      {(allDay.length >= 3 ? allDay.slice(0, 1) : allDay).map((entry) => <AllDayChip key={entry.habitId} label={entry.title} accessibilityLabel={entry.title} onPress={() => setDisclosure({ entries: [entry], title: t('calendar.entryDetails') })} tokens={tokens} fontScale={fontScale} />)}
-                      {allDay.length >= 3 ? <AllDayChip more label={t('calendar.timeGrid.moreCount', { count: allDay.length - 1 })} accessibilityLabel={t('calendar.timeGrid.moreCountLabel', { count: allDay.length - 1 })} onPress={() => onSelectDay(column.dateStr)} tokens={tokens} fontScale={fontScale} /> : null}
-                    </View>
-                  );
-                })}
-              </View>
-
               <ScrollView
                 ref={bodyScrollRef}
                 style={{ flex: 1, minHeight: 0 }}
                 testID="time-grid-hour-scroller"
+                stickyHeaderIndices={isPanePinned ? [0] : []}
                 onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}
                 onScroll={syncGutter}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator
               >
+                <View testID="time-grid-day-pane" onLayout={(event) => setPaneHeight(event.nativeEvent.layout.height)} style={{ backgroundColor: tokens.bgElev }}>
+                  <View style={[styles.headerRow, { minHeight: headerHeight }]}>
+                    {columns.map((column) => (
+                      <ColumnHeader
+                        key={column.dateStr}
+                        column={column}
+                        colWidth={colWidth}
+                        language={language}
+                        onSelectDay={onSelectDay}
+                        tokens={tokens}
+                        styles={styles}
+                      />
+                    ))}
+                  </View>
+
+                  <View style={[styles.allDayRow, { minHeight: allDayBandHeight }]}>
+                    {perColumn.map(({ column, allDay }) => {
+                      return (
+                        <View
+                          key={column.dateStr}
+                          testID="time-grid-all-day"
+                          style={[
+                            styles.allDayCell,
+                            {
+                              width: colWidth,
+                              borderLeftColor: column.isFuture
+                                ? tokens.hairlineGhost
+                                : tokens.hairline,
+                              borderBottomColor: column.isFuture
+                                ? tokens.hairlineGhost
+                                : tokens.hairline,
+                            },
+                          ]}
+                        >
+                          {(allDay.length >= 3 ? allDay.slice(0, 1) : allDay).map((entry) => <AllDayChip key={entry.habitId} label={entry.title} accessibilityLabel={entry.title} onPress={() => setDisclosure({ entries: [entry], title: t('calendar.entryDetails') })} tokens={tokens} fontScale={fontScale} />)}
+                          {allDay.length >= 3 ? <AllDayChip more label={t('calendar.timeGrid.moreCount', { count: allDay.length - 1 })} accessibilityLabel={t('calendar.timeGrid.moreCountLabel', { count: allDay.length - 1 })} onPress={() => onSelectDay(column.dateStr)} tokens={tokens} fontScale={fontScale} /> : null}
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                </View>
                 <View style={{ flexDirection: "row", height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
                   {perColumn.map(({ column, timed }) => (
                     <View

@@ -43,8 +43,8 @@ that disagrees with production is a trap rather than an authority.
 
 | Paired web and Android surface | Contract and evidence |
 |---|---|
-| Semana page and week wrapper | Fill the height below the header with one hour scroll owner; compact and wide viewport cases at font scales 1 and 2. |
-| Weekday header | Pinned natural short names, one today date disc, day selection and clearance from calendar options. |
+| Semana page and week wrapper | Fill the height below the header with one hour scroll owner; 1352x726, 1100x726 and 412x640 cases at font scale 1; 1352x726 and 1100x726 also at font scale 2. The weekday header and any-time lane pin only while together they occupy at most half the hour viewport; larger panes scroll with the hours. |
+| Weekday header | Natural short names, pinned with the lane only while their pane fits within half the hour viewport, one today date disc, day selection and clearance from calendar options. |
 | Any-time gutter and per-day lanes | Empty, one, two and three-or-more habits; named 28 chips inside separate 48 targets and +N day disclosure; long words and unbroken tokens. |
 | Timed blocks | Two-line names, status ring, bad mark and time; concurrent and adjacent lanes, transparent future blocks and full-name disclosure. |
 | Hours and position | Every hour labelled, aligned gutter, horizontal columns, now in today's column and upper third on opening, earlier morning for another week and trailing space at 200% text. |

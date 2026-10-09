@@ -105,7 +105,7 @@ afterEach(async () => {
 
 describe('Calendar week scroll ownership', () => {
   it.each([[1352, 726, 1], [1100, 726, 1], [412, 640, 1], [1352, 726, 2], [1100, 726, 2], [412, 640, 2]])(
-    'keeps one hour scroller and the weekday header outside it at %sx%s with font scale %s',
+    'keeps one hour scroller with the weekday pane as its sticky first child at %sx%s with font scale %s',
     async (width, height, fontScale) => {
       __setWindowDimensions({ width, height, scale: 1, fontScale })
       await act(() => { tree = create(<CalendarScreen />) })
@@ -127,8 +127,9 @@ describe('Calendar week scroll ownership', () => {
       expect(owners).toHaveLength(1)
       const weekday = tree!.root.findAll((node) => node.type === 'Pressable'
         && node.props.testID === 'time-grid-col-header')[0]!
-      expect(ancestors(weekday)).not.toContain(owners[0])
-      expect(scrollOwners(weekday)).toHaveLength(0)
+      expect(ancestors(weekday)).toContain(owners[0])
+      expect(scrollOwners(weekday)).toEqual(owners)
+      expect(owners[0]!.props.stickyHeaderIndices).toEqual([0])
       expect(ancestors(weekday).some((node) => node.type === 'ScrollView' && node.props.horizontal)).toBe(true)
     },
   )

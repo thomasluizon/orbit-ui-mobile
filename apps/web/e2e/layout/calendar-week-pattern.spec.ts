@@ -37,22 +37,25 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
           (route) => route.fulfill({ json: calendarMonth }))
       })
 
-      test('names entries, pins the day lanes and opens at now', async ({ page }) => {
+      test('names entries, keeps day lanes reachable and opens at now', async ({ page }) => {
         await page.goto('/calendar')
         await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
         const grid = page.getByTestId('calendar-time-grid')
-        const body = page.getByTestId('time-grid-hour-scroller')
         await expect(grid.getByTestId('time-grid-event')).toHaveCount(14)
-        await expect.poll(async () => body.evaluate((element) => {
-          const now = element.querySelector('[data-today="true"] [role="img"]')!
-          const pinned = element.firstElementChild!.getBoundingClientRect()
-          const viewport = element.getBoundingClientRect()
-          const line = now.getBoundingClientRect()
-          const top = Math.max(pinned.bottom, viewport.top)
+        const line = grid.getByRole('img', { name: words.calendar.timeGrid.now, exact: true })
+        await expect.poll(async () => line.evaluate((element) => {
+          const scroller = element.closest('[data-testid="time-grid-hour-scroller"]')!
+          const pane = scroller.firstElementChild!
+          const viewport = scroller.getBoundingClientRect()
+          const line = element.getBoundingClientRect()
+          const top = pane.getAttribute('data-pinning') === 'pinned'
+            ? Math.max(pane.getBoundingClientRect().bottom, viewport.top) : viewport.top
           return line.top >= top && line.bottom <= viewport.bottom
             && line.top <= top + (viewport.bottom - top) / 3
             && line.left >= viewport.left && line.right <= viewport.right
         })).toBe(true)
+
+        await grid.getByTestId('time-grid-hour-scroller').evaluate((element) => { element.scrollTop = 0 })
 
         for (const block of await grid.getByTestId('time-grid-event').all()) {
           const title = await block.getByTestId('time-grid-event-name').textContent()
@@ -102,6 +105,13 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
             return targets.every((target, index) => targets.slice(index + 1).every((other) => target.right < other.left || other.right < target.left || target.bottom < other.top || other.bottom < target.top))
           })).toBe(true)
         }
+        const firstChip = tuesday.getByTestId('time-grid-all-day-event')
+        await firstChip.focus()
+        await expect.poll(async () => firstChip.evaluate((element) => {
+          const body = element.closest('[data-testid="time-grid-hour-scroller"]')!
+          const gutter = body.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!
+          return element.getBoundingClientRect().left >= gutter.getBoundingClientRect().right
+        })).toBe(true)
         await tuesday.getByTestId('time-grid-all-day-more').click()
         const daySheet = page.getByRole('dialog')
         await expect(daySheet).toBeVisible()

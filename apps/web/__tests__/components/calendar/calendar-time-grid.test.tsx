@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import { enUS } from 'date-fns/locale'
 
 vi.mock('next-intl', () => ({
@@ -265,6 +265,44 @@ describe('CalendarTimeGrid', () => {
     fireEvent.scroll(scroller)
     view.rerender(grid(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'third', dueTime: '08:00' })]]]), false))
     expect(scroller.scrollLeft).toBe(88)
+  })
+
+  it('unpins oversized day lanes and repins at half the viewport after a resize', () => {
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    })
+    let paneHeight = 200
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 400 : this.parentElement?.dataset.testid === 'time-grid-hour-scroller' ? paneHeight : 0
+    })
+    try {
+      renderGrid([column(2025, 5, 16)], new Map())
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      const pane = screen.getByTestId('time-grid-all-day-band').parentElement!
+      expect(pane).toHaveAttribute('data-pinning', 'pinned')
+      expect(body.style.scrollPaddingTop).toBe('200px')
+      paneHeight = 201
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(pane).toHaveAttribute('data-pinning', 'scrolling')
+      expect(body.style.scrollPaddingTop).toBe('0px')
+      expect(body).toContainElement(screen.getAllByTestId('time-grid-hour-label')[0]!)
+      expect(body).toContainElement(screen.getByTestId('time-grid-col-header'))
+      paneHeight = 100
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(pane).toHaveAttribute('data-pinning', 'pinned')
+      expect(body.style.scrollPaddingTop).toBe('100px')
+    } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
+  })
+
+  it('keeps horizontally focused day controls clear of the sticky time gutter', () => {
+    renderGrid([column(2025, 5, 16)], new Map())
+    const gutterWidth = screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns.split(' repeat(')[0]!
+    expect(screen.getByTestId('time-grid-hour-scroller').style.scrollPaddingLeft).toBe(gutterWidth)
   })
 
   it('opens today near now and another week at its earliest morning block', () => {
