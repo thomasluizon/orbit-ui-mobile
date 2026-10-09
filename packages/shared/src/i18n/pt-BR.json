@@ -387,6 +387,7 @@
   },
   "dates": {
     "today": "Hoje",
+    "todayWithDate": "Hoje, {date}",
     "goToToday": "Ir para hoje",
     "yesterday": "Ontem",
     "tomorrow": "Amanhã",
@@ -984,9 +985,7 @@
   },
   "calendar": {
     "agenda": {
-      "today": "Hoje",
-      "empty": "Nada agendado",
-      "timedEntryLabel": "{title}, {time}"
+      "empty": "Nada agendado"
     },
     "legend": {
       "loggable": "pode registrar",
@@ -1046,6 +1045,9 @@
       "week": "Semana",
       "range": "Período",
       "agenda": "Agenda"
+    },
+    "period": {
+      "goToCurrent": "{period}, ir para hoje"
     },
     "range": {
       "label": "{start} a {end}",

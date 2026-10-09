@@ -9,13 +9,13 @@ import ptBR from "@orbit/shared/i18n/pt-BR.json";
 import { CalendarOptions } from '@/app/(tabs)/calendar/_components/calendar-options';
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import { Sheet } from "@/components/ui/sheet";
-import { createTokensV2, radius } from "@/lib/theme";
-import { SMALL_PILL_VISIBLE_MIN, TOUCH_TARGET_MIN } from "@orbit/shared/theme";
+import { createTokensV2 } from "@/lib/theme";
+import { measureProfileRow } from '../support/profile-row-geometry';
+import { TOUCH_TARGET_MIN } from "@orbit/shared/theme";
 import { useUIStore } from "@/stores/ui-store";
 import {
   CalendarHeader,
   CalendarLegend,
-  CalendarWeekNav,
 } from "@/app/(tabs)/calendar/_components/calendar-shell";
 import {
   CalendarStats,
@@ -67,6 +67,7 @@ beforeEach(() => {
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
+  toJSON: () => Parameters<typeof measureProfileRow>[0];
   unmount: () => void;
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 };
@@ -113,7 +114,7 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
       tree = mount(<CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08"
         previousMonthLabel="Previous month" nextMonthLabel="Next month"
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={onCurrentMonth}
-        onSelectMonth={onSelectMonth} tokens={tokens} periodNavigation={showMonthNavigation ? undefined : <CalendarWeekNav weekLabel="Apr 6 to 12" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} tokens={tokens} />}
+        onSelectMonth={onSelectMonth} tokens={tokens} period={showMonthNavigation ? undefined : { view: 'week', label: "Apr 6 to 12", previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }}
         viewSelector={<View testID="calendar-view-selector" />} />);
     });
     return tree;
@@ -188,7 +189,7 @@ describe("CalendarHeader month and year navigation (mobile)", () => {
   });
 });
 
-describe("CalendarWeekNav (mobile)", () => {
+describe("CalendarHeader period navigation (mobile)", () => {
   it("renders the week label and fires the week navigation handlers", () => {
     const onPreviousWeek = vi.fn();
     const onNextWeek = vi.fn();
@@ -198,35 +199,56 @@ describe("CalendarWeekNav (mobile)", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = mount(
-        <CalendarWeekNav
-          weekLabel="Apr 6 – 12"
-          previousWeekLabel="Previous week"
-          nextWeekLabel="Next week"
-          currentWeekLabel="Go to current week"
-          onPreviousWeek={onPreviousWeek}
-          onNextWeek={onNextWeek}
-          onCurrentWeek={onCurrentWeek}
-          tokens={tokens}
-        />,
+        <CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={tokens} period={{ view: 'week', label: "Apr 6 to Apr 12", previousLabel: "Previous week", nextLabel: "Next week", onPrevious: onPreviousWeek, onNext: onNextWeek, onCurrent: onCurrentWeek }} />,
       );
     });
 
-    expect(hostTextValues(tree!)).toContain("Apr 6 – 12");
+    expect(hostTextValues(tree!)).toContain("Apr 6 to Apr 12");
     for (const label of ['Previous week', 'Next week']) expectPressFill(tree!, label, tokens.bgHover, 999);
-    const current = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Apr 6 – 12, Go to current week')[0]!;
-    expect.soft(current.props.hitSlop).toBe((TOUCH_TARGET_MIN - SMALL_PILL_VISIBLE_MIN) / 2);
+    const current = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.period.goToCurrent:{"period":"Apr 6 to Apr 12"}')[0]!;
+    expect.soft(current.props.hitSlop).toBeUndefined();
     expect.soft(StyleSheet.flatten(current.props.style({ pressed: false }))).toMatchObject({
-      backgroundColor: 'transparent', minHeight: TOUCH_TARGET_MIN, borderWidth: 1.5, borderColor: tokens.hairlineStrong,
+      backgroundColor: 'transparent', minHeight: TOUCH_TARGET_MIN, borderRadius: 12, paddingHorizontal: 16,
     });
     expect.soft(StyleSheet.flatten(current.props.style({ pressed: true }))).toMatchObject({
-      backgroundColor: tokens.bgHover, borderRadius: radius.full, overflow: 'hidden',
+      backgroundColor: tokens.bgHover, borderRadius: 12, overflow: 'hidden',
     });
     pressByAccessibilityLabel(tree!, "Previous week");
     pressByAccessibilityLabel(tree!, "Next week");
-    pressByAccessibilityLabel(tree!, "Apr 6 – 12, Go to current week");
+    pressByAccessibilityLabel(tree!, 'calendar.period.goToCurrent:{"period":"Apr 6 to Apr 12"}');
     expect(onPreviousWeek).toHaveBeenCalledTimes(1);
     expect(onNextWeek).toHaveBeenCalledTimes(1);
     expect(onCurrentWeek).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CalendarHeader shared navigation', () => {
+  it.each(['month', 'week', 'range', 'agenda'] as const)('renders one navigation row with shared targets in %s', async (view) => {
+    const tokens = createTokensV2('purple', 'dark');
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = mount(<CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05"
+      previousMonthLabel="Previous" nextMonthLabel="Next" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} tokens={tokens}
+      period={view === 'month' ? undefined : { view, label: 'Oct 5 to Oct 11', previousLabel: 'Previous', nextLabel: 'Next', onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn(), nextDisabled: view === 'range' }} />); });
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.endsWith('-navigation'))).toHaveLength(1);
+    for (const width of [320, 412, 600, 840]) {
+      const geometry = measureProfileRow(tree.toJSON().children![0] as Parameters<typeof measureProfileRow>[0], width, 1);
+      expect(geometry.height).toBe(48);
+      expect(geometry.controls.map((control) => control.height)).toEqual([48, 48, 48]);
+    }
+    const controls = tree.root.findAll((node) => node.type === 'Pressable');
+    expect(controls).toHaveLength(3);
+    for (const index of [0, 2]) expect(StyleSheet.flatten(controls[index]!.props.style({ pressed: false }))).toMatchObject({ minHeight: 48, minWidth: 48, borderRadius: 999, borderWidth: 1.5, borderColor: tokens.hairlineStrong });
+    const title = StyleSheet.flatten(controls[1]!.props.style({ pressed: false }));
+    expect(title).toMatchObject({ borderRadius: 12, backgroundColor: 'transparent', paddingHorizontal: 16, paddingVertical: 8 });
+    expect(title.borderWidth).toBeUndefined();
+    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: true })).backgroundColor).toBe(tokens.bgHover);
+    await TestRenderer.act(() => { controls[1]!.props.onHoverIn?.({}); });
+    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe(tokens.bgHover);
+    await TestRenderer.act(() => { controls[1]!.props.onHoverOut?.({}); controls[1]!.props.onFocus?.({ target: 1, currentTarget: 1 }); });
+    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe(tokens.bgHover);
+    await TestRenderer.act(() => { controls[1]!.props.onBlur?.({ target: 1, currentTarget: 1 }); });
+    expect(StyleSheet.flatten(controls[1]!.props.style({ pressed: false })).backgroundColor).toBe('transparent');
+    expect(Boolean(controls[2]!.props.disabled)).toBe(view === 'range');
   });
 });
 

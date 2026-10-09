@@ -38,3 +38,15 @@ it.each([429, 503])('passes upstream %s and Retry-After through the ticket route
   expect(response.headers.get('retry-after')).toBe('60')
   expect(response.headers.get('cache-control')).toBe('private, no-store')
 })
+
+it.each([
+  { status: 503, errorCode: 'UPSTREAM_STARTING', retryAfter: '5' },
+  { status: 429, errorCode: 'RATE_LIMITED', retryAfter: '60' },
+])('preserves the $errorCode envelope through the ticket route', async ({ status, errorCode, retryAfter }) => {
+  const payload = { error: 'Unavailable', errorCode, requestId: 'request-reference' }
+  serverAuthMutate.mockRejectedValue(createApiClientError(status, payload, 'Unavailable', retryAfter))
+  const response = await POST()
+  expect(response.status).toBe(status)
+  expect(response.headers.get('retry-after')).toBe(retryAfter)
+  expect(await response.json()).toEqual(payload)
+})
