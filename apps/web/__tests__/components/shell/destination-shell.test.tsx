@@ -139,6 +139,7 @@ import {
   useShellHeaderSlot,
 } from '@/components/shell/destination-shell'
 import { HabitCreateFrame } from '@/components/habits/habit-create-frame'
+import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { PageHeader } from '@/components/ui/page-header'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
@@ -640,6 +641,37 @@ describe('DestinationShell', () => {
     expect(heading.closest('[data-shell-header]')).toBeInTheDocument()
     expect(heading.closest('[data-shell-scroller]')).toBeNull()
     expect(screen.getAllByRole('heading')).toHaveLength(1)
+  })
+
+  it.each(['page', 'create', 'detail'] as const)('server-renders and hydrates one %s header before pinning it', async (surface) => {
+    mocks.profileLoaded = false
+    mocks.pathname = surface === 'page' ? '/about' : surface === 'create' ? '/habits/new' : '/habits/habit-1'
+    const child = surface === 'page'
+      ? <PageHeader title="About" backLabel="Back" onBack={() => {}} />
+      : surface === 'detail'
+        ? <HabitDetailScreen habitId="habit-1" />
+        : <HabitCreateFrame presentation="screen" fromConversation={false} leaving={false}
+            actionRefreshKey="ready" onNavigate={() => {}} onReturn={() => {}}
+            open title="New habit" onAttemptDismiss={() => {}} onClose={() => {}}>
+            <label>Habit title<input /></label>
+          </HabitCreateFrame>
+    const shell = <DestinationShell onCreate={() => {}}>{child}</DestinationShell>
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(shell)
+    document.body.append(container)
+    const title = surface === 'page' ? 'About' : surface === 'create' ? 'New habit' : 'habits.detail.screenTitle'
+    const recoverableError = vi.fn()
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    try {
+      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
+      await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
+      expect(recoverableError).not.toHaveBeenCalled()
+      expect(within(container).getAllByRole('heading', { name: title })).toHaveLength(1)
+      expect(within(container).getByRole('heading', { name: title }).closest('[data-shell-header]')).not.toBeNull()
+    } finally {
+      await act(async () => root?.unmount())
+      container.remove()
+    }
   })
 
   it.each([false, true])('keeps the incoming header after the outgoing route exits at wide=%s', async (wide) => {

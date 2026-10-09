@@ -89,7 +89,7 @@ describe('Hoje header geometry', () => {
   it.each([320, 412, 1352].flatMap((width) => ['today', 'calendar'].map((destination) => ({ width, destination }))))(
     'keeps the server-rendered $destination header and content in place through hydration at $width', async ({ width, destination }) => {
       const surface = destination === 'today'
-        ? <div className="flex flex-col gap-6"><TodayDateControl {...props} isTodaySelected /></div>
+        ? <div className="flex flex-col gap-6"><TodayDateControl {...props} isTodaySelected beforeDate={<p data-before-date="">Routine summary</p>} /></div>
         : <CalendarOptions />
       const shell = <NextIntlClientProvider locale="pt-BR" messages={ptBr}>
         <DestinationShell onCreate={noop}>{surface}<div data-first-content="" style={{ height: 1600 }} /></DestinationShell>
@@ -105,10 +105,11 @@ describe('Hoje header geometry', () => {
       const recoverableError = vi.fn()
       try {
         expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
-        expect(container.querySelectorAll('[data-shell-column] button[aria-label^="Avisos"]')).toHaveLength(1)
+        expect(container.querySelectorAll(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`)).toHaveLength(1)
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await page.evaluate(() => document.fonts.ready)
         const firstTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
+        const noticeTop = destination === 'today' ? await page.locator('[data-before-date]').evaluate((element) => element.getBoundingClientRect().top) : null
         expect((await page.locator(optionsSelector).boundingBox())?.height).toBeGreaterThanOrEqual(48)
         await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
         expect(recoverableError).not.toHaveBeenCalled()
@@ -118,6 +119,7 @@ describe('Hoje header geometry', () => {
         await page.evaluate(() => document.fonts.ready)
         const hydratedTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
         expect(hydratedTop).toBeCloseTo(firstTop, 1)
+        if (noticeTop !== null) expect(await page.locator('[data-before-date]').evaluate((element) => element.getBoundingClientRect().top)).toBeCloseTo(noticeTop, 1)
       } finally {
         await act(async () => root?.unmount())
         container.remove()
