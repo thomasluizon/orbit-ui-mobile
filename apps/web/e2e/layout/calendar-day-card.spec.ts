@@ -59,7 +59,7 @@ for (const width of [320, 412, 1280]) {
         const label = [...element.querySelectorAll<HTMLButtonElement>('button')].find((button) => button.getAttribute('aria-label') === habitTitle && button.getAttribute('role') !== 'checkbox')!
         const rows = [...groups[1]!.children] as HTMLElement[]
         const eventRows = [...groups.at(-1)!.querySelectorAll<HTMLElement>('button[data-all-day], button[aria-label^="09:00,"]')]
-        const labelStyle = getComputedStyle(label)
+        const labelStyle = getComputedStyle(label.closest('[data-slot="list-row-body"]')!)
         const headline = label.querySelector<HTMLElement>('[data-personal-text]')!
         const headlineStyle = getComputedStyle(headline)
         const muted = document.createElement('span')
