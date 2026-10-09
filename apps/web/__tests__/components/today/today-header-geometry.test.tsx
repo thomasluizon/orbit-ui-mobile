@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createRef } from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { hydrateRoot } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -83,6 +85,46 @@ describe('Hoje header geometry', () => {
     stylesheet += ':root { --font-display: "Space Grotesk"; --font-sans: "Geist"; --font-mono: "Geist Mono"; }'
   })
   afterAll(async () => { await closeChrome(launch) }, 30_000)
+
+  it.each([320, 412, 1352].flatMap((width) => ['today', 'calendar'].map((destination) => ({ width, destination }))))(
+    'keeps the server-rendered $destination header and content in place through hydration at $width', async ({ width, destination }) => {
+      const surface = destination === 'today'
+        ? <div className="flex flex-col gap-6"><TodayDateControl {...props} isTodaySelected /></div>
+        : <CalendarOptions />
+      const shell = <NextIntlClientProvider locale="pt-BR" messages={ptBr}>
+        <DestinationShell onCreate={noop}>{surface}<div data-first-content="" style={{ height: 1600 }} /></DestinationShell>
+      </NextIntlClientProvider>
+      const container = document.createElement('div')
+      container.innerHTML = renderToString(shell)
+      document.body.append(container)
+      const optionsLabel = destination === 'today' ? props.moreLabel : ptBr.calendar.options
+      const optionsSelector = `button[aria-label="${optionsLabel}"]`
+      const contentSelector = destination === 'today' ? '[data-today-date-row]' : '[data-first-content]'
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      let root: ReturnType<typeof hydrateRoot> | undefined
+      const recoverableError = vi.fn()
+      try {
+        expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
+        expect(container.querySelectorAll('[data-shell-column] button[aria-label^="Avisos"]')).toHaveLength(1)
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const firstTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
+        expect((await page.locator(optionsSelector).boundingBox())?.height).toBeGreaterThanOrEqual(48)
+        await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
+        expect(recoverableError).not.toHaveBeenCalled()
+        expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
+        expect(container.querySelector(optionsSelector)?.closest('[data-shell-header]')).not.toBeNull()
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const hydratedTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
+        expect(hydratedTop).toBeCloseTo(firstTop, 1)
+      } finally {
+        await act(async () => root?.unmount())
+        container.remove()
+        await page.close()
+      }
+    },
+  )
 
   it.each([320, 412, 600, 840].flatMap((width) => [1, 2].map((textScale) => ({ width, textScale }))))(
     'keeps all four bells aligned with short and overflowing content at $width px and $textScale text scale', async ({ width, textScale }) => {

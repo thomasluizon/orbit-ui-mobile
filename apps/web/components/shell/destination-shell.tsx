@@ -26,6 +26,7 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useIsClient } from '@/hooks/use-is-client'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
@@ -83,8 +84,11 @@ export function useShellComposerSlot(
 
 export function useShellHeaderSlot(renderer: ComposerRenderer, refreshKey: string) {
   const host = useContext(ShellHeaderSlotContext)
-  useLayoutEffect(() => host?.register(renderer), [host, refreshKey, renderer])
-  return host !== null
+  const client = useIsClient()
+  useLayoutEffect(() => {
+    if (client) return host?.register(renderer)
+  }, [client, host, refreshKey, renderer])
+  return host !== null && client
 }
 
 type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'

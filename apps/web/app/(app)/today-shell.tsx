@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 import { MoreVertical, ChevronLeft, ChevronRight, Search } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { PillButton } from '@/components/ui/pill-button'
@@ -13,6 +13,7 @@ const DATE_ICON_BUTTON_CLASS_NAME =
   'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
 
 export interface TodayDateControlProps {
+  beforeDate?: ReactNode
   menuHeading?: string
   shortDayName?: string
   headerActive?: boolean
@@ -80,25 +81,28 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
   const header = () => <TodayHeaderActions {...props} />
   const hosted = useShellHeaderSlot(header, `${props.dayName}:${props.isTodaySelected}`)
-  return <>
+  return <div>
     {!hosted ? header() : null}
-    <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-[16px] py-[4px]">
-      <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
-        <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
-      </button>
-      <div className="shrink-0 grow-0 ps-[8px] text-start" title={`${props.dayName}, ${props.numericDate}`}>
-        <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
-          {props.shortDayName ? <>
-            <span className="@[15rem]:contents hidden">{props.dayName}</span>
-            <span className="@[15rem]:hidden contents">{props.shortDayName}</span>
-          </> : props.dayName}
-        </p>
-        <p className="m-0 whitespace-nowrap font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{props.numericDate}</p>
+    <div className="flex min-w-0 flex-col gap-6">
+      {props.beforeDate}
+      <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-[16px] py-[4px]">
+        <button type="button" aria-label={props.previousLabel} className={DATE_ICON_BUTTON_CLASS_NAME} onClick={props.onGoToPreviousDay}>
+          <ChevronLeft size={20} strokeWidth={1.8} aria-hidden="true" />
+        </button>
+        <div className="shrink-0 grow-0 ps-[8px] text-start" title={`${props.dayName}, ${props.numericDate}`}>
+          <p className="m-0 whitespace-nowrap font-display text-[1.375rem] font-medium tracking-[-0.02em] text-[var(--fg-1)]">
+            {props.shortDayName ? <>
+              <span className="@[15rem]:contents hidden">{props.dayName}</span>
+              <span className="@[15rem]:hidden contents">{props.shortDayName}</span>
+            </> : props.dayName}
+          </p>
+          <p className="m-0 whitespace-nowrap font-mono text-xs tracking-[0.02em] tabular-nums text-[var(--fg-3)]">{props.numericDate}</p>
+        </div>
+        <button type="button" aria-label={props.nextLabel} disabled={props.nextDisabled}
+          className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>
+          <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
+        </button>
       </div>
-      <button type="button" aria-label={props.nextLabel} disabled={props.nextDisabled}
-        className={`${DATE_ICON_BUTTON_CLASS_NAME} disabled:cursor-default disabled:opacity-50`} onClick={props.onGoToNextDay}>
-        <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
-      </button>
     </div>
-  </>
+  </div>
 }
