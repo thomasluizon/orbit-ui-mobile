@@ -91,9 +91,9 @@ describe('FailureScreen', () => {
     expect(retry).toHaveBeenCalledOnce()
     expect(screen.queryByText(/real-reference|policy|plan/i)).not.toBeInTheDocument()
   })
-  it('opens the throttle from a real client error path, leaving the error with the caller', async () => {
+  it('opens the throttle from a real mutation error path, leaving the error with the caller', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(payload), { status: 429 })))
-    await expect(apiFetch('/api/habits')).rejects.toMatchObject({ status: 429 })
+    await expect(apiFetch('/api/habits', { method: 'POST' })).rejects.toMatchObject({ status: 429 })
     mount(useThrottleStore.getState().error)
     expect(screen.getByRole('timer')).toBeInTheDocument()
   })

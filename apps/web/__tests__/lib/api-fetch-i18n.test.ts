@@ -37,14 +37,10 @@ describe('setApiFetchTranslate', () => {
     const translate = (key: string) => `translated:${key}`
     setApiFetchTranslate(translate)
 
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: () => Promise.resolve({}),
-    })
+    mockFetch.mockResolvedValue(Response.json({}, { status: 400 }))
 
     try {
-      await apiFetch('/api/test')
+      await apiFetch('/api/test', { method: 'POST' })
     } catch {
     }
 
@@ -65,14 +61,10 @@ describe('setApiFetchTranslate', () => {
     const translate = (translationKey: string) => `t:${translationKey}`
     setApiFetchTranslate(translate)
 
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status,
-      json: () => Promise.resolve({}),
-    })
+    mockFetch.mockResolvedValue(Response.json({}, { status }))
 
     try {
-      await apiFetch('/api/test')
+      await apiFetch('/api/test', { method: 'POST' })
     } catch {
     }
 

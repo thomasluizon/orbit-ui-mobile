@@ -100,11 +100,7 @@ describe('useGoals', () => {
   })
 
   it('handles fetch error', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({ error: 'Server error' }),
-    })
+    mockFetch.mockImplementation(async () => Response.json({ error: 'Server error' }, { status: 500 }))
 
     const { result } = renderHook(() => useGoals(), {
       wrapper: createWrapper(),
