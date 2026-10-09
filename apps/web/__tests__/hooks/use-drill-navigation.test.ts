@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { createElement, type ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { renderHook as renderHookBase, act, waitFor, cleanup, type RenderHookOptions } from '@testing-library/react'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 
 vi.mock('next-intl', () => ({
@@ -9,11 +11,33 @@ vi.mock('next-intl', () => ({
   },
 }))
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ confirmSessionRefreshFailure: vi.fn(), recoverSessionRefreshFailure: vi.fn() }) },
+}))
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
+
+const clients: QueryClient[] = []
+
+function renderHook<Result, Props>(callback: (props: Props) => Result, options?: RenderHookOptions<Props>) {
+  const client = new QueryClient()
+  clients.push(client)
+  function Wrapper({ children }: Readonly<{ children: ReactNode }>) {
+    return createElement(QueryClientProvider, { client }, children)
+  }
+  return renderHookBase(callback, { ...options, wrapper: Wrapper })
+}
+
+afterEach(() => {
+  cleanup()
+  for (const client of clients) client.clear()
+  clients.length = 0
+  vi.useRealTimers()
+})
 
 function pressEscape() {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
@@ -110,6 +134,37 @@ describe('useDrillNavigation', () => {
 
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it('keeps children loading until a rate limited read recovers', async () => {
+    vi.useFakeTimers()
+    mockFetch.mockResolvedValueOnce(Response.json(null, { status: 429, headers: { 'Retry-After': '60' } }))
+      .mockResolvedValue(Response.json(makeDetailResponse()))
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+    act(() => { void result.current.drillInto('parent1') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+    expect(result.current.drillLoading).toBe(true)
+    expect(result.current.drillError).toBe('')
+    expect(mockFetch).toHaveBeenCalledOnce()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(result.current.drillLoading).toBe(false)
+    expect(result.current.drillError).toBe('')
+    expect(result.current.drillChildren.map((child) => child.id)).toEqual(['child1'])
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows a child read error only after the rate limit recovery window', async () => {
+    vi.useFakeTimers()
+    mockFetch.mockImplementation(async () => Response.json(null, { status: 429 }))
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+    act(() => { void result.current.drillInto('parent1') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(124_999) })
+    expect(result.current.drillLoading).toBe(true)
+    expect(result.current.drillError).toBe('')
+    await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+    expect(result.current.drillLoading).toBe(false)
+    expect(result.current.drillError).not.toBe('')
+    expect(mockFetch).toHaveBeenCalledTimes(7)
   })
 
   it('keeps a fetched overdue child on account Today when device Today differs', async () => {

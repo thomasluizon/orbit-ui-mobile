@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { createPendingOperationAuthorizationState, reconcilePendingOperationAuthorizationState, matchesPendingOperationAuthorization, getPendingOperationExecutionStatus, getPendingOperationVerificationResult, getPreparedPendingOperationStepUp, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
+import { createPendingOperationAuthorizationState, reconcilePendingOperationAuthorizationState, matchesPendingOperationAuthorization, getPendingOperationExecutionStatus, getPendingOperationExecutionCanRetry, getPendingOperationVerificationResult, getPreparedPendingOperationStepUp, type PendingOperationExecutionResult, type PreparedPendingOperationStepUp, type PendingOperationStepUpPreparationResult, type PendingOperationCardStatus } from '@orbit/shared/hooks'
 import type { AgentOperationResult } from '@orbit/shared/types/ai'
 
 interface PendingOperationCardState {
@@ -73,7 +73,7 @@ export function usePendingOperationCardState({
       const result = await onConfirmExecute(pendingOperationId)
       if (isCurrent()) setAuthorization((current) => ({
         ...current, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation,
-        canRetry: !result.ok,
+        canRetry: getPendingOperationExecutionCanRetry(result),
       }))
     } finally {
       setBusy(false)
@@ -98,7 +98,7 @@ export function usePendingOperationCardState({
   const completeStepUp = useCallback((result: PendingOperationExecutionResult) => {
     if (isCurrent()) setAuthorization((current) => ({
       ...current, preparedStepUp: undefined, status: getPendingOperationExecutionStatus(result), completedOperation: result.response?.operation,
-      canRetry: !result.ok,
+      canRetry: getPendingOperationExecutionCanRetry(result),
     }))
   }, [isCurrent])
   const clearClosingStepUp = useCallback(() => {

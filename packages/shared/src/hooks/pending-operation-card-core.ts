@@ -1,4 +1,5 @@
 import type { AgentExecuteOperationResponse, AgentOperationResult } from '../types/ai'
+import { bulkCreateResponseSchema, type BulkCreateResponse } from '../types/habit'
 
 export type PendingOperationExecutionResult = {
   ok: boolean
@@ -66,7 +67,21 @@ export function reconcilePendingOperationAuthorizationState(
 export function getPendingOperationExecutionStatus(
   result: PendingOperationExecutionResult,
 ): Exclude<PendingOperationCardStatus, undefined> {
-  return result.ok && result.response?.operation.status === 'Succeeded' ? 'done' : 'failed'
+  const operation = result.response?.operation
+  const hasFailedItems = getPendingOperationItemResults(operation)?.some((item) => item.status === 'Failed')
+  return result.ok && operation?.status === 'Succeeded' && !hasFailedItems ? 'done' : 'failed'
+}
+
+export function getPendingOperationItemResults(operation?: AgentOperationResult): BulkCreateResponse['results'] | undefined {
+  if (operation?.sourceName !== 'bulk_create_habits') return undefined
+  const parsed = bulkCreateResponseSchema.safeParse(operation.payload)
+  return parsed.success ? parsed.data.results : undefined
+}
+
+export function getPendingOperationExecutionCanRetry(result: PendingOperationExecutionResult): boolean {
+  const operation = result.response?.operation
+  return !result.ok || (operation?.sourceName === 'bulk_create_habits'
+    && operation.status === 'Failed' && operation.payload == null)
 }
 
 export function getPreparedPendingOperationStepUp(

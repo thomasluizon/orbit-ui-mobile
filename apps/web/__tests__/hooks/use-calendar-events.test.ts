@@ -5,6 +5,7 @@ import React from 'react'
 import { ZodError } from 'zod'
 import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 import { filterCalendarSyncEventsByDate, isCalendarSyncConnectionActive } from '@orbit/shared/utils'
+import { createQueryClient } from '@/lib/query-client'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
@@ -32,6 +33,30 @@ function createWrapper() {
 describe('useCalendarEvents', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+  })
+
+  it('keeps calendar events pending through Retry-After and recovers', async () => {
+    vi.useFakeTimers()
+    const client = createQueryClient()
+    const events = [createMockCalendarSyncEvent()]
+    mockFetch.mockResolvedValueOnce(Response.json(null, { status: 429, headers: { 'Retry-After': '60' } }))
+      .mockResolvedValue(Response.json(events))
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client }, children)
+    const { result, unmount } = renderHook(() => useCalendarEvents({ timeZone: 'UTC' }), { wrapper })
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+      expect(result.current.isPending).toBe(true)
+      expect(result.current.isError).toBe(false)
+      expect(mockFetch).toHaveBeenCalledOnce()
+      await act(async () => { await vi.advanceTimersByTimeAsync(2) })
+      expect(result.current.data).toEqual({ status: 'connected', events })
+      expect(result.current.isError).toBe(false)
+    } finally {
+      unmount()
+      client.clear()
+      vi.useRealTimers()
+    }
   })
 
   it('returns the connected event list on a successful fetch', async () => {

@@ -4,7 +4,7 @@ import type {
   PreparedPendingOperationStepUp,
   PendingOperationExecutionResult,
 } from '../hooks/pending-operation-card-core'
-import { getPendingOperationCardPresentation } from '../hooks/pending-operation-card-core'
+import { getPendingOperationCardPresentation, getPendingOperationItemResults } from '../hooks/pending-operation-card-core'
 import { isPendingOperationEditableField } from '../hooks/pending-operation-revision-core'
 import type { PendingOperationCardLabels } from './pending-operation-card'
 import { getActionChipNavigation } from './action-chips'
@@ -172,9 +172,10 @@ function completedTargetControl<Node>(
   card: PendingOperationCardActions,
   labels: PendingOperationCardLabels,
   render: PendingOperationCardRenderers<Node>,
+  status = card.status,
 ): Node | undefined {
   const operation = card.completedOperation
-  if (card.status !== 'done' || !card.openableCapability || !operation || !targetId) return undefined
+  if (status !== 'done' || !card.openableCapability || !operation || !targetId) return undefined
   const actionType = NAVIGABLE_OPERATION_ACTIONS[operation.sourceName]
   if (!actionType) return undefined
   const navigation = getActionChipNavigation({ type: actionType, status: 'Success', entityId: targetId }, Boolean(card.onOpenTarget))
@@ -190,11 +191,13 @@ function itemControl<Node>(
   card: PendingOperationCardActions,
   labels: PendingOperationCardLabels,
   render: PendingOperationCardRenderers<Node>,
+  status: PendingOperationCardStatus,
+  completedTargetId?: string | null,
 ): Node | undefined {
-  const targetId = itemCount === 1
+  const targetId = completedTargetId ?? (itemCount === 1
     ? card.completedOperation?.targetId ?? item.entityId
-    : item.entityId
-  const open = completedTargetControl(targetId, item.entityName, card, labels, render)
+    : item.entityId)
+  const open = completedTargetControl(targetId, item.entityName, card, labels, render, status)
   if (open || card.status != null || revision.stale) return open
   return render.removeItem(`${labels.remove} ${item.entityName}`, card.busy || revision.busy, () => void revision.rejectItem(item.itemId))
 }
@@ -215,6 +218,11 @@ function pendingActions<Node>(
     busy: card.busy,
   })
   if (action !== 'buttons') return undefined
+  if (card.status === 'failed') return render.actionRow(render.button({
+    label: labels.retry,
+    variant: 'primary',
+    onClick: () => (destructive ? card.setConfirmOpen(true) : void card.execute()),
+  }))
   const reject = render.button({
     label: labels.reject,
     variant: 'ghost',
@@ -250,27 +258,32 @@ function previewRows<Node>(
   const revision = card.revision
   const items = pendingOperation.items?.length ? pendingOperation.items : groupedChanges(pendingOperation.changes ?? [])
   if (!items.length) return null
-  const rows = items.map((item) => {
+  const results = getPendingOperationItemResults(card.completedOperation)
+  const resultsByIndex = new Map(results?.map((result) => [result.index, result]))
+  const rows = items.map((item, index) => {
+    const result = resultsByIndex.get(index)
+    const status: PendingOperationCardStatus = result ? result.status === 'Success' ? 'done' : 'failed'
+      : results || card.status === 'failed' ? undefined : card.status
     const edited = revision?.editedItemIds.includes(item.itemId) === true
     const summary = labels.summarize(item.fields) || labels.pending
     return {
       id: item.itemId,
       label: item.fields.find((field) => ['title', 'name'].includes(field.field))?.newValue || item.entityName || labels.name,
       meta: edited ? `${labels.edited} · ${summary}` : summary,
-      status: card.status,
+      status,
       irreversible: item.removesData === true && card.status == null,
       proposed: card.status == null && !edited,
       wrapLabel: true,
       wrapMeta: true,
       editable: false,
       control: revision?.canRevise
-        ? itemControl(item, items.length, revision, card, labels, render)
-        : completedTargetControl(items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId, item.entityName, card, labels, render),
+        ? itemControl(item, items.length, revision, card, labels, render, status, result?.habitId)
+        : completedTargetControl(result?.habitId ?? (items.length === 1 ? card.completedOperation?.targetId ?? item.entityId : item.entityId), item.entityName, card, labels, render, status),
     }
   })
   const remaining = Math.max(0, (pendingOperation.changeTargetCount ?? items.length) - items.length)
   if (remaining > 0) rows.push({
-    id: 'remaining', label: labels.more(remaining), meta: '', status: card.status,
+    id: 'remaining', label: labels.more(remaining), meta: '', status: undefined,
     irreversible: false, proposed: false, wrapLabel: true, wrapMeta: true, editable: false, control: undefined,
   })
   return rows
@@ -297,7 +310,9 @@ function previewBody<Node>(
   if (card.status !== 'failed') return undefined
   if (card.completedOperation?.status === 'Denied') return render.notice(labels.denied)
   if (card.completedOperation?.status === 'UnsupportedByPolicy') return render.notice(labels.unsupported)
-  return render.notice(labels.failed)
+  if (card.canRetry) return render.notice(labels.failed)
+  return render.notice(getPendingOperationItemResults(card.completedOperation)?.length
+    ? labels.batchFailed : labels.unavailableRecovery)
 }
 
 function targetCount(operation: PendingAgentOperation): number {
@@ -323,7 +338,7 @@ function previewFrame<Node>(
     count: pendingOperation.changeTargetCount ?? undefined,
     items: previewItems ?? [{
       id: pendingOperation.id, label: labels.name, meta: labels.pending,
-      status: card.status, irreversible: false,
+      status: card.status === 'failed' ? undefined : card.status, irreversible: false,
     }],
     proposedLabel: labels.proposed,
     irreversibleLabel: labels.irreversible,

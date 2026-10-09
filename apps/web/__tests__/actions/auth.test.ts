@@ -39,12 +39,7 @@ describe('auth server actions', () => {
   })
 
   function mockApiResponse(body: unknown, status = 200) {
-    mockFetch.mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      json: () => Promise.resolve(body),
-      text: () => Promise.resolve(JSON.stringify(body)),
-    })
+    mockFetch.mockImplementation(async () => Response.json(body, { status }))
   }
 
   describe('requestDeletion', () => {
@@ -188,11 +183,7 @@ describe('auth server actions', () => {
     })
 
     it('throws with status code when no error body', async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-        json: () => Promise.reject(new Error('No JSON')),
-      })
+      mockFetch.mockResolvedValue(new Response(null, { status: 500 }))
 
       await expect(requestDeletion('account-a')).rejects.toThrow('500')
     })
