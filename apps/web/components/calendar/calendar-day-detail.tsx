@@ -4,8 +4,6 @@ import { PersonalText } from '@/components/ui/personal-text'
 
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo } from 'react'
-import Link from 'next/link'
-import { Icon } from '@/components/ui/icon'
 import { useLocale, useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
@@ -236,15 +234,16 @@ export function CalendarDayDetail({
     : t('calendar.dayDetail.nothingDue')
 
   const goToDay = (
-    <Link
+    // eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing.
+    <ListRow
+      compact
       href={`/?date=${dateStr}`}
-      aria-label={t('calendar.goToDay')}
-      className="orbit-list-row-body flex min-w-0 flex-wrap items-start rounded-[12px] text-[var(--fg-1)] no-underline"
-      style={{ minHeight: 52, paddingBlock: 12, paddingInline: 16, columnGap: 12, rowGap: 4 }}
-    >
-      <span aria-hidden="true" className="flex shrink-0 justify-center" style={{ width: 28 }}><Icon name="external-link" size={24} color="var(--fg-1)" /></span>
-      <span data-slot="list-row-title" className="max-w-full shrink-0" style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', lineHeight: 1.4 }}>{t('calendar.goToDay')}</span>
-    </Link>
+      accessibilityLabel={t('calendar.goToDay')}
+      icon="external-link"
+      title={t('calendar.goToDay')}
+      textMode="label"
+      chevron={false}
+    />
   )
 
   const body = (

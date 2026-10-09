@@ -1,6 +1,6 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
@@ -11,7 +11,6 @@ import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import {
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
-import { Icon } from '@/components/ui/icon'
 import { CheckRow } from '@/components/ui/check-row'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -163,8 +162,6 @@ export function CalendarDayDetail({
   t,
   tokens,
 }: Readonly<CalendarDayDetailProps>) {
-  const [linkHovered, setLinkHovered] = useState(false)
-  const [linkFocused, setLinkFocused] = useState(false)
   const [expandedTitle, setExpandedTitle] = useAccountScopedState<string | null>(null)
   const { sheetRef } = useSheetHost()
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -225,21 +222,18 @@ export function CalendarDayDetail({
         </View>
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('calendar.goToDay')}
-        onPress={onGoToDay}
-        onHoverIn={() => setLinkHovered(true)}
-        onHoverOut={() => setLinkHovered(false)}
-        onFocus={() => setLinkFocused(true)}
-        onBlur={() => setLinkFocused(false)}
-        style={({ pressed }) => [styles.dayLink, pressed || linkHovered || linkFocused ? { backgroundColor: tokens.bgHover } : null]}
-      >
-        <View style={styles.dayLinkContent}>
-          <View style={styles.dayLinkIcon}><Icon name="external-link" size={24} color={tokens.fg1} /></View>
-          <Text style={[styles.dayLinkLabel, { color: tokens.fg1 }]}>{t('calendar.goToDay')}</Text>
-        </View>
-      </Pressable>
+      <View style={styles.rowList}>
+        {/* eslint-disable-next-line local/max-button-words -- #927 follows the granted calendar drawing. */}
+        <ListRow
+          compact
+          icon="external-link"
+          title={t('calendar.goToDay')}
+          textMode="label"
+          accessibilityLabel={t('calendar.goToDay')}
+          chevron={false}
+          onClick={onGoToDay}
+        />
+      </View>
       <CalendarEventsSection
         key={selectedDate}
         calendarEvents={calendarEvents}
@@ -267,10 +261,6 @@ function createStyles(tokens: Tokens) {
     copyBlock: { gap: 4 },
     rowList: { gap: 0 },
     habitDisclosure: { minHeight: 68, justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
-    dayLink: { minHeight: 52, borderRadius: 12, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
-    dayLinkContent: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: 12, rowGap: 4 },
-    dayLinkIcon: { width: 28, flexShrink: 0, alignItems: 'center' },
-    dayLinkLabel: { maxWidth: '100%', flexShrink: 0, fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
     dayTitle: { fontFamily: 'Geist_500Medium', fontSize: 20 },
     summaryText: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     emptyDayText: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },

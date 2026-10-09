@@ -23,6 +23,15 @@ const events: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({
   isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Trabalho',
 }))
 
+function expectWholeLabels(labels: { text: string | null; besideIcon: boolean | null; lines: number; clipped: boolean }[], scale: number) {
+  for (const label of labels) {
+    expect(label.clipped, JSON.stringify(label)).toBe(false)
+    if (scale !== 1) continue
+    expect(label.lines, JSON.stringify(label)).toBe(1)
+    if (label.besideIcon !== null) expect(label.besideIcon, JSON.stringify(label)).toBe(true)
+  }
+}
+
 describe('day card compact geometry', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -63,7 +72,9 @@ describe('day card compact geometry', () => {
           const labels = [...document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')].map((label) => {
             const range = document.createRange()
             range.selectNodeContents(label)
-            return { text: label.textContent, lines: new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size, clipped: label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth }
+            const icon = label.closest('a')?.querySelector('svg')?.getBoundingClientRect()
+            const box = label.getBoundingClientRect()
+            return { text: label.textContent, besideIcon: icon ? box.left >= icon.right && box.top < icon.bottom && box.bottom > icon.top : null, lines: new Set([...range.getClientRects()].map((box) => Math.round(box.top))).size, clipped: label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth }
           })
           return {
             cardPadding: [getComputedStyle(card).paddingTop, getComputedStyle(card).paddingRight, getComputedStyle(card).paddingBottom, getComputedStyle(card).paddingLeft],
@@ -112,10 +123,7 @@ describe('day card compact geometry', () => {
           expect(geometry.eventLines).toBeLessThanOrEqual(2)
           expect(geometry.eventClipped).toBe(false)
         }
-        for (const label of geometry.labels) {
-          expect(label.clipped, JSON.stringify(label)).toBe(false)
-          if (scale === 1) expect(label.lines, JSON.stringify(label)).toBe(1)
-        }
+        expectWholeLabels(geometry.labels, scale)
         for (const target of geometry.targets) {
           expect(target.width, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
           expect(target.height, JSON.stringify(target)).toBeGreaterThanOrEqual(48)

@@ -81,6 +81,8 @@ describe('Android day card geometry', () => {
           const routeLabel = measured.texts.find((text) => text.label === i18n.t('calendar.goToDay'))!
           expect(routeLabel.lines, JSON.stringify(routeLabel)).toBe(1)
           expect(routeLabel.clipped).toBe(false)
+          expect(routeLabel.left).toBe(route.left + 16 + 28 + 12)
+          expect(Math.abs(routeLabel.top + routeLabel.height / 2 - route.top - route.height / 2)).toBeLessThanOrEqual(1)
           expect(routeLabel.right).toBeLessThanOrEqual(route.right - 16)
           expect(route.left).toBe(24)
           expect(route.right).toBe(width - 32 - 24)
