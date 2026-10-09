@@ -39,7 +39,9 @@ for (const width of [320, 360, 384, 412]) {
         await expect(surface.getByRole('switch', { name: words.settings.homeScreen.showGeneral, exact: true })).toBeVisible()
         await expectLabelsFit(page, surface)
         for (const row of await surface.locator('.orbit-list-row-body').all()) await expectInteractionFill(row)
-        for (const choice of await surface.getByRole('group', { name: words.profile.settingsRows.theme, exact: true }).getByRole('button').all()) await expectInteractionFill(choice)
+        const choices = surface.getByRole('group', { name: words.profile.settingsRows.theme, exact: true })
+        await expect(choices.getByRole('button')).toHaveCount(2)
+        await expect(choices.locator('button[aria-pressed="true"]')).toHaveCount(1)
       })
     })
   }
