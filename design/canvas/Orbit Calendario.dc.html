@@ -573,7 +573,7 @@ class Component extends DCLogic {
     const selectEntry = (entry, day) => this.setState({ disclosure: 'week-entry', weekDay: day, weekEntries: [entry] });
     const chip = (name, day, more) => H('button', {
       key: name, type: 'button', className: 'calendar-week-chip', 'aria-label': more
-        ? (t.lang === 'en' ? '2 more on this day' : '2 mais neste dia') : name,
+        ? (t.lang === 'en' ? '+2 more habits on this day' : '+2 outros hábitos neste dia') : name,
       onClick: () => more ? selectDay(day) : selectEntry(UNTIMED, day),
       style: { minHeight: 48, minWidth: 48, padding: 0, border: 0, borderRadius: 8,
         display: 'flex', alignItems: 'center', width: '100%' }

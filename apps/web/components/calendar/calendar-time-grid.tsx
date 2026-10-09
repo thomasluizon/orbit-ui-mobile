@@ -158,7 +158,7 @@ function TimedBlock({
 
 function AllDayChip({ label, accessibilityLabel, onSelect, more = false }: Readonly<{ label: string; accessibilityLabel: string; onSelect: () => void; more?: boolean }>) {
   return <button type="button" data-testid={more ? 'time-grid-all-day-more' : 'time-grid-all-day-event'} onClick={onSelect} aria-label={accessibilityLabel}
-    className="flex min-w-0 items-center bg-transparent cursor-pointer rounded-lg transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
+    className="flex min-w-0 items-center bg-transparent cursor-pointer rounded-[8px] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
     style={{ minHeight: 48, height: '2.8rem', minWidth: 48, padding: 0, border: 0 }}>
     <span className="flex w-full min-w-0 items-center" style={{ height: '1.75rem', paddingInline: 8, borderRadius: 8, background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)', fontFamily: 'var(--font-sans)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-2)' }}>
       <span className="truncate">{label}</span>
@@ -230,7 +230,7 @@ export function CalendarTimeGrid({
       const bodyHeight = Math.max(0, node.clientHeight - pinnedHeight)
       node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75)}px`)
       node.style.scrollPaddingTop = `${pinnedHeight}px`
-      if (openingPosition.current) return
+      if (openingPosition.current || isLoading || bodyHeight <= 0) return
       const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)))
       node.scrollTop = Math.max(0, columns.some(({ isToday }) => isToday)
         ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * scale - bodyHeight / 4
@@ -242,11 +242,18 @@ export function CalendarTimeGrid({
       }
       openingPosition.current = node.clientHeight > 0 && !isLoading
     }
+    const preserveOpeningPosition = (event: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) openingPosition.current = true
+    }
+    node.addEventListener('keydown', preserveOpeningPosition)
     open()
     const observer = new ResizeObserver(open)
     observer.observe(node)
     if (node.firstElementChild) observer.observe(node.firstElementChild)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      node.removeEventListener('keydown', preserveOpeningPosition)
+    }
   }, [columns, perColumn, timeZone, isLoading])
 
   const isEmpty =
@@ -269,6 +276,8 @@ export function CalendarTimeGrid({
       >
         <div
           ref={bodyRef}
+          onWheel={() => { openingPosition.current = true }}
+          onTouchMove={() => { openingPosition.current = true }}
           data-testid="time-grid-hour-scroller"
           className="thin-scrollbar"
           style={{ ...SCROLLER_VARIABLES, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}

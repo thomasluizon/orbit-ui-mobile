@@ -309,6 +309,7 @@ export function CalendarTimeGrid({
   const columnsScrollRef = useRef<ScrollView>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
+  const [contentWidth, setContentWidth] = useState(0);
   const [now, setNow] = useState<Date>(() => nowDate());
   const nowMinutes = getAccountDateTime(now, timeZone).minutes;
 
@@ -368,14 +369,18 @@ export function CalendarTimeGrid({
     scrollViewToY(gutterScrollRef.current, event.nativeEvent.contentOffset.y);
   };
 
-  const onColumnsLayout = (event: LayoutChangeEvent) => {
-    const width = event.nativeEvent.layout.width;
-    setViewportWidth(width);
+  const horizontalOpened = useRef(false);
+  useEffect(() => {
+    if (horizontalOpened.current || isLoading || viewportWidth <= 0 || contentWidth < colWidth * columns.length) return;
     const todayIndex = columns.findIndex(({ isToday }) => isToday);
     if (todayIndex >= 0) {
-      const columnWidth = Math.max(minColumnWidth, width / columns.length);
-      columnsScrollRef.current?.scrollTo({ x: Math.max(0, todayIndex * columnWidth - (width - columnWidth) / 2), animated: false });
+      columnsScrollRef.current?.scrollTo({ x: Math.max(0, todayIndex * colWidth - (viewportWidth - colWidth) / 2), animated: false });
     }
+    horizontalOpened.current = true;
+  }, [colWidth, columns, contentWidth, isLoading, viewportWidth]);
+
+  const onColumnsLayout = (event: LayoutChangeEvent) => {
+    setViewportWidth(event.nativeEvent.layout.width);
   };
 
   return (
@@ -414,6 +419,8 @@ export function CalendarTimeGrid({
             style={styles.columnsScroll}
             contentContainerStyle={{ flexGrow: 1 }}
             onLayout={onColumnsLayout}
+            onContentSizeChange={(width) => setContentWidth(width)}
+            onScrollBeginDrag={() => { horizontalOpened.current = true; }}
           >
             <View style={styles.columnsContent}>
               <View style={[styles.headerRow, { minHeight: headerHeight }]}>

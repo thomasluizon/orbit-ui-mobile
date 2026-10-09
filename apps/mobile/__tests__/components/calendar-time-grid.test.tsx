@@ -311,6 +311,34 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(tree.root.findAll((node) => node.type === CalendarEntryDetails)[0]!.props.entries[0].title).toBe("All 0");
   });
 
+  it.each([false, true])("opens loaded concurrent lanes once and respects prior dragging (dragged=%s)", (dragged) => {
+    const scrollTo = vi.fn();
+    __setScrollToImpl(scrollTo);
+    try {
+      const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(`2026-10-${String(5 + index).padStart(2, '0')}`), isToday: index === 3 }));
+      const tree = renderGrid(columns, new Map(), vi.fn(), true);
+      const horizontal = () => tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
+      TestRenderer.act(() => {
+        horizontal().props.onLayout({ nativeEvent: { layout: { width: 284, height: 400 } } });
+        horizontal().props.onContentSizeChange(672, 400);
+      });
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(0);
+      const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]]);
+      const update = (dayMap: Map<string, CalendarDayEntry[]>) => TestRenderer.act(() => tree.update(
+        <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={displayTime} language="en" allDayLabel="No set time" nowLabel="Now" isLoading={false} t={translate} tokens={tokens} timeZone="UTC" />,
+      ));
+      if (dragged) TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
+      update(crowded);
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(0);
+      TestRenderer.act(() => horizontal().props.onContentSizeChange(1344, 400));
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual(dragged ? [] : [[{ x: 530, animated: false }]]);
+      TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
+      update(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'third', dueTime: '08:00' })]]]));
+      TestRenderer.act(() => horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 400 } } }));
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(dragged ? 0 : 1);
+    } finally { __setScrollToImpl(() => {}); }
+  });
+
   it("opens the hour body with now in its upper third", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));

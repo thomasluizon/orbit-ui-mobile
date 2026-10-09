@@ -1061,7 +1061,7 @@
       "empty": "Nothing scheduled",
       "moreLabel": "{count} more",
       "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
-      "moreCountLabel": "{count, plural, =0 {# more on this day} one {# more on this day} other {# more on this day}}"
+      "moreCountLabel": "{count, plural, =0 {+# more habits on this day} one {+# more habit on this day} other {+# more habits on this day}}"
     },
     "status": {
       "completed": "done",

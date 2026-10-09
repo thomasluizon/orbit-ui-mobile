@@ -901,7 +901,7 @@ Android wide sheets stay bottom-attached to the centred shell column with TrueSh
 
 ### Scroll ownership
 
-- A destination view with a time grid keeps one vertical scroller: the grid fills the height the page leaves, and the page does not scroll in that view.
+- A destination view with a time grid keeps one vertical scroller: the grid fills the height the page leaves, and the page does not scroll in that view. On web, `data-page-viewport` bounds the shell content and route wrappers only for that view; other views keep their page scroll and shell bottom clearance.
 - **Exactly one page-level scroll container per overlay, owned by the primitive.**
 - **A caller never nests its own scroll container inside a scrollable sheet**, except for the bounded TimeField columns below. TrueSheet's native `scrollable` stays off while the primitive owns the body scroller.
 - **An overlay never opens scrolled away from its own first line.**

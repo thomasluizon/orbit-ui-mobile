@@ -698,13 +698,20 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('switches to the week and range time-grid views', () => {
-    render(<CalendarPage />)
+    const page = render(<CalendarPage />)
+    expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getByTestId('week-view')).toBeDefined()
+    expect(page.container.querySelector('[data-page-viewport]')).toContainElement(screen.getByTestId('week-view'))
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
+    expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
+    for (const view of ['agenda', 'month']) {
+      fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+      expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
+    }
   })
 
   it('keeps the selector in the header and the selected day below the grid at wide width', () => {

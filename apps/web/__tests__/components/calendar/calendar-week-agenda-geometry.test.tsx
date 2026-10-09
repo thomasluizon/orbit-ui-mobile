@@ -87,6 +87,7 @@ describe('Week and agenda geometry in Chromium', () => {
         expect(fill.background).not.toBe('rgba(0, 0, 0, 0)')
         expect(fill.chipHeight).toBe(28)
         expect(fill.chipRadius).toBe('8px')
+        expect(fill.radii).toEqual(['8px', '8px', '8px', '8px'])
         expect(fill.padding).toEqual(['0px', '0px', '0px', '0px'])
       }
       const touchPage = await browser.newPage({ hasTouch: true })
@@ -103,9 +104,10 @@ describe('Week and agenda geometry in Chromium', () => {
           element.append(probe)
           const expected = getComputedStyle(probe).backgroundColor
           probe.remove()
-          return { background: getComputedStyle(element).backgroundColor, expected }
+          return { background: getComputedStyle(element).backgroundColor, expected, radius: getComputedStyle(element).borderRadius }
         })
         expect(active.background).toBe(active.expected)
+        expect(active.radius).toBe('8px')
         await touchPage.mouse.up()
       } finally { await touchPage.close() }
     } finally { await page.close() }

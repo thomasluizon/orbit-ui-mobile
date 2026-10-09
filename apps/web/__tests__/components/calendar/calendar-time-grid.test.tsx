@@ -240,9 +240,35 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ background: 'var(--primary)' })
   })
 
+  it.each([false, true])('waits for loaded concurrent geometry and respects prior scrolling (scrolled=%s)', (scrolled) => {
+    const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === 3 }))
+    const onSelectDay = vi.fn()
+    const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} isLoading={isLoading} onSelectDay={onSelectDay} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
+    const view = render(grid(new Map(), true))
+    const scroller = screen.getByTestId('time-grid-hour-scroller')
+    const today = screen.getAllByTestId('time-grid-day-column')[3]!
+    const columnWidth = () => Number(/minmax\(([\d.]+)rem/.exec(screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns)![1]) * 16
+    Object.defineProperties(scroller, { clientWidth: { configurable: true, value: 380 }, clientHeight: { configurable: true, value: 400 } })
+    Object.defineProperty(screen.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: 96 })
+    Object.defineProperties(today, { offsetLeft: { configurable: true, get: () => 96 + 3 * columnWidth() }, clientWidth: { configurable: true, get: columnWidth } })
+    view.rerender(grid(new Map(), true))
+    expect(scroller.scrollLeft).toBe(0)
+    if (scrolled) { scroller.scrollLeft = 88; fireEvent.wheel(scroller, { deltaX: 88 }) }
+    const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]])
+    view.rerender(grid(crowded, false))
+    expect(scroller.scrollLeft).toBe(scrolled ? 88 : 530)
+    scroller.scrollLeft = 88
+    fireEvent.scroll(scroller)
+    view.rerender(grid(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'third', dueTime: '08:00' })]]]), false))
+    expect(scroller.scrollLeft).toBe(88)
+  })
+
   it('opens today near now and another week at its earliest morning block', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    const viewport = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 400 : this.parentElement?.dataset.testid === 'time-grid-hour-scroller' ? 116 : 0
+    })
     try {
       const today = { ...column(2026, 9, 8), isToday: true }
       const view = renderGrid([today], new Map())
@@ -253,7 +279,7 @@ describe('CalendarTimeGrid', () => {
       const past = column(2026, 9, 1)
       renderGrid([past], new Map([[past.dateStr, [makeEntry({ dueTime: '05:00' })]]]))
       expect(screen.getByTestId('time-grid-hour-scroller').scrollTop).toBe(240)
-    } finally { vi.useRealTimers() }
+    } finally { viewport.mockRestore(); vi.useRealTimers() }
   })
 
   it('uses an opaque semantic surface for the pinned any-time pane', () => {
