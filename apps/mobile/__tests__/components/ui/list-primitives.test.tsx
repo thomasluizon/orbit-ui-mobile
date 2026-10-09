@@ -55,6 +55,27 @@ function actionContent(node: TestNode, pressed: boolean) {
 }
 
 describe('list primitives on mobile', () => {
+  it('keeps ordinary row title, value and description available to the child-derived announcement', () => {
+    const tree = render(<ListRow title="Week starts on" value="Monday" description="First day in the calendar" onClick={vi.fn()} />)
+    const control = tree.root.findByType(Pressable)
+    expect(control.props.accessibilityLabel).toBeUndefined()
+    const spokenText = control.findAllByType(Text).filter((node) => node.props.accessible !== false && node.props.importantForAccessibility !== 'no-hide-descendants').map((node) => node.props.children)
+    expect(spokenText).toEqual(['Week starts on', 'First day in the calendar', 'Monday'])
+  })
+
+  it('lets an explicit caller label name an ordinary row', () => {
+    const tree = render(<ListRow title="Week starts on" value="Monday" description="First day in the calendar" accessibilityLabel="Choose the first day" onClick={vi.fn()} />)
+    expect(tree.root.findByType(Pressable).props.accessibilityLabel).toBe('Choose the first day')
+  })
+
+  it('keeps the switch name and checked state', () => {
+    const tree = render(<ListRow title="Sync automatically" toggle={{ checked: true, onChange: vi.fn() }} />)
+    const control = tree.root.findByType(Pressable)
+    expect(control.props.accessibilityLabel).toBe('Sync automatically')
+    expect(control.props.accessibilityRole).toBe('switch')
+    expect(control.props.accessibilityState).toEqual({ checked: true })
+  })
+
   it.each([
     'Pessoa com um nome completo escrito no próprio perfil',
     'A person with a full name written in their own profile',

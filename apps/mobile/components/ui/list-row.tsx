@@ -130,7 +130,7 @@ function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Re
   const toggle = props.toggle
   const disabled = Boolean(props.disabled || toggle?.pending)
   return <Control data-slot={slot} ref={ref} focusOffset={-2} hitSlop={column ? { left: 16, right: 16 } : undefined}
-    accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={props.accessibilityLabel ?? props.title}
+    accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={toggle ? props.accessibilityLabel ?? props.title : props.accessibilityLabel}
     accessibilityState={rowAccessibilityState(props)} disabled={disabled}
     onPress={toggle ? () => toggle.onChange(!toggle.checked) : props.onClick}
     onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut}
