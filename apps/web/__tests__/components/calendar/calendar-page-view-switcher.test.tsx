@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -377,8 +377,10 @@ class CalendarRenderBoundary extends React.Component<{ children: React.ReactNode
 }
 
 describe('CalendarPage view switcher', () => {
+  let requestFixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
+  beforeAll(async () => { requestFixture = await createHermeticFixtureRequest() })
+
   it('keeps Semana connected and focused with the real calendar query while the profile is pending', async () => {
-    const requestFixture = await createHermeticFixtureRequest()
     const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
     expect(response.status).toBe(200)
     heldQueries.calendarResponse = response.body
@@ -403,6 +405,37 @@ describe('CalendarPage view switcher', () => {
       expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toBe(radio)
       expect(radio.isConnected).toBe(true)
       expect(radio).toHaveFocus()
+    } finally {
+      page.unmount()
+      queryClient.clear()
+      heldQueries.enabled = false
+    }
+  })
+
+  it.each(['month', 'range'] as const)('keeps the %s body mounted when the held profile resolves', async (view) => {
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const page = render(<QueryClientProvider client={queryClient}><CalendarPage /></QueryClientProvider>)
+    try {
+      fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+      await waitFor(() => expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body))
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      const grid = page.container.querySelector('.orbit-calendar-grid-frame')!
+      expect(grid).toBeInTheDocument()
+      const figures = screen.getByTestId('month-stats')
+      const daySlot = view === 'month' ? screen.getByTestId('calendar-day-card-slot') : null
+      await act(async () => { resolveProfile(profileFixture) })
+      await waitFor(() => expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('success'))
+      await waitFor(() => expect(screen.queryByTestId('calendar-day-skeleton')).toBeNull())
+      expect.soft(grid.isConnected).toBe(true)
+      expect.soft(page.container.querySelector('.orbit-calendar-grid-frame')).toBe(grid)
+      expect.soft(screen.getByTestId('month-stats')).toBe(figures)
+      if (daySlot) expect.soft(screen.getByTestId('calendar-day-card-slot')).toBe(daySlot)
     } finally {
       page.unmount()
       queryClient.clear()

@@ -147,7 +147,7 @@ function CalendarMonthFeedback({
 }
 
 function CalendarDayCardSlot({ loading, label, children }: Readonly<{ loading: boolean; label: string; children: ReactNode }>) {
-  return <div style={{ paddingInline: 16, paddingBlockStart: 24 }}>{loading ? (
+  return <div data-testid="calendar-day-card-slot" style={{ paddingInline: 16, paddingBlockStart: 24 }}>{loading ? (
     <div data-testid="calendar-day-skeleton" className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ paddingBlock: 24 }}>
       <Skeleton variant="settings" rows={5} label={label} />
     </div>
@@ -179,42 +179,23 @@ export default function CalendarPage() {
       currentMonth={currentMonth}
       selectedDay={selectedDay}
       setSelectedDay={setSelectedDay}
-      monthQuery={monthQuery}
+      monthQuery={{ ...monthQuery, isLoading: !profile || monthQuery.isLoading }}
       view={view}
       setView={setView}
     /></Suspense>
   )
 }
 
-function CalendarProfileBody({ currentMonth, error, onRetry }: Readonly<{ currentMonth: Date; error: Error | null; onRetry: () => void }>) {
-  const t = useTranslations()
-  if (error) return <CalendarLoadError onRetry={onRetry} />
-  return <>
-    <CalendarGrid currentMonth={currentMonth} dayMap={new Map()} onSelectDay={() => undefined} selectedDateStr={null} isLoading weekStartsOn={1} todayKey={formatAPIDate(new Date())} />
-    <CalendarDayCardSlot loading label={t('calendar.loading')}>{null}</CalendarDayCardSlot>
-    <div style={{ paddingBlockStart: 24 }}><CalendarStats
-      stats={[
-        { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
-        { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
-        { key: 'missed', value: 0, label: t('calendar.missedCount') },
-      ]}
-      state="loading"
-      loadingLabel={t('calendar.loading')}
-    /></div>
-  </>
-}
-
-function CalendarBody({ profileReady, currentMonth, profileError, onRetryProfile, error, onRetry, children }: Readonly<{
+function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRetry, children }: Readonly<{
   profileReady: boolean
-  currentMonth: Date
   profileError: Error | null
   onRetryProfile: () => void
   error: string | null
   onRetry: () => void
   children: ReactNode
 }>) {
-  if (!profileReady) return <CalendarProfileBody currentMonth={currentMonth} error={profileError} onRetry={onRetryProfile} />
-  if (error) return <div style={{ padding: '0 16px 16px' }}><CalendarLoadError onRetry={onRetry} /></div>
+  if (!profileReady && profileError) return <CalendarLoadError onRetry={onRetryProfile} />
+  if (profileReady && error) return <div style={{ padding: '0 16px 16px' }}><CalendarLoadError onRetry={onRetry} /></div>
   return children
 }
 
@@ -254,7 +235,8 @@ function resolveProfileSettings(profile: CalendarPageContentProps['profile']) {
   };
 }
 
-function calendarPageLayout(view: CalendarView, hasError: boolean, header: ReactNode) {
+function calendarPageLayout(view: CalendarView, profileReady: boolean, profileHasError: boolean, hasDataError: boolean, header: ReactNode) {
+  const hasError = profileReady ? hasDataError : profileHasError
   const fillsPage = view === 'week' && !hasError
   return {
     viewportProps: { 'data-page-viewport': fillsPage ? '' : undefined },
@@ -395,7 +377,7 @@ function CalendarPageContent({
 
   const {
     dayMap: rangeDayMap,
-    isLoading: rangeLoading,
+    isLoading: rangeQueryLoading,
     error: rangeError,
     refresh: rangeRefresh,
   } = useCalendarRange(
@@ -403,6 +385,8 @@ function CalendarPageContent({
     gridEndDate,
     Boolean(profile) && (view === 'week' || view === 'range' || view === 'agenda'),
   )
+
+  const rangeLoading = !profile || rangeQueryLoading
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
@@ -661,7 +645,7 @@ function CalendarPageContent({
     />
   )
 
-  const pageLayout = calendarPageLayout(view, Boolean(activeError), calendarHeader)
+  const pageLayout = calendarPageLayout(view, Boolean(profile), Boolean(profileError), Boolean(activeError), calendarHeader)
 
   return (
     <div {...pageLayout.viewportProps} className={pageLayout.pageClass}>
@@ -670,7 +654,7 @@ function CalendarPageContent({
         <CalendarOptions onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
         {pageLayout.header}
 
-        <CalendarBody profileReady={Boolean(profile)} currentMonth={currentMonth} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()}>
+        <CalendarBody profileReady={Boolean(profile)} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()}>
             {view === 'month' && (
               <div className="flex min-w-0 flex-col">
                   <div

@@ -18,7 +18,7 @@ import { __setWindowDimensions, __setScrollToImpl, __setTouchMode, __focusHost, 
 import en from "@orbit/shared/i18n/en.json";
 import ptBR from "@orbit/shared/i18n/pt-BR.json";
 import { addDays, differenceInCalendarDays } from "date-fns";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCalendarMonthModel,
   buildHabitCreateHref,
@@ -417,8 +417,10 @@ class CalendarRenderBoundary extends React.Component<{ children: React.ReactNode
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  let requestFixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
+  beforeAll(async () => { requestFixture = await createHermeticFixtureRequest() })
+
   it('keeps Semana mounted and focused with the real calendar query while the profile is pending', async () => {
-    const requestFixture = await createHermeticFixtureRequest()
     const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
     expect(response.status).toBe(200)
     heldQueries.calendarResponse = response.body
@@ -459,6 +461,48 @@ describe("CalendarScreen views (mobile)", () => {
       heldQueries.enabled = false
       useAuthStore.setState({ isAuthenticated: false })
       __setTouchMode(true)
+    }
+  })
+
+  it.each(['month', 'range'] as const)('keeps the %s body mounted when the held profile resolves', async (view) => {
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    useAuthStore.setState({ isAuthenticated: true })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><CalendarScreen /></QueryClientProvider>) })
+    const findHost = (testID: string) => tree.root.findAll((node) => node.type === 'View' && node.props.testID === testID)[0]
+    const findGrid = () => findHost('calendar-grid') ?? findHost('month-grid-7-columns')
+    try {
+      pressView(tree, view)
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body)
+      })
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      const grid = findGrid()
+      expect(grid).toBeDefined()
+      const figures = findHost('calendar-stats')
+      expect(figures).toBeDefined()
+      const daySlot = view === 'month' ? findHost('calendar-day-card-slot') : null
+      await TestRenderer.act(() => { resolveProfile(profileFixture) })
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('success')
+        expect(findHost('calendar-day-skeleton')).toBeUndefined()
+      })
+      expect.soft(findGrid() === grid).toBe(true)
+      expect.soft(findHost('calendar-stats') === figures).toBe(true)
+      if (daySlot) expect.soft(findHost('calendar-day-card-slot') === daySlot).toBe(true)
+    } finally {
+      TestRenderer.act(() => tree.update(<></>))
+      queryClient.clear()
+      heldQueries.enabled = false
+      useAuthStore.setState({ isAuthenticated: false })
     }
   })
 
@@ -1330,7 +1374,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
 
     expect(state.calendarDataCalls).toHaveBeenCalledTimes(1);
-    expect(calendarGridProps.current).toMatchObject({ isLoading: true, selectedDay: null });
+    expect(calendarGridProps.current).toMatchObject({ isLoading: true, selectedDay: formatAPIDate(new Date()) });
     expect(tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-grid',
     )).toHaveLength(35);

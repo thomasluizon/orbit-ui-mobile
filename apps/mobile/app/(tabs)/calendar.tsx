@@ -117,9 +117,8 @@ const calendarLayoutStyles = StyleSheet.create({
 });
 
 function CalendarInlineDaySlot({ loading, selected, label, tokens, children }: Readonly<{ loading: boolean; selected: boolean; label: string; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
-  if (loading) return <View style={calendarLayoutStyles.inlineDay}><View testID="calendar-day-skeleton" style={[calendarLayoutStyles.daySkeleton, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}><Skeleton variant="settings" rows={5} label={label} /></View></View>;
-  if (!selected) return null;
-  return <View style={calendarLayoutStyles.inlineDay}>{children}</View>;
+  if (!loading && !selected) return null;
+  return <View testID="calendar-day-card-slot" style={calendarLayoutStyles.inlineDay}>{loading ? <View testID="calendar-day-skeleton" style={[calendarLayoutStyles.daySkeleton, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}><Skeleton variant="settings" rows={5} label={label} /></View> : children}</View>;
 }
 
 function calendarStatState(
@@ -189,7 +188,7 @@ export default function CalendarScreen() {
       currentMonth={currentMonth}
       selectedDay={selectedDay}
       setSelectedDay={setSelectedDay}
-      monthQuery={monthQuery}
+      monthQuery={{ ...monthQuery, isLoading: !profile || monthQuery.isLoading }}
       view={view}
       setView={setView}
     />
@@ -207,38 +206,8 @@ function CalendarLoadError({ onRetry, tokens }: Readonly<{ onRetry: () => void; 
   </View>;
 }
 
-function CalendarProfileBody({ currentMonth, error, onRetry, tokens }: Readonly<{ currentMonth: Date; error: Error | null; onRetry: () => void; tokens: ReturnType<typeof createTokensV2> }>) {
-  const { t, i18n } = useTranslation();
-  const styles = useMemo(() => createStyles(), []);
-  if (error) return <CalendarLoadError onRetry={onRetry} tokens={tokens} />;
-  return <>
-    <CalendarGrid
-      gridDays={buildCalendarMonthModel(currentMonth, new Map(), 1, formatAPIDate(new Date())).gridDays}
-      weekdayHeaders={[]}
-      selectedDay={null}
-      isLoading
-      onSelectDay={() => undefined}
-      language={i18n.language}
-      t={t}
-      tokens={tokens}
-      todayKey={formatAPIDate(new Date())}
-    />
-    <CalendarInlineDaySlot loading selected={false} label={t('calendar.loading')} tokens={tokens}>{null}</CalendarInlineDaySlot>
-    <View style={styles.listFooter}><CalendarStats
-      stats={[
-        { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
-        { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
-        { key: 'missed', value: 0, label: t('calendar.missedCount') },
-      ]}
-      state="loading"
-      loadingLabel={t('calendar.loading')}
-    /></View>
-  </>;
-}
-
-function CalendarBody({ profileReady, currentMonth, profileError, onRetryProfile, error, onRetry, tokens, children }: Readonly<{
+function CalendarBody({ profileReady, profileError, onRetryProfile, error, onRetry, tokens, children }: Readonly<{
   profileReady: boolean;
-  currentMonth: Date;
   profileError: Error | null;
   onRetryProfile: () => void;
   error: string | null;
@@ -246,9 +215,14 @@ function CalendarBody({ profileReady, currentMonth, profileError, onRetryProfile
   tokens: ReturnType<typeof createTokensV2>;
   children: ReactNode;
 }>) {
-  if (!profileReady) return <CalendarProfileBody currentMonth={currentMonth} error={profileError} onRetry={onRetryProfile} tokens={tokens} />;
-  if (error) return <CalendarLoadError onRetry={onRetry} tokens={tokens} />;
+  if (!profileReady && profileError) return <CalendarLoadError onRetry={onRetryProfile} tokens={tokens} />;
+  if (profileReady && error) return <CalendarLoadError onRetry={onRetry} tokens={tokens} />;
   return children;
+}
+
+function calendarMonthFooter(profileReady: boolean, profileError: Error | null, error: string | null, footer: ReactNode) {
+  if (profileReady ? error : profileError) return undefined;
+  return <>{footer}</>;
 }
 
 interface CalendarScreenContentProps {
@@ -419,7 +393,7 @@ function CalendarScreenContent({
 
   const {
     dayMap: rangeDayMap,
-    isLoading: rangeLoading,
+    isLoading: rangeQueryLoading,
     error: rangeError,
     refresh: rangeRefresh,
   } = useCalendarRange(
@@ -427,6 +401,8 @@ function CalendarScreenContent({
     gridEndDate,
     Boolean(profile) && (view === "week" || view === "range" || view === "agenda"),
   );
+
+  const rangeLoading = !profile || rangeQueryLoading;
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
@@ -709,7 +685,7 @@ function CalendarScreenContent({
   const listHeader = (
     <>
       {calendarHeader}
-      <CalendarBody profileReady={Boolean(profile)} currentMonth={currentMonth} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
+      <CalendarBody profileReady={Boolean(profile)} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
       <CalendarGrid
         gridDays={gridDays}
         weekdayHeaders={weekdayHeaders}
@@ -829,7 +805,7 @@ function CalendarScreenContent({
           keyExtractor={(_item, index) => String(index)}
           renderItem={null}
           ListHeaderComponent={listHeader}
-          ListFooterComponent={profile && !activeError ? listFooter : undefined}
+          ListFooterComponent={calendarMonthFooter(Boolean(profile), profileError, activeError, listFooter)}
           contentContainerStyle={{ paddingBottom: clearance }}
           showsVerticalScrollIndicator={false}
         />
@@ -843,7 +819,7 @@ function CalendarScreenContent({
           showsVerticalScrollIndicator={false}
         >
           {calendarHeader}
-          <CalendarBody profileReady={Boolean(profile)} currentMonth={currentMonth} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
+          <CalendarBody profileReady={Boolean(profile)} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
             {viewBody}
           </CalendarBody>
         </ScrollView>
