@@ -5,6 +5,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession } from './profile-session'
+import { hoverSettledComposerControl } from './composer-hover-state'
 
 for (const width of [412, 1280]) {
   for (const theme of ['dark', 'light'] as const) {
@@ -24,16 +25,12 @@ for (const width of [412, 1280]) {
       const actions = composer.getByRole('button', { name: en.shell.composer.actions, exact: true })
       await actions.click()
       const menu = page.getByRole('menu', { name: en.shell.composer.actions, exact: true })
-      await page.addStyleTag({ content: '.orbit-menu-item,[data-composer-controls] button{--test-hover:0}.orbit-menu-item:hover,[data-composer-controls] button:hover{--test-hover:1}' })
       for (const name of [en.shell.composer.attach.file, en.shell.composer.attach.image]) {
         const control = menu.getByRole('menuitem', { name, exact: true })
         await expect(control).toBeDisabled()
         await page.mouse.move(0, 0)
         await expect(control).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-        const bounds = (await control.boundingBox())!
-        await page.mouse.move(bounds.x + 4, bounds.y + bounds.height / 2)
-        await page.waitForTimeout(300)
-        expect(await control.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
+        await hoverSettledComposerControl(control)
         await expect(control).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
       }
       await page.keyboard.press('Escape')
@@ -43,10 +40,7 @@ for (const width of [412, 1280]) {
       await expect(actions).toBeDisabled()
       await page.mouse.move(0, 0)
       await expect(actions).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
-      const bounds = (await actions.boundingBox())!
-      await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + 4)
-      await page.waitForTimeout(300)
-      expect(await actions.evaluate((element) => getComputedStyle(element).getPropertyValue('--test-hover').trim())).toBe('1')
+      await hoverSettledComposerControl(actions)
       await expect(actions).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     })
   }
