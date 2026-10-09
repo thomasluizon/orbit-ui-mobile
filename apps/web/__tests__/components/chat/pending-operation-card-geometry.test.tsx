@@ -93,7 +93,7 @@ describe('Pending preview geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}</style><div class="dark">${container.innerHTML}</div>`)
       await page.evaluate(() => document.fonts.ready)
       const geometry = await page.evaluate((moreLabel) => {
-        const row = document.querySelector<HTMLElement>('[data-preview-actions]')!
+        const row = [...document.querySelectorAll<HTMLElement>('[data-action-row]')].find(row => row.querySelectorAll('.orbit-pill-action').length === 3)!
         const rowBounds = row.getBoundingClientRect()
         const buttons = Array.from(row.querySelectorAll('button')).map((button) => {
           const bounds = button.getBoundingClientRect()
@@ -106,14 +106,14 @@ describe('Pending preview geometry in Chromium', () => {
         const visiblePrimary = Array.from(document.querySelectorAll('[data-variant="primary"]')).filter((button) => button.getBoundingClientRect().width > 0).length
         return { buttons, rowLeft: rowBounds.left, rowRight: rowBounds.right, moreWidth, moreRowWidth, visiblePrimary }
       }, messages.chat.habitList.more)
-      expect(geometry.buttons.map((button) => button.label)).toEqual([counted ? new IntlMessageFormat((messages.chat.operation.approveCount as Record<string, string>)[counted] ?? (messages.chat.operation.approveAction as Record<string, string>)[counted]!, locale).format({ count: 12 }) : messages.chat.operation.approve, messages.chat.operation.edit, messages.chat.operation.reject])
+      expect(geometry.buttons.map((button) => button.label)).toEqual([messages.chat.operation.reject, messages.chat.operation.edit, counted ? new IntlMessageFormat((messages.chat.operation.approveCount as Record<string, string>)[counted] ?? (messages.chat.operation.approveAction as Record<string, string>)[counted]!, locale).format({ count: 12 }) : messages.chat.operation.approve])
       if (!counted && width >= 360) expect(new Set(geometry.buttons.map((button) => button.top)).size).toBe(1)
       for (const button of geometry.buttons) {
         expect(button.left).toBeGreaterThanOrEqual(geometry.rowLeft)
         expect(button.right).toBeLessThanOrEqual(geometry.rowRight)
         expect(button.labelHeight).toBeLessThanOrEqual(button.lineHeight + 0.5)
       }
-      expect(geometry.buttons[0]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
+      expect(geometry.buttons[2]?.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
       expect(geometry.visiblePrimary).toBe(1)
       expect(geometry.moreWidth).toBeLessThan(geometry.moreRowWidth)
     } finally { await page.close() }

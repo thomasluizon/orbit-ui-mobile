@@ -1,7 +1,7 @@
 import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
+import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { Resvg } from '@resvg/resvg-js'
 import { makeHeldHabitMessage, habitListCardFixture } from '@orbit/shared/test-support/chat-fixtures'
@@ -66,6 +66,15 @@ function textWidth(label: string, size: number): number {
   return Math.ceil(bounds.x + bounds.width + 8)
 }
 
+function expectTrailingLines(bounds: ReturnType<ReturnType<typeof Yoga.Node.create>['getComputedLayout']>[], rowWidth: number) {
+  for (const [index, bound] of bounds.entries()) {
+    expect(bound.left + bound.width).toBeLessThanOrEqual(rowWidth)
+    const next = bounds[index + 1]
+    if (next?.top === bound.top) expect(next.left - bound.left - bound.width).toBeCloseTo(12, 1)
+    else expect(bound.left + bound.width).toBeCloseTo(rowWidth, 1)
+  }
+}
+
 afterEach(async () => { __setWindowDimensions({ width: 412, height: 915, scale: 1, fontScale: 1 }); await i18n.changeLanguage('en'); vi.clearAllMocks() })
 
 describe('Pending preview geometry on Android', () => {
@@ -73,11 +82,11 @@ describe('Pending preview geometry on Android', () => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
     const tree = render(<PendingOperationCard pendingOperation={counted ? { ...makeCreateHabitsPreview(), actionKey: counted } : operation} {...handlers} />)
-    const row = tree.root.findByProps({ testID: 'preview-actions' })
+    const row = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
     const buttons = row.findAllByType(Button)
     const labels = buttons.map((button: { props: { children: string } }) => button.props.children)
-    expect(labels).toEqual([counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve'), i18n.t('chat.operation.edit'), i18n.t('chat.operation.reject')])
-    expect(buttons[0].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
+    expect(labels).toEqual([i18n.t('chat.operation.reject'), i18n.t('chat.operation.edit'), counted ? i18n.t(['createHabits', 'rescheduleHabits', 'updateHabitEmojis'].includes(counted) ? `chat.operation.approveCount.${counted}` : `chat.operation.approveAction.${counted}`, { count: 12 }) : i18n.t('chat.operation.approve')])
+    expect(buttons[2].props.variant).toBe(width >= 1024 ? 'secondary' : 'primary')
     if (!counted) expect(renderedText(tree.toJSON())).toContain(i18n.t('habits.frequency.everyDay'))
     expect(renderedText(tree.toJSON())).not.toContain('frequency_unit')
     expect(tree.root.findAllByType(Text).filter((node: { props: { children?: unknown; importantForAccessibility?: string } }) => node.props.children === (counted ? 'Habit 1' : 'Beber água') && node.props.importantForAccessibility !== 'no-hide-descendants')).toHaveLength(1)
@@ -91,13 +100,8 @@ describe('Pending preview geometry on Android', () => {
       layout.setFlexDirection(rowStyle.flexDirection === 'row' ? Yoga.FLEX_DIRECTION_ROW : Yoga.FLEX_DIRECTION_COLUMN)
       layout.setFlexWrap(rowStyle.flexWrap === 'wrap' ? Yoga.WRAP_WRAP : Yoga.WRAP_NO_WRAP)
       layout.setGap(Yoga.GUTTER_ALL, rowStyle.gap)
-      buttons.forEach((button: { findByType: (type: unknown) => { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle> } }; findAllByType: (type: unknown) => { props: { style: StyleProp<TextStyle>; children: string } }[] }, index: number) => {
-        if (index === 2) {
-          const spacer = Yoga.Node.create()
-          const spacerView = row.findAllByType(View).find((node: { props: { style: StyleProp<ViewStyle> } }) => StyleSheet.flatten(node.props.style).flex === 1)
-          spacer.setFlexGrow(StyleSheet.flatten(spacerView.props.style).flex)
-          layout.insertChild(spacer, layout.getChildCount())
-        }
+      layout.setJustifyContent(rowStyle.justifyContent === 'flex-end' ? Yoga.JUSTIFY_FLEX_END : Yoga.JUSTIFY_FLEX_START)
+      buttons.forEach((button: { findByType: (type: unknown) => { props: { style: (state: { pressed: boolean }) => StyleProp<ViewStyle> } }; findAllByType: (type: unknown) => { props: { style: StyleProp<TextStyle>; children: string } }[] }) => {
         const style = StyleSheet.flatten(button.findByType(Pressable).props.style({ pressed: false }))
         const label = button.findAllByType(Text)[0]!
         const labelStyle = StyleSheet.flatten(label.props.style)
@@ -109,7 +113,7 @@ describe('Pending preview geometry on Android', () => {
       layout.calculateLayout(rowWidth, 'auto', Yoga.DIRECTION_LTR)
       const bounds = Array.from({ length: layout.getChildCount() }, (_, index) => layout.getChild(index).getComputedLayout())
       if (!counted && width >= 360) expect(new Set(bounds.map((bound) => bound.top)).size).toBe(1)
-      for (const bound of bounds) expect(bound.left + bound.width).toBeLessThanOrEqual(rowWidth)
+      expectTrailingLines(bounds, rowWidth)
     } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
   })
 
@@ -153,7 +157,8 @@ describe('Pending preview geometry on Android', () => {
     const tree = render(<HabitListCard habitList={habitListCardFixture} />)
     const more = tree.root.findByType(Button)
     expect(more.props.children).toBe(i18n.t('chat.habitList.more'))
-    expect(StyleSheet.flatten(more.parent.props.style).flexDirection).toBe('row')
+    const actionRow = tree.root.find((node: { type: unknown; props: { testID?: string } }) => node.type === 'View' && node.props.testID === 'action-row')
+    expect(actionRow.findAllByType(Button)).toHaveLength(1)
     expect(renderedText(tree.toJSON())).not.toContain(habitListCardFixture.items[3]!.title)
     TestRenderer.act(() => more.props.onClick())
     expect(renderedText(tree.toJSON())).toContain(habitListCardFixture.items[3]!.title)

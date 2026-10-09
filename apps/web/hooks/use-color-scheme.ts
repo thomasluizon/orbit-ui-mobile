@@ -39,11 +39,12 @@ export function useColorScheme() {
   const { showPersistentError } = useAppToast()
   const currentScheme: ColorScheme = 'orange'
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() =>
-    normalizeThemeMode(getCookie('orbit_theme_mode')),
+    normalizeThemeMode(typeof document === 'undefined' ? null : document.documentElement.style.colorScheme || getCookie('orbit_theme_mode')),
   )
 
   useEffect(() => {
     setCookie('orbit_color_scheme', currentScheme)
+    setCookie('orbit_theme_mode', currentTheme)
     applyThemeTokensToDOM(currentScheme, currentTheme, false)
   }, [currentScheme, currentTheme])
 

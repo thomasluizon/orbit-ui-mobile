@@ -8,12 +8,11 @@ import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode, type Re
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { useController } from 'react-hook-form'
-import type { Time24 } from '@orbit/shared/contracts/forms'
 import type { ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import type { HabitFormCommonProps } from '@orbit/shared/utils'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
-import {
+import { toTime24,
   buildHabitAstraFallbackCopy,
   buildHabitUnderstandingLabels,
   buildHabitUnderstandingSentence,
@@ -445,7 +444,7 @@ export function HabitFormFields({
               <TimeField
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
-                value={dueTime as Time24 | ''}
+                value={toTime24(dueTime)}
                 onChange={controller.setDueTime}
                 onClear={controller.clearDueTime}
               />

@@ -1,3 +1,4 @@
+import { toTime24 } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useState } from 'react'
@@ -155,7 +156,7 @@ export function ScheduledReminderSection({
                 <div className="flex flex-col gap-2">
                   <TimeField
                     label={t('habits.form.scheduledReminderTimePlaceholder')}
-                    value={time}
+                    value={toTime24(time)}
                     onChange={setTime}
                     onClear={() => setTime('')}
                   />
