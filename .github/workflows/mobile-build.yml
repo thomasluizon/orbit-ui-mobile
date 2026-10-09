@@ -92,8 +92,14 @@ jobs:
           if [ -d "$NDK_PATH" ]; then
             echo "Using cached or preinstalled Android NDK $NDK_VERSION."
           else
+            # The runner image installs sdkmanager here and leaves it off PATH.
+            sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+            if [ ! -x "$sdkmanager" ]; then
+              echo "::error::sdkmanager is missing at $sdkmanager; Gradle will not start."
+              exit 1
+            fi
             echo "Installing Android NDK $NDK_VERSION with sdkmanager."
-            if ! sdkmanager --sdk_root="$ANDROID_HOME" --install "ndk;$NDK_VERSION"; then
+            if ! "$sdkmanager" --sdk_root="$ANDROID_HOME" --install "ndk;$NDK_VERSION"; then
               echo "::error::Android NDK $NDK_VERSION installation failed before Gradle; rerun to retry the SDK download."
               exit 1
             fi
