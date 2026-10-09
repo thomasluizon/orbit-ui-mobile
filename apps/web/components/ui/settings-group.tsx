@@ -31,4 +31,3 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
     </div>
   )
 }
-

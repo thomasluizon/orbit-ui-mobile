@@ -76,4 +76,3 @@ export function useAstraSettingsController(
     onToggleProactive: () => proactiveMutation.mutate(!proactiveAstraEnabled),
   }
 }
-
