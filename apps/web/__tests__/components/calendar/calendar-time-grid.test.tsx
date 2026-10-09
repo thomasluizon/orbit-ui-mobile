@@ -240,7 +240,7 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ background: 'var(--primary)' })
   })
 
-  it.each([false, true])('waits for loaded concurrent geometry and respects prior scrolling (scrolled=%s)', (scrolled) => {
+  it.each(['none', 'wheel', 'scroll'])('waits for loaded concurrent geometry and respects prior scrolling (input=%s)', (input) => {
     const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === 3 }))
     const onSelectDay = vi.fn()
     const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} isLoading={isLoading} onSelectDay={onSelectDay} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
@@ -253,10 +253,14 @@ describe('CalendarTimeGrid', () => {
     Object.defineProperties(today, { offsetLeft: { configurable: true, get: () => 96 + 3 * columnWidth() }, clientWidth: { configurable: true, get: columnWidth } })
     view.rerender(grid(new Map(), true))
     expect(scroller.scrollLeft).toBe(0)
-    if (scrolled) { scroller.scrollLeft = 88; fireEvent.wheel(scroller, { deltaX: 88 }) }
+    if (input !== 'none') {
+      scroller.scrollLeft = 88
+      if (input === 'wheel') fireEvent.wheel(scroller, { deltaX: 88 })
+      else fireEvent.scroll(scroller)
+    }
     const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]])
     view.rerender(grid(crowded, false))
-    expect(scroller.scrollLeft).toBe(scrolled ? 88 : 530)
+    expect(scroller.scrollLeft).toBe(input === 'none' ? 530 : 88)
     scroller.scrollLeft = 88
     fireEvent.scroll(scroller)
     view.rerender(grid(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'third', dueTime: '08:00' })]]]), false))

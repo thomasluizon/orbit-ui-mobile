@@ -278,6 +278,9 @@ export function CalendarTimeGrid({
           ref={bodyRef}
           onWheel={() => { openingPosition.current = true }}
           onTouchMove={() => { openingPosition.current = true }}
+          onScroll={(event) => {
+            if (event.currentTarget.scrollLeft > 0 || event.currentTarget.scrollTop > 0) openingPosition.current = true
+          }}
           data-testid="time-grid-hour-scroller"
           className="thin-scrollbar"
           style={{ ...SCROLLER_VARIABLES, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
