@@ -3,6 +3,7 @@ import {
   CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   calendarEntryOutcome,
+  orderCalendarDayEntries,
   filterRecurringDayMap,
   filterRecurringEntries,
   resolveCalendarEventsDisplayState,
@@ -96,5 +97,17 @@ describe('calendar entry outcomes', () => {
     ['missed', true, 'done', 'resisted'],
   ] as const)('describes %s with bad-habit=%s consistently', (status, isBadHabit, mark, label) => {
     expect(calendarEntryOutcome(entry({ status, isBadHabit }))).toEqual({ status: mark, labelKey: `calendar.status.${label}` })
+  })
+})
+
+describe('orderCalendarDayEntries', () => {
+  it('keeps no-time entries and time ties in API order without mutating the source', () => {
+    const source = [entry({ habitId: 'late', dueTime: '21:00' }), entry({ habitId: 'first', dueTime: null }),
+      entry({ habitId: 'early', dueTime: '08:00' }), entry({ habitId: 'second', dueTime: null }),
+      entry({ habitId: 'tie', dueTime: '08:00' })]
+    const original = [...source]
+    expect(orderCalendarDayEntries(source).map((habit) => habit.habitId)).toEqual(['first', 'second', 'early', 'tie', 'late'])
+    expect(source).toEqual(original)
+    expect(orderCalendarDayEntries([])).toEqual([])
   })
 })

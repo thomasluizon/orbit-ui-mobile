@@ -43,7 +43,7 @@ vi.mock('next-intl', () => ({
     if (key === 'calendar.dayDetail.completionSummary') {
       return `${String(params?.done)} of ${String(params?.total)} logged`
     }
-    if (key === 'dates.today') return detailLocale.language === 'en' ? en.dates.today : ptBR.dates.today
+    if (key === 'dates.todayWithDate') return (detailLocale.language === 'en' ? en.dates.todayWithDate : ptBR.dates.todayWithDate).replace('{date}', String(params?.date))
     return translations[key] ?? key
   },
   useLocale: () => detailLocale.language,

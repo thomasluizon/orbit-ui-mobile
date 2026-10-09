@@ -43,7 +43,7 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
         const selector = header.getByRole('radiogroup')
         const previous = page.getByRole('button', { name: words.common.previousWeek, exact: true })
         const next = page.getByRole('button', { name: words.common.nextWeek, exact: true })
-        const current = page.getByRole('button', { name: new RegExp(`, ${words.calendar.goToCurrentWeek}$`) })
+        const current = page.getByRole('button', { name: new RegExp(words.calendar.period.goToCurrent.replace('{period}', '.*') + '$') })
         const originalWeek = await current.innerText()
         for (const control of [previous, current, next]) {
           await expect(control).toBeVisible()
@@ -54,9 +54,9 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
           expect(box.bottom).toBeLessThan(segments.bottom)
           expect(box.width).toBeGreaterThanOrEqual(48)
           expect(box.height).toBeGreaterThanOrEqual(48)
-          if (!(await control.evaluate((element) => element.matches('.orbit-pill-action')))) await expectInteractionFill(control)
+          await expectInteractionFill(control)
         }
-        await expect(current).toHaveClass(/orbit-pill-action/)
+        expect(await current.evaluate((element) => getComputedStyle(element).boxShadow)).toBe('none')
         await markRequiredLabels(current)
         await markUserText(page, [habitTitle])
         await expectLabelsFit(page, header)
@@ -76,8 +76,8 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
         await page.getByRole('radio', { name: words.calendar.view.range, exact: true }).click()
         const previous = page.getByRole('button', { name: words.calendar.range.previous, exact: true })
         const next = page.getByRole('button', { name: words.calendar.range.next, exact: true })
-        const row = previous.locator('xpath=ancestor::div[p][1]')
-        const label = row.locator('p')
+        const row = page.getByTestId('calendar-range-navigation')
+        const label = row.locator('[data-calendar-period-title]')
         await markRequiredLabels(label)
         await expectLabelsFit(page, row)
         const initialRange = await label.innerText()
@@ -85,7 +85,7 @@ for (const width of [320, 360, 384, 412, 600, 840]) {
         for (const control of [previous, next]) {
           const box = await bounds(control)
           expect(Math.abs(labelBox.center - box.center)).toBeLessThanOrEqual(2)
-          expect(box.left).toBeGreaterThan(labelBox.right)
+          expect(box.left < labelBox.left || box.left > labelBox.right).toBe(true)
           expect(box.width).toBeGreaterThanOrEqual(48)
           expect(box.height).toBeGreaterThanOrEqual(48)
         }
