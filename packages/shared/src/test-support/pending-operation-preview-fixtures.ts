@@ -1,8 +1,8 @@
-import { agentExecuteOperationResponseSchema, pendingAgentOperationSchema, type PendingAgentOperation } from '../types/ai'
+import { agentExecuteOperationResponseSchema, pendingAgentOperationSchema, type AgentExecuteOperationResponse, type PendingAgentOperation } from '../types/ai'
 
 const emptyId = '00000000-0000-0000-0000-000000000000'
 
-export function makeBulkCreateExecutionResponse(statuses?: readonly ('Success' | 'Failed')[]) {
+export function makeBulkCreateExecutionResponse(statuses?: readonly ('Success' | 'Failed')[]): AgentExecuteOperationResponse {
   const successCount = statuses?.filter((status) => status === 'Success').length ?? 0
   return agentExecuteOperationResponseSchema.parse({
     operation: {
