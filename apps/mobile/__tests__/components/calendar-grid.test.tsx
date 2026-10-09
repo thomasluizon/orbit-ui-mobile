@@ -1,7 +1,7 @@
 import React, { type ComponentProps } from 'react'
 import { StyleSheet } from 'react-native'
 import * as ReactNative from 'react-native'
-import Yoga, { type Node as YogaNode } from 'yoga-layout'
+import { measureGrid, type GeometryHost } from '@/__tests__/support/calendar-grid-geometry'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildCalendarMonthModel, buildCalendarRangeModel, type CalendarMonthDay } from '@orbit/shared/utils'
@@ -57,79 +57,6 @@ function gridDay(dateStr: string, completedCount = 0, totalCount = 1): CalendarM
   }
 }
 
-interface GeometryHost {
-  props: { testID?: string; style?: StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>) }
-  children: (GeometryHost | string)[] | null
-}
-
-function applyGridDimensions(node: YogaNode, style: ViewStyle) {
-  if (typeof style.width === 'number' || style.width === '100%') node.setWidth(style.width)
-  if (typeof style.maxWidth === 'number') node.setMaxWidth(style.maxWidth)
-  if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
-  if (typeof style.height === 'number') node.setHeight(style.height)
-  if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
-}
-
-function applyGridStyle(node: YogaNode, style: ViewStyle) {
-  applyGridDimensions(node, style)
-  if (style.flex !== undefined) node.setFlex(style.flex)
-  if (style.flexDirection === 'row') node.setFlexDirection(Yoga.FLEX_DIRECTION_ROW)
-  if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
-  if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
-  if (style.alignSelf === 'center') node.setAlignSelf(Yoga.ALIGN_CENTER)
-  if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
-  if (typeof style.rowGap === 'number') node.setGap(Yoga.GUTTER_ROW, style.rowGap)
-  if (typeof style.columnGap === 'number') node.setGap(Yoga.GUTTER_COLUMN, style.columnGap)
-  if (typeof style.paddingHorizontal === 'number') node.setPadding(Yoga.EDGE_HORIZONTAL, style.paddingHorizontal)
-  if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
-  for (const [property, edge] of [['top', Yoga.EDGE_TOP], ['bottom', Yoga.EDGE_BOTTOM], ['left', Yoga.EDGE_LEFT], ['right', Yoga.EDGE_RIGHT]] as const) {
-    const offset = style[property] ?? style.inset
-    if (typeof offset === 'number') node.setPosition(edge, offset)
-  }
-}
-
-function measureGrid(host: GeometryHost, width: number, view: 'month' | 'range', isLoading: boolean) {
-  const selected = new Map<string, YogaNode>()
-  const targets: YogaNode[] = []
-  const placeholders: { node: YogaNode; column: YogaNode; ancestors: YogaNode[] }[] = []
-  function build(current: GeometryHost, column?: YogaNode, ancestors: YogaNode[] = []): YogaNode {
-    const node = Yoga.Node.create()
-    const declared = current.props.style
-    const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
-    applyGridStyle(node, style)
-    const currentColumn = style.flex === 1 ? node : column
-    const currentAncestors = style.flex === 1 ? [] : [...ancestors, node]
-    if (current.props.testID === 'skeleton-grid-shape') placeholders.push({ node, column: currentColumn!, ancestors: currentAncestors })
-    if (current.props.testID) {
-      selected.set(current.props.testID, node)
-      const prefix = view === 'month' ? 'calendar-day-select-' : 'day-cell-'
-      if (current.props.testID.startsWith(prefix)) targets.push(node)
-    }
-    for (const child of current.children ?? []) {
-      if (typeof child !== 'string') node.insertChild(build(child, currentColumn, currentAncestors), node.getChildCount())
-    }
-    return node
-  }
-  const root = build(host)
-  try {
-    root.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    const card = view === 'range' ? selected.get('month-grid-7-columns')!.getParent()!
-      : selected.get('calendar-grid')!.getChild(0)
-    const frame = view === 'range' ? card : selected.get('calendar-grid')!
-    return {
-      cardWidth: card.getComputedWidth() - (view === 'range' ? 8 : 0),
-      contentWidth: width - 8,
-      frameWidth: frame.getComputedWidth(),
-      loadingRowWidth: isLoading && view === 'month' ? card.getChild(0).getChild(0).getComputedWidth() : undefined,
-      placeholders: placeholders.map(({ node, column, ancestors }) => ({
-        center: ancestors.reduce((offset, ancestor) => offset + ancestor.getComputedLeft(), 0) + node.getComputedWidth() / 2,
-        columnCenter: column.getComputedWidth() / 2,
-      })),
-      targets: targets.map((node) => ({ width: node.getComputedWidth(), height: node.getComputedHeight(), columnWidth: node.getParent()!.getComputedWidth() })),
-    }
-  } finally { root.freeRecursive() }
-}
-
 describe('CalendarGrid (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -139,7 +66,7 @@ describe('CalendarGrid (mobile)', () => {
 
   afterEach(() => vi.useRealTimers())
 
-  it.each([320, 600, 840, 1100, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
+  it.each([320, 339, 340, 360, 363, 363.5, 364, 365, 412, 600, 840, 1100, 1352].flatMap((width) => [false, true].flatMap((isLoading) =>
     (['month', 'range'] as const).map((view) => ({ width, isLoading, view })),
   )))('fills the $view content column at $width (loading=$isLoading)', ({ width, isLoading, view }) => {
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 })
@@ -159,10 +86,25 @@ describe('CalendarGrid (mobile)', () => {
               language="en" t={i18n.t} />)
       })
       const geometry = measureGrid(tree.toJSON(), width, view, isLoading)
+      const expectedGap = width < 364 ? 0 : 4
+      expect(geometry.columnGap).toBeCloseTo(expectedGap, 4)
+      expect(geometry.slots).toHaveLength(7)
+      for (const slot of geometry.slots) {
+        expect(slot.width).toBeCloseTo((width - 32 - 6 * expectedGap) / 7, 4)
+        expect(slot.height).toBeGreaterThanOrEqual(44)
+      }
+      expect(geometry.inlineInset).toBe(16)
       expect(geometry.frameWidth).toBe(width)
       expect(geometry.cardWidth).toBe(geometry.contentWidth)
       if (isLoading && view === 'month') expect(geometry.loadingRowWidth).toBe(geometry.contentWidth)
-      for (const placeholder of geometry.placeholders) expect(Math.abs(placeholder.center - placeholder.columnCenter)).toBeLessThanOrEqual(0.5)
+      for (const placeholder of geometry.placeholders) {
+        expect(Math.abs(placeholder.center - placeholder.columnCenter)).toBeLessThanOrEqual(0.5)
+        expect(placeholder.width).toBeLessThanOrEqual(placeholder.columnWidth + 0.5)
+      }
+      for (const disc of geometry.discs) {
+        expect(disc.width).toBeLessThanOrEqual(disc.columnWidth + 0.5)
+        expect(disc.width).toBeCloseTo(disc.height, 1)
+      }
       expect(geometry.targets).toHaveLength(isLoading ? 0 : view === 'month' ? 30 : 14)
       for (const target of geometry.targets) {
         expect(target.width).toBeCloseTo(target.columnWidth, 1)
@@ -261,8 +203,7 @@ describe('CalendarGrid (mobile)', () => {
     const selectedSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-10' })
     expect(StyleSheet.flatten(selectedSlot.props.style)).toMatchObject({
       width: '100%',
-      minWidth: 44,
-      height: 44,
+      minHeight: 44,
       backgroundColor: tokens.selectionBg,
     })
     expect(StyleSheet.flatten(selectedSlot.props.style)).not.toHaveProperty('borderWidth')

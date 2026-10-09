@@ -285,19 +285,20 @@ describe('CalendarGrid', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('contains seven 44px targets with a 4px gap at the canvas phone width', () => {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 412 })
+  it('fills seven tracks inside the content inset with targets at least 44px high', () => {
     render(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />)
 
-    expect(screen.getByTestId('calendar-grid')).toHaveStyle({ paddingLeft: '4px', paddingRight: '4px' })
+    expect(screen.getByTestId('calendar-grid')).toHaveStyle({ paddingLeft: '16px', paddingRight: '16px' })
     expect(screen.getByTestId('calendar-grid-card')).not.toHaveStyle({ background: 'var(--bg-card)' })
     expect(screen.getByTestId('calendar-grid-card')).not.toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--hairline)' })
     expect((screen.getByTestId('calendar-grid-card') as HTMLElement).style.borderRadius).toBe('')
     expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: 'var(--calendar-grid-gap)' })
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' })
     const firstRowTargets = [...document.querySelectorAll('[data-calendar-date]')].slice(0, 7)
     expect(firstRowTargets).toHaveLength(7)
     expect(firstRowTargets.every((target) => (target as HTMLElement).style.width === '100%')).toBe(true)
-    expect(7 * 44 + 6 * 4).toBeLessThanOrEqual(window.innerWidth - 8)
+    expect(firstRowTargets.every((target) => (target as HTMLElement).style.minHeight === '44px')).toBe(true)
+    expect(firstRowTargets.every((target) => (target as HTMLElement).style.minWidth === '')).toBe(true)
   })
 
   it('marks today with aria-current="date"', () => {

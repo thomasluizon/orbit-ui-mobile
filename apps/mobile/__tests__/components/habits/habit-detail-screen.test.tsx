@@ -23,6 +23,7 @@ import {
 } from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit, RescheduleSuggestion } from '@orbit/shared/types/habit'
+import { StatusRing } from '@/components/ui/status-ring'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { flushQueuedMutations } from '@/lib/offline-mutations'
@@ -73,6 +74,7 @@ const mocks = vi.hoisted(() => ({
   screenFocused: true,
   realTimeField: false,
   realReminderSections: false,
+  realHeaderRing: false,
   logs: [] as HabitLog[],
   metrics: {} as HabitMetrics,
   metricsError: false,
@@ -387,9 +389,14 @@ vi.mock('@/components/habits/habit-checklist', () => ({
 }))
 vi.mock('@/components/habits/habit-form-fields/habit-emoji-selector', () => ({ HabitEmojiSelector: () => null }))
 vi.mock('@/components/habits/habit-form-fields/styles', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/components/habits/habit-form-fields/styles')>()), createStyles: () => ({}) }))
-vi.mock('@/components/habits/habit-log-button', () => ({
-  HabitLogButton: ({ label, logged, onPress, disabled, disabledReason }: { label: string; logged: boolean; onPress: () => void; disabled: boolean; disabledReason?: string }) => React.createElement('HabitLogButton', { testID: 'header-log', label, logged, onPress, disabled, disabledReason }),
-}))
+vi.mock('@/components/habits/habit-log-button', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/habits/habit-log-button')>()
+  return {
+    HabitLogButton: (props: React.ComponentProps<typeof actual.HabitLogButton>) => mocks.realHeaderRing
+      ? <actual.HabitLogButton {...props} />
+      : React.createElement('HabitLogButton', { testID: 'header-log', ...props }),
+  }
+})
 vi.mock('@/components/habits/habit-row', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/components/habits/habit-row')>()
   const mockRow = ({ habit, selectedDate, today, completionReadOnly, completionReason, completionStatusUnavailable, actions }: { habit: NormalizedHabit; selectedDate: Date; today: string; completionReadOnly: boolean; completionReason?: string; completionStatusUnavailable?: boolean; actions: { onLog: () => void; onUnlog: () => void; onDetail: () => void } }) => React.createElement('HabitRow', {
@@ -407,6 +414,110 @@ vi.mock('@/components/habits/habit-row', async (importOriginal) => {
 })
 
 describe('HabitDetailScreen', () => {
+  it('keeps child progress in an unlogged bad habit parent header', () => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true })]).habitsById
+    mocks.scopedHabits = new Map([
+      ['habit-1', { ...makeScopedParent(), isBadHabit: true }],
+      ['child-1', makeScopedChild('2026-08-28')],
+    ])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue.now).toBe(100)
+    expect(header.findAllByType(StatusRing)).toHaveLength(0)
+  })
+
+  it('shows empty, overdue and done status in the leaf header', () => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.detail = { ...makeDetail(), children: [] }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = () => tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header().findByType(StatusRing).props.status).toBe('empty')
+    expect(header().findAllByProps({ accessibilityRole: 'progressbar' })).toHaveLength(0)
+
+    mocks.scopedHabits.set('habit-1', { ...makeScopedParent(), isOverdue: true })
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    expect(header().findByType(StatusRing).props.status).toBe('overdue')
+
+    mocks.logs = [{ id: 'selected', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T12:00:00Z' }]
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    expect(header().findByType(StatusRing).props.status).toBe('done')
+  })
+
+  it.each(['absent', 'irrelevant'])('excludes a %s not-scheduled child from the header fraction', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    const child = makeDetail().children[0]!
+    mocks.detail = { ...makeDetail(), children: [child, { ...child, id: 'child-2' }] }
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-2', {
+      ...makeScopedChild('2026-08-29'), id: 'child-2', isLoggedInRange: false, instances: [],
+    })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findByProps({ accessibilityRole: 'progressbar' }).props.accessibilityValue.now).toBe(100)
+    expect(header.findAllByType(StatusRing)).toHaveLength(0)
+  })
+
+  it.each(['loading', 'error'])('shows a status ring while selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedLoading = state === 'loading'
+    mocks.scopedError = state === 'error'
+    mocks.scopedHabits = new Map([['child-1', makeScopedChild('2026-08-28')]])
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findAllByProps({ accessibilityRole: 'progressbar' })).toHaveLength(0)
+    expect(header.findByType(StatusRing).props.status).toBe('empty')
+  })
+
+  it.each(['absent', 'irrelevant'])('shows a status ring when all selected day children are %s', (state) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    mocks.scopedHabits = new Map()
+    if (state === 'irrelevant') mocks.scopedHabits.set('child-1', {
+      ...makeScopedChild('2026-08-29'), isLoggedInRange: false, instances: [],
+    })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    expect(header.findAllByProps({ accessibilityRole: 'progressbar' })).toHaveLength(0)
+    expect(header.findByType(StatusRing).props.status).toBe('empty')
+  })
+
+  it.each([0, 1, 2])('shows the selected day fraction for an unlogged parent with %i children done', (done) => {
+    mocks.realHeaderRing = true
+    mocks.logs = []
+    const child = makeDetail().children[0]!
+    mocks.detail = { ...makeDetail(), children: [child, { ...child, id: 'child-2' }] }
+    mocks.scopedHabits = new Map(mocks.detail.children.map((entry, index) => [entry.id, {
+      ...makeScopedChild('2026-08-28'), id: entry.id,
+      isLoggedInRange: index < done,
+      instances: index < done ? [{ date: '2026-08-28', status: 'Completed', logId: entry.id }] : [],
+    }]))
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
+    const ring = header.findByProps({ accessibilityRole: 'progressbar' })
+    expect(ring.props.accessibilityValue).toEqual({ min: 0, max: 100, now: done * 50 })
+    expect(header.findAllByType(StatusRing)).toHaveLength(0)
+    TestRenderer.act(() => { ring.props.onLayout() })
+    const paintedCircles = ring.findAllByType('Circle').filter((circle: TestNode) => circle.props.opacity !== 0)
+    expect(paintedCircles).toHaveLength(done === 0 ? 1 : 2)
+
+    mocks.logs = [{ id: 'selected', date: '2026-08-28', value: 1, createdAtUtc: '2026-08-28T12:00:00Z' }]
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    expect(header.findByType(StatusRing).props.status).toBe('done')
+    expect(header.findAllByProps({ accessibilityRole: 'progressbar' })).toHaveLength(0)
+  })
+
   it.each([320, 412, 1280])('shows the full habit title below the controls without a line limit at %s', (width) => {
     __setWindowDimensions({ width, height: 892, scale: 1, fontScale: 1 })
     const title = 'Read a long chapter and discuss the details with the reading group '.repeat(3)
@@ -510,6 +621,7 @@ describe('HabitDetailScreen', () => {
     expect(editingHeaders).toHaveLength(1)
   })
   beforeEach(() => {
+    mocks.realHeaderRing = false
     mocks.reducedMotion = false
     mocks.realPressTokens = false
     mocks.realHabitRows = false

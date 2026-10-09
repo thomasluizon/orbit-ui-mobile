@@ -23,6 +23,7 @@ import {
   capitalizeFirstLetter,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  computeHabitDayProgress,
   computeHabitFrequencyLabel,
   formatLocaleDate,
   formatWeekdayLabels,
@@ -38,6 +39,7 @@ import {
   getFriendlyErrorMessage,
   getTodayBoundary,
   hasAuthoritativeHabitRelationshipState,
+  hasHabitScheduleOnDate,
   isHabitHistoryMonthLoaded,
   isHabitCompletedOnDate,
   isHabitSlipping,
@@ -173,7 +175,7 @@ function Metrics({ visible, loading, error, metrics, isBadHabit, tokens }: Reado
   )
 }
 
-function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
+function Header({ habit, summary, completed, logged, overdue, progress, tokens, onPatch, onLog, completionDisabled, completionReason }: Readonly<{ habit: NormalizedHabit; summary: string; completed: boolean; logged: boolean; overdue: boolean; progress?: number; tokens: ReturnType<typeof createTokensV2>; onPatch: (patch: Parameters<typeof buildHabitDetailUpdateRequest>[1]) => Promise<boolean>; onLog: () => void; completionDisabled: boolean; completionReason?: string }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
   const [editing, setEditing] = useState(false)
@@ -198,7 +200,7 @@ function Header({ habit, summary, completed, logged, tokens, onPatch, onLog, com
           <HabitEmojiSelector selectedEmoji={habit.emoji ?? ''} onSelect={(emoji) => { void onPatch({ emoji }) }} wellSize={76} tokens={tokens} styles={formStyles} />
           <View style={styles.headerSpacer} />
           <PillButton variant="ghost" size="sm" iconOnly label={t('habits.detail.rename')} onClick={() => setEditing(true)}><Pencil size={20} color={tokens.fg1} /></PillButton>
-          <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
+          <HabitLogButton label={t(logged ? 'habits.detail.unlog' : 'habits.detail.log', { title: habit.title })} completed={completed} logged={logged} status={overdue ? 'overdue' : 'empty'} progress={progress} onPress={onLog} disabled={completionDisabled} disabledReason={completionReason} />
         </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
@@ -586,12 +588,19 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       }
     })
   const subHabitCreation = <ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} />
+  const childProgress = computeHabitDayProgress(
+    children.filter((child) => !child.completionStatusUnavailable).map((child) => child.habit),
+    (child) => hasHabitScheduleOnDate(child, dateStr),
+  )
+  const headerProgress = childProgress.total > 0
+    ? childProgress.done / childProgress.total * 100
+    : undefined
 
   return (
     <FlowShell nav={false} header={appBar}>
       <View testID="habit-detail-content" style={styles.content}>
       <View>
-        <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
+        <Header habit={habit} summary={headerSummary} completed={completed} logged={logged} overdue={habitsQuery.data?.habitsById.get(habitId)?.isOverdue ?? habit.isOverdue} progress={headerProgress} tokens={tokens} onPatch={patch} onLog={() => { void writeLog(habitId, logged ? 'unlog' : 'log') }} completionDisabled={completionDisabled} completionReason={completionReason} />
         <LogDateError visible={invalidLogDate?.date === dateStr && invalidLogDate.habitId === habitId} tokens={tokens} />
         <CompletionBoundaryReason disabled={completionDisabled} reason={completionReason} tokens={tokens} />
         {strip ? <View testID="habit-detail-strip-section" onLayout={(event) => setStripWidth(event.nativeEvent.layout.width)} style={styles.stripSection}><Text ref={stripLabelRef} style={[styles.stripLabel, { color: tokens.fg3 }]}>{t('habits.detail.lastThirtyDays')}</Text><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={habitStripCellSize(stripWidth)} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /><SlippingLine visible={rescue.open} metrics={metricsQuery.data} createdAtUtc={habit.createdAtUtc} today={today} timeZone={profile.timeZone} tokens={tokens} /></View> : null}

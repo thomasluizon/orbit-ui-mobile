@@ -75,9 +75,14 @@ for (const width of [320, 360, 384, 412]) {
 
       test('Progress names empty goals and achievements on one line', async ({ page }) => {
         await page.goto('/progress')
-        for (const title of [words.progressScreen.goals.empty, words.progressScreen.achievements.empty]) {
-          await expectEmptyTitle(page, page, title)
-        }
+        const goals = page.getByRole('region', { name: words.progressScreen.sections.goals })
+        const well = goals.locator('[data-goals-empty]')
+        const line = well.locator('p')
+        await expect(line).toHaveCount(1)
+        await expect(line).toHaveText(words.progressScreen.goals.empty)
+        await markRequiredLabels(line)
+        await expectLabelsFit(page, well)
+        await expectEmptyTitle(page, page, words.progressScreen.achievements.empty)
       })
 
       test('the empty Astra conversation keeps its invitation whole', async ({ page }) => {

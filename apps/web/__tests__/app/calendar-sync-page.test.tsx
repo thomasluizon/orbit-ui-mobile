@@ -136,6 +136,26 @@ describe('CalendarSyncPage pagination', () => {
     expect(screen.getAllByRole('heading', { name: ptBR.calendar.calendars.title })).toHaveLength(1)
   })
 
+  it('keeps plain, selected and blocked event rows rounded without separators in the sheet', () => {
+    const events = buildEvents(3)
+    events[2] = { ...events[2]!, isRecurring: true, recurrenceRule: 'RRULE:FREQ=MONTHLY;BYDAY=2MO' }
+    useCalendarEventsMock.mockReturnValue({ data: { status: 'connected', events }, isLoading: false, isError: false })
+    renderPage(true)
+    const buttons = events.map((event) => screen.getByRole('button', { name: new RegExp(event.title) }))
+    fireEvent.click(buttons[0]!)
+    expect(buttons[0]).toHaveAttribute('aria-pressed', 'false')
+    expect(buttons[1]).toHaveAttribute('aria-pressed', 'true')
+    expect(buttons[2]).toBeDisabled()
+    expect(buttons[2]).toHaveAccessibleDescription('calendar.importIssue.ordinalWeekday')
+    for (const button of buttons) {
+      const row = button.parentElement!
+      expect(row.style.borderBottom).toBe('')
+      expect(row.style.boxShadow).toBe('')
+      expect(row.style.borderRadius).toBe('12px')
+      expect(row.style.overflow).toBe('hidden')
+    }
+  })
+
   it.each([['pt-BR', 'sex., 16 de out.'], ['en', 'Fri, Oct 16']])('localizes calendar dates in %s west of UTC', (language, expected) => {
     vi.stubEnv('TZ', 'America/Los_Angeles')
     expect(new Date(2026, 9, 16).getTimezoneOffset()).toBeGreaterThan(0)

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { FreezeBankProps } from '@orbit/shared/contracts/display'
 import { Info, Snowflake } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 export function StreakLegend({ words }: Readonly<Pick<FreezeBankProps, 'words'>>) {
@@ -13,11 +14,10 @@ export function StreakLegend({ words }: Readonly<Pick<FreezeBankProps, 'words'>>
   const { sheetRef } = useSheetHost()
   return (
     <div className="flex justify-start">
-      <button ref={entryRef} type="button" aria-label={words.legendLabel} aria-haspopup="dialog" aria-expanded={open}
-        onClick={() => setOpen(true)}
-        className="transition-colors duration-[240ms] ease-[var(--ease-standard)] inline-flex min-h-[48px] min-w-[48px] items-center justify-center rounded-[12px] text-[var(--fg-2)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      <PillButton buttonRef={entryRef} variant="ghost" size="sm" minimumHeight={48} iconOnly label={words.legendLabel} expanded={open}
+        onClick={() => setOpen(true)}>
         <Info size={24} strokeWidth={1.5} aria-hidden="true" />
-      </button>
+      </PillButton>
       {open ? <Sheet ref={sheetRef} finalFocus={entryRef} open title={t('progressScreen.streak.legendTitle')} accessibleTitle={words.legendLabel} onClose={() => setOpen(false)}>
         <div className="flex flex-col gap-4">
           {(['active', 'frozen', 'missed'] as const).map((state) => (

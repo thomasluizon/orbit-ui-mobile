@@ -12,6 +12,7 @@ import {
   computeHabitFutureHint,
   computeHabitReorderPositions,
   computeParentSettlementDecision,
+  computeHabitDayProgress,
   computeParentPromptProgress,
   formatAPIDate,
   formatAPIDateInTimeZone,
@@ -506,24 +507,9 @@ export function HabitList({
       child: NormalizedHabit,
       computeFn: (id: string) => { done: number; total: number },
     ): { done: number; total: number } {
-      let done = 0
-      let total = 0
-
-      if (child.isGeneral) {
-        total++
-        if (child.isCompleted) done++
-      } else if (!visibility.isRelevantToday(child) && !child.isOverdue && !child.isLoggedInRange) {
-        const nested = computeFn(child.id)
-        return nested
-      } else if (visibility.isDueOnSelectedDate(child) || child.isOverdue || child.isLoggedInRange) {
-        total++
-        if (child.isCompleted || child.isLoggedInRange) done++
-      }
-
+      const ownProgress = computeHabitDayProgress([child], visibility.isDueOnSelectedDate)
       const nested = computeFn(child.id)
-      done += nested.done
-      total += nested.total
-      return { done, total }
+      return { done: ownProgress.done + nested.done, total: ownProgress.total + nested.total }
     }
 
     function compute(habitId: string): { done: number; total: number } {

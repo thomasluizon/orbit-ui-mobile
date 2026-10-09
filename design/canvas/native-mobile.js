@@ -21,6 +21,18 @@ window.OrbitNativeMobile = (() => {
         icon('bell'), count > 0 ? node('span', { style: { fontSize: 12, padding: '4px 8px',
           borderRadius: 'var(--r-pill)', background: 'var(--fg-1)', color: 'var(--bg)' } }, count > 9 ? '9+' : count) : null)));
   }
+  /* Opens the conversation specimen; this drawing navigation is not a product route. */
+  function AstraRow({ current = false, onOpen = () => window.location.assign('Orbit Astra Conversation.dc.html') }) {
+    return node(React.Fragment, null,
+      node('style', null, '.native-astra-row:hover,.native-astra-row:active{background:var(--bg-hover)}.native-astra-row:focus-visible{outline:2px solid var(--primary);outline-offset:2px}'),
+      node('button', { type: 'button', className: 'native-astra-row', 'aria-expanded': current,
+        onClick: onOpen, style: { ...button, width: '100%', minHeight: 48, borderRadius: 12,
+          paddingInline: 12, gap: 12, justifyContent: 'flex-start', fontSize: 14, fontWeight: 500,
+          color: current ? 'var(--primary-soft)' : 'var(--fg-3)' } },
+        node('span', { 'aria-hidden': true, style: { display: 'flex', color: current ? 'var(--primary)' : 'inherit' } },
+          node(window.OrbitDesignSystem_918bd5.AstraGlyph, { size: 20 })),
+        node('span', { translate: 'no' }, 'Astra')));
+  }
   function Composer(props) {
     const [open, setOpen] = React.useState(false);
     const [draft, setDraft] = React.useState('');
@@ -34,7 +46,7 @@ window.OrbitNativeMobile = (() => {
     const menu = [props.onAttach && { label: t.image, run: () => props.onAttach('image') },
       props.onAttach && { label: t.file, run: () => props.onAttach('file') },
       props.onVoice && { label: t.voice, run: props.onVoice }].filter(Boolean);
-    return node('div', { className: 'native-composer', style: { borderTop: '1px solid var(--hairline)', padding: 8 } },
+    return node('div', { className: 'native-composer', style: { borderTop: '1px solid var(--hairline)', padding: props.padding ?? 8 } },
       props.chips?.length ? node('div', { 'aria-label': props.words.chipsLabel, style: { display: 'flex',
         gap: 8, overflowX: 'auto', paddingBottom: 8 } }, props.chips.map((chip, index) => node('button', {
         key: chip, type: 'button', style: { ...button, whiteSpace: 'nowrap', flexShrink: 0 },
@@ -161,5 +173,5 @@ window.OrbitNativeMobile = (() => {
       alignSelf: 'center', gap: 8, background: 'var(--bg-elev)' }, onClick: () => rootScroller?.scrollTo({ top: 0 }) },
       icon('arrow-up'), words().bell === 'Notifications' ? 'Top' : 'Topo') : null;
   }
-  return { BellRow, Composer, TabBar, StatTile, PlainFigure, EventRow, HabitDayRow, ListRow, NavHeader, Badge, SegmentedControl, BackToTop };
+  return { AstraRow, BellRow, Composer, TabBar, StatTile, PlainFigure, EventRow, HabitDayRow, ListRow, NavHeader, Badge, SegmentedControl, BackToTop };
 })();

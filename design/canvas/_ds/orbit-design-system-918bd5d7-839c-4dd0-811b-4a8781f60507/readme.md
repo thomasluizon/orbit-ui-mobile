@@ -2,16 +2,16 @@
 
 Orbit is an AI habit tracker for overwhelmed adults who cannot keep a routine. Astra, the AI, sits on the primary path: it starts a routine, changes it, and acts on it, rather than living in a separate chat tab. Positioning: an AI that tracks habits, not a habit tracker with an AI (never phrase it as that contrast in copy).
 
-One product surface matters today: the app, designed mobile-first at a 412px shell with a wide layout (column capped at 740px plus a conversation panel). Primary market is Brazilian Portuguese (pt-BR) with English; "Orbit" and "Astra" are never translated.
+One product surface matters today: the app, designed mobile-first at a 412px shell with a wide layout (sidebar and a centred column capped at 740px, replaced by the full-screen conversation when open). Primary market is Brazilian Portuguese (pt-BR) with English; "Orbit" and "Astra" are never translated.
 
 ## The information architecture, settled 2026-08-16 (D69)
 
 `DESIGN.md` section `## Information architecture` is authoritative and outranks every other section on whether a surface should exist.
 
-- **Astra is a layer with a front door, never a destination.** No Astra tab, no bubble. ONE persistent composer lives in the shell on every primary screen, carrying 3 to 6 suggestion chips built from live state. The conversation opens from that composer as a full-height overlay, and as a side panel at the wide breakpoint. Every object also carries an inline AI affordance where the machine can propose something.
+- **Astra is a layer with a front door, never a destination.** No route, Android tab or bubble. The compact shell keeps one persistent Hoje composer; wide web has an Astra button above Hoje in the sidebar. Habit detail keeps its own composer and habit chips at every width. The conversation opens full screen with its own header, thread, one set of 3 to 6 live-state chips and composer. Its empty thread has no opener chips; at the daily limit no chips show. Compact shells cover the tab bar; wide web keeps the sidebar and replaces the destination column. Every object also carries an inline AI affordance where the machine can propose something.
 - **The shell is four destinations on both platforms: Hoje, Calendario, Progresso, Perfil.** Bottom tab bar on mobile, sidebar on web. **No drawer and no hamburger.** Metas left navigation: goals live inside Progresso and are created from a habit or by asking.
 - **The core loop is never mediated.** Marking a habit done is one tap, optimistic, deterministic, no model call, ever.
-- **The desktop stats rail is deleted.** Progresso owns the question it answered, and the width goes to the conversation panel.
+- **The desktop stats rail is deleted.** Progresso owns the question it answered. The conversation replaces the centred content column on wide web.
 - **Astra speaks first.** A proactive line sits at the top of Hoje carrying what Astra noticed and one action.
 - **Surfaces that no longer exist**, so drawing them is the defect: the `/insights` route, the retrospective's empty/locked/no-data screens, six of the seven celebration overlays, the separate onboarding/tour/feature-guide/push-prompt systems, a create-goal entry in navigation, the stats rail, the social layer, the colour-scheme picker, AI memory.
 
@@ -83,12 +83,12 @@ Groups under `components/`:
 - `navigation/`: TabBar, NavHeader, SectionTitle
 - `overlay/`: Sheet (short + long content), EmptyState (the orbital band with one open accent invitation arc), Skeleton (final-layout shaped, aria-busy, no spinner), ErrorState (message states the fix + one action), CapacityNotice (neutral boundary, never --status-bad), Scrim
 - `brand/`: OrbitMark, AstraGlyph, Lockup, Icon (Tabler wrapper)
-- `shell/`: Shell412 (the mobile shell: one scroller, pinned tab bar + FAB, safe-area aware), ShellWide (sidebar + 740 column, composer pinned to the bottom of that column; sidebar create is the one filled action), **Composer** (Astra's front door: one bar plus 3 to 6 live-state chips; its head Astra glyph is a 44px `Abrir conversa` button; resting/focused/composing/sending/offline/atLimit, and `atLimit` carries no upgrade call to action)
+- `shell/`: Shell412 (the mobile shell: one scroller, pinned tab bar + FAB, safe-area aware), ShellWide (sidebar with its Astra row + 740 column; habit detail's own composer or Hoje's active selection tray pins to the bottom; sidebar create is the one filled action), **Composer** (Astra's front door: one bar plus 3 to 6 live-state chips; its head Astra glyph on compact Hoje and habit detail is a 48px `Abrir conversa` button; resting/focused/composing/sending/offline/atLimit, and `atLimit` carries no upgrade call to action)
 - `canvas/`: CanvasControls (the review bar: mode / width / state / locale; canvas chrome, not product UI)
 
 **Wave 0 landed 2026-08-16**: Composer, Proposed and BlockFrame are built, with `components/shell/composer.card.html` and `components/display/generative.card.html` as their specimen cards.
 
-**Shell state (2026-08-16)**: `ShellWide` no longer carries the deleted stats rail, and its composer pins to the bottom of the 740 column (matching mobile) rather than the sidebar. `Shell412`'s tab bar is Hoje / Calendario / Progresso / Perfil with the composer above it. `components/shell/shell.card.html` documents both shells structurally, as labelled empty slots, not as a product screen.
+**Shell state:** `ShellWide` has the Astra row above its four destinations and no Hoje shell composer. Its destination bottom slot, named `composer`, retains Hoje's active selection tray with exit, select-all, delete, log and skip controls. Resting Hoje passes no bottom content. Its full-screen conversation keeps the sidebar and replaces the destination column from every Astra entry, including proactive and no-habits actions; closing restores the underlying view. `Shell412` has four tabs and the Hoje composer above them; the conversation covers the whole compact shell, including the tabs. Habit detail keeps its own composer at every width. `components/shell/shell.card.html` documents both shells structurally as labelled slots.
 
 ## Measured and open contrast limits
 

@@ -387,7 +387,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
       aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onKeyDown={canReorder ? handleKeyDown : undefined}
       onClick={onOpen}
-      className="orbit-hover-text relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      className="[transition-property:background-color,box-shadow,scale] orbit-hover-text relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <PersonalText className={`  text-[17px] font-medium ${abandoned ? 'text-[var(--fg-2)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</PersonalText>
         <span className="flex flex-wrap items-center gap-2">
@@ -400,7 +400,7 @@ function GoalCard({ goal, index, total, canReorder, onMove, onOpen }: Readonly<{
   )
 }
 
-function GoalsEmptyState() {
+function GoalsEmptyState({ inSection = false }: Readonly<{ inSection?: boolean }>) {
   const t = useTranslations()
   const isDesktop = useIsDesktop()
   useEffect(() => () => {
@@ -414,7 +414,8 @@ function GoalsEmptyState() {
     })
     useUIStore.getState().setAstraConversationOpen(true)
   }
-  return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
+  if (!inSection) return <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant={isDesktop ? 'secondary' : 'primary'} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton>} />
+  return <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.empty')}</p><div data-empty-state-action><PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" minimumHeight={48} onClick={askAstraForGoal}>{t('progressScreen.goals.createAction')}</PillButton></div></div>
 }
 
 function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
@@ -462,8 +463,8 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
           items={options.map((option) => ({ id: option.value, label: option.label, checked: option.value === filter }))}
           onClose={() => setFilterOpen(false)} onSelect={(id) => { const option = options.find((item) => item.value === id); if (option) setFilter(option.value) }} />
       </> : null}
-      {goals.length === 0 ? <GoalsEmptyState /> : null}
-      {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
+      {goals.length === 0 ? <GoalsEmptyState inSection /> : null}
+      {goals.length > 0 && filtered.length === 0 ? <div data-goals-empty className="flex flex-col items-start gap-2 rounded-[12px] bg-[var(--bg-well)] p-4"><p className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" minimumHeight={48} onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
         <DndContext accessibility={dragAccessibility} sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
@@ -497,7 +498,7 @@ function TopHabitRow({ habit }: Readonly<{ habit?: { name: string; emoji: string
   const rowClass = 'flex min-h-[68px] min-w-0 flex-col gap-1 rounded-[12px] p-4'
   const control = habit?.habitId
     ? <Link href={`/habits/${habit.habitId}`} data-testid="progress-top-habit" className={`${rowClass} touch-manipulation transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}>{content}</Link>
-    : habit ? <button type="button" aria-label={`${t('progressScreen.window.topHabit')}, ${habit.name}`} aria-expanded={expanded} aria-controls={titleId} onClick={() => setExpanded(!expanded)} data-testid="progress-top-habit" className={`${rowClass} w-full text-start touch-manipulation hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}>{content}</button> : <div data-testid="progress-top-habit" className={rowClass}>{content}</div>
+    : habit ? <button type="button" aria-label={`${t('progressScreen.window.topHabit')}, ${habit.name}`} aria-expanded={expanded} aria-controls={titleId} onClick={() => setExpanded(!expanded)} data-testid="progress-top-habit" className={`${rowClass} w-full text-start touch-manipulation transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)]`}>{content}</button> : <div data-testid="progress-top-habit" className={rowClass}>{content}</div>
   return habit && !habit.habitId ? <PersonalTextAction label={`${t('progressScreen.window.topHabit')}, ${habit.name}`} contentClassName={rowClass} control={control} /> : control
 }
 

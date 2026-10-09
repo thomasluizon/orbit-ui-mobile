@@ -78,7 +78,7 @@ function CalendarFutureNumeral({ cell }: Readonly<Pick<CalendarFutureDayProps, '
 
 function CalendarFutureDay(props: Readonly<CalendarFutureDayProps>) {
   return (
-    <span role="img" aria-label={props.accessibleName} className="inline-flex size-11 items-center justify-center">
+    <span role="img" aria-label={props.accessibleName} className="inline-flex w-full items-center justify-center" style={{ minHeight: MONTH_GRID_TARGET_MIN }}>
       <CalendarFutureNumeral cell={props.cell} />
     </span>
   )
@@ -115,7 +115,7 @@ function CalendarGridDayBody({
     : <DayCell {...dayCell} />
   return (
     <>
-      <span aria-hidden="true">{contents}</span>
+      <span aria-hidden="true" style={{ width: '100%' }}>{contents}</span>
       {cell.isCurrentMonth ? (
         <button
           type="button"
@@ -179,8 +179,7 @@ function CalendarGridDay({
         display: 'grid',
         placeItems: 'center',
         width: '100%',
-        minWidth: MONTH_GRID_TARGET_MIN,
-        height: MONTH_GRID_TARGET_MIN,
+        minHeight: MONTH_GRID_TARGET_MIN,
         borderRadius: 999,
         background: calendarDayBackground(selected, inRange, raised),
         boxShadow: selected ? 'inset 0 0 0 2px var(--primary)' : 'none',
@@ -279,11 +278,11 @@ export function CalendarGrid({
 
   if (isLoading) {
     return (
-      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '0 4px 8px' }}>
+      <div data-testid="calendar-grid" className="orbit-calendar-grid-frame" style={{ padding: '0 16px 8px' }}>
         <div data-testid="calendar-grid-card" className="orbit-calendar-grid-card">
           <div role="progressbar" aria-label={t('calendar.loading')} aria-busy="true" data-rows={Math.ceil(gridDays.length / 7)} data-cols={7}
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(var(--month-grid-touch-min), 1fr))', gap: 'var(--calendar-grid-gap)', justifyItems: 'center' }}>
-            {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: MONTH_GRID_TARGET_MIN, minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 'var(--calendar-grid-gap)', justifyItems: 'center' }}>
+            {gridDays.map((cell) => <div key={cell.dateStr} style={{ width: '100%', minHeight: MONTH_GRID_TARGET_MIN }}><Skeleton variant="grid" rows={1} cols={1} cell={MONTH_GRID_TARGET_MIN} gap={0} grouped /></div>)}
           </div>
         </div>
       </div>
@@ -293,7 +292,7 @@ export function CalendarGrid({
   return (
     <div
       data-testid="calendar-grid"
-      className="orbit-calendar-grid-frame" style={{ padding: '0 4px 8px' }}
+      className="orbit-calendar-grid-frame" style={{ padding: '0 16px 8px' }}
     >
       <div
         data-testid="calendar-grid-card"

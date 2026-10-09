@@ -108,7 +108,7 @@ export function CelebrationPanel() {
         <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>
         <p className="text-[17px] leading-[1.45] text-[var(--fg-1)]">{line}</p>
       </div>
-      <button ref={closeButtonRef} type="button" aria-label={t('close')} className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-well)]" onClick={dismiss}>
+      <button ref={closeButtonRef} type="button" aria-label={t('close')} className="flex size-[var(--touch-min)] shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-well)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" onClick={dismiss}>
         <X aria-hidden="true" size={20} />
       </button>
     </section>

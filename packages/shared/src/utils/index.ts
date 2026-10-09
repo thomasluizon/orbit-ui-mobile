@@ -4,8 +4,6 @@ export { mapCompletionSeries } from './completion-series'
 export { getRadioNavigationIndex } from './radio-navigation'
 export { createClientId } from './client-id'
 export { getAllDoneOnDate, isHabitLoggedOnDate, isHabitSkippedOnDate } from './all-done'
-export { selectAstraSuggestions } from './astra-suggestions'
-export type { AstraSuggestion } from './astra-suggestions'
 export {
   buildAccountScopedStorageKey,
   readAccountScopedFlag,
@@ -63,6 +61,7 @@ export {
 export { buildCalendarMonthModel, deriveCalendarStats, calendarMonthForDay } from './calendar-month'
 export {
   CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_GRID_GAP_CONTENT_BREAKPOINT,
   formatCalendarMonthHeading,
   formatCalendarWeekLabel,
   resolveCalendarMonthDisplayState,
@@ -428,6 +427,7 @@ export {
 } from './habit-picker'
 export type { HabitPickerOption } from './habit-picker'
 export {
+  computeHabitDayProgress,
   computeParentSettlementDecision,
   computeParentPromptProgress,
 } from './habit-list-progress'

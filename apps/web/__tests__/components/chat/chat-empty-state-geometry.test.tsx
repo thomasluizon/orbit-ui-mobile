@@ -9,8 +9,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
-import { normalizeHabitQueryData, selectAstraSuggestions } from '@orbit/shared/utils'
 import { expectLabelsFit, markRequiredLabels } from '@/e2e/layout/label-fit-contract'
 import { AstraConversation } from '@/components/chat/conversation'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -20,14 +18,6 @@ vi.mock('@/components/shell/composer', () => ({
   Composer: () => <div style={{ height: 128 }} data-testid="pinned-composer" />,
 }))
 
-const suggestionState = vi.hoisted(() => ({ ready: true }))
-vi.mock('@/hooks/use-astra-suggestions', () => ({
-  useAstraSuggestions: () => suggestionState.ready ? suggestions : null,
-}))
-
-const suggestions = selectAstraSuggestions(normalizeHabitQueryData([
-  makeHabitScheduleItem({ title: 'Caminhar e cuidar da rotina da casa com muitos detalhes '.repeat(5), children: [], hasSubHabits: false }),
-]).topLevelHabits, '2026-08-28')
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
 function emptyChat(): ChatController {
@@ -50,7 +40,7 @@ const VIEWPORTS = [
 ]
 
 const CASES = VIEWPORTS.flatMap((viewport) => (['en', 'pt-BR'] as const)
-  .flatMap((locale) => [true, false].map((ready) => ({ ...viewport, locale, ready }))))
+  .map((locale) => ({ ...viewport, locale })))
 
 describe('Empty conversation geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -66,11 +56,10 @@ describe('Empty conversation geometry in Chromium', () => {
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
     stylesheet = compiled.css
   })
-  afterEach(() => { cleanup(); suggestionState.ready = true })
+  afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each(CASES)('keeps both ends reachable at $width by $height in $locale, suggestions ready $ready', async ({ width, height, panelWidth, locale, ready }) => {
-    suggestionState.ready = ready
+  it.each(CASES)('keeps both ends reachable at $width by $height in $locale', async ({ width, height, panelWidth, locale }) => {
     const messages = locale === 'en' ? en : pt
     const { container } = render(
       <NextIntlClientProvider locale={locale} messages={messages}>
@@ -83,6 +72,7 @@ describe('Empty conversation geometry in Chromium', () => {
       await loadAppFonts(page)
       await markRequiredLabels(page.getByText(messages.chat.empty.title, { exact: true }))
       await expectLabelsFit(page, page.getByRole('feed'))
+      expect(await page.getByRole('feed').getByRole('button').count()).toBe(0)
       const geometry = await page.evaluate((disclosure) => {
         const scroller = document.querySelector<HTMLElement>('[role="feed"]')!
         const glyph = scroller.querySelector('[data-asset="astra-mark"]')!

@@ -28,9 +28,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
     <li data-read={item.isRead} className="flex items-stretch gap-1 rounded-[var(--r-well)]"
       style={item.isRead ? undefined : { background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
       <button type="button" onClick={() => onOpen(item)}
-        style={{ transition: 'background-color var(--dur-hover) var(--ease-standard)' }}
         aria-label={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
-        className="orbit-notification-row flex min-h-[var(--touch-min)] min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-[var(--r-well)] border-0 bg-transparent p-4 text-left hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+        className="transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] orbit-notification-row flex min-h-[var(--touch-min)] min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-[var(--r-well)] border-0 bg-transparent p-4 text-left hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
         <span aria-hidden="true" data-unread-column="" className="flex w-2 shrink-0 self-stretch items-center">
           {!item.isRead ? <span data-unread-dot="" className="size-2 rounded-full bg-[var(--fg-1)]" /> : null}
         </span>
@@ -56,8 +55,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
           if (destination instanceof HTMLElement) destination.focus()
           onDelete(item)
         }}
-        style={{ transition: 'background-color var(--dur-hover-control) var(--ease-standard)' }}
-        className="orbit-notification-row grid size-[var(--touch-min)] shrink-0 cursor-pointer touch-manipulation self-center place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
+        className="transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] orbit-notification-row grid size-[var(--touch-min)] shrink-0 cursor-pointer touch-manipulation self-center place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]">
         <Trash2 size={20} color="var(--status-bad)" aria-hidden="true" focusable="false" />
       </button>
     </li>

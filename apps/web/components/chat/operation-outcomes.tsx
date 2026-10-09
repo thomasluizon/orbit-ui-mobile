@@ -23,14 +23,12 @@ export function OperationOutcomes({ outcomes }: Readonly<{ outcomes: readonly Ag
   return <>{outcomes.map((outcome) => {
     const failed = outcome.status === 'Failed'
     const policy = outcome.status === 'UnsupportedByPolicy'
-    const destructive = outcome.riskClass === 'Destructive'
     return <BlockFrame key={outcome.id} state={failed ? 'partiallyFailed' : 'resting'} title={t(`chat.operation.outcome.${outcome.status}`)} items={[{
       id: outcome.id,
       label: outcome.target ? <PersonalTextDetails>{outcome.target}</PersonalTextDetails> : localName(outcome.source, outcome.target, t),
       wrapLabel: Boolean(outcome.target),
       meta: t(getAgentPolicyReasonKey(outcome.policyReason) ?? `chat.operation.status.${outcome.status}`),
       status: failed ? 'failed' : undefined,
-      irreversible: destructive,
-    }]} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.operation.confirmNote')} actions={policy ? <Button size="sm" variant="ghost" onClick={() => router.push('/profile')}>{t('chat.operation.openProfile')}</Button> : undefined} />
+    }]} actions={policy ? <Button size="sm" variant="ghost" onClick={() => router.push('/profile')}>{t('chat.operation.openProfile')}</Button> : undefined} />
   })}</>
 }
