@@ -1,3 +1,4 @@
+import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { buildActionChipsModel } from '@orbit/shared/chat'
 import type { ActionResult } from '@orbit/shared/types/chat'
@@ -38,9 +39,9 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
           ) : undefined,
         }
       })}
-      actions={model.conflicts.length > 0 ? model.conflicts.map((conflict) => (
+      body={model.conflicts.length > 0 ? <View style={{ gap: 12 }}>{model.conflicts.map((conflict) => (
         <ConflictWarning key={conflict.key} warning={conflict.warning} />
-      )) : undefined}
+      ))}</View> : undefined}
     />
   )
 }
