@@ -68,6 +68,7 @@ async function assertPersonalCheckRow(body: Locator) {
 
 async function assertRows(surface: Locator) {
   const rows = surface.locator('.orbit-list-row-shell')
+  await expect(rows.first()).toBeVisible()
   expect(await rows.count()).toBeGreaterThan(0)
   for (const row of await rows.all()) if (await row.isVisible()) await assertRow(row)
   for (const body of await surface.locator('[data-slot="list-row-body"]:has(> .orbit-check-row-label)').all()) {
