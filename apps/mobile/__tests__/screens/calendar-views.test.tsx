@@ -1,11 +1,19 @@
 import { format as formatDate } from 'date-fns/format'
 import { ptBR as portugueseDates } from 'date-fns/locale/pt-BR'
 import React from "react";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
+import { useAuthStore } from '@/stores/auth-store'
+import { createHermeticFixtureRequest } from '../../../web/test-support/hermetic/fixture-request'
+import { profileFixture } from '../../../web/test-support/hermetic/mock-api/fixtures/profile'
+
 import * as timeFormatHook from '@/hooks/use-time-format'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
-import { __setWindowDimensions, __setScrollToImpl } from '../../test-mocks/react-native'
+import { __setWindowDimensions, __setScrollToImpl, __setTouchMode, __focusHost, __getFocusedNativeTag } from '../../test-mocks/react-native'
 
 import en from "@orbit/shared/i18n/en.json";
 import ptBR from "@orbit/shared/i18n/pt-BR.json";
@@ -50,6 +58,10 @@ const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 function getMockAccountDateKey(): string {
   return formatAPIDateInTimeZone(new Date(), MOCK_ACCOUNT_TIME_ZONE);
 }
+
+const heldQueries = vi.hoisted((): { enabled: boolean; profileRequest: Promise<Profile> | null; calendarResponse: unknown } => ({ enabled: false, profileRequest: null, calendarResponse: undefined }))
+vi.mock('@/lib/i18n', () => ({ i18n: { language: 'en', changeLanguage: vi.fn() } }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (path: string) => path === API.profile.get ? heldQueries.profileRequest : Promise.resolve(heldQueries.calendarResponse) }))
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
@@ -146,13 +158,14 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-profile", () => ({
-  useProfile: () => ({
+vi.mock("@/hooks/use-profile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-profile')>()
+  return { useProfile: () => heldQueries.enabled ? actual.useProfile() : ({
     profile: state.profile,
     error: state.profileError,
     refetch: state.profileRefetch,
-  }),
-}));
+  }) };
+});
 
 vi.mock("@/hooks/use-time-format", () => ({
   useTimeFormat: () => createTimeDisplay(state.language, state.language !== 'en'),
@@ -203,8 +216,11 @@ vi.mock("@/hooks/use-horizontal-swipe", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-habits", () => ({
+vi.mock("@/hooks/use-habits", async () => {
+  const actual = await import('@/hooks/use-calendar-data')
+  return ({
   useCalendarData: (month: Date) => {
+    if (heldQueries.enabled) return actual.useCalendarData(month)
     state.calendarDataCalls(month)
     return ({
       dayMap: state.monthMap,
@@ -215,6 +231,7 @@ vi.mock("@/hooks/use-habits", () => ({
     })
   },
   useCalendarRange: (start: Date, end: Date, enabled: boolean) => {
+    if (heldQueries.enabled) return actual.useCalendarRange(start, end, enabled)
     state.calendarRangeCalls(start, end, enabled);
     return {
       dayMap: state.rangeMap,
@@ -225,7 +242,8 @@ vi.mock("@/hooks/use-habits", () => ({
     };
   },
   useLogHabit: () => ({ mutate: vi.fn() }),
-}));
+});
+});
 
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({ currentScheme: "purple", currentTheme: "dark" }),
@@ -391,7 +409,59 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
   ]);
 }
 
+class CalendarRenderBoundary extends React.Component<{ children: React.ReactNode; onError: (error: Error) => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: Error) { this.props.onError(error) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+
 describe("CalendarScreen views (mobile)", () => {
+  it('keeps Semana mounted and focused with the real calendar query while the profile is pending', async () => {
+    const requestFixture = await createHermeticFixtureRequest()
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    useAuthStore.setState({ isAuthenticated: true })
+    __setTouchMode(false)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const reportedError = vi.fn()
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><CalendarRenderBoundary onError={reportedError}><CalendarScreen /></CalendarRenderBoundary></QueryClientProvider>) })
+    const findRadio = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith('segment-week-'))[0]!
+    try {
+      TestRenderer.act(() => { findRadio().props.onPress() })
+      const radio = findRadio()
+      expect(radio).toBeDefined()
+      TestRenderer.act(() => { __focusHost(radio.props.__nativeTag) })
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body)
+        expect(reportedError).not.toHaveBeenCalled()
+        expect(findRadio()).toBe(radio)
+      })
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
+      await TestRenderer.act(() => { resolveProfile(profileFixture) })
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-day-skeleton')).toHaveLength(0)
+      })
+      expect(reportedError).not.toHaveBeenCalled()
+      expect(findRadio()).toBe(radio)
+      expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
+    } finally {
+      TestRenderer.act(() => tree.update(<></>))
+      queryClient.clear()
+      heldQueries.enabled = false
+      useAuthStore.setState({ isAuthenticated: false })
+      __setTouchMode(true)
+    }
+  })
+
   it.each(['week', 'range', 'agenda'])('resets the %s period only on account replacement', (view) => {
     const profile = { weekStartDay: 1 as const, timeZone: 'UTC', hasProAccess: false };
     state.profile = profile;

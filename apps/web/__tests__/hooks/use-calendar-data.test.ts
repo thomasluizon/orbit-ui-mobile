@@ -41,7 +41,8 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Day',
               frequencyQuantity: 1,
               scheduledDates: ['2025-01-15', '2025-01-16'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -101,6 +102,7 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Week',
               frequencyQuantity: 1,
               scheduledDates: ['2025-01-03'],
+              linkedGoals: [],
               instances: [
                 { date: '2024-12-27', status: 'Overdue', logId: null },
                 { date: '2025-01-03', status: 'Overdue', logId: null },
@@ -153,6 +155,13 @@ describe('useCalendarData', () => {
     expect(result.current.dayMap.size).toBe(0)
   })
 
+  it('reports a malformed calendar response as a query error without throwing during render', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    const { result } = renderHook(() => useCalendarData(new Date(2025, 0, 1)), { wrapper: createWrapper() })
+    await waitFor(() => expect(result.current.error).not.toBeNull())
+    expect(result.current.dayMap.size).toBe(0)
+  })
+
   it('handles fetch error', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
@@ -183,7 +192,8 @@ describe('useCalendarData', () => {
               frequencyUnit: 'Day',
               frequencyQuantity: 1,
               scheduledDates: ['2020-06-15'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -237,7 +247,8 @@ describe('useCalendarData', () => {
               frequencyUnit: null,
               frequencyQuantity: null,
               scheduledDates: ['2020-03-10'],
-              instances: null,
+              instances: [],
+              linkedGoals: [],
               isCompleted: false,
               isGeneral: false,
               isFlexible: false,
@@ -292,7 +303,8 @@ describe('useCalendarRangeChunked', () => {
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       scheduledDates: [date],
-      instances: null,
+      instances: [],
+      linkedGoals: [],
       isCompleted: false,
       isGeneral: false,
       isFlexible: false,

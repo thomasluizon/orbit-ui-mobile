@@ -1,6 +1,12 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
+import { createHermeticFixtureRequest } from '@/test-support/hermetic/fixture-request'
+import { profileFixture } from '@/test-support/hermetic/mock-api/fixtures/profile'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -11,6 +17,10 @@ vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <button aria-label="Avisos" /> }))
 vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
+const heldQueries = vi.hoisted((): { enabled: boolean; profileRequest: Promise<Profile> | null; calendarResponse: unknown } => ({ enabled: false, profileRequest: null, calendarResponse: undefined }))
+vi.mock('@/lib/throttle-fetch', () => ({ fetchWithThrottle: async () => new Response(JSON.stringify(heldQueries.calendarResponse)) }))
+vi.mock('@/lib/api-fetch', async (importOriginal) => ({ ...await importOriginal<typeof import('@/lib/api-fetch')>(), fetchJson: () => heldQueries.profileRequest }))
+vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ syncThemeFromProfile: () => {}, detectAndSaveThemeIfNeeded: () => {} }) }))
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -143,8 +153,11 @@ vi.mock('@/hooks/use-is-desktop', () => ({
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
-vi.mock('@/hooks/use-calendar-data', () => ({
+vi.mock('@/hooks/use-calendar-data', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-calendar-data')>()
+  return ({
   useCalendarData: (month: Date) => {
+    if (heldQueries.enabled) return actual.useCalendarData(month)
     calendarDataCalls(month)
     return ({
     dayMap: monthQueryState.dayMap,
@@ -154,14 +167,15 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     refresh: monthQueryState.refresh,
     })
   },
-  useCalendarRange: () => ({
+  useCalendarRange: (...args: Parameters<typeof actual.useCalendarRange>) => heldQueries.enabled ? actual.useCalendarRange(...args) : ({
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
     isFetching: rangeFetching,
     error: null,
     refresh: vi.fn(),
   }),
-}))
+})
+})
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/calendar',
@@ -202,9 +216,10 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
 }))
 
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ ...profileQueryState, profile: profileQueryState.profile ? { ...createMockProfile(), ...profileQueryState.profile } : undefined }),
-}))
+vi.mock('@/hooks/use-profile', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-profile')>()
+  return { useProfile: () => heldQueries.enabled ? actual.useProfile() : ({ ...profileQueryState, profile: profileQueryState.profile ? { ...createMockProfile(), ...profileQueryState.profile } : undefined }) }
+})
 
 vi.mock('@/app/(app)/today-provider', () => ({
   useToday: (timeZone?: string | null) => {
@@ -354,7 +369,47 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
   ])
 }
 
+class CalendarRenderBoundary extends React.Component<{ children: React.ReactNode; onError: (error: Error) => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: Error) { this.props.onError(error) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+
 describe('CalendarPage view switcher', () => {
+  it('keeps Semana connected and focused with the real calendar query while the profile is pending', async () => {
+    const requestFixture = await createHermeticFixtureRequest()
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const reportedError = vi.fn()
+    const page = render(<QueryClientProvider client={queryClient}><CalendarRenderBoundary onError={reportedError}><CalendarPage /></CalendarRenderBoundary></QueryClientProvider>)
+    try {
+      const radio = screen.getByRole('radio', { name: 'calendar.view.week' })
+      radio.focus()
+      await waitFor(() => expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body))
+      expect(reportedError).not.toHaveBeenCalled()
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toBe(radio)
+      expect(radio.isConnected).toBe(true)
+      expect(radio).toHaveFocus()
+      await act(async () => { resolveProfile(profileFixture) })
+      await waitFor(() => expect(screen.queryByTestId('calendar-day-skeleton')).toBeNull())
+      expect(reportedError).not.toHaveBeenCalled()
+      expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toBe(radio)
+      expect(radio.isConnected).toBe(true)
+      expect(radio).toHaveFocus()
+    } finally {
+      page.unmount()
+      queryClient.clear()
+      heldQueries.enabled = false
+    }
+  })
+
   it.each(['month', 'week', 'range', 'agenda'])('keeps the %s radio and frame mounted when the profile resolves', (selectedView) => {
     profileQueryState.profile = undefined
     const page = render(<CalendarPage />)

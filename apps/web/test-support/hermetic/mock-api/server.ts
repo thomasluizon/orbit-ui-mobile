@@ -6,6 +6,7 @@ import { appConfigSchema } from '@orbit/shared/types/config'
 import { billingDetailsSchema, subscriptionPlansSchema } from '@orbit/shared/types/subscription'
 import { gamificationProfileSchema } from '@orbit/shared/types/gamification'
 import {
+  calendarMonthResponseSchema,
   createPaginatedSchema,
   habitScheduleItemSchema,
   habitTagSchema,
@@ -28,6 +29,7 @@ import {
   habitCountFixture,
 } from './fixtures/collections'
 import { notificationsFixture, referralDashboardFixture } from './fixtures/secondary'
+import { emptyCalendarMonthFixture } from './fixtures/calendar'
 import { mintHermeticJwt } from '../hermetic-session'
 
 const HOST = '127.0.0.1'
@@ -42,6 +44,7 @@ interface MockRoute {
 }
 
 const routes: MockRoute[] = [
+  { method: 'GET', path: '/api/habits/calendar-month', schema: calendarMonthResponseSchema, body: emptyCalendarMonthFixture },
   { method: 'GET', path: '/api/profile', schema: profileSchema, body: profileFixture },
   { method: 'GET', path: '/api/calendar/calendars', schema: userCalendarsSchema, body: [] },
   { method: 'GET', path: '/api/config', schema: appConfigSchema, body: configFixture },
