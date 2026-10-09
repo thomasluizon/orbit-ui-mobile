@@ -7,7 +7,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { ProfileAstraContent } from '@/app/(tabs)/profile/_components/profile-astra-content'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
-import { Switch } from '@/components/ui/switch'
 import { i18n } from '@/lib/i18n'
 
 vi.unmock('react-i18next')
@@ -20,7 +19,7 @@ vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMock
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityRole?: string }
+  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityRole?: string; 'data-slot'?: string }
   children: (HostRow | string)[] | null
 }
 
@@ -70,7 +69,7 @@ function layoutHost(host: HostRow, texts: Map<string, { node: YogaNode; width: n
   const declared = host.props.style
   const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
   applyStyle(node, style)
-  if (host.props.accessibilityRole === 'switch') controls.push(node)
+  if (host.props['data-slot'] === 'switch-track') controls.push(node)
   const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
   if (host.type === 'Text' && label) {
     const scaledStyle = { ...style, fontSize: Number(style.fontSize) * scale }
@@ -132,17 +131,16 @@ it.each(cases)('fits Android Astra labels in $locale at $width px, Pro $hasProAc
       expect(measured.node.getComputedHeight(), label).toBeGreaterThanOrEqual(style.lineHeight * scale)
     }
     for (const row of tree.root.findAllByType(ListRow)) expect(row.props.textMode).toBe('label')
-    const switches = tree.root.findAllByType(Switch)
+    const switches = tree.root.findAllByType(ListRow).filter((row: { props: React.ComponentProps<typeof ListRow> }) => row.props.toggle)
     expect(switches).toHaveLength(hasProAccess ? 2 : 0)
     expect(controls).toHaveLength(switches.length)
     for (const [index, control] of switches.entries()) {
-      const offset = position(texts.get(control.props.label)!.node).top - position(controls[index]!).top
-      expect(offset).toBeGreaterThanOrEqual(0)
-      expect(offset).toBeLessThanOrEqual(4)
-      expect(controls[index]!.getComputedHeight()).toBe(48)
+      const offset = position(texts.get(control.props.title)!.node).top - position(controls[index]!).top
+      expect(Math.abs(offset + texts.get(control.props.title)!.node.getComputedHeight() / 2 - controls[index]!.getComputedHeight() / 2)).toBeLessThanOrEqual(1)
+      expect(controls[index]!.getComputedHeight()).toBe(28)
       expect(controls[index]!.getComputedWidth()).toBe(48)
-      expect(labels).toContain(control.props.label)
-      expect(control.props.checked).toBe(true)
+      expect(labels).toContain(control.props.title)
+      expect(control.props.toggle.checked).toBe(true)
     }
     expect(tree.root.findAllByType(RowList)).toHaveLength(1)
   } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }

@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { PersonalText } from '@/components/ui/personal-text'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
@@ -55,10 +56,10 @@ function personalTextProps(textMode: ListRowProps['textMode'], expanded: boolean
   return textMode === 'personal' ? { expanded } : {}
 }
 
-function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, readOnly, titleColor, valueColor, personalExpanded, valueTextMode }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'personalExpanded' | 'valueTextMode'> & { titleColor: string; valueColor: string }>) {
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, readOnly, toggle, titleColor, valueColor, personalExpanded, valueTextMode }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'toggle' | 'personalExpanded' | 'valueTextMode'> & { titleColor: string; valueColor: string }>) {
   const Title = textMode === 'personal' ? PersonalText : Text
   const Description = textMode === 'personal' ? PersonalText : Text
-  const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
+  const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null]}>
     <Title data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)), { color: titleColor }]}>{title}</Title>
     {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, { color: valueColor }]}>{description}</Description> : null}
@@ -68,7 +69,7 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
 }
 
 function arrangeRowText({ textMode, wrapValue, trailing }: Readonly<Pick<ListRowProps, 'textMode' | 'wrapValue' | 'trailing'>>, text: ReactNode, rowValue: ReactNode, keepsControlInline: boolean) {
-  return textMode === 'personal' ? <View style={{ flex: 1, minWidth: 0, gap: 4 }}>{text}{rowValue}</View> : wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
+  return textMode === 'personal' ? <View style={{ flex: 1, minWidth: 0, gap: 4 }}>{text}{rowValue}</View> : wrapValue || textMode === 'label' ? <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null]}>{text}{rowValue}{textMode === 'label' && trailing ? <View data-slot="list-row-trailing" style={styles.trailing}>{trailing}</View> : null}</View> : <>{text}{rowValue}</>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -111,21 +112,32 @@ function rowAccessibilityState(props: ListRowProps) {
   return { ...(props.disabled || props.toggle?.pending ? { disabled: true } : {}), ...(props.expanded === undefined ? {} : { expanded: props.expanded }), ...(props.toggle ? { checked: props.toggle.checked } : {}), ...(props.toggle?.pending ? { busy: true } : {}) }
 }
 
+function ColumnFill({ props, interaction, tokens }: Readonly<{ props: ListRowProps; interaction?: ReturnType<typeof useRowInteraction>; tokens?: ReturnType<typeof createTokensV2> }>) {
+  if (props.placement !== 'column') return null
+  const highlightedStyle = interaction && tokens ? { backgroundColor: interaction.highlighted ? tokens.bgHover : 'transparent', outlineWidth: interaction.focused ? 2 : 0, outlineColor: tokens.fg1, outlineOffset: -2, outlineStyle: 'solid' as const } : null
+  return <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot="list-row-body" style={[styles.outset, hasSupportingLine(props) ? styles.descriptionBody : null, highlightedStyle]} />
+}
+
 function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Readonly<{ ref?: Ref<View>; props: ListRowProps; bodyStyle: ReturnType<typeof getBodyStyle>; interaction: ReturnType<typeof useRowInteraction>; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
   const column = props.placement === 'column'
-  if (props.readOnly || (!props.onClick && !props.toggle)) return <View data-slot="list-row-body" style={bodyStyle}>{children}</View>
+  const slot = column ? undefined : 'list-row-body'
+  if (props.readOnly || (!props.onClick && !props.toggle)) return <View data-slot={slot} style={bodyStyle}><ColumnFill props={props} />{children}</View>
   const Control = column ? NativePressable : Pressable
   const toggle = props.toggle
-  const disabled = props.disabled || toggle?.pending
-  return <Control data-slot={column ? undefined : "list-row-body"} ref={ref} hitSlop={column ? { left: 16, right: 16 } : undefined}
+  const disabled = Boolean(props.disabled || toggle?.pending)
+  return <Control data-slot={slot} ref={ref} focusOffset={-2} hitSlop={column ? { left: 16, right: 16 } : undefined}
     accessibilityRole={toggle ? "switch" : "button"} accessibilityLabel={props.accessibilityLabel ?? props.title}
     accessibilityState={rowAccessibilityState(props)} disabled={disabled}
     onPress={toggle ? () => toggle.onChange(!toggle.checked) : props.onClick}
     onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut}
-    style={({ pressed }) => [bodyStyle, getDisabledStyle(Boolean(disabled)), rowHighlight(column, Boolean(disabled), pressed || interaction.highlighted, tokens.bgHover)]}>
-    {column ? <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" data-slot="list-row-body" style={[styles.outset, { backgroundColor: interaction.highlighted ? tokens.bgHover : 'transparent', outlineWidth: interaction.focused ? 2 : 0, outlineColor: tokens.primary }]} /> : null}
+    style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), rowHighlight(column, disabled, pressed || interaction.highlighted, tokens.bgHover)]}>
+    <ColumnFill props={props} interaction={interaction} tokens={tokens} />
     {children}
   </Control>
+}
+
+function rowContentStyle(props: ListRowProps, trailing: ReactNode) {
+  return props.textMode === 'label' || (props.wrapTitle && trailing) ? styles.labelContent : null
 }
 
 function rowAccessory(props: ListRowProps) {
@@ -138,6 +150,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { icon, description, danger = false, action, chevron = true, disabled = false, readOnly = false } = props
+  const reducedMotion = usePrefersReducedMotion()
   const interaction = useRowInteraction(Boolean(disabled || props.toggle?.pending))
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
@@ -145,15 +158,15 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   const bodyStyle = getBodyStyle(hasSupportingLine(props), column)
   const rowTrailing = rowAccessory(props)
   const body: ReactNode = (
-    <AnimatedContent data-slot="list-row-content" style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' || (props.wrapTitle && trailing) ? styles.labelContent : null, interaction.pressed ? { transform: [{ scale: 0.96 }] } : null]}>
+    <AnimatedContent data-slot="list-row-content" style={[reducedMotion ? null : PRESS_TRANSITION, styles.bodyContent, rowContentStyle(props, rowTrailing), props.toggle ? styles.switchContent : null, interaction.pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View data-slot="list-row-icon" importantForAccessibility="no-hide-descendants" style={styles.iconSlot}>
           {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}
       <RowTextContent {...props} trailing={rowTrailing} titleColor={titleColor} valueColor={interaction.highlighted ? tokens.fg2 : tokens.fg3} />
-      {rowTrailing && props.textMode !== 'label' ? <View style={styles.trailing}>{rowTrailing}</View> : null}
-      {!readOnly && !props.toggle && chevron ? <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={styles.chevron}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
+      {rowTrailing && props.textMode !== 'label' ? <View data-slot="list-row-trailing" style={styles.trailing}>{rowTrailing}</View> : null}
+      {!readOnly && !props.toggle && chevron ? <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={styles.chevron}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.5} /></View> : null}
     </AnimatedContent>
   )
 
@@ -163,7 +176,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: description ? 8 : 4, marginEnd: 16 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>
           {({ pressed }) => (
-            <AnimatedContent style={[PRESS_TRANSITION, styles.control, pressed ? { transform: [{ scale: 0.96 }] } : null]}>
+            <AnimatedContent style={[reducedMotion ? null : PRESS_TRANSITION, styles.control, pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
               <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
             </AnimatedContent>
           )}
@@ -178,17 +191,18 @@ const styles = StyleSheet.create({
   body: { minHeight: 52, paddingVertical: 12, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', borderRadius: 12 },
   insetBody: { paddingHorizontal: 16, overflow: 'hidden' },
   columnBody: { position: 'relative' },
-  outset: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
+  outset: { minHeight: 52, paddingVertical: 12, position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
   descriptionBody: { minHeight: 68 },
   bodyContent: { minHeight: 24, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   action: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, marginStart: 0, alignSelf: 'center', flexShrink: 0, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   iconSlot: { width: 28, minHeight: 24, flexShrink: 0, alignItems: 'center' },
   textBlock: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0, gap: 4 },
   wrappedContent: { flex: 1, minWidth: 0, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 },
-  labelContent: { minHeight: 24, alignItems: 'center' },
-  labelControlContent: { flexWrap: 'nowrap' },
+  labelContent: { minHeight: 24, alignItems: 'flex-start' },
+  switchContent: { alignItems: 'center' },
+  labelControlContent: { flexWrap: 'nowrap', alignItems: 'center' },
   labelControlText: { flexBasis: 0, flexShrink: 1 },
-  labelTextBlock: { minHeight: 24, justifyContent: 'center' },
+  labelTextBlock: { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%', minHeight: 24, justifyContent: 'center' },
   wrappedTextBlock: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto', maxWidth: '100%' },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
   wrappedTitle: { lineHeight: 23.8 },

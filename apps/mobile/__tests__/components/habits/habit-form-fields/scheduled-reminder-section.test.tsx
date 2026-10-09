@@ -33,7 +33,8 @@ vi.mock("@/components/ui/time-field", () => ({
     React.createElement("TimeField", props),
 }));
 
-vi.mock("@/components/ui/switch", () => ({
+vi.mock("@/components/ui/switch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/components/ui/switch")>(),
   Switch: (props: Record<string, unknown>) =>
     React.createElement("Switch", props),
 }));

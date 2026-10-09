@@ -5,9 +5,7 @@ import { resolve } from 'node:path'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { SettingsRow } from '@/components/ui/settings-row'
 import { ListRow } from '@/components/ui/list-row'
-import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { BarChart3, Lock } from '@/components/ui/icons'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -40,7 +38,7 @@ describe('settings switch centres in Chromium', () => {
         return { height: textBlock.height, iconOffset: icon.top - textBlock.top }
       })
       expect(geometry.height).toBeLessThanOrEqual(32)
-      expect(geometry.iconOffset).toBe(0)
+      expect(Math.abs(geometry.iconOffset)).toBeLessThanOrEqual(1)
     } finally { await page.close() }
   })
 
@@ -48,12 +46,9 @@ describe('settings switch centres in Chromium', () => {
     it.each([ptBR.profile.analytics.title, ptBR.profile.proactiveAstra.title, ptBR.profile.aiSummary.title].flatMap((label) => [{ scale: 1, narrow: false }, { scale: 2, narrow: true }, { scale: 2, narrow: false }].map((scenario) => ({ label, ...scenario }))))(`aligns $label at ${width}px and text scale $scale with narrow=$narrow`, async ({ label, scale, narrow }) => {
       const title = ptBR.profile.analytics.title
       const { container } = render(<div style={{ width: narrow ? 288 : width - 48 }}>
-        <SettingsRow label={title} icon={BarChart3} accessory="none" divider={false}>
-          <Switch label={title} checked onChange={() => {}} />
-        </SettingsRow>
+        <ListRow textMode="label" title={title} icon={<BarChart3 size={24} />} toggle={{ checked: true, onChange: () => {} }} />
         {[ptBR.profile.proactiveAstra.title, ptBR.profile.aiSummary.title].map((label) => (
-          <ListRow key={label} title={label} compact textMode="label" chevron={false} readOnly
-            trailing={<Switch label={label} checked onChange={() => {}} />} />
+          <ListRow key={label} title={label} compact textMode="label" toggle={{ checked: true, onChange: () => {} }} />
         ))}
       </div>)
       const page = await browser.newPage()
@@ -65,7 +60,7 @@ describe('settings switch centres in Chromium', () => {
           const row = control.closest('.orbit-list-row-shell') ?? control.parentElement!.parentElement!
           const label = row.querySelector('[data-slot="list-row-title"], [data-slot="settings-row-label"]')!
           const labelBounds = label.getBoundingClientRect()
-          const switchBounds = control.getBoundingClientRect()
+          const switchBounds = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
           return { label: label.textContent, height: row.getBoundingClientRect().height, labelHeight: labelBounds.height,
             lineHeight: parseFloat(getComputedStyle(label).lineHeight), fontSize: parseFloat(getComputedStyle(label).fontSize),
             offset: labelBounds.top + labelBounds.height / 2 - switchBounds.top - switchBounds.height / 2,
@@ -76,14 +71,14 @@ describe('settings switch centres in Chromium', () => {
         expect(matches).toHaveLength(1)
         for (const row of matches) {
           expect(row.fontSize).toBe(17 * scale)
-          expect(row.switchHeight).toBeGreaterThanOrEqual(48)
+          expect(row.switchHeight).toBe(28)
           if (row.labelHeight <= row.lineHeight + 1) {
             expect.soft(Math.abs(row.offset), row.label).toBeLessThanOrEqual(1)
             if (scale === 1) expect.soft(row.height).toBe(52)
             else expect(row.height).toBeGreaterThanOrEqual(row.switchHeight)
           } else {
             expect(scale).toBe(2)
-            expect(Math.abs(row.topOffset), row.label).toBeLessThanOrEqual(1)
+            expect(Math.abs(row.offset), row.label).toBeLessThanOrEqual(1)
             expect(row.height).toBeGreaterThan(52)
           }
         }

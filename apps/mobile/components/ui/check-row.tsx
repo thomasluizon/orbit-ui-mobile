@@ -1,7 +1,7 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable as NativePressable, StyleSheet, Text, View, type PressableProps, type ViewStyle } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { Checkbox } from './checkbox'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -28,6 +28,7 @@ export function CheckRow({
 
   return (
     <Pressable
+      data-slot="list-row-body"
       focusOffset={-6}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
@@ -42,6 +43,7 @@ export function CheckRow({
       data-error={error ? '' : undefined}
       style={({ pressed }) => [
         styles.row,
+        { minHeight: error || description ? 68 : 52 },
         pressed ? { backgroundColor: tokens.bgHover } : null,
         disabled ? styles.disabled : null,
       ]}
@@ -70,10 +72,12 @@ export function CheckRow({
 }
 
 const styles = StyleSheet.create({
-  personalRow: { minHeight: 68, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 8, paddingVertical: 8 },
-  personalCopy: { minWidth: 0, flex: 1, minHeight: 48, justifyContent: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
-  personalControl: { minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, overflow: 'hidden' },
-  row: { width: '100%', minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, overflow: 'hidden' },
+  labelFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
+  controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden' },
+  personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  personalCopy: { minWidth: 0, flex: 1, minHeight: 24, justifyContent: 'center', gap: 4, borderRadius: 12 },
+  personalControl: { height: 24, width: 24, alignItems: 'center', justifyContent: 'center', borderRadius: 12, },
+  row: { width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, overflow: 'hidden' },
   copy: { minWidth: 0, flex: 1, gap: 4 },
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14 },
@@ -83,15 +87,27 @@ const styles = StyleSheet.create({
 
 function PersonalCheckRow({ label, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   return (
-    <View style={styles.personalRow}>
-      <Pressable onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={({ pressed }) => [styles.personalCopy, pressed ? { backgroundColor: tokens.bgHover } : null]}>
+    <View data-slot="list-row-body" style={[styles.personalRow, { minHeight: error || description || value !== undefined ? 68 : 52 }]}>
+      <PersonalControl tokens={tokens} fillStyle={styles.labelFill} hitSlop={{ top: 12, bottom: 12, left: 12 }} onPress={onOpenLabel} accessibilityRole="button" accessibilityLabel={label} accessibilityState={labelExpanded === undefined ? undefined : { expanded: labelExpanded }} style={styles.personalCopy}>
         <PersonalText style={[styles.label, { color: tokens.fg1 }]}>{label}</PersonalText>
         {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
         {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}
-      </Pressable>
-      <Pressable onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={({ pressed }) => [styles.personalControl, pressed ? { backgroundColor: tokens.bgHover } : null, disabled || loading ? styles.disabled : null]}>
+      </PersonalControl>
+      <PersonalControl tokens={tokens} fillStyle={styles.controlFill} hitSlop={12} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} data-loading={loading ? '' : undefined} style={[styles.personalControl, disabled || loading ? styles.disabled : null]}>
         <Checkbox checked={checked} onChange={onChange} error={Boolean(error)} loading={loading} as="span" />
-      </Pressable>
+      </PersonalControl>
     </View>
   )
+}
+
+function PersonalControl({ tokens, fillStyle, children, ...props }: Readonly<PressableProps & { tokens: ReturnType<typeof createTokensV2>; fillStyle: ViewStyle }>) {
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [pressed, setPressed] = useState(false)
+  return <NativePressable {...props} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)}>
+    {(state) => <>
+      <View pointerEvents="none" accessible={false} data-press-fill="" style={[fillStyle, { backgroundColor: !props.disabled && (state.pressed || pressed || focused || hovered) ? tokens.bgHover : 'transparent', outlineWidth: !props.disabled && focused ? 2 : 0, outlineOffset: -2, outlineStyle: 'solid', outlineColor: tokens.fg1 }]} />
+      {typeof children === 'function' ? children(state) : children}
+    </>}
+  </NativePressable>
 }

@@ -32,8 +32,6 @@ describe('expanded RadioRow personal text in Chromium', () => {
           import { RadioRow } from './components/ui/select-check';
           import { ListRow } from './components/ui/list-row';
           import { PersonalTextDetails } from './components/ui/personal-text-details';
-          import { SettingsRow } from './components/ui/settings-row';
-          import { SettingsGroupRow } from './components/ui/settings-group';
           import { HabitRow } from './components/habits/habit-row';
           import { createMockHabit } from '../../packages/shared/src/__tests__/factories';
           import { SupportReplyEmail } from './app/(app)/support/_components/support-reply-email';
@@ -53,18 +51,18 @@ describe('expanded RadioRow personal text in Chromium', () => {
             }, []);
             if (composition === 'support') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><SupportReplyEmail email={label} /></NextIntlClientProvider>;
             if (composition === 'habit') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><HabitRow habit={createMockHabit({ title: label })} selectMode selected hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2', { kind: 'overdue', label: 'Overdue' }]} /></NextIntlClientProvider>;
-            if (composition === 'settingsMetadata') return <SettingsRow label={label} textMode="personal" desc="Details" value={<span>Value</span>} />;
-            if (composition === 'settingsImage') return <SettingsRow label={label} textMode="personal" value={<span role="img" aria-label="Special value" />} />;
-            if (composition === 'settingsRegion') return <SettingsRow label={label} textMode="personal" value={<span role="region" aria-label="Additional information"><span>{label}</span></span>} />;
-            if (composition === 'settingsEvolvingRegion') return <SettingsRow label={label} textMode="personal" value={<span role={selected ? 'region' : undefined} aria-label={selected ? 'Additional information' : undefined}><span>{label}</span></span>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
-            if (composition === 'settingsEvolvingLink') return <SettingsRow label={label} textMode="personal" value={<a href={selected ? '/details' : undefined}>{label}</a>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
-            if (composition === 'settingsEvolvingEditor') return <SettingsRow label={label} textMode="personal" value={<span contentEditable={selected ? true : undefined} suppressContentEditableWarning>{label}</span>}><button onClick={() => select(1)}>Show details</button></SettingsRow>;
-            if (composition === 'settingsGroupMetadata') return <SettingsGroupRow label={label} textMode="personal" hint="Details" />;
+            if (composition === 'settingsMetadata') return <ListRow accessibilityLabel={label} title={label} textMode="personal" description="Details" trailing={<span>Value</span>} />;
+            if (composition === 'settingsImage') return <ListRow title={label} textMode="personal" trailing={<span role="img" aria-label="Special value" />} />;
+            if (composition === 'settingsRegion') return <ListRow title={label} textMode="personal" trailing={<span role="region" aria-label="Additional information"><span>{label}</span></span>} />;
+            if (composition === 'settingsEvolvingRegion') return <><ListRow title={label} textMode="personal" trailing={<span role={selected ? 'region' : undefined} aria-label={selected ? 'Additional information' : undefined}><span>{label}</span></span>}/><button onClick={() => select(1)}>Show details</button></>;
+            if (composition === 'settingsEvolvingLink') return <><ListRow title={label} textMode="personal" trailing={<a href={selected ? '/details' : undefined}>{label}</a>}/><button onClick={() => select(1)}>Show details</button></>;
+            if (composition === 'settingsEvolvingEditor') return <><ListRow title={label} textMode="personal" trailing={<span contentEditable={selected ? true : undefined} suppressContentEditableWarning>{label}</span>}/><button onClick={() => select(1)}>Show details</button></>;
+            if (composition === 'settingsGroupMetadata') return <ListRow accessibilityLabel={label} title={label} textMode="personal" description="Details" />;
             if (composition === 'disabledRadio') return <RadioRow label={label} textMode="personal" disabled />;
             if (composition === 'disabledList') return <ListRow title={label} textMode="personal" personalExpanded disabled />;
             if (composition === 'list') return <ListRow title={label} textMode="personal" />;
-            if (composition === 'settings') return <SettingsRow label={label} textMode="personal" />;
-            if (composition === 'settingsGroup') return <SettingsGroupRow label={label} textMode="personal" />;
+            if (composition === 'settings') return <ListRow title={label} textMode="personal" />;
+            if (composition === 'settingsGroup') return <ListRow title={label} textMode="personal" />;
             if (composition === 'details') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><PersonalTextDetails>{label}</PersonalTextDetails></NextIntlClientProvider>;
             return <RadioGroup aria-label="Subjects" onCommit={() => document.getElementById('commits').textContent += 'commit'}>
               <RadioRow label={label} textMode="personal" selected={selected === 0} onSelect={() => select(0)} />

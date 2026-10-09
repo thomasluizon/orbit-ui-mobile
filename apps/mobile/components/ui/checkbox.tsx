@@ -18,6 +18,7 @@ export function Checkbox({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const box = (
     <View
+      data-slot="checkbox-box"
       pointerEvents="none"
       style={[
         styles.box,

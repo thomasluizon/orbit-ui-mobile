@@ -1,5 +1,7 @@
 'use client'
 
+import { Badge } from '@/components/ui/badge'
+
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
@@ -41,7 +43,6 @@ import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
 import { FormSectionLabel } from './habit-form-fields/form-section-label'
-import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { PillButton } from '@/components/ui/pill-button'
@@ -182,7 +183,7 @@ function SubHabitSection({
           {children}
         </Proposed>
       ) : (
-        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} inset={false} onClick={onUpgrade} />
+        <ListRow title={t('common.upgrade')} trailing={<Badge>{t('common.proBadge')}</Badge>} placement="column" onClick={onUpgrade} />
       )}
     </section>
   )
@@ -415,7 +416,7 @@ export function HabitFormFields({
           title={t('habits.form.moreDetails')}
           expanded={detailsOpen}
           controls={detailsPresented ? detailsId : undefined}
-          inset={false}
+          placement="column"
           chevron={false}
           onClick={() => {
             if (detailsOpen) {
@@ -483,17 +484,9 @@ export function HabitFormFields({
               {subHabitChildren}
             </SubHabitSection>
 
-            <section className="flex items-center justify-between" style={{ gap: 16 }}>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[17px] text-[var(--fg-1)]">{t('habits.form.habitTypeAvoid')}</p>
-                <p className="truncate text-sm text-[var(--fg-3)]">{t('habits.form.habitTypeAvoidHint')}</p>
-              </div>
-              <Switch
-                label={t('habits.form.habitTypeAvoid')}
-                checked={isBadHabit}
-                onChange={(checked) => setValue('isBadHabit', checked, { shouldDirty: true })}
-              />
-            </section>
+            {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Create fBad controls this label under D42. */}
+            <ListRow placement="column" title={t('habits.form.habitTypeAvoid')} description={t('habits.form.habitTypeAvoidHint')} toggle={{ checked: isBadHabit, onChange: (checked) => setValue('isBadHabit', checked, { shouldDirty: true }) }} />
+
 
             <SlipAlertEditor visible={isBadHabit} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} t={t} />
 

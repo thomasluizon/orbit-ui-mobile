@@ -61,9 +61,9 @@ describe('day card compact geometry', () => {
             eventLines: new Set([...titleRange.getClientRects()].map((box) => Math.round(box.top))).size,
             labels,
             targets: [...document.querySelectorAll<HTMLElement>('button, a')].map((target) => {
-              const box = target.getBoundingClientRect()
+              const box = (target.querySelector('[data-press-fill]') ?? target).getBoundingClientRect()
               const style = getComputedStyle(target)
-              return { label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth, listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
+              return { label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: [...target.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="list-row-title"]')].some((label) => label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth), listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
             }),
           }
         })

@@ -37,7 +37,7 @@ afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 function expectSwitchAlignment(control: { top: number; height: number; titleTop: number; titleHeight: number; rowHeight: number }, scale: number) {
   if (scale === 1) expect(control.rowHeight).toBe(52)
   const offset = control.titleTop - control.top
-  const alignment = control.titleHeight > control.height ? offset : offset + (control.titleHeight - control.height) / 2
+  const alignment = offset + (control.titleHeight - control.height) / 2
   expect(Math.abs(alignment), JSON.stringify(control)).toBeLessThanOrEqual(1)
 }
 
@@ -78,7 +78,7 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
         return { label, lines: new Set(rects.map((rect) => rect.top)).size, clipped, ellipsis: style.textOverflow === 'ellipsis' || !['none', '0'].includes(style.webkitLineClamp), fontSize: parseFloat(style.fontSize), inset: box.left - panelBox.left }
       })
       return { gap: settingsBox.top - panelBox.bottom, labels: labelMeasurements, switches: [...document.querySelectorAll('[role="switch"]')].map((control) => {
-        const box = control.getBoundingClientRect()
+        const box = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
         const row = control.closest('.orbit-list-row-shell')!
         const title = row.querySelector('[data-slot="list-row-title"]')!.getBoundingClientRect()
         return { name: control.getAttribute('aria-label'), checked: control.getAttribute('aria-checked'), width: box.width, height: box.height, top: box.top, titleTop: title.top, titleHeight: title.height, rowHeight: row.getBoundingClientRect().height }
@@ -93,7 +93,7 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
     expect(measured.switches).toHaveLength(hasProAccess ? 2 : 0)
     if (hasProAccess) for (const control of measured.switches) {
       expect(labels).toContain(control.name)
-      expect(control).toMatchObject({ checked: 'true', width: 48, height: 48 })
+      expect(control).toMatchObject({ checked: 'true', width: 48, height: 28 })
       expectSwitchAlignment(control, scale)
     }
   } finally { await page.close() }

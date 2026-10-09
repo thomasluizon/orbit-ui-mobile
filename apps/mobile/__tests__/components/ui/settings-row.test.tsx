@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native'
 
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { BarChart3, Home } from '@/components/ui/icons'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { ListRow } from '@/components/ui/list-row'
 import { Switch } from '@/components/ui/switch'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -32,7 +32,7 @@ describe('Switch', () => {
     )
     expect(control.props.accessibilityLabel).toBe('Dark theme')
     expect(control.props.accessibilityState).toEqual({ checked: false })
-    const track = control.findAllByType('View')[0]
+    const track = control.findAll((node: { props: Record<string, unknown> }) => node.props['data-slot'] === 'switch-track')[0]
     expect(track.props.style[1].backgroundColor).toBe(createTokensV2('purple', 'dark').trackEmpty)
 
     TestRenderer.act(() => {
@@ -61,7 +61,7 @@ describe('Switch', () => {
 describe('SettingsRow', () => {
   it('clips the pressed fill to its whole row hit area', () => {
     let tree: any
-    TestRenderer.act(() => { tree = TestRenderer.create(<SettingsRow label="Account" onPress={() => {}} />) })
+    TestRenderer.act(() => { tree = TestRenderer.create(<ListRow textMode="label" title="Account" onClick={() => {}} />) })
     const row = tree.root.find((node: any) => node.props.accessibilityLabel === 'Account' && node.props.accessibilityRole === 'button')
     const pressed = StyleSheet.flatten(row.props.style({ pressed: true }))
     expect(pressed).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
@@ -72,7 +72,7 @@ describe('SettingsRow', () => {
 
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <SettingsRow label="Account" icon={Home} accessory="none" />,
+        <ListRow textMode="label" title="Account" icon={<Home size={24} strokeWidth={1.5} />} chevron={false} />,
       )
     })
 
@@ -91,9 +91,7 @@ describe('SettingsRow switch geometry', () => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
     const title = ptBR.profile.analytics.title
     let tree!: ReactTestRenderer & { toJSON: () => Parameters<typeof measureProfileRow>[0] }
-    await act(() => { tree = create(<SettingsRow label={title} icon={BarChart3} accessory="none" divider={false}>
-      <Switch label={title} checked onChange={() => {}} />
-    </SettingsRow>) as typeof tree })
+    await act(() => { tree = create(<ListRow textMode="label" title={title} icon={<BarChart3 size={24} />} toggle={{ checked: true, onChange: () => {} }} />) as typeof tree })
     try {
       const geometry = measureProfileRow(tree.toJSON(), 288, fontScale)
       const label = geometry.texts.find((text) => text.label === title)!
@@ -102,10 +100,11 @@ describe('SettingsRow switch geometry', () => {
       expect(label.clipped).toBe(false)
       if (label.lines === 1) {
         expect(Math.abs(label.top + label.height / 2 - control.top - control.height / 2)).toBeLessThanOrEqual(1)
-        expect(geometry.height).toBe(52)
+        if (fontScale === 1) expect(geometry.height).toBe(52)
+        else expect(geometry.height).toBeGreaterThan(52)
       } else {
         expect(fontScale).toBe(2)
-        expect(Math.abs(label.top - control.top)).toBeLessThanOrEqual(1)
+        expect(Math.abs(label.top + label.height / 2 - control.top - control.height / 2)).toBeLessThanOrEqual(1)
         expect(geometry.height).toBeGreaterThan(52)
       }
     } finally { await act(() => tree.update(<></>)) }

@@ -1,14 +1,14 @@
+import { ListRow } from '@/components/ui/list-row'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { PillButton } from "@/components/ui/pill-button";
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, type ReactNode } from "react";
 import { View, Text, } from "react-native";
-import { X, Plus, Bell } from "@/components/ui/icons";
+import { X, Plus } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
-import { Switch } from "@/components/ui/switch";
 import { useReminderPermission } from "@/hooks/use-reminder-permission";
 import { type AppTokens, createSectionStyles } from "./styles";
 
@@ -98,19 +98,7 @@ export function ReminderSection({
 
   return (
     <View style={inline ? { gap: 12 } : sectionStyles.container}>
-      <View style={sectionStyles.headerRow}>
-        <View style={sectionStyles.headerLeft}>
-          {!inline ? <Bell size={20} color={tokens.fg2} strokeWidth={1.8} /> : null}
-          <Text style={sectionStyles.headerLabel}>
-            {label}
-          </Text>
-        </View>
-        <Switch
-          checked={reminderEnabled}
-          onChange={permission.toggleReminder}
-          label={label}
-        />
-      </View>
+      <ListRow placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />
       <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />
       {reminderEnabled && (
         <View style={sectionStyles.body}>

@@ -18,7 +18,7 @@ ellipsis contract. The sidebar account row remains collapsed.
 | Progress top habit | `apps/web/app/(app)/progress/_components/progress-content.tsx` | A habit without a destination discloses beside its button; a habit with an id remains a collapsed destination link. |
 | Retrospective top habit | `apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx` | Disclosed heading beside its button, inside the existing motion part. |
 | About account fact | `apps/web/app/(app)/about/page.tsx` | Disclosed account value beside its native disclosure button. |
-| Personal settings rows | `apps/web/components/ui/settings-row.tsx`, `apps/web/components/ui/settings-group.tsx` | Typed labels disclose beside their native action; trailing controls retain their own pointer and keyboard paths. |
+| Personal settings rows | `apps/web/components/ui/list-row.tsx`, `apps/web/components/ui/settings-group.tsx` | Typed labels disclose beside their native action; trailing controls retain their own pointer and keyboard paths. |
 | Support reply email | `apps/web/app/(app)/support/_components/support-reply-email.tsx` | The disclosed reply address scrolls beside its native disclosure button; label, value and hint associations remain. |
 | Standalone expanded text | Owners listed below | A separate disclosure or noninteractive heading already owns the text; no native action encloses the scroll region. |
 

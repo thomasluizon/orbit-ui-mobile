@@ -137,7 +137,7 @@
 
 .orbit-list-row-body:focus-visible,
 .orbit-list-row-action:focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--fg-1);
   outline-offset: -2px;
 }
 
@@ -149,7 +149,13 @@
   border-radius: 12px;
 }
 
+.orbit-list-row-column [data-slot="list-row-content"] {
+  position: relative;
+  z-index: 1;
+}
+
 .orbit-list-row-outset {
+  z-index: 0;
   position: absolute;
   inset-block: 0;
   inset-inline: -16px;
@@ -158,7 +164,7 @@
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
-.orbit-list-row-column .orbit-list-row-body:is(:active, :focus-visible):not(:disabled) {
+.orbit-list-row-column .orbit-list-row-body:is(:active, :focus-visible):not(:disabled):not(:has(button:active, a:active, [role="button"]:active)) {
   background: transparent;
   outline: none;
 }
@@ -168,12 +174,12 @@
 }
 
 .orbit-list-row-column .orbit-list-row-body:focus-visible > .orbit-list-row-outset {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--fg-1);
   outline-offset: -2px;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled) {
+  .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled):not(:has(button:hover, a:hover, [role="button"]:hover)) {
     background: transparent;
   }
   .orbit-list-row-column .orbit-list-row-body:hover:not(:disabled) > .orbit-list-row-outset {
@@ -1323,7 +1329,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: -6px;
 }
 
-[data-focus-inset] [role='switch']:focus-visible {
+[data-focus-inset] [role='switch']:not(.orbit-list-row-body):focus-visible {
   outline-offset: -2px;
 }
 
@@ -2138,17 +2144,55 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
-.orbit-check-row-label::before {
+.orbit-check-row-label::before,
+.orbit-check-row-label > .orbit-check-row-fill {
   content: '';
   position: absolute;
   inset-block: -12px;
-  inset-inline: 0;
+  inset-inline-start: -12px;
+  inset-inline-end: 0;
   border-radius: 12px;
 }
 
-.orbit-check-row-control::before {
+.orbit-check-row-control::before,
+.orbit-check-row-control > .orbit-check-row-fill {
   content: '';
   position: absolute;
   inset: -12px;
   border-radius: 12px;
+}
+
+.orbit-check-row-label > :not(.orbit-check-row-fill),
+.orbit-check-row-control > :not(.orbit-check-row-fill) {
+  position: relative;
+  z-index: 1;
+}
+
+.orbit-check-row-fill {
+  z-index: 0;
+  pointer-events: none;
+  transition: background-color var(--dur-hover) var(--ease-standard);
+}
+
+.orbit-check-row-label:is(:active, :focus-visible) > .orbit-check-row-fill,
+.orbit-check-row-control:is(:active, :focus-visible):not(:disabled) > .orbit-check-row-fill {
+  background: var(--bg-hover);
+}
+
+.orbit-check-row-label:focus-visible,
+.orbit-check-row-control:focus-visible {
+  outline: none;
+}
+
+.orbit-check-row-label:focus-visible > .orbit-check-row-fill,
+.orbit-check-row-control:focus-visible > .orbit-check-row-fill {
+  outline: 2px solid var(--fg-1);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-check-row-label:hover > .orbit-check-row-fill,
+  .orbit-check-row-control:hover:not(:disabled) > .orbit-check-row-fill {
+    background: var(--bg-hover);
+  }
 }

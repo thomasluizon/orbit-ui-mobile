@@ -174,9 +174,9 @@ vi.mock('@/components/ui/switch', () => ({
   ),
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, description, value, trailing, chevron, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; chevron?: boolean; onClick?: () => void }) => onClick
-    ? <button type="button" data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={onClick}>{title}{trailing}</button>
-    : <div data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
+  ListRow: ({ title, description, value, trailing, chevron, onClick, expanded, controls, toggle }: React.ComponentProps<typeof import('@/components/ui/list-row').ListRow>) => onClick || toggle
+    ? <button type="button" role={toggle ? "switch" : undefined} aria-label={title} aria-checked={toggle?.checked} aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={toggle ? () => toggle.onChange(!toggle.checked) : onClick}>{title}{trailing}</button>
+    : <div aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/pill-button')>()),
@@ -2120,15 +2120,16 @@ describe('HabitDetailScreen', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
           const button = element.querySelector<HTMLButtonElement>(':scope > button')!
-          const style = getComputedStyle(button)
+          const label = element.querySelector<HTMLElement>('[data-personal-text]')!
+          const style = getComputedStyle(label)
           const fontSize = parseFloat(style.fontSize) * 2
           const lineHeight = parseFloat(style.lineHeight) * 2
-          button.style.fontSize = `${fontSize}px`
-          button.style.lineHeight = `${lineHeight}px`
+          element.style.fontSize = `${fontSize}px`
+          element.style.lineHeight = `${lineHeight}px`
           const range = document.createRange()
-          range.selectNodeContents(button)
+          range.selectNodeContents(label)
           const text = range.getBoundingClientRect()
-          const bounds = button.getBoundingClientRect()
+          const bounds = label.getBoundingClientRect()
           const column = element.closest('[data-habit-detail-content]')!
           const columnStyle = getComputedStyle(column)
           return { whiteSpace: style.whiteSpace, textOverflow: style.textOverflow,

@@ -45,6 +45,42 @@ describe('personal ListRow text in Chromium', () => {
     } finally { await page.close() }
   })
 
+  it.each((['light', 'dark'] as const).flatMap((mode) => [412, 1352].map((width) => ({ mode, width }))))('matches the column fill, focus and hit bounds in $mode at $width', async ({ mode, width }) => {
+    const markup = renderToStaticMarkup(<ListRow title="Tags" placement="column" onClick={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body><button id="focus-start">Start</button><main style="padding:32px">${markup}</main></body></html>`)
+      const control = page.getByRole('button', { name: 'Tags', exact: true })
+      const fill = control.locator('[data-press-fill]')
+      const bounds = (await control.boundingBox())!
+      const painted = (await fill.boundingBox())!
+      expect(painted.x).toBe(bounds.x - 16)
+      expect(painted.width).toBe(bounds.width + 32)
+      expect(painted.height).toBe(bounds.height)
+      await control.evaluate((element) => { element.addEventListener('click', () => element.setAttribute('data-activated', 'true')) })
+      for (const x of [painted.x + 2, painted.x + painted.width - 2]) {
+        await control.evaluate((element) => element.removeAttribute('data-activated'))
+        await page.mouse.click(x, painted.y + painted.height / 2)
+        expect(await control.getAttribute('data-activated')).toBe('true')
+      }
+      await page.mouse.move(0, 0)
+      await page.locator('#focus-start').focus()
+      await page.keyboard.press('Tab')
+      expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      const focus = await fill.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const body = getComputedStyle(element.parentElement!)
+        return { outline: style.outlineWidth, offset: style.outlineOffset, radius: style.borderRadius, fill: style.backgroundColor, bodyOutline: body.outlineStyle }
+      })
+      expect(focus).toMatchObject({ outline: '2px', offset: '-2px', radius: '12px', bodyOutline: 'none' })
+      expect(focus.fill).not.toBe('rgba(0, 0, 0, 0)')
+      await control.evaluate((element) => element.removeAttribute('data-activated'))
+      await page.keyboard.press('Space')
+      expect(await control.getAttribute('data-activated')).toBe('true')
+    } finally { await page.close() }
+  })
+
   it.each((['light', 'dark'] as const).flatMap((mode) => (['body', 'action'] as const).map((kind) => ({ mode, kind }))))('paints the $kind touch press fill in $mode', async ({ mode, kind }) => {
     const markup = renderToStaticMarkup(<ListRow title="Open day" description="Selected day" accessibilityLabel="Open day" href="/?date=2026-09-04"
       action={{ icon: 'chevron-down', label: 'View details', onPress: vi.fn() }} />)

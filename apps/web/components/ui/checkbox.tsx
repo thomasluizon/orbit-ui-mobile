@@ -14,8 +14,9 @@ export function Checkbox({
 }: Readonly<CheckboxProps>) {
   const box = (
     <span
+      data-slot="checkbox-box"
       aria-hidden="true"
-      className="grid size-6 shrink-0 place-items-center rounded-[8px]"
+      className="grid size-[24px] shrink-0 place-items-center rounded-[8px]"
       style={{
         background: checked ? 'var(--status-done)' : 'transparent',
         boxShadow: error

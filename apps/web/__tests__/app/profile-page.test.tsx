@@ -247,7 +247,7 @@ describe('ProfilePage', () => {
     const Destination = PROFILE_ROUTES[surface]
     const { container } = render(<Destination />)
     const reference = render(<div><ProfileNavIcon iconKey="account" /><Trash2 size={24} /><ChevronRight size={24} /></div>).container.querySelectorAll('svg')
-    const rows = container.querySelectorAll('.orbit-list-row-shell')
+    const rows = container.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])')
     expect(rows).toHaveLength(4)
     for (const [index, row] of rows.entries()) {
       const glyphs = row.querySelectorAll('svg')
@@ -289,7 +289,7 @@ describe('ProfilePage', () => {
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
-        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell')).map((row) => {
+        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])')).map((row) => {
           const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
           const range = document.createRange()
           range.selectNodeContents(title)
@@ -317,7 +317,7 @@ describe('ProfilePage', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
         const geometry = await page.evaluate(() => {
-          const rows = Array.from(document.querySelectorAll('.orbit-list-row-shell'))
+          const rows = Array.from(document.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])'))
           const defaults = rows.map((row) => row.getBoundingClientRect().height)
           document.documentElement.style.fontSize = '32px'
           return rows.map((row, index) => {
@@ -352,7 +352,7 @@ describe('ProfilePage', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await loadAppFonts(page)
         const geometry = await page.evaluate(() => {
-          const row = document.querySelectorAll('.orbit-list-row-shell')[1]!
+          const row = document.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])')[1]!
           return Array.from(row.querySelectorAll<HTMLElement>('[data-slot="list-row-title"], [data-slot="list-row-value"]')).map((text) => {
             const range = document.createRange()
             range.selectNodeContents(text)
@@ -839,7 +839,8 @@ describe('ProfilePage', () => {
     mockPushPreferenceState.current = { supported: false, subscribed: false, permission: '', status: 'checking' }
     render(<ProfileSubscreen screen="notifications" />)
     expect(screen.queryByText('settings.notifications.unsupported')).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByTestId('push-status')).toHaveTextContent(/^\s*$/)
     expect(screen.getByTestId('push-status').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
   })

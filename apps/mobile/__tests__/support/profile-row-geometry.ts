@@ -4,7 +4,7 @@ import { Resvg } from '@resvg/resvg-js'
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string }
+  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string }
   children: (HostRow | string)[] | null
 }
 
@@ -51,8 +51,7 @@ function applyFlexStyle(node: YogaNode, style: ViewStyle) {
   if (style.flexWrap === 'wrap') node.setFlexWrap(Yoga.WRAP_WRAP)
 }
 
-function applyStyle(node: YogaNode, style: ViewStyle) {
-  applyFlexStyle(node, style)
+function applyDimensions(node: YogaNode, style: ViewStyle) {
   if (typeof style.minWidth === 'number') node.setMinWidth(style.minWidth)
   if (style.maxWidth === '100%') node.setMaxWidthPercent(100)
   if (style.maxWidth === '50%') node.setMaxWidthPercent(50)
@@ -60,12 +59,28 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
   if (style.width === '100%') node.setWidthPercent(100)
   if (typeof style.height === 'number') node.setHeight(style.height)
   if (typeof style.minHeight === 'number') node.setMinHeight(style.minHeight)
+}
+
+function applyAlignment(node: YogaNode, style: ViewStyle) {
   if (style.alignItems === 'center') node.setAlignItems(Yoga.ALIGN_CENTER)
   if (style.alignItems === 'flex-start') node.setAlignItems(Yoga.ALIGN_FLEX_START)
   if (style.justifyContent === 'center') node.setJustifyContent(Yoga.JUSTIFY_CENTER)
   if (typeof style.gap === 'number') node.setGap(Yoga.GUTTER_ALL, style.gap)
+}
+
+function applyStyle(node: YogaNode, style: ViewStyle) {
+  applyFlexStyle(node, style)
+  if (style.position === 'absolute') node.setPositionType(Yoga.POSITION_TYPE_ABSOLUTE)
+  for (const [property, edge] of [['left', Yoga.EDGE_LEFT], ['right', Yoga.EDGE_RIGHT], ['top', Yoga.EDGE_TOP], ['bottom', Yoga.EDGE_BOTTOM]] as const) {
+    const offset = style[property]
+    if (typeof offset === 'number') node.setPosition(edge, offset)
+  }
+  applyDimensions(node, style)
+  applyAlignment(node, style)
   for (const [property, edge] of [
+    ['padding', Yoga.EDGE_ALL],
     ['paddingHorizontal', Yoga.EDGE_HORIZONTAL],
+    ['paddingStart', Yoga.EDGE_START],
     ['paddingVertical', Yoga.EDGE_VERTICAL],
     ['paddingTop', Yoga.EDGE_TOP],
     ['paddingBottom', Yoga.EDGE_BOTTOM],
@@ -85,17 +100,21 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
 }
 
 export function measureProfileRow(host: HostRow, width: number, scale: number) {
+  const config = Yoga.Config.create()
+  config.setPointScaleFactor(0)
+  const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
   const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined }[] = []
-  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string }[] = []
+  const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; 'data-slot'?: string }[] = []
   function labelsOf(host: HostRow): string[] {
     return (host.children ?? []).flatMap((child) => typeof child === 'string' ? [child] : labelsOf(child))
   }
   function layoutHost(host: HostRow): YogaNode {
-    const node = Yoga.Node.create()
+    const node = Yoga.Node.createWithConfig(config)
     const declared = host.props.style
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
     if (style.opacity === 0) { node.setWidth(0); node.setHeight(0); return node }
     applyStyle(node, style)
+    if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
     if (host.type === 'Pressable') controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel })
     const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
     if (host.type === 'Text' && label) {
@@ -114,7 +133,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
   const layout = layoutHost(host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    return { height: layout.getComputedHeight(), controls: controls.map(({ node, labels, accessibilityLabel }) => {
+    return { height: layout.getComputedHeight(), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel }) => {
       const bounds = position(node)
       const content = Array.from({ length: node.getChildCount() }, (_, index) => position(node.getChild(index)))
       return { labels, accessibilityLabel, ...bounds, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }
@@ -122,5 +141,5 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
       const lines = wrappedLines(label, node.getComputedWidth(), style, scale)
       return { label, ...position(node), lines: Math.min(lines, limit ?? lines), clipped: limit !== undefined && lines > limit, lineHeightRatio: Number(style.lineHeight ?? Number(style.fontSize) * 1.4) / Number(style.fontSize) }
     }) }
-  } finally { layout.freeRecursive() }
+  } finally { layout.freeRecursive(); config.free() }
 }
