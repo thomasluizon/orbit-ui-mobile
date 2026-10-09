@@ -596,10 +596,12 @@ describe('CalendarDayDetail', () => {
 
   it('leaves for Today through the panel row with the selected date', () => {
     renderDetail()
-    expect(screen.getByRole('link', { name: 'Open this day on Today' })).toHaveAttribute(
+    const link = screen.getByRole('link', { name: 'Open this day on Today' })
+    expect(link).toHaveAttribute(
       'href',
       '/?date=2025-06-15',
     )
+    expect(link).toHaveClass('orbit-list-row-body')
     expect(screen.getByText(personalText('Open this day on Today'))).toHaveClass('break-words')
   })
 
