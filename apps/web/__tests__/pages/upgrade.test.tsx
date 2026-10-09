@@ -193,7 +193,7 @@ describe('UpgradePage', () => {
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-    const cases = [320, 360, 384, 412, 640, 1440].flatMap((width) => (['pt-BR', 'en'] as const)
+    const cases = [320, 360, 384, 412, 600, 640, 840, 1352, 1440].flatMap((width) => (['pt-BR', 'en'] as const)
       .flatMap((locale) => [false, true].map((trial) => ({ width, locale, trial }))))
     it.each(cases)('keeps the heading whole at $width in $locale, trial=$trial', async ({ width, locale, trial }) => {
       mockLocale.value = locale
@@ -240,7 +240,7 @@ describe('UpgradePage', () => {
         expect(geometry.fontWeight).toBe('500')
         expect(geometry.letterSpacing).toBeCloseTo(-0.02 * geometry.fontSize)
         expect(geometry.scrollerMeasure).toBe(width - 4)
-        expect(geometry.measure).toBe(Math.min(geometry.scrollerMeasure - 32, 620))
+        expect(geometry.measure).toBe(width < 1024 ? geometry.scrollerMeasure - 32 : 652)
       } finally { await page.close() }
     })
   })
