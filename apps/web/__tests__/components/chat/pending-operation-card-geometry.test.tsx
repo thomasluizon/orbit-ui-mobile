@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeDeleteHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -80,6 +80,46 @@ describe('Pending preview geometry in Chromium', () => {
   })
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => ['pending', 'done'].map(state => ({ width, locale, textScale, state }))))))('keeps typed item actions beside the first line at $width in $locale at text scale $textScale while $state', async ({ width, locale, textScale, state }) => {
+    const messages = locale === 'en' ? en : pt
+    const name = locale === 'en'
+      ? 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
+      : 'Ler os livros que escolhi para aprender sobre todos os lugares e pessoas ao redor do mundo antes do café da manhã'
+    const preview = makeCreateHabitsPreview(2)
+    preview.items = preview.items!.map((item, index) => index === 0 ? { ...item, entityName: name, fields: item.fields.map(field => ({ ...field, entityName: name, newValue: name })) } : item)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 600), padding: 16 }}>
+      <PendingOperationCard pendingOperation={preview} onRevise={vi.fn()} onOpenTarget={vi.fn()} onConfirmExecute={vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success', 'Success']) })} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+    </div></NextIntlClientProvider>)
+    const actionName = state === 'pending' ? `${messages.chat.operation.remove} ${name}` : new IntlMessageFormat(messages.chat.action.openEntity, locale).format({ name }) as string
+    if (state === 'done') {
+      fireEvent.click(container.querySelector('button[data-variant="primary"]')!)
+      await waitFor(() => expect(screen.getByRole('button', { name: actionName })).toBeInTheDocument())
+    }
+    expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}\nhtml { font-size: ${16 * textScale}px; }</style><div class="dark">${container.innerHTML}</div>`)
+      await page.evaluate(() => document.fonts.ready)
+      const geometry = await page.evaluate(({ name, actionName }) => {
+        const action = [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === actionName)!
+        const label = [...document.querySelectorAll<HTMLElement>('[data-personal-text]')].find(element => element.textContent === name)!
+        let row = label.parentElement!
+        while (!row.contains(action)) row = row.parentElement!
+        const labelBounds = label.getBoundingClientRect()
+        const actionBounds = action.getBoundingClientRect()
+        const rowBounds = row.getBoundingClientRect()
+        return { direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, actionLeft: actionBounds.left, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, rowBottom: rowBounds.bottom }
+      }, { name, actionName })
+      expect(geometry.direction).toBe('row')
+      expect(geometry.branches).toBe(2)
+      expect(geometry.actionCenter).toBeGreaterThanOrEqual(geometry.firstLineTop - 0.5)
+      expect(geometry.actionCenter).toBeLessThanOrEqual(geometry.firstLineBottom + 0.5)
+      expect(geometry.labelHeight).toBeLessThanOrEqual(geometry.lineHeight * 2 + 0.5)
+      expect(geometry.labelRight).toBeLessThanOrEqual(geometry.actionLeft)
+      expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.rowBottom)
+    } finally { await page.close() }
+  })
 
   it.each(viewports.flatMap((width) => locales.flatMap((locale) => [undefined, ...countedActions].map((counted) => ({ width, locale, counted })))))('keeps controls readable at $width in $locale with counted action $counted', async ({ width, locale, counted }) => {
     setViewport(width)

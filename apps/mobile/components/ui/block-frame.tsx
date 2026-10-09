@@ -74,26 +74,20 @@ function MetaLine({ meta, wrap, tokens }: Readonly<{ meta: string; wrap: boolean
   return <Text numberOfLines={wrap ? undefined : 1} style={[styles.meta, { color: tokens.fg3 }, wrap && { lineHeight: 12 * 1.4 }]}>{meta}</Text>
 }
 
-function getRowLayout(item: BlockFrameItem) {
-  const fullWidthLabel = item.wrapLabel && typeof item.label !== 'string' && typeof item.label !== 'number'
-  return {
-    row: [styles.row, fullWidthLabel ? { flexDirection: 'column' as const, alignItems: 'stretch' as const } : undefined],
-    words: [styles.rowWords, fullWidthLabel ? { flex: 0, width: '100%' as const } : undefined],
-    trailing: [styles.trailing, fullWidthLabel ? { alignSelf: 'flex-end' as const } : undefined],
-  }
+function getRowStyle(wrapLabel: boolean | undefined) {
+  return [styles.row, wrapLabel && { alignItems: 'flex-start' as const }]
 }
 
 function FrameRow(props: FrameRowProps) {
   const { item, frameState, statusLabel, onEditItem, tokens } = props
-  const rowLayout = getRowLayout(item)
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <View
-      style={rowLayout.row}
+      style={getRowStyle(item.wrapLabel)}
       testID={`block-frame-item-${item.id}-${status ?? 'pending'}${item.proposed ? '-proposed' : ''}`}
     >
-      <View style={rowLayout.words}>
+      <View style={styles.rowWords}>
         {typeof item.label === 'string' || typeof item.label === 'number' ? (
           <Text numberOfLines={item.wrapLabel ? undefined : 1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
             {item.label}
@@ -104,7 +98,7 @@ function FrameRow(props: FrameRowProps) {
           <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
         ) : null}
       </View>
-      <View style={rowLayout.trailing}>
+      <View style={styles.trailing}>
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <Pressable
@@ -319,7 +313,7 @@ const styles = StyleSheet.create({
   rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   rowLabelNode: { minWidth: 0 },
   meta: { fontFamily: 'Geist_400Regular', fontSize: 12 },
-  trailing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  trailing: { flexDirection: 'row', flexShrink: 0, alignItems: 'center', gap: 8 },
   iconButton: { width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN, alignItems: 'center', justifyContent: 'center', borderRadius: 999, overflow: 'hidden' },
   status: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusLabel: { fontFamily: 'Geist_400Regular', fontSize: 12 },
