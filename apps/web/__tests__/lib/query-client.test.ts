@@ -146,11 +146,12 @@ describe('getQueryClient', () => {
   })
 })
 
-it('keeps a 429 read pending until the retry returns data', async () => {
+it.each([429, 503])('keeps a %s recovery read pending until data and retains cached data', async (status) => {
   vi.useFakeTimers()
   const client = createQueryClient()
   const queryKey = habitKeys.list({})
-  const error = Object.assign(new ApiError(429, 'Unavailable'), { retryAfter: '60' })
+  const payload = status === 503 ? { errorCode: 'UPSTREAM_STARTING' } : undefined
+  const error = new ApiError(status, 'Unavailable', payload, '60')
   const queryFn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(['Recovered'])
   const states: string[] = []
   const unsubscribe = client.getQueryCache().subscribe(() => {
@@ -175,12 +176,12 @@ it('keeps a 429 read pending until the retry returns data', async () => {
     const exhaustedKey = habitKeys.list({ search: 'exhausted' })
     const exhausted = client.fetchQuery({
       queryKey: exhaustedKey,
-      queryFn: () => Promise.reject(new ApiError(429, 'Unavailable')),
+      queryFn: () => Promise.reject(new ApiError(status, 'Unavailable', payload)),
     }).catch((failure: unknown) => failure)
     await vi.advanceTimersByTimeAsync(124_999)
     expect(client.getQueryState(exhaustedKey)?.status).toBe('pending')
     await vi.advanceTimersByTimeAsync(1)
-    expect(await exhausted).toMatchObject({ status: 429 })
+    expect(await exhausted).toMatchObject({ status })
     expect(client.getQueryState(exhaustedKey)?.status).toBe('error')
   } finally {
     unsubscribe()

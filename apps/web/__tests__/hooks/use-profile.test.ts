@@ -90,12 +90,7 @@ function mockErrorResponse(
   body: unknown = {},
   headers?: HeadersInit,
 ) {
-  mockFetch.mockResolvedValue({
-    ok: false,
-    status,
-    headers: new Headers(headers),
-    json: () => Promise.resolve(body),
-  })
+  mockFetch.mockResolvedValue(Response.json(body, { status, headers }))
 }
 
 function apiErrorFrom(error: unknown): ApiError {
