@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +78,47 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  describe.each(['en', 'pt-BR'])('batch recovery in %s', (locale) => {
+    it('retries the same batch after a producer pre-write failure without failing unrun rows', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview(2)
+      const messages = locale === 'en' ? en : ptBR
+      const { tree, handlers } = renderCard(operation)
+      handlers.onConfirmExecute.mockResolvedValueOnce({ ok: true, response: makeBulkCreateExecutionResponse() })
+        .mockResolvedValueOnce({ ok: true, response: makeBulkCreateExecutionResponse(['Success', 'Success']) })
+      await TestRenderer.act(async () => { press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.onPress(); await Promise.resolve() })
+      expect(press(tree, messages.common.retry)).toBeDefined()
+      expect(renderedText(tree.toJSON())).not.toContain(messages.blockFrame.status.failed)
+      expect(renderedText(tree.toJSON())).toContain(messages.chat.operationFailed)
+      await TestRenderer.act(async () => { press(tree, messages.common.retry).props.onPress(); await Promise.resolve() })
+      expect(tree.root.findByProps({ testID: 'block-frame-item-0-done' })).toBeDefined()
+      expect(tree.root.findByProps({ testID: 'block-frame-item-1-done' })).toBeDefined()
+      expect(handlers.onConfirmExecute.mock.calls).toEqual([[operation.id], [operation.id]])
+      expect(press(tree, messages.common.retry)).toBeUndefined()
+    })
+
+    it.each([['Success', 'Failed'], ['Failed', 'Failed']] as const)('shows producer item outcomes %s and %s without retrying a consumed batch', async (first, second) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview(2)
+      const messages = locale === 'en' ? en : ptBR
+      const onOpenTarget = vi.fn()
+      const { tree, handlers } = renderCard(operation, undefined, undefined, onOpenTarget)
+      handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse([first, second]) })
+      await TestRenderer.act(async () => { press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.onPress(); await Promise.resolve() })
+      expect(tree.root.findByProps({ testID: 'block-frame-item-0-' + (first === 'Success' ? 'done' : 'failed') })).toBeDefined()
+      expect(tree.root.findByProps({ testID: 'block-frame-item-1-failed' })).toBeDefined()
+      expect(press(tree, messages.common.retry)).toBeUndefined()
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operationFailed)
+      expect(renderedText(tree.toJSON())).toContain(messages.chat.operation.batchFailed)
+      if (first === 'Success') {
+        TestRenderer.act(() => press(tree, messages.chat.action.open).props.onPress())
+        expect(onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
+      }
+    })
+  })
+
   describe.each(['en', 'pt-BR'])('operation approval in %s', (locale) => {
     it.each(['Low', 'Destructive', 'High'] as const)('approves creation directly with %s internal risk', async (riskClass) => {
       visibleLocale.actual = true
@@ -797,9 +838,9 @@ describe('PendingOperationCard (mobile)', () => {
     handlers.onConfirmExecute.mockResolvedValueOnce({ ok: false, error: 'Could not save. Try again.' })
       .mockResolvedValueOnce({ ok: true, response: { operation: { status: 'Succeeded' } } })
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
-    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).not.toContain('status.failed')
     expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
-    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => { press(tree, 'common.retry').props.onPress(); await Promise.resolve() })
     expect(renderedText(tree.toJSON())).toContain('status.done')
     expect(handlers.onConfirmExecute).toHaveBeenCalledTimes(2)
   })
@@ -808,9 +849,10 @@ describe('PendingOperationCard (mobile)', () => {
     const { tree, handlers } = renderCard(makeHeldHabitMessage().pendingOperations![0], vi.fn())
     handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Failed', summary: 'Habit could not be created.' } } })
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
-    expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.unavailableRecovery')
     expect(renderedText(tree.toJSON())).not.toContain('Habit could not be created.')
-    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).not.toContain('status.failed')
+    expect(press(tree, 'common.retry')).toBeUndefined()
     expect(press(tree, 'chat.operation.approve')).toBeUndefined()
   })
 
@@ -880,7 +922,8 @@ describe('PendingOperationCard (mobile)', () => {
       await Promise.resolve()
     })
 
-    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.status.Denied')
+    expect(renderedText(tree.toJSON())).not.toContain('status.failed')
     expect(renderedText(tree.toJSON())).not.toContain('status.done')
   })
 })

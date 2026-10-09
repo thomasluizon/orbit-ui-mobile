@@ -48,6 +48,9 @@ export interface PendingOperationCardLabels {
   open: string
   openNamed: (name: string) => string
   failed: string
+  retry: string
+  batchFailed: string
+  unavailableRecovery: string
   denied: string
   unsupported: string
   more: (count: number) => string
@@ -138,6 +141,9 @@ export function buildPendingOperationCardLabels(
     open: translate('chat.action.open'),
     openNamed: (name) => translate('chat.action.openEntity', { name }),
     failed: translate('chat.operationFailed'),
+    retry: translate('common.retry'),
+    batchFailed: translate('chat.operation.batchFailed'),
+    unavailableRecovery: translate('chat.operation.unavailableRecovery'),
     denied: translate('chat.operation.status.Denied'),
     unsupported: translate('chat.operation.status.UnsupportedByPolicy'),
     more: (count) => translate('chat.preview.more', { count }),

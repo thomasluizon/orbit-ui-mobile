@@ -31,11 +31,12 @@ const defaultProps = {
   onCancelled: vi.fn(),
 }
 
+beforeEach(() => {
+  bulkCreate.mockReset()
+  defaultProps.onConfirmed.mockReset()
+})
+
 describe('BreakdownSuggestion', () => {
-  beforeEach(() => {
-    bulkCreate.mockReset()
-    defaultProps.onConfirmed.mockReset()
-  })
 
   it('withholds the batch until the approval sheet is confirmed', async () => {
     bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success']))
@@ -139,7 +140,8 @@ it('keeps complete successful proposal names reachable without editing', async (
   expect(screen.getByRole('button', { name: title })).toHaveStyle({ color: 'var(--fg-3)' })
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
   fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
-  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalled())
+  await waitFor(() => expect(screen.getByRole('button', { name: title }).closest('[data-status]')).toHaveAttribute('data-status', 'done'))
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
   const disclosure = screen.getByRole('button', { name: title })
   expect(disclosure).toHaveAttribute('aria-expanded', 'false')
   fireEvent.click(disclosure)
