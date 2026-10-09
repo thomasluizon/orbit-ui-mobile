@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { createChatThreadScroll } from '../hooks/chat-thread-scroll-core'
 
 describe('chat thread scroll', () => {
+  it('stops following when small fractional upward steps leave the bottom', () => {
+    const scroll = createChatThreadScroll()
+    scroll.recordScroll(900, 900)
+    scroll.recordScroll(899.4, 900)
+    scroll.recordScroll(898.8, 900)
+    expect(scroll.isFollowing()).toBe(false)
+  })
+
   it('follows on opening and stops when the person scrolls toward earlier messages', () => {
     const scroll = createChatThreadScroll()
     expect(scroll.isFollowing()).toBe(true)

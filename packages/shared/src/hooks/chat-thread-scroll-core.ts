@@ -16,7 +16,7 @@ export function createChatThreadScroll(): ChatThreadScroll {
       return following
     },
     recordScroll: (offset, bottomOffset) => {
-      if (previousOffset !== null && offset < previousOffset - 1) following = false
+      if (previousOffset !== null && offset < previousOffset) following = false
       if (bottomOffset - offset <= 1) following = true
       previousOffset = offset
     },
