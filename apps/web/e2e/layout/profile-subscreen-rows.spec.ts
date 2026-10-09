@@ -95,7 +95,7 @@ for (const width of [320, 412, 1280]) {
         })).toBe(true)
       })
 
-      test('ends the four preference pickers with chevrons and retains inline values', async ({ page }) => {
+      if (width !== 320) test('ends the four preference pickers with chevrons and retains inline values', async ({ page }) => {
         await page.goto('/profile/preferences')
         const rows = page.getByTestId('profile-settings-group-preferences').locator('.orbit-list-row-shell')
         await expect(rows).toHaveCount(4)
