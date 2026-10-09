@@ -70,7 +70,7 @@ describe('rate limited reads', () => {
       total += queryRetryDelay(count, error)
       expect(count).toBeLessThan(10)
     }
-    expect(total).toBeLessThanOrEqual(720_000)
+    expect(total).toBe(720_000)
     error.retryAfter = '721'
     expect(shouldRetryQuery(0, error)).toBe(false)
   })
