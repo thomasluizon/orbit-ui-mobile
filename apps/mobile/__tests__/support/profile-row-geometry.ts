@@ -102,7 +102,7 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
   return { left, top, right: left + node.getComputedWidth(), bottom: top + node.getComputedHeight(), width: node.getComputedWidth(), height: node.getComputedHeight() }
 }
 
-export function measureProfileRow(host: HostRow | HostRow[], width: number, scale: number) {
+export function measureProfileRow(host: HostRow, width: number, scale: number) {
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []

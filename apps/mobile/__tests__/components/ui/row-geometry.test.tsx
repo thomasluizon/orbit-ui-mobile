@@ -116,6 +116,18 @@ function createTags(): TagSelectionState {
 }
 
 describe('canonical row geometry in Yoga', () => {
+  it('measures canonical title and value geometry without instrumentation', async () => {
+    for (const props of [{ title: 'Tags', value: '3' }]) {
+      const tree = await mount(<ListRow {...props} onClick={vi.fn()} />)
+      try {
+        const geometry = measureProfileRow(tree.toJSON(), 412, 1)
+        const body = geometry.controls[0]!
+        expect(body.height).toBe(52)
+        if (props.value) expect(body.right - geometry.texts.find((text) => text.label === '3')!.right).toBeCloseTo(52, 1)
+      } finally { await act(() => tree.update(<></>)) }
+    }
+  })
+
   it.each(matrix)('measures primitive slots at $width and text scale $scale', async ({ width, scale }) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
     for (const props of [
