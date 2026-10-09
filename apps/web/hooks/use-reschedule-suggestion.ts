@@ -43,7 +43,7 @@ export function useRescheduleSuggestion({
     enabled: enabled && !!habitId,
     retry: (failureCount, error) => {
       const status = extractBackendStatus(error)
-      return status === 429 ? shouldRetryQuery(failureCount, error) : failureCount < 3 && (status === undefined || status < 400 || status >= 500)
+      return status === 429 ? (typeof navigator === 'undefined' || navigator.onLine) && shouldRetryQuery(failureCount, error) : failureCount < 3 && (status === undefined || status < 400 || status >= 500)
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

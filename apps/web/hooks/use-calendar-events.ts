@@ -65,7 +65,10 @@ export function useCalendarEvents(options: CalendarEventsQueryOptions) {
       return { status: 'connected', events }
     },
     enabled: options.enabled ?? true,
-    retry: (failureCount, error) => extractBackendStatus(error) === 429 && shouldRetryQuery(failureCount, error),
+    retry: (failureCount, error) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+      return extractBackendStatus(error) === 429 && shouldRetryQuery(failureCount, error)
+    },
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

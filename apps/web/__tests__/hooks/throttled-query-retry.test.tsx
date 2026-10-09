@@ -7,6 +7,7 @@ import { API } from '@orbit/shared/api'
 import { subscriptionKeys } from '@orbit/shared/query'
 import { useApiKeyManagement } from '@/hooks/use-api-key-management'
 import { useBilling } from '@/hooks/use-billing'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
@@ -68,6 +69,26 @@ describe('adapter query retry policy', () => {
     await waitFor(() => expect(result.current).toBeTruthy())
     expect(refusedFetch).toHaveBeenCalledTimes(7)
     expect(useThrottleStore.getState().error).toBeNull()
+  })
+
+  it.each([
+    { name: 'calendar events', endpoint: API.calendar.events, useHook: () => useCalendarEvents({ timeZone: 'UTC' }).error },
+    { name: 'reschedule suggestion', endpoint: API.habits.rescheduleSuggestion('habit-1'), useHook: () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }).error },
+  ])('does not retry an offline 429 from $name', async ({ endpoint, useHook }) => {
+    const offline = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const refusedFetch = vi.fn(async () => Response.json(null, { status: 429 }))
+    vi.stubGlobal('fetch', (input: string) => input.split('?')[0] === endpoint ? refusedFetch() : Promise.resolve(Response.json([])))
+    const { client, wrapper } = setupClient()
+    const { result } = renderHook(useHook, { wrapper })
+    try {
+      await act(async () => {
+        await expect(client.refetchQueries({ type: 'active' }, { cancelRefetch: false, throwOnError: true })).rejects.toMatchObject({ status: 429 })
+      })
+      await waitFor(() => expect(result.current).toMatchObject({ status: 429 }))
+      expect(refusedFetch).toHaveBeenCalledOnce()
+    } finally {
+      offline.mockRestore()
+    }
   })
 
   it('keeps billing pending through Retry-After until automatic recovery', async () => {
