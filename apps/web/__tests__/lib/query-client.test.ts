@@ -99,13 +99,13 @@ describe('createQueryClient', () => {
       }))).toBe(false)
     })
 
-    it('does not retry a rate limit', () => {
+    it('retries a rate limit', () => {
       const retry = createQueryClient().getDefaultOptions().queries?.retry as (
         failureCount: number,
         error: Error
       ) => boolean
 
-      expect(retry(0, new ApiError(429, 'Too many requests', {}))).toBe(false)
+      expect(retry(0, new ApiError(429, 'Too many requests', {}))).toBe(true)
     })
 
     it('does not retry when offline', () => {
@@ -144,4 +144,30 @@ describe('getQueryClient', () => {
     const client2 = getQueryClient()
     expect(client1).toBe(client2)
   })
+})
+
+it('keeps a 429 read pending until the retry returns data', async () => {
+  vi.useFakeTimers()
+  const client = createQueryClient()
+  const queryKey = habitKeys.list({})
+  const error = Object.assign(new ApiError(429, 'Unavailable'), { retryAfter: '60' })
+  const queryFn = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(['Recovered'])
+  const states: string[] = []
+  const unsubscribe = client.getQueryCache().subscribe(() => {
+    const status = client.getQueryState(queryKey)?.status
+    if (status) states.push(status)
+  })
+  const result = client.fetchQuery({ queryKey, queryFn }).catch((failure: unknown) => failure)
+  try {
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(client.getQueryState(queryKey)?.status).toBe('pending')
+    expect(queryFn).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await result).toEqual(['Recovered'])
+    expect(states).not.toContain('error')
+  } finally {
+    unsubscribe()
+    client.clear()
+    vi.useRealTimers()
+  }
 })

@@ -168,14 +168,15 @@ async function parseApiResponse<T>(
   requestId: string | null,
   path: string,
   schema?: ZodType<T>,
+  method = 'GET',
 ): Promise<T> {
   if (!response.ok) {
     const error = attachRequestIdToPayload(
       (await response.json().catch(() => null)) as ApiErrorPayload | null,
       requestId,
     )
-    const failure = createApiClientError(response.status, error, `Request failed: ${response.status}`)
-    useThrottleStore.getState().show(response.status, error)
+    const failure = createApiClientError(response.status, error, `Request failed: ${response.status}`, getResponseHeader(response.headers, 'retry-after'))
+    if (!['GET', 'HEAD'].includes(method.toUpperCase())) useThrottleStore.getState().show(response.status, error)
     throw failure
   }
 
@@ -223,6 +224,7 @@ async function handleUnauthorized<T>(
           retryWithLatest.requestId,
           path,
           schema,
+          effectiveOptions.method,
         ),
         authorizingToken: retryWithLatest.tokenUsed,
       }
@@ -245,7 +247,7 @@ async function handleUnauthorized<T>(
       const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
       if (retry.response.status !== 401) {
         return {
-          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema),
+          data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema, effectiveOptions.method),
           authorizingToken: retry.tokenUsed,
         }
       }
@@ -307,7 +309,7 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
     const { useAuthStore } = await import('@/stores/auth-store')
     if (!latestToken && !useAuthStore.getState().isAuthenticated) {
       return {
-        data: await parseApiResponse<T>(response, requestId, path, schema),
+        data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method),
         authorizingToken: null,
       }
     }
@@ -327,7 +329,7 @@ export async function apiClientWithAuthorizingToken<T = unknown>(
   }
 
   return {
-    data: await parseApiResponse<T>(response, requestId, path, schema),
+    data: await parseApiResponse<T>(response, requestId, path, schema, effectiveOptions.method),
     authorizingToken: tokenUsed,
   }
 }

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { habitKeys } from '@orbit/shared/query'
+import { habitKeys, shouldRetryQuery } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { extractBackendStatus } from '@orbit/shared/utils'
 import type {
@@ -35,7 +35,7 @@ export function useRescheduleSuggestion({
     enabled: enabled && !!habitId,
     retry: (failureCount, error) => {
       const status = extractBackendStatus(error)
-      return failureCount < 3 && (status === undefined || status < 400 || status >= 500)
+      return status === 429 ? shouldRetryQuery(failureCount, error) : failureCount < 3 && (status === undefined || status < 400 || status >= 500)
     },
     staleTime: 5 * 60 * 1000,
   })

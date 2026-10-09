@@ -1,3 +1,5 @@
+import { createApiClientError, extractBackendStatus } from '../utils/error-utils'
+import { errorRetryAfter } from './retry'
 import { accountEventPayloadSchema, type AccountEventPayload } from '../types/account-event'
 
 export type ParsedAccountEvent =
@@ -52,6 +54,8 @@ function parseBlock(block: string): ParsedAccountEvent | null {
 
 interface StreamResponse {
   ok: boolean
+  status?: number
+  headers?: { get: (name: string) => string | null }
   body: { getReader: () => ReadableStreamDefaultReader<Uint8Array> } | null
 }
 
@@ -89,27 +93,35 @@ export async function consumeAccountEventStream(options: AccountEventStreamOptio
   let reportNextFailure = options.resumed ?? false
   while (!options.signal.aborted) {
     let opened = false
+    let retryAfter: number | null = null
     try {
       const response = await options.open(options.signal, lastEventId)
-      if (!response.ok || !response.body) throw new Error('Account event stream unavailable')
+      const body = requireStreamBody(response)
       opened = true
       reportNextFailure = true
       if (streamIsActive(options.signal)) options.onOpen(Date.now(), Boolean(lastEventId))
-      await readEvents(response.body, options.signal, (event) => {
+      await readEvents(body, options.signal, (event) => {
         if (event.id) lastEventId = event.id
         options.onEvent(event)
         retry = 0
       })
-    } catch {
+    } catch (error: unknown) {
+      retryAfter = errorRetryAfter(error)
       retry = Math.min(retry + 1, 5)
-      if (!opened && reportNextFailure && streamIsActive(options.signal)) {
+      if (!opened && reportNextFailure && extractBackendStatus(error) !== 429 && streamIsActive(options.signal)) {
         reportNextFailure = false
         options.onFirstFailure?.(Date.now())
       }
     }
     if (opened && streamIsActive(options.signal)) options.onReconnect()
-    await waitForRetry(options.signal, Math.min(1000 * 2 ** retry, 30000))
+    await waitForRetry(options.signal, retryAfter ?? Math.min(1000 * 2 ** retry, 30000))
   }
+}
+
+function requireStreamBody(response: StreamResponse): NonNullable<StreamResponse['body']> {
+  if (!response.ok) throw createApiClientError(response.status ?? 503, null, 'Account event stream unavailable', response.headers?.get('retry-after'))
+  if (!response.body) throw new Error('Account event stream unavailable')
+  return response.body
 }
 
 async function readEvents(
