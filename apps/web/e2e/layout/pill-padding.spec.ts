@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -30,7 +31,6 @@ test('keeps both client-rendered delete actions padded on both sides', async ({ 
     (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
     (route) => route.fulfill({ json: habitsPage }),
   )
-  await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
 
   await page.goto('/')
   await page.getByRole('button', { name: ptBr.habits.listOptions }).click()

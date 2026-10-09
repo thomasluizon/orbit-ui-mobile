@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
+import { test } from './layout-test'
 import { expectOneFieldIndicator } from './focus-indicators'
 import en from '@orbit/shared/i18n/en.json'
 

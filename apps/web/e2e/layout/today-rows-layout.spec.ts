@@ -1,4 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
+import { test } from './layout-test'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
@@ -34,7 +35,6 @@ for (const mode of ['dark', 'light'] as const) {
       await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
         (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items, totalCount: items.length } }))
       await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 5 } }))
-      await page.clock.setFixedTime(new Date(`${selectedDate}T12:00:00Z`))
       await page.goto('/')
       const parent = page.getByTestId('habit-row').filter({ hasText: 'Parent' })
       const disclosure = parent.locator('[data-habit-row-control="disclosure"]')
@@ -123,7 +123,6 @@ for (const width of [320, 600]) {
         await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({
           json: notificationsResponseSchema.parse({ items: [proactive], unreadCount: 1 }),
         }))
-        await page.clock.setFixedTime(new Date(`${selectedDate}T12:00:00Z`))
         await page.goto('/')
         const disclosure = page.locator('[data-habit-row-control="disclosure"]')
         await expect(disclosure).toBeVisible()

@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'

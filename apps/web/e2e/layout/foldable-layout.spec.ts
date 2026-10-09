@@ -1,5 +1,6 @@
 import { completeInstallOnboarding } from './install-onboarding'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
@@ -94,7 +95,6 @@ for (const { width, height } of windows) {
       test(`${name} centres content without overflow or clipped chrome`, async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: 'en', url: LAYOUT_ORIGIN }])
         await setLayoutProfileSession(context, profileFixture)
-        await page.clock.setFixedTime(new Date(`${fixtureDate}T12:00:00Z`))
         const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
           items: Array.from({ length: 12 }, (_, index) => makeHabitScheduleItem({
             id: `foldable-habit-${index}`, title: `${'Read a longer book chapter '.repeat(4)}${index}`,

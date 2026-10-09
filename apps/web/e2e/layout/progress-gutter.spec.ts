@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'

@@ -1,5 +1,6 @@
 import { completeInstallOnboarding } from './install-onboarding'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
+import { test } from './layout-test'
 import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'

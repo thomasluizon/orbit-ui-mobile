@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -68,7 +69,6 @@ for (const width of [412, 1280]) {
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(leaf.id)}`, (route) => route.fulfill({ json: metrics }))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
           (route) => route.fulfill({ json: goals }))
-        await page.clock.setFixedTime(new Date(`${selectedDate}T12:00:00Z`))
       })
 
       test('the unlogged leaf header uses the bare empty status ring', async ({ page }) => {

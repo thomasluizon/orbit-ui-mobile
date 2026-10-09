@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext } from '@playwright/test'
+import { expect, type APIRequestContext } from '@playwright/test'
+import { test } from './layout-test'
 import { z } from 'zod'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -43,7 +44,6 @@ for (const width of [412, 1280]) {
     await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 5 } }))
     const cleared = await request.delete(mutationJournalUrl)
     expect(cleared.ok()).toBe(true)
-    await page.clock.setFixedTime(new Date(`${selectedDate}T12:00:00Z`))
     await page.goto('/')
     const list = page.locator('[data-habit-list]')
     const rows = list.getByTestId('habit-row')

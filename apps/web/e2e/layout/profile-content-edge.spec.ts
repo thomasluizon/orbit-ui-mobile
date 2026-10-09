@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -38,7 +39,6 @@ for (const locale of ['en', 'pt-BR'] as const) {
       await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
       await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
         (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }))
-      await page.clock.setFixedTime(new Date(`${selectedDate}T12:00:00Z`))
       await page.goto(`/?date=${selectedDate}`)
       await page.getByRole('button', { name: words.habits.listOptions }).click()
       await page.getByRole('menu', { name: words.habits.listOptions })

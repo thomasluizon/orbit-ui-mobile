@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'

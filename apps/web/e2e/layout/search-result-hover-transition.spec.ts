@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page, type BrowserContext } from '@playwright/test'
+import { expect, type Locator, type Page, type BrowserContext } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
