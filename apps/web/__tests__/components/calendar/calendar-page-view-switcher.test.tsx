@@ -1,6 +1,8 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import type { CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
@@ -129,7 +131,9 @@ const calendarRangeViewProps: { current: Record<string, unknown> | null } = { cu
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: toastError, showSuccess: toastSuccess }) }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { start: string; end: string }) => key === 'calendar.range.label'
+    ? (calendarLocale === 'pt-BR' ? ptBR : en).calendar.range.label.replace('{start}', values!.start).replace('{end}', values!.end)
+    : key,
   useLocale: () => calendarLocale,
 }))
 
@@ -218,7 +222,7 @@ vi.mock('@/app/(app)/calendar/_components/calendar-shell', async (importOriginal
   return {
     ...actual,
     CalendarHeader: (props: React.ComponentProps<typeof actual.CalendarHeader>) => <actual.CalendarHeader {...props}
-      viewSelector={<>{!props.periodNavigation ? <button type="button" data-testid="calendar-header" onClick={props.onNextMonth} /> : null}{props.viewSelector}</>} />,
+      viewSelector={<>{!props.period ? <button type="button" data-testid="calendar-header" onClick={props.onNextMonth} /> : null}{props.viewSelector}</>} />,
     CalendarLegend: () => <div data-testid="calendar-legend" />,
   }
 })
@@ -351,16 +355,16 @@ describe('CalendarPage view switcher', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     const header = screen.getByTestId('calendar-header-group')
     const selector = screen.getByRole('radiogroup')
-    const pager = [screen.getByRole('button', { name: 'common.previousWeek' }), screen.getByRole('button', { name: 'common.nextWeek' }), screen.getByRole('button', { name: /, calendar.goToCurrentWeek$/ })]
+    const pager = [screen.getByRole('button', { name: 'common.previousWeek' }), screen.getByRole('button', { name: 'common.nextWeek' }), screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })]
     for (const control of pager) {
       expect(header).toContainElement(control)
       expect(control.compareDocumentPosition(selector) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     }
     const label = pager[2]!.textContent
     fireEvent.click(pager[1]!)
-    expect(screen.getByRole('button', { name: /, calendar.goToCurrentWeek$/ }).textContent).not.toBe(label)
+    expect(screen.getByRole('button', { name: /^calendar.period.goToCurrent/ }).textContent).not.toBe(label)
     fireEvent.click(pager[0]!)
-    expect(screen.getByRole('button', { name: /, calendar.goToCurrentWeek$/ }).textContent).toBe(label)
+    expect(screen.getByRole('button', { name: /^calendar.period.goToCurrent/ }).textContent).toBe(label)
     expect(screen.getByRole('radio', { name: 'calendar.view.week' })).toHaveAttribute('aria-checked', 'true')
   })
   it.each([

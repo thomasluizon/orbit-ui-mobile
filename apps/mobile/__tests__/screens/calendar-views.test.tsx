@@ -134,6 +134,9 @@ vi.mock("react-i18next", () => ({
       const messages = state.language === 'en' ? en : ptBR;
       if (state.periodGeometry && key === 'calendar.range.label') return messages.calendar.range.label.replace('{start}', String(params?.start)).replace('{end}', String(params?.end));
       if (key === 'dates.today') return messages.dates.today;
+      if (key === 'dates.todayWithDate') return messages.dates.todayWithDate.replace('{date}', String(params?.date));
+      if (key === 'calendar.period.goToCurrent') return messages.calendar.period.goToCurrent.replace('{period}', String(params?.period));
+      if (key === 'calendar.timeGrid.noSetTime') return messages.calendar.timeGrid.noSetTime;
       if (key === 'calendar.agenda.timedEntryLabel') return messages.calendar.agenda.timedEntryLabel.replace('{title}', String(params?.title)).replace('{time}', String(params?.time));
       return params ? `${key}:${JSON.stringify(params)}` : key;
     },
@@ -252,7 +255,6 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", async (importOrigina
     calendarGridProps.header = props;
     return <actual.CalendarHeader {...(props as React.ComponentProps<typeof actual.CalendarHeader>)} />;
   },
-  CalendarWeekNav: actual.CalendarWeekNav,
   CalendarLegend: () => <View testID="calendar-legend" />,
   };
 });
@@ -437,7 +439,7 @@ describe("CalendarScreen views (mobile)", () => {
     press('common.previousWeek');
     expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2)).toEqual(initial.slice(0, 2));
     press('common.previousWeek');
-    const today = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', Today'))[0];
+    const today = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', go to today'))[0];
     expect(today).toBeDefined();
     TestRenderer.act(() => today!.props.onPress());
     expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2)).toEqual(initial.slice(0, 2));
@@ -459,7 +461,7 @@ describe("CalendarScreen views (mobile)", () => {
         (host.children ?? []).filter((child): child is Host => typeof child !== 'string').map(findHeader).find(Boolean);
       const header = [tree.toJSON()].flat().map(findHeader).find(Boolean)!;
       const measured = measureProfileRow(header, 320, scale);
-      const pager = measured.controls.filter((control) => ['common.previousWeek', 'common.nextWeek'].includes(control.accessibilityLabel ?? '') || control.accessibilityLabel?.endsWith(', calendar.goToCurrentWeek'));
+      const pager = measured.controls.filter((control) => ['common.previousWeek', 'common.nextWeek'].includes(control.accessibilityLabel ?? '') || control.accessibilityLabel?.endsWith(', ir para hoje'));
       expect(pager).toHaveLength(3);
       const segments = measured.controls.filter((control) => control.labels.some((label) => label.startsWith('calendar.view.')));
       expect(segments).toHaveLength(4);
@@ -477,8 +479,8 @@ describe("CalendarScreen views (mobile)", () => {
         expect.soft(Math.min(...segments.map((segment) => segment.top))).toBe(76);
         expect.soft(title.lines).toBe(1);
       }
-      const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', calendar.goToCurrentWeek'))[0]!;
-      expect(StyleSheet.flatten(titleControl.props.style({ pressed: true })).borderRadius).toBeGreaterThanOrEqual(pager.find((control) => control.labels.length)!.height / 2);
+      const titleControl = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel?.endsWith(', ir para hoje'))[0]!;
+      expect(StyleSheet.flatten(titleControl.props.style({ pressed: true })).borderRadius).toBe(12);
       const initial = pager.find((control) => control.labels.length)!.labels[0];
       for (const label of ['common.nextWeek', 'common.previousWeek']) {
         const control = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]!;
@@ -498,7 +500,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
     pressView(tree, 'range');
     try {
-      const findRange = (host: Host): Host | undefined => (host.children ?? []).some((child) => typeof child !== 'string' && child.type === 'Text' && child.children?.includes('30 ago a 12 set')) ? host :
+      const findRange = (host: Host): Host | undefined => host.props.testID === 'calendar-range-navigation' ? host :
         (host.children ?? []).filter((child): child is Host => typeof child !== 'string').map(findRange).find(Boolean);
       const navigation = [tree.toJSON()].flat().map(findRange).find(Boolean)!;
       const header = { type: 'View', props: { style: { paddingHorizontal: 16 } }, children: [navigation] };
@@ -507,14 +509,14 @@ describe("CalendarScreen views (mobile)", () => {
       expect(header).toBeDefined();
       const measured = measureProfileRow(header, 320, scale);
       const label = measured.texts.find((text) => text.label === '30 ago a 12 set')!;
-      expect(measured.controls).toHaveLength(2);
+      expect(measured.controls).toHaveLength(3);
       expect(label.clipped).toBe(false);
       if (scale === 1) {
         expect(label.lines).toBe(1);
         for (const control of measured.controls) expect(Math.abs((label.top + label.bottom - control.top - control.bottom) / 2)).toBeLessThanOrEqual(2);
       }
       for (const control of measured.controls) {
-        expect(control.left).toBeGreaterThanOrEqual(label.right + 12);
+        expect(control.left).toBeGreaterThanOrEqual(16);
         expect(control.right).toBeLessThanOrEqual(304);
         expect(control.width).toBeGreaterThanOrEqual(48);
         expect(control.height).toBeGreaterThanOrEqual(48);
@@ -666,7 +668,7 @@ describe("CalendarScreen views (mobile)", () => {
           node.props.testID === "calendar-agenda-view",
       ),
     ).toHaveLength(1);
-    expect(hostTexts(tree!).some((text) => String(text).startsWith("calendar.agenda.today,"))).toBe(true);
+    expect(hostTexts(tree!).some((text) => String(text).startsWith("Today,"))).toBe(true);
     const agendaRows = tree!.root.findAll((node) => node.type === ListRow);
     expect(agendaRows).toHaveLength(2);
     expect(
@@ -678,9 +680,9 @@ describe("CalendarScreen views (mobile)", () => {
     ).toHaveLength(8);
     for (const row of agendaRows) {
       expect(row.props.readOnly).not.toBe(true);
-      expect(row.props.compact).toBe(true);
+      expect(row.props.compact).not.toBe(true);
       expect(row.props.textMode).toBe("personal");
-      expect(row.props.value).toBeUndefined();
+      expect(row.props.value).toBeTypeOf("string");
       expect(row.props.onPress).toBeUndefined();
       expect(row.props.onClick).toBeTypeOf("function");
     }

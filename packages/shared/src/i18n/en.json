@@ -386,6 +386,7 @@
   },
   "dates": {
     "today": "Today",
+    "todayWithDate": "Today, {date}",
     "goToToday": "Go to today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
@@ -983,7 +984,6 @@
   },
   "calendar": {
     "agenda": {
-      "today": "Today",
       "empty": "Nothing scheduled",
       "timedEntryLabel": "{title}, {time}"
     },
@@ -1045,6 +1045,9 @@
       "week": "Week",
       "range": "Range",
       "agenda": "Agenda"
+    },
+    "period": {
+      "goToCurrent": "{period}, go to today"
     },
     "range": {
       "label": "{start} to {end}",

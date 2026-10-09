@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { useTranslation } from 'react-i18next'
 import Svg, { Circle } from 'react-native-svg'
 import { ChevronDown, ChevronLeft, ChevronRight } from '@/components/ui/icons'
@@ -20,7 +21,16 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
   onCurrentMonth: () => void
   onSelectMonth: (month: number, year: number) => void
-  periodNavigation?: ReactNode
+  period?: {
+    view: 'week' | 'range' | 'agenda'
+    label: string
+    previousLabel: string
+    nextLabel: string
+    onPrevious: () => void
+    onNext: () => void
+    onCurrent: () => void
+    nextDisabled?: boolean
+  }
   viewSelector?: ReactNode
   tokens: Tokens
 }
@@ -42,7 +52,7 @@ function CalendarMonthPicker({ currentMonth, tokens, onSelectMonth, choosingYear
   </View>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, periodNavigation, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector, tokens }: Readonly<CalendarHeaderProps>) {
   const { t, i18n } = useTranslation()
   const styles = createStyles(tokens)
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, i18n.language)
@@ -52,41 +62,22 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
   const { sheetRef, closeSheet } = useSheetHost()
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <View testID="calendar-header-group" style={styles.header}>
-    {!periodNavigation ? <View testID="calendar-month-navigation" style={styles.navigation}>
-      <Pressable accessibilityRole="button" accessibilityLabel={previousMonthLabel} onPress={onPreviousMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}>
+    <View testID={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} style={styles.navigation}>
+      <Pressable accessibilityRole="button" accessibilityLabel={period?.previousLabel ?? previousMonthLabel} onPress={period?.onPrevious ?? onPreviousMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
+      {period ? <Pressable accessibilityRole="button" accessibilityLabel={t('calendar.period.goToCurrent', { period: period.label })} onPress={period.onCurrent} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}>
+        <Text style={styles.span}>{period.label}</Text>
+      </Pressable> : <Pressable accessibilityRole="button" accessibilityLabel={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} accessibilityState={{ expanded: pickerOpen }} onPress={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}>
         <Text style={styles.title} numberOfLines={1}>{heading.month}{heading.year ? <Text style={styles.year}> {heading.year}</Text> : null}</Text>
         <ChevronDown size={16} color={tokens.fg2} strokeWidth={2} />
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={nextMonthLabel} onPress={onNextMonth} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
-    </View> : null}
-    {periodNavigation}
+      </Pressable>}
+      <Pressable accessibilityRole="button" accessibilityLabel={period?.nextLabel ?? nextMonthLabel} onPress={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled} accessibilityState={{ disabled: period?.nextDisabled }} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed, period?.nextDisabled && { opacity: 0.4 }]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
+    </View>
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       headerAccessory={<Pressable accessibilityRole="button" accessibilityLabel={`${year}, ${t('common.selectYear')}`} accessibilityState={{ expanded: choosingYear }} onPress={() => setChoosingYear(!choosingYear)} style={({ pressed }) => [styles.titleButton, pressed && styles.pressed]}><Text style={styles.label}>{year}</Text><ChevronDown size={16} color={tokens.fg2} strokeWidth={2} /></Pressable>}
       actions={<PillButton size="sm" variant="ghost" onClick={() => closeSheet(() => { setPickerOpen(false); onCurrentMonth() })}>{t('calendar.thisMonth')}</PillButton>}>
       <CalendarMonthPicker currentMonth={currentMonth} tokens={tokens} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false) }} />
     </Sheet> : null}
-  </View>
-}
-
-interface CalendarWeekNavProps {
-  weekLabel: string
-  previousWeekLabel: string
-  nextWeekLabel: string
-  currentWeekLabel: string
-  onPreviousWeek: () => void
-  onNextWeek: () => void
-  onCurrentWeek: () => void
-  tokens: Tokens
-}
-
-export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, currentWeekLabel, onPreviousWeek, onNextWeek, onCurrentWeek, tokens }: Readonly<CalendarWeekNavProps>) {
-  const styles = createStyles(tokens)
-  return <View testID="calendar-week-navigation" style={styles.navigation}>
-    <Pressable accessibilityRole="button" accessibilityLabel={previousWeekLabel} onPress={onPreviousWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronLeft size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
-    <PillButton size="sm" variant="ghost" minimumHeight={48} accessibleName={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</PillButton>
-    <Pressable accessibilityRole="button" accessibilityLabel={nextWeekLabel} onPress={onNextWeek} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}><ChevronRight size={20} color={tokens.fg2} strokeWidth={2} /></Pressable>
   </View>
 }
 
@@ -116,9 +107,10 @@ function createStyles(tokens: Tokens) {
     header: { gap: 16, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
     navigation: { minHeight: 48, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8 },
     iconButton: { minWidth: 48, minHeight: 48, borderRadius: 999, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: tokens.hairlineStrong, backgroundColor: 'transparent' },
-    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
+    titleButton: { maxWidth: '100%', minWidth: 48, minHeight: 48, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: 'transparent' },
     pressed: { backgroundColor: tokens.bgHover },
     title: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, color: tokens.fg1 },
+    span: { fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2, fontVariant: ['tabular-nums'] },
     year: { color: tokens.fg2 },
     label: { fontFamily: 'Geist_500Medium', fontSize: 16, color: tokens.fg1 },
     selectedMonth: { borderWidth: 2, borderColor: tokens.fg1 },

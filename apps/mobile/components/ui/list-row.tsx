@@ -20,6 +20,10 @@ function getDisabledStyle(disabled: boolean) {
   return disabled ? styles.disabled : null
 }
 
+function hasSupportingLine({ description, textMode, value }: Readonly<Pick<ListRowProps, 'description' | 'textMode' | 'value'>>) {
+  return !!description || (textMode === 'personal' && !!value)
+}
+
 function getBodyStyle(compact: boolean, hasAction: boolean, inset: boolean, hasDescription: boolean, compactForm: boolean, hasTrailing: boolean) {
   return [styles.body, compact && !hasDescription ? styles.compactBody : null, compactForm && !hasDescription ? styles.formBody : null, !inset ? styles.bareBody : null, hasDescription ? styles.descriptionBody : null, hasAction ? styles.bodyWithAction : null, compact && !hasDescription && hasAction ? { minHeight: TOUCH_TARGET_MIN + 8 } : null, compact && !hasDescription && hasTrailing ? styles.controlRowBody : null]
 }
@@ -54,12 +58,12 @@ function personalTextProps(textMode: ListRowProps['textMode'], expanded: boolean
   return textMode === 'personal' ? { expanded } : {}
 }
 
-function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !description, readOnly, titleColor, valueColor, personalExpanded, valueTextMode }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'personalExpanded' | 'valueTextMode'> & { titleColor: string; valueColor: string }>) {
+function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, compact = !hasSupportingLine({ description, textMode, value }), readOnly, titleColor, valueColor, personalExpanded, valueTextMode }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'personalExpanded' | 'valueTextMode'> & { titleColor: string; valueColor: string }>) {
   const Title = textMode === 'personal' ? PersonalText : Text
   const Description = textMode === 'personal' ? PersonalText : Text
   const keepsControlInline = hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue, wrapTitle, compact, !!trailing), keepsControlInline ? styles.labelControlText : null]}>
-    <Title {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle), { color: titleColor }]}>{title}</Title>
+    <Title {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)), { color: titleColor }]}>{title}</Title>
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
@@ -90,24 +94,37 @@ function useRowDisclosure(original: Readonly<ListRowProps & { ref?: Ref<View> }>
   return { props, ChevronIcon }
 }
 
+function useRowInteraction(disabled: boolean, hoverColor: string) {
+  const [pressed, setPressed] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const highlighted = !disabled && (pressed || focused || hovered)
+  return { pressed, highlighted,
+    background: (pressing: boolean) => !disabled && (pressing || highlighted) ? { backgroundColor: hoverColor } : null,
+    onPressIn: () => setPressed(true), onPressOut: () => setPressed(false),
+    onFocus: () => setFocused(true), onBlur: () => setFocused(false),
+    onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false),
+  }
+}
+
 export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const { props, ChevronIcon } = useRowDisclosure(original)
-  const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { ref, accessibilityLabel, expanded, icon, description, trailing, danger = false, action, chevron = true, compact = !description, inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
+  const { ref, accessibilityLabel, expanded, icon, description, trailing, danger = false, action, chevron = true, compact = !hasSupportingLine(props), inset = true, inForm = false, disabled = false, onClick, readOnly = false } = props
+  const interaction = useRowInteraction(disabled, tokens.bgHover)
   const rowColors = { iconColor: danger ? tokens.statusBad : tokens.fg1 }
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const compactForm = inForm && props.compact === true
-  const bodyStyle = getBodyStyle(compact, !!action, inset, !!description, compactForm, !!trailing)
+  const bodyStyle = getBodyStyle(compact, !!action, inset, hasSupportingLine(props), compactForm, !!trailing)
   const body: ReactNode = (
-    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' || (props.wrapTitle && trailing) ? styles.labelContent : null, bodyPressed ? { transform: [{ scale: 0.96 }] } : null]}>
+    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, props.textMode === 'label' || (props.wrapTitle && trailing) ? styles.labelContent : null, interaction.pressed ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View importantForAccessibility="no-hide-descendants" style={styles.iconSlot}>
           {renderLeadingIcon(icon, rowColors.iconColor)}
         </View>
       ) : null}
-      <RowTextContent {...props} titleColor={titleColor} valueColor={bodyPressed ? tokens.fg2 : tokens.fg3} />
+      <RowTextContent {...props} titleColor={titleColor} valueColor={interaction.highlighted ? tokens.fg2 : tokens.fg3} />
       {trailing && props.textMode !== 'label' ? <View style={styles.trailing}>{trailing}</View> : null}
       {!readOnly && chevron ? <View importantForAccessibility="no-hide-descendants" style={chevronStyle(props.textMode)}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.8} /></View> : null}
     </AnimatedContent>
@@ -118,7 +135,7 @@ export function ListRow(original: Readonly<ListRowProps & { ref?: Ref<View> }>) 
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable ref={ref} focusOffset={-6} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled, expanded }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), pressed ? { backgroundColor: tokens.bgHover } : null]}>{body}</Pressable>
+        <Pressable ref={ref} focusOffset={-6} accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled, expanded }} disabled={disabled} onPress={onClick} onPressIn={interaction.onPressIn} onPressOut={interaction.onPressOut} onFocus={interaction.onFocus} onBlur={interaction.onBlur} onHoverIn={interaction.onHoverIn} onHoverOut={interaction.onHoverOut} style={({ pressed }) => [bodyStyle, getDisabledStyle(disabled), interaction.background(pressed)]}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.action, { marginVertical: description ? 8 : 4, marginEnd: inset ? compactForm ? 12 : 16 : 0 }, pressed ? { backgroundColor: tokens.bgHover } : null]}>

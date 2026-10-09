@@ -17,7 +17,16 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
   onCurrentMonth: () => void
   onSelectMonth: (month: number, year: number) => void
-  periodNavigation?: ReactNode
+  period?: {
+    view: 'week' | 'range' | 'agenda'
+    label: string
+    previousLabel: string
+    nextLabel: string
+    onPrevious: () => void
+    onNext: () => void
+    onCurrent: () => void
+    nextDisabled?: boolean
+  }
   viewSelector?: ReactNode
 }
 
@@ -39,7 +48,7 @@ function CalendarMonthPicker({ currentMonth, onSelectMonth, choosingYear, year, 
   </div>
 }
 
-export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, periodNavigation, viewSelector }: Readonly<CalendarHeaderProps>) {
+export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nextMonthLabel, onPreviousMonth, onNextMonth, onCurrentMonth, onSelectMonth, period, viewSelector }: Readonly<CalendarHeaderProps>) {
   const pickerId = useId()
   const yearButtonRef = useRef<HTMLButtonElement>(null)
   const t = useTranslations()
@@ -51,40 +60,24 @@ export function CalendarHeader({ currentMonth, todayKey, previousMonthLabel, nex
   const heading = formatCalendarMonthHeading(currentMonth, todayKey, locale)
   const chooseMonth = (month: number, year: number) => closeSheet(() => { setPickerOpen(false); onSelectMonth(month, year) })
   return <div data-testid="calendar-header-group" className="flex flex-col gap-4 px-4 pt-3 pb-6">
-    {!periodNavigation ? <div data-testid="calendar-month-navigation" className="flex min-h-12 flex-wrap items-center justify-center gap-2">
-      <button type="button" className={headerButton} aria-label={previousMonthLabel} onClick={onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
-      <button type="button" className={`${titleButton} gap-1 px-3 whitespace-nowrap`} style={{ fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--fg-1)' }}
+    <div data-testid={period ? `calendar-${period.view === 'agenda' ? 'week' : period.view}-navigation` : 'calendar-month-navigation'} className="flex min-h-12 flex-wrap items-center justify-center gap-2">
+      <button type="button" className={headerButton} aria-label={period?.previousLabel ?? previousMonthLabel} onClick={period?.onPrevious ?? onPreviousMonth}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
+      {period ? <button type="button" data-calendar-period-title className={`${titleButton} orbit-calendar-span-title`}
+        style={{ padding: '8px 16px', maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '0.875rem', color: 'var(--fg-2)', fontVariantNumeric: 'tabular-nums' }}
+        aria-label={t('calendar.period.goToCurrent', { period: period.label })} onClick={period.onCurrent}><span>{period.label}</span></button> :
+      <button type="button" className={`${titleButton} gap-1 whitespace-nowrap`} style={{ padding: '8px 16px', fontFamily: 'var(--font-display)', fontSize: '1.375rem', fontWeight: 500, color: 'var(--fg-1)' }}
         aria-label={`${heading.month}${heading.year ? ` ${heading.year}` : ''}, ${t('calendar.monthPicker')}`} aria-haspopup="dialog" aria-expanded={pickerOpen} aria-controls={pickerId} onClick={() => { setYear(currentMonth.getFullYear()); setChoosingYear(false); setPickerOpen(true) }}>
         <span>{heading.month}{heading.year ? <> <span style={{ color: 'var(--fg-2)' }}>{heading.year}</span></> : null}</span>
         <ChevronDown size={16} strokeWidth={2} aria-hidden="true" />
-      </button>
-      <button type="button" className={headerButton} aria-label={nextMonthLabel} onClick={onNextMonth}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
-    </div> : null}
-    {periodNavigation}
+      </button>}
+      <button type="button" className={`${headerButton} disabled:opacity-40`} aria-label={period?.nextLabel ?? nextMonthLabel} onClick={period?.onNext ?? onNextMonth} disabled={period?.nextDisabled}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
+    </div>
     {viewSelector}
     {pickerOpen ? <Sheet ref={sheetRef} open accessibleTitle={t('calendar.monthPicker')} onClose={() => setPickerOpen(false)} virtualizedBody={choosingYear}
       headerAccessory={<button ref={yearButtonRef} type="button" className={`${titleButton} px-3`} aria-label={`${year}, ${t('common.selectYear')}`} aria-expanded={choosingYear} aria-controls={pickerId} onClick={() => setChoosingYear(!choosingYear)}>{year}<ChevronDown size={16} strokeWidth={2} aria-hidden="true" /></button>}
       actions={<PillButton size="sm" variant="ghost" onClick={() => closeSheet(() => { setPickerOpen(false); onCurrentMonth() })}>{t('calendar.thisMonth')}</PillButton>}>
       <div id={pickerId} className="flex min-h-0 flex-col"><CalendarMonthPicker currentMonth={currentMonth} onSelectMonth={chooseMonth} choosingYear={choosingYear} year={year} onSelectYear={(nextYear) => { setYear(nextYear); setChoosingYear(false); yearButtonRef.current?.focus() }} /></div>
     </Sheet> : null}
-  </div>
-}
-
-interface CalendarWeekNavProps {
-  weekLabel: string
-  previousWeekLabel: string
-  nextWeekLabel: string
-  currentWeekLabel: string
-  onPreviousWeek: () => void
-  onNextWeek: () => void
-  onCurrentWeek: () => void
-}
-
-export function CalendarWeekNav({ weekLabel, previousWeekLabel, nextWeekLabel, currentWeekLabel, onPreviousWeek, onNextWeek, onCurrentWeek }: Readonly<CalendarWeekNavProps>) {
-  return <div data-testid="calendar-week-navigation" className="flex min-h-12 flex-wrap items-center justify-center gap-2">
-    <button type="button" className={headerButton} aria-label={previousWeekLabel} onClick={onPreviousWeek}><ChevronLeft size={20} strokeWidth={2} aria-hidden="true" /></button>
-    <PillButton size="sm" variant="ghost" minimumHeight={48} accessibleName={`${weekLabel}, ${currentWeekLabel}`} onClick={onCurrentWeek}>{weekLabel}</PillButton>
-    <button type="button" className={headerButton} aria-label={nextWeekLabel} onClick={onNextWeek}><ChevronRight size={20} strokeWidth={2} aria-hidden="true" /></button>
   </div>
 }
 

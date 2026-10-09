@@ -217,7 +217,7 @@ export function CalendarDayDetail({
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
-    return formatCalendarDayTitle(dateStr, locale, today, t('dates.today'))
+    return formatCalendarDayTitle(dateStr, locale, today, (date) => t('dates.todayWithDate', { date }))
   }, [dateStr, locale, today, t])
 
   const filteredEntries = useMemo(

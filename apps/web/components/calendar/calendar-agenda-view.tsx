@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { CalendarEntryDetails } from './calendar-entry-details'
 import { addDays, eachDayOfInterval } from 'date-fns'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { capitalizeFirstLetter, formatAPIDate } from '@orbit/shared/utils'
+import { calendarEntryOutcome, formatCalendarAgendaHeading, formatAPIDate, orderCalendarDayEntries } from '@orbit/shared/utils'
+import { StatusRing } from '@/components/ui/status-ring'
+import { X } from '@/components/ui/icons'
 import { ListRow } from '@/components/ui/list-row'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -13,7 +15,6 @@ interface CalendarAgendaViewProps {
   startDate: Date
   dayMap: ReadonlyMap<string, CalendarDayEntry[]>
   displayTime: (time: string) => string
-  displayWeekdayDate: (date: Date, long?: boolean) => string
   todayKey: string
   isLoading: boolean
   loadingLabel: string
@@ -23,12 +24,12 @@ export function CalendarAgendaView({
   startDate,
   dayMap,
   displayTime,
-  displayWeekdayDate,
   todayKey,
   isLoading,
   loadingLabel,
 }: Readonly<CalendarAgendaViewProps>) {
   const t = useTranslations()
+  const locale = useLocale()
   const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null)
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) })
 
@@ -48,11 +49,8 @@ export function CalendarAgendaView({
           )}
         </div>
       )) : dates.map((date) => {
-        const entries = dayMap.get(formatAPIDate(date)) ?? []
-        const dateLabel = capitalizeFirstLetter(displayWeekdayDate(date, true))
-        const heading = formatAPIDate(date) === todayKey
-          ? `${t('calendar.agenda.today')}, ${dateLabel}`
-          : dateLabel
+        const entries = orderCalendarDayEntries(dayMap.get(formatAPIDate(date)) ?? [])
+        const heading = formatCalendarAgendaHeading(formatAPIDate(date), locale, todayKey, (date) => t('dates.todayWithDate', { date }))
 
         return (
           <section
@@ -87,20 +85,27 @@ export function CalendarAgendaView({
               </p>
             ) : (
               <div>
-                {entries.map((entry) => (
+                {entries.map((entry) => {
+                  const outcome = calendarEntryOutcome(entry)
+                  return (
                   <ListRow
-                    compact
                     key={entry.habitId}
                     title={entry.title}
-                    description={entry.dueTime ? displayTime(entry.dueTime) : undefined}
+                    value={entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime')}
+                    wrapValue
                     textMode="personal"
                     chevron={false}
+                    trailing={<span aria-hidden="true" className="relative inline-flex">
+                      <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
+                      {outcome.status === 'bad' ? <span className="absolute inset-0 flex items-center justify-center"><X size={16} color="var(--status-bad)" strokeWidth={1.5} /></span> : null}
+                    </span>}
                     accessibilityLabel={entry.dueTime
                       ? t('calendar.agenda.timedEntryLabel', { title: entry.title, time: displayTime(entry.dueTime) })
                       : entry.title}
                     onClick={() => setSelectedEntry(entry)}
                   />
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
