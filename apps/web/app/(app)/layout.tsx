@@ -24,7 +24,6 @@ import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-sha
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { getHeldAccountId, useAuthStore } from '@/stores/auth-store'
 import { useHabitCountLoaded } from '@/hooks/use-habit-queries'
@@ -184,8 +183,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
-  const wideDesktop = useIsWideDesktop()
-  const toastInConversation = astraConversationOpen && !wideDesktop
+  const toastInConversation = astraConversationOpen
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
   const {
     fileInputRef,

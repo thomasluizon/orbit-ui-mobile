@@ -380,7 +380,7 @@ describe('ProfilePage', () => {
 
     it.each([320, 412, 600, 840, 1023, 1024, 1352])('insets the first account card at %ipx and preserves the wide shell', async (width) => {
       const { container } = render(
-        <ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
+        <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
           <ProfilePage />
         </ShellWide>,
       )
@@ -1283,7 +1283,7 @@ describe('ProfilePage', () => {
 })
 
 it('places the Perfil bell inside the destination scroller and opens Avisos', () => {
-  const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
+  const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
   const row = container.querySelector<HTMLElement>('[data-root-notification-header]')!
   expect(container.querySelector('[data-shell-scroller]')).toContainElement(row)
   fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))

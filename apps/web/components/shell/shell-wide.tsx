@@ -6,12 +6,13 @@ import Link from 'next/link'
 import {
   useEffect,
   useRef,
-  useSyncExternalStore,
   type ReactNode,
   type RefCallback,
 } from 'react'
 import { BUTTON_SIZES, SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import type { ShellWideItem, ShellWideProps } from '@orbit/shared/contracts/shell'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Search } from '@/components/ui/icons'
 import { SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
@@ -20,13 +21,16 @@ import { Button } from '@/components/ui/pill-button'
 import { useShellScrollerRegistration } from './shell-scroller-context'
 import { useModalFocusTrap } from './use-modal-focus-trap'
 
-const SIDE_PANEL_QUERY = '(min-width: 1024px)'
-
 function getConversationFocusTarget(container: HTMLElement): HTMLElement {
   return container.querySelector<HTMLElement>('[data-composer-input]:not([disabled])')
     ?? container.querySelector<HTMLElement>('[data-composer-root]')
     ?? container.querySelector<HTMLElement>('button:not([disabled])')
     ?? container
+}
+
+function getShellConversationFocusTarget(shell: HTMLElement): HTMLElement {
+  const conversation = shell.querySelector<HTMLElement>('[data-shell-conversation]')
+  return conversation ? getConversationFocusTarget(conversation) : shell
 }
 
 function getConversationReturnTarget(target: HTMLElement): HTMLElement {
@@ -35,27 +39,15 @@ function getConversationReturnTarget(target: HTMLElement): HTMLElement {
 
 type ResponsiveShellProps = ShellWideProps & { tabBar?: ReactNode; fab?: ReactNode; scrollToTop?: ReactNode; createRefusal?: ReactNode }
 
-function subscribeToSidePanel(callback: () => void) {
-  const query = window.matchMedia(SIDE_PANEL_QUERY)
-  query.addEventListener('change', callback)
-  return () => query.removeEventListener('change', callback)
-}
-
-function getSidePanelSnapshot() {
-  return window.matchMedia(SIDE_PANEL_QUERY).matches
-}
-
-function getServerSnapshot() {
-  return false
-}
-
 function SidebarItem({
   item,
   active,
+  current,
   onSelect,
 }: Readonly<{
   item: ShellWideItem
   active: boolean
+  current: boolean
   onSelect?: (id: string) => void
 }>) {
   const destination = SHELL_DESTINATION_IDS.find((id) => id === item.icon)
@@ -89,7 +81,7 @@ function SidebarItem({
     <button
       type="button"
       className={className}
-      aria-current={active ? 'page' : undefined}
+      aria-current={current ? 'page' : undefined}
       onClick={() => onSelect(item.id)}
     >
       {content}
@@ -97,10 +89,27 @@ function SidebarItem({
   )
 }
 
-function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & { createRefusal?: ReactNode }>) {
+function SidebarAstraRow({ row, open }: Readonly<{
+  row: { label: string; onOpen: () => void }
+  open: boolean
+}>) {
+  return <button
+            type="button"
+            data-shell-astra-row=""
+            aria-expanded={open}
+            onClick={row.onOpen}
+            className={`orbit-hover-text flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] ${open ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]' : 'text-[var(--fg-3)]'}`}
+          >
+            <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
+            <span translate="no" className="whitespace-nowrap">{row.label}</span>
+          </button>
+}
+
+function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & { createRefusal?: ReactNode; layerOpen: boolean; wide: boolean }>) {
   return (
     <aside
       data-shell-sidebar=""
+      inert={props.layerOpen && !props.wide || undefined}
       className="z-sticky hidden h-dvh w-[232px] shrink-0 flex-col bg-[var(--bg)] p-6 shadow-[inset_-1px_0_0_var(--hairline)] lg:flex"
     >
       <div className="flex flex-col gap-6">
@@ -126,11 +135,13 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
         ) : null}
 
         <nav aria-label={props.navLabel} className="flex flex-col gap-1">
+          {props.wide ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} /> : null}
           {props.items.map((item) => (
             <SidebarItem
               key={item.id}
               item={item}
-              active={item.id === props.activeId}
+              active={!props.layerOpen && item.id === props.activeId}
+              current={item.id === props.activeId}
               onSelect={props.onSelect}
             />
           ))}
@@ -218,19 +229,17 @@ function getScrollerSpacing(hasBottomChrome: boolean, reservesComposerSpace: boo
 function ShellWideBackground({
   props,
   conversationOpen,
-  sidePanel,
-  modalOpen,
+  wide,
   registerScroller,
 }: Readonly<{
   props: ResponsiveShellProps
   conversationOpen: boolean
-  sidePanel: boolean
-  modalOpen: boolean
+  wide: boolean
   registerScroller?: RefCallback<HTMLElement>
 }>) {
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? props.composer : props.action
-  const hasFlowAction = !conversationOpen && pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
+  const hasFlowAction = pinnedSlot !== undefined && (!navigationEnabled || props.tabBar === undefined)
   const hasBottomChrome = (navigationEnabled && props.tabBar !== undefined)
     || props.notice !== undefined || pinnedSlot !== undefined
   const scrollerSpacing = getScrollerSpacing(hasBottomChrome, pinnedSlot !== undefined || props.fab !== undefined)
@@ -250,15 +259,14 @@ function ShellWideBackground({
   )
   return (
     <div
-      data-shell-background=""
-      inert={modalOpen || undefined}
-      aria-hidden={modalOpen || undefined}
       className="flex min-w-0 flex-1"
     >
-      {navigationEnabled ? <ShellSidebar {...props} /> : null}
+      {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} /> : null}
 
-      <div className={`relative flex min-w-0 flex-1 justify-center ${conversationOpen && sidePanel ? '' : 'lg:px-8'}`}>
-        <div data-shell-column="" className="flex h-dvh w-full min-w-0 flex-col pt-[var(--safe-top)] lg:pt-[max(32px,var(--safe-top))]" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+      <div className="relative flex h-dvh min-w-0 flex-1 justify-center pt-[var(--safe-top)] lg:px-8 lg:pt-[max(32px,var(--safe-top))]">
+        <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
+          <div data-shell-background="" data-shell-destination="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}
+            className="flex h-full min-h-0 flex-col" style={conversationOpen ? { visibility: 'hidden' } : undefined}>
           {props.header !== undefined ? <div data-shell-header="" data-focus-inset="" className={`overflow-y-auto [scrollbar-gutter:stable] ${hasFlowAction ? 'min-h-[var(--touch-min)] overscroll-contain' : 'shrink-0'}`}>{props.header}</div> : null}
           <div className={`relative flex flex-1 flex-col ${scrollerSpacing.minimum}`}>
             {hasFlowAction ? <div className="min-h-0 flex-1 overflow-hidden">{scroller}</div> : scroller}
@@ -269,6 +277,16 @@ function ShellWideBackground({
             ) : null}
           </div>
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
+          </div>
+          {conversationOpen ? <div
+            role="dialog"
+            aria-modal={!wide || undefined}
+            aria-label={props.conversationLabel}
+            tabIndex={-1}
+            data-shell-conversation="overlay"
+            className="z-modal fixed inset-y-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-hidden bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] lg:absolute lg:inset-0 lg:pt-0 lg:pb-0"
+            style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
+          >{props.conversation}</div> : null}
         </div>
       </div>
     </div>
@@ -277,30 +295,11 @@ function ShellWideBackground({
 
 export function ShellWide(props: Readonly<ResponsiveShellProps>) {
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
-  const sidePanel = useSyncExternalStore(
-    subscribeToSidePanel,
-    getSidePanelSnapshot,
-    getServerSnapshot,
-  )
-  const modalOpen = conversationOpen && !sidePanel
+  const wide = useIsWideDesktop()
   const shellRef = useRef<HTMLDivElement>(null)
-  const conversationRef = useRef<HTMLDivElement>(null)
-  const sidePanelRef = useRef<HTMLElement>(null)
   const returnFocusTriggerRef = useRef<HTMLElement>(null)
   const registerScroller = useShellScrollerRegistration()
-  useModalFocusTrap(modalOpen, conversationRef, returnFocusTriggerRef, getConversationFocusTarget)
-  useEffect(() => {
-    if (!conversationOpen || !sidePanel) return
-    const panel = sidePanelRef.current
-    if (!panel) return
-    const returnTarget = returnFocusTriggerRef.current?.isConnected
-      ? returnFocusTriggerRef.current
-      : document.activeElement instanceof HTMLElement ? document.activeElement : null
-    getConversationFocusTarget(panel).focus()
-    return () => {
-      if (returnTarget?.isConnected) returnTarget.focus()
-    }
-  }, [conversationOpen, sidePanel])
+  useModalFocusTrap(conversationOpen, shellRef, returnFocusTriggerRef, getShellConversationFocusTarget)
   useEffect(() => {
     if (!conversationOpen) return
     const shell = shellRef.current
@@ -334,37 +333,10 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
       <ShellWideBackground
         props={props}
         conversationOpen={conversationOpen}
-        sidePanel={sidePanel}
-        modalOpen={modalOpen}
+        wide={wide}
         registerScroller={registerScroller}
       />
 
-      {conversationOpen && sidePanel ? (
-        <aside
-          ref={sidePanelRef}
-          tabIndex={-1}
-          data-shell-conversation="panel"
-          aria-label={props.conversationLabel}
-          className="h-dvh w-[380px] shrink-0 overflow-y-auto bg-[var(--bg)] shadow-[inset_1px_0_0_var(--hairline)]"
-        >
-          {props.conversation}
-        </aside>
-      ) : null}
-
-      {conversationOpen && !sidePanel ? (
-        <div
-          ref={conversationRef}
-          role="dialog"
-          aria-modal="true"
-          aria-label={props.conversationLabel}
-          tabIndex={-1}
-          data-shell-conversation="overlay"
-          style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}
-          className="z-modal fixed top-0 bottom-0 left-[var(--safe-left)] right-[var(--safe-right)] mx-auto overflow-y-auto bg-[var(--bg)] pt-[var(--safe-top)] pb-[var(--safe-bottom)] outline-none focus-visible:outline-solid focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
-        >
-          {props.conversation}
-        </div>
-      ) : null}
     </div>
   )
 }

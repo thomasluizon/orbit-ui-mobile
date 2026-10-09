@@ -19,7 +19,7 @@ const FOCUSABLE_SELECTOR = [
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (element) => !element.hidden,
+    (element) => !element.closest('[inert], [hidden], [aria-hidden="true"]'),
   )
 }
 

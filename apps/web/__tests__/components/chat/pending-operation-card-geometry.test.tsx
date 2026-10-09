@@ -56,7 +56,7 @@ function setViewport(width: number) {
 function ConversationPreview({ locale, counted }: Readonly<{ locale: typeof locales[number]; counted: string | undefined }>) {
   const messages = locale === 'en' ? en : pt
   return <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
-    <ShellWide items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} onCreate={vi.fn()} createLabel={messages.nav.createHabit} conversationLabel={messages.chat.title} conversation={<div style={{ padding: 16 }}>
+    <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="hoje" navLabel={messages.nav.mainNavigation} onCreate={vi.fn()} createLabel={messages.nav.createHabit} conversationLabel={messages.chat.title} conversation={<div style={{ padding: 16 }}>
       <MessageBubble message={counted ? { ...message, pendingOperations: [{ ...makeCreateHabitsPreview(), actionKey: counted }] } : message} onPendingOperationRevise={vi.fn()} onPendingOperationConfirmExecute={vi.fn()} onPendingOperationPrepareStepUp={vi.fn()} onPendingOperationVerifyStepUp={vi.fn()} />
     </div>} />
   </NextIntlClientProvider>

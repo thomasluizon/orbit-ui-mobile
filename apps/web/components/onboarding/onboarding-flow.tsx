@@ -73,13 +73,13 @@ function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNo
   return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
 }
 
-const DONE_TAB_ROUTES: Record<string, string> = { hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
+const DONE_TAB_ROUTES: Record<string, string> = { astra: '/?astra=open', hoje: '/', calendario: '/calendar', progresso: '/progress', perfil: '/profile' }
 
 function DoneShell({ onSelect, children, modalId }: Readonly<{ onSelect: (id: string) => void; children: ReactNode; modalId: string }>) {
   const t = useTranslations()
   const items = useMemo(() => SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: id })) satisfies ShellWideItem[], [t])
   const tabBar = <BottomTabBar activeId="hoje" label={t('nav.mainNavigation')} items={SHELL_DESTINATION_IDS.map((id) => ({ id, label: t(DESTINATION_ICONS[id].labelKey), icon: ({ active }) => <DestinationIcon destination={id} active={active} color={active ? 'var(--primary)' : 'var(--fg-3)'} /> }))} onSelect={onSelect} />
-  return <ShellWide items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} /><AppToastHost placement="modal" modalId={modalId} /></>}>
+  return <ShellWide astraRow={{ label: t('chat.title'), onOpen: () => onSelect('astra') }} items={items} activeId="hoje" navLabel={t('nav.mainNavigation')} onSelect={onSelect} tabBar={tabBar} notice={<><UpdateAvailableBanner modalId={modalId} /><AppToastHost placement="modal" modalId={modalId} /></>}>
     <div className="mx-auto flex min-h-full w-full max-w-[440px] items-center px-4 lg:max-w-[560px] lg:px-0">{children}</div>
   </ShellWide>
 }

@@ -147,8 +147,9 @@ export function DestinationShell({
         <ShellHeaderSlotContext.Provider value={registeredHeader.value}>
           <DestinationShellContent
             header={registeredHeader.content}
+            registeredComposer={registeredComposer.content}
             notice={hostedNotice}
-            composer={registeredComposer.content ?? composer}
+            composer={composer}
             conversation={conversation}
             conversationOpen={conversationOpen}
             conversationLabel={conversationLabel}
@@ -167,6 +168,11 @@ function todayScrollToTop(pathname: string, notFoundVisible: boolean) {
   return pathname === '/' && !notFoundVisible ? <ScrollToTopButton /> : undefined
 }
 
+function getPinnedComposer(notFoundVisible: boolean, registeredComposer: ReactNode, composer: ReactNode, enabled: boolean) {
+  if (notFoundVisible) return undefined
+  return registeredComposer ?? (enabled ? composer : undefined)
+}
+
 function DestinationShellContent({
   children,
   header,
@@ -177,7 +183,8 @@ function DestinationShellContent({
   conversationLabel,
   onCreate,
   createRefusal,
-}: Readonly<DestinationShellProps & { header?: ReactNode }>) {
+  registeredComposer,
+}: Readonly<DestinationShellProps & { header?: ReactNode; registeredComposer?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
   const scroller = useShellScroller()
@@ -193,7 +200,7 @@ function DestinationShellContent({
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const paletteHint = usePaletteHint()
   const destination = resolveShellDestination(pathname)
-  const chrome = resolveShellChrome(pathname, lastDestination)
+  const chrome = resolveShellChrome(pathname, lastDestination, !wide)
   const activeId = notFoundVisible ? '' : chrome.activeId
   useEffect(() => {
     if (destination && !notFoundVisible && pathname !== '/upgrade') setLastDestination(destination)
@@ -209,6 +216,7 @@ function DestinationShellContent({
     })
     return () => cancelAnimationFrame(frame)
   }, [pathname])
+  const pinnedComposer = getPinnedComposer(notFoundVisible, registeredComposer, composer, chrome.composer)
   const navigationEnabled = hasPrimaryNavigation(pathname) && (wide || !chrome.flow)
   const conversationSlot = conversation !== undefined && conversationLabel
     ? { conversation, conversationOpen, conversationLabel }
@@ -223,6 +231,7 @@ function DestinationShellContent({
 
   const navigate = useCallback(
     (id: BottomTab) => {
+      useUIStore.getState().setAstraConversationOpen(false)
       const route = ROUTES[id]
       if (route === pathname) {
         resetRouteTransitionIntent()
@@ -269,6 +278,7 @@ function DestinationShellContent({
       <ShellWide
         {...conversationSlot}
         items={wideItems}
+        astraRow={{ label: t('chat.title'), onOpen: () => useUIStore.getState().setAstraConversationOpen(true) }}
         activeId={activeId}
         navLabel={t('nav.mainNavigation')}
         onSelect={(id) => navigate(id as BottomTab)}
@@ -283,7 +293,7 @@ function DestinationShellContent({
         notice={notice}
         header={header}
         scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
-        composer={!notFoundVisible && chrome.composer ? composer : undefined}
+        composer={pinnedComposer}
         tabBar={
           !chrome.flow ? <BottomTabBar
             activeId={activeId}

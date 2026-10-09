@@ -11,7 +11,7 @@ function ShellHydrationProbe() {
   const { isSupported: speechSupported } = useSpeechToText()
 
   return (
-    <ShellWide
+    <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }}
       items={[{ id: 'hoje', label: 'Today', icon: 'hoje' }]}
       activeId="hoje"
       navLabel="Main navigation"
