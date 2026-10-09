@@ -1,4 +1,5 @@
 const BACK_DESTINATION_KEYS: Readonly<Record<string, string>> = {
+  '/login': 'auth.signIn',
   '/calendar': 'nav.calendar',
   '/calendar-sync': 'nav.calendar',
   '/progress': 'nav.progress',
@@ -12,7 +13,7 @@ const BACK_DESTINATION_KEYS: Readonly<Record<string, string>> = {
   '/support': 'profile.support.title',
   '/wrapped': 'wrapped.title',
   '/notifications': 'notifications.title',
-  '/search': 'habits.search.title',
+  '/search': 'habits.search.screenTitle',
   '/privacy': 'privacy.title',
   '/terms': 'terms.title',
   '/upgrade': 'upgrade.pitchTitle',
@@ -24,10 +25,8 @@ export function getBackLabel(route: string | undefined, translate: BackLabelTran
   const pathname = route?.split(/[?#]/)[0]
   if (pathname === '/' || pathname === '/(tabs)') return translate('common.backToToday')
   if (pathname === '/profile') return translate('common.backToProfile')
-  if (pathname === '/login') return translate('auth.backToLogin')
-  const destinationKey = pathname?.startsWith('/habits/')
-    ? BACK_DESTINATION_KEYS[pathname] ?? 'habits.detail.screenTitle'
-    : BACK_DESTINATION_KEYS[pathname ?? '']
+  if (pathname?.startsWith('/habits/') && !BACK_DESTINATION_KEYS[pathname]) return translate('common.backToHabit')
+  const destinationKey = BACK_DESTINATION_KEYS[pathname ?? '']
   return destinationKey
     ? translate('common.backToDestination', { destination: translate(destinationKey) })
     : translate('common.back')

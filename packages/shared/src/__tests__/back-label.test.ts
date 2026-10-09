@@ -9,14 +9,52 @@ function translate(messages: typeof en, key: string, values?: { destination: str
   return values ? message.replace('{destination}', values.destination) : message
 }
 
+const approvedLabels = [
+  ['/', 'Back to Today', 'Voltar para Hoje'],
+  ['/profile', 'Back to Profile', 'Voltar para Perfil'],
+  ['/login', 'Back to Sign in', 'Voltar para Entrar'],
+  ['/search', 'Back to Search', 'Voltar para Busca'],
+  ['/habits/habit-id', 'Back to the habit', 'Voltar para o hábito'],
+  ['/calendar', 'Back to Calendar', 'Voltar para Calendário'],
+  ['/calendar-sync', 'Back to Calendar', 'Voltar para Calendário'],
+  ['/progress', 'Back to Progress', 'Voltar para Progresso'],
+  ['/profile/astra', 'Back to Astra', 'Voltar para Astra'],
+  ['/profile/account', 'Back to Account', 'Voltar para Conta'],
+  ['/profile/preferences', 'Back to Preferences', 'Voltar para Preferências'],
+  ['/profile/notifications', 'Back to Notifications', 'Voltar para Notificações'],
+  ['/habits/new', 'Back to New habit', 'Voltar para Novo hábito'],
+  ['/chat', 'Back to Astra', 'Voltar para Astra'],
+  ['/about', 'Back to About', 'Voltar para Sobre'],
+  ['/support', 'Back to Support', 'Voltar para Suporte'],
+  ['/wrapped', 'Back to Orbit Wrapped', 'Voltar para Orbit Wrapped'],
+  ['/notifications', 'Back to Alerts', 'Voltar para Avisos'],
+  ['/privacy', 'Back to Privacy Policy', 'Voltar para Política de Privacidade'],
+  ['/terms', 'Back to Terms of Service', 'Voltar para Termos de Serviço'],
+  ['/upgrade', 'Back to Orbit Pro', 'Voltar para Orbit Pro'],
+  ['/unrecognized', 'Go back', 'Voltar'],
+] as const
+
+describe.each([
+  { locale: 'en', messages: en, column: 1, parentLabel: 'Back to parent habit' },
+  { locale: 'pt-BR', messages: ptBR, column: 2, parentLabel: 'Voltar para o hábito principal' },
+] as const)('approved back copy in $locale', ({ messages, column, parentLabel }) => {
+  it.each(approvedLabels)('renders %s from the real catalog', (route, english, portuguese) => {
+    expect(getBackLabel(route, (key, values) => translate(messages, key, values))).toBe(column === 1 ? english : portuguese)
+  })
+
+  it('renders the parent habit label from the real catalog', () => {
+    expect(translate(messages, 'common.backToParentHabit')).toBe(parentLabel)
+  })
+})
+
 describe.each([en, ptBR])('back label', (messages) => {
   it.each([
     ['/', messages.common.backToToday],
     ['/profile', messages.common.backToProfile],
-    ['/login', messages.auth.backToLogin],
+    ['/login', messages.common.backToDestination.replace('{destination}', messages.auth.signIn)],
     ['/calendar?view=month', messages.common.backToDestination.replace('{destination}', messages.nav.calendar)],
     ['/habits/new?draft=retained', messages.common.backToDestination.replace('{destination}', messages.habits.form.newHabit)],
-    ['/habits/habit-id', messages.common.backToDestination.replace('{destination}', messages.habits.detail.screenTitle)],
+    ['/habits/habit-id', messages.common.backToHabit],
     ['/(tabs)', messages.common.backToToday],
     ['/profile/notifications', messages.common.backToDestination.replace('{destination}', messages.profile.groups.notifications)],
     ['/profile/account', messages.common.backToDestination.replace('{destination}', messages.profile.submenus.account)],
@@ -24,7 +62,7 @@ describe.each([en, ptBR])('back label', (messages) => {
     ['/progress', messages.common.backToDestination.replace('{destination}', messages.nav.progress)],
     ['/wrapped', messages.common.backToDestination.replace('{destination}', messages.wrapped.title)],
     ['/notifications', messages.common.backToDestination.replace('{destination}', messages.notifications.title)],
-    ['/search', messages.common.backToDestination.replace('{destination}', messages.habits.search.title)],
+    ['/search', messages.common.backToDestination.replace('{destination}', messages.habits.search.screenTitle)],
     ['/privacy', messages.common.backToDestination.replace('{destination}', messages.privacy.title)],
     ['/terms', messages.common.backToDestination.replace('{destination}', messages.terms.title)],
     ['/upgrade', messages.common.backToDestination.replace('{destination}', messages.upgrade.pitchTitle)],

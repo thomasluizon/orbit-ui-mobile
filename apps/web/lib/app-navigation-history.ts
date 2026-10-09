@@ -168,7 +168,3 @@ export function updateAppNavigationHistory(nextEntry: string, action: AppNavigat
     index: nextEntries.length - 1,
   })
 }
-
-export function canGoBackInAppHistory(): boolean {
-  return readAppNavigationHistory().index > 0
-}
