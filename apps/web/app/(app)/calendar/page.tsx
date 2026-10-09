@@ -276,7 +276,7 @@ function CalendarPageContent({
   const { displayTime } = useTimeFormat()
   const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveProfileSettings(profile)
   const isWideDesktop = useIsWideDesktop()
-  const todayKey = useToday(timeZone ?? undefined)
+  const todayKey = useToday(profile?.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setCalendarHasError = useUIStore((state) => state.setCalendarHasError)
   const { isOnline } = useOffline()

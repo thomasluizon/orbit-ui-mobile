@@ -403,6 +403,26 @@ describe('CalendarPage view switcher', () => {
     }
   })
 
+  it.each([false, true])('keeps the UTC account-day fallback for a null profile time zone, delayed: %s', (delayed) => {
+    const previousZone = process.env.TZ
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'))
+    const profile = { weekStartDay: 1 as const, timeZone: null, hasProAccess: false }
+    profileQueryState.profile = delayed ? undefined : profile
+    try {
+      const page = render(<CalendarPage />)
+      fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+      profileQueryState.profile = profile
+      page.rerender(<CalendarPage />)
+      expect(screen.getByRole('button', { name: /^calendar.period.goToCurrent/ })).toHaveTextContent('Oct 5 to Oct 11')
+    } finally {
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ')
+      else process.env.TZ = previousZone
+      vi.useRealTimers()
+    }
+  })
+
   it.each([false, true])('uses profile today after loading while preserving explicit week navigation: %s', (navigated) => {
     const previousZone = process.env.TZ
     process.env.TZ = 'UTC'

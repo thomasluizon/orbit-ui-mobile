@@ -312,7 +312,7 @@ function CalendarScreenContent({
   const { sheetRef: importSheetRef, closeSheet: closeImportSheet } = useSheetHost();
   const { displayTime } = useTimeFormat();
   const { weekStartsOn, hasProAccess, timeZone, autoSyncState } = resolveProfileSettings(profile);
-  const todayKey = useCurrentDate(timeZone);
+  const todayKey = useCurrentDate(profile?.timeZone);
   const setCalendarHasError = useUIStore((state) => state.setCalendarHasError);
   const logHabit = useLogHabit();
   const { currentScheme, currentTheme } = useAppTheme();
