@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import type {
+  BlockFrameItem,
   BlockFrameItemStatus,
   BlockFrameProps,
   ResolvedBlockFrameRow,
@@ -19,6 +20,8 @@ import {
   ShieldAlert,
   XCircle,
 } from '@/components/ui/icons'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Proposed } from '@/components/ui/proposed'
 
 type StatusViewProps = Readonly<{
@@ -43,17 +46,27 @@ function StatusView({ status, label }: StatusViewProps) {
   )
 }
 
+function getRowLayout(item: BlockFrameItem) {
+  const fullWidthLabel = item.wrapLabel && typeof item.label !== 'string' && typeof item.label !== 'number'
+  return {
+    row: `flex min-h-[52px] gap-3 p-3 ${fullWidthLabel ? 'flex-col' : 'items-center'}`,
+    words: `flex min-w-0 flex-col gap-1 ${fullWidthLabel ? 'w-full' : 'flex-1'}`,
+    trailing: `flex shrink-0 items-center gap-2 ${fullWidthLabel ? 'self-end' : ''}`,
+  }
+}
+
 function FrameRow(props: ResolvedBlockFrameRow) {
   const { item, frameState, statusLabel, onEditItem } = props
+  const rowLayout = getRowLayout(item)
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <div
-      className="flex min-h-[52px] items-center gap-3 p-3"
+      className={rowLayout.row}
       data-proposed={item.proposed ? '' : undefined}
       data-status={status}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className={rowLayout.words}>
         <div className={item.wrapLabel ? 'break-words text-sm font-medium' : 'truncate text-sm font-medium'}>{item.label}</div>
         {item.meta ? <div className={`${item.wrapMeta ? 'break-words leading-[1.4]' : 'truncate'} text-xs text-[var(--fg-3)]`}>{item.meta}</div> : null}
         {item.irreversible && props.irreversibleLabel ? (
@@ -63,7 +76,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
           </div>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className={rowLayout.trailing}>
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <button
@@ -177,13 +190,14 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <header className="flex shrink-0 items-center gap-3">
-        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.title}</h3>
-        {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
-          <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
-            {props.count ?? props.items.length}
-          </span>
-        ) : null}
+      <header className={`flex shrink-0 gap-3 ${props.titleMode === 'typed' ? 'min-w-0 flex-col' : 'items-center'}`}>
+        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleMode === 'typed' ? <PersonalText>{props.title}</PersonalText> : props.title}</h3>
+        <div className="flex shrink-0 items-center justify-end gap-3">
+          {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
+            <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>
+          ) : null}
+          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly>{props.title}</PersonalTextDetails> : null}
+        </div>
       </header>
       <p role="status" aria-live="polite" className={props.state === 'stale' ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>
         {props.state === 'stale' ? props.staleMessage : ''}
