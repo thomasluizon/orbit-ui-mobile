@@ -375,6 +375,67 @@ describe("CalendarTimeGrid (mobile)", () => {
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
   });
 
+  it.each([178, 126])("opens against the loaded pane layout even when its height stays the same (height=%s)", (loadedHeight) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    const scrollTo = vi.fn();
+    __setScrollToImpl(scrollTo);
+    try {
+      const today = { ...column('2026-10-08'), isToday: true };
+      const columns = [today];
+      const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={displayTime} language="en" allDayLabel="No set time" nowLabel="Now" isLoading={isLoading} t={translate} tokens={tokens} timeZone="UTC" />;
+      const tree = renderGrid(columns, new Map(), vi.fn(), true);
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+      TestRenderer.act(() => {
+        body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 126 } } });
+      });
+      expect(scrollTo).not.toHaveBeenCalled();
+      const loadingPane = pane();
+      const entries = Array.from({ length: 3 }, (_, index) => makeEntry({ habitId: String(index) }));
+      const loaded = new Map([[today.dateStr, entries]]);
+      TestRenderer.act(() => tree.update(grid(loaded, false)));
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(pane()).not.toBe(loadingPane);
+      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: loadedHeight } } }));
+      const pinned = loadedHeight <= 150;
+      const firstOffset = scrollTo.mock.calls[0]![0].y;
+      const visibleHourHeight = 300 - (pinned ? loadedHeight : 0);
+      const visibleNow = 1032 + (pinned ? 0 : loadedHeight) - firstOffset;
+      expect(visibleNow).toBeGreaterThanOrEqual(0);
+      expect(visibleNow).toBeLessThanOrEqual(visibleHourHeight / 3);
+      expect(body().props.stickyHeaderIndices).toEqual(pinned ? [0] : []);
+      expect(scrollTo.mock.calls).toEqual([[{ y: firstOffset, animated: false }], [{ y: firstOffset, animated: false }]]);
+      scrollTo.mockClear();
+      TestRenderer.act(() => body().props.onScrollBeginDrag());
+      TestRenderer.act(() => tree.update(grid(new Map([[today.dateStr, entries.slice(0, 1)]]), false)));
+      TestRenderer.act(() => {
+        body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 126 } } });
+      });
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
+  it("preserves a vertical drag before the loaded pane layout arrives", () => {
+    const scrollTo = vi.fn();
+    __setScrollToImpl(scrollTo);
+    try {
+      const columns = [{ ...column('2026-10-08'), isToday: true }];
+      const tree = renderGrid(columns, new Map(), vi.fn(), true);
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      TestRenderer.act(() => {
+        body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } });
+        hostsByTestID(tree, 'time-grid-day-pane')[0]!.props.onLayout({ nativeEvent: { layout: { width: 800, height: 126 } } });
+        body().props.onScrollBeginDrag?.();
+      });
+      TestRenderer.act(() => tree.update(<CalendarTimeGrid columns={columns} dayMap={new Map()} onSelectDay={vi.fn()} displayTime={displayTime} language="en" allDayLabel="No set time" nowLabel="Now" isLoading={false} t={translate} tokens={tokens} timeZone="UTC" />));
+      TestRenderer.act(() => hostsByTestID(tree, 'time-grid-day-pane')[0]!.props.onLayout({ nativeEvent: { layout: { width: 800, height: 126 } } }));
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally { __setScrollToImpl(() => {}); }
+  });
+
   it("uses natural short weekdays and only the date accent", () => {
     const tree = renderGrid([{ ...column("2025-06-16"), isToday: true }], new Map());
     const weekday = tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'Mon')[0]!;

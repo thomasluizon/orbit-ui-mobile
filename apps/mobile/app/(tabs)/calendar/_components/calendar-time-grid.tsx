@@ -308,7 +308,8 @@ export function CalendarTimeGrid({
   const gutterScrollRef = useRef<ScrollView>(null);
   const columnsScrollRef = useRef<ScrollView>(null);
   const [bodyHeight, setBodyHeight] = useState(0);
-  const [paneHeight, setPaneHeight] = useState(0);
+  const [paneLayout, setPaneLayout] = useState({ height: 0, isLoading });
+  const paneHeight = paneLayout.height;
   const isPanePinned = paneHeight <= bodyHeight / 2;
   const [viewportWidth, setViewportWidth] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
@@ -357,7 +358,7 @@ export function CalendarTimeGrid({
   const chipHeight = Math.max(48, 44.8 * fontScale);
   const allDayBandHeight = chipCount * chipHeight + (chipCount - 1) * 4 + 16 + 1;
   useEffect(() => {
-    if (opened.current || isLoading || bodyHeight <= 0 || paneHeight <= 0) return;
+    if (opened.current || isLoading || paneLayout.isLoading || bodyHeight <= 0 || paneHeight <= 0) return;
     const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)));
     const visibleHourHeight = bodyHeight - (isPanePinned ? paneHeight : 0);
     if (visibleHourHeight <= 0) return;
@@ -367,7 +368,7 @@ export function CalendarTimeGrid({
     scrollViewToY(bodyScrollRef.current, offset);
     scrollViewToY(gutterScrollRef.current, offset);
     opened.current = true;
-  }, [bodyHeight, columns, fontScale, isLoading, isPanePinned, nowMinutes, paneHeight, perColumn]);
+  }, [bodyHeight, columns, fontScale, isLoading, isPanePinned, nowMinutes, paneHeight, paneLayout.isLoading, perColumn]);
 
   const syncGutter = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollViewToY(gutterScrollRef.current, event.nativeEvent.contentOffset.y);
@@ -434,11 +435,12 @@ export function CalendarTimeGrid({
                 testID="time-grid-hour-scroller"
                 stickyHeaderIndices={isPanePinned ? [0] : []}
                 onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}
+                onScrollBeginDrag={() => { opened.current = true; }}
                 onScroll={syncGutter}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator
               >
-                <View testID="time-grid-day-pane" onLayout={(event) => setPaneHeight(event.nativeEvent.layout.height)} style={{ backgroundColor: tokens.bgElev }}>
+                <View key={isLoading ? 'loading' : 'loaded'} testID="time-grid-day-pane" onLayout={(event) => setPaneLayout({ height: event.nativeEvent.layout.height, isLoading })} style={{ backgroundColor: tokens.bgElev }}>
                   <View style={[styles.headerRow, { minHeight: headerHeight }]}>
                     {columns.map((column) => (
                       <ColumnHeader

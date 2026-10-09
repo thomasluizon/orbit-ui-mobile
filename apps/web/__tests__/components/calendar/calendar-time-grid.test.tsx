@@ -299,6 +299,48 @@ describe('CalendarTimeGrid', () => {
     } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
   })
 
+  it.each([178, 126])('reads the loaded DOM before a delayed pane resize notification (height=%s)', (loadedHeight) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    })
+    let paneHeight = 126
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 300 : this.dataset.testid === 'time-grid-day-pane' ? paneHeight : 0
+    })
+    const columns = [{ ...column(2026, 9, 8), isToday: true }]
+    const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} isLoading={isLoading} onSelectDay={vi.fn()} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
+    try {
+      const view = render(grid(new Map(), true))
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      expect(body.scrollTop).toBe(0)
+      const entries = Array.from({ length: 3 }, (_, index) => makeEntry({ habitId: String(index) }))
+      paneHeight = loadedHeight
+      view.rerender(grid(new Map([[columns[0]!.dateStr, entries]]), false))
+      const pinned = loadedHeight <= 150
+      const visibleHourHeight = 300 - (pinned ? loadedHeight : 0)
+      const visibleNow = 1032 + (pinned ? 0 : loadedHeight) - body.scrollTop
+      expect(visibleNow).toBeGreaterThanOrEqual(0)
+      expect(visibleNow).toBeLessThanOrEqual(visibleHourHeight / 3)
+      expect(screen.getByTestId('time-grid-day-pane')).toHaveAttribute('data-pinning', pinned ? 'pinned' : 'scrolling')
+      const openingOffset = body.scrollTop
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(body.scrollTop).toBe(openingOffset)
+      fireEvent.wheel(body, { deltaY: 120 })
+      body.scrollTop = 600
+      view.rerender(grid(new Map([[columns[0]!.dateStr, entries.slice(0, 1)]]), false))
+      paneHeight = 126
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(body.scrollTop).toBe(600)
+    } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver); vi.useRealTimers() }
+  })
+
   it('keeps horizontally focused day controls clear of the sticky time gutter', () => {
     renderGrid([column(2025, 5, 16)], new Map())
     const gutterWidth = screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns.split(' repeat(')[0]!
