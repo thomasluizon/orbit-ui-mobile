@@ -1,7 +1,11 @@
-import { extractBackendStatus, isPayGateError } from '../utils/error-utils'
+import { extractBackendErrorCode, extractBackendStatus, isPayGateError } from '../utils/error-utils'
 
 const RATE_LIMIT_RETRIES = 6
 const MAX_RETRY_DELAY = 120_000
+
+export function isUpstreamStarting(error: unknown): boolean {
+  return extractBackendStatus(error) === 503 && extractBackendErrorCode(error) === 'UPSTREAM_STARTING'
+}
 
 export function parseRetryAfter(header: string | null, now = Date.now()): number | null {
   if (!header?.trim()) return null
@@ -21,14 +25,14 @@ export function shouldRetryQuery(failureCount: number, error: unknown): boolean 
   if (isPayGateError(error)) return false
   const status = extractBackendStatus(error)
   if (status === 401) return false
-  if (status === 429) {
+  if (status === 429 || isUpstreamStarting(error)) {
     return failureCount < RATE_LIMIT_RETRIES && (errorRetryAfter(error) ?? 0) <= MAX_RETRY_DELAY
   }
   return failureCount < 3
 }
 
 export function queryRetryDelay(failureCount: number, error: unknown): number {
-  if (extractBackendStatus(error) === 429) {
+  if (extractBackendStatus(error) === 429 || isUpstreamStarting(error)) {
     const backoff = Math.min(5000 * 2 ** failureCount, 30_000)
     return Math.min(Math.max(errorRetryAfter(error) ?? 0, backoff), MAX_RETRY_DELAY)
   }

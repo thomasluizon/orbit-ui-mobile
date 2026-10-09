@@ -442,25 +442,29 @@ const defaultFilters = {
 
 
 describe('HabitList', () => {
-  it('keeps the Hoje habit list loading through 429 then renders the list', async () => {
+  it.each([
+    { code: 'RATE_LIMITED', status: 429, failures: 1, retryAfter: '60', deadline: 60_000 },
+    { code: 'UPSTREAM_STARTING', status: 503, failures: 2, retryAfter: '5', deadline: 15_000 },
+  ])('keeps the Hoje habit list loading through $code then renders the list', async ({ code, status, failures, retryAfter, deadline }) => {
     vi.useFakeTimers()
     skipFlow.active = true
     skipFlow.retryRead = true
     const client = createQueryClient()
     const habit = createMockHabitScheduleItem({ id: 'recovered', title: 'Recovered habit', scheduledDates: [TODAY] })
-    const fetchMock = vi.fn().mockResolvedValueOnce(Response.json(null, {
-      status: 429, headers: { 'Retry-After': '60' },
-    })).mockImplementation(async () => Response.json({ items: [habit], totalCount: 1, totalPages: 1, page: 1, pageSize: 200 }))
-    vi.stubGlobal('fetch', fetchMock)
+    let requests = 0
+    const fetchMock = vi.fn(async () => ++requests <= failures
+      ? Response.json({ error: 'Unavailable', errorCode: code }, { status, headers: { 'Retry-After': retryAfter } })
+      : Response.json({ items: [habit], totalCount: 1, totalPages: 1, page: 1, pageSize: 200 }))
+    vi.stubGlobal('fetch', (_input: RequestInfo | URL, init?: RequestInit) => init?.mode === 'no-cors' ? Promise.resolve(new Response(null)) : fetchMock())
     useThrottleStore.getState().clear()
     const rendered = render(<QueryClientProvider client={client}><HabitList view="today" filters={{ dateFrom: TODAY, dateTo: TODAY, includeOverdue: true }} /></QueryClientProvider>)
     try {
-      await act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+      await act(async () => { await vi.advanceTimersByTimeAsync(deadline - 1) })
       expect(screen.getAllByRole('progressbar').length).toBeGreaterThan(0)
       expect(screen.queryByText('habits.loadError')).toBeNull()
       expect(useThrottleStore.getState().error).toBeNull()
       expect(useAppToastStore.getState().currentToast).toBeNull()
-      expect(fetchMock).toHaveBeenCalledOnce()
+      expect(fetchMock).toHaveBeenCalledTimes(failures)
       await act(async () => { await vi.advanceTimersByTimeAsync(2) })
       expect(screen.getByText(personalText('Recovered habit'))).toBeInTheDocument()
       expect(screen.queryByText('habits.loadError')).toBeNull()

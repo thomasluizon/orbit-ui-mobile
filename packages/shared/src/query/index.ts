@@ -43,4 +43,4 @@ export {
 export { consumeAccountEventStream, createAccountEventParser } from './account-event-stream'
 export type { ParsedAccountEvent } from './account-event-stream'
 export { resetAccountQueries } from './reset-account-queries'
-export { shouldRetryQuery, queryRetryDelay, parseRetryAfter, errorRetryAfter } from './retry'
+export { shouldRetryQuery, queryRetryDelay, parseRetryAfter, errorRetryAfter, isUpstreamStarting } from './retry'
