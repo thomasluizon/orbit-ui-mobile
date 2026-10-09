@@ -81,7 +81,7 @@ describe('Pending preview geometry in Chromium', () => {
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
-  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => ['pending', 'done'].map(state => ({ width, locale, textScale, state }))))))('keeps typed item actions beside the first line at $width in $locale at text scale $textScale while $state', async ({ width, locale, textScale, state }) => {
+  it.each([320, 412, 1352].flatMap(width => locales.flatMap(locale => [1, 2].flatMap(textScale => ['pending', 'done', 'acting', 'failed'].map(state => ({ width, locale, textScale, state }))))))('keeps typed item actions beside the first line at $width in $locale at text scale $textScale while $state', async ({ width, locale, textScale, state }) => {
     const messages = locale === 'en' ? en : pt
     const name = locale === 'en'
       ? 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
@@ -89,12 +89,12 @@ describe('Pending preview geometry in Chromium', () => {
     const preview = makeCreateHabitsPreview(2)
     preview.items = preview.items!.map((item, index) => index === 0 ? { ...item, entityName: name, fields: item.fields.map(field => ({ ...field, entityName: name, newValue: name })) } : item)
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><div style={{ width: Math.min(width, 600), padding: 16 }}>
-      <PendingOperationCard pendingOperation={preview} onRevise={vi.fn()} onOpenTarget={vi.fn()} onConfirmExecute={vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(['Success', 'Success']) })} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
+      <PendingOperationCard pendingOperation={preview} onRevise={vi.fn()} onOpenTarget={vi.fn()} onConfirmExecute={state === 'acting' ? vi.fn(() => new Promise(() => {})) : vi.fn().mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse(state === 'failed' ? ['Failed', 'Failed'] : ['Success', 'Success']) })} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
     </div></NextIntlClientProvider>)
-    const actionName = state === 'pending' ? `${messages.chat.operation.remove} ${name}` : new IntlMessageFormat(messages.chat.action.openEntity, locale).format({ name }) as string
-    if (state === 'done') {
+    const actionName = state === 'failed' ? null : state === 'done' ? new IntlMessageFormat(messages.chat.action.openEntity, locale).format({ name }) as string : `${messages.chat.operation.remove} ${name}`
+    if (state !== 'pending') {
       fireEvent.click(container.querySelector('button[data-variant="primary"]')!)
-      await waitFor(() => expect(screen.getByRole('button', { name: actionName })).toBeInTheDocument())
+      await waitFor(() => expect(screen.getAllByText(messages.blockFrame.status[state as 'done' | 'acting' | 'failed']).length).toBeGreaterThan(0))
     }
     expect(screen.getByRole('button', { name })).toBeInTheDocument()
     const page = await browser.newPage({ viewport: { width, height: 915 } })
@@ -102,22 +102,36 @@ describe('Pending preview geometry in Chromium', () => {
       await page.setContent(`<style>${stylesheet}\nhtml { font-size: ${16 * textScale}px; }</style><div class="dark">${container.innerHTML}</div>`)
       await page.evaluate(() => document.fonts.ready)
       const geometry = await page.evaluate(({ name, actionName }) => {
-        const action = [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === actionName)!
         const label = [...document.querySelectorAll<HTMLElement>('[data-personal-text]')].find(element => element.textContent === name)!
+        const action = actionName ? [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === actionName)! : label.closest('[data-status="failed"]')!.lastElementChild!.querySelector('svg')!
         let row = label.parentElement!
         while (!row.contains(action)) row = row.parentElement!
         const labelBounds = label.getBoundingClientRect()
+        const disclosureBounds = [...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === name)!.getBoundingClientRect()
         const actionBounds = action.getBoundingClientRect()
         const rowBounds = row.getBoundingClientRect()
-        return { direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, actionLeft: actionBounds.left, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, rowBottom: rowBounds.bottom }
+        const trailing = row.lastElementChild as HTMLElement
+        const trailingBounds = trailing.getBoundingClientRect()
+        const status = trailing.querySelector(':scope > span') as HTMLElement | null
+        const statusRight = status ? Math.max(...[status, ...status.querySelectorAll('*')].map(element => element.getBoundingClientRect().right)) : trailingBounds.right
+        return { direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + parseFloat(getComputedStyle(label).lineHeight), labelHeight: labelBounds.height, labelWidth: labelBounds.width, lineHeight: parseFloat(getComputedStyle(label).lineHeight), labelRight: labelBounds.right, disclosureLeft: disclosureBounds.left, disclosureRight: disclosureBounds.right, actionLeft: actionBounds.left, actionRight: actionBounds.right, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, trailingRight: trailingBounds.right, trailingBottom: trailingBounds.bottom, statusRight, statusOverflow: status ? status.scrollWidth - status.clientWidth : 0, rowLeft: rowBounds.left, rowRight: rowBounds.right, rowBottom: rowBounds.bottom }
       }, { name, actionName })
       expect(geometry.direction).toBe('row')
       expect(geometry.branches).toBe(2)
       expect(geometry.actionCenter).toBeGreaterThanOrEqual(geometry.firstLineTop - 0.5)
       expect(geometry.actionCenter).toBeLessThanOrEqual(geometry.firstLineBottom + 0.5)
       expect(geometry.labelHeight).toBeLessThanOrEqual(geometry.lineHeight * 2 + 0.5)
+      expect(geometry.labelWidth).toBeGreaterThan(0)
+      expect(geometry.labelHeight).toBeGreaterThan(0)
       expect(geometry.labelRight).toBeLessThanOrEqual(geometry.actionLeft)
+      expect(geometry.disclosureLeft).toBeGreaterThanOrEqual(geometry.rowLeft)
+      expect(geometry.disclosureRight).toBeLessThanOrEqual(geometry.actionLeft)
+      expect(geometry.actionRight).toBeLessThanOrEqual(geometry.rowRight)
       expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.rowBottom)
+      expect(geometry.trailingRight).toBeLessThanOrEqual(geometry.rowRight)
+      expect(geometry.trailingBottom).toBeLessThanOrEqual(geometry.rowBottom)
+      expect(geometry.statusOverflow).toBeLessThanOrEqual(1)
+      expect(geometry.statusRight).toBeLessThanOrEqual(geometry.trailingRight + 0.5)
     } finally { await page.close() }
   })
 

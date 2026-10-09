@@ -40,9 +40,9 @@ function StatusView({ status, label }: StatusViewProps) {
   const labelColor = status === 'failed' ? 'var(--status-bad-text)' : status === 'done' ? 'var(--fg-1)' : 'var(--fg-2)'
 
   return (
-    <span className="flex shrink-0 items-center gap-1 text-xs" style={{ color: labelColor }}>
-      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={statusColors.iconColor} />
-      <span>{label}</span>
+    <span className="flex max-w-full shrink-0 flex-wrap items-center gap-[4px] text-xs" style={{ color: labelColor }}>
+      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={statusColors.iconColor} className="shrink-0" />
+      <span className="max-w-full">{label}</span>
     </span>
   )
 }
@@ -67,7 +67,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
           </div>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-[8px]">
+      <div className="flex max-w-[60%] shrink-0 flex-wrap items-center gap-[8px]">
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <button
