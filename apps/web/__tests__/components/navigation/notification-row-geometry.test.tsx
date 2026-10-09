@@ -9,6 +9,9 @@ import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { measureTitleWords } from '../../../e2e/layout/title-word-geometry'
+import { FailureScreen } from '@/components/ui/failure-screen'
+import { NotFoundContent } from '@/components/ui/not-found-content'
 import { NotificationRow } from '@/components/navigation/notification-row'
 import { NotificationBellDisplay } from '@/components/navigation/notification-bell'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
@@ -91,4 +94,50 @@ describe('notification row targets in Chromium', () => {
       await page.close()
     }
   })
+  it.each([320, 412].flatMap((width) => (['en', 'pt-BR'] as const).map((locale) => ({ width, locale }))))('keeps notification words whole and error prose wrappable at $width in $locale', async ({ width, locale }) => {
+    const titles = ['W'.repeat(60), 'Extraordinarily comprehensive internationalization responsibilities']
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}>
+      <div style={{ padding: 16 }}><ul>{titles.map((title) => <NotificationRow key={title}
+        item={createMockNotification({ title })} onOpen={vi.fn()} onDelete={vi.fn()} />)}</ul></div>
+      <NotFoundContent />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await page.evaluate(() => document.fonts.ready)
+      const titleElements = await page.locator('[data-notification-title]').all()
+      expect(titleElements).toHaveLength(2)
+      for (const [index, element] of titleElements.entries()) {
+        const measured = await element.evaluate(measureTitleWords)
+        expect(measured.splitWords).toEqual([])
+        expect(measured.visibleLines).toBeLessThanOrEqual(index === 0 ? 1 : 2)
+        expect(measured.height).toBeLessThanOrEqual(measured.lineHeight * (index === 0 ? 1 : 2) + 1)
+        expect(measured.overflow).toBe('hidden')
+        expect(measured.text).toBe(titles[index])
+        const name = await element.locator('xpath=ancestor::button').getAttribute('aria-label')
+        expect(name).toContain(titles[index])
+      }
+      for (const element of await page.locator('.error-surface-title, .error-surface-action a').all()) {
+        const measured = await element.evaluate(measureTitleWords)
+        expect(measured.splitWords).toEqual([])
+        expect(measured.overflowWrap).toBe('normal')
+      }
+      expect(await page.locator('.error-surface-body').evaluate((element) => getComputedStyle(element).overflowWrap)).toBe('anywhere')
+    } finally { await page.close() }
+  })
+
+  it('limits emergency wrapping to error prose', async () => {
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en}>
+      <FailureScreen error={new Error('failure')} retry={vi.fn()} />
+      <NotFoundContent />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width: 320, height: 900 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      const styles = await page.locator('.error-surface-title, .error-surface-action button, .error-surface-action a').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowWrap))
+      expect(styles).toEqual(['normal', 'normal', 'normal', 'normal'])
+      expect(await page.locator('.error-surface-body').evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowWrap))).toEqual(['anywhere', 'anywhere'])
+    } finally { await page.close() }
+  })
+
 })
