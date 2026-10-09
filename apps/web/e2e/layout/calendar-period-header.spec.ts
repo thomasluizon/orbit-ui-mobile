@@ -9,7 +9,7 @@ import { test } from './upgrade-fixtures'
 
 async function verifyPeriodActions(view: 'month' | 'week' | 'range' | 'agenda', locale: 'pt-BR' | 'en', words: typeof en | typeof ptBR, controls: Locator) {
   if (view === 'month') return
-  const spans = locale === 'pt-BR' ? { range: '22 set a 5 out', week: '5 out a 11 out', agenda: '5 out a 11 out' } : { range: 'Sep 22 to Oct 5', week: 'Oct 5 to Oct 11', agenda: 'Oct 5 to Oct 11' }
+  const spans = locale === 'pt-BR' ? { range: '22 ago a 4 set', week: '31 ago a 6 set', agenda: '4 set a 10 set' } : { range: 'Aug 22 to Sep 4', week: 'Aug 31 to Sep 6', agenda: 'Sep 4 to Sep 10' }
   const label = spans[view]
   const title = controls.nth(1)
   await expect(title).toHaveText(label)
@@ -24,7 +24,7 @@ for (const width of [320, 412, 1100, 1352]) {
     test.describe(`${locale} shared calendar period header at ${width}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
       test('centres the same chevrons around a borderless title in every view', async ({ page, context }) => {
-        await prepareAgendaCalendar(page, context, locale)
+        await prepareAgendaCalendar(context, locale)
         await page.goto('/calendar')
         let ring: string | undefined
         for (const view of ['month', 'week', 'range', 'agenda'] as const) {

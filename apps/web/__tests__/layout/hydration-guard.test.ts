@@ -55,12 +55,16 @@ describe('layout hydration guard', () => {
 
   it('keeps every layout spec on the guarded clock fixture', () => {
     const directory = 'e2e/layout'
-    const specs = readdirSync(directory).filter((name) => name.endsWith('.spec.ts'))
+    const files = readdirSync(directory)
+    const specs = files.filter((name) => name.endsWith('.spec.ts'))
     expect(specs.length).toBeGreaterThan(0)
     for (const name of specs) {
       const source = readFileSync(`${directory}/${name}`, 'utf8')
       expect(source, name).toMatch(/import \{[^}]*\btest\b[^}]*\} from '\.\/(?:layout-test|upgrade-fixtures)'/)
-      expect(source, name).not.toMatch(/page\.clock\.setFixedTime/)
+    }
+    for (const name of files.filter((name) => /\.(?:ts|mjs)$/.test(name) && name !== 'layout-test.ts')) {
+      const source = readFileSync(`${directory}/${name}`, 'utf8')
+      expect(source, name).not.toMatch(/\bclock\s*\.\s*(?:setFixedTime|install|setSystemTime)\s*\(/)
     }
   })
 })
