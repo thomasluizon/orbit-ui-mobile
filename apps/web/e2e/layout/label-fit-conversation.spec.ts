@@ -10,7 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 /** Surface inventory:
@@ -61,9 +61,8 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
       test.use({ appLocale: locale, layoutProfile: profile, viewport: { width, height: 915 } })
       test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, route => route.fulfill({ json: profile }))
-        await context.route(url => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-          route => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, route => route.fulfill({ json: habit }))
       })
 

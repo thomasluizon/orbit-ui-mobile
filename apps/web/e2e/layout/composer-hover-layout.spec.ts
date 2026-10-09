@@ -4,8 +4,7 @@ import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 for (const width of [412, 1280]) {
   for (const theme of ['dark', 'light'] as const) {
@@ -14,7 +13,7 @@ for (const width of [412, 1280]) {
       const profile = profileSchema.parse({ ...profileFixture, themePreference: theme,
         aiMessagesUsed: profileFixture.aiMessagesLimit })
       await setLayoutProfileSession(context, profile)
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       await page.goto('/')
       const composer = page.locator('[data-shell-bottom] [data-composer-root]')
       await expect(composer).toHaveAttribute('data-state', 'atLimit')

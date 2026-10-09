@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -31,8 +32,7 @@ for (const { width, panelOpen } of [
 
     test('shows every day within the strip without horizontal overflow', async ({ page, context }) => {
       await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) =>
-        route.fulfill({ json: profileSchema.parse({ ...profileFixture, language: 'pt-BR' }) }))
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profileSchema.parse({ ...profileFixture, language: 'pt-BR' }) }])
       await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habitId)}`, (route) => route.fulfill({ json: habit }))
       await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habitId)}`, (route) => route.fulfill({ json: [] }))
       await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habitId)}`, (route) => route.fulfill({ json: metrics }))

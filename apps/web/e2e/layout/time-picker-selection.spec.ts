@@ -7,7 +7,7 @@ import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitSche
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), dueTime: '21:00' })
 const schedule = makeHabitScheduleItem({ id: habit.id, dueTime: habit.dueTime })
@@ -27,8 +27,8 @@ for (const width of [412, 1280]) {
         const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', themePreference: theme, uses24HourClock: true })
         await setLayoutProfileSession(context, profile)
         await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))

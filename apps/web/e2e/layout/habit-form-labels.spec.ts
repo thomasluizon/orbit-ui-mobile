@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -49,8 +50,7 @@ for (const width of [412, 1352]) {
 
     test.beforeEach(async ({ context }) => {
       await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) =>
-        route.fulfill({ json: profileSchema.parse({ ...profileFixture, language: 'pt-BR', hasProAccess: true }) }))
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profileSchema.parse({ ...profileFixture, language: 'pt-BR', hasProAccess: true }) }])
     })
 
     test('aligns create labels and controls with and without an exact time', async ({ page }) => {

@@ -11,7 +11,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
@@ -53,8 +53,8 @@ for (const width of [1352, 1100, 840, 412]) {
             ...profileFixture, language: locale, currentStreak: 4, longestStreak: 9, totalXp: 150,
           })
           await setLayoutProfileSession(context, profile)
-          await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-          await context.route(new RegExp(`${API.habits.list}(?:\\?.*)?$`), (route) => route.fulfill({ json: habits }))
+          await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
           await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
 
           const presentation = width >= 1024 ? 'panel' : 'overlay'

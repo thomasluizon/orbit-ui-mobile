@@ -6,7 +6,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { measureFieldInset } from './field-inset-geometry'
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
@@ -84,7 +84,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const profile = profileSchema.parse({ ...profileFixture, language: locale,
           aiMessagesUsed: state === 'atLimit' ? profileFixture.aiMessagesLimit : 0 })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, route => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/')
         const composer = page.locator('[data-shell-bottom] [data-composer-root]')
         await expect(composer).toHaveAttribute('data-state', state === 'offline' ? 'idle' : state)

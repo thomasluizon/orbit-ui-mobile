@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
@@ -106,7 +107,7 @@ for (const width of [412, 1280] as const) {
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
       await context.route(new RegExp(`${API.habits.get(habit.id)}$`), (route) => route.fulfill({ json: habitDetailSchema.parse({ ...makeHabitDetail(), ...habit }) }))
-      await context.route(new RegExp(`${API.habits.list}[?]`), (route) => route.fulfill({ json: habitsPage }))
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
       await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
       await page.goto('/?date=2026-09-04')
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()

@@ -10,7 +10,7 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const selectedDate = '2026-09-04'
 const children = [0, 1].map((position) => makeHabitScheduleItem({
@@ -31,9 +31,8 @@ for (const mode of ['dark', 'light'] as const) {
       await page.setViewportSize({ width, height: 915 })
       const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'pt-BR' })
       await setLayoutProfileSession(context, profile)
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-      await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-        (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items, totalCount: items.length } }))
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: items.length } }])
       await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 5 } }))
       await page.goto('/')
       const parent = page.getByTestId('habit-row').filter({ hasText: 'Parent' })
@@ -110,14 +109,13 @@ for (const width of [320, 600]) {
         await page.emulateMedia({ reducedMotion: 'reduce' })
         const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'pt-BR' })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         const child = makeHabitScheduleItem({ id: 'padded-child', title: 'Caminhar pela praça depois do almoço', children: [], hasSubHabits: false, scheduledDates: [selectedDate] })
         const habits = [
           makeHabitScheduleItem({ id: 'padded-parent', title: 'Cuidar da rotina da casa todos os dias', children: [child], scheduledDates: [selectedDate] }),
           makeHabitScheduleItem({ id: 'padded-leaf', title: 'Ler um capítulo do livro antes de dormir', children: [], hasSubHabits: false, position: 1, scheduledDates: [selectedDate] }),
         ]
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-          (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }))
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 3 } }))
         const proactive = createMockNotification({ url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: `${selectedDate}T12:00:00Z` })
         await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({

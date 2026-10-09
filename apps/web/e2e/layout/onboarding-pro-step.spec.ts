@@ -10,7 +10,7 @@ import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { subscriptionPlansFixtures } from '../../test-support/hermetic/mock-api/fixtures/subscription-plans'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const branch of ['trial', 'paywall'] as const) {
@@ -19,7 +19,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.setViewportSize({ width, height: 1800 })
         const profile = profileSchema.parse({ ...profileFixture, hasCompletedOnboarding: true, language: locale, isTrialActive: branch === 'trial', hasProAccess: branch === 'trial', plan: branch === 'trial' ? 'pro' : 'free', trialEndsAt: branch === 'trial' ? '2026-09-11T12:00:00Z' : '2026-09-01T12:00:00Z' })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.subscription.plans, (route) => route.fulfill({ json: subscriptionPlansFixtures[locale === 'pt-BR' ? 'brl' : 'usd'] }))
         await page.addInitScript(({ key, language }) => {
           localStorage.setItem(key, '1')

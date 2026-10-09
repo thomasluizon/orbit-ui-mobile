@@ -9,7 +9,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
@@ -32,7 +32,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', pt]] as const) {
       test('keeps the glyph reachable and the disclosure clear of the composer', async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
         await setLayoutProfileSession(context, profileSchema.parse({ ...profileFixture, language: locale }))
-        await context.route(new RegExp(`${API.habits.list}(?:\\?.*)?$`), (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await page.goto('/')
         await page.locator('[data-today-header-actions]').getByRole('button', { name: messages.habits.listOptions, exact: true }).click()
         await page.getByRole('menu', { name: messages.habits.listOptions, exact: true })

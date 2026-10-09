@@ -8,7 +8,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { completeInstallOnboarding } from './install-onboarding'
 
 const selectedDate = '2026-09-04'
@@ -36,9 +36,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
       await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
       const profile = profileSchema.parse({ ...profileFixture, language: locale, marketingEmailConsent: true })
       await setLayoutProfileSession(context, profile)
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-      await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-        (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }))
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
       await page.goto(`/?date=${selectedDate}`)
       await page.getByRole('button', { name: words.habits.listOptions }).click()
       await page.getByRole('menu', { name: words.habits.listOptions })

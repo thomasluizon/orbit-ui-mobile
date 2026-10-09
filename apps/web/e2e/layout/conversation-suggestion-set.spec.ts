@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -7,7 +8,6 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { profileSchema } from '@orbit/shared/types/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
 const habitTitle = 'Rotina da casa'
@@ -25,9 +25,8 @@ for (const width of [412, 1280]) {
           aiMessagesUsed: atLimit ? profileFixture.aiMessagesLimit : 0 })
         test.use({ appLocale: locale, layoutProfile: profile, viewport: { width, height: 915 } })
         test.beforeEach(async ({ context }) => {
-          await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, route => route.fulfill({ json: profile }))
-          await context.route(url => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-            route => route.fulfill({ json: habits }))
+          await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         })
 
         test('keeps the empty introduction chip-free and lets the composer own the suggestion set', async ({ page }) => {
