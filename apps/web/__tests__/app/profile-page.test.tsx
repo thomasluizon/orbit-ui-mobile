@@ -13,6 +13,8 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { useUIStore } from '@/stores/ui-store'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { ChevronRight, Trash2 } from '@/components/ui/icons'
 
 import type { PushPreferenceSnapshot } from '@/hooks/use-push-notification-preferences'
 
@@ -229,6 +231,33 @@ import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscr
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfilePage', () => {
+  it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((surface) => ({ locale, surface }))))('renders the drawn subscreen row glyphs in $surface in $locale', ({ locale, surface }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    const Destination = PROFILE_ROUTES[surface]
+    const { container } = render(<Destination />)
+    const reference = render(<div><ProfileNavIcon iconKey="account" /><Trash2 size={24} /><ChevronRight size={24} /></div>).container.querySelectorAll('svg')
+    const rows = container.querySelectorAll('.orbit-list-row-shell')
+    expect(rows).toHaveLength(4)
+    for (const [index, row] of rows.entries()) {
+      const glyphs = row.querySelectorAll('svg')
+      expect(glyphs, row.textContent!).toHaveLength(surface === 'account' ? 2 : 1)
+      const chevron = glyphs[glyphs.length - 1]!
+      expect(chevron.innerHTML).toBe(reference[2]!.innerHTML)
+      expect(chevron).toHaveAttribute('width', '24')
+      expect(chevron).toHaveAttribute('height', '24')
+      expect(chevron).toHaveAttribute('stroke', 'var(--fg-3)')
+      expect(chevron).toHaveAttribute('aria-hidden', 'true')
+      if (surface === 'account') {
+        expect(glyphs[0]).toHaveAttribute('width', '24')
+        if (index === 0) expect(glyphs[0]!.innerHTML).toBe(reference[0]!.innerHTML)
+        if (index === 3) {
+          expect(glyphs[0]!.innerHTML).toBe(reference[1]!.innerHTML)
+          expect(glyphs[0]!.parentElement!.style.color).toBe('var(--status-bad)')
+        }
+      }
+    }
+  })
+
   describe('destination top inset', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
@@ -239,6 +268,34 @@ describe('ProfilePage', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 412, 1280].flatMap((width) => (['account', 'preferences'] as const).map((surface) => ({ locale, width, surface })))))('aligns subscreen glyphs and preserves labels in $surface in $locale at $width', async ({ locale, width, surface }) => {
+      translateProMessages(locale as 'en' | 'pt-BR')
+      mockProfileState.current.profile = createMockProfile({ name: 'Ana', email: 'a@b.co', timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })
+      const Destination = PROFILE_ROUTES[surface]
+      const { container } = render(<Destination />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell')).map((row) => {
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          const range = document.createRange()
+          range.selectNodeContents(title)
+          const icons = Array.from(row.querySelectorAll('svg')).map((icon) => ({ x: icon.getBoundingClientRect().x, width: icon.getBoundingClientRect().width, height: icon.getBoundingClientRect().height }))
+          return { label: title.textContent, titleX: title.getBoundingClientRect().x, available: title.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, icons, overflow: row.scrollWidth > row.clientWidth }
+        }))
+        expect(geometry).toHaveLength(4)
+        for (const row of geometry) {
+          expect(row.icons, row.label!).toHaveLength(surface === 'account' ? 2 : 1)
+          for (const icon of row.icons) expect(icon).toMatchObject({ width: 24, height: 24 })
+          expect.soft(row.titleX, row.label!).toBe(geometry[0]!.titleX)
+          expect.soft(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
+          expect(row.overflow, row.label!).toBe(false)
+          if (surface === 'account') expect(row.icons[0]!.x).toBe(geometry[0]!.icons[0]!.x)
+        }
+      } finally { await page.close() }
+    })
 
     it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 412].flatMap((width) => [1, 2].flatMap((textScale) => ['free', 'trial', 'paid', 'lifetime'].map((plan) => ({ locale, width, textScale, plan }))))))('keeps $plan Perfil rows readable in $locale at $width px and $textScale text scale', async ({ locale, width, textScale, plan }) => {
       translateProMessages(locale as 'en' | 'pt-BR')
@@ -287,7 +344,7 @@ describe('ProfilePage', () => {
           }
           expect(row.height, row.label!).toBeGreaterThanOrEqual(48)
           expect(row.textEdge, row.label!).toBe(rows[0]!.textEdge)
-          expect(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
+          expect.soft(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
           expect(row.iconWidth, row.label!).toBe(24)
           expect(row.iconHidden, row.label!).toBe(true)
           expect(row.overflow, row.label!).toBe(false)

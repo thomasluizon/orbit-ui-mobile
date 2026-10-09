@@ -17,6 +17,7 @@ import { advanceAccountGeneration } from '@/lib/session-epoch'
 
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { ListRow } from '@/components/ui/list-row'
+import { createTokensV2 } from '@/lib/theme'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 import ProfileAccountRoute from '@/app/profile/account'
@@ -551,6 +552,34 @@ function findButtonByText(
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfileScreen', () => {
+  it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((screen) => ({ locale, screen }))))('renders the drawn subscreen row glyphs in $screen in $locale', async ({ locale, screen }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    mockRealListRow.current = true
+    const tokens = createTokensV2('orange', 'dark')
+    const tree = await renderProfileSubscreen(screen)
+    try {
+      const rows = tree.root.findAllByType(ListRow)
+      expect(rows).toHaveLength(4)
+      for (const [index, row] of rows.entries()) {
+        const contents = row.findAll((node: { type: unknown }) =>
+          typeof node.type === 'string' && ['User', 'Download', 'RotateCcw', 'Trash2', 'ChevronRight', 'Text'].includes(node.type))
+        const glyphs = contents.filter((node: { type: unknown }) => node.type !== 'Text')
+        expect(glyphs, row.props.title).toHaveLength(screen === 'account' ? 2 : 1)
+        if (screen === 'account') {
+          expect(contents[0].type).toBe(['User', 'Download', 'RotateCcw', 'Trash2'][index])
+          expect(glyphs[0].props.size).toBe(24)
+          if (index === 3) expect(glyphs[0].props.color).toBe(tokens.statusBad)
+        }
+        expect(contents.at(-1).type, row.props.title).toBe('ChevronRight')
+        expect(glyphs.at(-1).props.size).toBe(24)
+        expect(glyphs.at(-1).props.color).toBe(tokens.fg3)
+        const decorativeChevron = row.findAll((node: { type: unknown; props: { importantForAccessibility?: string }; findAllByType: (type: string) => unknown[] }) =>
+          node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants' && node.findAllByType('ChevronRight').length === 1)
+        expect(decorativeChevron).toHaveLength(1)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
+
   it.each([412, 840].flatMap((width) => (['account', 'preferences', 'astra', 'notifications'] as const)
     .map((screen) => ({ width, screen }))))('starts $screen content at the column inset at $width', async ({ width, screen }) => {
     const tree = await renderProfileSubscreen(screen)
