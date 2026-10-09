@@ -29,7 +29,8 @@ export function shouldRetryQuery(failureCount: number, error: unknown): boolean 
 
 export function queryRetryDelay(failureCount: number, error: unknown): number {
   if (extractBackendStatus(error) === 429) {
-    return Math.min(errorRetryAfter(error) ?? Math.min(5000 * 2 ** failureCount, 30_000), MAX_RETRY_DELAY)
+    const backoff = Math.min(5000 * 2 ** failureCount, 30_000)
+    return Math.min(Math.max(errorRetryAfter(error) ?? 0, backoff), MAX_RETRY_DELAY)
   }
   return Math.min(1000 * 2 ** failureCount, 30_000)
 }

@@ -247,6 +247,23 @@ it('keeps a 429 read pending until the retry returns data', async () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(await result).toEqual(['Recovered'])
     expect(states).not.toContain('error')
+    queryFn.mockRejectedValueOnce(error).mockResolvedValue(['Updated'])
+    const refetch = client.fetchQuery({ queryKey, queryFn, staleTime: 0 })
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(client.getQueryData(queryKey)).toEqual(['Recovered'])
+    expect(client.getQueryState(queryKey)?.status).toBe('success')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await refetch).toEqual(['Updated'])
+    const exhaustedKey = habitKeys.list({ search: 'exhausted' })
+    const exhausted = client.fetchQuery({
+      queryKey: exhaustedKey,
+      queryFn: () => Promise.reject(createApiClientError(429, null, 'Unavailable')),
+    }).catch((failure: unknown) => failure)
+    await vi.advanceTimersByTimeAsync(124_999)
+    expect(client.getQueryState(exhaustedKey)?.status).toBe('pending')
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await exhausted).toMatchObject({ status: 429 })
+    expect(client.getQueryState(exhaustedKey)?.status).toBe('error')
   } finally {
     unsubscribe()
     client.clear()

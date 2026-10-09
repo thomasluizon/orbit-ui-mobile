@@ -44,6 +44,17 @@ describe('rate limited reads', () => {
     expect(total).toBeLessThanOrEqual(720_000)
   })
 
+  it.each(['0', '1'])('keeps the recovery window with a short Retry-After %s', (retryAfter) => {
+    const error = createApiClientError(429, null, 'Unavailable', retryAfter)
+    let total = 0
+    for (let count = 0; shouldRetryQuery(count, error); count++) {
+      total += queryRetryDelay(count, error)
+      expect(count).toBeLessThan(10)
+    }
+    expect(total).toBeGreaterThanOrEqual(90_000)
+    expect(total).toBeLessThanOrEqual(720_000)
+  })
+
   it.each(['60', 'Thu, 01 Jan 1970 00:01:00 GMT'])('honours Retry-After %s', (retryAfter) => {
     const error = Object.assign(createApiClientError(429, null, 'Unavailable'), { retryAfter })
     vi.spyOn(Date, 'now').mockReturnValue(0)
