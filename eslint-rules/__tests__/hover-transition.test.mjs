@@ -11,6 +11,8 @@ const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecma
 
 tester.run('hover-transition', require('../hover-transition.cjs'), {
   valid: [
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--status-dot-press-duration)]" style={{ transitionDuration: "var(--dur-hover-control), var(--status-dot-press-duration)", transitionTimingFunction: "var(--ease-standard), var(--ease-out)" } as CSSProperties} />',
+    '<button className="hover:bg-[var(--bg-hover)] [transition-property:background-color,box-shadow,scale]" style={{ transition: "background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)" }} />',
     '<button data-fab="" className="transition-[background-color,transform] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)]" />',
     '<button className="hover:bg-[var(--bg-hover)] transition-[transform,background-color] [transition-duration:150ms,var(--dur-hover-control)] [transition-timing-function:cubic-bezier(0.16,1,0.3,1),var(--ease-standard)]" />',
     '<button className="hover:bg-[var(--bg-hover)] transition-[color,opacity,background-color] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)]" />',
@@ -35,6 +37,8 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
     '<button className="hover:bg-[var(--bg-hover)] motion-safe:transition-colors motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)]" />',
   ],
   invalid: [
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" style={{ transitionDuration: "150ms, var(--dur-hover-control)" }} />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] habit-control-motion" style={{ transition: "background-color 240ms ease-out, scale 150ms var(--ease-out)" }} />', errors: [{ messageId: 'timing' }] },
     ...['duration-150', 'duration-200', 'duration-[var(--dur-fast)]', '[transition-duration:150ms]', '[transition-duration:150ms,var(--dur-hover-control)]'].map((duration) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,transform] ${duration} ease-[var(--ease-standard)]" />`, errors: [{ messageId: 'duration' }] })),
     ...['ease-out', 'ease-linear', 'ease-[var(--ease-out)]', '[transition-timing-function:var(--ease-out),var(--ease-standard)]'].map((timing) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ${timing}" />`, errors: [{ messageId: 'timing' }] })),
     { code: '<button className="hover:bg-[var(--bg-hover)] transition-colors ease-[var(--ease-standard)]" />', errors: [{ messageId: 'duration' }] },

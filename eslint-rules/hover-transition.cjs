@@ -92,10 +92,36 @@ function backgroundIndexes(utility) {
 
 function timingValues(utility, property, prefix) {
   const arbitrary = new RegExp(`^\\[${property}:(.+)\\]$`).exec(utility)
-  if (arbitrary !== null) return splitOutsideBrackets(arbitrary[1], ',')
+  if (arbitrary !== null) return splitOutsideBrackets(arbitrary[1], ',').map((value) => value.trim())
   if (!utility.startsWith(`${prefix}-`)) return null
   const value = utility.slice(prefix.length + 1)
   return splitOutsideBrackets(value.startsWith('[') ? value.slice(1, -1) : value, ',')
+}
+
+function inlineTransitionClasses(opening) {
+  const style = opening.attributes.find((attribute) => attribute.type === 'JSXAttribute' && attribute.name.name === 'style')
+  const expression = getAttributeValueNode(style)
+  const object = expression?.type === 'TSAsExpression' ? expression.expression : expression
+  if (object?.type !== 'ObjectExpression') return []
+  const declarations = object.properties.filter((property) => property.type === 'Property'
+    && property.value.type === 'Literal' && typeof property.value.value === 'string')
+  const classes = []
+  for (const declaration of declarations) {
+    const name = declaration.key.name ?? declaration.key.value
+    const value = declaration.value.value
+    if (name === 'transitionDuration' || name === 'transitionTimingFunction') {
+      classes.push({ variants: [], utility: `[${name === 'transitionDuration' ? 'transition-duration' : 'transition-timing-function'}:${value}]` })
+    }
+    if (name === 'transition') {
+      const entries = splitOutsideBrackets(value, ',').map((entry) => splitOutsideBrackets(entry.trim(), ' ').filter(Boolean))
+      for (const [index, property] of ['transition-property', 'transition-duration', 'transition-timing-function'].entries()) {
+        const values = entries.map((entry) => entry[index] ?? '')
+          .map((entry) => entry === '240ms' ? 'var(--dur-hover-control)' : entry === '380ms' ? 'var(--dur-hover)' : entry)
+        classes.push({ variants: [], utility: `[${property}:${values.join(',')}]` })
+      }
+    }
+  }
+  return classes
 }
 
 function timingProblem(classes, hover) {
@@ -134,7 +160,12 @@ module.exports = {
         if (node.name.name !== 'className') return
         const hasFabFill = node.parent.attributes.some((attribute) => attribute.type === 'JSXAttribute' && attribute.name.name === 'data-fab')
         for (const branch of collectClassBranches(getAttributeValueNode(node))) {
+          const inlineClasses = inlineTransitionClasses(node.parent)
+          const inlineProperties = new Set(inlineClasses.map(({ utility }) => utility.slice(1, utility.indexOf(':'))))
           const classes = branch.flatMap((text) => text.split(/\s+/)).map(parseClass)
+            .filter(({ utility, variants }) => variants.length > 0 || ![...inlineProperties].some((property) =>
+              property === 'transition-property' ? coversBackground(utility) : timingValues(utility, property, property === 'transition-duration' ? 'duration' : 'ease') !== null))
+          classes.push(...inlineClasses)
           const fills = classes.filter((hover) => hover.utility.startsWith('bg-') && hover.variants.some((variant) => HOVER_VARIANT.test(variant)))
           if (hasFabFill) fills.push({ utility: 'bg-', variants: ['hover'] })
           for (const hover of fills) {
