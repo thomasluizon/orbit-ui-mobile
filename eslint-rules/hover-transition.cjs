@@ -55,7 +55,12 @@ function splitOutsideBrackets(name, separator) {
 
 function parseClass(name) {
   const segments = splitOutsideBrackets(name, ':')
-  return { variants: segments.slice(0, -1), utility: segments.at(-1).replace(/^!|!$/g, '') }
+  const utility = segments.at(-1)
+  return { variants: segments.slice(0, -1), utility: utility.replace(/^!|!$/g, ''), important: utility.startsWith('!') || utility.endsWith('!') }
+}
+
+function setsTransitionProperty(utility) {
+  return MOTION.has(utility) || utility === 'transition' || utility.startsWith('transition-') || utility.startsWith('[transition-property:')
 }
 
 function coversBackground(utility) {
@@ -116,40 +121,71 @@ function inlineTransitionClasses(opening) {
   for (const declaration of declarations) {
     const name = declaration.key.name ?? declaration.key.value
     const value = declaration.value.value
-    if (name === 'transitionDuration' || name === 'transitionTimingFunction') {
-      classes.push({ variants: [], utility: `[${name === 'transitionDuration' ? 'transition-duration' : 'transition-timing-function'}:${value}]` })
+    const longhand = { transitionProperty: 'transition-property', transitionDuration: 'transition-duration', transitionTimingFunction: 'transition-timing-function' }[name]
+    if (longhand !== undefined) {
+      classes.push({ variants: [], utility: `[${longhand}:${value}]`, inline: true })
     }
     if (name === 'transition') {
       const entries = splitOutsideBrackets(value, ',').map((entry) => splitOutsideBrackets(entry.trim(), ' ').filter(Boolean))
       for (const [index, property] of ['transition-property', 'transition-duration', 'transition-timing-function'].entries()) {
         const values = entries.map((entry) => entry[index] ?? '')
           .map((entry) => entry === '240ms' ? 'var(--dur-hover-control)' : entry === '380ms' ? 'var(--dur-hover)' : entry)
-        classes.push({ variants: [], utility: `[${property}:${values.join(',')}]` })
+        classes.push({ variants: [], utility: `[${property}:${values.join(',')}]`, inline: true })
       }
     }
   }
   return classes
 }
 
-function timingProblem(classes, hover) {
-  const matching = classes.filter((candidate) => coversTarget(candidate, hover))
-  const transitions = matching.filter((candidate) => coversBackground(candidate.utility))
-  if (transitions.length === 0) return 'missing'
-  if (transitions.some(({ utility }) => utility === 'transition-none')) return null
-  const hasMotion = transitions.some(({ utility }) => MOTION.has(utility))
+function effectiveClasses(classes, matchesProperty) {
+  let candidates = classes.filter(({ utility }) => matchesProperty(utility))
+  if (candidates.some(({ important }) => important)) candidates = candidates.filter(({ important }) => important)
+  else if (candidates.some(({ inline }) => inline)) candidates = candidates.filter(({ inline }) => inline)
+  const specificity = Math.max(...candidates.map(({ variants }) => variants.length))
+  candidates = candidates.filter(({ variants }) => variants.length === specificity)
+  return candidates
+}
+
+function contextTimingProblem(classes) {
+  let transitions = effectiveClasses(classes, setsTransitionProperty)
   const explicit = transitions.filter(({ utility }) => !MOTION.has(utility))
-  const indexes = explicit.length === 0 ? [0] : explicit.flatMap(({ utility }) => backgroundIndexes(utility))
+  if (explicit.length > 0) transitions = explicit
+  if (transitions.some(({ utility }) => utility === 'transition-none')) return null
+  if (!transitions.some(({ utility }) => coversBackground(utility))) return 'missing'
+  const hasMotion = classes.some(({ utility }) => MOTION.has(utility))
+  const indexes = transitions.flatMap(({ utility }) => backgroundIndexes(utility))
   for (const [property, prefix, accepted, message] of [
     ['transition-duration', 'duration', ['var(--dur-hover-control)', 'var(--dur-hover)'], 'duration'],
     ['transition-timing-function', 'ease', ['var(--ease-standard)'], 'timing'],
   ]) {
-    const baseValues = matching.map(({ utility }) => timingValues(utility, property, prefix)).filter((value) => value !== null)
-    if (baseValues.length === 0 && !hasMotion) return message
-    const values = classes.filter((candidate) => overlapsTarget(candidate, hover))
+    const values = effectiveClasses(classes, (utility) => timingValues(utility, property, prefix) !== null)
       .map(({ utility }) => timingValues(utility, property, prefix)).filter((value) => value !== null)
+    if (values.length === 0 && !hasMotion) return message
     if (values.some((list) => indexes.some((index) => !accepted.includes(list[index % list.length])))) return message
   }
   return null
+}
+
+function timingProblem(classes, hover) {
+  const matching = classes.filter((candidate) => coversTarget(candidate, hover))
+  const relevant = classes.filter((candidate) => overlapsTarget(candidate, hover)
+    && (setsTransitionProperty(candidate.utility) || timingValues(candidate.utility, 'transition-duration', 'duration') !== null
+      || timingValues(candidate.utility, 'transition-timing-function', 'ease') !== null))
+  const contexts = [matching, ...relevant.filter((candidate) => !matching.includes(candidate)).map((conditional) =>
+    relevant.filter((candidate) => matching.includes(candidate) || candidate.variants.every((variant) =>
+      conditional.variants.some((contextVariant) => variantCovers(variant, contextVariant)))))]
+  for (const active of contexts) {
+    const problem = contextTimingProblem(active)
+    if (problem !== null) return problem
+  }
+  return null
+}
+
+function shadowedByInline(candidate, inlineProperties) {
+  if (candidate.important || candidate.variants.some(targetsDescendant)) return false
+  return [...inlineProperties].some((property) => property === 'transition-property'
+    ? setsTransitionProperty(candidate.utility) && !MOTION.has(candidate.utility)
+    : timingValues(candidate.utility, property, property === 'transition-duration' ? 'duration' : 'ease') !== null)
 }
 
 module.exports = {
@@ -172,8 +208,7 @@ module.exports = {
           const inlineClasses = inlineTransitionClasses(node.parent)
           const inlineProperties = new Set(inlineClasses.map(({ utility }) => utility.slice(1, utility.indexOf(':'))))
           const classes = branch.flatMap((text) => text.split(/\s+/)).map(parseClass)
-            .filter(({ utility, variants }) => variants.length > 0 || ![...inlineProperties].some((property) =>
-              property === 'transition-property' ? coversBackground(utility) : timingValues(utility, property, property === 'transition-duration' ? 'duration' : 'ease') !== null))
+            .filter((candidate) => !shadowedByInline(candidate, inlineProperties))
           classes.push(...inlineClasses)
           const fills = classes.filter((hover) => hover.utility.startsWith('bg-') && hover.variants.some((variant) => HOVER_VARIANT.test(variant)))
           if (hasFabFill) fills.push({ utility: 'bg-', variants: ['hover'] })
