@@ -178,12 +178,12 @@ export async function inspectControlAccentRings(target: Locator) {
     const ancestors: Element[] = []
     for (let parent = control.parentElement; parent; parent = parent.parentElement) {
       const rect = parent.getBoundingClientRect()
-      if (['top', 'right', 'bottom', 'left'].every((side) => Math.abs(rect[side as keyof DOMRect] as number - (bounds[side as keyof DOMRect] as number)) <= 8)) ancestors.push(parent)
+      if ((['top', 'right', 'bottom', 'left'] as const).every((side) => Math.abs(rect[side] - bounds[side]) <= 8)) ancestors.push(parent)
     }
     const primary = getComputedStyle(control).getPropertyValue('--primary').trim()
     const probe = document.createElement('span')
     probe.style.color = primary
-    control.appendChild(probe)
+    document.body.appendChild(probe)
     const channels = getComputedStyle(probe).color.match(/[\d.]+/g)?.slice(0, 3).map(Number)
     probe.remove()
     const accent = (color: string) => {

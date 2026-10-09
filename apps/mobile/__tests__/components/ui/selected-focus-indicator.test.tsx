@@ -3,7 +3,24 @@ import { describe, expect, it, vi } from 'vitest'
 import { Chip } from '@/components/ui/chip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { RadioRow } from '@/components/ui/select-check'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { makeHabitDetailScopedChild } from '@orbit/shared/test-support/habit-detail-fixtures'
+import { buildHabitUnderstandingLabels } from '@orbit/shared/utils'
+import { TimeField } from '@/components/ui/time-field'
+import { HabitDetailSchedule } from '@/components/habits/habit-detail-fields'
+import { HabitUnderstanding } from '@/components/habits/habit-form-fields/habit-understanding'
+import { HabitEmojiSelector } from '@/components/habits/habit-form-fields/habit-emoji-selector'
+import { createStyles } from '@/components/habits/habit-form-fields/styles'
+import { ProfilePreferencesContent } from '@/app/(tabs)/profile/_components/profile-preferences-content'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => null }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => null }))
+vi.mock('@/components/profile/preferences-sections', () => ({ PreferencePickerSheet: () => null }))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { uses24HourClock: true, weekStartDay: 1 } }) }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/app/use-preference-controls', () => ({ usePreferenceControls: () => ({ selectedLanguage: 'en', currentTheme: 'dark', currentScheme: 'orange', activePicker: null, setActivePicker: vi.fn(), handleThemeModeChange: vi.fn(), timeZoneMutation: { mutate: vi.fn() }, weekStartMutation: { mutate: vi.fn() }, clockFormatMutation: { mutate: vi.fn() } }) }))
 
 const TestRenderer = require('react-test-renderer')
 const tokens = createTokensV2('orange', 'dark')
@@ -54,3 +71,62 @@ function verify(element: React.ReactNode, selected: boolean) {
   expect(ringCount(host())).toBe(selected ? 1 : 0)
   TestRenderer.act(() => tree!.unmount())
 }
+
+function verifyAllChoices(tree: ReturnType<typeof TestRenderer.create>) {
+  const choices = () => tree.root.findAllByType('Pressable').filter((node: { props: { accessibilityState?: { selected?: boolean; checked?: boolean } } }) => {
+    const state = node.props.accessibilityState
+    return state?.selected !== undefined || state?.checked !== undefined
+  })
+  expect(choices().length).toBeGreaterThan(1)
+  for (let index = 0; index < choices().length; index += 1) {
+    const selected = Boolean(choices()[index].props.accessibilityState.selected || choices()[index].props.accessibilityState.checked)
+    expect(ringCount(choices()[index])).toBe(selected ? 1 : 0)
+    const target = {}
+    const event = { target, currentTarget: target }
+    TestRenderer.act(() => choices()[index].props.onFocus?.(event))
+    expect(ringCount(choices()[index])).toBe(1)
+    TestRenderer.act(() => choices()[index].props.onBlur?.(event))
+    const settledSelected = Boolean(choices()[index].props.accessibilityState.selected || choices()[index].props.accessibilityState.checked)
+    expect(ringCount(choices()[index])).toBe(settledSelected ? 1 : 0)
+  }
+}
+
+it('TimeField options use one indicator with and without selection', () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<TimeField label="Time" value="09:00" onChange={vi.fn()} />) })
+  TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
+  verifyAllChoices(tree)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it('emoji options and category chips share the focus rule', () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitEmojiSelector selectedEmoji="😀" tokens={tokens} styles={createStyles(tokens)} onSelect={vi.fn()} />) })
+  TestRenderer.act(() => tree!.root.findAllByType('Pressable')[0].props.onPress())
+  verifyAllChoices(tree)
+  const category = tree!.root.findAllByType('Pressable').find((node: { props: { accessibilityState?: { selected?: boolean } }; findAllByType: (type: string) => unknown[] }) => node.props.accessibilityState?.selected === false && node.findAllByType('Text').length === 1)
+  TestRenderer.act(() => category.props.onPress())
+  verifyAllChoices(tree)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it('theme pills keep the selected tint while focus takes the perimeter', () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<ProfilePreferencesContent profile={createMockProfile()} patchProfile={vi.fn()} />) })
+  verifyAllChoices(tree)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it.each([false, true])('habit detail schedule choices share one indicator, editor %s', (open) => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailSchedule habit={{ ...makeHabitDetailScopedChild('2026-09-04'), days: ['Monday'], frequencyUnit: 'Day', frequencyQuantity: 1 }} tokens={tokens} summary="Daily" open={open} onToggle={vi.fn()} onCancel={vi.fn()} onSave={vi.fn()} />) })
+  verifyAllChoices(tree)
+  TestRenderer.act(() => tree!.unmount())
+})
+
+it('habit form day pills share one indicator', () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<HabitUnderstanding value="Read" emoji="" days={['Monday']} dayOptions={[{ value: 'Monday', label: 'Mon', accessibleLabel: 'Monday' }, { value: 'Tuesday', label: 'Tue', accessibleLabel: 'Tuesday' }]} quantity={1} mode="fixed" sentence={null} consumed={[]} labels={buildHabitUnderstandingLabels((key) => key)} onValueChange={vi.fn()} onEmojiSelect={vi.fn()} onToggleDay={vi.fn()} onQuantityChange={vi.fn()} />) })
+  verifyAllChoices(tree)
+  TestRenderer.act(() => tree!.unmount())
+})

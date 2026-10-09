@@ -7,7 +7,7 @@ import tailwind from '@tailwindcss/postcss'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Input } from '@/components/ui/input'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
+import { inspectFocusedControlRings as inspectFocusedRing, readFieldIndicators } from '@/e2e/layout/focus-indicators'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from './chromium'
 
 describe('field indicator readers in Chromium', () => {
@@ -42,7 +42,7 @@ describe('field indicator readers in Chromium', () => {
       const field = page.locator('input, textarea')
       expect(await readFieldIndicators(field, '[data-input-root]')).toEqual(['div::after:shadow'])
       await page.keyboard.press('Tab')
-      expect((await inspectFocusedRing(page))?.indicators).toEqual(['div::after'])
+      expect((await inspectFocusedRing(page))?.indicators).toEqual(['div::after:shadow'])
       expect(await readFieldIndicators(field, '[data-input-root]')).toEqual(['div::after:shadow'])
       await page.emulateMedia({ forcedColors: 'active' })
       expect(await readFieldIndicators(field, '[data-input-root]', { forcedColors: true })).toEqual(['div:border'])
@@ -52,6 +52,9 @@ describe('field indicator readers in Chromium', () => {
   })
 
   it.each([
+    { label: 'outline and shadow on one element', rules: '.field { outline: 2px solid rgb(196, 83, 15); box-shadow: inset 0 0 0 2px rgb(196, 83, 15); }', count: 2 },
+    { label: 'two alpha shadows', rules: '.field { box-shadow: inset 0 0 0 2px rgba(196, 83, 15, 0.45), inset 0 0 0 1px rgba(196, 83, 15, 0.2); }', count: 2 },
+    { label: 'accent border', rules: '.field { border: 2px solid rgba(196, 83, 15, 0.45); }', count: 1 },
     { label: 'element shadow', rules: '.field { box-shadow: inset 0 0 0 2px rgb(196, 83, 15); }', count: 1 },
     { label: 'after shadow', rules: '.field::after { content: ""; box-shadow: inset 0 0 0 2px rgb(196, 83, 15); }', count: 1 },
     { label: 'before shadow', rules: '.field::before { content: ""; box-shadow: inset 0 0 0 2px rgb(196, 83, 15); }', count: 1 },
@@ -66,6 +69,7 @@ describe('field indicator readers in Chromium', () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>
+        :root { --primary: rgb(196, 83, 15); }
         .field { position: relative; width: 320px; height: 54px; }
         .field::before, .field::after { position: absolute; inset: 0; pointer-events: none; }
         input { width: 100%; height: 100%; box-sizing: border-box; background: transparent; border: 0; outline: none; }
@@ -90,6 +94,7 @@ describe('field indicator readers in Chromium', () => {
     const page = await browser.newPage()
     try {
       await page.setContent(`<style>
+        :root { --primary: rgb(196, 83, 15); }
         .field { position: relative; width: 320px; height: 54px; }
         .field::before, .field::after { position: absolute; inset: 0; z-index: 1; }
         input { width: 100%; height: 100%; box-sizing: border-box; background: white; border: 0; outline: none; }

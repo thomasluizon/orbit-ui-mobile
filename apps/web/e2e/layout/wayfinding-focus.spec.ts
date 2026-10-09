@@ -9,7 +9,7 @@ import { buildAccountScopedStorageKey, buildRecapRequestUrl, ONBOARDING_PRO_PEND
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { readFieldIndicators, inspectFocusedRing } from './focus-indicators'
+import { readFieldIndicators, inspectFocusedControlRings as inspectFocusedRing } from './focus-indicators'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 

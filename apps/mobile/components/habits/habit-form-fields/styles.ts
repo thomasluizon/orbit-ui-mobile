@@ -194,7 +194,6 @@ export function createSectionStyles(tokens: AppTokens) {
     },
     whenButtonActive: {
       backgroundColor: tintFromPrimary(tokens, 0.12),
-      borderColor: tokens.primary,
     },
     whenButtonText: {
       fontFamily: "Geist_500Medium",

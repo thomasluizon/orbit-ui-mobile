@@ -6,7 +6,7 @@ import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
+import { inspectFocusedControlRings as inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
 
 const selectedDate = '2026-09-04'
 

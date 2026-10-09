@@ -4,7 +4,7 @@ import messages from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { setLayoutProfileSession } from './profile-session'
-import { expectOneFieldIndicator, inspectFocusedRing } from './focus-indicators'
+import { expectOneFieldIndicator, inspectFocusedControlRings as inspectFocusedRing } from './focus-indicators'
 
 async function expectOneRing(page: Page, surface: string, stop: number) {
   const state = await inspectFocusedRing(page)
