@@ -6,6 +6,8 @@ import type { ChatMessage } from '@orbit/shared/types'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { renderedText } from '../../support/react-test-renderer'
+import { __emitKeyboardEvent } from '../../../test-mocks/react-native'
+import { Composer } from '@/components/shell/composer'
 import { usePendingOperationExecution } from '@/hooks/use-pending-operation-execution'
 import { AstraConversation } from '@/components/chat/conversation'
 import { breakdownSubHabits, makeActionResult, makeAgentOperationResult, makeBulkCreateResponse, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
@@ -20,13 +22,14 @@ vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-d
 vi.mock('react-native', async (importOriginal) => {
   const original = await importOriginal<typeof import('react-native')>()
   return { ...original, FlatList: React.forwardRef<FlatList<ChatMessage>, FlatListProps<ChatMessage>>((props, ref) => {
-    React.useImperativeHandle(ref, () => ({ scrollToEnd }) as unknown as FlatList<ChatMessage>)
+    React.useImperativeHandle(ref, () => ({ scrollToEnd, scrollToOffset }) as unknown as FlatList<ChatMessage>)
     return <original.View {...props}>{Array.from(props.data ?? []).map((item, index) => <React.Fragment key={item.id}>{props.renderItem?.({ item, index, separators: { highlight: () => {}, unhighlight: () => {}, updateProps: () => {} } })}</React.Fragment>)}</original.View>
   }) }
 })
 
 const viewport = { offset: 163.5, height: 1400, visibleHeight: 500 }
-const scrollToEnd = vi.fn(() => { viewport.offset = viewport.height - viewport.visibleHeight })
+const scrollToEnd = vi.fn(() => { scroll(viewport.height - viewport.visibleHeight) })
+const scrollToOffset = vi.fn(({ offset }: { offset: number }) => { scroll(offset) })
 const mutations = vi.hoisted(() => ({ refresh: vi.fn(), revise: vi.fn(), breakdown: vi.fn(), clarification: vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useBulkCreateHabits: () => ({ mutateAsync: mutations.breakdown, isPending: false }) }))
 vi.mock('@/hooks/use-resolve-clarification', () => ({ useResolveClarification: () => ({ mutateAsync: mutations.clarification, isPending: false }) }))
@@ -101,8 +104,8 @@ function start(operation: CardOperation) {
   if (operation === 'breakdown') void act(() => { (tree.root.findAll(node => (node.type as unknown) === 'ConfirmBreakdown')[0]!.props.onConfirm as () => void)() })
 }
 function expectBusy(busy: boolean) { expect(tree.root.findAll(node => node.type === FlatList)[0]!.props.accessibilityState).toEqual({ busy }) }
-beforeEach(() => { vi.clearAllMocks(); viewport.offset = 163.5; viewport.height = 1400 })
-afterEach(() => { void act(() => tree.unmount()) })
+beforeEach(() => { vi.clearAllMocks(); viewport.offset = 163.5; viewport.height = 1400; viewport.visibleHeight = 500 })
+afterEach(() => { void act(() => tree.unmount()); vi.unstubAllGlobals() })
 
 it.each(cardOperations.flatMap(operation => [false, true].map(failure => ({ operation, failure }))))('reports $operation busy until settlement (failure=$failure)', async ({ operation, failure }) => {
   const deferred = deferOperation(operation)
@@ -161,4 +164,41 @@ it.each([false, true])('reveals the clarification preview actions unless reading
   await act(() => { listProps().onContentSizeChange?.(412, 1800) })
   expect(viewport.offset).toBe(reading ? 100 : 1300)
   if (reading) expect(scrollToEnd).not.toHaveBeenCalled()
+})
+
+it.each(['following', 'before keyboard', 'while queued'])('keeps following reply growth through keyboard dismissal unless reading earlier (reading=%s)', async mode => {
+  const reading = mode !== 'following'
+  const frames: ((time: number) => void)[] = []
+  vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => frames.push(callback))
+  const flushFrames = () => { for (const frame of frames.splice(0)) frame(0) }
+  const layout = () => listProps().onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 412, height: viewport.visibleHeight } } } as Parameters<NonNullable<FlatListProps<ChatMessage>['onLayout']>>[0])
+  await act(() => { tree = create(<CardConversation operations={['clarification']} />) as unknown as TestTree })
+  await act(() => { listProps().onContentSizeChange?.(412, 1400) })
+  expect(viewport.offset).toBe(900)
+  await act(() => {
+    if (mode === 'before keyboard') scroll(100)
+    const focus = tree.root.findAll(node => node.type === Composer)[0]!.props.onInputFocus as () => void
+    focus()
+    __emitKeyboardEvent('keyboardDidShow')
+    if (mode === 'while queued') scroll(100)
+    viewport.visibleHeight = 250
+    flushFrames()
+    layout()
+  })
+  expect(viewport.offset).toBe(reading ? 100 : 1150)
+  scrollToEnd.mockClear()
+  await act(() => { viewport.height = 1800; listProps().onContentSizeChange?.(412, 1800) })
+  expect(viewport.offset).toBe(reading ? 100 : 1550)
+  await act(() => {
+    __emitKeyboardEvent('keyboardDidHide')
+    viewport.visibleHeight = 500
+    layout()
+    flushFrames()
+  })
+  expect(viewport.offset).toBe(reading ? 100 : 1300)
+  await act(() => { viewport.height = 2000; listProps().onContentSizeChange?.(412, 2000) })
+  expect(viewport.offset).toBe(reading ? 100 : 1500)
+  expect(scrollToOffset).not.toHaveBeenCalled()
+  if (reading) expect(scrollToEnd).not.toHaveBeenCalled()
+  else expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
 })

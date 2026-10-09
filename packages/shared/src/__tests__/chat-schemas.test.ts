@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { actionResultSchema, chatStreamEventSchema } from '../types/chat'
+import { agentExecuteOperationResponseSchema } from '../types/ai'
+import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
 
 const validClarificationRequest = {
   question: 'Which reading habit did you mean?',
@@ -58,6 +60,19 @@ describe('actionResultSchema superRefine', () => {
 })
 
 describe('chatStreamEventSchema discriminatedUnion', () => {
+  it('parses the shared clarification fixture through the stream producer schema', () => {
+    const message = makeClarificationPreviewMessage()
+    expect(chatStreamEventSchema.parse({ type: 'final', response: {
+      aiMessage: message.content, actions: message.actions,
+    } })).toMatchObject({ type: 'final', response: { actions: message.actions } })
+  })
+
+  it('parses the shared held preview fixtures through the clarification response schema', () => {
+    const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
+    const operation = makeAgentOperationResult('PendingConfirmation', 1)
+    expect(agentExecuteOperationResponseSchema.parse({ operation, pendingOperation })).toEqual({ operation, pendingOperation })
+  })
+
   it.each(['today', 'overdue', 'general', 'none', 'done'])(
     'parses a habit list card item with status %s',
     (status) => {

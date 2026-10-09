@@ -228,7 +228,7 @@ describe('ChatScreen composer recoveries', () => {
     expect(findByType(avoidingView!, 'FlatList') === undefined).toBe(showSuggestions)
   })
 
-  it('keeps the mounted conversation at the last message and restores its scroll offset', async () => {
+  it('keeps the mounted conversation at the newest content when the keyboard closes', async () => {
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
       callback(0)
       return 0
@@ -242,6 +242,7 @@ describe('ChatScreen composer recoveries', () => {
     const composer = findByType(tree.root, 'Composer')
 
     await TestRenderer.act(async () => {
+      ;(feed?.props.onContentSizeChange as (width: number, height: number) => void)(412, 680)
       ;(feed?.props.onScroll as (event: unknown) => void)({ nativeEvent: {
         contentOffset: { x: 0, y: 180 }, contentSize: { width: 412, height: 680 }, layoutMeasurement: { width: 412, height: 500 },
       } })
@@ -251,13 +252,15 @@ describe('ChatScreen composer recoveries', () => {
       await Promise.resolve()
     })
     expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    scrollToEnd.mockClear()
 
     await TestRenderer.act(async () => {
       __emitKeyboardEvent('keyboardDidHide')
       ;(feed?.props.onLayout as () => void)()
       await Promise.resolve()
     })
-    expect(scrollToOffset).toHaveBeenCalledWith({ offset: 180, animated: false })
+    expect(scrollToEnd).toHaveBeenCalledExactlyOnceWith({ animated: false })
+    expect(scrollToOffset).not.toHaveBeenCalled()
     vi.unstubAllGlobals()
   })
 

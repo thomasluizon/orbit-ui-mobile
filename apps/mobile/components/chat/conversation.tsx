@@ -261,7 +261,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               showsVerticalScrollIndicator={false}
               onContentSizeChange={onContentSizeChange}
               onScroll={(event) => {
-                keyboardScroll.onScroll(event);
                 const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
                 threadScroll.recordScroll(contentOffset.y, contentSize.height - layoutMeasurement.height);
               }}

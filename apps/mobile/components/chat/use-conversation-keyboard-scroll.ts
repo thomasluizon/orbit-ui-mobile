@@ -3,7 +3,6 @@ import { Keyboard } from 'react-native'
 
 interface ScrollableConversation {
   scrollToEnd: (params?: { animated?: boolean }) => void
-  scrollToOffset: (params: { offset: number; animated?: boolean }) => void
 }
 
 const alwaysFollow = () => true
@@ -12,7 +11,6 @@ export function useConversationKeyboardScroll(
   listRef: RefObject<ScrollableConversation | null>,
   shouldFollow: () => boolean = alwaysFollow,
 ) {
-  const previousOffset = useRef(0)
   const keyboardVisible = useRef(false)
   const composerFocused = useRef(false)
   const restoreOnLayout = useRef(false)
@@ -26,25 +24,19 @@ export function useConversationKeyboardScroll(
     composerFocused.current = false
   }, [])
 
-  const restorePreviousOffset = useCallback(() => {
+  const followAfterDismissal = useCallback(() => {
     if (!restoreOnLayout.current) return
-    if (shouldFollow()) listRef.current?.scrollToOffset({ offset: previousOffset.current, animated: false })
+    if (shouldFollow()) listRef.current?.scrollToEnd({ animated: false })
     restoreOnLayout.current = false
   }, [listRef, shouldFollow])
 
-  const onScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
-    if (!keyboardVisible.current && !restoreOnLayout.current) {
-      previousOffset.current = event.nativeEvent.contentOffset.y
-    }
-  }, [])
-
   const onLayout = useCallback(() => {
     if (restoreOnLayout.current) {
-      restorePreviousOffset()
+      followAfterDismissal()
     } else if (keyboardVisible.current && composerFocused.current && shouldFollow()) {
       listRef.current?.scrollToEnd({ animated: false })
     }
-  }, [listRef, restorePreviousOffset, shouldFollow])
+  }, [listRef, followAfterDismissal, shouldFollow])
 
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', () => {
@@ -59,13 +51,13 @@ export function useConversationKeyboardScroll(
     const hide = Keyboard.addListener('keyboardDidHide', () => {
       keyboardVisible.current = false
       restoreOnLayout.current = true
-      requestAnimationFrame(restorePreviousOffset)
+      requestAnimationFrame(followAfterDismissal)
     })
     return () => {
       show.remove()
       hide.remove()
     }
-  }, [listRef, restorePreviousOffset, shouldFollow])
+  }, [listRef, followAfterDismissal, shouldFollow])
 
-  return { onScroll, onLayout, onComposerFocus, onComposerBlur }
+  return { onLayout, onComposerFocus, onComposerBlur }
 }

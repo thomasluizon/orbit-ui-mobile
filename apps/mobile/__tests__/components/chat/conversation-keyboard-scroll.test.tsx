@@ -47,27 +47,27 @@ describe('conversation keyboard scroll', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shows the last message above the keyboard and restores the previous offset', async () => {
+  it('follows the newest content when the keyboard opens and closes', async () => {
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
       callback(0)
       return 0
     })
     const owner = await renderScrollOwner()
     await TestRenderer.act(async () => {
-      owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 180 } } })
       owner.controls().onComposerFocus()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
       owner.controls().onLayout()
       await Promise.resolve()
     })
     expect(owner.scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    owner.scrollToEnd.mockClear()
     await TestRenderer.act(async () => {
-      owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 420 } } })
       __emitKeyboardEvent('keyboardDidHide')
       owner.controls().onLayout()
       await Promise.resolve()
     })
-    expect(owner.scrollToOffset).toHaveBeenCalledWith({ offset: 180, animated: false })
+    expect(owner.scrollToEnd).toHaveBeenLastCalledWith({ animated: false })
+    expect(owner.scrollToOffset).not.toHaveBeenCalled()
     await TestRenderer.act(async () => {
       owner.tree.update(<></>)
       await Promise.resolve()
@@ -75,25 +75,25 @@ describe('conversation keyboard scroll', () => {
     vi.unstubAllGlobals()
   })
 
-  it('does not restore an old offset on an unrelated layout after dismissal', async () => {
+  it('does not scroll on an unrelated layout after dismissal', async () => {
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
       callback(0)
       return 0
     })
     const owner = await renderScrollOwner()
     await TestRenderer.act(async () => {
-      owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 180 } } })
       owner.controls().onComposerFocus()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
+      owner.scrollToEnd.mockClear()
       __emitKeyboardEvent('keyboardDidHide')
       await Promise.resolve()
     })
-    expect(owner.scrollToOffset).toHaveBeenCalledTimes(1)
+    expect(owner.scrollToEnd).toHaveBeenCalledTimes(1)
     await TestRenderer.act(async () => {
       owner.controls().onLayout()
       await Promise.resolve()
     })
-    expect(owner.scrollToOffset).toHaveBeenCalledTimes(1)
+    expect(owner.scrollToEnd).toHaveBeenCalledTimes(1)
     await TestRenderer.act(async () => {
       owner.tree.update(<></>)
       await Promise.resolve()
@@ -101,7 +101,7 @@ describe('conversation keyboard scroll', () => {
     vi.unstubAllGlobals()
   })
 
-  it('keeps the pre-keyboard offset during a resize scroll before restoration', async () => {
+  it('follows dismissal once when layout runs before the queued frame', async () => {
     const frames: (() => void)[] = []
     vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
       frames.push(callback)
@@ -109,16 +109,18 @@ describe('conversation keyboard scroll', () => {
     })
     const owner = await renderScrollOwner()
     await TestRenderer.act(async () => {
-      owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 180 } } })
       owner.controls().onComposerFocus()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
       frames.shift()?.()
+      owner.scrollToEnd.mockClear()
       __emitKeyboardEvent('keyboardDidHide')
-      owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 80 } } })
+      owner.controls().onLayout()
       frames.shift()?.()
       await Promise.resolve()
     })
-    expect(owner.scrollToOffset).toHaveBeenCalledWith({ offset: 180, animated: false })
+    expect(owner.scrollToEnd).toHaveBeenLastCalledWith({ animated: false })
+    expect(owner.scrollToEnd).toHaveBeenCalledTimes(1)
+    expect(owner.scrollToOffset).not.toHaveBeenCalled()
     await TestRenderer.act(async () => {
       owner.tree.update(<></>)
       await Promise.resolve()
@@ -133,7 +135,6 @@ describe('conversation keyboard scroll', () => {
     })
     const owner = await renderScrollOwner()
     await TestRenderer.act(async () => {
-      owner.controls().onScroll({ nativeEvent: { contentOffset: { y: 80 } } })
       owner.controls().onComposerFocus()
       owner.controls().onComposerBlur()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
