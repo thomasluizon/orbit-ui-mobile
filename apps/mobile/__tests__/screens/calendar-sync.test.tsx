@@ -1,3 +1,4 @@
+import { SettingsGroup } from '@/components/ui/settings-group';
 import { PersonalText } from '@/components/ui/personal-text'
 import React from "react";
 import { Resvg } from "@resvg/resvg-js";
@@ -278,12 +279,13 @@ vi.mock("@/components/ui/app-bar", () => ({
 
 
 
-vi.mock("@/components/ui/settings-row", () => ({
-  SettingsRow: ({ label, ...props }: React.ComponentProps<typeof import("@/components/ui/settings-row")["SettingsRow"]>) =>
-    React.createElement("SettingsRow", props, label),
+vi.mock("@/components/ui/list-row", () => ({
+  ListRow: ({ title, toggle, readOnly, chevron, textMode, onClick }: React.ComponentProps<typeof import("@/components/ui/list-row")["ListRow"]>) =>
+    React.createElement("ListRow", { title, readOnly, chevron, textMode, accessibilityRole: toggle ? "switch" : undefined, onPress: toggle ? () => toggle.onChange(!toggle.checked) : onClick }, title),
 }));
 
-vi.mock("@/components/ui/switch", () => ({
+vi.mock("@/components/ui/switch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/components/ui/switch")>(),
   Switch: ({ onChange, label, checked }: { onChange: (value: boolean) => void; label: string; checked: boolean }) =>
     React.createElement("Switch", { onPress: () => onChange(!checked), accessibilityLabel: label }),
 }));
@@ -465,7 +467,7 @@ describe("CalendarSyncScreen", () => {
     await TestRenderer.act(async () => { tree = TestRenderer.create(<CalendarSyncScreen />); await Promise.resolve(); });
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === 'calendar.dayDetail.googleConnected')).toHaveLength(1);
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && typeof node.props.children === 'string' && /2026,/.test(node.props.children))).toHaveLength(1);
-    const toggle = tree.root.find((node) => node.type === 'Switch' && typeof node.props.onPress === 'function');
+    const toggle = tree.root.find((node) => node.type === 'ListRow' && node.props.accessibilityRole === 'switch' && typeof node.props.onPress === 'function');
     await TestRenderer.act(async () => { (toggle.props.onPress as () => void)(); await Promise.resolve(); });
     expect(mocks.setAutoSyncMutate).toHaveBeenCalledWith({ enabled: true });
     const sync = () => tree.root.find((node) => node.props.children === 'calendar.autoSync.syncNow' && typeof node.props.onClick === 'function');
@@ -1120,10 +1122,11 @@ describe("CalendarSyncScreen", () => {
 
   it("lists imported habits and keeps partial failures visible", async () => {
     const habitName = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos durante os encontros da semana';
-    mocks.eventsQuery.data = { status: "connected", events: buildEvents(2).map((event, index) => index === 0 ? { ...event, title: habitName } : event) };
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(3).map((event, index) => index === 0 ? { ...event, title: habitName } : event) };
     mocks.bulkMutateAsync.mockResolvedValue({
       results: [
         { status: "Success", habitId: "h1", title: habitName, error: null },
+        { status: "Success", habitId: "h2", title: "Event 2", error: null },
         { status: "Failed", habitId: null, title: "Event 1", error: "boom" },
       ],
     });
@@ -1160,10 +1163,13 @@ describe("CalendarSyncScreen", () => {
     ).toBeGreaterThan(0);
     const doneRows = tree.root.findAll(
       (node: TestNode & { type?: unknown }) =>
-        node.type === "SettingsRow" && node.props.children === habitName,
+        node.type === "ListRow" && node.props.children === habitName,
     );
     expect(doneRows).toHaveLength(1);
-    expect(doneRows[0]!.props.accessory).toBe("none");
+    const group = tree.root.findAllByType(SettingsGroup).find((node: TestNode) => React.Children.count(node.props.children) === 2);
+    expect(group).toBeDefined();
+    expect(group.findAll((node: TestNode & { type?: unknown }) => node.type === "View" && (StyleSheet.flatten(node.props.style) as ViewStyle | undefined)?.height === StyleSheet.hairlineWidth)).toHaveLength(1);
+    expect(doneRows[0]!.props.chevron).toBe(false);
     expect(doneRows[0]!.props.textMode).toBe("personal");
     const goToHabits = tree.root.find(
       (node: TestNode) =>
@@ -1177,7 +1183,7 @@ describe("CalendarSyncScreen", () => {
     expect(
       tree.root.findAll(
         (node: TestNode & { type?: unknown }) =>
-          node.type === "SettingsRow" && node.props.children === "Event 1",
+          node.type === "ListRow" && node.props.children === "Event 1",
       ),
     ).toHaveLength(0);
   });

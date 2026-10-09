@@ -1,17 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SettingsGroupRow } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
 
-describe.each([['SettingsRow', SettingsRow], ['SettingsGroupRow', SettingsGroupRow]] as const)('%s typed disclosure', (_name, Row) => {
+describe.each([['ListRow', ListRow]] as const)('%s typed disclosure', (_name, Row) => {
   it('reveals the full typed value in one tap and lets it collapse again', () => {
     const title = 'Caminhar pelo bairro depois do trabalho e conversar com todos os amigos'
-    render(<Row label={title} textMode="personal" accessory="none" />)
+    render(<Row title={title} textMode="personal" chevron={false} />)
     const row = screen.getByRole('button', { name: title })
     expect(row).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'true')
-    expect(row.parentElement!.querySelector('[data-slot="settings-row-label"]')).toHaveTextContent(title)
+    expect(row.parentElement!.querySelector('[data-slot="list-row-title"]')).toHaveTextContent(title)
     fireEvent.click(row)
     expect(row).toHaveAttribute('aria-expanded', 'false')
   })

@@ -41,12 +41,13 @@ vi.mock('@/components/ui/section-label', () => ({
     React.createElement('SectionLabelStub', {}, children),
 }))
 
-vi.mock('@/components/ui/settings-row', () => ({
-  SettingsRow: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('SettingsRowStub', {}, children),
+vi.mock('@/components/ui/list-row', () => ({
+  ListRow: ({ title, toggle }: import('@orbit/shared/contracts/lists').ListRowProps) =>
+    React.createElement('SettingsRowStub', {}, React.createElement('SwitchStub', { label: title, ...toggle })),
 }))
 
-vi.mock('@/components/ui/switch', () => ({
+vi.mock('@/components/ui/switch', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/switch')>(),
   Switch: ({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) =>
     React.createElement('SwitchStub', { checked, onChange }),
 }))

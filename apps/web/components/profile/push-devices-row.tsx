@@ -5,7 +5,6 @@ import { ListRow } from '@/components/ui/list-row'
 import { useTranslations } from 'next-intl'
 import type { WebPushPermission } from '@orbit/shared/utils'
 import { RowList } from '@/components/ui/row-list'
-import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { RotateCcw } from '@/components/ui/icons'
 import { getPushStatusMessageKey, getPushStatusTone, type PushPreferenceStatus } from '@/hooks/use-push-notification-preferences'
@@ -43,15 +42,11 @@ export function PushDevicesRow({
     <div aria-busy={loading || checking}>
     <RowList>
       <div>
-      <ListRow readOnly wrapTitle title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
-        <fieldset disabled={disabled} aria-hidden={checking || undefined} className={`m-0 border-0 p-0${checking ? ' invisible' : ''}`}>
-          <Switch checked={currentDeviceRegistered} onChange={() => {
-            if (!currentDeviceRegistered && !canEnable) { setLimitReached(true); return }
-            setLimitReached(false)
-            onToggle()
-          }} label={t('profile.settingsRows.alertsOnThisDevice')} />
-        </fieldset>
-      } />
+      <ListRow wrapTitle title={t('profile.settingsRows.alertsOnThisDevice')} disabled={disabled} chevron={false} toggle={{ checked: currentDeviceRegistered, pending: checking, onChange: () => {
+        if (!currentDeviceRegistered && !canEnable) { setLimitReached(true); return }
+        setLimitReached(false)
+        onToggle()
+      } }} />
       {loading ? <p role="status" aria-label={t('profile.loading')} className="m-0 px-4 pb-3 text-sm text-[var(--fg-3)]">{t('profile.loading')}</p> : null}
       {error ? <div className="flex items-center gap-3 px-4 pb-3">
         <p role="alert" className="m-0 flex-1 text-sm text-[var(--status-bad-text)]">{t('profile.settingsRows.devicesUnavailable')}</p>

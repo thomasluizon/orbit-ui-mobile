@@ -83,7 +83,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           icon="template"
           title={t('habits.form.useTemplate')}
           compact
-          inset={false}
+          placement="column"
           onClick={() => setOpen(true)}
         />
       </div>

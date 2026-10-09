@@ -1,7 +1,5 @@
 import { useShellNoticeSlot } from '@/hooks/use-shell-notice-slot'
 import { ListRow } from '@/components/ui/list-row'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { Switch } from '@/components/ui/switch'
 import { Toast } from '@/components/ui/app-toast'
 import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
@@ -73,15 +71,8 @@ export function ProfileAccountContent({ profile }: Readonly<ProfileContentProps>
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 106 controls this label under D42. */}
         <ListRow key="export" textMode="label" compact={!exportError} icon={icon(Download)} title={t('profile.settingsRows.export')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError || undefined} onClick={() => void exportData()} />
         {analyticsEnabled === null ? null : (
-          <SettingsRow
-            icon={BarChart3}
-            label={t('profile.analytics.title')}
-            desc={analyticsSaveError ? t('profile.analytics.saveError') : undefined}
-            accessory="none"
-            divider={false}
-          >
-            <Switch checked={analyticsEnabled} onChange={onToggleAnalytics} label={t('profile.analytics.title')} />
-          </SettingsRow>
+          /* eslint-disable-next-line local/max-button-words -- Orbit Perfil draws the analytics switch label. */
+          <ListRow icon={icon(BarChart3)} textMode="label" title={t('profile.analytics.title')} description={analyticsSaveError ? t('profile.analytics.saveError') : undefined} chevron={false} toggle={{ checked: analyticsEnabled, onChange: onToggleAnalytics }} />
         )}
         {/* eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 429 controls this label under D42. */}
         <ListRow key="fresh-start" textMode="label" compact icon={icon(RotateCcw)} title={t('profile.settingsRows.startOver')} onClick={() => setShowFreshStart(true)} />

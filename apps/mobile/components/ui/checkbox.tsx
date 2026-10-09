@@ -1,6 +1,7 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { CheckboxProps } from '@orbit/shared/contracts/forms'
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import Svg, { Rect } from 'react-native-svg'
 import { Check } from '@/components/ui/icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -18,16 +19,14 @@ export function Checkbox({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const box = (
     <View
+      data-slot="checkbox-box"
       pointerEvents="none"
-      style={[
-        styles.box,
-        {
-          backgroundColor: checked ? tokens.fg1 : 'transparent',
-          borderColor: error ? tokens.statusBad : checked ? 'transparent' : tokens.fg3,
-          borderWidth: error || !checked ? 2 : 0,
-        },
-      ]}
+      style={styles.box}
     >
+      <Svg width={24} height={24} viewBox="0 0 24 24" style={StyleSheet.absoluteFill} accessible={false}>
+        <Rect width={24} height={24} rx={8} fill={checked ? tokens.fg1 : 'transparent'} />
+        {error || !checked ? <Rect x={1} y={1} width={22} height={22} rx={7} fill="none" stroke={error ? tokens.statusBad : tokens.fg3} strokeWidth={2} /> : null}
+      </Svg>
       {loading ? (
         <ActivityIndicator size="small" color={tokens.bg} />
       ) : checked ? (

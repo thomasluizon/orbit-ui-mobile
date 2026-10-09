@@ -1,15 +1,16 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
-export async function readOutlineVisibility(target: Locator) {
-  return target.evaluate(async (element) => {
+export async function readOutlineVisibility(target: Locator, pseudo?: '::before') {
+  return target.evaluate(async (element, settings) => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    const style = getComputedStyle(element)
+    const style = getComputedStyle(element, settings.pseudo)
     const width = Number.parseFloat(style.outlineWidth)
     const offset = Number.parseFloat(style.outlineOffset)
     const extent = width + offset
     const bounds = element.getBoundingClientRect()
+    const control = settings.pseudo ? { left: bounds.left + Number.parseFloat(style.left), right: bounds.right - Number.parseFloat(style.right), top: bounds.top + Number.parseFloat(style.top), bottom: bounds.bottom - Number.parseFloat(style.bottom) } : bounds
     const radius = Math.max(0, Math.min(Number.parseFloat(style.borderTopLeftRadius), bounds.width / 2, bounds.height / 2) + extent)
-    const outer = { left: bounds.left - extent, right: bounds.right + extent, top: bounds.top - extent, bottom: bounds.bottom + extent }
+    const outer = { left: control.left - extent, right: control.right + extent, top: control.top - extent, bottom: control.bottom + extent }
     const points = [
       { x: outer.left + radius, y: outer.top }, { x: outer.right - radius, y: outer.top },
       { x: outer.left + radius, y: outer.bottom }, { x: outer.right - radius, y: outer.bottom },
@@ -51,7 +52,7 @@ export async function readOutlineVisibility(target: Locator) {
       if (clipped) clippedBy.push(ancestor.getAttribute('aria-label') ?? (ancestor.className || ancestor.tagName))
     }
     return { width, offset, visible: style.outlineStyle !== 'none' && width >= 2, clippedBy }
-  })
+  }, { pseudo: pseudo ?? null })
 }
 
 export interface FieldIndicatorOptions {

@@ -40,6 +40,11 @@ for (const width of [320, 360, 384, 412]) {
         const markup = renderSettingsRowMarkup([...labels, words.trial.expired.proactiveAstra], habitName)
         await page.setContent(settingsPage(markup))
         await loadAppFonts(page)
+        for (const body of await page.locator('[data-slot="list-row-body"]').all()) {
+          await expect(body).toHaveCSS('padding-inline-start', '16px')
+          await expect(body).toHaveCSS('padding-block-start', '12px')
+          await expect(body).toHaveCSS('border-bottom-width', '0px')
+        }
         for (const label of [...labels, words.trial.expired.proactiveAstra]) {
           await markRequiredLabels(page.getByText(label, { exact: true }))
         }

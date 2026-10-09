@@ -1,6 +1,5 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
-import { usePrefersReducedMotion } from '@/lib/motion'
 import { ActionRow } from '@/components/ui/action-row'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, TextInput, View, findNodeHandle, useWindowDimensions } from 'react-native'
@@ -67,7 +66,7 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from '@/components/ui/icons'
 import { DateRow } from '@/components/ui/date-row'
 import { CreateHabitModal } from './create-habit-modal'
 import { HabitDetailFields, HabitDetailSchedule } from './habit-detail-fields'
@@ -105,6 +104,10 @@ function SectionTitle({ children, color }: Readonly<{ children: string; color: s
   return <Text numberOfLines={1} style={[styles.sectionTitle, { color }]}>{children}</Text>
 }
 
+function disclosureIcon(open: boolean) {
+  return open ? 'chevron-down' : 'chevron-right'
+}
+
 function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
   return <View style={styles.surface}>{children}</View>
 }
@@ -129,7 +132,6 @@ function ReminderReadout({ habit, tokens }: Readonly<{ habit: NormalizedHabit; t
 }
 
 function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; tokens: ReturnType<typeof createTokensV2> }>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const { t } = useTranslation()
   const openConversation = () => {
     prepareChatRequest(useChatStore.getState(), {
@@ -141,7 +143,7 @@ function AskAstraRow({ habit, tokens }: Readonly<{ habit: NormalizedHabit; token
   }
   return (
     // eslint-disable-next-line local/max-button-words -- Canvas Orbit Habit Detail line 176 controls this label under D42.
-    <Pressable accessibilityRole="button" accessibilityLabel={t('habits.detail.askAstra')} onPress={openConversation} style={({ pressed }) => [styles.astraRow, pressed && { backgroundColor: tokens.bgHover, transform: [{ scale: prefersReducedMotion ? 1 : 0.96 }] }]}><View style={styles.astraGlyph} accessible={false}><AstraGlyph size={20} color={tokens.fg1} /></View><Text numberOfLines={1} style={[styles.astraLabel, { color: tokens.fg1 }]}>{t('habits.detail.askAstra')}</Text><ChevronRight size={24} strokeWidth={1.5} color={tokens.fg3} /></Pressable>
+    <ListRow placement="column" icon={<AstraGlyph size={24} color={tokens.fg1} />} title={t('habits.detail.askAstra')} onClick={openConversation} />
   )
 }
 
@@ -180,6 +182,8 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
   const { width } = useWindowDimensions()
   const [editing, setEditing] = useState(false)
   const [descriptionOpen, setDescriptionOpen] = useState(false)
+  const [renameHovered, setRenameHovered] = useState(false)
+  const [renameFocused, setRenameFocused] = useState(false)
   const titleType = responsiveTypeStyle('habitTitle', width)
   const titleLineHeight = resolveResponsiveTypeRole('habitTitle', width).size * 1.4
   const [title, setTitle] = useState(habit.title)
@@ -204,7 +208,12 @@ function Header({ habit, summary, completed, logged, overdue, progress, tokens, 
         </View>
         <View style={styles.headerCopy}>
           <Text accessibilityRole="header" style={styles.hiddenTitle}>{habit.title}</Text>
-          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} onPress={() => setEditing(true)} style={styles.renameTarget}><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></Pressable>}
+          {editing ? <TextInput autoFocus value={title} maxLength={200} accessibilityLabel={t('habits.detail.rename')} onChangeText={setTitle} onBlur={() => void save()} onSubmitEditing={() => void save()} style={[styles.titleInput, responsiveTypeStyle('habitTitle', width), { color: tokens.fg1, borderBottomColor: tokens.primary }]} /> : <Pressable accessibilityRole="button" accessibilityLabel={habit.title} accessibilityHint={t('habits.detail.rename')} hitSlop={{ top: 8, bottom: 8, left: 16, right: 16 }} onPress={() => setEditing(true)} onHoverIn={() => setRenameHovered(true)} onHoverOut={() => setRenameHovered(false)} onFocus={() => setRenameFocused(true)} onBlur={() => setRenameFocused(false)} style={styles.renameFrame}>
+            {({ pressed }) => <>
+              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.renameFill, pressed || renameHovered || renameFocused ? { backgroundColor: tokens.bgHover } : null, renameFocused ? { outlineWidth: 2, outlineOffset: -6, outlineStyle: 'solid', outlineColor: tokens.fg1 } : null]} />
+              <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"><PersonalText unclamped style={[titleType, { color: tokens.fg1, lineHeight: titleLineHeight }]}>{habit.title}</PersonalText></View>
+            </>}
+          </Pressable>}
           {summary ? <Text numberOfLines={1} style={[styles.summary, { color: tokens.fg3 }]}>{summary}</Text> : null}
         </View>
       </View>
@@ -472,15 +481,13 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
     ? t('habits.todayBoundary.readOnly')
     : boundary === 'future' ? t('habits.todayBoundary.future') : undefined
   const reducedMotion = useReducedMotion()
-  const [detailChevron] = useState(() => new Animated.Value(0))
   const [detailOpacity] = useState(() => new Animated.Value(0))
   useEffect(() => {
-    Animated.timing(detailChevron, { toValue: detailsOpen ? 1 : 0, duration: reducedMotion ? 0 : 220, easing: Easing.bezier(...motionEasings.standard), useNativeDriver: true }).start()
     if (detailsOpen) {
       detailOpacity.setValue(0)
       Animated.timing(detailOpacity, { toValue: 1, duration: reducedMotion ? 0 : 160, easing: Easing.bezier(...motionEasings.standard), useNativeDriver: true }).start()
     }
-  }, [detailChevron, detailOpacity, detailsOpen, reducedMotion])
+  }, [detailOpacity, detailsOpen, reducedMotion])
   const back = useCallback(() => {
     if (parentId) router.back()
     else if (fromToday) router.back()
@@ -587,7 +594,7 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
         completionStatusUnavailable: scopedChild === undefined,
       }
     })
-  const subHabitCreation = <ListRow icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} />
+  const subHabitCreation = <ListRow placement="column" icon={<Plus size={24} color={tokens.fg1} />} title={t('habits.detail.addSubHabit')} chevron={false} trailing={!hasPro ? <Badge>{t('habits.detail.proGate')}</Badge> : undefined} onClick={() => hasPro ? setCreateOpen(true) : router.push('/upgrade')} />
   const childProgress = computeHabitDayProgress(
     children.filter((child) => !child.completionStatusUnavailable).map((child) => child.habit),
     (child) => hasHabitScheduleOnDate(child, dateStr),
@@ -618,9 +625,9 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
       <History habit={habit} logs={logsQuery.data} today={today} locale={language} weekStartsOn={profile.weekStartDay} tokens={tokens} />
       <AskAstraRow habit={habit} tokens={tokens} />
       <HabitDetailSchedule habit={habit} summary={summary ?? ''} open={scheduleOpen} tokens={tokens} onToggle={() => setScheduleOpen((value) => !value)} onCancel={() => setScheduleOpen(false)} onSave={(patchValue) => { void patch(patchValue).then((saved) => { if (saved) setScheduleOpen(false) }) }} />
-      <Surface><Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.disclosure}><Text numberOfLines={1} style={[styles.sectionTitle, styles.disclosureTitle, { color: tokens.fg1 }]}>{t('habits.detail.moreDetails')}</Text><Animated.View style={{ transform: [{ rotate: detailChevron.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}><ChevronDown size={24} color={tokens.fg3} /></Animated.View></Pressable><Animated.View style={{ opacity: detailOpacity, display: detailsOpen ? 'flex' : 'none' }}><HabitDetailFields key={habit.id} open={detailsOpen} habit={habit} hasProAccess={hasPro} relationshipControlsAvailable={relationshipControlsAvailable} tokens={tokens} onItemsChange={(items) => { void setItems(items) }} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View></Surface>
+      <View style={{ gap: 12 }}><ListRow placement="column" icon={disclosureIcon(detailsOpen)} title={t('habits.detail.moreDetails')} expanded={detailsOpen} controls="habit-detail-fields" chevron={false} onClick={() => setDetailsOpen((value) => !value)} /><Animated.View nativeID="habit-detail-fields" style={{ opacity: detailOpacity, display: detailsOpen ? 'flex' : 'none' }}><HabitDetailFields key={habit.id} open={detailsOpen} habit={habit} hasProAccess={hasPro} relationshipControlsAvailable={relationshipControlsAvailable} tokens={tokens} onItemsChange={(items) => { void setItems(items) }} onPatch={patch} onUpgrade={() => router.push('/upgrade')} /></Animated.View></View>
       <DateRow label={t('habits.detail.startedOn')} value={formatLocaleDate(new Date(habit.createdAtUtc), language, { dateStyle: 'medium' })} note={t('habits.form.startDateReason')} />
-      <ListRow icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
+      <ListRow placement="column" icon={<Trash2 size={24} color={tokens.statusBad} />} title={t('habits.detail.delete')} danger chevron={false} onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onClose={() => setCreateOpen(false)} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void setItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />
@@ -637,9 +644,6 @@ function HabitDetailContent({ habitId, date, fromToday = false, parentId, profil
 }
 
 const styles = StyleSheet.create({
-  astraRow: { borderRadius: 12, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, marginHorizontal: -16 },
-  astraGlyph: { width: 28, alignItems: 'center' },
-  astraLabel: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 17 },
   reminders: { gap: 4 },
   reminderHeading: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   reminderRow: { flexDirection: 'row', alignItems: 'center', minHeight: 32, gap: 8 },
@@ -654,7 +658,8 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerSpacer: { flex: 1 },
   headerCopy: { width: '100%', minWidth: 0, gap: 4 },
-  renameTarget: { minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, paddingVertical: 8, marginVertical: -8 },
+  renameFrame: { minWidth: TOUCH_TARGET_MIN, minHeight: 32, position: 'relative' },
+  renameFill: { position: 'absolute', top: -8, bottom: -8, left: -16, right: -16, minWidth: TOUCH_TARGET_MIN, minHeight: TOUCH_TARGET_MIN, borderRadius: 12 },
   hiddenTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
   titleInput: { borderBottomWidth: 2, padding: 0 },
   muted: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
@@ -662,7 +667,6 @@ const styles = StyleSheet.create({
   sectionHeader: { gap: 8 },
   dayHabitsStatus: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, paddingVertical: 12 },
   childReason: { alignSelf: 'flex-end', paddingRight: 12, paddingBottom: 8 },
-  disclosureTitle: { fontSize: 17 },
   historyActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statCard: { padding: 24, borderRadius: 20 },
   statRing: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: 20, borderWidth: 1 },
@@ -678,7 +682,6 @@ const styles = StyleSheet.create({
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { minWidth: 0, maxWidth: '100%', borderWidth: 1, borderRadius: 8 },
   tagText: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.7 },
-  disclosure: { minHeight: TOUCH_TARGET_MIN, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rescueCard: { gap: 12, padding: 24, borderRadius: 20, borderWidth: 1 },
   rescueContent: { gap: 12 },
   rescueHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },

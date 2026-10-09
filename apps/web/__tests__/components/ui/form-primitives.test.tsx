@@ -112,9 +112,7 @@ describe('form primitives on web', () => {
     )
     fireEvent.click(screen.getByRole('checkbox', { name: 'Done' }))
     expect(onChange).toHaveBeenCalledWith(false)
-    expect(container.querySelector('[aria-hidden="true"]')).toHaveStyle({
-      background: 'var(--status-done)',
-    })
+    expect(container.querySelector('[data-slot="checkbox-box"] rect')).toHaveAttribute('fill', 'var(--status-done)')
 
     rerender(<Checkbox checked={false} onChange={onChange} as="span" />)
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
@@ -145,7 +143,7 @@ describe('form primitives on web', () => {
     render(<Switch label="Reminders" checked={false} onChange={onChange} />)
     const control = screen.getByRole('switch', { name: 'Reminders' })
     expect(control).toHaveAttribute('aria-checked', 'false')
-    expect(control.firstElementChild).toHaveStyle({ background: 'var(--track-empty)' })
+    expect(control.querySelector('[data-slot="switch-track"]')).toHaveStyle({ background: 'var(--track-empty)' })
     fireEvent.click(control)
     expect(onChange).toHaveBeenCalledWith(true)
   })

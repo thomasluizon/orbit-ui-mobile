@@ -14,7 +14,8 @@ vi.mock('@/components/habits/habit-form-fields/styles', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/switch', () => ({
+vi.mock('@/components/ui/switch', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/switch')>(),
   Switch: (props: Record<string, unknown>) => React.createElement('Switch', props),
 }))
 
@@ -52,7 +53,7 @@ describe('SlipAlertSection (mobile)', () => {
 
     expect(onUpgrade).toHaveBeenCalledOnce()
     expect(onToggle).not.toHaveBeenCalled()
-    expect(tree.root.findAll((node: any) => node.type === 'Switch')).toHaveLength(0)
+    expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'switch')).toHaveLength(0)
   })
 
   it('lets a Pro account toggle the real switch', () => {
@@ -71,8 +72,8 @@ describe('SlipAlertSection (mobile)', () => {
       )
     })
 
-    const toggle = tree.root.findAll((node: any) => node.type === 'Switch')[0]
-    TestRenderer.act(() => toggle.props.onChange())
+    const toggle = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'switch')[0]
+    TestRenderer.act(() => toggle.props.onPress())
 
     expect(onToggle).toHaveBeenCalledOnce()
     expect(onUpgrade).not.toHaveBeenCalled()

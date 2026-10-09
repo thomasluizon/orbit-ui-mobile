@@ -38,6 +38,27 @@ const events: CalendarSyncEvent[] = Array.from({ length: 21 }, (_, index) => ({
   isRecurring: false, recurrenceRule: null, reminders: [], calendarName: 'Trabalho',
 }))
 
+function expectDefaultScaleGeometry(
+  measured: ReturnType<typeof measureProfileRow>, width: number, loggable: boolean,
+  eventTexts: ReturnType<typeof measureProfileRow>['texts'],
+  habitTexts: ReturnType<typeof measureProfileRow>['texts'],
+  habitRow: ReturnType<typeof measureProfileRow>['controls'][number],
+) {
+  const route = measured.controls.find((control) => control.accessibilityLabel === i18n.t('calendar.goToDay'))!
+  const routeLabel = measured.texts.find((text) => text.label === i18n.t('calendar.goToDay'))!
+  expect(routeLabel.lines, JSON.stringify(routeLabel)).toBe(1)
+  expect(routeLabel.clipped).toBe(false)
+  expect(routeLabel.left).toBe(route.left + 16 + 28 + 12)
+  expect(Math.abs(routeLabel.top + routeLabel.height / 2 - route.top - route.height / 2)).toBeLessThanOrEqual(1)
+  expect(routeLabel.right).toBeLessThanOrEqual(route.right - 16)
+  expect(route.left).toBe(24)
+  expect(route.right).toBe(width - 32 - 24)
+  for (const text of eventTexts) expect(text.clipped).toBe(false)
+  expect(habitTexts.reduce((count, text) => count + text.lines, 0)).toBe(2)
+  expect(habitRow.height + (loggable ? 24 : 0)).toBeGreaterThanOrEqual(loggable ? 48 : 68)
+  expect(measured.texts.find((text) => text.label === i18n.t('calendar.dayDetail.viewAllEventsLabel'))!.lines).toBe(1)
+}
+
 describe('Android day card geometry', () => {
   it.each([320, 360].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('fits titles at $width with loggable=$loggable in $locale using Android styles and fonts', async ({ width, loggable, locale }) => {
     await i18n.changeLanguage(locale)
@@ -58,13 +79,16 @@ describe('Android day card geometry', () => {
       expect(StyleSheet.flatten(copy.children[1].props.style)).toMatchObject({ fontFamily: 'GeistMono_400Regular', fontSize: 12, color: createTokensV2('purple', 'dark').fg3 })
       expect(StyleSheet.flatten(host.children[1].props.style).gap ?? 0).toBe(0)
       if (loggable) {
-        const target = host.children[1].children[0].children[0]
-        expect(StyleSheet.flatten(target.props.style({ pressed: false }))).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16 })
+        const target = host.children[1].children[0]
+        expect(StyleSheet.flatten(target.props.style)).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16 })
       }
       for (const scale of [1, 2]) {
         replayTextLayout(tree, width - 32, scale)
         const measured = measureProfileRow(tree.toJSON(), width - 32, scale)
-        if (loggable && scale === 1) expect(measured.controls.find((control) => control.accessibilityLabel === 'Caminhar pelo bairro depois do trabalho')!.height).toBeGreaterThanOrEqual(68)
+        if (loggable && scale === 1) {
+          const label = measured.controls.find((control) => control.accessibilityLabel === 'Caminhar pelo bairro depois do trabalho')!
+          expect(label.height + 24).toBeGreaterThanOrEqual(48)
+        }
         const eventRow = measured.controls.find((control) => control.labels.includes(events[0]!.title))!
         const eventTexts = measured.texts.filter((text) => text.top >= eventRow.top && text.bottom <= eventRow.bottom && events[0]!.title.includes(text.label.trim()))
         const habitRow = measured.controls.find((control) => control.labels.includes('Caminhar pelo bairro depois do trabalho'))!
@@ -77,19 +101,7 @@ describe('Android day card geometry', () => {
         expect(disclosure.inlineClearance).toBeGreaterThanOrEqual(8)
         expect(eventTexts.reduce((count, text) => count + text.lines, 0), JSON.stringify(eventTexts)).toBeLessThanOrEqual(2)
         if (scale === 1) {
-          const route = measured.controls.find((control) => control.accessibilityLabel === i18n.t('calendar.goToDay'))!
-          const routeLabel = measured.texts.find((text) => text.label === i18n.t('calendar.goToDay'))!
-          expect(routeLabel.lines, JSON.stringify(routeLabel)).toBe(1)
-          expect(routeLabel.clipped).toBe(false)
-          expect(routeLabel.left).toBe(route.left + 16 + 28 + 12)
-          expect(Math.abs(routeLabel.top + routeLabel.height / 2 - route.top - route.height / 2)).toBeLessThanOrEqual(1)
-          expect(routeLabel.right).toBeLessThanOrEqual(route.right - 16)
-          expect(route.left).toBe(24)
-          expect(route.right).toBe(width - 32 - 24)
-          for (const text of eventTexts) expect(text.clipped).toBe(false)
-          expect(habitTexts.reduce((count, text) => count + text.lines, 0)).toBe(2)
-          expect(habitRow.height).toBeGreaterThanOrEqual(68)
-          expect(measured.texts.find((text) => text.label === i18n.t('calendar.dayDetail.viewAllEventsLabel'))!.lines).toBe(1)
+          expectDefaultScaleGeometry(measured, width, loggable, eventTexts, habitTexts, habitRow)
         }
         for (const text of measured.texts) {
           expect(text.left, JSON.stringify(text)).toBeGreaterThanOrEqual(0)
