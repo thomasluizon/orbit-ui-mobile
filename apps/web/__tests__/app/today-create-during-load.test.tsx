@@ -51,7 +51,7 @@ vi.mock('@/components/shell/destination-shell', () => ({
     <>
       {state.pathname === '/wrapped' ? children : (
         <>
-          <div data-shell-background="" inert={conversationOpen && !state.wide || undefined} aria-hidden={conversationOpen && !state.wide || undefined}>
+          <div data-shell-background="" inert={conversationOpen || undefined} aria-hidden={conversationOpen || undefined}>
             <button type="button" onClick={onCreate}>Create</button>{createRefusal}<div data-shell-notice="" data-testid="notice-slot">{notice}</div>{children}
           </div>
           {conversationOpen && !state.wide ? <div role="dialog" aria-label="Astra conversation">{conversation}</div> : null}
@@ -165,7 +165,7 @@ describe('Today create during first load', () => {
     expect(banners[0]?.closest('[inert]')).toBeNull()
   })
 
-  it('announces reload guidance once while the conversation is a side panel', async () => {
+  it('announces reload guidance inside the wide conversation', async () => {
     state.wide = true
     render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
 
@@ -176,6 +176,7 @@ describe('Today create during first load', () => {
       .filter((node) => node.hasAttribute('data-update-banner'))
     expect(banners).toHaveLength(1)
     expect(banners[0]).toHaveTextContent('errors.api.accountChanged')
+    expect(banners[0]?.closest('[data-conversation-body]')).not.toBeNull()
   })
 
   it('waits to show the calendar import prompt until the pushed creation screen closes', async () => {
@@ -332,13 +333,14 @@ describe('Today create during first load', () => {
     expect(view.container.querySelector('[data-shell-notice]')).not.toHaveTextContent('App updated')
   })
 
-  it('keeps feedback in the shell notice when the conversation is a side panel', async () => {
+  it('keeps feedback inside the wide conversation', async () => {
     state.wide = true
     useUIStore.getState().setAstraConversationOpen(true)
     const view = render(<QueryAppLayout><div>Today</div></QueryAppLayout>)
     act(() => { useAppToastStore.getState().showError('Sync failed') })
 
     await screen.findByText('Sync failed')
-    expect(view.container.querySelector('[data-shell-notice]')).toHaveTextContent('Sync failed')
+    expect(view.container.querySelector('[data-conversation-body]')).toHaveTextContent('Sync failed')
+    expect(view.container.querySelector('[data-shell-notice]')).not.toHaveTextContent('Sync failed')
   })
 })

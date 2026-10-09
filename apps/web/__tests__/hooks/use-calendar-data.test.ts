@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useCalendarData, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
+import { emptyCalendarMonth } from '../../e2e/layout/calendar-month-fixture'
 
 const mockFetch = vi.fn()
 vi.mock('@/lib/throttle-fetch', () => ({
@@ -141,10 +142,7 @@ describe('useCalendarData', () => {
   })
 
   it('returns empty dayMap when no data', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ habits: [], logs: {} }),
-    })
+    mockFetch.mockResolvedValue(new Response(JSON.stringify(emptyCalendarMonth)))
 
     const currentMonth = new Date(2025, 0, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {

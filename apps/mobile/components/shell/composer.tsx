@@ -10,6 +10,7 @@ import { subscribeComposerRecordingTime } from '@orbit/shared/hooks'
 import { COMPOSER_CHIP_GAP, COMPOSER_CHIP_PEEK, resolveComposerStripLayout } from '@orbit/shared/chat'
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, AccessibilityInfo, Animated, findNodeHandle, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native'
+import { useUIStore } from '@/stores/ui-store'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, FileText, Image, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
@@ -301,6 +302,17 @@ function ComposerTextInput({ props, tokens, inputRef, onFocusChange }: Readonly<
 }
 
 function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComposerProps; tokens: AppTokensV2 }>) {
+  const triggerRef = useRef<View>(null)
+  const returnFocusPending = useRef(false)
+  const conversationOpen = useUIStore(state => state.astraConversationOpen)
+  useEffect(() => {
+    if (conversationOpen || !returnFocusPending.current) return
+    const timer = setTimeout(() => {
+      returnFocusPending.current = false
+      if (triggerRef.current) AccessibilityInfo.sendAccessibilityEvent(triggerRef.current, 'focus')
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [conversationOpen])
   const [scale] = useState(() => new Animated.Value(1))
   const reducedMotion = usePrefersReducedMotion()
   function animate(toValue: number) {
@@ -311,7 +323,8 @@ function OpenConversationControl({ props, tokens }: Readonly<{ props: MobileComp
       easing: toAnimatedEasing(mobileMotion.easings.enter), useNativeDriver: true,
     }).start()
   }
-  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={props.conversationLabel} onPress={props.onOpenConversation}
+  return <InsetFocusPressable ref={triggerRef} accessibilityRole="button" accessibilityLabel={props.conversationLabel}
+      onPress={() => { returnFocusPending.current = true; props.onOpenConversation?.() }}
       onPressIn={() => animate(mobileMotion.orbital.press.scale)} onPressOut={() => animate(1)}
       style={({ pressed }) => [styles.openConversation, pressed ? { backgroundColor: tokens.bgHover } : null]}>
       <Animated.View style={{ transform: [{ scale }] }}><AstraGlyph size={20} color={tokens.fg3} /></Animated.View>

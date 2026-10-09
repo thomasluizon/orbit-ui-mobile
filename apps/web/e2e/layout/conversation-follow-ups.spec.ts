@@ -26,8 +26,8 @@ for (const width of [320, 412, 1352]) {
           contentType: 'text/event-stream', body: `data: ${JSON.stringify(finalEvent)}\n\n`,
         }))
         await page.goto('/')
-        await page.getByRole('button', { name: pt.todayAstra.openConversation, exact: true }).click()
-        const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
+        await page.getByRole('button', { name: width >= 1024 ? pt.chat.title : pt.todayAstra.openConversation, exact: true }).click()
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
         await conversation.locator('[data-composer-input]').fill('Como posso revisar a minha rotina?')
         await conversation.getByRole('button', { name: pt.shell.composer.send, exact: true }).click()
         const group = conversation.getByRole('group', { name: pt.chat.followUps.label, exact: true })

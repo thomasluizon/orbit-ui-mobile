@@ -66,8 +66,9 @@ for (const width of [412, 1280] as const) {
       await page.goto('/')
 
       const pinnedComposer = page.locator('[data-shell-pinned-slot]')
-      await pinnedComposer.locator('[data-composer-input]').focus()
-      const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
+      if (width >= 1024) await page.locator('[data-shell-astra-row]').click()
+      else await pinnedComposer.locator('[data-composer-input]').focus()
+      const conversation = page.locator('[data-shell-conversation="overlay"]')
       await expect(conversation).toBeVisible()
       await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
       await expect(conversation.locator('[data-composer-input]')).toBeFocused()

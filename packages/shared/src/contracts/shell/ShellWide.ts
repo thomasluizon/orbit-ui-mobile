@@ -7,7 +7,7 @@ export interface ShellWideItem {
 }
 
 /** The conversation slot and its accessible name travel together, exactly as on Shell412: one
- *  feature in two presentations, so the two platforms state the rule once. */
+ *  full-screen feature on both platforms, so the two platforms state the rule once. */
 type ConversationSlot =
   | {
       conversation?: undefined
@@ -15,11 +15,11 @@ type ConversationSlot =
       conversationLabel?: never
     }
   | {
-      /** The panel's CONTENT. Takes authored markup as readily as a pre-built node. */
+      /** The full-screen column's content. Takes authored markup as readily as a pre-built node. */
       conversation: React.ReactNode
       /** Omit it and presence means open. Pass it to hold markup permanently and toggle openness. */
       conversationOpen?: boolean
-      /** The panel's accessible name, in the screen's locale. The shell ships no words. */
+      /** The conversation's accessible name, in the screen's locale. The shell ships no words. */
       conversationLabel: string
     }
 
@@ -69,6 +69,7 @@ export type ShellWideNavProps = ShellWideBase &
     /** Four destinations, never five. */
     items: ShellWideItem[]
     activeId: string
+    astraRow: { label: string; onOpen: () => void }
     onSelect?: (id: string) => void
     /** The nav landmark's accessible name, in the screen's locale. */
     navLabel: string
@@ -76,8 +77,8 @@ export type ShellWideNavProps = ShellWideBase &
     account?: string
     accountEmail?: string
     notifications?: React.ReactNode
-    /** Astra's front door, pinned to the bottom of the 740 main column, matching the mobile
-     *  placement. THE COMPOSER AND NOTHING ELSE: transient chrome goes in `notice`, above it. */
+    /** Compact Hoje composer, habit detail composer at every width, or Hoje selection tray.
+     *  Resting wide Hoje has no bottom content. Transient chrome uses `notice`. */
     composer?: React.ReactNode
     /** Rejected on a destination: a flow's forward action exists only where `nav` is false. */
     action?: never
@@ -90,6 +91,7 @@ export type ShellWideNoNavProps = ShellWideBase &
     nav: false
     items?: never
     activeId?: never
+    astraRow?: never
     onSelect?: never
     onCreate?: never
     createLabel?: never

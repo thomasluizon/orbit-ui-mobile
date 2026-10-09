@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import React from 'react'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -8,7 +9,8 @@ import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
 import type { CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <button aria-label="Avisos" /> }))
-vi.mock('@/components/shell/destination-shell', () => ({ useShellHeaderSlot: () => false }))
+vi.mock('@/components/command/command-palette', () => ({ CommandPalette: () => null }))
+vi.mock('@/hooks/use-keyboard-shortcuts', () => ({ useKeyboardShortcuts: () => {} }))
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
 import { advanceAccountGeneration } from '@/lib/session-epoch'
@@ -162,6 +164,8 @@ vi.mock('@/hooks/use-calendar-data', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
+  usePathname: () => '/calendar',
+  useParams: () => ({}),
   useRouter: () => ({ push: routerPush, replace: routerReplace }),
   useSearchParams: () => new URLSearchParams(calendarRouteSearch),
 }))
@@ -199,7 +203,7 @@ vi.mock('@/hooks/use-time-format', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => profileQueryState,
+  useProfile: () => ({ ...profileQueryState, profile: profileQueryState.profile ? { ...createMockProfile(), ...profileQueryState.profile } : undefined }),
 }))
 
 vi.mock('@/app/(app)/today-provider', () => ({
@@ -324,6 +328,7 @@ vi.mock('@/components/calendar/calendar-agenda-view', () => ({
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
+import { DestinationShell } from '@/components/shell/destination-shell'
 import { useUIStore } from '@/stores/ui-store'
 import {
   holdAccount,
@@ -350,6 +355,24 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 }
 
 describe('CalendarPage view switcher', () => {
+  it.each([false, true])('keeps the calendar header inside its shell column through loading and view changes at wide=%s', async (wide) => {
+    isWideDesktopValue = wide
+    const profile = profileQueryState.profile
+    profileQueryState.profile = undefined
+    const view = render(<DestinationShell onCreate={() => {}}><CalendarPage /></DestinationShell>)
+    const header = await screen.findByTestId('calendar-shell-header')
+    const column = view.container.querySelector('[data-shell-column]')
+    expect(column).toBeInTheDocument()
+    expect(header.closest('[data-shell-column]')).toBe(column)
+    expect(header.closest('[data-shell-header]')).toBeInTheDocument()
+    expect(view.container.querySelector('[data-shell-scroller]')).not.toContainElement(header)
+    profileQueryState.profile = profile
+    view.rerender(<DestinationShell onCreate={() => {}}><CalendarPage /></DestinationShell>)
+    expect(screen.getByTestId('calendar-shell-header').closest('[data-shell-column]')).toBe(column)
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    expect(screen.getByTestId('calendar-shell-header').closest('[data-shell-column]')).toBe(column)
+  })
+
   it('returns Semana to profile today across a device week boundary', () => {
     const previousZone = process.env.TZ
     process.env.TZ = 'UTC'
@@ -724,13 +747,20 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('switches to the week and range time-grid views', () => {
-    render(<CalendarPage />)
+    const page = render(<CalendarPage />)
+    expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getByTestId('week-view')).toBeDefined()
+    expect(page.container.querySelector('[data-page-viewport]')).toContainElement(screen.getByTestId('week-view'))
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
+    expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
+    for (const view of ['agenda', 'month']) {
+      fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${view}` }))
+      expect(page.container.querySelector('[data-page-viewport]')).toBeNull()
+    }
   })
 
   it('keeps the selector in the header and the selected day below the grid at wide width', () => {

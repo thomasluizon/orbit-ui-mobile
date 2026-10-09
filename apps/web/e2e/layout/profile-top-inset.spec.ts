@@ -6,10 +6,18 @@ import { LAYOUT_ORIGIN } from '../support/env'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
+import { emptyCalendarMonth } from './calendar-month-fixture'
 
 const goals = paginatedGoalResponseSchema.parse({
   items: Array.from({ length: 3 }, (_, index) => createMockGoal({ id: `inset-goal-${index}` })),
   page: 1, pageSize: 100, totalCount: 3, totalPages: 1,
+})
+
+test.beforeEach(async ({ context }) => {
+  await context.route(
+    (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
+    (route) => route.fulfill({ json: emptyCalendarMonth }),
+  )
 })
 
 async function measureTopInset(content: Locator) {
@@ -26,6 +34,18 @@ for (const locale of ['en', 'pt-BR'] as const) {
     test.describe(`destination top inset in ${locale} at ${width}px`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
       const words = locale === 'pt-BR' ? ptBR : en
+
+      test('preserves the Calendário column and pinned header top inset', async ({ page }) => {
+        await page.goto('/calendar')
+        const header = page.getByTestId('calendar-shell-header')
+        await expect(header).toBeVisible()
+        const inset = await header.evaluate(element => {
+          const column = element.closest('[data-shell-column]')!.getBoundingClientRect()
+          const header = element.getBoundingClientRect()
+          return { columnTop: column.top, headerTop: header.top, inset: header.top - column.top }
+        })
+        expect(inset).toEqual({ columnTop: 0, headerTop: width < 1024 ? 0 : 32, inset: width < 1024 ? 0 : 32 })
+      })
 
       test('insets Perfil and preserves Progresso spacing', async ({ page, context }) => {
         await context.route(

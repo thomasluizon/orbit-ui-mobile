@@ -39,7 +39,7 @@ export function CalendarWeekView({
   }
 
   return (
-    <div key={columns[0]?.dateStr ?? 'week'} className={slideClass}>
+    <div key={columns[0]?.dateStr ?? 'week'} className={`flex min-h-0 flex-1 flex-col ${slideClass}`}>
       <CalendarTimeGrid
         columns={columns}
         dayMap={dayMap}
