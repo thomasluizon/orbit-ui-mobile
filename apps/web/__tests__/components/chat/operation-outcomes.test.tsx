@@ -64,4 +64,17 @@ describe('OperationOutcomes on web', () => {
     expect(screen.getAllByText('chat.operation.outcome.UnsupportedByPolicy')).toHaveLength(1)
     expect(screen.getAllByText('chat.operation.status.UnsupportedByPolicy')).toHaveLength(1)
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full operation target %s', (name) => {
+    const operation = { ...makeAgentOperationResult('Failed', 2), targetName: name }
+    const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes
+    render(<OperationOutcomes outcomes={outcomes} />)
+    const disclosure = screen.getByRole('button', { name, expanded: false })
+    const title = disclosure.closest('[data-personal-text-action]')!.querySelector('[data-personal-text]')!
+    expect(title).toHaveAttribute('aria-label', name)
+    expect(title).toHaveStyle({ whiteSpace: name.includes(' ') ? 'normal' : 'nowrap', wordBreak: 'normal' })
+    fireEvent.click(disclosure)
+    expect(screen.getByRole('button', { name, expanded: true })).toBeInTheDocument()
+    expect(document.querySelector('[data-personal-text-expanded]')).not.toBeNull()
+  })
+
 })
