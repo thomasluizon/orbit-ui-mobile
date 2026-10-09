@@ -5,6 +5,7 @@ import {
   accountChangeQueryKeys, invalidateAccountEvent, invalidateAccountQueriesAtFailure, invalidateAccountQueriesBefore,
 } from '../query/account-events'
 import { goalKeys, habitKeys, notificationKeys, profileKeys } from '../query/keys'
+import { createApiClientError } from '../utils/error-utils'
 
 const habitId = '123e4567-e89b-42d3-a456-426614174000'
 const payload = { v: 1 as const, changes: [{ kind: 'habitLog' as const, op: 'create' as const, ids: [habitId], dates: ['2026-09-26'] }], origin: 'own' }
@@ -279,6 +280,26 @@ it.each([429, 503])('honours a stream %s Retry-After without a 429 failure fan-o
     expect(onFirstFailure).toHaveBeenCalledTimes(status === 429 ? 0 : 1)
     await vi.advanceTimersByTimeAsync(1)
     expect(open).toHaveBeenCalledTimes(2)
+  } finally {
+    controller.abort()
+    await running
+    vi.useRealTimers()
+  }
+})
+
+it('keeps a starting event connection from invalidating pending account reads', async () => {
+  vi.useFakeTimers()
+  const controller = new AbortController()
+  const open = vi.fn().mockRejectedValue(createApiClientError(503, { errorCode: 'UPSTREAM_STARTING' }, 'Unavailable', '5'))
+  const onFirstFailure = vi.fn()
+  const running = consumeAccountEventStream({
+    open, resumed: true, signal: controller.signal,
+    onEvent: () => {}, onOpen: () => {}, onReconnect: () => {}, onFirstFailure,
+  })
+  try {
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(onFirstFailure).not.toHaveBeenCalled()
   } finally {
     controller.abort()
     await running
