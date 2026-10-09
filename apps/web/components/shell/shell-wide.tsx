@@ -5,6 +5,7 @@ import { PersonalText } from '@/components/ui/personal-text'
 import Link from 'next/link'
 import {
   useEffect,
+  useId,
   useRef,
   type ReactNode,
   type RefCallback,
@@ -89,23 +90,25 @@ function SidebarItem({
   )
 }
 
-function SidebarAstraRow({ row, open }: Readonly<{
+function SidebarAstraRow({ row, open, conversationId }: Readonly<{
   row: { label: string; onOpen: () => void }
   open: boolean
+  conversationId: string
 }>) {
   return <button
             type="button"
             data-shell-astra-row=""
             aria-expanded={open}
+            aria-controls={open ? conversationId : undefined}
             onClick={row.onOpen}
-            className={`orbit-hover-text flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-left text-[14px] font-medium transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] ${open ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]' : 'text-[var(--fg-3)]'}`}
+            className={`orbit-hover-text flex min-h-[var(--touch-min)] w-full items-center gap-3 overflow-hidden rounded-[12px] px-3 text-start text-[14px] font-medium transition-[background-color,color,scale] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] motion-safe:active:scale-[0.96] ${open ? 'text-[var(--primary-soft)] hover:text-[var(--primary-text)]' : 'text-[var(--fg-3)]'}`}
           >
             <AstraGlyph size={20} color={open ? 'var(--primary)' : 'var(--fg-3)'} />
             <span translate="no" className="whitespace-nowrap">{row.label}</span>
           </button>
 }
 
-function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & { createRefusal?: ReactNode; layerOpen: boolean; wide: boolean }>) {
+function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & { createRefusal?: ReactNode; layerOpen: boolean; wide: boolean; conversationId: string }>) {
   return (
     <aside
       data-shell-sidebar=""
@@ -135,7 +138,7 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }> & 
         ) : null}
 
         <nav aria-label={props.navLabel} className="flex flex-col gap-1">
-          {props.wide ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} /> : null}
+          {props.wide ? <SidebarAstraRow row={props.astraRow} open={props.layerOpen} conversationId={props.conversationId} /> : null}
           {props.items.map((item) => (
             <SidebarItem
               key={item.id}
@@ -230,11 +233,13 @@ function ShellWideBackground({
   props,
   conversationOpen,
   wide,
+  conversationId,
   registerScroller,
 }: Readonly<{
   props: ResponsiveShellProps
   conversationOpen: boolean
   wide: boolean
+  conversationId: string
   registerScroller?: RefCallback<HTMLElement>
 }>) {
   const navigationEnabled = props.nav !== false
@@ -261,7 +266,7 @@ function ShellWideBackground({
     <div
       className="flex min-w-0 flex-1"
     >
-      {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} /> : null}
+      {navigationEnabled ? <ShellSidebar {...props} layerOpen={conversationOpen} wide={wide} conversationId={conversationId} /> : null}
 
       <div className="relative flex h-dvh min-w-0 flex-1 justify-center pt-[var(--safe-top)] lg:px-8 lg:pt-[max(32px,var(--safe-top))]">
         <div data-shell-column="" className="relative flex h-full w-full min-w-0 flex-col" style={{ maxWidth: SHELL_CONTENT_MAX_WIDTH }}>
@@ -279,6 +284,7 @@ function ShellWideBackground({
           <ShellBottomChrome props={props} conversationOpen={conversationOpen} visible={hasBottomChrome} />
           </div>
           {conversationOpen ? <div
+            id={conversationId}
             role="dialog"
             aria-modal={!wide || undefined}
             aria-label={props.conversationLabel}
@@ -296,6 +302,7 @@ function ShellWideBackground({
 export function ShellWide(props: Readonly<ResponsiveShellProps>) {
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const wide = useIsWideDesktop()
+  const conversationId = useId()
   const shellRef = useRef<HTMLDivElement>(null)
   const returnFocusTriggerRef = useRef<HTMLElement>(null)
   const registerScroller = useShellScrollerRegistration()
@@ -334,6 +341,7 @@ export function ShellWide(props: Readonly<ResponsiveShellProps>) {
         props={props}
         conversationOpen={conversationOpen}
         wide={wide}
+        conversationId={conversationId}
         registerScroller={registerScroller}
       />
 

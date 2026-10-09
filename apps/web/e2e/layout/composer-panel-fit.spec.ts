@@ -18,9 +18,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
         await setLayoutProfileSession(context, profile)
         await page.goto('/')
-        await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation }).click()
 
-        const panel = page.locator(`[data-shell-conversation="${width < 1024 ? 'overlay' : 'panel'}"]`)
+        const panel = page.locator('[data-shell-conversation="overlay"]')
         await expect(panel).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         const field = panel.locator('[data-composer-input]')
@@ -159,7 +159,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         expect(empty.clientHeight).toBe(empty.singleLineHeight)
 
         const draft = 'Astra '.repeat(10)
-        await page.getByRole('button', { name: messages.todayAstra.openConversation }).click()
+        await page.getByRole('button', { name: width >= 1024 ? messages.chat.title : messages.todayAstra.openConversation }).click()
         const overlay = page.locator('[data-shell-conversation="overlay"]')
         await overlay.locator('[data-composer-input]').fill(draft)
         await page.getByRole('button', { name: messages.common.closeConversation }).click()

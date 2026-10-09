@@ -48,10 +48,15 @@ for (const width of [412, 1280] as const) {
       await expectHoverOnHitArea(destination, width === 412 ? 'pill' : 12)
 
       const composer = page.locator('[data-shell-pinned-slot]')
-      await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.todayAstra.openConversation }), 'pill')
-      await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.shell.composer.actions }), 'pill')
-      await composer.locator('[data-composer-input]').focus()
-      const conversation = page.locator(`[data-shell-conversation="${width === 1280 ? 'panel' : 'overlay'}"]`)
+      if (width < 1024) {
+        await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.todayAstra.openConversation }), 'pill')
+        await expectHoverOnHitArea(composer.getByRole('button', { name: ptBr.shell.composer.actions }), 'pill')
+        await composer.locator('[data-composer-input]').focus()
+      } else {
+        await expectHoverOnHitArea(page.locator('[data-shell-astra-row]'), 12)
+        await page.locator('[data-shell-astra-row]').click()
+      }
+      const conversation = page.locator('[data-shell-conversation="overlay"]')
       await expect(conversation).toBeVisible()
       await expect(composer).toBeHidden()
       await expect(page.locator('[data-composer-input]:visible')).toHaveCount(1)
