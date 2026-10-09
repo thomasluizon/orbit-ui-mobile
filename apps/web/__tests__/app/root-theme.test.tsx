@@ -1,0 +1,87 @@
+import type { ReactNode } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { JSDOM } from 'jsdom'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { API } from '@orbit/shared/api'
+import { profileSchema } from '@orbit/shared/types/profile'
+import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import RootLayout from '@/app/layout'
+import { captureException } from '@sentry/nextjs'
+
+const requestCookies = vi.hoisted(() => new Map<string, string>())
+vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn() }))
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ get: (name: string) => requestCookies.has(name) ? { value: requestCookies.get(name) } : undefined }),
+  headers: async () => new Headers(),
+}))
+vi.mock('next-intl/server', () => ({ getLocale: async () => 'en', getMessages: async () => ({}) }))
+vi.mock('next-intl', () => ({ NextIntlClientProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/app/fonts', () => ({ geist: { variable: '' }, geistMono: { variable: '' }, spaceGrotesk: { variable: '' } }))
+vi.mock('@/components/posthog-provider', () => ({ PostHogProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/components/navigation/route-context', () => ({ RouteContext: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/components/navigation/navigation-history-tracker', () => ({ NavigationHistoryTracker: () => null }))
+vi.mock('@/lib/public-session-bootstrap', () => ({ PublicSessionBootstrap: () => null }))
+vi.mock('@/lib/session-cookie-provider', () => ({ SessionCookieProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/components/shell/keyboard-platform-provider', () => ({ KeyboardPlatformProvider: ({ children }: { children: ReactNode }) => children }))
+vi.mock('@/components/ui/throttle-screen', () => ({ ThrottleScreen: () => null }))
+
+beforeEach(() => { requestCookies.clear(); vi.clearAllMocks() })
+afterEach(() => vi.unstubAllGlobals())
+
+async function serverDocument() {
+  const tree = await RootLayout({ children: <main>Theme fixture</main> })
+  return new DOMParser().parseFromString(renderToStaticMarkup(tree), 'text/html')
+}
+
+describe('root theme before hydration', () => {
+  it.each([undefined, 'dark', 'light'])('renders a light profile with theme cookie %s', async (cookieTheme) => {
+    const profile = profileSchema.parse({ ...profileFixture, themePreference: 'light' })
+    const token = mintHermeticJwt(profile)
+    requestCookies.set('auth_token', token)
+    requestCookies.set('refresh_token', token)
+    if (cookieTheme) requestCookies.set('orbit_theme_mode', cookieTheme)
+    const upstream = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      expect(input instanceof Request ? input.url : input.toString()).toContain(API.profile.get)
+      expect(new Headers(init?.headers).get('Authorization')).toBe(`Bearer ${token}`)
+      return Response.json(profile)
+    })
+    vi.stubGlobal('fetch', upstream)
+    const page = await serverDocument()
+    const root = page.documentElement
+    expect(root.classList.contains('light')).toBe(true)
+    expect(root.classList.contains('dark')).toBe(false)
+    expect(root.style.colorScheme).toBe('light')
+    for (const [property, value] of Object.entries(resolveWebThemeVariables('orange', 'light'))) {
+      expect(root.style.getPropertyValue(property)).toBe(value)
+    }
+    Object.defineProperty(page, 'cookie', { value: cookieTheme ? `orbit_theme_mode=${cookieTheme}` : '' })
+    const bootstrapped = new JSDOM(page.documentElement.outerHTML, { runScripts: 'dangerously' })
+    expect(bootstrapped.window.document.documentElement.classList.contains('light')).toBe(true)
+    expect(bootstrapped.window.document.documentElement.style.colorScheme).toBe('light')
+    bootstrapped.window.close()
+    expect(upstream).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['dark', 'light'])('uses the %s cookie without a session', async (theme) => {
+    requestCookies.set('orbit_theme_mode', theme)
+    const upstream = vi.fn()
+    vi.stubGlobal('fetch', upstream)
+    const page = await serverDocument()
+    expect(page.documentElement.classList.contains(theme)).toBe(true)
+    expect(page.documentElement.style.colorScheme).toBe(theme)
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it('keeps public rendering available and reports an unavailable profile API', async () => {
+    requestCookies.set('auth_token', mintHermeticJwt(profileFixture))
+    requestCookies.set('orbit_theme_mode', 'light')
+    const failure = new TypeError('Network request failed')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(failure))
+    const page = await serverDocument()
+    expect(page.documentElement.classList.contains('light')).toBe(true)
+    expect(page.documentElement.style.colorScheme).toBe('light')
+    expect(captureException).toHaveBeenCalledWith(failure)
+  })
+})
