@@ -15,15 +15,9 @@ async function expectRings(control: Locator, count: number) {
 }
 
 async function keyboardFocus(page: Page, control: Locator) {
+  await control.focus()
   await page.keyboard.press('Shift+Tab')
-  for (let stop = 0; stop < 120; stop += 1) {
-    await page.keyboard.press('Tab')
-    const reached = await control.evaluate(async (element) => {
-      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-      return element.isConnected && element === document.activeElement && element.matches(':focus-visible')
-    })
-    if (reached) break
-  }
+  await page.keyboard.press('Tab')
   await expect(control).toBeFocused()
   await expect.poll(() => control.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
 }
