@@ -139,6 +139,7 @@ describe('CalendarGrid (mobile)', () => {
     expect(geometry.placeholders).toHaveLength(days.length)
     for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 4)
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-header' }).props.style).opacity).toBe(0)
+    expect(tree.root.findByProps({ testID: 'month-grid-header' }).findAll((node) => node.type === 'Text').map((node) => node.props.children)).toEqual(['M', 'T', 'W', 'T', 'F', 'S', 'S'])
   })
 
   it('uses the grid skeleton geometry and withholds weekdays while loading', () => {

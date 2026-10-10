@@ -60,6 +60,33 @@ function expectDefaultScaleGeometry(
 }
 
 describe('Android day card geometry', () => {
+  it.each([320, 412, 840])('reserves the one-habit card while loading at %i', async (width) => {
+    await i18n.changeLanguage('pt-BR')
+    const entries = [{ habitId: 'habit-1', title: 'Ler', status: 'upcoming' as const, isBadHabit: false, dueTime: '08:00', isOneTime: false }]
+    const card = (loading: boolean) => <CalendarDayDetail selectedDate="2026-09-12" title="Hoje, 12 de setembro"
+      loadingLabel={loading ? i18n.t('calendar.loading') : undefined} filteredEntries={loading ? [] : entries}
+      calendarEvents={[]} calendarEventsState="ready" loggable pendingEntryStates={new Map()} completedCount={0}
+      onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} onGoToDay={vi.fn()}
+      displayTime={(time) => time} t={i18n.t} tokens={createTokensV2('purple', 'dark')} />
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(card(true)) })
+    try {
+      type Host = Parameters<typeof measureProfileRow>[0]
+      const reserveHiddenLayout = (host: Host): Host => ({ ...host, props: { ...host.props, style: { ...StyleSheet.flatten(typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style), opacity: 1 } }, children: host.children?.map((child) => typeof child === 'string' ? child : reserveHiddenLayout(child)) ?? null })
+      const loading = measureProfileRow(reserveHiddenLayout(tree.toJSON()), Math.min(width, 740) - 32, 1)
+      expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
+      const sizingControls = tree.root.findByProps({ testID: 'calendar-day-skeleton' }).findAll((node: { type: unknown }) => node.type === 'Pressable')
+      expect(sizingControls).toHaveLength(2)
+      for (const control of sizingControls) {
+        expect(control.props.disabled).toBe(true)
+        expect(control.props.focusable).toBe(false)
+      }
+      TestRenderer.act(() => { tree.update(card(false)) })
+      const ready = measureProfileRow(tree.toJSON(), Math.min(width, 740) - 32, 1)
+      expect(ready.height).toBeCloseTo(loading.height)
+      expect(tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+    } finally { TestRenderer.act(() => tree.unmount()) }
+  })
   it.each([320, 360].flatMap((width) => [false, true].flatMap((loggable) => ['en', 'pt-BR'].map((locale) => ({ width, loggable, locale })))))('fits titles at $width with loggable=$loggable in $locale using Android styles and fonts', async ({ width, loggable, locale }) => {
     await i18n.changeLanguage(locale)
     let tree!: ReturnType<typeof TestRenderer.create>

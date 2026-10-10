@@ -260,6 +260,7 @@ describe('CalendarGrid', () => {
     expect(skeleton).toHaveAttribute('data-rows', '6')
     expect(screen.getByTestId('month-grid-header')).toHaveStyle({ opacity: 0 })
     expect(screen.getByTestId('month-grid-header')).toHaveAttribute('aria-hidden', 'true')
+    expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(['M', 'T', 'W', 'T', 'F', 'S', 'S'])
     expect(container.querySelector('[data-outcome]')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
