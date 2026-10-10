@@ -6,15 +6,21 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { test } from './upgrade-fixtures'
 
-const today = '2026-09-11'
-const scheduledDates = ['2026-09-08', '2026-09-09', '2026-09-10', today]
+const today = new Date(LAYOUT_FIXED_TIME).toISOString().slice(0, 10)
+function dateAtOffset(offset: number) {
+  const date = new Date(`${today}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + offset)
+  return date.toISOString().slice(0, 10)
+}
+const scheduledDates = [-3, -2, -1, 0].map(dateAtOffset)
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: ['walk', 'read'].map((id) => makeHabitScheduleItem({ id, children: [], hasSubHabits: false, dueDate: scheduledDates[0], scheduledDates })),
   logs: {
-    walk: ['2026-09-09', '2026-09-10', today].map((date) => ({ id: `walk-${date}`, date, value: 1, createdAtUtc: `${date}T12:00:00Z` })),
-    read: ['2026-09-09', today].map((date) => ({ id: `read-${date}`, date, value: 1, createdAtUtc: `${date}T12:00:00Z` })),
+    walk: [-2, -1, 0].map(dateAtOffset).map((date) => ({ id: `walk-${date}`, date, value: 1, createdAtUtc: `${date}T12:00:00Z` })),
+    read: [-2, 0].map(dateAtOffset).map((date) => ({ id: `read-${date}`, date, value: 1, createdAtUtc: `${date}T12:00:00Z` })),
   },
 })
 
@@ -32,15 +38,19 @@ for (const width of [320, 412, 600, 1352]) {
     test.describe(`${locale} calendar day circle at ${width}px`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: { timeZone: 'UTC', weekStartDay: 1 } })
       test('keeps month, period and habit history paint inside their circles', async ({ page, context }) => {
-        await page.clock.setFixedTime(new Date(`${today}T12:00:00Z`))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth, (route) => route.fulfill({ json: calendarMonth }))
         await page.goto('/calendar')
         const grid = page.locator('.orbit-calendar-grid-card [data-testid="month-grid-days"]')
         const current = grid.locator(`[data-calendar-date="${today}"]`)
         await expect(current.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
         await expectHeaderGap(grid)
-        for (const date of ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', today]) await expectDayCircle(grid.locator(`[data-calendar-date="${date}"]`), true, date === today, true)
-        const partial = grid.locator('[data-calendar-date="2026-09-10"]')
+        for (const date of scheduledDates) await expectDayCircle(grid.locator(`[data-calendar-date="${date}"]`), true, date === today, true)
+        const monday = dateAtOffset(-4)
+        const mondayInPreviousMonth = monday.slice(0, 7) !== today.slice(0, 7)
+        if (mondayInPreviousMonth) await page.getByRole('button', { name: words.common.previousMonth, exact: true }).click()
+        await expectDayCircle(grid.locator(`[data-calendar-date="${monday}"]`), true, false, true)
+        if (mondayInPreviousMonth) await page.getByRole('button', { name: words.common.nextMonth, exact: true }).click()
+        const partial = grid.locator(`[data-calendar-date="${dateAtOffset(-1)}"]`)
         await partial.getByRole('button').click()
         await expect(partial.getByRole('button')).toHaveAttribute('aria-pressed', 'true')
         await expectDayCircle(partial, true, true, true)
@@ -57,7 +67,7 @@ for (const width of [320, 412, 600, 1352]) {
         await expectHeaderGap(grid)
 
         const habitId = 'walk'
-        const habit = habitDetailSchema.parse({ ...makeHabitDetail(), id: habitId, createdAtUtc: '2026-08-01T12:00:00Z' })
+        const habit = habitDetailSchema.parse({ ...makeHabitDetail(), id: habitId, createdAtUtc: `${dateAtOffset(-41)}T12:00:00Z` })
         const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ items: [makeHabitScheduleItem({ id: habitId, children: [], hasSubHabits: false })], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 })
         const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, weeklyCompletionRate: 100, monthlyCompletionRate: 100, totalCompletions: 1, lastCompletedDate: today })
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
@@ -76,7 +86,6 @@ for (const width of [320, 412, 600, 1352]) {
         test(`keeps ${view} loading circles in their loaded positions`, async ({ page, context }) => {
           let release!: () => void
           const ready = new Promise<void>((resolve) => { release = resolve })
-          await page.clock.setFixedTime(new Date(`${today}T12:00:00Z`))
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth, async (route) => { await ready; await route.fulfill({ json: calendarMonth }) })
           try {
             await page.goto('/calendar')
