@@ -1,8 +1,8 @@
+import { ListRow } from '@/components/ui/list-row'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import { formatCalendarSyncTimestamp, getFriendlyErrorMessage } from '@orbit/shared/utils'
-import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { useOffline } from '@/hooks/use-offline'
 import { getAccountGeneration } from '@/lib/session-epoch'
@@ -47,10 +47,8 @@ export function CalendarSyncBoundary({ isConnected, autoSyncState, onAutoSyncCha
       <Text style={[styles.date, { color: tokens.fg3 }]}>{lastSynced ?? t('calendar.autoSync.lastSyncedNever')}</Text>
     </View>
     {isConnected ? <>
-      <View style={styles.switchLine}>
-        <Text style={[styles.switchLabel, { color: tokens.fg2 }]}>{t('calendar.dayDetail.autoSync')}</Text>
-        <Switch checked={autoSyncState?.enabled ?? false} disabled={!isOnline || pendingAction !== null} onChange={(enabled) => void runAction('toggle', () => onAutoSyncChange(enabled))} label={t('calendar.dayDetail.autoSync')} />
-      </View>
+      {/* eslint-disable-next-line local/max-button-words -- Orbit Calendario draws the labelled auto-sync switch. */}
+      <ListRow title={t('calendar.dayDetail.autoSync')} disabled={!isOnline || pendingAction !== null} toggle={{ checked: autoSyncState?.enabled ?? false, onChange: (enabled) => void runAction('toggle', () => onAutoSyncChange(enabled)) }} />
       <View style={styles.action}><PillButton variant="ghost" size="sm" disabled={!isOnline || pendingAction !== null} loading={pendingAction === 'sync'} onClick={() => void runAction('sync', onSyncNow)}>{t('calendar.autoSync.syncNow')}</PillButton></View>
     </> : null}
     <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.label, { color: tokens.statusBadText }]}>{error ?? (autoSyncState?.status === 'TransientError' ? t('calendar.autoSync.syncFailed') : '')}</Text>
@@ -63,7 +61,5 @@ const styles = StyleSheet.create({
   timestamp: { gap: 4 },
   meta: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8 },
   date: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, fontVariant: ['tabular-nums'] },
-  switchLine: { minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  switchLabel: { flex: 1, alignSelf: 'center', fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
   action: { alignItems: 'flex-end' },
 })

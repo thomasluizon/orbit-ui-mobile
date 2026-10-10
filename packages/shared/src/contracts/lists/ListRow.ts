@@ -25,10 +25,9 @@ export interface ListRowBase {
   href?: string
   onClick?: () => void
   disabled?: boolean
-  /** False selects a bare 52px row with 4px block padding and no inline padding. */
-  inset?: boolean
+  placement?: 'column'
+  toggle?: { checked: boolean; onChange: (checked: boolean) => void; pending?: boolean }
   compact?: boolean
-  inForm?: boolean
 }
 
 export type ListRowMode =

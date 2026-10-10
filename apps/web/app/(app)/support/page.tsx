@@ -28,6 +28,7 @@ import {
   writeStoredSupportDraft,
 } from '@/lib/support-draft-storage'
 import { PageHeader } from '@/components/ui/page-header'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { SupportSuccessState } from './_components/support-success-state'
@@ -58,6 +59,7 @@ export default function SupportPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const { profile } = useProfile()
   const { isOnline } = useOffline()
 
@@ -174,7 +176,7 @@ export default function SupportPage() {
     <div className="min-w-0 md:w-full md:max-w-[620px]">
       <div className="flex flex-col">
         <PageHeader
-          backLabel={t('common.backToProfile')}
+          backLabel={backLabel}
           onBack={() => goBackOrFallback('/profile')}
           title={t('profile.support.title')}
         />

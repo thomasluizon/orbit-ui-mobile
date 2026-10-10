@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page, type BrowserContext } from '@playwright/test'
+import { expect, type Locator, type Page, type BrowserContext } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -8,7 +9,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
   ...emptyHabitsPageFixture,
@@ -24,8 +25,8 @@ async function setupSearch(page: Page, context: BrowserContext, locale: 'en' | '
   const profile = profileSchema.parse({ ...profileFixture, language: locale, themePreference: 'dark' })
   await setLayoutProfileSession(context, profile)
   await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
-  await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-  await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+  await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
   await page.goto('/search')
   const surface = page.locator('#orbit-main')
   const input = surface.getByRole('combobox', { name: messages.habits.search.title })

@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockCalendarSyncEvent, createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -76,11 +77,12 @@ const streak = streakInfoSchema.parse({
 
 async function installLabelFixtures(context: BrowserContext, profile: Profile) {
   const responses: ReadonlyArray<readonly [string, unknown]> = [
-    [API.profile.get, profile], [API.habits.list, habits], [API.goals.list, goals],
+    [API.goals.list, goals],
     [API.habits.retrospective, retrospective], [API.gamification.streak, streak],
     [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [habit], logs: {} })],
     [API.calendar.events, events],
   ]
+  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }, { path: API.habits.list, body: habits }])
   for (const [path, response] of responses) {
     await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path,
       (route) => route.fulfill({ json: response }))

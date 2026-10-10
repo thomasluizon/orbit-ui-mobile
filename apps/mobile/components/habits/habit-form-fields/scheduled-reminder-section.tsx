@@ -1,3 +1,4 @@
+import { ListRow } from '@/components/ui/list-row'
 import { toTime24 } from '@orbit/shared/utils'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
@@ -6,7 +7,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo } from "react";
 import { View, Text, } from "react-native";
-import { X, Plus, Bell } from "@/components/ui/icons";
+import { X, Plus } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import {
@@ -15,7 +16,6 @@ import {
 } from "@orbit/shared/validation";
 import { TimeField } from "@/components/ui/time-field";
 import type { Time24 } from "@orbit/shared/contracts/forms";
-import { Switch } from "@/components/ui/switch";
 import { useReminderPermission } from "@/hooks/use-reminder-permission";
 import { RadioGroup, useRadioGroupItem } from "@/components/ui/radio-row";
 import { type AppTokens, createSectionStyles } from "./styles";
@@ -130,19 +130,7 @@ export function ScheduledReminderSection({
   return (
     <View style={nested ? sectionStyles.body : inline ? { gap: 12 } : sectionStyles.container}>
       {nested ? <Text style={sectionStyles.hintText}>{t("habits.form.scheduledReminderFixedTimes")}</Text> : null}
-      {!nested && <View style={sectionStyles.headerRow}>
-        <View style={sectionStyles.headerLeft}>
-          <Bell size={20} color={tokens.fg2} strokeWidth={1.8} />
-          <Text style={sectionStyles.headerLabel}>
-            {t("habits.form.scheduledReminder")}
-          </Text>
-        </View>
-        <Switch
-          checked={reminderEnabled}
-          onChange={permission.toggleReminder}
-          label={t("habits.form.scheduledReminder")}
-        />
-      </View>}
+      {!nested && <ListRow placement={inline ? "column" : undefined} icon={'bell'} title={t('habits.form.scheduledReminder')} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />}
       {!nested && <ReminderPermissionNotice visible={permission.showNotice} tokens={tokens} onPress={permission.openSettings} />}
       {reminderEnabled && (
         <View style={sectionStyles.body}>

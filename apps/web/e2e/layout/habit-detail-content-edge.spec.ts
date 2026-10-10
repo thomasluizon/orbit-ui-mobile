@@ -1,4 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { setLayoutFixtureSession } from './profile-session'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
@@ -23,9 +25,8 @@ for (const width of [412, 840, 1100, 1352]) {
     for (const locale of ['pt-BR', 'en']) {
       test(`aligns the capped body with the back control in ${locale}`, async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) =>
-          route.fulfill({ json: profileSchema.parse({ ...profileFixture, language: locale }) }))
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profileSchema.parse({ ...profileFixture, language: locale }) }])
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habitId)}`, (route) => route.fulfill({ json: habit }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habitId)}`, (route) => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habitId)}`, (route) => route.fulfill({ json: metrics }))

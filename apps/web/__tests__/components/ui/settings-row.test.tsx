@@ -1,26 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { Home } from '@/components/ui/icons'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { ListRow } from '@/components/ui/list-row'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 
 describe('SettingsRow', () => {
-  it.each([
-    { mono: true, fontSize: 12, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' },
-    { mono: false, fontSize: 14, fontFamily: 'var(--font-sans)', fontVariantNumeric: 'normal' },
-  ])('renders a value with mono=$mono at $fontSize', ({ mono, fontSize, fontFamily, fontVariantNumeric }) => {
-    render(<SettingsRow label="Usage" value="42" mono={mono} accessory="none" />)
-
-    expect(screen.getByText('42').parentElement).toHaveStyle({
-      fontSize: `${fontSize}px`,
-      fontFamily,
-      fontVariantNumeric,
-    })
+  it('renders metadata in the shared value slot', () => {
+    render(<ListRow textMode="label" title="Usage" value="42" chevron={false} />)
+    expect(screen.getByText('42')).toHaveAttribute('data-slot', 'list-row-value')
   })
 
   it('draws the canonical ListRow leading icon geometry', () => {
     const { container } = render(
-      <SettingsRow label="Account" icon={Home} accessory="none" />,
+      <ListRow textMode="label" title="Account" icon={<Home size={24} strokeWidth={1.5} />} chevron={false} />,
     )
 
     const icon = container.querySelector('svg')
@@ -32,7 +24,7 @@ describe('SettingsRow', () => {
 
   it('renders an actionable row as one button that runs its action', () => {
     const openAccount = vi.fn()
-    render(<SettingsRow label="Account" value="Alex" onClick={openAccount} />)
+    render(<ListRow textMode="label" title="Account" value="Alex" onClick={openAccount} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Account/ }))
     expect(openAccount).toHaveBeenCalledOnce()

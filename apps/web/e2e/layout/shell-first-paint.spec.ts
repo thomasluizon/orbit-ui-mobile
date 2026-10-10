@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 
 test.describe('Hoje shell before hydration', () => {
   test.use({ javaScriptEnabled: false })

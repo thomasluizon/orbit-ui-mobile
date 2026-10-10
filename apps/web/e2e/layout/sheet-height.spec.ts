@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/pt-BR.json'
@@ -209,7 +210,7 @@ test('a menu sheet without actions keeps its last row above the safe area', asyn
     totalCount: 1,
     totalPages: 1,
   })
-  await context.route(new RegExp(`${API.habits.list}[?]`), (route) => route.fulfill({ json: habitsPage }))
+  await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
   await page.goto('/?date=2026-09-03')
   await page.getByRole('button', { name: messages.habits.listOptions }).click()
   const panel = page.getByRole('dialog', { name: messages.habits.listOptions })

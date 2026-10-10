@@ -38,6 +38,7 @@ const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
 const mockFormStatus = vi.hoisted(() => ({ dirty: false }))
 const mockProfileState = vi.hoisted(() => ({ hasProAccess: true }))
 const mockLocale = vi.hoisted(() => ({ value: 'en' }))
+const mockFocus = vi.hoisted(() => ({ value: true }))
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
@@ -57,6 +58,7 @@ vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 vi.mock('expo-router', () => ({
   usePathname: () => '/',
+  useIsFocused: () => mockFocus.value,
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,
@@ -237,6 +239,7 @@ describe('CreateHabitModal (mobile)', () => {
     const tree = renderModal(<CreateHabitModal open presentation="screen" onClose={vi.fn()} />)
     expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.back')).toHaveLength(1)
     expect(tree.root.findAll((node) => node.props.testID === 'sheet-body')).toHaveLength(0)
+    tree.unmount()
   })
 
   it('uses the sub-habit row as its single focus border', async () => {
@@ -260,6 +263,7 @@ describe('CreateHabitModal (mobile)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockFocus.value = true
     mockFormStatus.dirty = false
     mockProfileState.hasProAccess = true
     mockLocale.value = 'en'
@@ -768,6 +772,48 @@ await Promise.resolve()
     })
 
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
+  })
+
+  it.each([['en', false], ['en', true], ['pt-BR', false], ['pt-BR', true]] as const)('keeps habit creation beneath Upgrade and resumes its Back guard in %s (dirty=%s)', async (locale, dirty) => {
+    mockLocale.value = locale
+    mockProfileState.hasProAccess = false
+    mockFormStatus.dirty = dirty
+    const onClose = vi.fn()
+    const modal = <CreateHabitModal open presentation="screen" onClose={onClose}
+      parentHabit={createMockHabit({ id: 'parent-1' })} />
+    const tree = renderModal(modal)
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
+    })
+    if (dirty) {
+      expect(mockPush).not.toHaveBeenCalled()
+      await TestRenderer.act(async () => {
+        tree.root.findAll((node) => node.type === DiscardChangesSheet)[0].props.onDiscard()
+        await Promise.resolve()
+      })
+    }
+    expect(mockPush).toHaveBeenCalledExactlyOnceWith('/upgrade')
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+    mockFocus.value = false
+    tree.updateModal(React.cloneElement(modal))
+    TestRenderer.act(() => { expect(dismissTopOverlay('system-back')).toBe(false) })
+    mockFocus.value = true
+    tree.updateModal(React.cloneElement(modal))
+    await TestRenderer.act(async () => {
+      expect(dismissTopOverlay('system-back')).toBe(true)
+      await Promise.resolve()
+    })
+    if (dirty) {
+      expect(onClose).not.toHaveBeenCalled()
+      await TestRenderer.act(async () => {
+        tree.root.findAll((node) => node.type === DiscardChangesSheet)[0].props.onDiscard()
+        await Promise.resolve()
+      })
+    }
+    expect(onClose).toHaveBeenCalledOnce()
+    tree.unmount()
   })
 
   it('routes a Free standalone sub-habit attempt after the sheet dismisses', async () => {

@@ -4,7 +4,6 @@ import { ActionRow } from './action-row'
 
 import { useEffect, useRef } from 'react'
 import type {
-  BlockFrameItem,
   BlockFrameItemStatus,
   BlockFrameProps,
   ResolvedBlockFrameRow,
@@ -41,34 +40,24 @@ function StatusView({ status, label }: StatusViewProps) {
   const labelColor = status === 'failed' ? 'var(--status-bad-text)' : status === 'done' ? 'var(--fg-1)' : 'var(--fg-2)'
 
   return (
-    <span className="flex shrink-0 items-center gap-1 text-xs" style={{ color: labelColor }}>
-      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={statusColors.iconColor} />
-      <span>{label}</span>
+    <span className="flex max-w-full shrink-0 flex-wrap items-center gap-[4px] text-xs" style={{ color: labelColor }}>
+      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={statusColors.iconColor} className="shrink-0" />
+      <span className="max-w-full">{label}</span>
     </span>
   )
 }
 
-function getRowLayout(item: BlockFrameItem) {
-  const fullWidthLabel = item.wrapLabel && typeof item.label !== 'string' && typeof item.label !== 'number'
-  return {
-    row: `flex min-h-[52px] gap-3 p-3 ${fullWidthLabel ? 'flex-col' : 'items-center'}`,
-    words: `flex min-w-0 flex-col gap-1 ${fullWidthLabel ? 'w-full' : 'flex-1'}`,
-    trailing: `flex shrink-0 items-center gap-2 ${fullWidthLabel ? 'self-end' : ''}`,
-  }
-}
-
 function FrameRow(props: ResolvedBlockFrameRow) {
   const { item, frameState, statusLabel, onEditItem } = props
-  const rowLayout = getRowLayout(item)
   const status = frameState === 'acting' ? 'acting' : item.status
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <div
-      className={rowLayout.row}
+      className={`flex min-h-[52px] gap-[12px] p-[12px] ${item.wrapLabel ? 'items-start' : 'items-center'}`}
       data-proposed={item.proposed ? '' : undefined}
       data-status={status}
     >
-      <div className={rowLayout.words}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className={item.wrapLabel ? 'break-words text-sm font-medium' : 'truncate text-sm font-medium'}>{item.label}</div>
         {item.meta ? <div className={`${item.wrapMeta ? 'break-words leading-[1.4]' : 'truncate'} text-xs text-[var(--fg-3)]`}>{item.meta}</div> : null}
         {item.irreversible && props.irreversibleLabel ? (
@@ -78,7 +67,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
           </div>
         ) : null}
       </div>
-      <div className={rowLayout.trailing}>
+      <div className="flex max-w-[60%] shrink-0 flex-wrap items-center gap-[8px]">
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <button
@@ -185,10 +174,11 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
   return (
     <section
-      className="flex max-h-full min-h-0 flex-col gap-6 bg-[var(--bg-card)] p-6 text-[var(--fg-1)]"
+      className="flex max-h-full min-h-0 flex-col gap-6 bg-[var(--bg-card)] text-[var(--fg-1)]"
       data-state={props.state}
       style={{
         borderRadius: PROPOSED_RADIUS.block,
+        padding: 24,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >

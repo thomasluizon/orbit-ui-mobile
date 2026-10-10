@@ -483,6 +483,7 @@ vi.mock('@/components/ui/anchored-menu', async () => {
 
 vi.mock('react-native-svg', () => ({
   default: (props: any) => React.createElement('Svg', props),
+  Rect: (props: any) => React.createElement('Rect', props),
   Circle: (props: any) => React.createElement('Circle', props),
   Path: (props: any) => React.createElement('Path', props),
 }))

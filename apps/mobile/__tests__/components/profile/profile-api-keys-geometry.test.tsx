@@ -45,7 +45,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityRole?: string }
+  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityRole?: string; 'data-slot'?: string }
   children: (HostRow | string)[] | null
 }
 
@@ -92,7 +92,7 @@ function layoutHost(host: HostRow, texts: Map<string, { node: YogaNode; width: n
   const declared = host.props.style
   const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
   applyStyle(node, style)
-  if (host.props.accessibilityRole === 'switch') controls.push(node)
+  if (host.props['data-slot'] === 'switch-track') controls.push(node)
   const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
   if (host.type === 'Text' && label) {
     const width = textWidth(label, style)
@@ -148,7 +148,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [0, 1, 3].map((count) => ({ locale, 
     const pixelRoundingAllowance = 1
     expect(stacked ? valueBox.top - titleBox.bottom : valueBox.left - titleBox.right).toBeGreaterThanOrEqual(12 - pixelRoundingAllowance)
     expect(valueBox.right).toBeLessThanOrEqual(380)
-    expect(stacked).toBe(locale === 'pt-BR' && count === 0)
+    expect(stacked).toBe(title.width + value.width + 12 > title.node.getParent()!.getParent()!.getComputedWidth())
   } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
 })
 
@@ -194,7 +194,7 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412, 1440].map((widt
     const title = texts.get(label)!
     expect(title.node.getComputedWidth()).toBeGreaterThanOrEqual(title.width)
     expect(position(title.node).right).toBeLessThanOrEqual(width - 32 - 48)
-    const switches = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
+    const switches = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; 'data-slot'?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
     expect(switches).toHaveLength(1)
     expect(switches[0].props.accessibilityState).toMatchObject({ checked: false })
   } finally { layout.freeRecursive(); TestRenderer.act(() => tree.unmount()) }
@@ -215,15 +215,14 @@ it.each(['en', 'pt-BR'].flatMap((locale) => [412, 1352].flatMap((width) => [true
     const layout = layoutHost(rendered.toJSON(), new Map(), controls)
     try {
       layout.calculateLayout(width - 32, 'auto', Yoga.DIRECTION_LTR)
-      const control = rendered.root.findByType(Switch)
-      const controlHost = control.find((node: { type: unknown; props: { accessibilityRole?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
+      const controlHost = rendered.root.find((node: { type: unknown; props: { accessibilityRole?: string; 'data-slot'?: string } }) => typeof node.type === 'string' && node.props.accessibilityRole === 'switch')
       const declared = controlHost.props.style
       const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)
-      expect(style.minHeight).toBe(48)
+      expect(style.minHeight).toBe(52)
       expect(controls).toHaveLength(1)
-      expect(controls[0]!.getComputedHeight()).toBe(48)
+      expect(controls[0]!.getComputedHeight()).toBe(28)
       expect(controls[0]!.getComputedWidth()).toBe(48)
-      expect(position(controls[0]!).right).toBe(width - 32 - 24)
+      expect(position(controls[0]!).right).toBe(width - 32 - 16)
       return layout.getComputedHeight()
     } finally { layout.freeRecursive(); TestRenderer.act(() => rendered.unmount()) }
   })

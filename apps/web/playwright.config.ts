@@ -46,7 +46,11 @@ export default defineConfig({
       url: LAYOUT_ORIGIN,
       reuseExistingServer: false,
       timeout: 120_000,
-      env: { API_BASE: 'http://127.0.0.1:5099' },
+      env: {
+        API_BASE: 'http://127.0.0.1:5099',
+        TZ: 'UTC',
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import ./e2e/layout/server-clock.mjs`,
+      },
     },
   ] : undefined,
   projects: [

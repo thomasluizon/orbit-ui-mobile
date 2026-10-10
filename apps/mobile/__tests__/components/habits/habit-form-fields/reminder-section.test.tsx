@@ -30,7 +30,8 @@ vi.mock("@/components/ui/bottom-sheet-app-text-input", () => ({
     React.createElement("TextInput", props),
 }));
 
-vi.mock("@/components/ui/switch", () => ({
+vi.mock("@/components/ui/switch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/components/ui/switch")>(),
   Switch: (props: Record<string, unknown>) =>
     React.createElement("Switch", props),
 }));
@@ -104,7 +105,7 @@ describe("ReminderSection", () => {
   it("uses the form toggle label for both the visible title and switch in inline layout", () => {
     const { tree } = renderSection({ inline: true, toggleLabel: "habits.form.reminder", reminderEnabled: false });
     expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === "habits.form.reminder")).toHaveLength(1);
-    expect(tree.root.findAll((node) => node.type === "Switch")[0]?.props.label).toBe("habits.form.reminder");
+    expect(tree.root.findAll((node) => node.type === "Pressable" && node.props.accessibilityRole === "switch")[0]?.props.accessibilityLabel).toBe("habits.form.reminder");
     expect(tree.root.findAll((node) => node.type === "Text" && node.props.children === "habits.form.reminders")).toHaveLength(0);
   });
 

@@ -61,7 +61,7 @@ for (const width of [320, 412, 1280]) {
           await expect(row.locator('svg').first()).toHaveAttribute('width', '24')
           alignment.push(await row.evaluate((element) => {
             const icon = element.querySelector('svg')!.getBoundingClientRect()
-            const title = element.querySelector('[data-slot="list-row-title"], [data-slot="settings-row-label"]')!
+            const title = element.querySelector('[data-slot="list-row-title"]')!
             const text = document.createRange()
             text.selectNodeContents(title)
             return { iconX: icon.x, iconWidth: icon.width, iconHeight: icon.height, titleX: text.getBoundingClientRect().x }
@@ -69,7 +69,14 @@ for (const width of [320, 412, 1280]) {
         }
         for (const row of alignment) expect(row).toEqual(alignment[0])
         expect(alignment[0]).toMatchObject({ iconWidth: 24, iconHeight: 24 })
-        const actions = surface.locator('.orbit-list-row-shell')
+        const allRows = surface.locator('.orbit-list-row-shell')
+        await expect(allRows).toHaveCount(5)
+        const analytics = allRows.filter({ has: page.getByRole('switch', { name: words.profile.analytics.title, exact: true }) })
+        await expect(analytics).toHaveCount(1)
+        await expect(analytics.locator('svg')).toHaveCount(1)
+        await expect(analytics.locator('[data-slot="list-row-chevron"], [data-slot="list-row-value"]')).toHaveCount(0)
+        await expect(analytics.locator('[data-slot="switch-track"]')).toHaveCount(1)
+        const actions = allRows.filter({ hasNot: page.getByRole('switch') })
         await expect(actions).toHaveCount(4)
         for (const row of await actions.all()) {
           await expect(row.locator('svg')).toHaveCount(2)
@@ -98,13 +105,29 @@ for (const width of [320, 412, 1280]) {
       if (width !== 320) test('ends the four preference pickers with chevrons and retains inline values', async ({ page }) => {
         await page.goto('/profile/preferences')
         const rows = page.getByTestId('profile-settings-group-preferences').locator('.orbit-list-row-shell')
-        await expect(rows).toHaveCount(4)
+        await expect(rows).toHaveCount(6)
+        await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText([
+          words.profile.settingsRows.timezone, words.profile.settingsRows.weekStart,
+          words.settings.clock.title, words.profile.language.title,
+          words.profile.settingsRows.theme, words.settings.homeScreen.showGeneral,
+        ])
+        const pickers = rows.filter({ has: page.locator('[data-slot="list-row-value"]') })
+        await expect(pickers).toHaveCount(4)
+        const theme = rows.nth(4)
+        await expect(theme.locator('svg, [data-slot="list-row-value"]')).toHaveCount(0)
+        const choices = theme.getByRole('group', { name: words.profile.settingsRows.theme, exact: true })
+        await expect(choices.getByRole('button')).toHaveText([words.preferences.themeModeDark, words.preferences.themeModeLight])
+        const general = rows.nth(5)
+        await expect(general.locator('svg, [data-slot="list-row-value"]')).toHaveCount(0)
+        await expect(general.getByRole('switch', { name: words.settings.homeScreen.showGeneral, exact: true })).toBeVisible()
+        await expect(general.locator('[data-slot="list-row-description"]')).toHaveText(words.settings.homeScreen.showGeneralDesc)
+        await expect(general.locator('[data-slot="switch-track"]')).toHaveCount(1)
         await expect(rows.locator('[data-slot="list-row-value"]')).toHaveText([
           profile.timeZone!, words.dates.daysValue.monday, words.settings.clock.hour24,
           locale === 'pt-BR' ? words.profile.language.brazilianPortuguese : 'English',
         ])
         await page.evaluate(() => document.fonts.ready)
-        for (const row of await rows.all()) {
+        for (const row of await pickers.all()) {
           await expect(row.locator('svg')).toHaveCount(1)
           await expectChevron(row)
           const placement = await row.evaluate((element) => {

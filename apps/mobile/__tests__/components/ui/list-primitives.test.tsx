@@ -8,7 +8,7 @@ import { User, UserX } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
-import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { createTokensV2 } from '@/lib/theme'
 
 vi.mock('@/lib/use-app-theme', () => ({
@@ -55,6 +55,27 @@ function actionContent(node: TestNode, pressed: boolean) {
 }
 
 describe('list primitives on mobile', () => {
+  it('keeps ordinary row title, value and description available to the child-derived announcement', () => {
+    const tree = render(<ListRow title="Week starts on" value="Monday" description="First day in the calendar" onClick={vi.fn()} />)
+    const control = tree.root.findByType(Pressable)
+    expect(control.props.accessibilityLabel).toBeUndefined()
+    const spokenText = control.findAllByType(Text).filter((node) => node.props.accessible !== false && node.props.importantForAccessibility !== 'no-hide-descendants').map((node) => node.props.children)
+    expect(spokenText).toEqual(['Week starts on', 'First day in the calendar', 'Monday'])
+  })
+
+  it('lets an explicit caller label name an ordinary row', () => {
+    const tree = render(<ListRow title="Week starts on" value="Monday" description="First day in the calendar" accessibilityLabel="Choose the first day" onClick={vi.fn()} />)
+    expect(tree.root.findByType(Pressable).props.accessibilityLabel).toBe('Choose the first day')
+  })
+
+  it('keeps the switch name and checked state', () => {
+    const tree = render(<ListRow title="Sync automatically" toggle={{ checked: true, onChange: vi.fn() }} />)
+    const control = tree.root.findByType(Pressable)
+    expect(control.props.accessibilityLabel).toBe('Sync automatically')
+    expect(control.props.accessibilityRole).toBe('switch')
+    expect(control.props.accessibilityState).toEqual({ checked: true })
+  })
+
   it.each([
     'Pessoa com um nome completo escrito no próprio perfil',
     'A person with a full name written in their own profile',
@@ -71,14 +92,14 @@ describe('list primitives on mobile', () => {
   })
 
   it('renders the templates glyph in a compact pressed row', () => {
-    const tree = render(<ListRow icon="template" title="Templates" compact inForm onClick={vi.fn()} />)
+    const tree = render(<ListRow icon="template" title="Templates" compact onClick={vi.fn()} />)
     const icon = tree.root.find((node) => node.props.testID === 'icon-template')
     expect(icon.props.children).toBeTruthy()
     const row = tree.root.findByType(View)
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 52 })
     const body = tree.root.findByType(Pressable)
     const bodyStyle = body.props.style as (state: { pressed: boolean }) => StyleProp<ViewStyle>
-    expect(StyleSheet.flatten(bodyStyle({ pressed: false }))).toMatchObject({ minHeight: 52, paddingHorizontal: 12, borderRadius: 12, overflow: 'hidden' })
+    expect(StyleSheet.flatten(bodyStyle({ pressed: false }))).toMatchObject({ minHeight: 52, paddingHorizontal: 16, borderRadius: 12, overflow: 'hidden' })
     expect(StyleSheet.flatten(bodyStyle({ pressed: true }))).toMatchObject({ borderRadius: 12, overflow: 'hidden', backgroundColor: createTokensV2('purple', 'dark').bgHover })
   })
 
@@ -129,11 +150,11 @@ describe('list primitives on mobile', () => {
     void act(() => { tree.update(<ListRow title="Account" onClick={vi.fn()} />) })
     const navigation = tree.root.findByType(Pressable)
     expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).not.toHaveProperty('padding')
-    expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16 })
+    expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16 })
     const chevron = navigation.findAllByType(View).find((node) =>
-      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 48,
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 24,
     )
-    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 48, minHeight: 24, flexShrink: 0 })
+    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 24, minHeight: 24, flexShrink: 0 })
 
     void act(() => { tree.update(<ListRow title="Read only" readOnly />) })
     expect(tree.root.findAllByType(View).some((node) =>
@@ -143,11 +164,11 @@ describe('list primitives on mobile', () => {
   })
 
   it('renders bare compact and regular rows with their drawn inline padding', () => {
-    const tree = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
+    const tree = render(<ListRow title="Tags" placement="column" onClick={vi.fn()} />)
     const bodyStyle = StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))
-    expect(bodyStyle).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingStart: 0, paddingHorizontal: 0 })
+    expect(bodyStyle).toMatchObject({ minHeight: 52, paddingVertical: 12, position: 'relative' })
     const ordinary = render(<ListRow title="Tags" onClick={vi.fn()} />)
-    expect(StyleSheet.flatten(resolvePressedStyle(ordinary.root.findByType(Pressable)))).toMatchObject({ minHeight: 52, paddingVertical: 4, paddingHorizontal: 16 })
+    expect(StyleSheet.flatten(resolvePressedStyle(ordinary.root.findByType(Pressable)))).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16 })
   })
 
   it('owns the entire padded perimeter in adjacent body and action targets', () => {
@@ -162,7 +183,7 @@ describe('list primitives on mobile', () => {
     expect(rowStyle).not.toHaveProperty('padding')
     const [body, action] = tree.root.findAllByType(Pressable)
     if (!body || !action) throw new Error('ListRow controls did not render')
-    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 56, paddingVertical: 4, paddingHorizontal: 16, paddingEnd: 0 })
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 52, paddingVertical: 12, paddingHorizontal: 16 })
     expect(StyleSheet.flatten(resolvePressedStyle(action))).toMatchObject({ width: 48, height: 48, marginVertical: 4, marginEnd: 16, marginStart: 0, borderRadius: 999, overflow: 'hidden' })
     void act(() => { (body.props.onPressIn as () => void)() })
     expect(StyleSheet.flatten(resolvePressedStyle(body))).not.toHaveProperty('transform')
@@ -199,8 +220,8 @@ describe('list primitives on mobile', () => {
     expect(bodyTexts.map((node) => node.props.children)).toContain('Synced')
     const leadingIcon = bodyControl
       .findAll((node) => typeof node.props.strokeWidth === 'number')
-      .find((node) => (node.props.strokeWidth as number) > 1.7)
-    expect(leadingIcon?.props.strokeWidth).toBeCloseTo(1.8)
+      .find((node) => node.props.strokeWidth === 1.5)
+    expect(leadingIcon?.props.strokeWidth).toBe(1.5)
     const valueText = bodyTexts.find((node) => node.props.children === 'Ready for a deliberately long reminder summary')
     expect(valueText?.props.numberOfLines).toBe(1)
     expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
@@ -322,14 +343,12 @@ describe('list primitives on mobile', () => {
     const openProfile = vi.fn()
     const openPrivacy = vi.fn()
     const tree = render(
-      <SettingsGroup
-        items={[
+      <SettingsGroup>{[
           { label: 'Version' },
           { label: 'Profile', value: 'Alex', trailing: <Text>Verified</Text>, onClick: openProfile },
           { label: 'Plan', value: 'Pro' },
           { label: 'Privacy', onClick: openPrivacy },
-        ]}
-      />,
+        ].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup>,
     )
     const controls = tree.root.findAllByType(Pressable)
     expect(controls).toHaveLength(2)

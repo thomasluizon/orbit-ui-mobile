@@ -71,7 +71,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
     }, { from: day, to: day }, new Date(2026, 9, scenario.upcoming ? 5 : 6, 12))
     await act(() => { tree = TestRenderer.create(<CalendarAgendaView startDate={parseAPIDate(day)} dayMap={entries}
       displayTime={createTimeDisplay(locale, locale === 'pt-BR').displayTime} todayKey={day} isLoading={false} loadingLabel={i18n.t('common.loading')} />) })
-    const value = scenario.dueTime ? locale === 'en' ? '8:00 AM' : '08:00' : locale === 'en' ? 'No set time' : 'Sem hora certa'
+    const value = scenario.dueTime ? locale === 'en' ? '8:00 AM' : '08:00' : i18n.t('calendar.timeGrid.noSetTime')
     const controls = tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')
     expect(controls).toHaveLength(1)
     expect(controls[0]!.props.accessibilityLabel).toBe(`${title}, ${value}, ${locale === 'en' ? scenario.en : scenario.pt}`)

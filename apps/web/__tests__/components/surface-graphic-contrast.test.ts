@@ -12,9 +12,6 @@ const graphicSites = [
   'apps/mobile/components/search/search-results.tsx',
   'apps/mobile/components/shell/composer.tsx',
   'apps/mobile/components/ui/list-row.tsx',
-  'apps/mobile/components/ui/settings-group-list.tsx',
-  'apps/mobile/components/ui/settings-group.tsx',
-  'apps/mobile/components/ui/settings-row.tsx',
   'apps/mobile/components/ui/time-field.tsx',
   'apps/web/app/(app)/support/_components/support-form.tsx',
   'apps/web/components/calendar-sync/calendar-sync-event-row.tsx',
@@ -23,9 +20,6 @@ const graphicSites = [
   'apps/web/components/ui/app-select.tsx',
   'apps/web/components/ui/date-field.tsx',
   'apps/web/components/ui/list-row.tsx',
-  'apps/web/components/ui/settings-group-list.tsx',
-  'apps/web/components/ui/settings-group.tsx',
-  'apps/web/components/ui/settings-row.tsx',
 ] as const
 
 const graphicNames: Record<(typeof graphicSites)[number], string> = {
@@ -35,9 +29,6 @@ const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/mobile/components/search/search-results.tsx': 'ChevronRight',
   'apps/mobile/components/shell/composer.tsx': 'ArrowUp',
   'apps/mobile/components/ui/list-row.tsx': 'ChevronIcon',
-  'apps/mobile/components/ui/settings-group-list.tsx': 'ChevronRight',
-  'apps/mobile/components/ui/settings-group.tsx': 'ChevronRight',
-  'apps/mobile/components/ui/settings-row.tsx': 'ChevronRight',
   'apps/mobile/components/ui/time-field.tsx': 'Clock3',
   'apps/web/app/(app)/support/_components/support-form.tsx': 'WifiOff',
   'apps/web/components/calendar-sync/calendar-sync-event-row.tsx': 'X',
@@ -46,9 +37,6 @@ const graphicNames: Record<(typeof graphicSites)[number], string> = {
   'apps/web/components/ui/app-select.tsx': 'ChevronDown',
   'apps/web/components/ui/date-field.tsx': 'Calendar',
   'apps/web/components/ui/list-row.tsx': 'Chevron',
-  'apps/web/components/ui/settings-group-list.tsx': 'ChevronRight',
-  'apps/web/components/ui/settings-group.tsx': 'ChevronRight',
-  'apps/web/components/ui/settings-row.tsx': 'ChevronRight',
 }
 
 const result = spawnSync(process.execPath, ['tools/check-surface-scope.mjs'], {
