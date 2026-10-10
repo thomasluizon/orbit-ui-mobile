@@ -90,7 +90,7 @@ function TimeOption({
     .onFinalize(() => setTouchPressed(false))
   return (
     <GestureDetector gesture={tapGesture}>
-      <InsetFocusPressable
+      <InsetFocusPressable selectionRingWidth={2}
         {...navigationProps}
         focusColor={tokens.fg1}
         ref={elementRef}
@@ -103,7 +103,6 @@ function TimeOption({
           { backgroundColor: pressedOptionBackground(tokens, selected, pressed || touchPressed) },
         ]}
       >
-        {selected ? <View pointerEvents="none" accessible={false} style={[StyleSheet.absoluteFill, { borderWidth: 2, borderColor: tokens.primary, borderRadius: 12 }]} /> : null}
         <Text
           style={[
             styles.optionLabel,
@@ -433,6 +432,8 @@ const styles = StyleSheet.create({
   columnScroll: { flex: 1 },
   columnContent: { paddingVertical: 4 },
   option: {
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
     borderRadius: 12,
     overflow: 'hidden',

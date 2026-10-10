@@ -100,7 +100,6 @@ describe('AboutPage', () => {
   it('keeps every 412px column shrinkable and lets fact values wrap', () => {
     render(<AboutPage />)
 
-    expect(screen.getByTestId('about-content')).toHaveClass('min-w-0')
     expect(screen.getByTestId('about-identity')).toHaveClass('min-w-0')
     expect(screen.getByTestId('about-destinations')).toHaveClass('min-w-0')
     expect(screen.getByTestId('about-facts')).toHaveClass('min-w-0')
@@ -128,6 +127,30 @@ describe('About destination geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([600, 840, 1352])('keeps the content cap outside the gutter and aligns facts at %ipx', async (width) => {
+    vi.stubEnv('NEXT_PUBLIC_WEB_COMMIT_SHA', '3f9c2ab5d1e0')
+    useAuthStore.setState({ isAuthenticated: true })
+    render(<AboutPage />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${screen.getByTestId('about-content').outerHTML}`)
+      await loadAppFonts(page)
+      const boxes = await page.locator('[data-testid="about-content"] > *').evaluateAll((elements) =>
+        [elements[0]!, elements.at(-1)!].map((element) => {
+          const bounds = element.getBoundingClientRect()
+          return { left: bounds.left, width: bounds.width }
+        }))
+      for (const box of boxes) {
+        expect(box.left).toBe(16)
+        expect(box.width).toBe(width < 1024 ? width - 32 : 620)
+      }
+      for (const fact of ['version', 'account']) {
+        expect(await page.locator(`[data-testid="about-fact-${fact}-label"]`).evaluate((element) => element.getBoundingClientRect().left)).toBe(16)
+      }
+      expect(await page.locator('[data-testid="about-content"]').evaluate((element) => getComputedStyle(element).minWidth)).toBe('0px')
+    } finally { await page.close(); vi.unstubAllEnvs() }
+  })
 
   it.each([412, 1280])('renders four 52px destinations with reachable targets at %ipx', async (width) => {
     render(<AboutPage />)

@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
@@ -44,7 +45,7 @@ type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
 function buildChat(): ChatController {
   return {
-    flatListRef: { current: null },
+    threadScroll: createChatThreadScroll(), flatListRef: { current: null },
     messages: [],
     activeSteps: [],
     canShowFollowUps: false,

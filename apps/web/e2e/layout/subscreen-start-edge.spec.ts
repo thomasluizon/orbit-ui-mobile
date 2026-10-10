@@ -28,6 +28,13 @@ async function assertCap(box: Locator, maximum: number) {
   expect(width).toBeLessThanOrEqual(maximum)
 }
 
+async function assertContentWidth(body: Locator, back: Locator, viewportWidth: number, cap: number) {
+  const columnWidth = await back.evaluate((element) => element.closest('header')!.getBoundingClientRect().width)
+  const expected = viewportWidth < 1024 ? columnWidth - 32 : Math.min(columnWidth - 32, cap)
+  const width = await body.evaluate((element) => element.getBoundingClientRect().width)
+  expect(width).toBeCloseTo(expected, 0)
+}
+
 for (const locale of ['en', 'pt-BR'] as const) {
   for (const subscriptionState of ['free', 'lapsed', 'stripe'] as const) {
     test.describe(`${subscriptionState} sub-screen edges in ${locale}`, () => {
@@ -44,7 +51,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
           await expect(identity).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
           await assertStartEdge(identity, back)
-          await assertCap(page.getByTestId('about-content'), 620)
+          await assertContentWidth(identity, back, width, 620)
+          await assertContentWidth(page.getByTestId('about-facts'), back, width, 620)
 
           await page.goto('/support')
           const form = page.locator('form')
@@ -64,7 +72,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           await expect(body).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
           await assertStartEdge(body, back)
-          await assertCap(upgrade, subscriptionState === 'free' ? 652 : 560)
+          await assertContentWidth(body, back, width, subscriptionState === 'free' ? 652 : 560)
         })
       }
     })

@@ -2,6 +2,8 @@
 import { createServer, type Server } from 'node:http'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
+import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { accountEventTicketSchema } from '@orbit/shared/types/account-event'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -10,6 +12,7 @@ import { mintHermeticJwt } from '../../test-support/hermetic/hermetic-session'
 import { handleRequest } from '../../test-support/hermetic/mock-api/request-handler'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
+import { LAYOUT_FIXED_TIME } from '../../e2e/layout/clock.mjs'
 
 let server: Server
 let origin: string
@@ -96,6 +99,35 @@ describe('mock API session fixtures', () => {
     ])).toBe('pending')
     expect(await (await pendingNotifications).json()).toEqual(notifications)
     expect(await (await fetch(`${origin}${API.notifications.list}`)).json()).toEqual({ items: [], unreadCount: 0 })
+  })
+
+  it('serves the held habit preview to server-side clarification resolutions', async () => {
+    const preview = agentExecuteOperationResponseSchema.parse({
+      operation: makeAgentOperationResult('PendingConfirmation', 1),
+      pendingOperation: { ...makeHeldHabitMessage().pendingOperations![0]!, actionKey: 'createHabit', expiresAtUtc: '2099-01-01T00:00:00Z' },
+    })
+    const operationIds = [
+      makeClarificationPreviewMessage().actions![0]!.clarificationRequest!.operationId,
+      '00000000-0000-4000-8000-000000000002',
+    ]
+    for (const [index, operationId] of operationIds.entries()) {
+      const response = await fetch(`${origin}${API.ai.clarificationResolve(operationId)}`, {
+        method: 'POST', headers: { Authorization: `Bearer ${tokenFor(`clarification-${index}`)}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: 'daily' }),
+      })
+      expect(response.status).toBe(200)
+      const resolved = agentExecuteOperationResponseSchema.parse(await response.json())
+      expect(resolved).toEqual(preview)
+      expect(new Date(resolved.pendingOperation!.expiresAtUtc).getTime()).toBeGreaterThan(new Date(LAYOUT_FIXED_TIME).getTime())
+    }
+  })
+
+  it('keeps clarification previews off unrelated routes and request methods', async () => {
+    const path = API.ai.clarificationResolve(makeClarificationPreviewMessage().actions![0]!.clarificationRequest!.operationId)
+    for (const [method, pathname] of [['GET', path], ['POST', `${path}/extra`], ['POST', '/api/ai/clarifications/resolve']]) {
+      const response = await fetch(`${origin}${pathname}`, { method })
+      expect(await response.json()).toEqual({})
+    }
   })
 
   it('serves isolated seeded pages to server and browser reads and keeps unseeded defaults', async () => {

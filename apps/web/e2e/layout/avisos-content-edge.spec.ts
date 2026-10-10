@@ -34,9 +34,16 @@ for (const locale of ['pt-BR', 'en'] as const) {
         await expect(back).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
         const backLeft = await back.evaluate((element) => element.getBoundingClientRect().left)
-        const rowLeft = await list.getByRole('listitem').first().evaluate((element) => element.getBoundingClientRect().left)
-        expect(Math.abs(rowLeft - backLeft - 8)).toBeLessThanOrEqual(0.5)
-        expect(await list.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(560)
+        const columnWidth = await back.evaluate((element) => element.closest('header')!.getBoundingClientRect().width)
+        const contentWidth = width < 1024 ? columnWidth - 32 : Math.min(columnWidth - 32, 560)
+        for (const row of [list.getByRole('listitem').first(), list.getByRole('listitem').last()]) {
+          const bounds = await row.evaluate((element) => {
+            const rectangle = element.getBoundingClientRect()
+            return { left: rectangle.left, width: rectangle.width }
+          })
+          expect(Math.abs(bounds.left - backLeft - 8)).toBeLessThanOrEqual(0.5)
+          expect(bounds.width).toBeCloseTo(contentWidth, 0)
+        }
       })
     }
   }
