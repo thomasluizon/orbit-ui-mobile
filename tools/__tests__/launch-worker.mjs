@@ -186,18 +186,30 @@ export const cases = async () => {
     { cwd: signalled.base, env: { ...process.env, ...githubAuthEnv() } })
   signalChild.stdout.resume()
   signalChild.stderr.resume()
+  let signalExited = false
+  const signalledExit = new Promise((resolve) => signalChild.once("exit", (status) => {
+    signalExited = true
+    resolve(status)
+  }))
   const signalDirectory = join(signalled.base, ".git", "orbit-admission-reservations")
-  let hadReservation = false
+  let signalSource = null
+  /** The reservation is published before signal handlers are installed. The launcher registers
+   * its wake source after installing them, so that record is the readiness boundary (#1326). */
   for (let attempt = 0; attempt < 100; attempt++) {
-    if (existsSync(signalDirectory) && readdirSync(signalDirectory).length > 0) { hadReservation = true; break }
+    signalSource = readWakeSources(signalled.base).find((source) => source.pid === signalChild.pid) ?? null
+    if (signalSource || signalExited) break
     await new Promise((resolve) => setTimeout(resolve, 50))
   }
-  const signalledExit = new Promise((resolve) => signalChild.on("exit", resolve))
+  const hadReservation = releasedClaims(signalDirectory).some((claim) => claim.pid === signalChild.pid && !Number.isFinite(claim.releasedAt))
+  T("launch-worker: SIGTERM fixture reaches signal-handler readiness with an active reservation", signalSource !== null && hadReservation)
+  const signalTimeout = setTimeout(() => signalChild.kill("SIGKILL"), 5000)
   signalChild.kill("SIGTERM")
   const signalStatus = await signalledExit
+  clearTimeout(signalTimeout)
+  discardLog(JSON.stringify(signalSource))
   const signalClaims = releasedClaims(signalDirectory)
-  T("launch-worker: SIGTERM marks its reservation released", hadReservation && signalStatus === 143 &&
-    signalClaims.length === 1 && Number.isFinite(signalClaims[0].releasedAt), `reserved=${hadReservation}, exit=${signalStatus}, claims=${JSON.stringify(signalClaims)}`)
+  T("launch-worker: SIGTERM marks its reservation released", signalSource !== null && hadReservation && signalStatus === 143 &&
+    signalClaims.length === 1 && Number.isFinite(signalClaims[0].releasedAt), `ready=${signalSource !== null}, reserved=${hadReservation}, exit=${signalStatus}, claims=${JSON.stringify(signalClaims)}`)
   const real = realOrchestratorConfig()
   const engine = real.workers[real.worker]
   let plan = null
