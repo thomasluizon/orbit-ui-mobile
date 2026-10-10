@@ -17,6 +17,8 @@ import { paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { checklistTemplateSchema } from '@orbit/shared/types/checklist-template'
 import { referralDashboardSchema } from '@orbit/shared/types/referral'
 import { notificationsResponseSchema } from '@orbit/shared/types/notification'
+import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
+import { clarificationResolveFixture } from './fixtures/chat'
 import { profileFixture } from './fixtures/profile'
 import { configFixture } from './fixtures/config'
 import { subscriptionPlansFixture } from './fixtures/subscription-plans'
@@ -40,11 +42,19 @@ const habitMutations: { method: string; path: string; body: unknown }[] = []
 interface MockRoute {
   method: string
   path: string
+  matchPath?: RegExp
   schema: ZodType
   body: unknown
 }
 
 const routes: MockRoute[] = [
+  {
+    method: 'POST',
+    path: '/api/ai/clarifications/:operationId/resolve',
+    matchPath: /^\/api\/ai\/clarifications\/[^/]+\/resolve$/,
+    schema: agentExecuteOperationResponseSchema,
+    body: clarificationResolveFixture,
+  },
   { method: 'GET', path: '/api/profile', schema: profileSchema, body: profileFixture },
   { method: 'GET', path: '/api/calendar/calendars', schema: userCalendarsSchema, body: [] },
   { method: 'GET', path: '/api/config', schema: appConfigSchema, body: configFixture },
@@ -302,7 +312,8 @@ export function handleRequest(req: IncomingMessage, res: ServerResponse): void {
     return
   }
 
-  const route = routes.find((entry) => entry.method === method && entry.path === pathname)
+  const route = routes.find((entry) => entry.method === method &&
+    (entry.matchPath ? entry.matchPath.test(pathname) : entry.path === pathname))
   if (route) {
     sendFixtureRoute(req, res, route, session, url)
     return

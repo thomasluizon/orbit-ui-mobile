@@ -1,20 +1,15 @@
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
-import { agentExecuteOperationResponseSchema } from '@orbit/shared/types/ai'
+import { makeClarificationPreviewMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
 const clarification = makeClarificationPreviewMessage()
-const pendingOperation = { ...makeHeldHabitMessage().pendingOperations![0]!, actionKey: 'createHabit', expiresAtUtc: '2099-01-01T00:00:00Z' }
 const reply = chatStreamEventSchema.parse({ type: 'final', response: {
   aiMessage: 'Podemos revisar a rotina com calma. '.repeat(80), actions: clarification.actions,
 } })
-const preview = agentExecuteOperationResponseSchema.parse({
-  operation: makeAgentOperationResult('PendingConfirmation', 1), pendingOperation,
-})
 
 for (const width of [600, 1352]) {
   test.describe(`conversation thread scrolling at ${width}`, () => {
@@ -26,9 +21,7 @@ for (const width of [600, 1352]) {
       }))
     })
 
-    test('brings all clarification preview actions above the composer', async ({ page, context }) => {
-      await context.route(`${LAYOUT_ORIGIN}${API.ai.clarificationResolve(clarification.actions![0]!.clarificationRequest!.operationId)}`,
-        route => route.fulfill({ json: preview }))
+    test('brings all clarification preview actions above the composer', async ({ page }) => {
       await page.goto('/?astra=open')
       const conversation = page.locator('[data-shell-conversation="overlay"]')
       await conversation.locator('[data-composer-input]').fill('Quero criar um hábito')
