@@ -25,7 +25,48 @@ const checkSources = (label, contents, expectation) => {
   check("check-docker-registries.mjs", label, ["--root", repository], expectation, { cwd: root })
 }
 
+const workflow = (inputs, driver = "docker") => `jobs:
+  build:
+    steps:
+      - uses: docker/setup-buildx-action@v4
+        with:
+          driver: ${driver}
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+${inputs.map((input) => `          ${input}`).join("\n")}
+`
+
+const checkWorkflow = (label, contents, expectation) => {
+  const repository = stageRepository(label, { ".github/workflows/release.yml": contents })
+  check("check-docker-registries.mjs", label, ["--root", repository], expectation, { cwd: root })
+}
+
 export const cases = () => {
+  checkWorkflow("rejects docker driver pushes without disabled provenance", workflow(["push: true"]), {
+    status: 1, stderr: /\.github\/workflows\/release\.yml:.*Build and push image.*provenance: false/,
+  })
+  checkWorkflow("accepts docker driver pushes with disabled provenance", workflow(["push: true", "provenance: false"]), { status: 0 })
+  checkWorkflow("accepts docker driver loads without provenance input", workflow(["load: true"]), { status: 0 })
+  checkWorkflow("rejects enabled provenance", workflow(["push: true", "provenance: true"]), { status: 1 })
+  checkWorkflow("accepts other drivers", workflow(["push: true"], "docker-container"), { status: 0 })
+  checkWorkflow("reads quoted inputs and inline comments", workflow(["push: 'true' # publish", 'provenance: "false" # disabled']), { status: 0 })
+  checkWorkflow("reports every pushing step", workflow(["push: true"]) + `      - uses: docker/build-push-action@v7
+        with:
+          push: true
+`, { status: 1, stderr: /Build and push image[^\n]*\n[^\n]*docker\/build-push-action@v7/ })
+  checkWorkflow("keeps drivers scoped to their steps list", workflow(["load: true"]) + `  other:
+    steps:
+      - uses: docker/build-push-action@v7
+        with:
+          push: true
+`, { status: 0 })
+  checkWorkflow("ignores shell text resembling inputs", workflow(["push: true"]) + `      - name: Describe configuration
+        run: |
+          provenance: false
+          driver: docker-container
+`, { status: 1 })
+
   checkSources("rejects implicit official image", "FROM node:22-bookworm-slim\n", { status: 1, stderr: /Dockerfile:1: FROM node:22-bookworm-slim/ })
   checkSources("rejects implicit organization image", "FROM moby/buildkit:buildx-stable-1\n", { status: 1, stderr: /moby\/buildkit/ })
   checkSources("checks every stage", "FROM public.ecr.aws/docker/library/node:22-bookworm-slim AS builder\nRUN true\nFROM node:22-bookworm-slim AS runner\n", { status: 1, stderr: /Dockerfile:3: FROM node/ })

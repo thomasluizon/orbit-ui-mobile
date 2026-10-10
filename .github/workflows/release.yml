@@ -79,6 +79,8 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: true
+          # The docker driver with the classic image store cannot attach attestations, so this push requests none.
+          provenance: false
           tags: |
             ghcr.io/thomasluizon/orbit-web:${{ steps.source.outputs.sha }}
           build-args: |
@@ -102,6 +104,8 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           push: true
+          # The docker driver with the classic image store cannot attach attestations, so this push requests none.
+          provenance: false
           tags: |
             ghcr.io/thomasluizon/orbit-web:${{ steps.source.outputs.sha }}
           build-args: |

@@ -60,7 +60,7 @@ These back required CI checks. They fail a merge.
 | `check-push-target.mjs` | Refuses a push whose target is a protected branch. | `node tools/check-push-target.mjs` |
 | `check-root-allowlist.mjs` | Fails when an undeclared file OR directory exists at the repository root, including ignored and untracked ones. Backs `Root Allowlist`; declarations live in `root-allowlist.json`. | `node tools/check-root-allowlist.mjs` |
 | `check-workspace-overrides.mjs` | Fails when an npm workspace declares an `overrides` key that npm would ignore. Backs `Root Allowlist`. | `node tools/check-workspace-overrides.mjs` |
-| `check-docker-registries.mjs` | Requires explicit registry hosts in every tracked Dockerfile FROM image, allowing scratch and earlier stages. Backs `Root Allowlist`. | `node tools/check-docker-registries.mjs [--root <path>]` |
+| `check-docker-registries.mjs` | Requires explicit registry hosts in every tracked Dockerfile FROM image, allowing scratch and earlier stages, and disabled provenance on workflow pushes using the docker driver. Backs `Root Allowlist`. | `node tools/check-docker-registries.mjs [--root <path>]` |
 
 ## Architecture map and visual evidence
 
