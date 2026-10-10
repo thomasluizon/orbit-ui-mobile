@@ -9,6 +9,7 @@ import { notificationsFixture } from '../../test-support/hermetic/mock-api/fixtu
 import { LAYOUT_ORIGIN } from '../support/env'
 import { agendaCalendarMonth } from './calendar-agenda-fixtures'
 import { completeInstallOnboarding } from './install-onboarding'
+import { setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const calendarMonth = calendarMonthResponseSchema.parse({
@@ -47,8 +48,7 @@ for (const [locale, words] of [['en', en], ['pt-BR', ptBR]] as const) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
             (route) => route.fulfill({ json: calendarMonth }))
           const items = [0, 1, 2].map((index) => createMockNotification({ id: `content-edge-${index}`, title: `Message ${index}` }))
-          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.notifications.list,
-            (route) => route.fulfill({ json: notificationsResponseSchema.parse({ ...notificationsFixture, items, unreadCount: items.length }) }))
+          await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notificationsResponseSchema.parse({ ...notificationsFixture, items, unreadCount: items.length }) }])
 
           await page.goto('/calendar')
           const selector = page.getByTestId('calendar-header-group').getByRole('radiogroup')
