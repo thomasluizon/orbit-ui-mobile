@@ -4,8 +4,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { habitDetailSchema } from '@orbit/shared/types/habit'
+import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
-import { setLayoutFixtureSession } from './profile-session'
 
 async function expectAddGeometry(scope: Locator, messages: typeof en | typeof ptBR) {
   const input = scope.getByRole('textbox', { name: messages.habits.form.checklistPlaceholder, exact: true })
@@ -64,7 +64,10 @@ for (const width of [320, 412, 1352]) {
           const habit = habitDetailSchema.parse({ ...makeHabitDetail(), checklistItems: [
             { text: 'Prepare coffee', isChecked: false }, { text: 'Wash cup', isChecked: true },
           ] })
-          await setLayoutFixtureSession(context, [{ path: API.habits.get(habit.id), body: habit }])
+          await context.route(
+            (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.get(habit.id),
+            (route) => route.fulfill({ json: habit }),
+          )
           await page.goto(`/habits/${habit.id}`)
           await page.getByRole('button', { name: messages.habits.detail.moreDetails }).click()
           const disclosure = page.locator('#habit-detail-fields')
