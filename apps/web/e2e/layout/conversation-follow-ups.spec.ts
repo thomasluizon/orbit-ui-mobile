@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import pt from '@orbit/shared/i18n/pt-BR.json'
@@ -35,7 +36,7 @@ for (const width of [320, 412, 1352]) {
         await expect(group.getByRole('button')).toHaveCount(2)
         await page.evaluate(() => document.fonts.ready)
         await page.addStyleTag({ content: `html { font-size: ${16 * textScale}px; }` })
-        await page.evaluate(() => Promise.allSettled(document.getAnimations().map(animation => animation.finished)))
+        await page.evaluate(settleAnimations, undefined)
 
         const message = await conversation.locator('[data-bubble-role="ai"]').boundingBox()
         const copy = await conversation.getByRole('button', { name: pt.chat.copy, exact: true }).elementHandle()

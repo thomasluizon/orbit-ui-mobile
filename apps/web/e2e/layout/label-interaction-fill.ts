@@ -1,12 +1,11 @@
+import { settleAnimations } from './settle-animations'
 import { expect, type Locator } from '@playwright/test'
 
 async function settleFillTransitions(control: Locator) {
-  await control.evaluate(async (element) => {
+  await control.evaluate(async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-    await Promise.all(element.getAnimations({ subtree: true })
-      .filter((animation) => animation instanceof CSSTransition)
-      .map((animation) => animation.finished))
   })
+  await control.evaluate(settleAnimations)
 }
 
 async function readFill(control: Locator) {
