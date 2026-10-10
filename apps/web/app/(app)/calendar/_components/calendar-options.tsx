@@ -30,8 +30,8 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
     else if (id === 'google') onGoogleCalendar?.()
     else setLegendOpen(true)
   }
-  function closeOptions(action: () => void) {
-    closeOptionsSheet(() => { setMenuOpen(false); action() })
+  function closeOptions(id: string) {
+    closeOptionsSheet(() => { setMenuOpen(false); selectOption(id) })
   }
   return <>
     <DestinationHeaderRow data-testid="calendar-shell-header">
@@ -42,9 +42,9 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
       items={[{ id: 'recurring', label: t('calendar.showRecurring'), checked }, { id: 'google', label: t('calendar.googleCalendar'), disabled: !onGoogleCalendar }, { id: 'legend', label: t('calendar.legendTitle') }]}
       onSelect={selectOption} /> : menuOpen ? <Sheet ref={optionsSheetRef} open title={t('calendar.options')} onClose={() => setMenuOpen(false)}>
       <div id={menuId} className="grid gap-2">
-        <CheckRow placement="column" label={t('calendar.showRecurring')} checked={checked} onChange={(next) => closeOptions(() => setChecked(next))} />
-        <ListRow placement="column" textMode="label" title={t('calendar.googleCalendar')} disabled={!onGoogleCalendar} onClick={() => closeOptions(() => onGoogleCalendar?.())} />
-        <ListRow placement="column" textMode="label" title={t('calendar.legendTitle')} onClick={() => closeOptions(() => setLegendOpen(true))} />
+        <CheckRow placement="column" label={t('calendar.showRecurring')} checked={checked} onChange={() => closeOptions('recurring')} />
+        <ListRow placement="column" textMode="label" title={t('calendar.googleCalendar')} disabled={!onGoogleCalendar} onClick={() => closeOptions('google')} />
+        <ListRow placement="column" textMode="label" title={t('calendar.legendTitle')} onClick={() => closeOptions('legend')} />
       </div>
     </Sheet> : null}
     {legendOpen ? <Sheet ref={sheetRef} open title={t('calendar.legendTitle')} onClose={() => setLegendOpen(false)}>

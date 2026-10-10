@@ -23,8 +23,13 @@ export function CalendarOptions({ tokens, onGoogleCalendar }: Readonly<{ tokens:
   const { sheetRef: optionsSheetRef, closeSheet: closeOptionsSheet } = useSheetHost()
   const checked = useUIStore((state) => state.calendarShowRecurring)
   const setChecked = useUIStore((state) => state.setCalendarShowRecurring)
-  function closeOptions(action: () => void) {
-    closeOptionsSheet(() => { setMenuOpen(false); action() })
+  function selectOption(id: string) {
+    if (id === 'recurring') setChecked(!checked)
+    else if (id === 'google') onGoogleCalendar?.()
+    else setLegendOpen(true)
+  }
+  function closeOptions(id: string) {
+    closeOptionsSheet(() => { setMenuOpen(false); selectOption(id) })
   }
   return <>
     <DestinationHeaderRow testID="calendar-shell-header">
@@ -33,9 +38,9 @@ export function CalendarOptions({ tokens, onGoogleCalendar }: Readonly<{ tokens:
     </DestinationHeaderRow>
     {menuOpen ? <Sheet ref={optionsSheetRef} open title={t('calendar.options')} onClose={() => setMenuOpen(false)}>
       <View style={{ gap: 8 }}>
-        <CheckRow placement="column" label={t('calendar.showRecurring')} checked={checked} onChange={(next) => closeOptions(() => setChecked(next))} />
-        <ListRow placement="column" textMode="label" title={t('calendar.googleCalendar')} accessibilityLabel={t('calendar.googleCalendar')} disabled={!onGoogleCalendar} onClick={() => closeOptions(() => onGoogleCalendar?.())} />
-        <ListRow placement="column" textMode="label" title={t('calendar.legendTitle')} accessibilityLabel={t('calendar.legendTitle')} onClick={() => closeOptions(() => setLegendOpen(true))} />
+        <CheckRow placement="column" label={t('calendar.showRecurring')} checked={checked} onChange={() => closeOptions('recurring')} />
+        <ListRow placement="column" textMode="label" title={t('calendar.googleCalendar')} accessibilityLabel={t('calendar.googleCalendar')} disabled={!onGoogleCalendar} onClick={() => closeOptions('google')} />
+        <ListRow placement="column" textMode="label" title={t('calendar.legendTitle')} accessibilityLabel={t('calendar.legendTitle')} onClick={() => closeOptions('legend')} />
       </View>
     </Sheet> : null}
     {legendOpen ? <Sheet ref={sheetRef} open title={t('calendar.legendTitle')} onClose={() => setLegendOpen(false)}>
