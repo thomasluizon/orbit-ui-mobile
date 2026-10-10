@@ -14,12 +14,13 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
 }
 
 /** The translucent hover layer covers the round hit area below the day's foreground. */
-function PressFill({ circle = false }: Readonly<{ circle?: boolean }>) {
+function PressFill({ selected = false }: Readonly<{ selected?: boolean }>) {
+  if (selected) return null
   return (
     <span
       aria-hidden="true"
       data-press-fill=""
-      className={'pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ' + (circle ? 'orbit-day-fill' : '')}
+      className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
     />
   )
 }
@@ -117,7 +118,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
     className={'orbit-day-circle relative inline-flex items-center justify-center ' + (props.selected ? 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
     style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
   >
-    <PressFill circle />
+    <PressFill selected={props.selected} />
     {contents}
     <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
       style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />

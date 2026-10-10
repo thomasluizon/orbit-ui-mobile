@@ -2262,10 +2262,8 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
 
 .orbit-day-target:active .orbit-day-well { background: transparent; }
 .orbit-day-target:active [data-press-fill] { opacity: 1; }
-.orbit-day-target:active .orbit-day-selected .orbit-day-fill { opacity: 0; }
 
 @media (hover: hover) and (pointer: fine) {
   .orbit-day-target:hover .orbit-day-well { background: transparent; }
   .orbit-day-target:hover [data-press-fill] { opacity: 1; }
-  .orbit-day-target:hover .orbit-day-selected .orbit-day-fill { opacity: 0; }
 }

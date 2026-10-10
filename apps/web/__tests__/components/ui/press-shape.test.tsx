@@ -87,6 +87,14 @@ describe('painted press and hover shapes', () => {
     expect(container.querySelector('[data-day-disc]')).toHaveStyle({ background: 'var(--fg-1)' })
   })
 
+  it('omits the selected circle interaction fill while retaining the full status fill', () => {
+    const { container } = render(<DayCell day={15} selected today words={cellWords} done={1} scheduled={1} loggable onPress={() => {}} />)
+    const circle = container.querySelector('[data-day-circle]')!
+    expect(circle.querySelector(':scope > [data-press-fill]')).toBeNull()
+    expect(circle.querySelector('[data-day-disc] > [data-press-fill]')).not.toBeNull()
+    expect(circle.querySelector('[data-day-position-ring]')).toHaveStyle({ boxShadow: 'var(--day-focus-ring, inset 0 0 0 2px var(--primary))' })
+  })
+
   it('keeps read-only day fills hidden without an interactive target', () => {
     const { container } = render(
       <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} />,

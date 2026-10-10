@@ -62,7 +62,7 @@ export async function expectDayCircleHover(button: Locator) {
   await button.hover()
   if (await button.getAttribute('aria-pressed') === 'true') {
     const circle = button.locator('[data-day-circle]')
-    await expect.poll(() => circle.locator(':scope > [data-press-fill]').evaluate((element) => getComputedStyle(element).opacity)).toBe('0')
+    await expect(circle.locator(':scope > [data-press-fill]')).toHaveCount(0)
     expect(await circle.evaluate((element) => {
       const probe = document.createElement('span')
       probe.style.backgroundColor = 'var(--selection-bg)'
