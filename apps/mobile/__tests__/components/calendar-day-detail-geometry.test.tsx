@@ -85,6 +85,7 @@ describe('Android day card geometry', () => {
         })
         entries.forEach((entry) => {
           const row = measured.controls.find((control) => control.accessibilityLabel?.startsWith(entry.title))!
+          expect(row.height, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
           const metadata = measured.texts.find((text) => text.label === (entry.dueTime ?? i18n.t('calendar.timeGrid.noSetTime')) && text.top >= row.top - 1 && text.bottom <= row.bottom + 1)!
           expect(metadata, JSON.stringify({ entry, row, texts: measured.texts })).toBeDefined()
           expect(metadata.height).toBeCloseTo(16.8 * scale)

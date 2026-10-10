@@ -69,12 +69,13 @@ describe('day card compact geometry', () => {
           const titleBox = title.getBoundingClientRect()
           const rowBox = row.getBoundingClientRect()
           const metadataBox = metadata?.getBoundingClientRect()
-          return { height: rowBox.height, minimum: Number.parseFloat(getComputedStyle(row).minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
+          return { height: rowBox.height, labelHeight: button.getBoundingClientRect().height, minimum: Number.parseFloat(getComputedStyle(row).minHeight), title: title.textContent, metadata: metadata?.textContent, metadataSize: metadata ? Number.parseFloat(getComputedStyle(metadata).fontSize) : null, gap: metadataBox ? metadataBox.top - titleBox.bottom : null, contained: metadataBox ? metadataBox.bottom <= rowBox.bottom && metadataBox.left >= rowBox.left && metadataBox.right <= rowBox.right : false, clipped: metadata ? metadata.scrollHeight > metadata.clientHeight || metadata.scrollWidth > metadata.clientWidth : true }
         }))
         expect(rows).toHaveLength(entries.length)
         rows.forEach((row) => {
           expect(row.minimum, JSON.stringify(row)).toBe(68)
           expect(row.height, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
+          expect(row.labelHeight, JSON.stringify(row)).toBeGreaterThanOrEqual(68)
         })
         rows.forEach((row, index) => {
           expect(row.metadata).toBe(entries[index]!.dueTime ?? messages.calendar.timeGrid.noSetTime)

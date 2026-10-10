@@ -2195,6 +2195,17 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   border-radius: 12px;
 }
 
+.orbit-check-row-label[data-variant="calendar-day"] {
+  min-height: 68px;
+  margin-block: -12px;
+  padding-block: 12px;
+}
+
+.orbit-check-row-label[data-variant="calendar-day"]::before,
+.orbit-check-row-label[data-variant="calendar-day"] > .orbit-check-row-fill {
+  inset-block: 0;
+}
+
 .orbit-check-row-label > :not(.orbit-check-row-fill),
 .orbit-check-row-control > :not(.orbit-check-row-fill) {
   position: relative;

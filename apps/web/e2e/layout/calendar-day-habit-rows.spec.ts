@@ -35,6 +35,8 @@ for (const width of [412, 1352]) {
           const heights: number[][] = []
           for (const scale of [1, 2]) {
             await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+            await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(undefined)))))
+            await page.evaluate(async () => { await document.fonts.ready })
             const rows = await card.evaluate((element) => [...element.querySelectorAll<HTMLElement>('[data-personal-text]')].map((title) => {
               const button = title.closest('button')!
               const row = button.closest('[data-slot="list-row-body"]') ?? button
