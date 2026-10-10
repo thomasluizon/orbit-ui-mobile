@@ -106,14 +106,14 @@ function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
 
 function CalendarDayCheckRow({
   entry,
-  displayTime,
+  value,
   isPending,
   pendingChecked,
   onEntryChange,
   onOpenTitle,
 }: Readonly<{
   entry: CalendarDayEntry
-  displayTime: (time: string) => string
+  value: string
   isPending: boolean
   pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
@@ -124,7 +124,6 @@ function CalendarDayCheckRow({
     ? null
     : pendingChecked
   const checked = displayedChecked ?? sourceChecked
-  const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
 
   async function changeChecked(nextChecked: boolean) {
     const entryChange = onEntryChange(entry, nextChecked)
@@ -136,6 +135,7 @@ function CalendarDayCheckRow({
     <CheckRow
       label={entry.title}
       textMode="personal"
+      variant="calendar-day"
       onOpenLabel={() => onOpenTitle(entry.title)}
       checked={checked}
       value={value}
@@ -197,14 +197,14 @@ export function CalendarDayDetail({
           {filteredEntries.map((entry) => {
             const entryKey = getCalendarEntryMutationKey(selectedDate, entry.habitId)
             const outcome = getEntryOutcome(entry, t)
-            const value = entry.dueTime ? displayTime(entry.dueTime) : undefined
+            const value = entry.dueTime ? displayTime(entry.dueTime) : t('calendar.timeGrid.noSetTime')
 
             if (loggable) {
               return (
                 <CalendarDayCheckRow
                   key={`${selectedDate}:${entry.habitId}`}
                   entry={entry}
-                  displayTime={displayTime}
+                  value={value}
                   isPending={pendingEntryStates.has(entryKey)}
                   pendingChecked={pendingEntryStates.get(entryKey)}
                   onEntryChange={onEntryChange}
@@ -218,7 +218,7 @@ export function CalendarDayDetail({
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 16, paddingVertical: 12 }}>
                   <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
                     <PersonalText style={{ fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 22.4, color: tokens.fg1 }}>{entry.title}</PersonalText>
-                    {value ? <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 14, lineHeight: 19.6, color: tokens.fg2 }}>{value}</Text> : null}
+                    <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{value}</Text>
                   </View>
                   <StatusRing status={outcome.status} size={24} label={outcome.ringLabel} />
                 </View>
