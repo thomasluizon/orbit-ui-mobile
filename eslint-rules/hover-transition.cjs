@@ -1,15 +1,9 @@
 const { getAttributeValueNode } = require('./_jsx-strings.cjs')
+const { BREAKPOINTS, MEDIA_VARIANTS, isSupportedVariant, compareVariants } = require('./_hover-variant-order.cjs')
 
 const HOVER_VARIANT = /^(?:hover|group-hover(?:\/[^:]+)?)$/
 const MOTION = new Set(['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip'])
 const BACKGROUND_TRANSITIONS = new Set(['transition', 'transition-colors', 'transition-all', 'transition-none'])
-const BREAKPOINTS = ['sm', 'md', 'lg', 'xl', '2xl']
-const VARIANT_ORDER = ['group-hover', 'first', 'last', 'odd', 'even', 'visited', 'checked', 'indeterminate',
-  'placeholder-shown', 'autofill', 'optional', 'required', 'valid', 'invalid', 'user-valid', 'user-invalid',
-  'in-range', 'out-of-range', 'read-only', 'empty', 'focus-within', 'hover', 'focus', 'focus-visible',
-  'active', 'enabled', 'disabled', 'inert', 'aria', 'data', 'motion-safe', 'motion-reduce',
-  'contrast-more', 'contrast-less', ...BREAKPOINTS]
-const MEDIA_VARIANTS = new Set(['motion-safe', 'motion-reduce', 'contrast-more', 'contrast-less', ...BREAKPOINTS])
 
 function combineBranches(nodes) {
   return nodes.reduce((branches, node) => branches.flatMap((branch) =>
@@ -150,8 +144,8 @@ function effectiveClasses(classes, matchesProperty) {
   else if (candidates.some(({ inline }) => inline)) candidates = candidates.filter(({ inline }) => inline)
   const specificity = Math.max(...candidates.map(selectorSpecificity))
   candidates = candidates.filter((candidate) => selectorSpecificity(candidate) === specificity)
-  const sourceOrder = candidates.map(variantOrder).reduce((latest, order) => order > latest ? order : latest, 0n)
-  candidates = candidates.filter((candidate) => variantOrder(candidate) === sourceOrder)
+  const sourceOrder = candidates.map((candidate) => candidate.sourceOrder).reduce((latest, order) => order > latest ? order : latest, 0n)
+  candidates = candidates.filter((candidate) => candidate.sourceOrder === sourceOrder)
   const arbitrary = candidates.filter(({ utility }) => utility.startsWith('[transition-'))
   if (arbitrary.length > 0) candidates = arbitrary
   return candidates.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0).slice(-1)
@@ -160,14 +154,6 @@ function effectiveClasses(classes, matchesProperty) {
 function selectorSpecificity({ variants }) {
   return variants.reduce((specificity, variant) => specificity + (MEDIA_VARIANTS.has(variant) ? 0
     : variant.startsWith('[') ? (variant.match(/:(?!:)[\w-]+|\[[^\]]+\]/g) ?? []).length : 1), 0)
-}
-
-function variantOrder({ variants }) {
-  return variants.reduce((order, variant) => {
-    const root = variant.replace(/\/.*$/, '').replace(/^(aria|data)-.*$/, '$1')
-    const index = VARIANT_ORDER.indexOf(root)
-    return order | (1n << BigInt(index < 0 ? VARIANT_ORDER.length : index))
-  }, 0n)
 }
 
 function contextTimingProblem(classes) {
@@ -191,10 +177,15 @@ function contextTimingProblem(classes) {
 }
 
 function timingProblem(classes, hover) {
-  const matching = classes.filter((candidate) => coversTarget(candidate, hover))
-  const relevant = classes.filter((candidate) => overlapsTarget(candidate, hover)
+  let relevant = classes.filter((candidate) => overlapsTarget(candidate, hover)
     && (setsTransitionProperty(candidate.utility) || timingValues(candidate.utility, 'transition-duration', 'duration') !== null
       || timingValues(candidate.utility, 'transition-timing-function', 'ease') !== null))
+  const variants = [...new Set([...relevant, hover].flatMap((candidate) => candidate.variants))]
+  if (variants.some((variant) => !isSupportedVariant(variant))) return 'variant'
+  variants.sort(compareVariants)
+  relevant = relevant.map((candidate) => ({ ...candidate, sourceOrder: candidate.variants.reduce((order, variant) =>
+    order | (1n << BigInt(variants.indexOf(variant))), 0n) }))
+  const matching = relevant.filter((candidate) => coversTarget(candidate, hover))
   const contexts = [matching, ...conditionalContexts(relevant, hover).map((conditions) =>
     relevant.filter((candidate) => matching.includes(candidate) || candidate.variants.every((variant) =>
       conditions.some((condition) => variantCovers(variant, condition)))))]
@@ -233,6 +224,7 @@ module.exports = {
       missing: 'Hover fills need a base transition covering their background in the same branch and on the same element, a motion class, or explicit transition-none.',
       duration: 'Hover-fill background transitions need --dur-hover-control or --dur-hover, including the background entry in a transition-duration list.',
       timing: 'Hover-fill background transitions need --ease-standard, including the background entry in a transition-timing-function list.',
+      variant: 'Hover-fill transition ordering uses an unsupported variant. Add compiler-proven ordering support before using it on a fill or its transition.',
     },
   },
   create(context) {

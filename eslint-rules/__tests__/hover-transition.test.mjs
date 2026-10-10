@@ -1,16 +1,51 @@
 import { RuleTester } from 'eslint'
 import parser from '@typescript-eslint/parser'
 import { createRequire } from 'node:module'
-import { afterAll, describe, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { afterAll, describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
+const webRequire = createRequire(new URL('../../apps/web/package.json', import.meta.url))
+const { compile, __unstable__loadDesignSystem: loadDesignSystem } = webRequire('tailwindcss')
+const { VARIANT_ORDER, isSupportedVariant, compareVariants } = require('../_hover-variant-order.cjs')
 RuleTester.describe = describe
 RuleTester.it = it
 RuleTester.afterAll = afterAll
 const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true } } } })
 
+describe('hover transition compiler ordering', () => {
+  it('matches every supported registered variant and emitted rule order', async () => {
+    const theme = readFileSync(webRequire.resolve('tailwindcss/theme.css'), 'utf8')
+    const designSystem = await loadDesignSystem(theme)
+    const registered = [...designSystem.variants.entries()]
+    const staticVariants = registered.filter(([, variant]) => variant.kind === 'static').map(([name]) => name)
+    const variants = [...staticVariants, 'group-hover', 'group-hover/card', 'group-hover/menu',
+      'group-aria-checked', 'group-data-active', 'group-data-[active]', 'group-data-[active=true]',
+      'group-data-[input-modality=keyboard]/search',
+      'aria-checked', 'aria-expanded', 'aria-[label=A]', 'aria-[label=Z]',
+      'data-active', 'data-state', 'data-[active]', 'data-[active=true]', 'data-[state=active]', 'data-[state=done]',
+      '[&_button]', '[&_button:enabled]', '[&_.foo\\_bar]', '[&_.foo_bar]', '[&_span]']
+    for (const variant of variants) expect(isSupportedVariant(variant), variant).toBe(true)
+    for (const root of VARIANT_ORDER) {
+      expect(designSystem.variants.has(root), root).toBe(true)
+    }
+    const expected = [...variants].sort((left, right) => designSystem.variants.compare(
+      designSystem.parseVariant(left), designSystem.parseVariant(right),
+    ))
+    expect([...variants].reverse().sort(compareVariants)).toEqual(expected)
+    const compiler = await compile(`${theme}\n@tailwind utilities;`)
+    const probes = variants.map((variant, index) => `${variant}:duration-[${1000 + index}ms]`)
+    const emitted = [...new Set([...compiler.build(probes).matchAll(/transition-duration: (\d+)ms;/g)]
+      .map(([, duration]) => variants[Number(duration) - 1000]))]
+    expect(emitted).toEqual(expected)
+  })
+})
+
 tester.run('hover-transition', require('../hover-transition.cjs'), {
   valid: [
+    '<button className="transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-data-[input-modality=keyboard]/search:transition-none data-[selected=false]:hover:bg-[var(--bg-hover)]" />',
+    '<button className="target:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] target:duration-[var(--dur-hover-control)] hover:duration-[var(--dur-hover-control)] custom:opacity-50" />',
+    '<button className="aria-checked:aria-expanded:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] aria-checked:duration-150 aria-expanded:duration-[var(--dur-hover-control)]" />',
     ...['focus-visible', 'active'].map((state) => `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] ${state}:[transition-duration:var(--dur-hover-control),150ms] md:${state}:[transition-duration:150ms,var(--dur-hover-control)]" />`),
     '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] sm:[transition-property:scale,background-color] sm:[transition-duration:150ms,var(--dur-hover-control)] md:[transition-property:background-color,scale] md:[transition-duration:var(--dur-hover-control),150ms]" />',
     '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:[transition-property:scale,background-color] hover:[transition-duration:150ms,var(--dur-hover-control)] focus-visible:[transition-duration:var(--dur-hover-control),150ms] hover:focus-visible:[transition-duration:150ms,var(--dur-hover-control)]" />',
@@ -53,6 +88,10 @@ tester.run('hover-transition', require('../hover-transition.cjs'), {
     '<button className="hover:bg-[var(--bg-hover)] motion-safe:transition-colors motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)]" />',
   ],
   invalid: [
+    { code: '<button className="aria-checked:aria-expanded:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] aria-checked:duration-[var(--dur-hover-control)] aria-expanded:duration-150" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="target:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] target:duration-[var(--dur-hover-control)] hover:duration-150" />', errors: [{ messageId: 'duration' }] },
+    ...['custom', 'arbitrary', 'not-hover', 'group-focus', 'peer-focus', 'has-checked', 'supports-grid', 'min-[40rem]'].map((variant) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${variant}:duration-150" />`, errors: [{ messageId: 'variant' }] })),
+    { code: '<button className="custom:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />', errors: [{ messageId: 'variant' }] },
     { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] focus-visible:[transition-duration:var(--dur-hover-control),150ms] md:hover:focus-visible:[transition-duration:150ms,var(--dur-hover-control)]" />', errors: [{ messageId: 'duration' }] },
     ...['focus-visible', 'active'].map((state) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] ${state}:[transition-duration:var(--dur-hover-control),150ms]" />`, errors: [{ messageId: 'duration' }] })),
     { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] sm:[transition-duration:150ms,var(--dur-hover-control)] md:[transition-property:scale,background-color] md:[transition-duration:var(--dur-hover-control),150ms]" />', errors: [{ messageId: 'duration' }] },
