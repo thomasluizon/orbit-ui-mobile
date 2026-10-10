@@ -191,6 +191,7 @@ export const cases = async () => {
   // Delay the first real config Git read so cold setup contention is deterministic in the probe.
   const nativeProbe = stage("ticket-executability/native-probe.mjs", `
 import childProcess from "node:child_process"
+import { appendFileSync } from "node:fs"
 import { syncBuiltinESMExports } from "node:module"
 const setupDelayMs = Number(process.env.ORBIT_NATIVE_PROBE_SETUP_DELAY) || 0
 if (setupDelayMs) {
@@ -210,6 +211,19 @@ const setupStarted = performance.now()
 const setup = await classifyConversationFirst("## Scope\\n\\n- Prepare the classifier probe", { run: async () => ({ code: 0, stdout: ${JSON.stringify(claudeEnvelope)} }) })
 if (setup.conversationFirst) throw new Error("classifier probe setup failed")
 const setupElapsedMs = performance.now() - setupStarted
+if (process.env.ORBIT_NATIVE_PROBE_EXITS) {
+  const spawn = childProcess.spawn
+  childProcess.spawn = (...args) => {
+    const launchedAt = performance.now()
+    const child = spawn(...args)
+    child.once("exit", (status, signal) => appendFileSync(process.env.ORBIT_NATIVE_PROBE_EXITS, JSON.stringify({
+      pid: child.pid, status, signal, elapsedMs: performance.now() - launchedAt,
+      stdoutEnded: child.stdout.readableEnded, stderrEnded: child.stderr.readableEnded,
+    }) + "\\n"))
+    return child
+  }
+  syncBuiltinESMExports()
+}
 const body = "## Scope\\n\\n- Fix code\\n" + "x".repeat(process.env.ORBIT_NATIVE_PROBE_LARGE ? 4_000_000 : 0)
 const started = performance.now()
 const result = await classifyConversationFirst(body, { timeoutMs: Number(process.env.ORBIT_NATIVE_PROBE_TIMEOUT) || 1000, retryDelayMs: 0 })
@@ -235,6 +249,7 @@ process.stdout.write(${JSON.stringify(claudeEnvelope)})
   // Cold config and prompt loading precede the process deadline. The setup call warms only those
   // shared inputs; its distinct body cannot supply the timed classification from the result cache.
   const descendantPids = stage("ticket-executability/descendants.jsonl", "")
+  const launcherExits = stage("ticket-executability/launcher-exits.jsonl", "")
   const descendantTimeoutMs = 1000
   // Allow the launcher to create the inherited pipes, then keep the original 700 ms cleanup margin
   // above two attempts. Natural descendant exit must remain beyond the outer 5000 ms watchdog.
@@ -246,22 +261,31 @@ import { spawn } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 10000)'], { stdio: 'inherit' })
 appendFileSync(${JSON.stringify(descendantPids)}, JSON.stringify({ parent: process.pid, descendant: child.pid }) + '\\n')
+child.unref()
 `, descendantTimeoutMs, false],
     ["output-overflow", "#!/usr/bin/env node\nprocess.stdout.write('x'.repeat(2_000_000))\n", 1000, false],
   ]) {
     const binary = stage(`ticket-executability/${name}.mjs`, source)
     chmodSync(binary, 0o755)
-    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: binary, ORBIT_NATIVE_PROBE_TIMEOUT: String(timeoutMs), ORBIT_NATIVE_PROBE_LARGE: large ? "1" : "", ORBIT_NATIVE_PROBE_SETUP_DELAY: name === "stdio-descendant" ? "1000" : "" } })
+    const observed = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: binary, ORBIT_NATIVE_PROBE_TIMEOUT: String(timeoutMs), ORBIT_NATIVE_PROBE_LARGE: large ? "1" : "", ORBIT_NATIVE_PROBE_SETUP_DELAY: name === "stdio-descendant" ? "1000" : "", ORBIT_NATIVE_PROBE_EXITS: name === "stdio-descendant" ? launcherExits : "" } })
     let verdict
     try { verdict = JSON.parse(observed.stdout) } catch { verdict = null }
     const deadlineMs = name === "stdio-descendant" ? descendantDeadlineMs : 900
     T(`${TOOL}: native ${name} fails closed within the deadline`, observed.status === 0 && verdict?.conversationFirst === true && verdict.kind === "CLASSIFIER_ERROR" && verdict.elapsedMs < deadlineMs, observed.stderr || observed.stdout || String(observed.error))
     if (name === "stdio-descendant") {
       const descendants = readFileSync(descendantPids, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse)
-      process.stdout.write(`Native stdio probe: ${JSON.stringify({ ...verdict, deadlineMs, descendants })}\n`)
+      const exits = readFileSync(launcherExits, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse)
+      process.stdout.write(`Native stdio probe: ${JSON.stringify({ ...verdict, deadlineMs, descendants, exits })}\n`)
       T(`${TOOL}: native stdio probe exercises slow cold setup`, verdict?.setupElapsedMs >= 1000, JSON.stringify(verdict))
       T(`${TOOL}: both native attempts create the stdio descendant`, descendants.length === 2, JSON.stringify({ descendants, verdict }))
+      T(`${TOOL}: both native launchers exit before the deadline with stdout and stderr still open`, exits.length === 2 && exits.every((exit, index) => exit.pid === descendants[index]?.parent && exit.status === 0 && exit.signal === null && exit.elapsedMs < timeoutMs && !exit.stdoutEnded && !exit.stderrEnded), JSON.stringify({ exits, descendants }))
       T(`${TOOL}: native timeout terminates the parents and stdio descendants`, descendants.length === 2 && descendants.every(({ parent, descendant }) => !processIsRunning(parent) && !processIsRunning(descendant)), JSON.stringify({ descendants, verdict }))
+      // A failed deadline assertion must not leave its recorded processes running.
+      for (const pid of descendants.flatMap(({ parent, descendant }) => [parent, descendant])) {
+        if (processIsRunning(pid)) {
+          try { process.kill(pid, "SIGKILL") } catch { /* the process can exit before cleanup */ }
+        }
+      }
     }
   }
   const missingBinary = spawnSync(process.execPath, [nativeProbe], { encoding: "utf8", timeout: 5000, env: { ...process.env, ORBIT_CLASSIFIER_CLAUDE_BIN: "/orbit-test/missing-claude" } })
