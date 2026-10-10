@@ -2,6 +2,7 @@ import { expect } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { test } from './upgrade-fixtures'
+import { settleAnimations } from './settle-animations'
 
 for (const locale of ['en', 'pt-BR'] as const) {
   test.describe(`Calendar options rows in ${locale}`, () => {
@@ -15,6 +16,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
         const dialog = page.getByRole('dialog', { name: words.calendar.options, exact: true })
         await expect(dialog).toBeVisible()
         await page.evaluate(() => document.fonts.ready)
+        await dialog.evaluate(settleAnimations)
         const titleLeft = await dialog.getByRole('heading', { name: words.calendar.options, exact: true }).evaluate((element) => {
           const range = document.createRange()
           range.selectNodeContents(element)
