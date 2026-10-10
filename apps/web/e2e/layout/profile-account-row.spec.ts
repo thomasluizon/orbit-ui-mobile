@@ -6,7 +6,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { test } from './upgrade-fixtures'
 
 for (const locale of ['en', 'pt-BR'] as const) {
-  for (const width of [320, 412, 1352]) {
+  for (const width of [320, 360, 384, 412, 1352]) {
     test.describe(`Profile account row at ${width}px in ${locale}`, () => {
       test.use({ viewport: { width, height: 915 }, appLocale: locale, layoutProfile: { name: 'Ana', email: 'a@b.co' } })
 
@@ -15,6 +15,10 @@ for (const locale of ['en', 'pt-BR'] as const) {
         await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/profile')
         const row = page.getByTestId('profile-settings-group-you').locator('.orbit-list-row-body').first()
+        const shell = page.getByTestId('profile-settings-group-you').locator('.orbit-list-row-shell').first()
+        await expect(shell.getByRole('link')).toHaveCount(1)
+        await expect(shell.getByRole('link')).toHaveAttribute('href', '/profile/account')
+        await expect(shell.getByRole('button')).toHaveCount(0)
         const email = row.locator('[data-slot="list-row-description"]')
         await expect(row.locator('[data-slot="list-row-title"]')).toHaveText(profile.name)
         await expect(email).toHaveText(profile.email)
@@ -35,6 +39,22 @@ for (const locale of ['en', 'pt-BR'] as const) {
         expect(measured.paddingStart).toBe('16px')
         expect(measured.emailSize).toBe('14px')
         expect(measured.emailColor).toBe(measured.secondary)
+      })
+
+      test('opens Conta from the only control and reveals the full account text', async ({ page, context }) => {
+        const profile = profileSchema.parse({ ...profileFixture, language: locale, name: 'Pessoa com um nome completo escrito no próprio perfil', email: `${'longaddress'.repeat(12)}@example.com` })
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+        await page.goto('/profile')
+        const row = page.getByTestId('profile-settings-group-you').locator('.orbit-list-row-shell').first()
+        const link = row.getByRole('link')
+        await expect(link).toHaveCount(1)
+        await expect(link).toHaveAccessibleName(new RegExp(profile.name))
+        await expect(link).toHaveAccessibleName(new RegExp(profile.email))
+        await expect(row.getByRole('button')).toHaveCount(0)
+        await link.click()
+        await expect(page).toHaveURL(/\/profile\/account$/)
+        await expect(page.locator('[data-slot="list-row-title"][data-personal-text-expanded]').first()).toHaveText(profile.name)
+        await expect(page.locator('[data-slot="list-row-description"][data-personal-text-expanded]').first()).toHaveText(profile.email)
       })
     })
   }

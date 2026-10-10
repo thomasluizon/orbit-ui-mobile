@@ -6,6 +6,9 @@ The shared web `PersonalText` owns overflow measurement, the full accessible nam
 and a keyboard stop only while an expanded token actually scrolls. A native action
 must be a sibling of that scroll region. Collapsed text retains its wrapping and
 ellipsis contract. The sidebar account row remains collapsed.
+The Perfil account navigation row stays collapsed with one control; Conta owns
+the expanded name and email in `profile/_components/profile-account-content.tsx`
+on both platforms.
 
 | Surface family | Web owner | Expanded states and action boundary |
 | --- | --- | --- |
@@ -25,7 +28,6 @@ ellipsis contract. The sidebar account row remains collapsed.
 Standalone expanded text owners:
 
 - `apps/web/app/(app)/calendar/page.tsx`
-- `apps/web/app/(app)/profile/_components/account-navigation-row.tsx`
 - `apps/web/app/(app)/profile/_components/edit-name-sheet.tsx`
 - `apps/web/components/calendar-sync/calendar-import-content.tsx`
 - `apps/web/components/calendar-sync/calendar-picker-section.tsx`

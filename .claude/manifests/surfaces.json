@@ -13,8 +13,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 220,
-  "cellCount": 936,
+  "surfaceCount": 218,
+  "cellCount": 928,
   "cells": [
     {
       "surfaceId": "route-missing",
@@ -823,6 +823,7 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx"
@@ -838,6 +839,7 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx"
@@ -853,6 +855,7 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx"
@@ -868,6 +871,7 @@
       "sourceFile": "apps/web/app/(app)/profile/page.tsx",
       "href": "/profile",
       "ownedFiles": [
+        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
         "apps/web/app/(app)/profile/page.tsx",
         "apps/web/components/profile/profile-settings-frame.tsx"
@@ -3725,58 +3729,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-components-account-navigation-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-account-navigation-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-components-account-navigation-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-components-account-navigation-row",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/app/(app)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/app/(app)/profile/_components/account-navigation-row.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "overlay-components-delete-account-modal",
       "platform": "web",
       "kind": "overlay",
@@ -7020,6 +6972,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
         "apps/mobile/components/profile/profile-settings-frame.tsx"
@@ -7036,6 +6989,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
         "apps/mobile/components/profile/profile-settings-frame.tsx"
@@ -7052,6 +7006,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
         "apps/mobile/components/profile/profile-settings-frame.tsx"
@@ -7068,6 +7023,7 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
+        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
         "apps/mobile/components/profile/profile-settings-frame.tsx"
@@ -9883,58 +9839,6 @@
       "href": null,
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar/_components/calendar-shell.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-account-navigation-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-account-navigation-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
-      ],
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-components-account-navigation-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
-      ],
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-components-account-navigation-row",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/app/(tabs)/profile/_components/account-navigation-row.tsx"
       ],
       "state": "default",
       "theme": "dark",
