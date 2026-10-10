@@ -25,6 +25,7 @@ import { createTokensV2, radius } from '@/lib/theme'
 type Tokens = ReturnType<typeof createTokensV2>
 
 interface CalendarDayDetailProps {
+  loadingLabel?: string
   selectedDate: string
   title: string
   showTitle?: boolean
@@ -105,6 +106,7 @@ function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
 }
 
 function CalendarDayCheckRow({
+  disabled,
   entry,
   displayTime,
   isPending,
@@ -112,6 +114,7 @@ function CalendarDayCheckRow({
   onEntryChange,
   onOpenTitle,
 }: Readonly<{
+  disabled?: boolean
   entry: CalendarDayEntry
   displayTime: (time: string) => string
   isPending: boolean
@@ -134,6 +137,7 @@ function CalendarDayCheckRow({
 
   return (
     <CheckRow
+      disabled={disabled}
       label={entry.title}
       textMode="personal"
       onOpenLabel={() => onOpenTitle(entry.title)}
@@ -146,6 +150,7 @@ function CalendarDayCheckRow({
 }
 
 export function CalendarDayDetail({
+  loadingLabel,
   selectedDate,
   title,
   showTitle = true,
@@ -179,20 +184,25 @@ export function CalendarDayDetail({
     : t('calendar.dayDetail.nothingDue')
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} accessibilityState={loadingLabel ? { busy: true } : undefined}>
       {expandedTitle ? <Sheet ref={sheetRef} open title={t('habits.form.title')} onClose={() => setExpandedTitle(null)}>
         <PersonalText expanded style={styles.fullTitle}>{expandedTitle}</PersonalText>
       </Sheet> : null}
       <View style={styles.copyBlock}>
         {showTitle ? <Text style={[styles.dayTitle, { color: tokens.fg1 }]}>{title}</Text> : null}
-        <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
+        <Text accessibilityElementsHidden={Boolean(loadingLabel)} importantForAccessibility={loadingLabel ? "no-hide-descendants" : "auto"} style={[styles.summaryText, { color: tokens.fg3, opacity: loadingLabel ? 0 : 1 }]}>{summary}</Text>
 
       </View>
-      {filteredEntries.length === 0 ? (
+      {!loadingLabel && filteredEntries.length === 0 ? (
         <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>{t('calendar.noHabitsScheduled')}</Text>
       ) : null}
 
-      {filteredEntries.length > 0 ? (
+      {loadingLabel ? <View testID="calendar-day-skeleton">
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={{ opacity: 0 }}>
+          <CalendarDayCheckRow disabled entry={{ habitId: 'loading', title: loadingLabel, status: 'upcoming', isBadHabit: false, dueTime: '00:00', isOneTime: false }} displayTime={displayTime} isPending pendingChecked={undefined} onEntryChange={() => null} onOpenTitle={() => {}} />
+        </View>
+        <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, justifyContent: 'center' }}><Skeleton variant="settings" rows={1} label={loadingLabel} /></View>
+      </View> : filteredEntries.length > 0 ? (
         <View style={styles.rowList}>
           {filteredEntries.map((entry) => {
             const entryKey = getCalendarEntryMutationKey(selectedDate, entry.habitId)

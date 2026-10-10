@@ -104,6 +104,7 @@ const routerPush = vi.fn()
 const routerReplace = vi.fn()
 const calendarDayDetailProps: {
   dateStr?: string | null
+  loadingLabel?: string
   calendarEvents?: CalendarSyncEvent[]
   autoSyncState?: CalendarAutoSyncState
   calendarEventsState?: string
@@ -285,6 +286,7 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
   CalendarDayDetail: (props: typeof calendarDayDetailProps) => {
     Object.assign(calendarDayDetailProps, props)
+    if (props.loadingLabel) return <div data-testid="calendar-day-skeleton" role="progressbar" aria-label={props.loadingLabel} data-variant="settings" />
     const displayedAutoSyncState = props.autoSyncState
     return (
       <div data-testid="day-detail">

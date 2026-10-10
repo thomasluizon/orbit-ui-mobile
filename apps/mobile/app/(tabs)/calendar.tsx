@@ -65,7 +65,7 @@ import {
 import { useAccountBoundRouteRequest, useAccountScopedState } from '@/hooks/use-session-reset';
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
-import { createTokensV2, radius } from "@/lib/theme";
+import { createTokensV2 } from "@/lib/theme";
 import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { useShellScrollerClearance } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -73,7 +73,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { PillButton } from "@/components/ui/pill-button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarHeader,
 } from "./calendar/_components/calendar-shell";
@@ -113,12 +112,11 @@ function CalendarImportActions({ state, onImport, t }: {
 
 const calendarLayoutStyles = StyleSheet.create({
   inlineDay: { paddingHorizontal: 16, paddingTop: 24 },
-  daySkeleton: { borderRadius: radius.xl, borderWidth: 1, paddingVertical: 24 },
 });
 
-function CalendarInlineDaySlot({ loading, selected, label, tokens, children }: Readonly<{ loading: boolean; selected: boolean; label: string; tokens: ReturnType<typeof createTokensV2>; children: ReactNode }>) {
+function CalendarInlineDaySlot({ loading, selected, children }: Readonly<{ loading: boolean; selected: boolean; children: ReactNode }>) {
   if (!loading && !selected) return null;
-  return <View testID="calendar-day-card-slot" style={calendarLayoutStyles.inlineDay}>{loading ? <View testID="calendar-day-skeleton" style={[calendarLayoutStyles.daySkeleton, { backgroundColor: tokens.bgCard, borderColor: tokens.hairlineGhost }]}><Skeleton variant="settings" rows={5} label={label} /></View> : children}</View>;
+  return <View testID="calendar-day-card-slot" style={calendarLayoutStyles.inlineDay}>{children}</View>;
 }
 
 function calendarStatState(
@@ -712,8 +710,9 @@ function CalendarScreenContent({
         tokens={tokens}
       />
 
-      <CalendarInlineDaySlot loading={monthDisplayState === 'loading'} selected={Boolean(selectedDay)} label={t('calendar.loading')} tokens={tokens}>
+      <CalendarInlineDaySlot loading={monthDisplayState === 'loading'} selected={Boolean(selectedDay)}>
           <CalendarDayDetail
+            loadingLabel={monthDisplayState === 'loading' ? t('calendar.loading') : undefined}
             selectedDate={selectedDay}
             title={formattedSelectedDate}
             filteredEntries={filteredEntries}

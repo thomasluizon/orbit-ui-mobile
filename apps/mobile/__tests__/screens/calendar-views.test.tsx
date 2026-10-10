@@ -306,7 +306,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
 vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
   CalendarDayDetail: (props: Record<string, any>) => {
     calendarDayDetailProps.current = props;
-    return <View testID="calendar-day-detail" />;
+    return <View testID={props.loadingLabel ? "calendar-day-skeleton" : "calendar-day-detail"}>{props.loadingLabel ? <View testID="skeleton-unit-settings" accessibilityRole="progressbar" accessibilityLabel={props.loadingLabel} /> : null}</View>;
   },
 }));
 
