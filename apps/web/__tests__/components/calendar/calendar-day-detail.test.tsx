@@ -33,9 +33,6 @@ const translations: Record<string, string> = {
   'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
   'calendar.dayDetail.noEventsToImport': 'No Google Calendar events on this day.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
-  'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
-  'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
-  'calendar.proBoundary.action': 'See Pro',
 }
 
 vi.mock('next-intl', () => ({
@@ -44,6 +41,10 @@ vi.mock('next-intl', () => ({
       return `${String(params?.done)} of ${String(params?.total)} logged`
     }
     if (key === 'dates.todayWithDate') return (detailLocale.language === 'en' ? en.dates.todayWithDate : ptBR.dates.todayWithDate).replace('{date}', String(params?.date))
+    const boundary = detailLocale.language === 'en' ? en.calendar.proBoundary : ptBR.calendar.proBoundary
+    if (key === 'calendar.proBoundary.title') return boundary.title
+    if (key === 'calendar.proBoundary.body') return boundary.body
+    if (key === 'calendar.proBoundary.action') return boundary.action
     return translations[key] ?? key
   },
   useLocale: () => detailLocale.language,
@@ -260,15 +261,42 @@ describe('CalendarDayDetail', () => {
     expect(document.querySelector('[data-calendar-sync-line]')).toBeNull()
   })
 
-  it('keeps habits and one Pro badge row for a free account', () => {
-    const onViewPro = vi.fn()
-    renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
+  it.each(['en', 'pt-BR'])('shows the drawn free account notice in %s after Open in Today', (locale) => {
+    detailLocale.language = locale
+    try {
+      const copy = locale === 'en' ? en.calendar.proBoundary : ptBR.calendar.proBoundary
+      const onViewPro = vi.fn()
+      renderDetail({ entries: [makeEntry()], calendarEventsState: 'pro-boundary', onViewPro })
+      expect(screen.getByText('Meditate')).toBeInTheDocument()
+      const notice = document.querySelector('[data-capacity-notice]') as HTMLElement
+      expect(notice).not.toBeNull()
+      expect(within(notice).getByText(copy.title)).toBeInTheDocument()
+      expect(within(notice).getByText(copy.body)).toBeInTheDocument()
+      expect(within(notice).getAllByRole('button')).toHaveLength(1)
+      const action = within(notice).getByRole('button', { name: copy.action })
+      expect(action).toHaveAttribute('data-size', 'sm')
+      expect(action).toHaveAttribute('data-variant', 'primary')
+      expect(screen.getByRole('link', { name: en.calendar.goToDay }).closest('.orbit-list-row-shell')?.nextElementSibling).toBe(notice)
+      fireEvent.click(action)
+      expect(onViewPro).toHaveBeenCalledOnce()
+      expect(screen.queryByText('common.proBadge')).not.toBeInTheDocument()
+      expect(screen.queryByText('calendar.calendars.title')).not.toBeInTheDocument()
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    } finally {
+      detailLocale.language = 'en'
+    }
+  })
+
+  it.each(['ready', 'not-connected'] as const)('keeps the Pro day card without a notice in %s', (calendarEventsState) => {
+    renderDetail({ entries: [makeEntry()], calendarEventsState })
     expect(screen.getByText('Meditate')).toBeInTheDocument()
-    const boundary = screen.getByTestId('calendar-pro-boundary')
-    expect(within(boundary).getByText('common.proBadge')).toBeInTheDocument()
-    fireEvent.click(within(boundary).getByRole('button', { name: /calendar.calendars.title/ }))
-    expect(onViewPro).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-capacity-notice]')).toBeNull()
+    if (calendarEventsState === 'ready') {
+      expect(screen.getByText('calendar.dayDetail.eventsTitle')).toBeInTheDocument()
+      expect(screen.getByText('No Google Calendar events on this day.')).toBeInTheDocument()
+    } else {
+      expect(screen.getByRole('button', { name: /calendar.calendars.title/ })).toBeInTheDocument()
+    }
   })
 
   it('renders the empty events state after an empty response resolves', () => {

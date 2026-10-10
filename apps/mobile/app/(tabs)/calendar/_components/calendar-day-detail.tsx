@@ -2,7 +2,8 @@ import { PersonalText } from '@/components/ui/personal-text'
 import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { useMemo } from 'react'
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { WIDE_DESKTOP_BREAKPOINT } from '@orbit/shared/theme'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
@@ -12,7 +13,8 @@ import {
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import { CheckRow } from '@/components/ui/check-row'
-import { Badge } from '@/components/ui/badge'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CalendarDayEvents } from './calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
@@ -60,9 +62,13 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   tokens: Tokens
   styles: ReturnType<typeof createStyles>
 }>) {
-  if (state === 'pro-boundary') return <View testID="calendar-pro-boundary" style={styles.eventSection}>
-    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
-  </View>
+  const { width } = useWindowDimensions()
+  if (state === 'pro-boundary') return <CapacityNotice
+    message={t('calendar.proBoundary.title')}
+    body={t('calendar.proBoundary.body')}
+    // eslint-disable-next-line local/max-button-words -- #1341 requires the granted calendar boundary action.
+    action={<View style={{ alignItems: 'flex-start' }}><PillButton size="sm" variant={width >= WIDE_DESKTOP_BREAKPOINT ? 'secondary' : 'primary'} onClick={onViewPro}>{t('calendar.proBoundary.action')}</PillButton></View>}
+  />
   if (state === 'not-connected') return <View style={styles.eventSection}>
     <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </View>

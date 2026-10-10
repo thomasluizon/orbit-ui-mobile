@@ -16,7 +16,9 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { CheckRow } from '@/components/ui/check-row'
-import { Badge } from '@/components/ui/badge'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { PillButton } from '@/components/ui/pill-button'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { ListRow } from '@/components/ui/list-row'
@@ -54,9 +56,13 @@ function CalendarEventsSection({ calendarEvents, showEventSource, state, onRetry
   onOpenEvents?: () => void
 }>) {
   const t = useTranslations()
-  if (state === 'pro-boundary') return <div data-testid="calendar-pro-boundary">
-    <ListRow textMode="label" title={t('calendar.calendars.title')} trailing={<Badge>{t('common.proBadge')}</Badge>} onClick={onViewPro} />
-  </div>
+  const wide = useIsWideDesktop()
+  if (state === 'pro-boundary') return <CapacityNotice
+    message={t('calendar.proBoundary.title')}
+    body={t('calendar.proBoundary.body')}
+    // eslint-disable-next-line local/max-button-words -- #1341 requires the granted calendar boundary action.
+    action={<PillButton size="sm" variant={wide ? 'secondary' : 'primary'} onClick={onViewPro}>{t('calendar.proBoundary.action')}</PillButton>}
+  />
   if (state === 'not-connected') return <div>
     <ListRow textMode="label" title={t('calendar.calendars.title')} onClick={onReconnect} />
   </div>
