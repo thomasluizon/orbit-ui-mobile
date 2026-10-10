@@ -27,7 +27,7 @@ export function StreakCard({ streakCard }: Readonly<{ streakCard: StreakCardData
   const number = new Intl.NumberFormat(i18n.language)
   const currentLevelXp = xpRequiredForLevel(streakCard.level)
   const figure = (value: number) => <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{number.format(value)}</Text>
-  return <View style={{ width: '100%', marginTop: 8 }}>
+  return <View style={{ width: '100%' }}>
     <BlockFrame state="resting" title={t('chat.streakCard.title')} count={null}
       body={<View style={{ gap: 8 }}><DayStrip scope="account" days={days.map((day) => day.status)} labels={days.map((day) => new Intl.DateTimeFormat(i18n.language, { month: 'short', day: 'numeric' }).format(day.date))} words={words} label={t('chat.streakCard.days')} /><Text style={{ color: tokens.fg3, fontSize: 12 }}>{Object.values(words).join(' · ')}</Text></View>}
       items={[

@@ -5,6 +5,7 @@ import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-f
 import { calendarAutoSyncStateSchema, calendarEventsResponseSchema, userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
+import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
@@ -99,4 +100,72 @@ for (const width of [320, 412, 1280]) {
       expect(geometry.headlineLines).toBeCloseTo(2)
     })
   })
+}
+
+for (const width of [412, 1352]) {
+  for (const { locale, messages } of [{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }] as const) {
+    const freeProfile = profileSchema.parse({ ...profileFixture, language: locale, hasProAccess: false, hasGoogleConnection: false, themePreference: 'dark' })
+    test.describe(`Free calendar day card at ${width}px in ${locale}`, () => {
+      test.use({ viewport: { width, height: 915 }, appLocale: locale, colorScheme: 'dark', subscriptionState: 'free', layoutProfile: freeProfile })
+      test.beforeEach(async ({ context }) => {
+        const responses: ReadonlyArray<readonly [string, unknown]> = [[API.profile.get, freeProfile], [API.habits.calendarMonth, month]]
+        for (const [path, response] of responses) {
+          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path, (route) => route.fulfill({ json: response }))
+        }
+      })
+
+      test('places the notice after Open in Today with one Pro action', async ({ page }) => {
+        await page.goto('/calendar')
+        const notice = page.locator('[data-capacity-notice]')
+        await expect(notice).toBeVisible()
+        await expect(notice.getByText(messages.calendar.proBoundary.title, { exact: true })).toBeVisible()
+        await expect(notice.getByText(messages.calendar.proBoundary.body, { exact: true })).toBeVisible()
+        const card = notice.locator('xpath=ancestor::section[1]')
+        await expect(card.getByRole('button', { name: habitTitle, exact: true })).toBeVisible()
+        await expect(card.getByText(messages.common.proBadge, { exact: true })).toHaveCount(0)
+        await expect(notice.getByRole('button')).toHaveCount(1)
+        const action = notice.getByRole('button', { name: messages.calendar.proBoundary.action, exact: true })
+        await expect(action).toHaveAttribute('data-size', 'sm')
+        await expect(action).toHaveAttribute('data-variant', width === 412 ? 'primary' : 'secondary')
+        await page.evaluate(async () => { await document.fonts.ready })
+        const geometry = await notice.evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          const card = element.closest('section')!
+          const cardBox = card.getBoundingClientRect()
+          const prior = element.previousElementSibling!
+          const priorBox = prior.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          const button = element.querySelector('button')!
+          const buttonBox = button.getBoundingClientRect()
+          const label = button.querySelector('span')!
+          const labelRange = document.createRange()
+          labelRange.selectNodeContents(label)
+          return {
+            insets: [box.left - cardBox.left, cardBox.right - box.right, cardBox.bottom - box.bottom],
+            gap: box.top - priorBox.bottom,
+            priorHref: prior.querySelector('a')?.getAttribute('href'),
+            padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft],
+            internalGap: style.gap,
+            buttonInset: buttonBox.left - box.left,
+            buttonWidth: buttonBox.width, noticeWidth: box.width,
+            buttonLines: new Set([...labelRange.getClientRects()].map((rect) => Math.round(rect.top))).size,
+            clipped: [...element.querySelectorAll<HTMLElement>('p, button span')].some((text) => text.scrollHeight > text.clientHeight || text.scrollWidth > text.clientWidth),
+            pageWidth: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
+          }
+        })
+        expect(geometry.insets).toEqual([24, 24, 24])
+        expect(geometry.gap).toBeCloseTo(16)
+        expect(geometry.priorHref).toBe(`/?date=${selectedDate}`)
+        expect(geometry.padding).toEqual(['16px', '16px', '16px', '16px'])
+        expect(geometry.internalGap).toBe('12px')
+        expect(geometry.buttonInset).toBeCloseTo(16)
+        expect(geometry.buttonWidth).toBeLessThan(geometry.noticeWidth - 32)
+        expect(geometry.buttonLines).toBe(1)
+        expect(geometry.clipped).toBe(false)
+        expect(geometry.scrollWidth).toBe(geometry.pageWidth)
+        await action.click()
+        await expect(page).toHaveURL(/\/upgrade$/)
+      })
+    })
+  }
 }

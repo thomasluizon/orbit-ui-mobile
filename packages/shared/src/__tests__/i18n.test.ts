@@ -187,6 +187,25 @@ describe('i18n locale parity', () => {
     expect(template.replace(/<([a-z]+)>([^<>]+)<\/\1>/g, '')).not.toMatch(/[<>]/)
   })
 
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('keeps legal document names consistent in %s', (_locale, catalog) => {
+    const legalCopy = [...flatten(catalog)].filter(([key]) =>
+      /^(?:terms|privacy|about|onboarding)\./.test(key) || key === 'auth.legalConsent',
+    )
+    const oldNames = legalCopy.filter(([, value]) =>
+      /terms of service|termos de serviço/i.test(value)
+      || /Privacy Policy|Política de Privacidade/.test(value),
+    )
+
+    expect(oldNames).toEqual([])
+    expect(catalog.terms.intro.body).toContain(catalog.terms.title.toLowerCase())
+  })
+
+  it('uses lowercase Portuguese month names in legal update lines', () => {
+    for (const document of [ptBR.terms, ptBR.privacy]) {
+      expect(document.lastUpdated).toMatch(/^Última atualização: [a-zç]+ de \d{4}$/)
+    }
+  })
+
   it('describes Undo after deleting habits or a goal in both locales', () => {
     for (const [locale, undoLabel, permanence] of [
       [en, 'undo', /cannot be undone/i],

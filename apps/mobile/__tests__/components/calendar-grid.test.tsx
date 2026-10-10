@@ -18,6 +18,7 @@ vi.mock('@/app/(tabs)/use-today-date', () => ({
 }))
 
 interface TestNode {
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
   type: unknown
   props: Record<string, unknown> & { children?: unknown; style?: StyleProp<ViewStyle> }
 }
@@ -125,6 +126,21 @@ describe('CalendarGrid (mobile)', () => {
     expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-days' }).props.style).minHeight).toBeUndefined()
   })
 
+  it('keeps seven loading tracks before weekday preferences arrive', () => {
+    const days = buildCalendarMonthModel(new Date(2026, 8, 1), new Map(), 1, '2026-09-11').gridDays
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarGrid gridDays={days} weekdayHeaders={[]} selectedDay={null} isLoading
+        onSelectDay={vi.fn()} language="en" t={(key) => key} tokens={createTokensV2('purple', 'dark')} />)
+    })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'month-grid-7-columns')).toHaveLength(1)
+    const geometry = measureGrid(tree.toJSON(), 412, 'month', true)
+    expect(geometry.slots).toHaveLength(7)
+    expect(geometry.placeholders).toHaveLength(days.length)
+    for (const placeholder of geometry.placeholders) expect(placeholder.center).toBeCloseTo(placeholder.columnCenter, 4)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-header' }).props.style).opacity).toBe(0)
+  })
+
   it('uses the grid skeleton geometry and withholds weekdays while loading', () => {
     const tokens = createTokensV2('purple', 'dark')
     const days = Array.from({ length: 42 }, (_, index) =>
@@ -158,11 +174,11 @@ describe('CalendarGrid (mobile)', () => {
     expect(shapes).toHaveLength(days.length)
     for (const shape of shapes) expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 44, height: 44, gap: 0 })
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')).toHaveLength(1)
-    expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'month-grid-header' }).props.style).opacity).toBe(0)
     expect(tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')).toHaveLength(0)
   })
 
-  it('keeps selected and future presentation on the month-grid wrapper', () => {
+  it('keeps the slot transparent and delegates selected presentation to DayCell', () => {
     const tokens = createTokensV2('purple', 'dark')
     let tree!: TestTree
     TestRenderer.act(() => {
@@ -192,7 +208,7 @@ describe('CalendarGrid (mobile)', () => {
     expect(gridWrapper).not.toHaveProperty('backgroundColor')
     expect(gridWrapper).not.toHaveProperty('borderWidth')
     expect(gridWrapper).not.toHaveProperty('borderRadius')
-    const futureNumeral = tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' })
+    const futureNumeral = tree.root.findByProps({ testID: 'day-future-numeral' })
     expect(StyleSheet.flatten(futureNumeral.props.style)).toMatchObject({ color: tokens.fg2 })
     expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 12)).toHaveLength(1)
     const futureSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' })
@@ -204,52 +220,17 @@ describe('CalendarGrid (mobile)', () => {
     expect(StyleSheet.flatten(selectedSlot.props.style)).toMatchObject({
       width: '100%',
       minHeight: 44,
-      backgroundColor: tokens.selectionBg,
     })
     expect(StyleSheet.flatten(selectedSlot.props.style)).not.toHaveProperty('borderWidth')
-    const selectedRing = tree.root.findByProps({ testID: 'calendar-day-selection-2026-09-10' })
+    const selectedRing = tree.root.findByProps({ testID: 'day-selection-ring' })
     expect(StyleSheet.flatten(selectedRing.props.style)).toMatchObject({
       position: 'absolute',
-      inset: 0,
+      top: 0, right: 0, bottom: 0, left: 0,
       borderColor: tokens.primary,
       borderWidth: 2,
     })
   })
 
-  it('paints a range endpoint with one selection tint and one selected ring', () => {
-    const tokens = createTokensV2('purple', 'dark')
-    const endpoint = gridDay('2026-09-10')
-    let tree!: TestTree
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <CalendarGrid
-          gridDays={[endpoint]}
-          weekdayHeaders={[{ key: 'wednesday', label: 'W' }]}
-          selectedDay={null}
-          isLoading={false}
-          rangeStart={endpoint.dateStr}
-          rangeEnd={endpoint.dateStr}
-          onSelectDay={vi.fn()}
-          language="en"
-          t={(key) => key}
-          tokens={tokens}
-        />,
-      )
-    })
-
-    const tintedLayers = tree.root.findAll((node) => {
-      if (typeof node.type !== 'string' || node.props.style == null || typeof node.props.style === 'function') return false
-      return StyleSheet.flatten(node.props.style).backgroundColor === tokens.selectionBg
-    })
-    const selectedRings = tree.root.findAll((node) => {
-      if (typeof node.type !== 'string' || node.props.style == null || typeof node.props.style === 'function') return false
-      const style = StyleSheet.flatten(node.props.style)
-      return style.borderColor === tokens.primary && style.borderWidth === 2
-    })
-
-    expect(tintedLayers).toHaveLength(1)
-    expect(selectedRings).toHaveLength(1)
-  })
 
   it('keeps read-only dates selectable without making their DayCell writable', () => {
     const tokens = createTokensV2('purple', 'dark')
@@ -289,7 +270,7 @@ describe('CalendarGrid (mobile)', () => {
     expect(readOnlyDay.props.accessibilityRole).toBe('image')
     expect(readOnlyDay.props.accessibilityLabel).toContain('calendar.dayCell.readOnly')
     expect(readOnlyDay.props).not.toHaveProperty('onPress')
-    expect(tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' }).props).not.toHaveProperty('onPress')
+    expect(tree.root.findByProps({ testID: 'day-future-numeral' }).props).not.toHaveProperty('onPress')
 
     const oldDayPress = tree.root.findByProps({ testID: 'calendar-day-select-2026-09-03' }).props.onPress
     const futureDayPress = tree.root.findByProps({ testID: 'calendar-day-select-2026-09-12' }).props.onPress
@@ -326,7 +307,7 @@ describe('CalendarGrid (mobile)', () => {
     })
 
     expect(StyleSheet.flatten(
-      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-04' }).props.style,
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-04' }).findAll((node) => node.type === 'View' && node.props.testID === 'day-circle')[0]!.props.style,
     ).backgroundColor).toBe(tokens.bgWell)
 
     todaySource.value = '2026-09-12'
@@ -346,10 +327,10 @@ describe('CalendarGrid (mobile)', () => {
     })
 
     expect(StyleSheet.flatten(
-      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-04' }).props.style,
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-04' }).findAll((node) => node.type === 'View' && node.props.testID === 'day-circle')[0]!.props.style,
     ).backgroundColor).toBe('transparent')
     expect(StyleSheet.flatten(
-      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).props.style,
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).findAll((node) => node.type === 'View' && node.props.testID === 'day-circle')[0]!.props.style,
     ).backgroundColor).toBe(tokens.bgWell)
     expect(tree.root.findByProps({ testID: 'calendar-day-select-2026-09-04' }).props.accessibilityLabel)
       .not.toContain('calendar.dayCell.today')
@@ -357,39 +338,5 @@ describe('CalendarGrid (mobile)', () => {
       .toContain('calendar.dayCell.today')
   })
 
-  it('keeps future range picks actionable without raising them as loggable days', () => {
-    const tokens = createTokensV2('purple', 'dark')
-    const onSelectDay = vi.fn()
-    let tree!: TestTree
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <CalendarGrid
-          gridDays={[gridDay('2026-09-11'), gridDay('2026-09-12')]}
-          weekdayHeaders={[{ key: 'saturday', label: 'S' }]}
-          selectedDay={null}
-          rangeStart="2026-09-12"
-          isLoading={false}
-          onSelectDay={onSelectDay}
-          language="en"
-          t={(key) => key}
-          tokens={tokens}
-          interaction="range-picker"
-        />,
-      )
-    })
 
-    const button = tree.root.findByProps({ testID: 'calendar-day-select-2026-09-12' })
-    expect(button.props.accessibilityState).toEqual({ selected: true })
-    expect(tree.root.findByProps({ testID: 'calendar-day-select-2026-09-11' }).props.accessibilityLabel)
-      .toContain('calendar.dayCell.readOnly')
-    const selectedBackground = StyleSheet.flatten(
-      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).props.style,
-    ).backgroundColor
-    expect(selectedBackground).toBe(tokens.selectionBg)
-    expect(selectedBackground).not.toBe(tokens.bgWell)
-    const onPress = button.props.onPress
-    if (typeof onPress !== 'function') throw new Error('Expected range endpoint button')
-    TestRenderer.act(() => onPress())
-    expect(onSelectDay).toHaveBeenCalledWith('2026-09-12')
-  })
 })

@@ -55,12 +55,11 @@ for (const width of [412, 1280]) {
 
         if (width === 1280) {
           await row.hover()
-          await page.evaluate(() => new Promise<void>((resolve) => {
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-          }))
-          const hovered = await timePaint(time, '--fg-2')
-          expect(hovered.actual).toBe(hovered.expected)
-          expect(hovered.actual).not.toBe(resting.actual)
+          await expect(async () => {
+            const hovered = await timePaint(time, '--fg-2')
+            expect(hovered.actual).toBe(hovered.expected)
+            expect(hovered.actual).not.toBe(resting.actual)
+          }).toPass({ timeout: 3000 })
         }
       })
     })

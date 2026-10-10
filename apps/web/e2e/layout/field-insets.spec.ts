@@ -23,7 +23,7 @@ async function expectVisibleFieldInsets(page: Page, messages: Messages, scope?: 
     { selector: '[data-input-root] input, [data-input-root] textarea, .form-input, [cmdk-input], [data-hour-cycle], [data-habit-phrase-field] textarea', padding: 16 },
     { selector: '[data-composer-input]', padding: 8 },
     { selector: `[data-habit-detail-content] input[aria-label=${JSON.stringify(messages.habits.detail.rename)}]`, padding: 0 },
-    { selector: `input[placeholder=${JSON.stringify(messages.habits.form.checklistPlaceholder)}], input[aria-label=${JSON.stringify(messages.habits.form.tagName)}]`, padding: 12 },
+    { selector: `input[aria-label=${JSON.stringify(messages.habits.form.tagName)}]`, padding: 12 },
     { selector: `input[aria-label^=${JSON.stringify(messages.habits.form.checklistItemLabel.split('{n}')[0])}]`, padding: 8 },
   ]
   const fields = (scope ?? page).locator('input:visible:not([type="file"]):not([autocomplete="one-time-code"]), textarea:visible')

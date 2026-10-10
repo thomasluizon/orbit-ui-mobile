@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { format } from 'date-fns'
 import { ptBR as dateLocale } from 'date-fns/locale'
@@ -14,6 +15,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
 import { buildCalendarRangeModel, formatCalendarSpanEnds } from '@orbit/shared/utils'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { DayCell } from '@/components/dates/day-cell'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -21,6 +23,7 @@ import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import { expectDayCircle, expectDayCircleHover } from '@/e2e/layout/calendar-day-circle-helpers'
 
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: null }) }))
 
@@ -49,12 +52,150 @@ describe('Calendar header geometry in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let stylesheet: string
+  let monthScript: string
   registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
   beforeAll(async () => {
     const source = resolve(process.cwd(), 'app/globals.css')
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
+    monthScript = execFileSync(process.execPath, ['--input-type=module', '-e', `
+      import { build } from 'esbuild';
+      const result = await build(JSON.parse(process.argv[1]));
+      process.stdout.write(result.outputFiles[0].text);
+    `, JSON.stringify({
+      stdin: { contents: `import React, { useState } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { NextIntlClientProvider } from 'next-intl';
+        import { CalendarGrid } from './components/calendar/calendar-grid';
+        const configuration = JSON.parse(document.getElementById('configuration').textContent);
+        const completed = { habitId: 'walk', title: 'Walking', status: 'completed', isBadHabit: false, dueTime: null, isOneTime: false };
+        const missed = { ...completed, habitId: 'read', title: 'Reading', status: 'missed' };
+        const dayMap = new Map([['2026-09-10', [completed, missed]], ['2026-09-11', [completed, { ...completed, habitId: 'read' }]]]);
+        function Month() {
+          const [selected, select] = useState('2026-09-11');
+          return <NextIntlClientProvider locale={configuration.locale} messages={configuration.messages} timeZone="UTC">
+            <CalendarGrid currentMonth={new Date(2026, 8, 1)} dayMap={dayMap} onSelectDay={select} todayKey="2026-09-11" selectedDateStr={selected} weekStartsOn={1} />
+          </NextIntlClientProvider>;
+        }
+        createRoot(document.getElementById('root')).render(<Month />);`, resolveDir: process.cwd(), loader: 'tsx' },
+      bundle: true, write: false, format: 'iife', platform: 'browser', jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"production"' },
+    })], { maxBuffer: 10 * 1024 * 1024 }).toString()
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('retains the full today ring after selecting another day at $width in $locale', async ({ width, locale, messages }) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div id="root"></div><script id="configuration" type="application/json">${JSON.stringify({ locale, messages })}</script>`)
+      await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('orange', 'dark'))
+      await page.addScriptTag({ content: monthScript })
+      const today = page.getByTestId('calendar-day-select-2026-09-11')
+      const partial = page.getByTestId('calendar-day-select-2026-09-10')
+      await today.waitFor()
+      await page.keyboard.press('Tab')
+      await today.focus()
+      expect(await today.getAttribute('aria-pressed')).toBe('true')
+      for (const selected of [true, false]) {
+        if (!selected) await partial.click()
+        expect(await today.getAttribute('aria-pressed')).toBe(String(selected))
+        const geometry = await today.evaluate((button) => {
+          const circle = button.querySelector('[data-day-circle]')!
+          const ring = circle.querySelector('[data-day-position-ring]')!
+          const bounds = ring.getBoundingClientRect()
+          const disc = button.querySelector('[data-day-disc]')!.getBoundingClientRect()
+          const probe = document.createElement('span')
+          probe.style.color = 'var(--primary)'
+          button.append(probe)
+          const primary = getComputedStyle(probe).color
+          probe.remove()
+          return { ring: getComputedStyle(ring).boxShadow, primary, width: bounds.width, height: bounds.height, discWidth: disc.width }
+        })
+        expect(geometry.ring).toBe(`${geometry.primary} 0px 0px 0px 2px inset`)
+        expect(geometry.width).toBeLessThanOrEqual(44)
+        expect(geometry.width).toBeCloseTo(geometry.height, 1)
+        expect(geometry.discWidth).toBeCloseTo(34, 1)
+      }
+      await expectDayCircleHover(partial)
+      for (const date of ['2026-09-09', '2026-09-10', '2026-09-11']) {
+        const button = page.getByTestId(`calendar-day-select-${date}`)
+        await page.keyboard.press('Tab')
+        await button.focus()
+        expect(await button.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+        await expectDayCircle(button.locator('..'), true, true, true)
+      }
+      await page.emulateMedia({ forcedColors: 'active' })
+      const forcedRing = await today.locator('[data-day-position-ring]').evaluate((ring) => ({ shadow: getComputedStyle(ring).boxShadow, outline: getComputedStyle(ring).outlineWidth }))
+      expect(forcedRing).toEqual({ shadow: 'none', outline: '2px' })
+    } finally { await page.close() }
+  })
+
+  it.each([320, 412, 600, 1352].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('paints circles inside full-column targets at $width in $locale', async ({ width, locale, messages }) => {
+    const model = buildCalendarRangeModel(new Date(2026, 1, 8), seededDayMap('2026-02'), 0, '2026-02-08')
+    const words = { none: 'none', partial: 'partial', full: 'full', notScheduled: 'not scheduled', of: 'of', today: 'today', readOnly: 'read only' }
+    for (const view of ['month', 'range', 'history'] as const) {
+      const { container, unmount } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+        {view === 'month' ? <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" selectedDateStr="2026-02-08" weekStartsOn={0} />
+          : view === 'range' ? <CalendarRangeView model={model} weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']} rangeLabel="Range" isLoading={false} loadingLabel="Loading" stats={[{ key: 'bestStreak', value: 1, label: 'Streak' }, { key: 'totalLogs', value: 1, label: 'Logs' }, { key: 'missed', value: 1, label: 'Missed' }]} />
+            : <div style={{ width: 97 }}><DayCell day={8} today habitHistory done={1} scheduled={1} words={words} /></div>}
+      </NextIntlClientProvider>)
+      const page = await browser.newPage({ viewport: { width, height: 915 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate((variables) => { for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value) }, resolveWebThemeVariables('purple', 'dark'))
+        const geometry = await page.evaluate(() => {
+          const cell = document.querySelector<HTMLElement>('[aria-current="date"][data-outcome], [aria-current="date"]')!
+          const slot = cell.closest('[data-calendar-date]') ?? cell
+          const bounds = slot.getBoundingClientRect()
+          const boxes = [slot, ...slot.querySelectorAll<HTMLElement>('*')].flatMap((element) => {
+            const style = getComputedStyle(element)
+            if (style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.boxShadow === 'none' && style.outlineStyle === 'none' && Number.parseFloat(style.borderWidth) === 0) return []
+            const box = element.getBoundingClientRect()
+            return [{ width: box.width, height: box.height, radius: Number.parseFloat(style.borderRadius), center: box.left + box.width / 2, ring: style.boxShadow }]
+          })
+          const disc = slot.querySelector<HTMLElement>('[data-day-disc]') ?? slot.querySelector<HTMLElement>('[data-outcome] > span') ?? slot.querySelector('span')!
+          const discBox = disc.getBoundingClientRect()
+          const header = document.querySelector('[data-testid="month-grid-header"]')?.getBoundingClientRect()
+          const days = document.querySelector('[data-testid="month-grid-days"]')?.getBoundingClientRect()
+          return { boxes, center: bounds.left + bounds.width / 2, disc: { width: discBox.width, height: discBox.height }, headerGap: header && days ? days.top - header.bottom : undefined }
+        })
+        expect(geometry.boxes.length).toBeGreaterThan(0)
+        for (const box of geometry.boxes) {
+          expect(box.width, view).toBeLessThanOrEqual(44.5)
+          expect(Math.abs(box.width - box.height), view).toBeLessThanOrEqual(0.5)
+          expect(box.radius, view).toBeGreaterThanOrEqual(box.width / 2)
+          expect(Math.abs(box.center - geometry.center), view).toBeLessThanOrEqual(0.5)
+        }
+        expect(geometry.disc.width, view).toBeCloseTo(34, 1)
+        expect(geometry.disc.height, view).toBeCloseTo(34, 1)
+        expect(geometry.boxes.filter((box) => box.ring.includes('2px'))).toHaveLength(1)
+        if (view !== 'history') expect(geometry.headerGap).toBeCloseTo(8, 1)
+      } finally { await page.close(); unmount() }
+    }
+  })
+
+  it.each([320, 412, 600, 1352])('retains loading circle centres at %ipx', async (width) => {
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    const snapshots: { x: number; y: number; width: number; height: number }[][] = []
+    try {
+      for (const isLoading of [true, false]) {
+        const { container, unmount } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+          <CalendarGrid currentMonth={new Date(2026, 1, 1)} dayMap={seededDayMap('2026-02')} onSelectDay={vi.fn()} todayKey="2026-02-08" weekStartsOn={0} isLoading={isLoading} />
+        </NextIntlClientProvider>)
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        snapshots.push(await page.evaluate((loading) => [...document.querySelectorAll(loading ? '[data-variant="grid"] span' : '[data-day-circle]')].map((element) => {
+          const box = element.getBoundingClientRect()
+          return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }
+        }), isLoading))
+        unmount()
+      }
+      expect(snapshots[0]).toHaveLength(snapshots[1]!.length)
+      for (const [index, before] of snapshots[0]!.entries()) {
+        const after = snapshots[1]![index]!
+        for (const dimension of ['x', 'y', 'width', 'height'] as const) expect(before[dimension], dimension).toBeCloseTo(after[dimension], 1)
+      }
+    } finally { await page.close() }
+  })
 
   it.each(['light', 'dark'] as const)('paints ghost chevrons and a transparent month title in %s mode', async (mode) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">

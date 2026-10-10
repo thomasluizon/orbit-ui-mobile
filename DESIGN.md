@@ -593,8 +593,8 @@ a new text consumer cannot silently reuse the fill role and a glyph cannot inher
 **Contrast rule: `--fg-4` is an empty graphic only on the canvas, dark and light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below
 the 3.0 non-text floor. `--fg-4` stays unchanged; use the dedicated `--track-empty`
 neutral, derived at constant OKLCH hue and chroma from `--fg-4` in each mode. Consumers also reach a hover child
-inside a card and selection tint over both the canvas and a card. Range endpoints now apply that
-selection tint once, at the range slot, while the cell keeps its primary selected ring.
+inside a card and selection tint over both the canvas and a card. DayCell owns the selection
+tint and a single circular position ring; the full-column calendar slot paints nothing.
 
 Dark `#8B8B8E` measures 5.856 on canvas, 5.462 on card, 5.008 on well or overlay, 4.331 on a
 replacement hover, 3.821 on a hover child inside a card, 3.001 on a card-child hover inside a sheet,

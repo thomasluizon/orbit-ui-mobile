@@ -12,6 +12,7 @@ import noArbitraryZindex from "../../eslint-rules/no-arbitrary-zindex.cjs"
 import noCalcPercentageWidth from "../../eslint-rules/no-calc-percentage-width.cjs"
 import noDeadHref from "../../eslint-rules/no-dead-href.cjs"
 import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
+import noRejectingAnimationWait from "../../eslint-rules/no-rejecting-animation-wait.cjs"
 import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
 import noDynamicTailwindClass from "../../eslint-rules/no-dynamic-tailwind-class.cjs"
 import noGradientText from "../../eslint-rules/no-gradient-text.cjs"
@@ -99,6 +100,7 @@ export default [
           "no-dead-href": noDeadHref,
           "no-decorative-glow": noDecorativeGlow,
           "no-double-assertion": noDoubleAssertion,
+          "no-rejecting-animation-wait": noRejectingAnimationWait,
           "no-dynamic-tailwind-class": noDynamicTailwindClass,
           "no-gradient-text": noGradientText,
           "no-jsx-logical-and": noJsxLogicalAnd,
@@ -160,6 +162,7 @@ export default [
       "local/no-calc-percentage-width": "error",
       "local/no-dead-href": "error",
       "local/no-double-assertion": "error",
+      "local/no-rejecting-animation-wait": "error",
       "local/no-gradient-text": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-nested-component-definition": "error",

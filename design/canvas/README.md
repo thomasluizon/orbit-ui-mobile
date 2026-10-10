@@ -2,7 +2,7 @@
 
 > **At a glance** - the Claude Design canvas, which is THE authority for every redesign surface.
 > Twenty-one screens plus the design system tokens, with the native mobile rule and Perfil sub-menu amendments. Build from these. The eleven documents in
-> `superseded/` are a record of an earlier pass and are not a target. The Calendário any-time gutter uses the short label amendment.
+> `superseded/` are a record of an earlier pass and are not a target. The Calendário any-time gutter uses the short label amendment. Sobre legal documents pair short header titles with sentence-case document names.
 
 ## The authority
 
@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | amendment | what changed | why |
 |---|---|---|
+| #1335 | Sobre legal pages keep the short Privacidade/Privacy and Termos/Terms headers; prose titles select the privacy and terms row labels in sentence case | Each prose title names its own document. Web and Android use separate header and document titles matching the Sobre rows. |
 | Week time grid | Named timed blocks with status rings, per-day any-time chips and +N, natural short weekdays, one today date disc, one hour scroller and opening near now | The owner's report supersedes #1148 and adopts the Google Calendar week pattern. |
 | #1321 | Calendário's any-time gutter uses `Sem horário` in pt-BR and retains `No set time` in en, at 12 with 1.4 line height and 8 padding inside a gutter of at least 96; the label stays whole on one line at default text size and its cell grows when accessibility text wraps | The prior pt-BR label wrapped inside the drawn gutter, contrary to `DESIGN.md` Bans. Agenda values and entry details share the same no-time wording. |
 | Astra full screen | One conversation layout at every width, with NavHeader, a shared thread, one live chip set and a composer with 16 padding; wide web keeps its sidebar with an Astra row above Hoje and drops the resting Hoje shell composer while retaining the active selection tray in the pinned bottom slot; habit detail keeps its own composer | Astra opens as a layer with no route or Android tab. Compact shells cover the tab bar; wide web replaces the destination column from every Astra entry, including proactive and empty-state actions. The empty disclosure uses `--fg-3` and the close control is 48. App implementation follows in #1295. |
@@ -40,6 +41,17 @@ that disagrees with production is a trap rather than an authority.
 | 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
+
+### Legal title amendment surface inventory
+
+| Paired web and Android surface | Contract and evidence |
+|---|---|
+| Privacy document | Short Privacidade/Privacy header and Política de privacidade/Privacy policy body title, matching the Sobre row in each locale; full document and closing contact remain present. Both platform layout tests mount the owning page. |
+| Terms document | Short Termos/Terms header and Termos de uso/Terms of use body title, matching the Sobre row in each locale; full document and closing contact remain present. Both platform layout tests mount the owning page. |
+| Sobre drawing | Privacy selects the privacy row and terms selects the terms row for their prose titles, in both locales and at both drawn widths. |
+
+These read-only documents have no data-loading or empty state. Back navigation and the document
+scroll owners retain their existing behavior.
 
 ### Week time grid surface inventory
 

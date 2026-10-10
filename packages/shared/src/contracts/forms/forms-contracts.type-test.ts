@@ -31,6 +31,7 @@ type MultilineVariant = Extract<InputProps, { multiline: true; marks?: never }>
 type MarkedVariant = Extract<InputProps, { marks: readonly { start: number; end: number }[] }>
 type ExpectedSingleLineVariant = {
   label: string
+  hideLabel?: boolean
   value: string
   onChange: (value: string) => void
   placeholder?: string

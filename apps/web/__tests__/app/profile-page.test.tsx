@@ -504,7 +504,7 @@ describe('ProfilePage', () => {
         expect(geometry.clamped).toBe('none')
         expect(geometry.overflow).toBe(false)
         expect(geometry.nameLines).toBeLessThanOrEqual(2.1)
-        expect(geometry.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
+        expect(geometry.lineHeightRatio).toBe(1.25)
       } finally { await page.close() }
     })
 

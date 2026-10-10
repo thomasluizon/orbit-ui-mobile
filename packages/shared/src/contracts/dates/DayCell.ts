@@ -16,6 +16,11 @@ interface DayCellBase {
   scheduled?: number
   size?: number
   today?: boolean
+  selected?: boolean
+  raised?: boolean
+  future?: boolean
+  pressed?: boolean
+  focused?: boolean
   outsideMonth?: boolean
   label?: string
   habitHistory?: boolean
