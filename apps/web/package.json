@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "next build --webpack",
+    "build:hermetic": "node scripts/build-hermetic.mjs",
     "start": "next start",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:smoke": "playwright test --project=smoke",
     "test:layout": "playwright test --project=layout",
+    "pretest:layout": "node ../../tools/check-hermetic-web-build.mjs",
     "perf": "cd ../.. && lhci autorun --config apps/web/lighthouserc.json && node apps/web/perf/report-lcp.mjs",
     "clean": "rm -rf .next"
   },

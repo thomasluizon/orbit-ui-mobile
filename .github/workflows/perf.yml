@@ -6,6 +6,8 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/shared/**'
+      - '.github/workflows/perf.yml'
+      - 'tools/check-hermetic-web-build.mjs'
   workflow_dispatch:
 
 concurrency:
@@ -21,6 +23,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
     steps:
       - uses: actions/checkout@v7
 
@@ -33,6 +36,9 @@ jobs:
 
       - name: Build web
         run: npm run build -w @orbit/web
+
+      - name: Check hermetic client output
+        run: node tools/check-hermetic-web-build.mjs
 
       - name: Start mock orbit-api and wait for health
         run: |

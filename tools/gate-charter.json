@@ -464,6 +464,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "tools/check-hermetic-web-build.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "tools/check-i18n-usage.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
