@@ -444,6 +444,11 @@
       }
     ]
   },
+  "tools/check-docker-registries.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "tools/check-gate-charter.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
