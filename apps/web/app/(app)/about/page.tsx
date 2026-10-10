@@ -35,12 +35,14 @@ function AboutFact({ id, label, value }: Readonly<AboutFactProps>) {
 
 function AboutAccountFact({ label, value }: Readonly<Pick<AboutFactProps, 'label' | 'value'>>) {
   const [expanded, setExpanded] = useState(false)
-  return <PersonalTextAction label={`${label} ${value}`} className="-mx-2" contentClassName="flex min-w-0 flex-wrap min-h-[48px] rounded-[12px] p-2 text-start" contentStyle={{ columnGap: 12, rowGap: 4 }} control={<button type="button" aria-label={`${label} ${value}`} aria-expanded={expanded} aria-controls="about-account-value" onClick={() => setExpanded(!expanded)}
-    className="orbit-hover-text flex min-w-0 flex-wrap min-h-[48px] w-full cursor-pointer rounded-[12px] border-0 bg-transparent p-2 text-start touch-manipulation transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)]"
-    data-testid="about-fact-account" style={{ columnGap: 12, rowGap: 4 }}>
+  return <PersonalTextAction label={`${label} ${value}`} className="orbit-list-row-column has-[>button:focus-visible]:[--fg-3:var(--fg-2)]" contentClassName="flex min-w-0 flex-wrap min-h-[48px] py-2 text-start" contentStyle={{ columnGap: 12, rowGap: 4, alignItems: 'center' }} control={<button type="button" aria-label={`${label} ${value}`} aria-expanded={expanded} aria-controls="about-account-value" onClick={() => setExpanded(!expanded)}
+    className="orbit-list-row-body flex min-w-0 flex-wrap min-h-[48px] w-full cursor-pointer rounded-[12px] border-0 bg-transparent p-0 text-start touch-manipulation"
+    data-testid="about-fact-account">
     <span data-testid="about-fact-account-label" style={{ flex: '1 1 auto', minWidth: 0, color: 'var(--fg-3)', fontSize: 14, lineHeight: 1.5 }}>{label}</span>
-    <ChevronDown aria-hidden="true" size={20} strokeWidth={1.5} className={expanded ? 'shrink-0 rotate-180' : 'shrink-0'} />
-    <PersonalText id="about-account-value" expanded={expanded} data-testid="about-fact-account-value" style={{ flex: '1 1 100%', minWidth: 0, color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums', lineHeight: 1.6 }}>{value}</PersonalText>
+    <span className="flex min-w-0 max-w-full items-start" style={{ flex: '0 0 auto', gap: 12 }}>
+      <PersonalText id="about-account-value" expanded={expanded} data-testid="about-fact-account-value" style={{ paddingInline: expanded ? 0 : undefined, flex: '0 1 auto', minWidth: 0, color: 'var(--fg-2)', fontFamily: 'var(--font-mono)', fontSize: 12, fontVariantNumeric: 'tabular-nums', lineHeight: 1.6 }}>{value}</PersonalText>
+      <ChevronDown aria-hidden="true" focusable="false" size={20} strokeWidth={1.5} className={expanded ? 'shrink-0 rotate-180' : 'shrink-0'} style={{ color: 'var(--fg-3)' }} />
+    </span>
   </button>} />
 }
 
