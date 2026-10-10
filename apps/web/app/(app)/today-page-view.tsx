@@ -91,7 +91,7 @@ function useTodayRefetchMotion(isRefetching: boolean) {
   return { opacity, translate }
 }
 
-export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
+export function TodayHeaderRegion({ view, children }: Readonly<{ view: TodayView; children?: React.ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
   const key = boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today))
@@ -100,6 +100,7 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
     <div className="flex min-w-0 flex-col gap-6">
       <h1 className="sr-only" tabIndex={-1}>{t('nav.today')}</h1>
       <TodayDateControl
+        beforeDate={children}
         {...view.nav.dateNav}
         moreLabel={t('habits.listOptions')}
         menuHeading={t('common.options')}

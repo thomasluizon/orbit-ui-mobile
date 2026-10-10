@@ -53,7 +53,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/app/(app)/use-today-page', () => ({ useTodayPage: () => mocks.view }))
 vi.mock('@/app/(app)/today-page-view', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/app/(app)/today-page-view')>()),
-  TodayHeaderRegion: () => <time data-testid="today-date">{mocks.view.nav.today}</time>,
+  TodayHeaderRegion: ({ children }: { children?: React.ReactNode }) => <>{children}<time data-testid="today-date">{mocks.view.nav.today}</time></>,
   TodayOverlays: () => null,
 }))
 vi.mock('@/components/habits/habit-list', () => ({
