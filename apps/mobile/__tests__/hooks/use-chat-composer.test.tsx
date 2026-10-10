@@ -179,7 +179,6 @@ vi.mock('@/components/ui/app-toast', () => ({ AppToast: () => null }))
 vi.mock('@/components/ui/app-error-boundary', () => ({ AppErrorScreen: () => null }))
 vi.mock('@/components/message-bubble', () => ({ MessageBubble: ({ message }: { message: ChatMessage }) => React.createElement('Text', null, message.content) }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
-vi.mock('@/components/chat/chat-empty-state', () => ({ ChatEmptyState: () => null }))
 vi.mock('@/components/chat/conversation', () => ({ AstraConversation: () => null }))
 vi.mock('@/components/shell/composer', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/components/shell/composer')>()
@@ -1606,15 +1605,43 @@ describe('mobile useChatComposer', () => {
   })
 
   it('flags the AI message limit for a capped non-pro user', async () => {
-    mocks.state.profile = {
+    mocks.state.profile = createMockProfile({
       hasProAccess: false,
       aiMessagesUsed: 20,
       aiMessagesLimit: 20,
-    } as Profile
+    })
     const composer = await renderComposer()
 
     expect(composer.current.atMessageLimit).toBe(true)
-    expect(composer.current.showSuggestions).toBe(true)
+    expect(composer.current.showSuggestions).toBe(false)
+  })
+
+  it.each([4, 5, 6])('shows the empty invitation only below the daily limit with %s messages used', async (aiMessagesUsed) => {
+    mocks.state.profile = createMockProfile({ aiMessagesUsed, aiMessagesLimit: 5 })
+    function Harness() {
+      const chat = useChatComposer({ isOnline: true, offlineTitle: 'Offline' })
+      return <Conversation chat={chat} />
+    }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Harness />)
+      mountedTrees.push(tree)
+      await Promise.resolve()
+    })
+    const texts = visibleMessageTexts(tree)
+    const suggestionGroups = tree.root.findAll((node: { type: unknown; props: { accessibilityLabel?: string } }) =>
+      typeof node.type === 'string' && node.props.accessibilityLabel === 'shell.composer.suggestionsLabel')
+
+    expect(useChatStore.getState().messages).toEqual([])
+    if (aiMessagesUsed < 5) {
+      expect(texts).toContain('chat.empty.title')
+      expect(texts).toContain('aiDisclosure.notMedicalAdvice')
+      expect(suggestionGroups).toHaveLength(1)
+    } else {
+      expect(texts).not.toContain('chat.empty.title')
+      expect(suggestionGroups).toHaveLength(0)
+      expect(texts.filter(text => text === 'shell.composer.limit.reason:{"allowance":5}')).toHaveLength(1)
+    }
   })
 
   it('states only the allowance at the message limit', async () => {
