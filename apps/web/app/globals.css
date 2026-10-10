@@ -111,6 +111,11 @@
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
 
+.orbit-personal-text-details:focus-visible {
+  background-color: var(--bg-hover);
+  --fg-3: var(--fg-2);
+}
+
 .orbit-habit-rename::before {
   content: '';
   position: absolute;
