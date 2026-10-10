@@ -60,6 +60,20 @@ export async function expectDayCircle(slot: Locator, status = true, todayRing = 
 export async function expectDayCircleHover(button: Locator) {
   const slot = button.locator('..')
   await button.hover()
+  if (await button.getAttribute('aria-pressed') === 'true') {
+    const circle = button.locator('[data-day-circle]')
+    await expect.poll(() => circle.locator(':scope > [data-press-fill]').evaluate((element) => getComputedStyle(element).opacity)).toBe('0')
+    expect(await circle.evaluate((element) => {
+      const probe = document.createElement('span')
+      probe.style.backgroundColor = 'var(--selection-bg)'
+      element.append(probe)
+      const selected = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return getComputedStyle(element).backgroundColor === selected
+    })).toBe(true)
+    await expectDayCircle(slot, true, true, true)
+    return
+  }
   const fill = button.locator('[data-day-circle] > [data-press-fill]')
   await expect.poll(() => fill.evaluate((element) => getComputedStyle(element).opacity)).toBe('1')
   await expect(async () => {

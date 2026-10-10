@@ -71,13 +71,15 @@ function CalendarGridDayBody({
   selected: boolean
 }>) {
   const [pressed, setPressed] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const contents = <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.dayBody}>
-    <DayCell {...dayCell} pressed={pressed} focused={focused} />
+    <DayCell {...dayCell} pressed={pressed || hovered} focused={focused} />
   </View>
   if (!cell.isCurrentMonth) return contents
   return <Pressable accessibilityRole="button" accessibilityLabel={accessibleName} accessibilityState={{ selected }}
     onPress={() => onSelectDay(cell.dateStr)} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+    onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
     testID={`calendar-day-select-${cell.dateStr}`} style={styles.dayButton}>{contents}</Pressable>
 }
 

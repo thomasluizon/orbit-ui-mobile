@@ -14,12 +14,12 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
 }
 
 /** The translucent hover layer covers the round hit area below the day's foreground. */
-function PressFill() {
+function PressFill({ circle = false }: Readonly<{ circle?: boolean }>) {
   return (
     <span
       aria-hidden="true"
       data-press-fill=""
-      className="pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
+      className={'pointer-events-none absolute inset-0 rounded-full bg-[var(--bg-hover)] opacity-0 transition-opacity duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ' + (circle ? 'orbit-day-fill' : '')}
     />
   )
 }
@@ -114,10 +114,10 @@ export function DayCell(props: Readonly<DayCellProps>) {
       : <DayCellContents props={props} outcome={outcome} size={statusSize} />
   const circle = <span
     data-day-circle=""
-    className="orbit-day-circle relative inline-flex items-center justify-center"
-    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2, background: props.selected ? 'var(--selection-bg)' : props.loggable || props.raised ? 'var(--bg-well)' : 'transparent' }}
+    className={'orbit-day-circle relative inline-flex items-center justify-center ' + (props.selected ? 'orbit-day-selected' : props.loggable || props.raised ? 'orbit-day-well' : '')}
+    style={{ width: '100%', maxWidth: size, aspectRatio: 1, borderRadius: size / 2 }}
   >
-    <PressFill />
+    <PressFill circle />
     {contents}
     <span aria-hidden="true" data-day-position-ring="" className="pointer-events-none absolute inset-0"
       style={{ borderRadius: 'inherit', boxShadow: `var(--day-focus-ring, ${props.today || props.selected ? 'inset 0 0 0 2px var(--primary)' : 'none'})` }} />

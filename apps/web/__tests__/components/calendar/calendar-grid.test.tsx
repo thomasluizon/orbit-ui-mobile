@@ -231,16 +231,14 @@ describe('CalendarGrid', () => {
     )
 
     const oldBoundary = document.querySelector('[data-calendar-date="2025-06-08"]')
-    expect(oldBoundary?.querySelector('[data-day-circle]')).toHaveStyle({ background: 'var(--bg-well)' })
+    expect(oldBoundary?.querySelector('[data-day-circle]')).toHaveClass('orbit-day-well')
 
     todaySource.value = '2025-06-16'
     rerender(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />)
 
-    expect(oldBoundary?.querySelector('[data-day-circle]')).toHaveStyle({ background: 'transparent' })
+    expect(oldBoundary?.querySelector('[data-day-circle]')).not.toHaveClass('orbit-day-well')
     const newBoundary = document.querySelector('[data-calendar-date="2025-06-16"]')
-    expect(newBoundary?.querySelector('[data-day-circle]')).toHaveStyle({
-      background: 'var(--bg-well)',
-    })
+    expect(newBoundary?.querySelector('[data-day-circle]')).toHaveClass('orbit-day-well')
     expect(oldBoundary?.querySelector('button')).not.toHaveAttribute('aria-current')
     expect(newBoundary?.querySelector('button')).toHaveAttribute('aria-current', 'date')
   })
@@ -307,7 +305,7 @@ describe('CalendarGrid', () => {
     )
 
     const selectedSlot = container.querySelector('[data-calendar-date="2025-06-15"]')
-    expect(selectedSlot?.querySelector('[data-day-circle]')).toHaveStyle({ background: 'var(--selection-bg)' })
+    expect(selectedSlot?.querySelector('[data-day-circle]')).toHaveClass('orbit-day-selected')
     expect(selectedSlot?.querySelector('[data-day-position-ring]')).toHaveStyle({ boxShadow: 'var(--day-focus-ring, inset 0 0 0 2px var(--primary))' })
     expect(selectedSlot?.getAttribute('style')).not.toContain('background')
     expect(selectedSlot?.querySelector('[data-selected]')).not.toBeInTheDocument()

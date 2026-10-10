@@ -84,7 +84,7 @@ describe('DayCell', () => {
       'data-outcome',
       'not-scheduled',
     )
-    expect(unscheduled.firstElementChild).toHaveStyle({ background: 'transparent' })
+    expect(getComputedStyle(unscheduled.firstElementChild!).backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
     rerender(<DayCell day={30} label="April 30" words={cellWords} outsideMonth />)
     expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')

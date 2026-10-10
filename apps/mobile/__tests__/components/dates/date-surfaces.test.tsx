@@ -90,6 +90,26 @@ describe('DayStrip', () => {
 })
 
 describe('DayCell', () => {
+  it.each([false, true].flatMap((selected) => ['press', 'hover'].map((phase) => ({ selected, phase }))))('replaces the well on $phase with selected=$selected', ({ selected, phase }) => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<DayCell day={12} loggable selected={selected} today words={cellWords} scheduled={4} done={1} onPress={() => {}} />)
+    const cell = tree.root.findByProps({ testID: 'day-cell-partial' })
+    const circleStyle = () => StyleSheet.flatten(tree.root.findByProps({ testID: 'day-circle' }).props.style as StyleProp<ViewStyle>)
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgWell)
+    const activate = cell.props[phase === 'press' ? 'onPressIn' : 'onHoverIn']
+    const deactivate = cell.props[phase === 'press' ? 'onPressOut' : 'onHoverOut']
+    expect(activate).toBeTypeOf('function')
+    TestRenderer.act(() => { (activate as () => void)() })
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : 'transparent')
+    const fills = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'day-press-fill')
+    expect(fills).toHaveLength(selected ? 0 : 1)
+    for (const fill of fills) expect(StyleSheet.flatten(fill.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(tokens.bgHover)
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'day-today-ring' }).props.style as StyleProp<ViewStyle>)).toMatchObject({ borderColor: tokens.primary, borderWidth: 2 })
+    TestRenderer.act(() => { (deactivate as () => void)() })
+    expect(circleStyle().backgroundColor).toBe(selected ? tokens.selectionBg : tokens.bgWell)
+    expect(tree.root.findAllByProps({ testID: 'day-press-fill' })).toHaveLength(0)
+  })
+
   it('centres today and its status mark in a wide habit history slot', () => {
     const tree = render(<View style={{ width: 97 }}><DayCell day={11} today habitHistory scheduled={1} done={1} words={cellWords} /></View>)
     const boxes = measureDaySurface(tree.toJSON() as GeometryHost, 97)

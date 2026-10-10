@@ -79,8 +79,8 @@ function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ pro
   const ring = props.today || props.selected || focused || props.focused
     ? <View pointerEvents="none" testID={props.today ? 'day-today-ring' : 'day-selection-ring'} style={[styles.pressFill, { borderRadius: size / 2, borderColor: tokens.primary, borderWidth: 2 }]} />
     : null
-  return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor: props.selected ? tokens.selectionBg : props.loggable || props.raised ? tokens.bgWell : 'transparent' }]}>
-    {pressed ? <PressFill size={size} tokens={tokens} /> : null}
+  return <View style={{ width: '100%', maxWidth: size }}><View testID="day-circle" style={[styles.container, { width: '100%', aspectRatio: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor: props.selected ? tokens.selectionBg : pressed ? 'transparent' : props.loggable || props.raised ? tokens.bgWell : 'transparent' }]}>
+    {pressed && !props.selected ? <PressFill size={size} tokens={tokens} /> : null}
     {contents}
     {ring}
   </View></View>
@@ -88,6 +88,7 @@ function DayCellCircle({ props, size, tokens, pressed, focused }: Readonly<{ pro
 
 export function DayCell(props: Readonly<MobileDayCellProps>) {
   const [pressed, setPressed] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -97,12 +98,13 @@ export function DayCell(props: Readonly<MobileDayCellProps>) {
   const containerStyle = [styles.container, { width: '100%' as const, minHeight: Math.max(size, MONTH_GRID_TARGET_MIN) }, props.outsideMonth ? styles.outsideMonth : null]
   const state = { ...props.accessibilityState, selected: props.selected, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
-  const isPressed = pressed || Boolean(props.pressed)
-  const circle = <DayCellCircle props={props} size={size} tokens={tokens} pressed={isPressed} focused={focused} />
+  const interacting = pressed || hovered || Boolean(props.pressed)
+  const circle = <DayCellCircle props={props} size={size} tokens={tokens} pressed={interacting} focused={focused} />
 
   if (interactive) {
     return <Pressable accessibilityRole="button" accessibilityLabel={buildDayCellAccessibleName(props, outcome)} accessibilityState={state}
       onPress={props.onPress} onPressIn={() => setPressed(true)} onPressOut={() => setPressed(false)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+      onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
       testID={testID} style={containerStyle}>{circle}</Pressable>
   }
   return <View accessibilityRole="image" accessibilityLabel={props.outsideMonth ? undefined : buildDayCellAccessibleName(props, outcome)} accessibilityState={state}
