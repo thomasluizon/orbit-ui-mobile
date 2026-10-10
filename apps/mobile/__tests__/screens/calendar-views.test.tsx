@@ -2032,8 +2032,7 @@ describe("CalendarScreen views (mobile)", () => {
     scrollTo.mockClear()
     rootScrollMocks.scrollToOffset.mockClear()
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
-    if (view === 'month') expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
-    else expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     const header = view === 'month' ? renderMonthHeader(tree) : null
     expect((header ?? tree).root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.testID === `segment-${view}-selected-enabled`)).toHaveLength(1)
     if (header) TestRenderer.act(() => header.update(<></>))
