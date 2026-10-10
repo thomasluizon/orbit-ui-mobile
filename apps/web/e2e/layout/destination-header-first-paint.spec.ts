@@ -27,6 +27,10 @@ for (const locale of ['en', 'pt-BR'] as const) {
             await expect(selector).toBeVisible()
             await expect(selector).toHaveCSS('display', destination === 'calendar' ? 'grid' : 'flex')
             await page.evaluate(() => document.fonts.ready)
+            await page.locator(headerSelector).evaluate((header) => {
+              header.setAttribute('data-first-paint-header', '')
+              for (const control of header.querySelectorAll('button')) control.setAttribute('data-first-paint-control', '')
+            })
             const firstTop = await selector.evaluate((element) => element.getBoundingClientRect().top)
             const firstHeader = await page.locator('[data-shell-column]').evaluate((column, headerSelector) => {
               const header = column.querySelector(headerSelector)
@@ -37,6 +41,8 @@ for (const locale of ['en', 'pt-BR'] as const) {
             }, headerSelector)
             releaseScripts()
             await expect(page.locator(`[data-shell-header] ${headerSelector}`)).toBeVisible()
+            await expect(page.locator(headerSelector)).toHaveAttribute('data-first-paint-header', '')
+            await expect(page.locator(`${headerSelector} button:not([data-first-paint-control])`)).toHaveCount(0)
             await page.waitForLoadState('load')
             await page.evaluate(() => document.fonts.ready)
             const hydratedTop = await selector.evaluate((element) => element.getBoundingClientRect().top)

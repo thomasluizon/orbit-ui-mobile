@@ -36,9 +36,9 @@ vi.mock('next-intl', async (importOriginal) => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams() }))
 vi.mock('next/link', () => ({ default: ({ href, children, ...props }: { href: string; children: ReactNode }) => <a href={href} {...props}>{children}</a> }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
-vi.mock('@/components/shell/destination-shell', () => ({ useShellHeaderSlot: (renderer: () => ReactNode) => {
-  mocks.header = renderer
-  return true
+vi.mock('@/components/shell/shell-header', () => ({ ShellHeader: ({ children }: { children: ReactNode }) => {
+  mocks.header = () => children
+  return null
 } }))
 vi.mock('@/components/onboarding/feature-guide-drawer', () => ({ FeatureGuideDrawer: () => null }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: profileFixture }) }))

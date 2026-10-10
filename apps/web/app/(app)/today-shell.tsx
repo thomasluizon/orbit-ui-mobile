@@ -7,7 +7,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
-import { useShellHeaderSlot } from '@/components/shell/destination-shell'
+import { ShellHeader } from '@/components/shell/shell-header'
 
 const DATE_ICON_BUTTON_CLASS_NAME =
   'touch-target grid min-h-[48px] w-[48px] shrink-0 cursor-pointer place-items-center rounded-full text-[var(--fg-2)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:enabled:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2'
@@ -79,10 +79,8 @@ function TodayHeaderActions(props: Readonly<TodayDateControlProps>) {
 }
 
 export function TodayDateControl(props: Readonly<TodayDateControlProps>) {
-  const header = () => <TodayHeaderActions {...props} />
-  const hosted = useShellHeaderSlot(header, `${props.dayName}:${props.isTodaySelected}`)
   return <div>
-    {!hosted ? header() : null}
+    <ShellHeader><TodayHeaderActions {...props} /></ShellHeader>
     <div className="flex min-w-0 flex-col gap-6">
       {props.beforeDate}
       <div data-today-date-row="" className="@container flex min-h-[56px] items-center gap-[12px] px-[16px] py-[4px]">

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useMotionValueEvent, useScroll } from 'motion/react'
 import { updateScrollToTopState } from '@orbit/shared/utils'
 import { useShellScroller } from '@/components/shell/shell-scroller-context'
+import { getShellHeading } from '@/components/shell/shell-header'
 import { ArrowUp } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -24,7 +25,7 @@ function ScrollerButton({ scroller }: Readonly<{ scroller: HTMLElement }>) {
     <PillButton variant="ghost" quiet elevated minimumHeight={48} accessibleName={t('common.backToTop')}
       leadingIcon={<ArrowUp size={20} strokeWidth={2} aria-hidden="true" />} onClick={() => {
         scroller.scrollTo({ top: 0, behavior: 'instant' })
-        const heading = document.querySelector<HTMLElement>('[data-shell-header] h1') ?? scroller.querySelector<HTMLElement>('h1')
+        const heading = getShellHeading(document)
         const target = heading ?? scroller
         if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1')
         target.focus({ preventScroll: true })

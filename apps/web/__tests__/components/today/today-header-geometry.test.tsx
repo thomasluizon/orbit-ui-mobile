@@ -104,19 +104,32 @@ describe('Hoje header geometry', () => {
       let root: ReturnType<typeof hydrateRoot> | undefined
       const recoverableError = vi.fn()
       try {
+        const firstOptions = container.querySelector(optionsSelector)
+        const firstBell = container.querySelector(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`)
         expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
         expect(container.querySelectorAll(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`)).toHaveLength(1)
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await page.evaluate(() => document.fonts.ready)
+        const headerInset = () => page.locator(optionsSelector).evaluate((element) => {
+          const row = element.closest('[data-today-header-actions], [data-testid="calendar-shell-header"]')!
+          const column = row.closest('[data-shell-column]')!
+          return row.getBoundingClientRect().top - column.getBoundingClientRect().top
+        })
+        expect(await headerInset()).toBe(width < 1024 ? 0 : 32)
         const firstTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
         const noticeTop = destination === 'today' ? await page.locator('[data-before-date]').evaluate((element) => element.getBoundingClientRect().top) : null
         expect((await page.locator(optionsSelector).boundingBox())?.height).toBeGreaterThanOrEqual(48)
+        if (firstOptions instanceof HTMLElement) firstOptions.focus()
         await act(async () => { root = hydrateRoot(container, shell, { onRecoverableError: recoverableError }) })
+        expect(document.activeElement).toBe(firstOptions)
         expect(recoverableError).not.toHaveBeenCalled()
+        expect.soft(container.querySelector(optionsSelector), 'options survive hydration without remounting').toBe(firstOptions)
+        expect.soft(container.querySelector(`[data-shell-column] button[aria-label^="${ptBr.notifications.bell}"]`), 'bell survives hydration without remounting').toBe(firstBell)
         expect(container.querySelectorAll(optionsSelector)).toHaveLength(1)
         expect(container.querySelector(optionsSelector)?.closest('[data-shell-header]')).not.toBeNull()
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         await page.evaluate(() => document.fonts.ready)
+        expect(await headerInset()).toBe(width < 1024 ? 0 : 32)
         const hydratedTop = await page.locator(contentSelector).evaluate((element) => element.getBoundingClientRect().top)
         expect(hydratedTop).toBeCloseTo(firstTop, 1)
         if (noticeTop !== null) expect(await page.locator('[data-before-date]').evaluate((element) => element.getBoundingClientRect().top)).toBeCloseTo(noticeTop, 1)

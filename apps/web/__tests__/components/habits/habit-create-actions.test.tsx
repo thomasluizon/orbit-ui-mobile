@@ -13,7 +13,7 @@ import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('@/hooks/use-habit-create-navigation-guard', () => ({ useHabitCreateNavigationGuard: () => {} }))
-vi.mock('@/components/shell/destination-shell', () => ({ useShellHeaderSlot: () => false, useShellComposerSlot: () => {} }))
+vi.mock('@/components/shell/destination-shell', () => ({ useShellComposerSlot: () => {} }))
 
 function renderFooter(locale: 'en' | 'pt-BR', empty = true, pending = false) {
   const messages = locale === 'en' ? en : ptBr

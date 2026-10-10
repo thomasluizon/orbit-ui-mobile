@@ -6,12 +6,12 @@ import {
   useContext,
   useEffect,
   useEffectEvent,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
+  type RefCallback,
 } from 'react'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -26,7 +26,6 @@ import { NotificationBell } from '@/components/navigation/notification-bell'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
-import { useIsClient } from '@/hooks/use-is-client'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useProfile } from '@/hooks/use-profile'
 import { useShellStore } from '@/stores/shell-store'
@@ -38,6 +37,7 @@ import { ShellWide } from './shell-wide'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
 import { useShellScroller } from './shell-scroller-context'
 import { useServerApplePlatform } from './keyboard-platform-provider'
+import { getShellHeading, ShellHeaderHostContext } from './shell-header'
 
 interface DestinationShellProps {
   children: ReactNode
@@ -57,7 +57,6 @@ interface ShellComposerSlotContextValue {
 }
 
 const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
-const ShellHeaderSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
 function useShellComposerHost() {
   const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
   const register = useCallback((nextRenderer: ComposerRenderer) => {
@@ -80,15 +79,6 @@ export function useShellComposerSlot(
     if (!enabled) return
     return registerRenderer()
   }, [enabled, host, refreshKey])
-}
-
-export function useShellHeaderSlot(renderer: ComposerRenderer, refreshKey: string) {
-  const host = useContext(ShellHeaderSlotContext)
-  const client = useIsClient()
-  useLayoutEffect(() => {
-    if (client) return host?.register(renderer)
-  }, [client, host, refreshKey, renderer])
-  return host !== null && client
 }
 
 type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
@@ -140,7 +130,8 @@ export function DestinationShell({
   createRefusal,
 }: Readonly<DestinationShellProps>) {
   const registeredComposer = useShellComposerHost()
-  const registeredHeader = useShellComposerHost()
+  const headerHostRef = useRef<HTMLDivElement>(null)
+  const registerHeaderHost = useCallback((element: HTMLDivElement | null) => { headerHostRef.current = element }, [])
   const registeredNotice = useShellNoticeHost()
   const hostedNotice = registeredNotice.content === undefined
     ? notice
@@ -149,9 +140,9 @@ export function DestinationShell({
   return (
     <ShellNoticeSlotProvider value={registeredNotice.value}>
       <ShellComposerSlotContext.Provider value={registeredComposer.value}>
-        <ShellHeaderSlotContext.Provider value={registeredHeader.value}>
+        <ShellHeaderHostContext.Provider value={headerHostRef}>
           <DestinationShellContent
-            header={registeredHeader.content}
+            registerHeaderHost={registerHeaderHost}
             registeredComposer={registeredComposer.content}
             notice={hostedNotice}
             composer={composer}
@@ -163,7 +154,7 @@ export function DestinationShell({
           >
             {children}
           </DestinationShellContent>
-        </ShellHeaderSlotContext.Provider>
+        </ShellHeaderHostContext.Provider>
       </ShellComposerSlotContext.Provider>
     </ShellNoticeSlotProvider>
   )
@@ -180,7 +171,7 @@ function getPinnedComposer(notFoundVisible: boolean, registeredComposer: ReactNo
 
 function DestinationShellContent({
   children,
-  header,
+  registerHeaderHost,
   notice,
   composer,
   conversation,
@@ -189,7 +180,7 @@ function DestinationShellContent({
   onCreate,
   createRefusal,
   registeredComposer,
-}: Readonly<DestinationShellProps & { header?: ReactNode; registeredComposer?: ReactNode }>) {
+}: Readonly<DestinationShellProps & { registerHeaderHost: RefCallback<HTMLDivElement>; registeredComposer?: ReactNode }>) {
   const t = useTranslations()
   const router = useRouter()
   const scroller = useShellScroller()
@@ -214,7 +205,7 @@ function DestinationShellContent({
     if (previousPathname.current === pathname) return
     previousPathname.current = pathname
     const frame = requestAnimationFrame(() => {
-      const heading = document.querySelector<HTMLElement>('[data-shell-header] h1, [data-shell-scroller] h1')
+      const heading = getShellHeading(document)
       const target = heading ?? document.querySelector<HTMLElement>('[data-shell-scroller]')
       if (target && !target.hasAttribute('tabindex')) target.tabIndex = -1
       target?.focus({ preventScroll: true })
@@ -297,7 +288,7 @@ function DestinationShellContent({
         paletteLabel={t('nav.search')}
         paletteHint={paletteHint}
         notice={notice}
-        header={header}
+        registerHeaderHost={registerHeaderHost}
         scrollToTop={todayScrollToTop(pathname, notFoundVisible)}
         composer={pinnedComposer}
         tabBar={

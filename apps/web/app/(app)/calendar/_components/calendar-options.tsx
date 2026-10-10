@@ -1,13 +1,13 @@
 "use client"
 
-import { useCallback, useId, useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { MoreVertical } from '@/components/ui/icons'
 import { Menu } from '@/components/ui/menu'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { DestinationHeaderRow } from '@/components/navigation/root-notification-header'
-import { useShellHeaderSlot } from '@/components/shell/destination-shell'
+import { ShellHeader } from '@/components/shell/shell-header'
 import { useUIStore } from '@/stores/ui-store'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { CalendarLegend } from './calendar-shell'
@@ -37,7 +37,5 @@ function CalendarOptionsContent({ onGoogleCalendar }: Readonly<{ onGoogleCalenda
 }
 
 export function CalendarOptions({ onGoogleCalendar }: Readonly<{ onGoogleCalendar?: () => void }>) {
-  const renderHeader = useCallback(() => <CalendarOptionsContent onGoogleCalendar={onGoogleCalendar} />, [onGoogleCalendar])
-  const hosted = useShellHeaderSlot(renderHeader, 'calendar')
-  return hosted ? null : renderHeader()
+  return <ShellHeader><CalendarOptionsContent onGoogleCalendar={onGoogleCalendar} /></ShellHeader>
 }
