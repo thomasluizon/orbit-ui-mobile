@@ -162,6 +162,7 @@ export default [
       "local/no-calc-percentage-width": "error",
       "local/no-dead-href": "error",
       "local/no-double-assertion": "error",
+      "local/no-rejecting-animation-wait": "error",
       "local/no-gradient-text": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-nested-component-definition": "error",
@@ -272,10 +273,6 @@ export default [
       "@typescript-eslint/require-await": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
     },
-  },
-  {
-    files: ["e2e/**/*.{ts,tsx}"],
-    rules: { "local/no-rejecting-animation-wait": "error" },
   },
   {
     ignores: [

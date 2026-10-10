@@ -9,6 +9,7 @@ module.exports = {
     },
   },
   create(context) {
+    if (!context.filename.split(/[\\/]/).includes("e2e")) return {}
     const source = context.sourceCode
     const propertyName = (node) => node.computed ? node.property.value : node.property.name
 

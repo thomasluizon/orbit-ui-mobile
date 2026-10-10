@@ -16,14 +16,16 @@ tester.run('no-rejecting-animation-wait', require('../no-rejecting-animation-wai
     'Promise.allSettled(document.getAnimations().map(animation => animation.finished))',
     'Promise.all(requests.map(request => request.response))',
     'scope.evaluate(settleAnimations)',
-  ],
+  ].map((code) => ({ code, filename: 'apps/web/e2e/layout/animation-settlement.spec.ts' })).concat([
+    { code: unsafeWait, filename: 'apps/web/__tests__/support/settle-animations.test.ts' },
+  ]),
   invalid: [
     unsafeWait,
     'Promise.all(transitions.map((animation) => animation.finished))',
     'Promise["all"]([animation["finished"]])',
     'const completions = animations.map(animation => animation.finished); Promise.all(completions)',
     'const completion = animation.finished; const completions = [completion]; Promise.all(completions)',
-  ].map((code) => ({ code, errors: [{ messageId: 'rejectingWait' }] })),
+  ].map((code) => ({ code, filename: 'apps/web/e2e/layout/animation-settlement.spec.ts', errors: [{ messageId: 'rejectingWait' }] })),
 })
 
 it('enforces the web e2e scope through the installed ESLint config', async () => {
