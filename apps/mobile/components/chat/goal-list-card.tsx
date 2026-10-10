@@ -1,9 +1,11 @@
 import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { PersonalText } from '@/components/ui/personal-text'
+import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
+import { useState } from 'react'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { formatGoalMetricsDate, getGoalMetricsStatusPresentation } from '@orbit/shared/utils'
 import type { GoalListCard as GoalListCardData, GoalListCardItem } from '@orbit/shared/types/chat'
 import { BlockFrame } from '@/components/ui/block-frame'
@@ -16,6 +18,20 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 function percentage(item: GoalListCardItem): number {
   return item.target <= 0 ? 0 : Math.min(100, Math.max(0, Math.round((item.current / item.target) * 100)))
+}
+
+function GoalName({ name, onOpen }: Readonly<{ name: string; onOpen: () => void }>) {
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return <InsetFocusPressable accessibilityRole="button" accessibilityLabel={name} onPress={onOpen}
+    onFocus={() => setFocused(true)}
+    onBlur={() => setFocused(false)}
+    onHoverIn={() => setHovered(true)} onHoverOut={() => setHovered(false)}
+    style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, alignSelf: 'stretch', marginHorizontal: -8, minWidth: 0, justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed || focused || hovered ? tokens.bgHover : 'transparent' })}>
+    <PersonalText style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{name}</PersonalText>
+  </InsetFocusPressable>
 }
 
 export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: GoalListCardData; onOpenGoal?: (id: string) => void }>) {
@@ -31,7 +47,8 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     const tracking = getGoalMetricsStatusPresentation(item.trackingStatus)
     return {
       id: item.id,
-      label: <View style={{ minWidth: 0, gap: 8, alignItems: 'flex-start' }}>{onOpenGoal ? <Pressable accessibilityRole="button" accessibilityLabel={item.title} onPress={() => onOpenGoal(item.id)} style={({ pressed }) => ({ minHeight: TOUCH_TARGET_MIN, width: '100%', minWidth: 0, justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, overflow: 'hidden', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}><PersonalText style={{ color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 }}>{item.title}</PersonalText></Pressable> : <PersonalTextDetails>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}</View>,
+      wrapLabel: true,
+      label: <View style={{ minWidth: 0, gap: 8, alignItems: 'flex-start' }}>{onOpenGoal ? <GoalName name={item.title} onOpen={() => onOpenGoal(item.id)} /> : <PersonalTextDetails outset>{item.title}</PersonalTextDetails>}{tracking ? <Badge variant="outline">{t(tracking.labelKey)}</Badge> : null}</View>,
       meta: [progress, deadline, projected].filter(Boolean).join(' · '),
       wrapMeta: projected != null,
       control: value === 100

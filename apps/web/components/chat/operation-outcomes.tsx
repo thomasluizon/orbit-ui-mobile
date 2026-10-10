@@ -25,7 +25,7 @@ export function OperationOutcomes({ outcomes }: Readonly<{ outcomes: readonly Ag
     const policy = outcome.status === 'UnsupportedByPolicy'
     return <BlockFrame key={outcome.id} state={failed ? 'partiallyFailed' : 'resting'} title={t(`chat.operation.outcome.${outcome.status}`)} items={[{
       id: outcome.id,
-      label: outcome.target ? <PersonalTextDetails>{outcome.target}</PersonalTextDetails> : localName(outcome.source, outcome.target, t),
+      label: outcome.target ? <PersonalTextDetails outset>{outcome.target}</PersonalTextDetails> : localName(outcome.source, outcome.target, t),
       wrapLabel: Boolean(outcome.target),
       meta: t(getAgentPolicyReasonKey(outcome.policyReason) ?? `chat.operation.status.${outcome.status}`),
       status: failed ? 'failed' : undefined,

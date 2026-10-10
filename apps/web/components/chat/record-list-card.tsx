@@ -76,7 +76,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     const details = [unread ? t('chat.recordList.unread') : null, item.detail, item.date ? date.format(new Date(item.date)) : null, itemCount, keyState].filter(Boolean)
     return {
       id: item.id,
-      label: <PersonalTextDetails textStyle={{ color: unread ? 'var(--fg-1)' : 'var(--fg-2)', fontWeight: unread ? 600 : 400 }}>{item.title}</PersonalTextDetails>,
+      label: <PersonalTextDetails outset textStyle={{ color: unread ? 'var(--fg-1)' : 'var(--fg-2)', fontWeight: unread ? 600 : 400 }}>{item.title}</PersonalTextDetails>,
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,

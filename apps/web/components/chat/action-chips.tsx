@@ -29,7 +29,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
         const personal = Boolean(row.entityName && row.labelKey)
         return {
           id: row.id,
-          label: personal ? <PersonalTextDetails>{label}</PersonalTextDetails> : label,
+          label: personal ? <PersonalTextDetails outset>{label}</PersonalTextDetails> : label,
           wrapLabel: personal,
           meta: row.status === 'failed' ? t('chat.operation.status.Failed') : undefined,
           status: row.status,
