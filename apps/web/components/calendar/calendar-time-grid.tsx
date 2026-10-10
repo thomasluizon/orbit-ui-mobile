@@ -18,6 +18,7 @@ const BLOCK_HEIGHT = 72
 const BLOCK_MIN_WIDTH = 48
 const BLOCK_HORIZONTAL_INSET = 4
 const MIN_LANE_WIDTH = 96
+const MIN_COLUMN_WIDTH = 192
 const HEADER_HEIGHT = 52
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 const SCROLLER_VARIABLES = { '--time-grid-tail': '8rem' }
@@ -212,7 +213,7 @@ export function CalendarTimeGrid({
     1,
     ...perColumn.flatMap(({ timed }) => timed.map(({ laneCount }) => laneCount)),
   )
-  const minColumnWidth = Math.max(96, maxLaneCount * MIN_LANE_WIDTH)
+  const minColumnWidth = Math.max(MIN_COLUMN_WIDTH, maxLaneCount * MIN_LANE_WIDTH)
   const longestHourLabel = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, '0')}:00`).length))
   const gutterWidth = `max(96px, calc(${longestHourLabel}ch + 16px))`
   const columnMinWidth = `${minColumnWidth / 16}rem`
