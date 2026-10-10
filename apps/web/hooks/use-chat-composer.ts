@@ -231,7 +231,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   )
   const canSend =
     hasComposerContent(input, attachments) && !isSending && !atMessageLimit && isOnline
-  const showSuggestions = messages.length === 0 && !isTyping
+  const showSuggestions = messages.length === 0 && !isTyping && !atMessageLimit
 
   const recordingTime = useMemo(() => {
     const mins = Math.floor(recordingDuration / 60)
