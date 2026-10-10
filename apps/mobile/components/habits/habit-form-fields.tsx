@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
 import { useBackendErrorDisclosure, useBackendFieldErrors } from '@/hooks/use-backend-field-errors'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
@@ -41,7 +42,6 @@ import { ListRow } from '@/components/ui/list-row'
 import { Proposed } from '@/components/ui/proposed'
 import { FormSectionLabel } from './habit-form-fields/form-section-label'
 import { PillButton } from '@/components/ui/pill-button'
-import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
@@ -198,7 +198,7 @@ function SubHabitSection({
           {children}
         </Proposed>
       ) : (
-        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} inset={false} onClick={onUpgrade} />
+        <ListRow title={t('common.upgrade')} trailing={<Badge>{t('common.proBadge')}</Badge>} placement="column" onClick={onUpgrade} />
       )}
     </View>
   )
@@ -433,7 +433,7 @@ export function HabitFormFields({
       />
 
       <View style={styles.disclosure}>
-        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} expanded={detailsOpen} inset={false} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
+        <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} expanded={detailsOpen} placement="column" chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <HabitRepeatInterval visible={isFlexible || Boolean(frequencyUnit)} intervalWeeks={intervalWeeks} scheduleLocked={lockedGeneral === true} onIntervalWeeksChange={controller.setIntervalWeeks} labels={understandingLabels} />
@@ -469,13 +469,9 @@ export function HabitFormFields({
             <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={onUpgrade} t={t}>
               {subHabitChildren}
             </SubHabitSection>
-            <View style={styles.avoidRow}>
-              <View style={styles.avoidCopy}>
-                <Text numberOfLines={1} style={styles.avoidTitle}>{t('habits.form.habitTypeAvoid')}</Text>
-                <Text numberOfLines={1} style={styles.hint}>{t('habits.form.habitTypeAvoidHint')}</Text>
-              </View>
-              <Switch label={t('habits.form.habitTypeAvoid')} checked={isBadHabit} onChange={(checked) => setValue('isBadHabit', checked, { shouldDirty: true })} />
-            </View>
+            {/* eslint-disable-next-line local/max-button-words -- Orbit Habit Create draws the avoid-habit switch label. */}
+            <ListRow placement="column" title={t('habits.form.habitTypeAvoid')} description={t('habits.form.habitTypeAvoidHint')} toggle={{ checked: isBadHabit, onChange: (checked) => setValue('isBadHabit', checked, { shouldDirty: true }) }} />
+
             <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
             <View><TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow error={newTagErrors.fieldErrors.name} focusRequest={newTagErrors.focusRequest} value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={tags.setNewTagName} onCommit={() => void createNewTag()} onCancel={() => { newTagErrors.clearBackendErrors(); tags.setShowNewTag(false) }} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow error={editTagErrors.fieldErrors.name} focusRequest={editTagErrors.focusRequest} value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={() => { editTagErrors.clearBackendErrors(); tags.cancelEditTag() }} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
             <View><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
@@ -496,9 +492,6 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: { gap: 24 }, disclosure: { gap: 12 }, details: { gap: 24, paddingHorizontal: 16 },
     compactGroup: { gap: 8 }, startDate: { gap: 4 },
-    avoidRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
-    avoidCopy: { flex: 1, minWidth: 0, gap: 4 },
-    avoidTitle: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     hint: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
     startDateValue: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 },

@@ -1,3 +1,4 @@
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { expect, test, type Page, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
@@ -69,6 +70,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
         await page.goto(`/habits/${habit.id}`)
         const title = page.locator('[data-habit-detail-content] h1 > button')
         await expect(title).toHaveText(habit.title)
+        const hit = await title.evaluate(readExpandedControlGeometry)
+        expect(hit.height).toBeGreaterThanOrEqual(48)
+        expect(hit.edgeHits).toEqual([true, true, true, true])
         const composer = page.locator('[data-composer-input]:visible')
         await expect(composer).toBeVisible()
         expect((await composer.evaluate(measureFieldInset)).pillInset).toBeCloseTo(60, 1)

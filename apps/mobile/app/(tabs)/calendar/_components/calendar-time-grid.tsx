@@ -302,7 +302,8 @@ export function CalendarTimeGrid({
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const headerHeight = Math.max(52, 16 + 4 + 12 * 1.4 * fontScale + 24 * fontScale);
 
-  const gutterWidth = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, "0")}:00`).length)) * 12 * 0.7 * fontScale + 16;
+  const gutterWidth = Math.max(96, Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, "0")}:00`).length)) * 12 * 0.7 * fontScale + 16);
+  const [anyTimeLabelHeight, setAnyTimeLabelHeight] = useState(0);
   const [disclosure, setDisclosure] = useState<{ entries: CalendarDayEntry[]; title: string } | null>(null);
   const bodyScrollRef = useRef<ScrollView>(null);
   const gutterScrollRef = useRef<ScrollView>(null);
@@ -356,7 +357,7 @@ export function CalendarTimeGrid({
   const opened = useRef(false);
   const chipCount = Math.max(1, ...perColumn.map(({ allDay }) => Math.min(2, allDay.length)));
   const chipHeight = Math.max(48, 44.8 * fontScale);
-  const allDayBandHeight = chipCount * chipHeight + (chipCount - 1) * 4 + 16 + 1;
+  const allDayBandHeight = Math.max(chipCount * chipHeight + (chipCount - 1) * 4, anyTimeLabelHeight) + 16 + 1;
   useEffect(() => {
     if (opened.current || isLoading || paneLayout.isLoading || bodyHeight <= 0 || paneHeight <= 0) return;
     const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)));
@@ -400,9 +401,9 @@ export function CalendarTimeGrid({
               showsVerticalScrollIndicator={false}
               stickyHeaderIndices={isPanePinned ? [0] : []}
             >
-              <View style={{ height: paneHeight, backgroundColor: tokens.bgElev }}>
+              <View style={{ minHeight: paneHeight, backgroundColor: tokens.bgElev }}>
                 <View style={[styles.gutterCorner, { height: headerHeight }]} />
-                <View style={[styles.gutterAllDay, { height: allDayBandHeight }]}><Text testID="time-grid-any-time-label" style={styles.anyTimeLabel}>{allDayLabel}</Text></View>
+                <View style={[styles.gutterAllDay, { minHeight: allDayBandHeight }]}><Text testID="time-grid-any-time-label" onLayout={(event) => setAnyTimeLabelHeight(event.nativeEvent.layout.height)} style={styles.anyTimeLabel}>{allDayLabel}</Text></View>
               </View>
               <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
                 {HOURS.map((hour) => (
@@ -568,8 +569,10 @@ function createStyles(tokens: Tokens) {
       paddingBottom: 16,
     },
     anyTimeLabel: {
+      maxWidth: "100%",
       fontFamily: "Geist_400Regular",
       fontSize: 12,
+      lineHeight: 16.8,
       color: tokens.fg2,
     },
     card: {

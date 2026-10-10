@@ -22,11 +22,12 @@ describe('InsetFocusPressable', () => {
       TestRenderer.act(() => host().props.onFocus({ target, currentTarget: target }))
       const siblings = host().findAllByType('View').filter((view: { parent: { parent: unknown } }) => view.parent.parent === host())
       expect(siblings).toHaveLength(2)
-      const [track, ring] = siblings
+      const ring = siblings.at(-1)!
+      const track = tree!.root.findAll((node: { props: Record<string, unknown> }) => node.props['data-slot'] === 'switch-track')[0]!
       expect(StyleSheet.flatten(track.props.style)).toMatchObject({ width: 48, height: 28 })
       expect(ring.props).toMatchObject({ pointerEvents: 'none', accessible: false, focusable: false })
       expect(StyleSheet.flatten(ring.props.style)).toMatchObject({ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, outlineWidth: 2, outlineOffset: -2, outlineColor: createTokensV2('orange', mode).fg1 })
-      expect(StyleSheet.flatten(host().props.style({ pressed: false }))).toEqual(resting)
+      expect(StyleSheet.flatten(host().props.style({ pressed: false }))).toMatchObject({ ...resting, backgroundColor: createTokensV2('orange', mode).bgHover })
       TestRenderer.act(() => host().props.onPress())
       expect(onChange).toHaveBeenCalledWith(!checked)
       TestRenderer.act(() => host().props.onBlur({ target, currentTarget: target }))

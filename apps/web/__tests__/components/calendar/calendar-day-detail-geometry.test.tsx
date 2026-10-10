@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -44,11 +44,12 @@ describe('day card compact geometry', () => {
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each([320, 360, 384, 412, 1280].flatMap((width) => [false, true].flatMap((loggable) => locales.map(({ locale, messages }) => ({ width, loggable, locale, messages })))))('fits titles and targets at $width with loggable=$loggable in $locale', async ({ width, loggable, locale, messages }) => {
+    const openTitle = vi.fn()
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <div style={{ padding: 16 }}><CalendarDayDetail dateStr="2026-09-12" today="2026-09-12"
         entries={[{ habitId: 'habit-1', title: 'Caminhar pelo bairro depois do trabalho', status: 'completed', isBadHabit: false, dueTime: '08:00', isOneTime: false }, { habitId: 'habit-2', title: 'Ler', status: 'upcoming', isBadHabit: false, dueTime: null, isOneTime: false }]}
         calendarEvents={events} showEventSource calendarEventsState="ready" loggable={loggable} showRecurring pendingEntryStates={new Map()}
-        onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
+        onOpenHabitTitle={openTitle} onEntryChange={() => null} onRetryCalendarEvents={vi.fn()} onReconnectCalendarEvents={vi.fn()} onOpenCalendarImport={vi.fn()} onViewPro={vi.fn()} />
       </div>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 1800 } })
@@ -90,17 +91,17 @@ describe('day card compact geometry', () => {
               return [box.left - cardBox.left, cardBox.right - box.right]
             }),
             dayGap: dayRows[1]!.getBoundingClientRect().top - dayRows[0]!.getBoundingClientRect().bottom,
-            labelMinimum: label ? Number.parseFloat(getComputedStyle(label).minHeight) : null,
-            labelPadding: label ? [getComputedStyle(label).paddingTop, getComputedStyle(label).paddingLeft] : null,
+            labelMinimum: label ? Number.parseFloat(getComputedStyle(label.closest('[data-slot="list-row-body"]')!).minHeight) : null,
+            labelPadding: label ? [getComputedStyle(label.closest('[data-slot="list-row-body"]')!).paddingTop, getComputedStyle(label.closest('[data-slot="list-row-body"]')!).paddingLeft] : null,
             width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth,
             eventClipped: headline.scrollHeight > headline.clientHeight || headline.scrollWidth > headline.clientWidth,
             eventHeight: headline.getBoundingClientRect().height, eventLineHeight: Number.parseFloat(getComputedStyle(headline).lineHeight),
             eventLines: new Set([...titleRange.getClientRects()].map((box) => Math.round(box.top))).size,
             labels,
             targets: [...document.querySelectorAll<HTMLElement>('button, a')].map((target) => {
-              const box = target.getBoundingClientRect()
+              const box = (target.querySelector('[data-press-fill]') ?? target).getBoundingClientRect()
               const style = getComputedStyle(target)
-              return { label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth, listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
+              return { personalTitle: target.querySelector('[data-personal-text]')?.getAttribute('aria-label'), label: target.getAttribute('aria-label') ?? target.textContent, width: box.width, height: box.height, left: box.left, right: box.right, clipped: [...target.querySelectorAll<HTMLElement>('[data-personal-text], [data-slot="list-row-title"]')].some((label) => label.scrollHeight > label.clientHeight || label.scrollWidth > label.clientWidth), listRow: target.classList.contains('orbit-list-row-body'), inlinePadding: Math.min(Number.parseFloat(style.paddingInlineStart), Number.parseFloat(style.paddingInlineEnd)), blockPadding: Math.min(Number.parseFloat(style.paddingTop), Number.parseFloat(style.paddingBottom)) }
             }),
           }
         })
@@ -115,7 +116,7 @@ describe('day card compact geometry', () => {
         expect(geometry.dayGap).toBeCloseTo(0)
         if (loggable) {
           expect(geometry.labelMinimum).toBeGreaterThanOrEqual(68)
-          expect(geometry.labelPadding).toEqual([`${12 * scale}px`, `${16 * scale}px`])
+          expect(geometry.labelPadding).toEqual(['12px', '16px'])
         }
         expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.width)
         expect(geometry.eventHeight).toBeLessThanOrEqual(geometry.eventLineHeight * 2 + 1)
@@ -129,13 +130,18 @@ describe('day card compact geometry', () => {
           expect(target.height, JSON.stringify(target)).toBeGreaterThanOrEqual(48)
           expect(target.left).toBeGreaterThanOrEqual(16)
           expect(target.right).toBeLessThanOrEqual(width - 16)
-          expect(target.clipped, JSON.stringify(target)).toBe(false)
+          if (target.clipped) {
+            expect(target.personalTitle, JSON.stringify(target)).toBeTruthy()
+            expect(target.label, JSON.stringify(target)).toContain(target.personalTitle)
+          }
           if (target.listRow) {
             expect(target.inlinePadding, JSON.stringify(target)).toBeGreaterThanOrEqual(8)
             expect(target.blockPadding, JSON.stringify(target)).toBeGreaterThanOrEqual(4)
           }
         }
       }
+      fireEvent.click(container.querySelector('button[aria-label^="Caminhar pelo bairro"]')!)
+      expect(openTitle).toHaveBeenCalledExactlyOnceWith('Caminhar pelo bairro depois do trabalho')
     } finally { await page.close() }
   })
 })

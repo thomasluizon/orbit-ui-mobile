@@ -824,7 +824,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -838,7 +839,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -852,7 +854,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -866,7 +869,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7017,7 +7021,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -7032,7 +7037,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -7047,7 +7053,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7062,7 +7069,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",

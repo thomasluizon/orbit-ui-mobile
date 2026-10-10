@@ -1,3 +1,4 @@
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { expect, test } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -34,7 +35,11 @@ for (const width of [412, 1280]) {
       await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
 
       await page.goto(`/habits/${habit.id}`)
-      await expect(page.locator('[data-habit-detail-content] h1 > button')).toHaveText(habit.title)
+      const title = page.locator('[data-habit-detail-content] h1 > button')
+      await expect(title).toHaveText(habit.title)
+      const hit = await title.evaluate(readExpandedControlGeometry)
+      expect(hit.height).toBeGreaterThanOrEqual(48)
+      expect(hit.edgeHits).toEqual([true, true, true, true])
       await page.getByRole('button', { name: ptBr.habits.detail.moreDetails, exact: true }).click()
       await expect(page.getByRole('textbox', { name: ptBr.habits.form.exactTime, exact: true })).toHaveValue('21:00')
       await page.getByRole('button', { name: `${ptBr.habits.form.exactTime}: ${ptBr.common.selectTime}`, exact: true }).click()

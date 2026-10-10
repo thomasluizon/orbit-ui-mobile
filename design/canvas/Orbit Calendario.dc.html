@@ -412,7 +412,7 @@ const T = {
     recLabel: 'Mostrar hábitos recorrentes',
     statBest: 'Recorde', statLogs: 'Registros', statMiss: 'Sem registro',
     goDay: 'Abrir este dia no Hoje',
-    anytime: 'Sem hora certa',
+    anytime: 'Sem horário',
     syncOn: 'Google Calendar conectado', syncLast: (v) => ['Última sincronização ', mock(v)],
     syncAuto: 'Sincronizar sozinho',
     rangePrev: 'Período anterior', rangeNext: 'Período seguinte',
@@ -621,7 +621,7 @@ class Component extends DCLogic {
                   color: day === TODAY ? 'var(--fg-on-primary)' : 'var(--fg-1)' } }, mock(String(day))));
             })),
           H('div', { style: { display: 'grid', gridTemplateColumns: gridTemplate } },
-            H('div', { style: { position: 'sticky', left: 0, zIndex: 1, padding: 8, fontSize: 12, color: 'var(--fg-2)', ...pinned } }, t.anytime),
+            H('div', { style: { position: 'sticky', left: 0, zIndex: 1, padding: 8, minWidth: 0, fontSize: 12, lineHeight: 1.4, color: 'var(--fg-2)', ...pinned } }, t.anytime),
             days.map((day) => H('div', { key: day, style: { padding: '8px 4px', minHeight: 64,
               display: 'flex', flexDirection: 'column', gap: 4, borderLeft: '1px solid var(--hairline)',
               borderBottom: '1px solid var(--hairline)' } },

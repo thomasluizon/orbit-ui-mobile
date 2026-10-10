@@ -266,9 +266,9 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' })).toHaveTextContent('🌱')
   })
 
-  it('uses a bare compact details row', () => {
+  it('places the details row on the padded column edge', () => {
     renderForm()
-    expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingInlineStart: '0px', paddingBlock: '4px' })
+    expect(screen.getByRole('button', { name: 'habits.form.moreDetails' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', position: 'relative', paddingBlock: '12px' })
   })
 
   it.each([

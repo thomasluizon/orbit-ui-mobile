@@ -1,3 +1,4 @@
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -33,12 +34,13 @@ async function expectClearTitleIndicator(page: Page, heading: Locator, target: L
   await expect(target).toBeFocused()
   expect(await target.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
   expect(await readFieldIndicators(heading, 'h1', { includeDescendants: true })).toHaveLength(1)
-  expect(await readOutlineVisibility(target)).toMatchObject({ width: 2, visible: true, clippedBy: [] })
-  const clearance = await target.evaluate((element) => {
+  expect(await readOutlineVisibility(target, '::before')).toMatchObject({ width: 2, visible: true, clippedBy: [] })
+  const hit = await target.evaluate(readExpandedControlGeometry)
+  expect(hit.edgeHits).toEqual([true, true, true, true])
+  const clearance = await target.evaluate((element, bounds) => {
     const heading = element.closest('h1')!
-    const bounds = element.getBoundingClientRect()
     const summary = heading.nextElementSibling!.getBoundingClientRect()
-    const style = getComputedStyle(element)
+    const style = getComputedStyle(element, '::before')
     const offset = Number.parseFloat(style.outlineOffset)
     const outerEdge = offset + Number.parseFloat(style.outlineWidth)
     const range = document.createRange()
@@ -48,7 +50,7 @@ async function expectClearTitleIndicator(page: Page, heading: Locator, target: L
       glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
       summaryGap: summary.top - bounds.bottom - outerEdge,
     }
-  })
+  }, hit)
   expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
   expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
 }
@@ -85,7 +87,10 @@ for (const width of [412, 1100]) {
     })
 
     test('aligns the title glyphs with the summary and controls and retains the base height', async ({ page }) => {
-      const geometry = await page.getByRole('heading', { level: 1, name: habit.title }).evaluate((heading) => {
+      const heading = page.getByRole('heading', { level: 1, name: habit.title })
+      const hit = await heading.getByRole('button').evaluate(readExpandedControlGeometry)
+      expect(hit.edgeHits).toEqual([true, true, true, true])
+      const geometry = await heading.evaluate((heading, hit) => {
         const button = heading.querySelector('button')!
         const summary = heading.nextElementSibling!
         const row = heading.closest('[data-habit-detail-header-row]')!
@@ -107,11 +112,11 @@ for (const width of [412, 1100]) {
           titleX: text.left,
           summaryX: summaryText.left,
           controlsX: controls.getBoundingClientRect().left,
-          hitHeight: button.getBoundingClientRect().height,
+          hitHeight: hit.height,
           rowHeight: row.getBoundingClientRect().height,
           baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
         }
-      })
+      }, hit)
       expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
       expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
       expect(geometry.hitHeight).toBeGreaterThanOrEqual(48)

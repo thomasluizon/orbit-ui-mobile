@@ -139,8 +139,8 @@ describe('TrialExpiredModal', () => {
     expect(pausedStatuses).toHaveLength(4)
     for (const [index, feature] of ['astraCeiling', 'calendarSync', 'retrospective', 'proactiveAstra'].entries()) {
       const label = screen.getByText(`trial.expired.${feature}`)
-      expect(pausedStatuses[index]?.parentElement).toBe(label.parentElement?.parentElement)
-      expect(label.parentElement?.nextElementSibling).toBe(pausedStatuses[index])
+      expect(pausedStatuses[index]?.parentElement).toBe(label.parentElement)
+      expect(label.nextElementSibling).toBe(pausedStatuses[index])
     }
   })
 

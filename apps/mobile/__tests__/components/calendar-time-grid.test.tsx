@@ -2,6 +2,9 @@ import React from "react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { StyleSheet } from "react-native";
 import * as ReactNative from "react-native";
+import { Resvg } from '@resvg/resvg-js';
+import en from '@orbit/shared/i18n/en.json';
+import ptBR from '@orbit/shared/i18n/pt-BR.json';
 import { __setScrollToImpl } from "../../test-mocks/react-native";
 import { CalendarEntryDetails } from "@/app/(tabs)/calendar/_components/calendar-entry-details";
 import { sheetTestControls } from "@/__tests__/support/sheet-double";
@@ -69,6 +72,8 @@ function renderGrid(
   formatTime = displayTime,
   timeZone: string | null = "UTC",
   gridTokens = tokens,
+  language = 'en',
+  allDayLabel = en.calendar.timeGrid.noSetTime,
 ): Tree {
   let tree: Tree;
   TestRenderer.act(() => {
@@ -78,8 +83,8 @@ function renderGrid(
         dayMap={dayMap}
         onSelectDay={onSelectDay}
         displayTime={formatTime}
-        language="en"
-        allDayLabel="No set time"
+        language={language}
+        allDayLabel={allDayLabel}
         nowLabel="Now"
         isLoading={isLoading}
         t={translate}
@@ -123,6 +128,12 @@ function resolveStyle(style: unknown): Record<string, unknown> {
   return (StyleSheet.flatten(value) ?? {}) as Record<string, unknown>;
 }
 
+function hostParent(node: TestNode): TestNode {
+  let parent = node.parent!;
+  while (typeof parent.type !== 'string') parent = parent.parent!;
+  return parent;
+}
+
 function renderedAncestorHeight(node: TestNode): number | undefined {
   let ancestor = node.parent;
   while (ancestor) {
@@ -135,6 +146,43 @@ function renderedAncestorHeight(node: TestNode): number | undefined {
 }
 
 describe("CalendarTimeGrid (mobile)", () => {
+  for (const [language, words] of [['en', en], ['pt-BR', ptBR]] as const) {
+    it.each([320, 360, 384, 412, 1352])(`fits the ${language} any-time label on one line at font scale 1 and %ipx`, (width) => {
+      vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 });
+      const day = column('2026-10-05');
+      const entries = [null, null, null, '08:00', '21:00'].map((dueTime, index) => makeEntry({ habitId: `label-fit-${index}`, dueTime, title: `Organizar as anotações e preparar a semana ${index}` }));
+      const tree = renderGrid([day], new Map([[day.dateStr, entries]]), vi.fn(), false, displayTime, 'UTC', tokens, language, words.calendar.timeGrid.noSetTime);
+      const label = hostsByTestID(tree, 'time-grid-any-time-label')[0]!;
+      const labelStyle = resolveStyle(label.props.style);
+      const cell = hostParent(label);
+      const cellStyle = resolveStyle(cell.props.style);
+      const gutterStyle = resolveStyle(hostParent(hostParent(hostParent(cell))).props.style);
+      const font = require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="64"><text y="32" font-family="Geist" font-size="${Number(labelStyle.fontSize)}">${label.props.children}</text></svg>`;
+      const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!;
+      const available = Number(gutterStyle.width) - Number(cellStyle.padding) * 2;
+      expect(labelStyle.fontFamily).toBe('Geist_400Regular');
+      expect(labelStyle.fontSize).toBe(12);
+      expect(label.props.children).toBe(words.calendar.timeGrid.noSetTime);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(available);
+      expect(label.props.numberOfLines).toBeUndefined();
+      expect(label.props.ellipsizeMode).toBeUndefined();
+    });
+  }
+
+  it.each([['en', en], ['pt-BR', ptBR]] as const)('grows and aligns an empty %s any-time lane to the measured accessibility label', (language, words) => {
+    vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 320, height: 915, scale: 1, fontScale: 2 });
+    const tree = renderGrid([column('2026-10-05')], new Map(), vi.fn(), false, displayTime, 'UTC', tokens, language, words.calendar.timeGrid.noSetTime);
+    const label = hostsByTestID(tree, 'time-grid-any-time-label')[0]!;
+    TestRenderer.act(() => label.props.onLayout?.({ nativeEvent: { layout: { x: 0, y: 0, width: 80, height: 120 } } }));
+    const cell = hostParent(hostsByTestID(tree, 'time-grid-any-time-label')[0]!);
+    const style = resolveStyle(cell.props.style);
+    expect(style.height).toBeUndefined();
+    expect(Number(style.minHeight)).toBeGreaterThanOrEqual(120 + Number(style.padding) * 2 + Number(style.borderBottomWidth));
+    expect(renderedAncestorHeight(hostsByTestID(tree, 'time-grid-all-day')[0]!)).toBe(style.minHeight);
+    expect(resolveStyle(hostParent(cell).props.style).height).toBeUndefined();
+  });
+
   it.each(['light', 'dark'] as const)('keeps timed metadata readable on %s press', (mode) => {
     setRuntimeTheme({ themeMode: mode });
     const palette = createTokensV2('purple', mode);
