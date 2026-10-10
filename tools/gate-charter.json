@@ -344,6 +344,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "eslint-rules/no-rejecting-animation-wait.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "eslint-rules/no-scroll-listener-motion.cjs": {
     "scope": "changed-files",
     "snapshot": "none",

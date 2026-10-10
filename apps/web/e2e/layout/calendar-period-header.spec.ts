@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect, type Locator } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -35,10 +36,10 @@ for (const width of [320, 412, 1100, 1352]) {
           const controls = navigation.getByRole('button')
           await expect(controls).toHaveCount(3)
           await restPointerOutside(header)
-          await controls.nth(1).evaluate(async (title) => {
+          await controls.nth(1).evaluate(async () => {
             await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-            await Promise.all(title.getAnimations().filter((animation) => animation instanceof CSSTransition).map((animation) => animation.finished))
           })
+          await controls.nth(1).evaluate(settleAnimations)
           await expect(controls.nth(1)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
           const geometry = await controls.evaluateAll((buttons) => buttons.map((button) => {
             const bounds = button.getBoundingClientRect(); const style = getComputedStyle(button)

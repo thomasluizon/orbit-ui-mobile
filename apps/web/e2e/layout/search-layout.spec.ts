@@ -1,3 +1,4 @@
+import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
@@ -99,9 +100,11 @@ for (const width of [412, 840, 1440]) {
           await expect(options.first()).toHaveAttribute('aria-selected', 'true')
           await expect(options.nth(1)).toHaveAttribute('aria-selected', 'false')
           await expect(async () => {
-            const paint = await options.nth(1).evaluate(async (element) => {
+            await options.nth(1).evaluate(async () => {
               await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-              await Promise.all(element.getAnimations().map((animation) => animation.finished))
+            })
+            await options.nth(1).evaluate(settleAnimations)
+            const paint = await options.nth(1).evaluate((element) => {
               const probe = document.createElement('span')
               probe.style.backgroundColor = 'var(--bg-hover)'
               probe.style.boxShadow = 'inset 0 0 0 1px var(--hairline-ghost)'
@@ -148,9 +151,11 @@ for (const width of [412, 840, 1440]) {
               const hovered = index === 0 && pointer === 'result 0'
               await expect(options.nth(index)).toHaveAttribute('aria-selected', String(selected))
               await expect(async () => {
-                const paint = await options.nth(index).evaluate(async (element, state) => {
+                await options.nth(index).evaluate(async () => {
                   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-                  await Promise.all(element.getAnimations().map((animation) => animation.finished))
+                })
+                await options.nth(index).evaluate(settleAnimations)
+                const paint = await options.nth(index).evaluate((element, state) => {
                   const probe = document.createElement('span')
                   probe.style.backgroundColor = state.selected ? 'var(--primary-dim)' : state.hovered ? 'var(--bg-hover)' : 'var(--bg-card)'
                   probe.style.boxShadow = state.selected ? 'inset 0 0 0 1.5px var(--primary)' : 'inset 0 0 0 1px var(--hairline-ghost)'
