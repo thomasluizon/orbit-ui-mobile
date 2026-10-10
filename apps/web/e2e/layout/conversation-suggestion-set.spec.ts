@@ -42,11 +42,11 @@ for (const width of [412, 1280]) {
           await expect(empty.getByRole('button')).toHaveCount(0)
           const strip = conversation.getByRole('group', { name: words.shell.composer.suggestionsLabel, exact: true })
           if (atLimit) {
-            await expect(conversation.getByText(words.chat.empty.title, { exact: true })).toHaveCount(0)
             await expect(strip).toHaveCount(0)
             const composer = conversation.locator('[data-composer-root]')
             await expect(composer).toHaveAttribute('data-state', 'atLimit')
             await expect(composer.getByText(words.shell.composer.limit.reason.replace('{allowance}', String(profile.aiMessagesLimit)), { exact: true })).toBeVisible()
+            await expect(conversation.getByText(words.chat.empty.title, { exact: true })).toHaveCount(0)
           } else {
             await expect(empty.getByText(words.chat.empty.title, { exact: true })).toBeVisible()
             await expect(empty.locator('[data-asset="astra-mark"]')).toBeVisible()
