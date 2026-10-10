@@ -10,6 +10,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { readFieldIndicators, inspectFocusedRing } from './focus-indicators'
+import { inspectDestinationHeading } from './destination-heading'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
@@ -92,64 +93,68 @@ async function inspectTitles(page: Page) {
     ['/habits/new?from=%2F', ptBR.habits.form.newHabit, '/'],
     ['/profile/account', ptBR.profile.submenus.account, '/profile'],
   ] as const) {
-    await page.goto(path)
-    const heading = page.getByRole('heading', { name: title, exact: true })
-    await expect(heading).toBeVisible()
-    await expectWayfindingFocus(page, heading)
-    if (path.startsWith('/habits')) {
-      await expectHabitCreateControls(page)
-      await page.emulateMedia({ forcedColors: 'active' })
+    await inspectDestinationHeading(page, path, title, async (heading) => {
       await expectWayfindingFocus(page, heading)
-      await expectHabitCreateControls(page, true)
-      await page.emulateMedia({ forcedColors: 'none' })
-    }
-    await page.goto(entry)
-    if (entry === '/') await page.getByRole('button', { name: ptBR.nav.createHabit, exact: true }).click()
-    else await page.getByTestId('profile-settings-group-you').getByRole('link').filter({ hasText: profileFixture.name }).click()
-    await expect(page).toHaveURL((url) => url.pathname === path.split('?')[0])
-    await expect(heading).toBeFocused()
-    await expectWayfindingFocus(page, heading)
+      if (path.startsWith('/habits')) {
+        await expectHabitCreateControls(page)
+        await page.emulateMedia({ forcedColors: 'active' })
+        await expectWayfindingFocus(page, heading)
+        await expectHabitCreateControls(page, true)
+        await page.emulateMedia({ forcedColors: 'none' })
+      }
+    })
+    await inspectDestinationHeading(page, entry, entry === '/' ? ptBR.nav.today : ptBR.nav.profile, async () => {})
+    await inspectDestinationHeading(page, path, title, async (heading) => {
+      await expect(heading).toBeFocused()
+      await expectWayfindingFocus(page, heading)
+    }, async () => {
+      if (entry === '/') await page.getByRole('button', { name: ptBR.nav.createHabit, exact: true }).click()
+      else await page.getByTestId('profile-settings-group-you').getByRole('link').filter({ hasText: profileFixture.name }).click()
+      await expect(page).toHaveURL((url) => url.pathname === path.split('?')[0])
+    })
   }
 }
 
 async function inspectDestinations(page: Page) {
-  await page.goto('/profile')
+  await inspectDestinationHeading(page, '/profile', ptBR.nav.profile, async () => {})
   for (const [path, label] of [
     ['/', ptBR.nav.today], ['/calendar', ptBR.nav.calendar], ['/progress', ptBR.nav.progress], ['/profile', ptBR.nav.profile],
   ] as const) {
-    await page.getByRole('navigation').getByRole('button', { name: label, exact: true }).click()
-    await expect(page).toHaveURL((url) => url.pathname === path)
-    const heading = page.locator('[data-shell-header] h1, [data-shell-scroller] h1').first()
-    await expect(heading).toBeFocused()
-    await expectWayfindingFocus(page, heading)
-    const main = page.getByRole('main')
-    await expectWayfindingFocus(page, main)
-    await expectWayfindingFocus(page, page.locator('[data-shell-scroller]'))
-    if (path === '/') {
-      const row = page.getByTestId('habit-row').first()
-      await expect(row).toBeVisible()
-      await expectWayfindingFocus(page, row)
-      await expectWayfindingFocus(page, row.locator('xpath=ancestor::div[@tabindex="-1"]').first())
-    }
-    if (path === '/progress') {
-      await page.getByRole('button').filter({ hasText: goal.title }).click()
-      await expectWayfindingFocus(page, page.locator('[data-goal-detail] h1'))
-      await expectWayfindingFocus(page, page.locator('[data-goal-detail]'))
-    }
+    await inspectDestinationHeading(page, path, label, async (heading) => {
+      await expect(heading).toBeFocused()
+      await expectWayfindingFocus(page, heading)
+      const main = page.getByRole('main')
+      await expectWayfindingFocus(page, main)
+      await expectWayfindingFocus(page, page.locator('[data-shell-scroller]'))
+      if (path === '/') {
+        const row = page.getByTestId('habit-row').first()
+        await expect(row).toBeVisible()
+        await expectWayfindingFocus(page, row)
+        await expectWayfindingFocus(page, row.locator('xpath=ancestor::div[@tabindex="-1"]').first())
+      }
+      if (path === '/progress') {
+        await page.getByRole('button').filter({ hasText: goal.title }).click()
+        await expectWayfindingFocus(page, page.getByRole('heading', { level: 1, name: goal.title, exact: true }))
+        await expectWayfindingFocus(page, page.locator('[data-goal-detail]'))
+      }
+    }, async () => {
+      await page.getByRole('navigation').getByRole('button', { name: label, exact: true }).click()
+      await expect(page).toHaveURL((url) => url.pathname === path)
+    })
   }
 }
 
 async function inspectConversation(page: Page, width: number) {
-  await page.goto('/')
-  await page.locator(width >= 1024 ? '[data-shell-astra-row]' : '[data-shell-pinned-slot] [data-open-conversation]').click()
-  const panel = page.locator('[data-shell-conversation="overlay"]')
-  await expect(panel).toBeVisible()
-  await expectWayfindingFocus(page, panel)
-  await expectWayfindingFocus(page, panel.locator('[data-composer-root]'))
-  const heading = panel.locator('h1')
-  await expectWayfindingFocus(page, heading)
-  await panel.locator('[data-composer-input]').focus()
-  expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+  await inspectDestinationHeading(page, '/', ptBR.nav.today, async () => {})
+  await inspectDestinationHeading(page, '/', ptBR.chat.title, async (heading) => {
+    const panel = page.locator('[data-shell-conversation="overlay"]')
+    await expect(panel).toBeVisible()
+    await expectWayfindingFocus(page, panel)
+    await expectWayfindingFocus(page, panel.locator('[data-composer-root]'))
+    await expectWayfindingFocus(page, heading)
+    await panel.locator('[data-composer-input]').focus()
+    expect((await inspectFocusedRing(page))?.indicators).toHaveLength(1)
+  }, () => page.locator(width >= 1024 ? '[data-shell-astra-row]' : '[data-shell-pinned-slot] [data-open-conversation]').click())
 }
 
 for (const width of [600, 1352]) {
@@ -161,12 +166,14 @@ for (const width of [600, 1352]) {
         await installCollections(context)
         await inspectTitles(page)
         await inspectDestinations(page)
-        await page.goto(`/habits/${habit.id}`)
-        await expect(page.locator('[data-habit-detail-content]')).toBeVisible()
-        await expectWayfindingFocus(page, page.locator('[data-habit-detail-content] h1'))
-        await expectWayfindingFocus(page, page.locator('.habit-detail-strip'))
-        await page.goto('/notifications')
-        await expectWayfindingFocus(page, page.getByRole('list', { name: ptBR.notifications.title, exact: true }))
+        await inspectDestinationHeading(page, `/habits/${habit.id}`, habit.title, async (heading) => {
+          await expect(page.locator('[data-habit-detail-content]')).toBeVisible()
+          await expectWayfindingFocus(page, heading)
+          await expectWayfindingFocus(page, page.locator('.habit-detail-strip'))
+        })
+        await inspectDestinationHeading(page, '/notifications', ptBR.notifications.title, async () => {
+          await expectWayfindingFocus(page, page.getByRole('list', { name: ptBR.notifications.title, exact: true }))
+        })
         await inspectConversation(page, width)
         await page.goto('/wrapped')
         await page.getByRole('button', { name: ptBR.wrapped.start, exact: true }).click()
