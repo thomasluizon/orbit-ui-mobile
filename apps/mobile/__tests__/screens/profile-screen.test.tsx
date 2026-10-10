@@ -826,9 +826,9 @@ describe('ProfileScreen', () => {
         const declared = body.props.style
         expect(StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared)).toMatchObject({ minHeight: 68, paddingVertical: 12, paddingHorizontal: 16 })
         const description = rowTree.root.find((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === email)
-        expect(StyleSheet.flatten(description.props.style)).toMatchObject({ fontSize: 14, lineHeight: 19.6 })
+        expect(StyleSheet.flatten(description.props.style)).toMatchObject({ fontSize: 14, lineHeight: 17.5 })
         const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
-        if (textScale === 1) expect(Math.abs(geometry.height - 68)).toBeLessThanOrEqual(1)
+        if (textScale === 1) expect(geometry.height).toBe(68)
         else expect(geometry.height).toBeGreaterThan(68)
       } finally { TestRenderer.act(() => rowTree.unmount()) }
     } finally { TestRenderer.act(() => screen.unmount()) }
@@ -852,7 +852,7 @@ describe('ProfileScreen', () => {
         const geometry = measureProfileRow(rowTree.toJSON(), 288, textScale)
         const description = geometry.texts.find(({ label }) => label === email)!
         expect(geometry.texts[0]!.lines).toBeLessThanOrEqual(2)
-        expect(geometry.texts[0]!.lineHeightRatio).toBeGreaterThanOrEqual(1.4)
+        expect(geometry.texts[0]!.lineHeightRatio).toBe(1.25)
         expect(description.clipped).toBe(true)
         expect(description.lines).toBe(1)
         expect(description.right).toBeLessThanOrEqual(288)

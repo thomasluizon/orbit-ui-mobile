@@ -84,7 +84,7 @@ describe('DayCell', () => {
       'data-outcome',
       'not-scheduled',
     )
-    expect(unscheduled.firstElementChild).toHaveStyle({ background: 'transparent' })
+    expect(getComputedStyle(unscheduled.firstElementChild!).backgroundColor).toBe('rgba(0, 0, 0, 0)')
 
     rerender(<DayCell day={30} label="April 30" words={cellWords} outsideMonth />)
     expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
@@ -106,7 +106,7 @@ describe('DayCell', () => {
     const { container, rerender } = render(
       <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} habitHistory />,
     )
-    expect(container.querySelector('[data-outcome="full"] span span')?.className).toContain('text-[var(--bg)]')
+    expect(container.querySelector('[data-day-disc] > span:last-of-type')?.className).toContain('text-[var(--bg)]')
     expect(container.querySelector('span[style*="width: 3px"]')).toBeNull()
 
     rerender(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
@@ -115,10 +115,10 @@ describe('DayCell', () => {
     expect(missedDot?.className).toContain('bg-[var(--status-empty)]')
 
     rerender(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
-    expect(container.querySelector('[data-outcome="not-scheduled"] span')).toHaveStyle({ opacity: '0.4' })
+    expect(container.querySelector('[data-outcome="not-scheduled"] [data-day-disc]')).toHaveStyle({ opacity: '0.4' })
 
     rerender(<DayCell day={18} label="March 18" words={cellWords} done={1} scheduled={1} habitHistory today />)
-    expect(container.querySelector('[data-outcome="full"] span span')).toHaveStyle({ fontWeight: '500' })
+    expect(container.querySelector('[data-day-disc] > span:last-of-type')).toHaveStyle({ fontWeight: '500' })
   })
 })
 

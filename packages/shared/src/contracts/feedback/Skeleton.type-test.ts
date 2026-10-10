@@ -34,6 +34,7 @@ type ExpectedSettingsVariant = {
 }
 type ExpectedGridVariant = {
   variant: 'grid'
+  circular?: boolean
   label: string
   grouped?: never
   rows: number

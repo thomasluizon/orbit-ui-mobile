@@ -7,15 +7,23 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { AccountNavigationRow } from '@/app/(app)/profile/_components/account-navigation-row'
+import { ProfileAccountContent } from '@/app/(app)/profile/_components/profile-account-content'
 import { ListRow } from '@/components/ui/list-row'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('@/hooks/use-shell-notice-slot', () => ({ useShellNoticeSlot: vi.fn() }))
+vi.mock('@/lib/posthog', () => ({ getAnalyticsOptOut: () => null, subscribeAnalyticsOptOut: () => () => {}, setAnalyticsOptOut: vi.fn() }))
+vi.mock('@/app/(app)/profile/_components/use-data-export', () => ({ useDataExport: () => ({ isExporting: false, exportDone: false, exportError: null, exportData: vi.fn(), clearExportDone: vi.fn() }) }))
+vi.mock('@/app/(app)/profile/_components/edit-name-sheet', () => ({ EditNameSheet: () => null }))
+vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({ FreshStartModal: () => null }))
+vi.mock('@/app/(app)/profile/_components/delete-account-modal', () => ({ DeleteAccountModal: () => null }))
 
 describe('personal ListRow text in Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
@@ -27,6 +35,47 @@ describe('personal ListRow text in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([320, 360, 384, 412].flatMap((width) => [1, 2].flatMap((textScale) => [en, ptBR].map((words) => ({ width, textScale, words })))))('keeps paused feature titles and descriptions unclipped at $width, scale $textScale', async ({ width, textScale, words }) => {
+    const paused = words.trial.expired
+    const markup = renderToStaticMarkup(<div style={{ padding: 24 }}>
+      {[paused.astraCeiling, paused.calendarSync, paused.retrospective, paused.proactiveAstra].map((title) => <ListRow key={title} readOnly textMode="label" title={title} description={paused.paused} />)}
+    </div>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}:root { font-size: ${16 * textScale}px; }</style>${markup}`)
+      await loadAppFonts(page)
+      const texts = await page.evaluate(() => Array.from(document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"], [data-slot="list-row-description"]')).map((element) => ({ text: element.textContent, height: element.clientHeight, scrollHeight: element.scrollHeight })))
+      expect(texts).toHaveLength(8)
+      for (const text of texts) expect(text.scrollHeight, text.text!).toBeLessThanOrEqual(text.height)
+    } finally { await page.close() }
+  })
+
+  it.each([600, 840, 1100, 1352].flatMap((width) => [1, 2].flatMap((textScale) => ['Ana', 'Ana Silva'].map((name) => ({ width, textScale, name })))))('matches the composed Conta and Perfil rows at $width, scale $textScale for $name', async ({ width, textScale, name }) => {
+    const profile = createMockProfile({ name, email: 'ana@example.com' })
+    const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <div data-case="account"><ProfileAccountContent profile={profile} patchProfile={vi.fn()} /></div>
+      <div data-case="navigation"><AccountNavigationRow profile={profile} submenu={PROFILE_SUBMENUS[0]!} /></div>
+      <div data-case="plain"><ListRow title={name} description={profile.email} wrapTitle onClick={vi.fn()} /></div>
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}:root { font-size: ${16 * textScale}px; }</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const rows = await page.evaluate(() => ['account', 'navigation', 'plain'].map((kind) => {
+        const row = document.querySelector(`[data-case="${kind}"] .orbit-list-row-shell`)!
+        const title = row.querySelector('[data-slot="list-row-title"]')!
+        const description = row.querySelector('[data-slot="list-row-description"]')!
+        return { height: row.getBoundingClientRect().height, titleHeight: title.getBoundingClientRect().height, descriptionHeight: description.getBoundingClientRect().height }
+      }))
+      for (const row of rows) {
+        if (textScale === 1) expect(row.height).toBe(68)
+        else expect(row.height).toBeGreaterThan(68)
+      }
+      expect(rows[0]).toEqual(rows[2])
+      expect(rows[1]).toEqual(rows[2])
+    } finally { await page.close() }
+  })
 
   it.each([412, 1352])('shares the inset, trailing edge and block padding at %s', async (width) => {
     const markup = renderToStaticMarkup(<ListRow title="Tags" value="3" trailing={<span>Pro</span>} onClick={vi.fn()} />)
@@ -189,7 +238,7 @@ describe('personal ListRow text in Chromium', () => {
           const text = document.querySelector(`[data-slot="${slot}"]`)!
           const range = document.createRange()
           range.selectNodeContents(text)
-          const padded = text.hasAttribute('data-personal-text-expanded') && text.parentElement!.classList.contains('p-1') ? text.parentElement! : text
+          const padded = text.hasAttribute('data-personal-text-expanded') && !text.parentElement!.hasAttribute('data-personal-text') && text.parentElement!.style.whiteSpace ? text.parentElement! : text
           const style = getComputedStyle(padded)
           return { inset: range.getBoundingClientRect().left - body.getBoundingClientRect().left, paddingEnd: parseFloat(style.paddingInlineEnd), paddingTop: parseFloat(style.paddingTop), paddingBottom: parseFloat(style.paddingBottom) }
         })

@@ -387,6 +387,205 @@ describe("CalendarTimeGrid (mobile)", () => {
     } finally { __setScrollToImpl(() => {}); }
   });
 
+  it.each(['none', 'scroll', 'scroll-start', 'drag', 'touch'])("holds the opening position through pane pinning until input=%s", (input) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    let scrollOffset = 0;
+    const scrollTo = vi.fn((offset: { y?: number }) => { if (offset.y !== undefined) scrollOffset = offset.y; });
+    __setScrollToImpl(scrollTo);
+    try {
+      const tree = renderGrid([{ ...column('2026-10-08'), isToday: true }], new Map());
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+      TestRenderer.act(() => {
+        body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } });
+      });
+      expect(body().props.stickyHeaderIndices).toEqual([]);
+      const nowLine = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityLabel === 'Now')[0]!;
+      const nowTop = Number(resolveStyle(nowLine.props.style).top);
+      expect(300 + nowTop - scrollOffset).toBe(100);
+      TestRenderer.act(() => body().props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: scrollOffset }, contentSize: { width: 800, height: 1752 }, layoutMeasurement: { width: 800, height: 400 } } }));
+      if (input !== 'none') TestRenderer.act(() => {
+        if (input === 'drag') body().props.onScrollBeginDrag();
+        if (input === 'touch') body().props.onTouchMove?.();
+        scrollOffset = input === 'scroll-start' ? 0 : 600;
+        body().props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: scrollOffset }, contentSize: { width: 800, height: 1752 }, layoutMeasurement: { width: 800, height: 400 } } });
+      });
+      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 100 } } }));
+      expect(body().props.stickyHeaderIndices).toEqual([0]);
+      if (input === 'none') {
+        const belowPane = nowTop - scrollOffset;
+        expect(belowPane).toBeGreaterThanOrEqual(0);
+        expect(belowPane).toBeLessThanOrEqual(300 / 3);
+      } else expect(scrollOffset).toBe(input === 'scroll-start' ? 0 : 600);
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
+  it.each([
+    { movement: 'native clamp', offset: 1152, contentHeight: 1552, expected: 957 },
+    { movement: 'native clamp within one DIP', offset: 1151.5, contentHeight: 1552, expected: 957 },
+    { movement: 'upward input below the maximum', offset: 1100, contentHeight: 1552, expected: 1100 },
+    { movement: 'upward input outside clamp tolerance', offset: 1150, contentHeight: 1552, expected: 1150 },
+    { movement: 'input to the end', offset: 1352, contentHeight: 1752, expected: 1352 },
+  ])("corrects the opening after $movement arrives before the shorter pane layout", ({ offset, contentHeight, expected }) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    let scrollOffset = 0;
+    __setScrollToImpl((position) => { if (position.y !== undefined) scrollOffset = position.y; });
+    try {
+      const tree = renderGrid([{ ...column('2026-10-08'), isToday: true }], new Map());
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+      TestRenderer.act(() => {
+        body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } });
+      });
+      expect(scrollOffset).toBe(1232);
+      TestRenderer.act(() => body().props.onScroll({ nativeEvent: {
+        contentOffset: { x: 0, y: scrollOffset },
+        contentSize: { width: 800, height: 1752 },
+        layoutMeasurement: { width: 800, height: 400 },
+      } }));
+      TestRenderer.act(() => {
+        scrollOffset = offset;
+        body().props.onScroll({ nativeEvent: {
+          contentOffset: { x: 0, y: offset },
+          contentSize: { width: 800, height: contentHeight },
+          layoutMeasurement: { width: 800, height: 400 },
+        } });
+      });
+      expect(scrollOffset).toBe(offset);
+      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 100 } } }));
+      expect(body().props.stickyHeaderIndices).toEqual([0]);
+      expect(scrollOffset).toBe(expected);
+      if (expected === 957) expect(1032 - scrollOffset).toBe(75);
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
+  it.each([
+    { movement: 'native clamp', offset: 388, contentWidth: 672, expected: 372 },
+    { movement: 'upward input below the maximum', offset: 350, contentWidth: 672, expected: 350 },
+    { movement: 'input to the end', offset: 1116, contentWidth: 1400, expected: 1116 },
+  ])("keeps horizontal opening ownership after $movement", ({ offset, contentWidth, expected }) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    let horizontalOffset = 0;
+    let verticalOffset = 0;
+    __setScrollToImpl((position) => {
+      if (position.x !== undefined) horizontalOffset = position.x;
+      if (position.y !== undefined) verticalOffset = position.y;
+    });
+    try {
+      const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(`2026-10-${String(5 + index).padStart(2, '0')}`), isToday: index === 6 }));
+      const crowded = new Map([[columns[6]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]]);
+      const tree = renderGrid(columns, crowded);
+      const horizontal = () => tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+      TestRenderer.act(() => {
+        horizontal().props.onLayout({ nativeEvent: { layout: { width: 284, height: 400 } } });
+        horizontal().props.onContentSizeChange(1344, 400);
+        body().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 300 } } });
+      });
+      expect(horizontalOffset).toBe(1060);
+      expect(verticalOffset).toBe(1232);
+      TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: {
+        contentOffset: { x: 1060, y: 0 },
+        contentSize: { width: 1344, height: 400 },
+        layoutMeasurement: { width: 284, height: 400 },
+      } }));
+      TestRenderer.act(() => {
+        horizontalOffset = offset;
+        horizontal().props.onScroll({ nativeEvent: {
+          contentOffset: { x: offset, y: 0 },
+          contentSize: { width: contentWidth, height: 400 },
+          layoutMeasurement: { width: 284, height: 400 },
+        } });
+      });
+      TestRenderer.act(() => tree.update(
+        <CalendarTimeGrid columns={columns} dayMap={new Map()} onSelectDay={vi.fn()} displayTime={displayTime} language="en" allDayLabel="No set time" nowLabel="Now" isLoading={false} t={translate} tokens={tokens} timeZone="UTC" />,
+      ));
+      TestRenderer.act(() => {
+        horizontal().props.onContentSizeChange(672, 400);
+        horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 672, height: 100 } } });
+      });
+      expect(horizontalOffset).toBe(expected);
+      expect(verticalOffset).toBe(expected === 372 ? 957 : 1232);
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
+  it("holds now in the upper third through viewport and hour scale changes", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 800, height: 915, scale: 1, fontScale: 1 });
+    let scrollOffset = 0;
+    __setScrollToImpl((offset) => { if (offset.y !== undefined) scrollOffset = offset.y; });
+    try {
+      const tree = renderGrid([{ ...column('2026-10-08'), isToday: true }], new Map());
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+      TestRenderer.act(() => {
+        body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 100 } } });
+      });
+      const firstOffset = scrollOffset;
+      expect(1032 - scrollOffset).toBe(75);
+      TestRenderer.act(() => body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } }));
+      expect(1032 - scrollOffset).toBe(50);
+      TestRenderer.act(() => {
+        body().props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: firstOffset }, contentSize: { width: 800, height: 1477 }, layoutMeasurement: { width: 800, height: 300 } } });
+        body().props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: scrollOffset }, contentSize: { width: 800, height: 1477 }, layoutMeasurement: { width: 800, height: 300 } } });
+      });
+      dimensions.mockReturnValue({ width: 800, height: 915, scale: 1, fontScale: 2 });
+      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 120 } } }));
+      expect(2064 - scrollOffset).toBe(45);
+      TestRenderer.act(() => {
+        body().props.onScrollBeginDrag();
+        scrollOffset = 0;
+        body().props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: 0 }, contentSize: { width: 800, height: 2680 }, layoutMeasurement: { width: 800, height: 300 } } });
+      });
+      dimensions.mockReturnValue({ width: 800, height: 915, scale: 1, fontScale: 1 });
+      TestRenderer.act(() => body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 400 } } }));
+      expect(scrollOffset).toBe(0);
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
+  it.each([0, 6])("keeps edge-day horizontal opening scrolls under grid ownership (today=%s)", (todayIndex) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    const scrollTo = vi.fn();
+    __setScrollToImpl(scrollTo);
+    try {
+      const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(`2026-10-${String(5 + index).padStart(2, '0')}`), isToday: index === todayIndex }));
+      const tree = renderGrid(columns, new Map());
+      const horizontal = () => tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+      TestRenderer.act(() => {
+        horizontal().props.onLayout({ nativeEvent: { layout: { width: 284, height: 400 } } });
+        horizontal().props.onContentSizeChange(672, 400);
+        body().props.onLayout({ nativeEvent: { layout: { width: 672, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 672, height: 300 } } });
+      });
+      const horizontalOffset = todayIndex === 0 ? 0 : 388;
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual([[{ x: horizontalOffset, animated: false }]]);
+      TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: horizontalOffset, y: 0 }, contentSize: { width: 672, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
+      scrollTo.mockClear();
+      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 672, height: 100 } } }));
+      expect(scrollTo.mock.calls.filter(([offset]) => 'y' in offset)).toEqual([[{ y: 957, animated: false }], [{ y: 957, animated: false }]]);
+      TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: 100, y: 0 }, contentSize: { width: 672, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
+      scrollTo.mockClear();
+      TestRenderer.act(() => {
+        horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 300 } } });
+        body().props.onLayout({ nativeEvent: { layout: { width: 672, height: 300 } } });
+      });
+      expect(scrollTo).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
   it("unpins oversized day lanes and repins at half the viewport after a layout", () => {
     const tree = renderGrid([column('2025-06-16')], new Map());
     const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;

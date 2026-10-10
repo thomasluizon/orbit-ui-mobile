@@ -7,6 +7,8 @@ on:
       - 'apps/web/**'
       - 'packages/shared/**'
       - '.github/workflows/layout.yml'
+      - 'tools/check-hermetic-web-build.mjs'
+      - 'tools/__tests__/check-hermetic-web-build.mjs'
       - 'package.json'
       - 'package-lock.json'
   workflow_dispatch:
@@ -24,6 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       API_BASE: http://127.0.0.1:5099
+      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
     steps:
       - uses: actions/checkout@v7
 
@@ -39,6 +42,9 @@ jobs:
 
       - name: Build web
         run: npm run build -w apps/web
+
+      - name: Check hermetic client output
+        run: node tools/check-hermetic-web-build.mjs
 
       - name: Check upgrade layout
         run: npm run test:layout -w apps/web

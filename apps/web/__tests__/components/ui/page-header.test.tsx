@@ -49,7 +49,7 @@ describe('PageHeader', () => {
         <CalendarHeader currentMonth={new Date(2026, 3, 1)} todayKey="2026-04-08" previousMonthLabel="Previous" nextMonthLabel="Next"
           onPreviousMonth={noop}
           onNextMonth={noop} onCurrentMonth={noop} onSelectMonth={noop} />
-        <LegalDocumentLayout title="Privacy" lastUpdated="Updated" backLabel="Back" onBack={noop}
+        <LegalDocumentLayout title="Privacy policy" headerTitle="Privacy" lastUpdated="Updated" backLabel="Back" onBack={noop}
           sections={[{ id: 'privacy', title: 'Your privacy', paragraphs: ['Your privacy matters.'] }]}
           closingNote={{ id: 'contact', title: 'Contact', paragraphs: ['Contact us.'] }} />
       </NextIntlClientProvider>)

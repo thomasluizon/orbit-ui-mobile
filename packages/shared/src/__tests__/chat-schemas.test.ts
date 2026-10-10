@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { actionResultSchema, chatStreamEventSchema } from '../types/chat'
 import { agentExecuteOperationResponseSchema } from '../types/ai'
 import { makeAgentOperationResult, makeClarificationPreviewMessage, makeHeldHabitMessage } from '../test-support/chat-fixtures'
+import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '../test-support/chat-block-layout'
 
 const validClarificationRequest = {
   question: 'Which reading habit did you mean?',
@@ -71,6 +72,18 @@ describe('chatStreamEventSchema discriminatedUnion', () => {
     const pendingOperation = makeHeldHabitMessage().pendingOperations![0]!
     const operation = makeAgentOperationResult('PendingConfirmation', 1)
     expect(agentExecuteOperationResponseSchema.parse({ operation, pendingOperation })).toEqual({ operation, pendingOperation })
+  })
+
+  it.each(chatBlockLayoutCases)('parses the $kind layout fixture through the stream boundary', (scenario) => {
+    for (const prose of [true, false]) {
+      const message = makeChatBlockLayoutMessage(scenario, prose)
+      const event = chatStreamEventSchema.parse({ type: 'final', response: {
+        ...scenario.fields, aiMessage: message.content, actions: message.actions ?? [],
+      } })
+      expect(event.type).toBe('final')
+      if (event.type !== 'final') return
+      expect(event.response.actions).toEqual(message.actions ?? [])
+    }
   })
 
   it.each(['today', 'overdue', 'general', 'none', 'done'])(

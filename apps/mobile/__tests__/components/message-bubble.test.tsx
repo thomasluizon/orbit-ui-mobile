@@ -273,7 +273,7 @@ describe('MessageBubble write blocks (mobile)', () => {
     await TestRenderer.act(() => { tree = TestRenderer.create(<StoredBubble />) })
     await TestRenderer.act(async () => { press(tree, 'habits.clarification.quickAction.daily')(); await Promise.resolve() })
     expect(renderedText(tree.root)).toContain('chat.operation.approve')
-    expect(useChatStore.getState().messages[0]?.clarificationPreviews?.['00000000-0000-4000-8000-000000000001']).toEqual(pendingOperation)
+    expect(useChatStore.getState().messages[0]?.clarificationPreviews?.[makeClarificationPreviewMessage().actions![0]!.clarificationRequest!.operationId]).toEqual(pendingOperation)
     await TestRenderer.act(() => { tree.update(<></>) })
     await TestRenderer.act(() => { tree.update(<StoredBubble />) })
     const output = renderedText(tree.root)

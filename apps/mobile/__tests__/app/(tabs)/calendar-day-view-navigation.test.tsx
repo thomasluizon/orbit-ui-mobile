@@ -223,7 +223,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
     })
     TestRenderer.act(() => {
-      pressButton(tree.root, 'calendar.calendars.title')
+      pressButton(tree.root, 'calendar.proBoundary.action')
     })
 
     expect(mockPush).toHaveBeenCalledOnce()
@@ -328,7 +328,10 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     const loadingRegions = grid.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')
     expect(loadingRegions).toHaveLength(1)
     expect(loadingRegions[0]?.props).toMatchObject({ accessibilityLabel: 'calendar.loading', accessibilityState: { busy: true } })
-    expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
+    const header = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'month-grid-header')[0]!
+    expect(StyleSheet.flatten(header.props.style)).toMatchObject({ opacity: 0 })
+    expect(header.props.accessibilityElementsHidden).toBe(true)
+    expect(header.props.importantForAccessibility).toBe('no-hide-descendants')
     expect(tree.root.findAll((node) => String(node.props.testID).startsWith('day-cell-'))).toHaveLength(0)
   })
 })
