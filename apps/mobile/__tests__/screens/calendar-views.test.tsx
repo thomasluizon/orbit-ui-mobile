@@ -918,6 +918,59 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
 
+  it.each(['month', 'week', 'range', 'agenda'] as const)('keeps the %s view and date across retained-tab round trips', (selectedView) => {
+    const calendarTab = (destination: string | null) => <View>
+      <View style={{ display: destination ? 'none' : 'flex' }}><CalendarScreen /></View>
+      {destination ? <View testID="round-trip-destination"><Text>{destination}</Text></View> : null}
+    </View>
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(calendarTab(null)); })
+    const header = openSelectedDay(tree, '2026-09-10')
+    TestRenderer.act(() => header.update(<></>))
+    pressView(tree, selectedView)
+    if (selectedView !== 'month') {
+      const previousLabel = selectedView === 'range' ? 'calendar.range.previous' : 'common.previousWeek'
+      const previous = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === previousLabel)[0]!
+      TestRenderer.act(() => previous.props.onPress())
+    }
+    const period = state.calendarRangeCalls.mock.lastCall?.slice(0, 2).map(formatAPIDate)
+    for (const destination of ['/upgrade', '/habits/habit-1', '/notifications', '/search']) {
+      TestRenderer.act(() => tree.update(calendarTab(destination)))
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'round-trip-destination')).toHaveLength(1)
+      TestRenderer.act(() => tree.update(calendarTab(null)))
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === `segment-${selectedView}-selected-enabled`)).toHaveLength(1)
+      if (selectedView !== 'month') expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(period)
+    }
+    pressView(tree, 'month')
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-09-10')
+    TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it.each(['options', 'day card'] as const)('keeps selection after the free-plan upgrade from %s', (entry) => {
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); })
+    const header = openSelectedDay(tree, '2026-09-10')
+    const list = tree.root.findAll((node) => node.type === 'FlatList')[0]!
+    TestRenderer.act(() => header.update(list.props.ListHeaderComponent))
+    if (entry === 'day card') {
+      TestRenderer.act(() => calendarDayDetailProps.current!.onViewPro())
+    } else {
+      pressView(tree, 'range')
+      const options = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0]!
+      TestRenderer.act(() => options.props.onPress())
+      const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'menuitem' && React.Children.toArray(node.props.children).some((child) => React.isValidElement<{ children?: React.ReactNode }>(child) && child.props.children === 'calendar.googleCalendar'))[0]!
+      TestRenderer.act(() => google.props.onPress())
+    }
+    expect(state.routerPush).toHaveBeenCalledWith('/upgrade')
+    TestRenderer.act(() => tree.update(<CalendarScreen />))
+    if (entry === 'options') {
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'segment-range-selected-enabled')).toHaveLength(1)
+      pressView(tree, 'month')
+    }
+    expect(calendarGridProps.current?.selectedDay).toBe('2026-09-10')
+    TestRenderer.act(() => { header.update(<></>); tree.update(<></>); })
+  })
+
   it('leaves the top safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })

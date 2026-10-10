@@ -23,6 +23,8 @@ vi.mock('@/lib/api-fetch', async (importOriginal) => ({ ...await importOriginal<
 vi.mock('@/hooks/use-color-scheme', () => ({ useColorScheme: () => ({ syncThemeFromProfile: () => {}, detectAndSaveThemeIfNeeded: () => {} }) }))
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
+import { clearAppNavigationHistory, readAppNavigationHistory, updateAppNavigationHistory } from '@/lib/app-navigation-history'
+import { getBackLabel } from '@orbit/shared/utils/back-label'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import {
   buildCalendarMonthModel,
@@ -586,6 +588,116 @@ describe('CalendarPage view switcher', () => {
     expect(Array.from(screen.getByTestId('month-grid-header').children, (child) => child.textContent)).toEqual(labels)
   })
 
+  it.each(['month', 'week', 'range', 'agenda'] as const)('restores the %s view and selected date after a route remount', (selectedView) => {
+    const page = render(<CalendarPage />)
+    fireEvent.click(screen.getByTestId('month-view'))
+    fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${selectedView}` }))
+    expect(routerReplace.mock.lastCall?.[1]).toEqual({ scroll: false })
+    const lastHref = routerReplace.mock.lastCall?.[0] as string | undefined
+    expect(lastHref).toBeDefined()
+    const savedSearch = new URL(lastHref!, 'https://example.test').searchParams
+    expect(savedSearch.get('view')).toBe(selectedView)
+    expect(savedSearch.get('date')).toBe(calendarGridSelectionDate)
+    calendarRouteSearch = savedSearch.toString()
+    page.unmount()
+    render(<CalendarPage />)
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(calendarGridProps.selectedDateStr).toBe(calendarGridSelectionDate)
+  })
+
+  it.each(['range', 'agenda'].flatMap((selectedView) => ['/upgrade', '/habits/habit-1', '/notifications', '/search'].map((destination) => [selectedView, destination])))('keeps %s and its date in history through %s', (selectedView, destination) => {
+    clearAppNavigationHistory()
+    updateAppNavigationHistory('/calendar', 'init')
+    routerReplace.mockImplementation((href: string) => updateAppNavigationHistory(href, 'replace'))
+    routerPush.mockImplementation((href: string) => updateAppNavigationHistory(href, 'push'))
+    const page = render(<CalendarPage />)
+    fireEvent.click(screen.getByTestId('month-view'))
+    fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${selectedView}` }))
+    if (destination === '/upgrade') {
+      fireEvent.click(screen.getByRole('button', { name: 'calendar.options' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'calendar.googleCalendar' }))
+      expect(routerPush).toHaveBeenCalledWith('/upgrade')
+    } else routerPush(destination)
+    const history = readAppNavigationHistory()
+    expect(history.entries).toHaveLength(2)
+    expect(history.entries[history.index]).toBe(destination)
+    const returnHref = history.entries[history.index - 1]!
+    expect(getBackLabel(returnHref, (key, values) => values?.destination ?? key)).toBe('nav.calendar')
+    page.unmount()
+    updateAppNavigationHistory(returnHref, 'pop')
+    calendarRouteSearch = new URL(returnHref, 'https://example.test').searchParams.toString()
+    render(<CalendarPage />)
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(calendarGridProps.selectedDateStr).toBe(calendarGridSelectionDate)
+    routerReplace.mockReset()
+    routerPush.mockReset()
+    clearAppNavigationHistory()
+  })
+
+  it.each(['month', 'week'] as const)('keeps %s and its date after the day-card upgrade', (selectedView) => {
+    const page = render(<CalendarPage />)
+    fireEvent.click(screen.getByTestId('month-view'))
+    fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${selectedView}` }))
+    if (selectedView === 'week') fireEvent.click(screen.getByTestId('week-day'))
+    const savedHref = routerReplace.mock.lastCall![0] as string
+    act(() => calendarDayDetailProps.onViewPro!())
+    expect(routerPush).toHaveBeenCalledWith('/upgrade')
+    calendarRouteSearch = new URL(savedHref, 'https://example.test').searchParams.toString()
+    const savedDate = new URLSearchParams(calendarRouteSearch).get('date')
+    page.unmount()
+    render(<CalendarPage />)
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(calendarGridProps.selectedDateStr).toBe(savedDate)
+  })
+
+  it.each(['week', 'range', 'agenda'] as const)('restores a paged %s after leaving the page', (selectedView) => {
+    const page = render(<CalendarPage />)
+    fireEvent.click(screen.getByTestId('month-view'))
+    fireEvent.click(screen.getByRole('radio', { name: `calendar.view.${selectedView}` }))
+    const previous = selectedView === 'range' ? 'calendar.range.previous' : 'common.previousWeek'
+    fireEvent.click(screen.getByRole('button', { name: previous }))
+    const period = screen.getByTestId('calendar-header-group').textContent
+    calendarRouteSearch = new URL(routerReplace.mock.lastCall![0], 'https://example.test').searchParams.toString()
+    page.unmount()
+    render(<CalendarPage />)
+    expect(screen.getByTestId('calendar-header-group').textContent).toBe(period)
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+  })
+
+  it.each([
+    'view=invalid&date=2026-02-30',
+    'view=WEEK&date=2026-1-5',
+    'view=&date=unusable',
+    'view=month&date=0000-01-01',
+  ])('uses the defaults for an invalid link: %s', (search) => {
+    calendarRouteSearch = search
+    render(<CalendarPage />)
+    expect(screen.getByRole('radio', { name: 'calendar.view.month' })).toBeChecked()
+    expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+  })
+
+  it('reacts to back and forward URL snapshots without replacing history', () => {
+    const page = render(<CalendarPage />)
+    calendarRouteSearch = 'view=agenda&date=2026-01-05&agenda=-2'
+    page.rerender(<CalendarPage />)
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toBeChecked()
+    calendarRouteSearch = 'view=month&date=2026-02-03'
+    page.rerender(<CalendarPage />)
+    expect(calendarGridProps.selectedDateStr).toBe('2026-02-03')
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it.each(['week', 'range', 'agenda'] as const)('loads a direct %s link with its selected date', (selectedView) => {
+    calendarRouteSearch = `view=${selectedView}&date=2026-01-05`
+    render(<CalendarPage />)
+    expect(screen.getByRole('radio', { name: `calendar.view.${selectedView}` })).toBeChecked()
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(calendarGridProps.selectedDateStr).toBe('2026-01-05')
+  })
+
   beforeEach(() => {
     useUIStore.setState({ calendarShowRecurring: true });
     calendarLocale = 'en'
@@ -622,8 +734,8 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
     logHabitMutateAsync.mockClear()
-    routerPush.mockClear()
-    routerReplace.mockClear()
+    routerPush.mockReset()
+    routerReplace.mockReset()
     calendarEventsQueryState.data = { status: 'connected', events: [] }
     calendarEventsQueryState.isPending = false
     calendarEventsQueryState.error = null
