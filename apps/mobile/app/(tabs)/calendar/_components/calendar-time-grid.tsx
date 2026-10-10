@@ -20,6 +20,7 @@ import { createTokensV2 } from "@/lib/theme";
 import { X } from '@/components/ui/icons';
 import { PersonalText } from '@/components/ui/personal-text';
 import { StatusRing } from '@/components/ui/status-ring';
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CalendarEntryDetails } from './calendar-entry-details';
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -304,7 +305,7 @@ export function CalendarTimeGrid({
 
   const gutterWidth = Math.max(96, Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, "0")}:00`).length)) * 12 * 0.7 * fontScale + 16);
   const [anyTimeLabelHeight, setAnyTimeLabelHeight] = useState(0);
-  const [disclosure, setDisclosure] = useState<{ entries: CalendarDayEntry[]; title: string } | null>(null);
+  const [disclosure, setDisclosure] = useAccountScopedState<{ entries: CalendarDayEntry[]; title: string } | null>(null);
   const bodyScrollRef = useRef<ScrollView>(null);
   const gutterScrollRef = useRef<ScrollView>(null);
   const columnsScrollRef = useRef<ScrollView>(null);

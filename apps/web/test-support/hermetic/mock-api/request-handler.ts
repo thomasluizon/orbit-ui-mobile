@@ -9,6 +9,7 @@ import { gamificationProfileSchema } from '@orbit/shared/types/gamification'
 import {
   bulkCreateRequestSchema,
   bulkCreateResponseSchema,
+  calendarMonthResponseSchema,
   createPaginatedSchema,
   habitScheduleItemSchema,
   habitTagSchema,
@@ -32,6 +33,7 @@ import {
   habitCountFixture,
 } from './fixtures/collections'
 import { notificationsFixture, referralDashboardFixture } from './fixtures/secondary'
+import { emptyCalendarMonthFixture } from './fixtures/calendar'
 import { mintHermeticJwt } from '../hermetic-session'
 import { createSessionFixtureStore, readFixtureSession } from './session-fixtures'
 
@@ -47,6 +49,7 @@ interface MockRoute {
 }
 
 const routes: MockRoute[] = [
+  { method: 'GET', path: '/api/habits/calendar-month', schema: calendarMonthResponseSchema, body: emptyCalendarMonthFixture },
   { method: 'POST', path: '/api/events/ticket', schema: accountEventTicketSchema, body: accountEventTicketFixture },
   { method: 'GET', path: '/api/profile', schema: profileSchema, body: profileFixture },
   { method: 'GET', path: '/api/calendar/calendars', schema: userCalendarsSchema, body: [] },
