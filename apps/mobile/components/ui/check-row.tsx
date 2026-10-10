@@ -1,14 +1,16 @@
 import { PersonalText } from '@/components/ui/personal-text'
 import { useState } from 'react'
 import type { CheckRowProps } from '@orbit/shared/contracts/forms'
-import { Pressable as NativePressable, StyleSheet, Text, View, type PressableProps, type ViewStyle } from 'react-native'
+import { ActivityIndicator, Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type PressableProps, type ViewStyle } from 'react-native'
 import { InsetFocusPressable as Pressable } from './inset-focus-pressable'
 import { Checkbox } from './checkbox'
+import { Check } from './icons'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
 export function CheckRow({
   label,
+  placement = 'inset',
   textMode,
   onOpenLabel,
   labelExpanded,
@@ -25,6 +27,7 @@ export function CheckRow({
   const [pressed, setPressed] = useState(false)
 
   if (textMode === 'personal' && onOpenLabel) return <PersonalCheckRow label={label} onOpenLabel={onOpenLabel} labelExpanded={labelExpanded} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
+  if (placement === 'column') return <ColumnCheckRow label={label} checked={checked} onChange={onChange} description={description} error={error} value={value} disabled={disabled} loading={loading} tokens={tokens} />
 
   return (
     <Pressable
@@ -72,6 +75,9 @@ export function CheckRow({
 }
 
 const styles = StyleSheet.create({
+  columnRow: { width: '100%', minHeight: 52, position: 'relative', flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 12 },
+  columnFill: { position: 'absolute', top: 0, bottom: 0, left: -16, right: -16, borderRadius: 12 },
+  columnLabel: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 },
   labelFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: 0, borderRadius: 12, overflow: 'hidden' },
   controlFill: { position: 'absolute', top: -12, bottom: -12, left: -12, right: -12, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', padding: 12 },
   personalRow: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
@@ -84,6 +90,20 @@ const styles = StyleSheet.create({
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   disabled: { opacity: 0.6 },
 })
+
+function ColumnCheckRow({ label, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
+  const { fontScale } = useWindowDimensions()
+  return <PersonalControl tokens={tokens} fillStyle={styles.columnFill} hitSlop={{ left: 16, right: 16 }} onPress={() => onChange(!checked)} disabled={disabled || loading} accessibilityRole="checkbox" accessibilityLabel={label} accessibilityHint={error ?? description} accessibilityState={{ checked, disabled: disabled || loading, busy: loading }} style={[styles.columnRow, { minHeight: error || description ? 68 : 52 }, disabled || loading ? styles.disabled : null]}>
+    <View style={[styles.copy, { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' }]}>
+      <Text style={[styles.columnLabel, { color: tokens.fg1 }]}>{label}</Text>
+      {error || description ? <Text style={[styles.description, { color: error ? tokens.statusBadText : tokens.fg2 }]}>{error ?? description}</Text> : null}
+    </View>
+    {value !== undefined ? <Text style={[styles.value, { color: tokens.fg2 }]}>{value}</Text> : null}
+    <View data-slot="check-row-tick" importantForAccessibility="no-hide-descendants" style={{ width: 16, minHeight: Math.max(28, 23.8 * fontScale), alignItems: 'center', justifyContent: 'center' }}>
+      {loading ? <ActivityIndicator size="small" color={tokens.fg1} /> : checked ? <Check size={16} color={tokens.fg1} strokeWidth={1.5} /> : null}
+    </View>
+  </PersonalControl>
+}
 
 function PersonalCheckRow({ label, onOpenLabel, labelExpanded, checked, onChange, description, error, value, disabled, loading, tokens }: Readonly<CheckRowProps & { tokens: ReturnType<typeof createTokensV2> }>) {
   return (

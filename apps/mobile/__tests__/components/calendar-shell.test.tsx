@@ -24,6 +24,9 @@ import {
 
 vi.mock('@/components/navigation/notification-bell', () => ({ NotificationBell: () => <View testID="notification-bell" /> }));
 
+const translated = vi.hoisted((): { words: Record<string, string> } => ({ words: {} }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, params?: Record<string, unknown>) => translated.words[key] ?? (params ? `${key}:${JSON.stringify(params)}` : key), i18n: { language: 'en' } }) }));
+
 const TestRenderer = require("react-test-renderer");
 
 
@@ -63,6 +66,7 @@ beforeEach(() => {
   useUIStore.setState({ openOverlayIds: [], calendarShowRecurring: true });
   nativeSheet.present.mockClear();
   nativeSheet.dismiss.mockReset().mockResolvedValue(undefined);
+  translated.words = {};
 });
 
 type TestNode = { type: unknown; props: Record<string, any> };
@@ -378,6 +382,55 @@ describe("CalendarStats (mobile)", () => {
 });
 
 describe('Calendar options (mobile)', () => {
+  it('keeps Google Calendar gated by its owner and waits for native dismissal', async () => {
+    const onGoogleCalendar = vi.fn();
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={createTokensV2('purple', 'dark')} onGoogleCalendar={onGoogleCalendar} />); });
+    pressByAccessibilityLabel(tree, 'calendar.options');
+    nativeSheet.dismiss.mockRejectedValueOnce(new Error('Dismissal rejected'));
+    await TestRenderer.act(async () => { pressByAccessibilityLabel(tree, 'calendar.googleCalendar'); await Promise.resolve(); });
+    expect(onGoogleCalendar).not.toHaveBeenCalled();
+    expect(tree.root.findAll((node) => node.type === Sheet)).toHaveLength(1);
+    pressByAccessibilityLabel(tree, 'calendar.googleCalendar');
+    expect(onGoogleCalendar).not.toHaveBeenCalled();
+    finishNativeDismissal(tree);
+    expect(onGoogleCalendar).toHaveBeenCalledOnce();
+  });
+
+  it('disables Google Calendar when its owner supplies no action', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={createTokensV2('purple', 'dark')} />); });
+    pressByAccessibilityLabel(tree, 'calendar.options');
+    const google = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.googleCalendar')[0]!;
+    expect(google.props.disabled).toBe(true);
+    expect(google.props.accessibilityState.disabled).toBe(true);
+  });
+
+  it.each([320, 360, 384, 412, 600].flatMap((width) => [en, ptBR].flatMap((words) => [1, 2].map((fontScale) => ({ width, words, fontScale })))))('aligns option labels with the sheet title at $width, scale $fontScale', ({ width, words, fontScale }) => {
+    TestRenderer.act(() => { __setWindowDimensions({ width, height: 900, scale: 1, fontScale }); });
+    translated.words = { 'calendar.options': words.calendar.options, 'calendar.showRecurring': words.calendar.showRecurring, 'calendar.googleCalendar': words.calendar.googleCalendar, 'calendar.legendTitle': words.calendar.legendTitle };
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={createTokensV2('purple', 'dark')} onGoogleCalendar={vi.fn()} />); });
+    pressByAccessibilityLabel(tree, words.calendar.options);
+    const geometry = measureProfileRow(tree.toJSON(), width, fontScale);
+    const title = geometry.texts.find((text) => text.label === words.calendar.options)!;
+    expect(title.left).toBe(24);
+    if (fontScale === 2) {
+      const text = geometry.texts.find((text) => text.label === words.calendar.showRecurring)!;
+      const tick = geometry.parts.find((part) => part.slot === 'check-row-tick')!;
+      expect(tick.top + tick.height / 2).toBeCloseTo(text.top + 23.8 * fontScale / 2, 0);
+    }
+    for (const label of [words.calendar.showRecurring, words.calendar.googleCalendar, words.calendar.legendTitle]) {
+      const text = geometry.texts.find((text) => text.label === label)!;
+      expect(text.left).toBe(title.left);
+      expect(text.clipped).toBe(false);
+      if (fontScale === 1) expect(text.lines).toBe(1);
+      const control = geometry.controls.find((control) => control.labels.includes(label))!;
+      expect(control.height).toBeGreaterThanOrEqual(52);
+      if (fontScale === 2) expect(control.height).toBeGreaterThan(52);
+    }
+  });
+
   it('closes the menu before changing the filter or opening the legend', () => {
     let tree!: Tree;
     TestRenderer.act(() => { tree = mount(<CalendarOptions tokens={createTokensV2('purple', 'dark')} onGoogleCalendar={vi.fn()} />); });
@@ -390,7 +443,7 @@ describe('Calendar options (mobile)', () => {
     finishNativeDismissal(tree);
     expect(useUIStore.getState().calendarShowRecurring).toBe(false);
     pressByAccessibilityLabel(tree, 'calendar.options');
-    const legend = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'menuitem' && node.props.children.some((child: React.ReactElement<{ children?: React.ReactNode }> | null) => child?.props.children === 'calendar.legendTitle'))[0]!;
+    const legend = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === 'calendar.legendTitle')[0]!;
     TestRenderer.act(() => legend.props.onPress());
     expect(hostTextValues(tree)).not.toContain('calendar.legend.loggable');
     finishNativeDismissal(tree);
