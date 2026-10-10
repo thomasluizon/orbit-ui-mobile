@@ -103,6 +103,8 @@ jobs:
           else
             echo "Workspace overrides skipped: no owned path changed."
           fi
+      - name: Docker base images name an explicit registry
+        run: node tools/check-docker-registries.mjs
       - name: The brand lockup's viewBox is exactly its ink
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \

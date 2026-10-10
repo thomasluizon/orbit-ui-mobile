@@ -19,6 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
+        with:
+          # Use the engine's BuildKit so setup needs no Docker Hub driver image.
+          driver: docker
       - name: Build web image
         uses: docker/build-push-action@v7
         with:
