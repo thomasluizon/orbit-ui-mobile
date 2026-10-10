@@ -59,6 +59,40 @@ function renderGrid(
   )
 }
 
+function pressScrollbar(scroller: HTMLElement, axis: 'vertical' | 'horizontal' | 'left' | 'content' | 'child' | 'secondary' = 'vertical') {
+  Object.defineProperties(scroller, {
+    clientWidth: { configurable: true, value: 380 },
+    clientHeight: { configurable: true, value: 400 },
+    clientLeft: { configurable: true, value: axis === 'left' ? 20 : 0 },
+    offsetWidth: { configurable: true, value: 400 },
+    offsetHeight: { configurable: true, value: 420 },
+  })
+  vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue(new DOMRect(20, 30, 400, 420))
+  const target = axis === 'child' ? screen.getByTestId('time-grid-col-header') : scroller
+  fireEvent(target, new MouseEvent('pointerdown', {
+    bubbles: true,
+    button: axis === 'secondary' ? 2 : 0,
+    clientX: axis === 'horizontal' || axis === 'content' ? 100 : axis === 'left' ? 25 : 415,
+    clientY: axis === 'horizontal' ? 440 : 100,
+  }))
+}
+
+function applyGridInput(body: HTMLElement, input: string) {
+  switch (input) {
+    case 'wheel': fireEvent.wheel(body, { deltaY: 120 }); break
+    case 'touch': fireEvent.touchMove(body); break
+    case 'key': fireEvent.keyDown(body, { key: 'PageDown' }); break
+    case 'space': fireEvent.keyDown(body, { key: ' ' }); break
+    case 'scrollbar':
+    case 'scroll-start': pressScrollbar(body); break
+    case 'horizontal':
+    case 'left':
+    case 'content':
+    case 'child':
+    case 'secondary': pressScrollbar(body, input); break
+  }
+}
+
 describe('CalendarTimeGrid', () => {
   it('preserves both grid scroll axes after closing a timed disclosure', async () => {
     const onSelectDay = vi.fn()
@@ -240,7 +274,7 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ background: 'var(--primary)' })
   })
 
-  it.each(['none', 'wheel', 'scroll'])('waits for loaded concurrent geometry and respects prior scrolling (input=%s)', (input) => {
+  it.each(['none', 'wheel', 'scrollbar'])('waits for loaded concurrent geometry and respects prior scrolling (input=%s)', (input) => {
     const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === 3 }))
     const onSelectDay = vi.fn()
     const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} isLoading={isLoading} onSelectDay={onSelectDay} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
@@ -256,18 +290,19 @@ describe('CalendarTimeGrid', () => {
     if (input !== 'none') {
       scroller.scrollLeft = 88
       if (input === 'wheel') fireEvent.wheel(scroller, { deltaX: 88 })
-      else fireEvent.scroll(scroller)
+      else pressScrollbar(scroller, 'horizontal')
     }
     const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]])
     view.rerender(grid(crowded, false))
     expect(scroller.scrollLeft).toBe(input === 'none' ? 530 : 88)
+    pressScrollbar(scroller, 'horizontal')
     scroller.scrollLeft = 88
     fireEvent.scroll(scroller)
     view.rerender(grid(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'third', dueTime: '08:00' })]]]), false))
     expect(scroller.scrollLeft).toBe(88)
   })
 
-  it.each(['none', 'scroll', 'scroll-start', 'wheel', 'touch', 'key'])('holds the opening position through pane pinning until input=%s', (input) => {
+  it.each(['none', 'browser-scroll', 'scrollbar', 'scroll-start', 'horizontal', 'left', 'content', 'child', 'secondary', 'wheel', 'touch', 'key', 'space'])('holds the opening position through pane pinning until input=%s', (input) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
     const callbacks: (() => void)[] = []
@@ -289,17 +324,20 @@ describe('CalendarTimeGrid', () => {
       const nowTop = Number.parseFloat(screen.getByRole('img', { name: 'Now' }).style.top) * 16
       expect(paneHeight + nowTop - body.scrollTop).toBe(100)
       fireEvent.scroll(body)
-      if (input !== 'none') {
-        if (input === 'wheel') fireEvent.wheel(body, { deltaY: 120 })
-        if (input === 'touch') fireEvent.touchMove(body)
-        if (input === 'key') fireEvent.keyDown(body, { key: 'PageDown' })
+      const keepsOpening = ['none', 'browser-scroll', 'content', 'child', 'secondary'].includes(input)
+      applyGridInput(body, input)
+      if (!keepsOpening) {
         body.scrollTop = input === 'scroll-start' ? 0 : 600
         fireEvent.scroll(body)
       }
-      paneHeight = 100
+      paneHeight = 150
+      if (input === 'browser-scroll') {
+        body.scrollTop -= 150
+        fireEvent.scroll(body)
+      }
       act(() => callbacks.forEach((resize) => resize()))
       expect(pane).toHaveAttribute('data-pinning', 'pinned')
-      if (input === 'none') {
+      if (keepsOpening) {
         const belowPane = nowTop - body.scrollTop
         expect(belowPane).toBeGreaterThanOrEqual(0)
         expect(belowPane).toBeLessThanOrEqual((400 - paneHeight) / 3)

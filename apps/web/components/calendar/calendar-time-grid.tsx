@@ -220,7 +220,6 @@ export function CalendarTimeGrid({
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
 
   const hasMovedGrid = useRef(false)
-  const openingScroll = useRef({ top: 0, left: 0 })
   useLayoutEffect(() => {
     const node = bodyRef.current
     if (!node) return
@@ -248,12 +247,19 @@ export function CalendarTimeGrid({
         const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
         node.scrollLeft = Math.max(0, todayColumn.offsetLeft - gutter - (node.clientWidth - gutter - todayColumn.clientWidth) / 2)
       }
-      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
     }
     const preserveOpeningPosition = (event: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) hasMovedGrid.current = true
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) hasMovedGrid.current = true
+    }
+    const releaseOpeningOnScrollbar = (event: PointerEvent) => {
+      if (event.target !== node || event.button !== 0) return
+      const bounds = node.getBoundingClientRect()
+      const outsideColumns = event.clientX < bounds.left + node.clientLeft || event.clientX >= bounds.left + node.clientLeft + node.clientWidth
+      const belowHours = event.clientY >= bounds.top + node.clientTop + node.clientHeight
+      if ((node.offsetWidth > node.clientWidth && outsideColumns) || (node.offsetHeight > node.clientHeight && belowHours)) hasMovedGrid.current = true
     }
     node.addEventListener('keydown', preserveOpeningPosition)
+    node.addEventListener('pointerdown', releaseOpeningOnScrollbar)
     open()
     const observer = new ResizeObserver(open)
     observer.observe(node)
@@ -263,6 +269,7 @@ export function CalendarTimeGrid({
     return () => {
       observer.disconnect()
       node.removeEventListener('keydown', preserveOpeningPosition)
+      node.removeEventListener('pointerdown', releaseOpeningOnScrollbar)
     }
   }, [columns, perColumn, timeZone, isLoading, isPanePinned])
 
@@ -288,10 +295,6 @@ export function CalendarTimeGrid({
           ref={bodyRef}
           onWheel={() => { hasMovedGrid.current = true }}
           onTouchMove={() => { hasMovedGrid.current = true }}
-          onScroll={(event) => {
-            const node = event.currentTarget
-            if (node.scrollTop !== openingScroll.current.top || node.scrollLeft !== openingScroll.current.left) hasMovedGrid.current = true
-          }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
           style={{ ...SCROLLER_VARIABLES, scrollPaddingLeft: gutterWidth, overflow: 'auto', overscrollBehavior: 'contain', flex: 1, minHeight: 0, fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
