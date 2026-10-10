@@ -11,7 +11,7 @@ export function CapacityNotice({ message, body, action }: Readonly<CapacityNotic
         {message}
       </p>
       {body ? (
-        <p className="text-sm leading-5 text-[var(--fg-3)]" style={{ fontFamily: 'var(--font-sans)' }}>
+        <p className="text-sm leading-5 text-[var(--fg-2)]" style={{ fontFamily: 'var(--font-sans)' }}>
           {body}
         </p>
       ) : null}
