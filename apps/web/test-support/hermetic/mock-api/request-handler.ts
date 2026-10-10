@@ -5,7 +5,7 @@ import { profileSchema, subscriptionStatusSchema } from '@orbit/shared/types/pro
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { appConfigSchema } from '@orbit/shared/types/config'
 import { billingDetailsSchema, subscriptionPlansSchema } from '@orbit/shared/types/subscription'
-import { gamificationProfileSchema } from '@orbit/shared/types/gamification'
+import { gamificationProfileSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
 import {
   bulkCreateRequestSchema,
   bulkCreateResponseSchema,
@@ -26,6 +26,7 @@ import { accountEventTicketFixture } from './fixtures/account-events'
 import { configFixture } from './fixtures/config'
 import { subscriptionPlansFixture } from './fixtures/subscription-plans'
 import { billingDetailsFixture, subscriptionStatusFixture } from './fixtures/subscriptions'
+import { streakFixture } from './fixtures/streak'
 import { gamificationProfileFixture } from './fixtures/gamification'
 import {
   emptyChecklistTemplatesFixture,
@@ -52,6 +53,7 @@ interface MockRoute {
 }
 
 const routes: MockRoute[] = [
+  { method: 'GET', path: '/api/gamification/streak', schema: streakInfoSchema, body: streakFixture },
   {
     method: 'POST',
     path: '/api/ai/clarifications/:operationId/resolve',
@@ -298,7 +300,11 @@ function sendFixtureRoute(req: IncomingMessage, res: ServerResponse, route: Mock
     sendInvalidSession(res, url.pathname)
     return
   }
-  sendJson(res, 200, body)
+  if (seeded?.delayMs) {
+    setTimeout(() => sendJson(res, 200, body), seeded.delayMs)
+  } else {
+    sendJson(res, 200, body)
+  }
 }
 
 export function handleRequest(req: IncomingMessage, res: ServerResponse): void {

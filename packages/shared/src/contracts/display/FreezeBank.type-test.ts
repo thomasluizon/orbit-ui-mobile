@@ -32,6 +32,7 @@ type Words = {
 }
 
 export type FreezeBankTypeContract = [
+  Assert<IsExactWidth<FreezeBankProps['loadingLabel'], string | undefined>>,
   Assert<IsExactWidth<FreezeBankProtectedDay['id'], string>>,
   Assert<IsExactWidth<FreezeBankProtectedDay['dateLabel'], string>>,
   Assert<IsExactWidth<FreezeBankProtectedDay['isToday'], boolean | undefined>>,

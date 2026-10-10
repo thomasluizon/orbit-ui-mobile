@@ -3,6 +3,7 @@ import { z, type ZodType } from 'zod'
 
 const fixtureSchema = z.object({
   path: z.string(),
+  delayMs: z.number().int().min(0).max(30_000).optional(),
   body: z.unknown(),
   query: z.record(z.string(), z.string()).optional(),
   afterMutation: z.object({ method: z.enum(['POST', 'PUT', 'PATCH', 'DELETE']), path: z.string(), body: z.unknown() }).optional(),
