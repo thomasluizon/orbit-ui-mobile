@@ -18,7 +18,7 @@ export function CalendarCard({ calendarCard }: Readonly<{ calendarCard: Calendar
   const tokens = createTokensV2(currentScheme, currentTheme)
   const items: BlockFrameItem[] = calendarCard.events.map((event, index) => ({
     id: `event-${index}`,
-    label: <PersonalTextDetails>{event.title}</PersonalTextDetails>,
+    label: <PersonalTextDetails outset>{event.title}</PersonalTextDetails>,
     wrapLabel: true,
     meta: event.isAllDay ? t('chat.calendarCard.allDay') : displayClock(event.start),
   }))

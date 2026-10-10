@@ -38,13 +38,13 @@ export function PeriodInsightCard({ periodInsight }: Readonly<{ periodInsight: P
     periodInsight.topHabits.forEach((habit, habitIndex) => rows.push({
       id: `top-${habitIndex}`,
       wrapLabel: true,
-      label: <PersonalTextDetails>{`${t('chat.insight.topHabit')}: ${habit.name}`}</PersonalTextDetails>,
+      label: <PersonalTextDetails outset>{`${t('chat.insight.topHabit')}: ${habit.name}`}</PersonalTextDetails>,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))
     periodInsight.needsAttention.forEach((habit, habitIndex) => rows.push({
       id: `attention-${habitIndex}`,
       wrapLabel: true,
-      label: <PersonalTextDetails>{`${t('chat.insight.needsAttention')}: ${habit.name}`}</PersonalTextDetails>,
+      label: <PersonalTextDetails outset>{`${t('chat.insight.needsAttention')}: ${habit.name}`}</PersonalTextDetails>,
       control: <Text style={{ color: tokens.fg1, fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'] }}>{habit.completionRate}%</Text>,
     }))
   }

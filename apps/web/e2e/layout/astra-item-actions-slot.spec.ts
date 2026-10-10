@@ -6,6 +6,7 @@ import { makeCreateHabitsPreview } from '@orbit/shared/test-support/pending-oper
 import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { expectFillShape, expectInteractionFill } from './label-interaction-fill'
 
 for (const width of [320, 412, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -40,9 +41,15 @@ for (const width of [320, 412, 1352]) {
           while (!row.contains(control)) row = row.parentElement!
           const labelBounds = label.getBoundingClientRect()
           const actionBounds = control.getBoundingClientRect()
+          const metaBounds = row.firstElementChild!.children[1]!.getBoundingClientRect()
+          const disclosure = [...row.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === name)!.getBoundingClientRect()
           const lineHeight = parseFloat(getComputedStyle(label).lineHeight)
-          return { direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + lineHeight, labelHeight: labelBounds.height, lineHeight, labelRight: labelBounds.right, actionLeft: actionBounds.left, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, rowBottom: row.getBoundingClientRect().bottom }
+          return { nameLeft: labelBounds.left, metaLeft: metaBounds.left, disclosureLeft: disclosure.left, disclosureRight: disclosure.right, rowLeft: row.getBoundingClientRect().left, direction: getComputedStyle(row).flexDirection, branches: row.children.length, firstLineTop: labelBounds.top, firstLineBottom: labelBounds.top + lineHeight, labelHeight: labelBounds.height, lineHeight, labelRight: labelBounds.right, actionLeft: actionBounds.left, actionCenter: actionBounds.top + actionBounds.height / 2, actionBottom: actionBounds.bottom, rowBottom: row.getBoundingClientRect().bottom }
         }, name)
+        expect(geometry.nameLeft).toBeCloseTo(geometry.metaLeft, 1)
+        expect(geometry.nameLeft - geometry.disclosureLeft).toBeCloseTo(8, 1)
+        expect(geometry.disclosureLeft).toBeGreaterThanOrEqual(geometry.rowLeft + 2)
+        expect(geometry.disclosureRight + 2).toBeLessThanOrEqual(geometry.actionLeft)
         expect(geometry.direction).toBe('row')
         expect(geometry.branches).toBe(2)
         expect(geometry.actionCenter).toBeGreaterThanOrEqual(geometry.firstLineTop - 0.5)
@@ -50,6 +57,11 @@ for (const width of [320, 412, 1352]) {
         expect(geometry.labelHeight).toBeLessThanOrEqual(geometry.lineHeight * 2 + 0.5)
         expect(geometry.labelRight).toBeLessThanOrEqual(geometry.actionLeft)
         expect(geometry.actionBottom).toBeLessThanOrEqual(geometry.rowBottom)
+        await expectInteractionFill(labelControl)
+        await page.keyboard.press('Tab')
+        await labelControl.focus()
+        await expect(labelControl).toBeFocused()
+        await expectFillShape(labelControl, 'focus')
         await labelControl.click()
         await expect(labelControl).toHaveAttribute('aria-expanded', 'true')
         await expect(conversation.locator('[data-personal-text-expanded]').filter({ hasText: name })).toHaveText(name)
