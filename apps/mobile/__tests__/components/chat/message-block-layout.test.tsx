@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { FlatList, View, type FlatListProps } from 'react-native'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -39,7 +40,7 @@ it.each(cases)('spaces Android $kind at $width in $locale with prose=$prose', as
   __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
   await i18n.changeLanguage(locale)
   const chat = {
-    flatListRef: { current: null },
+    threadScroll: createChatThreadScroll(), flatListRef: { current: null },
     messages: [makeHeldHabitMessage({ id: 'previous', content: 'Review the routine.', pendingOperations: [] }), makeChatBlockLayoutMessage(scenario, prose)],
     activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
     scrollToBottom: vi.fn(), sendMessage: vi.fn(), composerProps: { suggestions: [] },
