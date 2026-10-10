@@ -11,7 +11,7 @@ import {
 for (const locale of ['en', 'pt-BR'] as const) {
   for (const width of [412, 1352]) {
     test.describe(`Streak loading frame in ${locale} at ${width}`, () => {
-      test.use({ appLocale: locale, subscriptionState: 'trial', layoutProfile: progressGoalsEmptyProfile,
+      test.use({ appLocale: locale, subscriptionState: 'trial', layoutProfile: { ...progressGoalsEmptyProfile, language: locale },
         viewport: { width, height: 915 } })
       test('keeps the goals heading at the same top when the delayed streak response lands', async ({ page, context }) => {
         await setLayoutFixtureSession(context, [
