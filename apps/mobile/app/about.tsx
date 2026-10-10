@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { ListRow } from '@/components/ui/list-row'
 import { OrbitMark } from '@/components/ui/orbit-mark'
 import { RowList } from '@/components/ui/row-list'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'
@@ -74,6 +75,7 @@ export default function AboutScreen() {
   const pageEnd = useShellPageEnd()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -91,7 +93,7 @@ export default function AboutScreen() {
       <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('about.title')}
-        backLabel={t('common.backToProfile')}
+        backLabel={backLabel}
       />
       <ScrollView
         style={styles.container}

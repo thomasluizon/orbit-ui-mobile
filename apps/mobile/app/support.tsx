@@ -34,6 +34,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useShellPageEnd } from '@/components/shell/shell-scroller-clearance'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import {
   forgetStoredSupportDraft,
@@ -236,6 +237,7 @@ export default function SupportScreen() {
   const pageEnd = useShellPageEnd()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -376,7 +378,7 @@ export default function SupportScreen() {
       <PageHeader
         onBack={() => goBackOrFallback('/profile')}
         title={t('profile.support.title')}
-        backLabel={t('common.backToProfile')}
+        backLabel={backLabel}
       />
       <KeyboardAwareScrollView
         avoidKeyboard={false}

@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -22,10 +23,7 @@ for (const width of [412, 600] as const) {
     test.use({ appLocale: 'pt-BR', viewport: { width, height: 915 } })
 
     test('keeps the FAB above the notice control and the composer', async ({ page, context }) => {
-      await context.route(
-        new RegExp(`${API.habits.list}[?]`),
-        (route) => route.fulfill({ json: habitsPage }),
-      )
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
       await page.goto(`/?date=${today}`)
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
       await page.getByRole('menuitem', { name: ptBr.habits.refresh }).click()

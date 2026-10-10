@@ -1,5 +1,6 @@
+import { expect, type Page, type Locator } from '@playwright/test'
+import { test } from './layout-test'
 import { readExpandedControlGeometry } from './expanded-control-geometry'
-import { expect, test, type Page, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'

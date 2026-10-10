@@ -13,7 +13,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 async function expectEmptyTitle(page: Page, surface: Page | Locator, title: string) {
@@ -39,7 +39,7 @@ for (const width of [320, 360, 384, 412]) {
       test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile)
         const responses: ReadonlyArray<readonly [string, unknown]> = [
-          [API.profile.get, profile], [API.goals.list, emptyGoalsPageFixture], [API.habits.list, emptyHabitsPageFixture],
+          [API.goals.list, emptyGoalsPageFixture],
           [API.gamification.profile, gamificationProfileSchema.parse({
             ...gamificationProfileFixture, totalXp: 1, currentStreak: 1, longestStreak: 1, isPro: true, achievementsLocked: false,
           })],
@@ -59,6 +59,7 @@ for (const width of [320, 360, 384, 412]) {
           })],
           [API.calendar.autoSyncSuggestions, []],
         ]
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }, { path: API.habits.list, body: emptyHabitsPageFixture }])
         for (const [path, response] of responses) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path,
             (route) => route.fulfill({ json: response }))

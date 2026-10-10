@@ -143,6 +143,7 @@ vi.mock('@/stores/offline-sync-store', () => ({
 }))
 
 vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined,
   useRouter: mocks.useRouter,
   useLocalSearchParams: mocks.useLocalSearchParams,
 }))

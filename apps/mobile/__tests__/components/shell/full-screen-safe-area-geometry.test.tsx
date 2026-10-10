@@ -51,7 +51,8 @@ vi.mock('react-native-safe-area-context', () => ({
     }]} />
   },
 }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), dismissTo: vi.fn() }), useLocalSearchParams: () => ({}) }))
+vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined, useRouter: () => ({ push: vi.fn(), replace: vi.fn(), dismissTo: vi.fn() }), useLocalSearchParams: () => ({}) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: { screen: { backgroundColor: createTokensV2().bg } } }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile(), isLoading: true, refetch: vi.fn(() => Promise.resolve({ data: createMockProfile() })), patchProfile: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleNotifications: [], notifications: [], visibleUnreadCount: 0, pendingDeleteIds: [], isLoading: true }) }))

@@ -51,7 +51,7 @@ vi.mock('@/components/ui/time-field', () => ({ TimeField: () => null }))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => null }))
 const { act, create } = require('react-test-renderer') as typeof import('react-test-renderer')
 
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
 
 async function renderSheet(mode: 'create' | 'edit') {
   const onClose = vi.fn()

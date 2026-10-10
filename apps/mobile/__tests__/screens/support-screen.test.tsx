@@ -90,7 +90,9 @@ vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.routerPush }) }))
+vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined,
+  useRouter: () => ({ push: mocks.routerPush }) }))
 
 const tokensProxy = new Proxy({}, { get: () => '#111111' }) as Record<string, string>
 vi.mock('@/lib/use-app-theme', () => ({

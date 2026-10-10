@@ -10,7 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const calendarName = 'Calendário compartilhado dos compromissos e encontros de toda a minha família'
@@ -72,12 +72,12 @@ for (const width of [320, 360, 384, 412, 600]) {
       test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile, calendars)
         const responses: ReadonlyArray<readonly [string, unknown]> = [
-          [API.profile.get, profile],
           [API.calendar.events, events],
           [API.calendar.calendars, calendars],
           [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
           [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [], logs: {} })],
         ]
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         for (const [path, response] of responses) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path, (route) => route.fulfill({ json: response }))
         }

@@ -1,5 +1,6 @@
 import { completeInstallOnboarding } from './install-onboarding'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { LAYOUT_ORIGIN } from '../support/env'

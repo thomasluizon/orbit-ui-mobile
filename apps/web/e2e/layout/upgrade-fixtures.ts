@@ -1,4 +1,4 @@
-import { test as base } from '@playwright/test'
+import { test as base } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { profileSchema, subscriptionStatusSchema, type Profile, type SupportedLocale } from '@orbit/shared/types/profile'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
@@ -130,7 +130,6 @@ export const test = base.extend<{
         await route.fulfill({ status: 503, body: '' })
       })
     }
-    await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
     try {
       await runTest(page)
     } finally {

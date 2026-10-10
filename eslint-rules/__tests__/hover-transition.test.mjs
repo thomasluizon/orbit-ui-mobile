@@ -1,36 +1,133 @@
 import { RuleTester } from 'eslint'
 import parser from '@typescript-eslint/parser'
 import { createRequire } from 'node:module'
-import { afterAll, describe, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { afterAll, describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
+const webRequire = createRequire(new URL('../../apps/web/package.json', import.meta.url))
+const { compile, __unstable__loadDesignSystem: loadDesignSystem } = webRequire('tailwindcss')
+const { VARIANT_ORDER, isSupportedVariant, compareVariants } = require('../_hover-variant-order.cjs')
 RuleTester.describe = describe
 RuleTester.it = it
 RuleTester.afterAll = afterAll
 const tester = new RuleTester({ languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true } } } })
 
+describe('hover transition compiler ordering', () => {
+  it('matches every supported registered variant and emitted rule order', async () => {
+    const theme = readFileSync(webRequire.resolve('tailwindcss/theme.css'), 'utf8')
+    const designSystem = await loadDesignSystem(theme)
+    const registered = [...designSystem.variants.entries()]
+    const staticVariants = registered.filter(([, variant]) => variant.kind === 'static').map(([name]) => name)
+    const variants = [...staticVariants, 'group-hover', 'group-hover/card', 'group-hover/menu',
+      'group-aria-checked', 'group-data-active', 'group-data-[active]', 'group-data-[active=true]',
+      'group-data-[input-modality=keyboard]/search',
+      'aria-checked', 'aria-expanded', 'aria-[label=A]', 'aria-[label=Z]',
+      'data-active', 'data-state', 'data-[active]', 'data-[active=true]', 'data-[state=active]', 'data-[state=done]',
+      '[&_button]', '[&_button:enabled]', '[&_.foo\\_bar]', '[&_.foo_bar]', '[&_span]']
+    for (const variant of variants) expect(isSupportedVariant(variant), variant).toBe(true)
+    for (const root of VARIANT_ORDER) {
+      expect(designSystem.variants.has(root), root).toBe(true)
+    }
+    const expected = [...variants].sort((left, right) => designSystem.variants.compare(
+      designSystem.parseVariant(left), designSystem.parseVariant(right),
+    ))
+    expect([...variants].reverse().sort(compareVariants)).toEqual(expected)
+    const compiler = await compile(`${theme}\n@tailwind utilities;`)
+    const probes = variants.map((variant, index) => `${variant}:duration-[${1000 + index}ms]`)
+    const emitted = [...new Set([...compiler.build(probes).matchAll(/transition-duration: (\d+)ms;/g)]
+      .map(([, duration]) => variants[Number(duration) - 1000]))]
+    expect(emitted).toEqual(expected)
+  })
+})
+
 tester.run('hover-transition', require('../hover-transition.cjs'), {
   valid: [
+    '<button className="transition-[background-color] duration-[var(--dur-hover)] ease-[var(--ease-standard)] group-data-[input-modality=keyboard]/search:transition-none data-[selected=false]:hover:bg-[var(--bg-hover)]" />',
+    '<button className="target:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] target:duration-[var(--dur-hover-control)] hover:duration-[var(--dur-hover-control)] custom:opacity-50" />',
+    '<button className="aria-checked:aria-expanded:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] aria-checked:duration-150 aria-expanded:duration-[var(--dur-hover-control)]" />',
+    ...['focus-visible', 'active'].map((state) => `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] ${state}:[transition-duration:var(--dur-hover-control),150ms] md:${state}:[transition-duration:150ms,var(--dur-hover-control)]" />`),
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] sm:[transition-property:scale,background-color] sm:[transition-duration:150ms,var(--dur-hover-control)] md:[transition-property:background-color,scale] md:[transition-duration:var(--dur-hover-control),150ms]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:[transition-property:scale,background-color] hover:[transition-duration:150ms,var(--dur-hover-control)] focus-visible:[transition-duration:var(--dur-hover-control),150ms] hover:focus-visible:[transition-duration:150ms,var(--dur-hover-control)]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:![transition-duration:150ms,var(--dur-hover-control)] hover:[transition-duration:var(--dur-hover-control),150ms]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] hover:[transition-duration:var(--dur-hover-control),150ms] md:hover:[transition-duration:150ms,var(--dur-hover-control)]" />',
+    '<button className="hover:bg-[var(--bg-hover)] orbit-pill-action md:[transition-property:scale,background-color]" style={{ transitionProperty: "background-color" }} />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] md:[transition-timing-function:var(--ease-out),var(--ease-standard)]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:[transition-property:scale,opacity,background-color]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] md:duration-150" style={{ transitionDuration: "var(--dur-hover-control)" }} />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:ease-out" style={{ transitionTimingFunction: "var(--ease-standard)" }} />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:[transition-property:scale,background-color]" style={{ transitionProperty: "background-color, scale" }} />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-colors md:duration-150 hover:ease-out md:[transition-property:scale,background-color]" style={{ transition: "background-color 240ms var(--ease-standard), scale 150ms var(--ease-out)" }} />',
+    '<div className="[&_button]:hover:bg-[var(--bg-hover)] [&_button]:transition-colors [&_button]:duration-[var(--dur-hover-control)] [&_button]:ease-[var(--ease-standard)]" style={{ transitionDuration: "150ms", transitionTimingFunction: "ease-out" }} />',
+    '<button className="group-hover/card:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] group-hover/card:duration-150 group-hover/card:ease-out" style={{ transitionDuration: "var(--dur-hover-control)", transitionTimingFunction: "var(--ease-standard)" }} />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] md:duration-[var(--dur-hover)] hover:ease-[var(--ease-standard)]" />',
+    '<div className="[&_button]:hover:bg-[var(--bg-hover)] [&_button]:transition-colors [&_button]:duration-[var(--dur-hover-control)] [&_button]:ease-[var(--ease-standard)] [&_span]:duration-150 [&_span]:ease-out" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--status-dot-press-duration)]" style={{ transitionDuration: "var(--dur-hover-control), var(--status-dot-press-duration)", transitionTimingFunction: "var(--ease-standard), var(--ease-out)" } as CSSProperties} />',
+    '<button className="hover:bg-[var(--bg-hover)] [transition-property:background-color,box-shadow,scale]" style={{ transition: "background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)" }} />',
+    '<button data-fab="" className="transition-[background-color,transform] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[transform,background-color] [transition-duration:150ms,var(--dur-hover-control)] [transition-timing-function:cubic-bezier(0.16,1,0.3,1),var(--ease-standard)]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[color,opacity,background-color] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />',
+    '<div className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)]" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-none duration-150 ease-out" />',
+    '<button className="hover:bg-[var(--bg-hover)] habit-control-motion duration-[var(--dur-hover-control)]" />',
     '<button className="bg-[var(--bg-card)]" />',
-    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color]" />',
-    ...['transition', 'transition-colors', 'transition-all', 'transition-[color,background-color]', 'transition-[background]', 'transition-[all]'].map((transition) => `<button className="hover:bg-[var(--bg-hover)] ${transition}" />`),
-    '<button className="hover:bg-[var(--bg-hover)] [transition-property:background-color]" />',
-    '<div className="md:[&_button]:hover:bg-[var(--bg-hover)] md:[&_button]:[transition-property:background-color,color,opacity,scale]" />',
-    '<div className="md:[&_button:enabled]:hover:bg-[var(--bg-hover)] md:[&_button]:[transition-property:background-color,color,opacity,scale]" />',
-    '<button className={["hover:bg-[var(--bg-hover)]", "transition-colors"].join(" ")} />',
-    '<button className={["hover:bg-[var(--bg-hover)]", "transition-colors"].filter(Boolean).join(" ")} />',
-    '<button className={`hover:bg-[var(--bg-hover)] ${ready ? "transition-colors" : "transition-none"}`} />',
-    '<button className={ready ? "hover:bg-[var(--bg-hover)] transition-colors" : "bg-transparent"} />',
-    '<button className={[ready ? "hover:bg-[var(--bg-hover)]" : "", "transition-colors"].join(" ")} />',
-    '<button className="enabled:hover:bg-[var(--bg-hover)] !transition-colors" />',
+    '<button className="hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />',
+    ...['transition', 'transition-colors', 'transition-all', 'transition-[color,background-color]', 'transition-[background]', 'transition-[all]'].map((transition) => `<button className="hover:bg-[var(--bg-hover)] ${transition} duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />`),
+    '<button className="hover:bg-[var(--bg-hover)] [transition-property:background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />',
+    '<div className="md:[&_button]:hover:bg-[var(--bg-hover)] md:[&_button]:[transition-property:background-color,color,opacity,scale] md:[&_button]:duration-[var(--dur-hover-control)] md:[&_button]:ease-[var(--ease-standard)]" />',
+    '<div className="md:[&_button:enabled]:hover:bg-[var(--bg-hover)] md:[&_button]:[transition-property:background-color,color,opacity,scale] md:[&_button]:duration-[var(--dur-hover-control)] md:[&_button]:ease-[var(--ease-standard)]" />',
+    '<button className={["hover:bg-[var(--bg-hover)]", "transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"].join(" ")} />',
+    '<button className={["hover:bg-[var(--bg-hover)]", "transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"].filter(Boolean).join(" ")} />',
+    '<button className={`hover:bg-[var(--bg-hover)] ${ready ? "transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" : "transition-none"}`} />',
+    '<button className={ready ? "hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" : "bg-transparent"} />',
+    '<button className={[ready ? "hover:bg-[var(--bg-hover)]" : "", "transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"].join(" ")} />',
+    '<button className="enabled:hover:bg-[var(--bg-hover)] !transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />',
     ...['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip'].map((motion) => `<button className="hover:bg-[var(--bg-hover)] ${motion}" />`),
     '<span className="group-hover:bg-[var(--bg-hover)] transition-none" />',
-    '<button className="hover:bg-[var(--bg-hover)] motion-safe:transition-colors" />',
+    '<button className="hover:bg-[var(--bg-hover)] motion-safe:transition-colors motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)]" />',
   ],
   invalid: [
+    { code: '<button className="aria-checked:aria-expanded:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] aria-checked:duration-[var(--dur-hover-control)] aria-expanded:duration-150" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="target:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] target:duration-[var(--dur-hover-control)] hover:duration-150" />', errors: [{ messageId: 'duration' }] },
+    ...['custom', 'arbitrary', 'not-hover', 'group-focus', 'peer-focus', 'has-checked', 'supports-grid', 'min-[40rem]'].map((variant) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${variant}:duration-150" />`, errors: [{ messageId: 'variant' }] })),
+    { code: '<button className="custom:hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />', errors: [{ messageId: 'variant' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] focus-visible:[transition-duration:var(--dur-hover-control),150ms] md:hover:focus-visible:[transition-duration:150ms,var(--dur-hover-control)]" />', errors: [{ messageId: 'duration' }] },
+    ...['focus-visible', 'active'].map((state) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] ${state}:[transition-duration:var(--dur-hover-control),150ms]" />`, errors: [{ messageId: 'duration' }] })),
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] sm:[transition-duration:150ms,var(--dur-hover-control)] md:[transition-property:scale,background-color] md:[transition-duration:var(--dur-hover-control),150ms]" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:[transition-property:scale,background-color] hover:[transition-duration:150ms,var(--dur-hover-control)] focus-visible:[transition-duration:var(--dur-hover-control),150ms]" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--dur-hover-control)] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:[transition-property:scale,background-color] md:[transition-timing-function:var(--ease-out),var(--ease-standard)] hover:[transition-timing-function:var(--ease-standard),var(--ease-out)]" />', errors: [{ messageId: 'timing' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] ease-[var(--ease-standard)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)] hover:[transition-duration:var(--dur-hover-control),150ms]" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:[transition-property:scale,background-color]" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--dur-hover-control)] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:[transition-property:scale,background-color]" />', errors: [{ messageId: 'timing' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:[transition-property:scale,background-color] md:[transition-duration:150ms,var(--dur-hover-control)]" />', errors: [{ messageId: 'timing' }] },
+    ...['md:!duration-150', 'md:duration-150!', '!duration-150', 'duration-150!'].map((duration) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${duration}" style={{ transitionDuration: "var(--dur-hover-control)" }} />`, errors: [{ messageId: 'duration' }] })),
+    ...['hover:!ease-out', 'hover:ease-out!'].map((timing) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${timing}" style={{ transitionTimingFunction: "var(--ease-standard)" }} />`, errors: [{ messageId: 'timing' }] })),
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-standard),var(--ease-out)] md:![transition-property:scale,background-color]" style={{ transitionProperty: "background-color, scale" }} />', errors: [{ messageId: 'duration' }] },
+    { code: '<div className="[&_button]:hover:bg-[var(--bg-hover)] [&_button]:transition-colors [&_button]:duration-150 [&_button]:ease-[var(--ease-standard)]" style={{ transitionDuration: "var(--dur-hover-control)" }} />', errors: [{ messageId: 'duration' }] },
+    { code: '<div className="[&_button]:hover:bg-[var(--bg-hover)] [&_button]:transition-colors [&_button]:duration-[var(--dur-hover-control)] [&_button]:ease-out" style={{ transitionTimingFunction: "var(--ease-standard)" }} />', errors: [{ messageId: 'timing' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] md:duration-150" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:ease-out" />', errors: [{ messageId: 'timing' }] },
+    { code: '<div className="[&_button:enabled]:hover:bg-[var(--bg-hover)] [&_button]:transition-colors [&_button]:duration-[var(--dur-hover-control)] [&_button]:ease-[var(--ease-standard)] md:[&_button:enabled:active]:duration-150" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color,scale] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" style={{ transitionDuration: "150ms, var(--dur-hover-control)" }} />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] habit-control-motion" style={{ transition: "background-color 240ms ease-out, scale 150ms var(--ease-out)" }} />', errors: [{ messageId: 'timing' }] },
+    ...['duration-150', 'duration-200', 'duration-[var(--dur-fast)]', '[transition-duration:150ms]', '[transition-duration:150ms,var(--dur-hover-control)]'].map((duration) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,transform] ${duration} ease-[var(--ease-standard)]" />`, errors: [{ messageId: 'duration' }] })),
+    ...['ease-out', 'ease-linear', 'ease-[var(--ease-out)]', '[transition-timing-function:var(--ease-out),var(--ease-standard)]'].map((timing) => ({ code: `<button className="hover:bg-[var(--bg-hover)] transition-[background-color,transform] duration-[var(--dur-hover-control)] ${timing}" />`, errors: [{ messageId: 'timing' }] })),
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-colors ease-[var(--ease-standard)]" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] habit-control-motion duration-150" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] habit-control-motion ease-out" />', errors: [{ messageId: 'timing' }] },
+    { code: '<button className={`hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ${ready ? "ease-[var(--ease-standard)]" : "ease-out"}`} />', errors: [{ messageId: 'timing' }] },
+    { code: '<div className="md:[&_button]:hover:bg-[var(--bg-hover)] md:[&_button]:transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] hover:ease-[var(--ease-standard)]" />', errors: [{ messageId: 'timing' }] },
+    { code: '<button data-fab="" className="transition-[background-color,transform] [transition-duration:var(--dur-hover-control),150ms] ease-out active:scale-[0.96]" />', errors: [{ messageId: 'timing' }] },
+    { code: '<button className="hover:bg-[var(--primary-hover)] transition-[background-color,opacity] duration-150" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[background-color] duration-[var(--dur-hover-control)]" />', errors: [{ messageId: 'timing' }] },
+    { code: '<button className="transition-[background-color,color,box-shadow,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),var(--dur-hover-control),150ms] hover:bg-[var(--bg-hover)]" />', errors: [{ messageId: 'timing' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[transform,background-color] [transition-duration:var(--dur-hover-control),150ms] [transition-timing-function:var(--ease-out),var(--ease-standard)]" />', errors: [{ messageId: 'duration' }] },
+    { code: '<button className="hover:bg-[var(--bg-hover)] transition-[transform,background-color] [transition-duration:150ms,var(--dur-hover-control)] [transition-timing-function:var(--ease-standard),var(--ease-out)]" />', errors: [{ messageId: 'timing' }] },
     ...['transition-opacity', 'transition-transform', 'transition-shadow', 'transition-[opacity,transform]', '[transition-property:opacity]', '[&_span]:transition-colors', '[&_span]:transition-none', '[&_span]:habit-control-motion', 'focus:transition-colors', 'orbit-list-row-form', 'orbit-list-row-control'].map((transition) => ({ code: `<button className="hover:bg-[var(--bg-hover)] ${transition}" />`, errors: [{ messageId: 'missing' }] })),
     { code: '<button className={ready ? "hover:bg-[var(--bg-hover)]" : "transition-colors"} />', errors: [{ messageId: 'missing' }] },
-    { code: '<button className={`hover:bg-[var(--bg-hover)] ${ready ? "transition-colors" : "transition-opacity"}`} />', errors: [{ messageId: 'missing' }] },
+    { code: '<button className={`hover:bg-[var(--bg-hover)] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${ready ? "transition-colors" : "transition-opacity"}`} />', errors: [{ messageId: 'missing' }] },
     { code: '<button className={["hover:bg-[var(--bg-hover)]", ready && "transition-colors"].join(" ")} />', errors: [{ messageId: 'missing' }] },
     { code: '<button className={[ready ? "hover:bg-[var(--bg-hover)]" : "transition-colors"].filter(Boolean).join(" ")} />', errors: [{ messageId: 'missing' }] },
     { code: '<div className="md:[&_button]:hover:bg-[var(--bg-hover)] transition-colors" />', errors: [{ messageId: 'missing' }] },

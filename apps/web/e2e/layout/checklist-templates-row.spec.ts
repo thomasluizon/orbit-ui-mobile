@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import messages from '@orbit/shared/i18n/en.json'
 
 for (const width of [412, 1280] as const) {

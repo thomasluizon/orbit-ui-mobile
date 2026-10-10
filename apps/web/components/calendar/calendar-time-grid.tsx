@@ -130,7 +130,7 @@ function TimedBlock({
       data-hour={block.hour}
       onClick={onSelect}
       aria-label={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
-      className={`group absolute flex flex-col items-start justify-between gap-1 overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
+      className={`group absolute flex flex-col items-start justify-between gap-1 overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] motion-safe:active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
       style={{
         top: `${block.top / 16}rem`,
         minHeight: 48,
@@ -307,7 +307,7 @@ export function CalendarTimeGrid({
                   data-testid="time-grid-col-header"
                   data-focus-inset="panel"
                   onClick={() => onSelectDay(column.dateStr)}
-                  className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] active:scale-[0.96]"
+                  className="flex flex-col items-center justify-center bg-transparent transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-fast)] [transition-timing-function:var(--ease-standard),var(--ease-out)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:scale-[0.96]"
                   style={{
                     appearance: 'none',
                     border: 0,
@@ -365,12 +365,12 @@ export function CalendarTimeGrid({
               <div
                 className="sticky left-0 z-[1] flex items-start justify-end"
                 style={{
-                  padding: '8px 8px 0',
+                  padding: 8,
                   borderBottom: '1px solid var(--hairline)',
                   ...pinnedPaneBackground,
                 }}
               >
-                <span data-testid="time-grid-any-time-label" style={{ fontFamily: 'var(--font-sans)', fontSize: '0.75rem', color: 'var(--fg-2)' }}>{allDayLabel}</span>
+                <span data-testid="time-grid-any-time-label" style={{ minWidth: 0, maxWidth: '100%', fontFamily: 'var(--font-sans)', fontSize: '0.75rem', lineHeight: 1.4, color: 'var(--fg-2)' }}>{allDayLabel}</span>
               </div>
               {perColumn.map(({ column, allDay }) => {
                 return (

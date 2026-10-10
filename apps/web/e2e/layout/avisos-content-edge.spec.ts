@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -8,7 +9,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { completeInstallOnboarding } from './install-onboarding'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 for (const locale of ['pt-BR', 'en'] as const) {
   for (const width of [412, 840, 1100, 1352]) {
@@ -20,7 +21,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
         await context.addCookies([{ name: 'i18n_locale', value: locale, url: LAYOUT_ORIGIN }])
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         const items = populated ? [0, 1, 2].map((index) => createMockNotification({ id: `avisos-edge-${index}`, title: `Alert ${index}`, url: '/progress' })) : []
         await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({
           json: notificationsResponseSchema.parse({ items, unreadCount: items.length }),

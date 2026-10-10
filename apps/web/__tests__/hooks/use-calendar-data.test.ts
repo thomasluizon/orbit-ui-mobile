@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useCalendarData, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
@@ -28,7 +28,7 @@ describe('useCalendarData', () => {
   })
 
   it('fetches calendar data and builds dayMap', async () => {
-    mockFetch.mockResolvedValue({
+    const response = {
       ok: true,
       json: () =>
         Promise.resolve({
@@ -70,14 +70,28 @@ describe('useCalendarData', () => {
             'h-1': [{ id: 'log-1', date: '2025-01-15', value: 1, createdAtUtc: '2025-01-15T10:00:00Z' }],
           },
         }),
-    })
+    }
+    let settleResponse!: () => void
+    mockFetch.mockReturnValueOnce(new Promise((resolve) => {
+      settleResponse = () => resolve(response)
+    }))
 
     const currentMonth = new Date(2025, 0, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {
       wrapper: createWrapper(),
     })
 
+    expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
+      '/api/habits/calendar-month?dateFrom=2025-01-01&dateTo=2025-01-31',
+    )
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.isFetching).toBe(true)
+    expect(result.current.dayMap.size).toBe(0)
+
+    await act(async () => { settleResponse() })
     await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.isFetching).toBe(false)
+    expect(result.current.error).toBeNull()
 
     expect(result.current.dayMap.size).toBeGreaterThan(0)
 

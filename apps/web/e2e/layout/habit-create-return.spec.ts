@@ -5,7 +5,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
@@ -42,7 +42,7 @@ for (const locale of ['pt-BR', 'en'] as const) {
       test.beforeEach(async ({ context }) => {
         const profile = profileSchema.parse({ ...profileFixture, language: locale })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       })
 
       if (width === 412 || width === 600) {
@@ -58,8 +58,10 @@ for (const locale of ['pt-BR', 'en'] as const) {
               submissions.push(response.url())
               created = response.ok()
             })
-            await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-              (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items: created ? [habit] : [], totalCount: created ? 1 : 0 } }))
+            await setLayoutFixtureSession(context, [{
+              path: API.habits.list, body: emptyHabitsPageFixture,
+              afterMutation: { method: 'POST', path: API.habits.create, body: { ...emptyHabitsPageFixture, items: [habit], totalCount: 1 } },
+            }])
             await traceHistory(page)
             try {
               if (entry === 'direct') {

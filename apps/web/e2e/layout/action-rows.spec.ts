@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockCalendarSyncEvent, createMockGamificationProfile, createMockGoal, createMockNotification, createMockRescheduleSuggestion, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
@@ -27,8 +28,6 @@ const metrics = habitMetricsSchema.parse({ currentStreak: 1, longestStreak: 1, w
 
 async function installActionFixtures(context: BrowserContext, profile: Profile) {
   const responses: ReadonlyArray<readonly [string, unknown]> = [
-    [API.profile.get, profile],
-    [API.habits.list, habits],
     [API.habits.get(habitId), habit],
     [API.habits.metrics(habitId), metrics],
     [API.habits.logs(habitId), []],
@@ -43,6 +42,7 @@ async function installActionFixtures(context: BrowserContext, profile: Profile) 
     [API.notifications.list, notifications],
     [API.habits.rescheduleSuggestion(habitId), rescheduleSuggestionResponseSchema.parse({ suggestion: createMockRescheduleSuggestion({ dueDate: '2026-09-05' }), fromCache: false })],
   ]
+  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }, { path: API.habits.list, body: habits }])
   for (const [path, response] of responses) {
     await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path, (route) => route.fulfill({ json: response }))
   }
@@ -197,7 +197,7 @@ for (const width of [412, 1352]) {
         const matches = Array.from({ length: 41 }, (_, index) => makeHabitScheduleItem({ ...schedule, id: `search-${index + 1}`, title: `Read ${index + 1}`, position: index, searchMatches: [{ field: 'title', value: null }] }))
         for (const pageNumber of [1, 2, 3]) {
           const response = createPaginatedSchema(habitScheduleItemSchema).parse({ items: matches.slice((pageNumber - 1) * 20, pageNumber * 20), page: pageNumber, pageSize: 20, totalPages: 3, totalCount: matches.length })
-          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list && url.searchParams.get('search') === 'Read' && url.searchParams.get('page') === String(pageNumber), (route) => route.fulfill({ json: response }))
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: response, query: { search: 'Read', page: String(pageNumber) } }])
         }
         await page.goto('/search')
         const consent = page.getByRole('dialog', { name: messages.marketingConsent.prompt.title })
