@@ -423,6 +423,8 @@ function ChecklistAddRow({
         <Input
           label={t('habits.form.checklistPlaceholder')}
           hideLabel
+          name="checklistItem"
+          autoComplete="off"
           value={value}
           disabled={disabled}
           placeholder={t('habits.form.checklistPlaceholder')}
