@@ -387,6 +387,41 @@ describe("CalendarTimeGrid (mobile)", () => {
     } finally { __setScrollToImpl(() => {}); }
   });
 
+  it.each(['none', 'scroll', 'drag', 'touch'])("holds the opening position through pane pinning until input=%s", (input) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
+    let scrollOffset = 0;
+    const scrollTo = vi.fn((offset: { y?: number }) => { if (offset.y !== undefined) scrollOffset = offset.y; });
+    __setScrollToImpl(scrollTo);
+    try {
+      const tree = renderGrid([{ ...column('2026-10-08'), isToday: true }], new Map());
+      const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
+      const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
+      TestRenderer.act(() => {
+        body().props.onLayout({ nativeEvent: { layout: { width: 800, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 300 } } });
+      });
+      expect(body().props.stickyHeaderIndices).toEqual([]);
+      const nowLine = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityLabel === 'Now')[0]!;
+      const nowTop = Number(resolveStyle(nowLine.props.style).top);
+      expect(300 + nowTop - scrollOffset).toBe(100);
+      TestRenderer.act(() => body().props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: scrollOffset } } }));
+      if (input !== 'none') TestRenderer.act(() => {
+        if (input === 'drag') body().props.onScrollBeginDrag();
+        if (input === 'touch') body().props.onTouchMove?.();
+        scrollOffset = 600;
+        body().props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: scrollOffset } } });
+      });
+      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 800, height: 100 } } }));
+      expect(body().props.stickyHeaderIndices).toEqual([0]);
+      if (input === 'none') {
+        const belowPane = nowTop - scrollOffset;
+        expect(belowPane).toBeGreaterThanOrEqual(0);
+        expect(belowPane).toBeLessThanOrEqual(300 / 3);
+      } else expect(scrollOffset).toBe(600);
+    } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
+  });
+
   it("unpins oversized day lanes and repins at half the viewport after a layout", () => {
     const tree = renderGrid([column('2025-06-16')], new Map());
     const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;

@@ -354,35 +354,38 @@ export function CalendarTimeGrid({
       ({ allDay, timed }) => allDay.length === 0 && timed.length === 0,
     );
 
-  const opened = useRef(false);
+  const hasMovedGrid = useRef(false);
+  const openingOffsets = useRef({ vertical: new Set([0]), horizontal: new Set([0]) });
   const chipCount = Math.max(1, ...perColumn.map(({ allDay }) => Math.min(2, allDay.length)));
   const chipHeight = Math.max(48, 44.8 * fontScale);
   const allDayBandHeight = Math.max(chipCount * chipHeight + (chipCount - 1) * 4, anyTimeLabelHeight) + 16 + 1;
   useEffect(() => {
-    if (opened.current || isLoading || paneLayout.isLoading || bodyHeight <= 0 || paneHeight <= 0) return;
+    if (hasMovedGrid.current || isLoading || paneLayout.isLoading || bodyHeight <= 0 || paneHeight <= 0) return;
     const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)));
     const visibleHourHeight = bodyHeight - (isPanePinned ? paneHeight : 0);
     if (visibleHourHeight <= 0) return;
     const offset = Math.max(0, columns.some(({ isToday }) => isToday)
-      ? (nowMinutes / 60) * HOUR_HEIGHT * fontScale - visibleHourHeight / 4
+      ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * fontScale - visibleHourHeight / 4
       : firstTop * fontScale) + (isPanePinned ? 0 : paneHeight);
+    openingOffsets.current.vertical.add(offset);
     scrollViewToY(bodyScrollRef.current, offset);
     scrollViewToY(gutterScrollRef.current, offset);
-    opened.current = true;
-  }, [bodyHeight, columns, fontScale, isLoading, isPanePinned, nowMinutes, paneHeight, paneLayout.isLoading, perColumn]);
+  }, [bodyHeight, columns, fontScale, isLoading, isPanePinned, paneHeight, paneLayout.isLoading, perColumn, timeZone]);
 
   const syncGutter = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    scrollViewToY(gutterScrollRef.current, event.nativeEvent.contentOffset.y);
+    const offset = event.nativeEvent.contentOffset.y;
+    if (![...openingOffsets.current.vertical].some((opening) => Math.abs(opening - offset) <= 1)) hasMovedGrid.current = true;
+    scrollViewToY(gutterScrollRef.current, offset);
   };
 
-  const horizontalOpened = useRef(false);
   useEffect(() => {
-    if (horizontalOpened.current || isLoading || viewportWidth <= 0 || contentWidth < colWidth * columns.length) return;
+    if (hasMovedGrid.current || isLoading || viewportWidth <= 0 || contentWidth < colWidth * columns.length) return;
     const todayIndex = columns.findIndex(({ isToday }) => isToday);
     if (todayIndex >= 0) {
-      columnsScrollRef.current?.scrollTo({ x: Math.max(0, todayIndex * colWidth - (viewportWidth - colWidth) / 2), animated: false });
+      const offset = Math.max(0, todayIndex * colWidth - (viewportWidth - colWidth) / 2);
+      openingOffsets.current.horizontal.add(offset);
+      columnsScrollRef.current?.scrollTo({ x: offset, animated: false });
     }
-    horizontalOpened.current = true;
   }, [colWidth, columns, contentWidth, isLoading, viewportWidth]);
 
   const onColumnsLayout = (event: LayoutChangeEvent) => {
@@ -427,7 +430,13 @@ export function CalendarTimeGrid({
             contentContainerStyle={{ flexGrow: 1 }}
             onLayout={onColumnsLayout}
             onContentSizeChange={(width) => setContentWidth(width)}
-            onScrollBeginDrag={() => { horizontalOpened.current = true; }}
+            onScrollBeginDrag={() => { hasMovedGrid.current = true; }}
+            onTouchMove={() => { hasMovedGrid.current = true; }}
+            onScroll={(event) => {
+              const offset = event.nativeEvent.contentOffset.x;
+              if (![...openingOffsets.current.horizontal].some((opening) => Math.abs(opening - offset) <= 1)) hasMovedGrid.current = true;
+            }}
+            scrollEventThrottle={16}
           >
             <View style={styles.columnsContent}>
               <ScrollView
@@ -436,7 +445,8 @@ export function CalendarTimeGrid({
                 testID="time-grid-hour-scroller"
                 stickyHeaderIndices={isPanePinned ? [0] : []}
                 onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}
-                onScrollBeginDrag={() => { opened.current = true; }}
+                onScrollBeginDrag={() => { hasMovedGrid.current = true; }}
+                onTouchMove={() => { hasMovedGrid.current = true; }}
                 onScroll={syncGutter}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator

@@ -267,6 +267,46 @@ describe('CalendarTimeGrid', () => {
     expect(scroller.scrollLeft).toBe(88)
   })
 
+  it.each(['none', 'scroll', 'wheel', 'touch', 'key'])('holds the opening position through pane pinning until input=%s', (input) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      disconnect() {}
+    })
+    let paneHeight = 300
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 400 : this.dataset.testid === 'time-grid-day-pane' ? paneHeight : 0
+    })
+    try {
+      renderGrid([{ ...column(2026, 9, 8), isToday: true }], new Map())
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      const pane = screen.getByTestId('time-grid-day-pane')
+      expect(pane).toHaveAttribute('data-pinning', 'scrolling')
+      const nowTop = Number.parseFloat(screen.getByRole('img', { name: 'Now' }).style.top) * 16
+      expect(paneHeight + nowTop - body.scrollTop).toBe(100)
+      fireEvent.scroll(body)
+      if (input !== 'none') {
+        if (input === 'wheel') fireEvent.wheel(body, { deltaY: 120 })
+        if (input === 'touch') fireEvent.touchMove(body)
+        if (input === 'key') fireEvent.keyDown(body, { key: 'PageDown' })
+        body.scrollTop = 600
+        fireEvent.scroll(body)
+      }
+      paneHeight = 100
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(pane).toHaveAttribute('data-pinning', 'pinned')
+      if (input === 'none') {
+        const belowPane = nowTop - body.scrollTop
+        expect(belowPane).toBeGreaterThanOrEqual(0)
+        expect(belowPane).toBeLessThanOrEqual((400 - paneHeight) / 3)
+      } else expect(body.scrollTop).toBe(600)
+    } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver); vi.useRealTimers() }
+  })
+
   it('unpins oversized day lanes and repins at half the viewport after a resize', () => {
     const callbacks: (() => void)[] = []
     const OriginalResizeObserver = globalThis.ResizeObserver

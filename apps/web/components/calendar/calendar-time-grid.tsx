@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
@@ -219,46 +219,52 @@ export function CalendarTimeGrid({
   const gridTemplate = `${gutterWidth} repeat(${columns.length}, ${columnTrack})`
   const gridMinWidth = `calc(${gutterWidth} + ${columns.length} * ${columnMinWidth})`
 
-  const openingPosition = useRef(false)
-  useEffect(() => {
+  const hasMovedGrid = useRef(false)
+  const openingScroll = useRef({ top: 0, left: 0 })
+  useLayoutEffect(() => {
     const node = bodyRef.current
     if (!node) return
     const open = () => {
       const paneHeight = node.firstElementChild?.clientHeight ?? 0
       const shouldPin = paneHeight <= node.clientHeight / 2
-      setIsPanePinned(shouldPin)
-      const pinnedHeight = shouldPin ? paneHeight : 0
+      if (shouldPin !== isPanePinned) {
+        setIsPanePinned(shouldPin)
+        return
+      }
+      const pinnedHeight = isPanePinned ? paneHeight : 0
       const hourLabels = node.querySelectorAll<HTMLElement>('[data-testid="time-grid-hour-label"]')
       const measuredHour = hourLabels[1]!.offsetTop - hourLabels[0]!.offsetTop
       const scale = measuredHour > 0 ? measuredHour / HOUR_HEIGHT : 1
       const bodyHeight = Math.max(0, node.clientHeight - pinnedHeight)
       node.style.setProperty('--time-grid-tail', `${Math.max(128 * scale, bodyHeight * 0.75)}px`)
       node.style.scrollPaddingTop = `${pinnedHeight}px`
-      if (openingPosition.current || isLoading || bodyHeight <= 0) return
+      if (hasMovedGrid.current || isLoading || bodyHeight <= 0) return
       const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)))
       node.scrollTop = Math.max(0, columns.some(({ isToday }) => isToday)
         ? (getAccountDateTime(nowDate(), timeZone).minutes / 60) * HOUR_HEIGHT * scale - bodyHeight / 4
-        : firstTop * scale) + (shouldPin ? 0 : paneHeight)
+        : firstTop * scale) + (isPanePinned ? 0 : paneHeight)
       const todayColumn = node.querySelector<HTMLElement>('[data-today="true"]')
       if (todayColumn) {
         const gutter = node.querySelector<HTMLElement>('[data-testid="time-grid-any-time-label"]')?.parentElement?.clientWidth ?? 0
         node.scrollLeft = Math.max(0, todayColumn.offsetLeft - gutter - (node.clientWidth - gutter - todayColumn.clientWidth) / 2)
       }
-      openingPosition.current = node.clientHeight > 0 && !isLoading
+      openingScroll.current = { top: node.scrollTop, left: node.scrollLeft }
     }
     const preserveOpeningPosition = (event: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) openingPosition.current = true
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) hasMovedGrid.current = true
     }
     node.addEventListener('keydown', preserveOpeningPosition)
     open()
     const observer = new ResizeObserver(open)
     observer.observe(node)
     if (node.firstElementChild) observer.observe(node.firstElementChild)
+    const hourLabel = node.querySelector('[data-testid="time-grid-hour-label"]')
+    if (hourLabel) observer.observe(hourLabel)
     return () => {
       observer.disconnect()
       node.removeEventListener('keydown', preserveOpeningPosition)
     }
-  }, [columns, perColumn, timeZone, isLoading])
+  }, [columns, perColumn, timeZone, isLoading, isPanePinned])
 
   const isEmpty =
     !isLoading &&
@@ -280,10 +286,11 @@ export function CalendarTimeGrid({
       >
         <div
           ref={bodyRef}
-          onWheel={() => { openingPosition.current = true }}
-          onTouchMove={() => { openingPosition.current = true }}
+          onWheel={() => { hasMovedGrid.current = true }}
+          onTouchMove={() => { hasMovedGrid.current = true }}
           onScroll={(event) => {
-            if (event.currentTarget.scrollLeft > 0 || event.currentTarget.scrollTop > 0) openingPosition.current = true
+            const node = event.currentTarget
+            if (node.scrollTop !== openingScroll.current.top || node.scrollLeft !== openingScroll.current.left) hasMovedGrid.current = true
           }}
           data-testid="time-grid-hour-scroller"
           data-time-grid-scroller=""
