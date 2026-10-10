@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useTranslation } from 'react-i18next'
 import { useLocalSearchParams } from 'expo-router'
 import {
   parseWrappedRouteSelection,
@@ -9,6 +8,7 @@ import {
   type WrappedRouteSelection,
 } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { createTokensV2 } from '@/lib/theme'
@@ -38,9 +38,9 @@ export default function WrappedScreen() {
 function WrappedScreenContent({ initialSelection }: Readonly<{
   initialSelection: WrappedRouteSelection
 }>) {
-  const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel('/profile')
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -104,7 +104,7 @@ function WrappedScreenContent({ initialSelection }: Readonly<{
       <AppBar
         title=""
         titleIsHeading={false}
-        backLabel={t('common.backToProfile')}
+        backLabel={backLabel}
         onBack={() => goBackOrFallback('/profile')}
       />
       <WrappedCover

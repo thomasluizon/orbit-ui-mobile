@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/en.json'
@@ -23,8 +24,7 @@ async function installLongToday(context: BrowserContext) {
   const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
     items, page: 1, pageSize: items.length, totalCount: items.length, totalPages: 1,
   })
-  await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-    (route) => route.fulfill({ json: habits }))
+  await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
   await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: items.length } }))
 }
 

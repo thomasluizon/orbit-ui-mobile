@@ -5,4 +5,4 @@ import { mintHermeticJwt as mintSessionJwt } from './hermetic-session.cjs'
 
 export { HERMETIC_SESSION_EXPIRES } from './hermetic-session.cjs'
 
-export const mintHermeticJwt: (profile?: Profile, calendars?: UserCalendar[], tags?: HabitTag[]) => string = mintSessionJwt
+export const mintHermeticJwt: (profile?: Profile, calendars?: UserCalendar[], tags?: HabitTag[], fixtureSession?: string) => string = mintSessionJwt

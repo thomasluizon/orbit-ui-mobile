@@ -263,7 +263,7 @@ export function DateField({
                           onClick={() => selectDay(day)}
                         >
                           <span
-                            className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors ${
+                            className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${
                               isCurrentMonth
                                 ? 'text-[var(--fg-1)]'
                                 : 'text-[var(--fg-2)]'

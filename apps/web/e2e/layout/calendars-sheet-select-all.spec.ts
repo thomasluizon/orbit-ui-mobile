@@ -8,7 +8,7 @@ import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const calendars = userCalendarsSchema.parse([
@@ -65,12 +65,12 @@ for (const width of [320, 412, 1352]) {
       test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile, calendars)
         const responses: ReadonlyArray<readonly [string, unknown]> = [
-          [API.profile.get, profile],
           [API.calendar.events, events],
           [API.calendar.calendars, calendars],
           [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ enabled: false, status: 'Idle', lastSyncedAt: null, hasGoogleConnection: true })],
           [API.habits.calendarMonth, calendarMonthResponseSchema.parse({ habits: [], logs: {} })],
         ]
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         for (const [path, response] of responses) {
           await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path, (route) => route.fulfill({ json: response }))
         }
