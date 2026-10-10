@@ -4,7 +4,7 @@ import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { buildComposerChips } from '@orbit/shared/chat'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
-import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
+import { CHAT_GOAL_ACTION_TYPES, createChatThreadScroll } from '@orbit/shared/hooks'
 
 type ActionChipHandler = (entityId: string, actionType: string) => void
 
@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   goBack: vi.fn(),
   onActionChipClick: null as ActionChipHandler | null,
   composer: {
+    threadScroll: null as ReturnType<typeof createChatThreadScroll> | null,
     chatContainerRef: { current: null },
     fileInputRef: { current: null },
     messages: [] as { id: string }[],
@@ -137,6 +138,7 @@ describe('ChatPage', () => {
     mocks.setOpen.mockClear()
     mocks.onActionChipClick = null
     mocks.composer.messages = []
+    mocks.composer.threadScroll = createChatThreadScroll()
     mocks.composer.composerProps.suggestions = []
     mocks.composer.hasProAccess = false
     mocks.composer.showSuggestions = false

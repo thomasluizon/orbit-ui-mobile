@@ -24,7 +24,7 @@ describe('feature guide chip focus', () => {
       expect(focused.outlineWidth).toBe(2)
       expect(focused.outlineStyle).toBe('solid')
       expect(focused.outlineOffset + focused.outlineWidth).toBeLessThanOrEqual(0)
-      expect(readStyle(index)).toEqual(resting)
+      expect(readStyle(index)).toEqual({ ...resting, borderColor: chips()[index].props.accessibilityState.selected ? 'transparent' : resting.borderColor })
       expect(scroller.findAllByType('View').filter((view: { props: { pointerEvents?: string } }) => view.props.pointerEvents === 'none')).toHaveLength(1)
       TestRenderer.act(() => chips()[index].props.onBlur?.(event))
       expect(readStyle(index).outlineWidth ?? 0).toBe(0)

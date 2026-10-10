@@ -35,6 +35,7 @@ import {
 } from '@orbit/shared/chat'
 import {
   CHAT_DRAFT_STORAGE_KEY,
+  createChatThreadScroll,
   classifySendFailure,
   sendInConversation,
   invalidateAgentQueries,
@@ -164,6 +165,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   } = useSpeechToText()
 
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  const [threadScroll] = useState(createChatThreadScroll)
   const composerInputId = useId()
   const pendingVoiceCommit = useRef(false)
 
@@ -240,12 +242,12 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
       const el = chatContainerRef.current
-      if (el) el.scrollTo({
+      if (el && threadScroll.isFollowing()) el.scrollTo({
         top: el.scrollHeight,
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
       })
     })
-  }, [])
+  }, [threadScroll])
 
   const handleExecutedOperation = useCallback(async (response: AgentExecuteOperationResponse) => {
     if (response.operation.status === 'Succeeded') {
@@ -545,6 +547,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => sendInConversation(useUIStore.getState(), async () => {
+      threadScroll.followLatest()
       activeStepsRef.current = []
       setActiveSteps([])
       setSendError(null)
@@ -566,7 +569,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
 
       return runStreamingSend(attempted)
     }),
-    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
+    [addMessage, runStreamingSend, scrollToBottom, setIsTyping, threadScroll],
   )
 
   const sendMessage = useCallback(
@@ -784,6 +787,7 @@ export function useChatComposer(options: { pathname?: string; selectedDate?: str
     activeSteps,
     canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null,
     chatContainerRef,
+    threadScroll,
     fileInputRef,
     textFileInputRef,
     input,

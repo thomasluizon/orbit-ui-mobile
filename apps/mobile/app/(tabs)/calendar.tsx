@@ -6,7 +6,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ScrollView,
 } from "react-native";
 import { ScreenReaderHeading } from '@/components/ui/screen-reader-heading'
 import {
@@ -274,11 +273,9 @@ function CalendarScreenContent({
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
   const clearance = useShellScrollerClearance();
-  const scrollRef = useRef<ScrollView>(null);
   const listRef = useRef<FlatList<CalendarDayEntry>>(null);
   useRootScrollToTop('calendario', useCallback(() => {
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, []));
   const router = useRouter();
   const params = useLocalSearchParams<{ mode?: string; import?: string }>();
@@ -678,14 +675,15 @@ function CalendarScreenContent({
           view: 'agenda' as const, label: t('calendar.range.label', formatCalendarSpanEnds(agendaStart, agendaEnd, i18n.language)), previousLabel: t('common.previousWeek'), nextLabel: t('common.nextWeek'),
           onPrevious: () => setAgendaOffset((offset) => offset - 1), onNext: () => setAgendaOffset((offset) => offset + 1), onCurrent: () => setAgendaOffset(0),
         } }[view]}
-        viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={setView} label={t('calendar.view.switchLabel')} />}
+        viewSelector={<SegmentedControl<CalendarView> fullWidth options={viewOptions} value={view} onChange={(nextView) => {
+          listRef.current?.scrollToOffset({ offset: 0, animated: false });
+          setView(nextView);
+        }} label={t('calendar.view.switchLabel')} />}
       />
   );
 
-  const listHeader = (
+  const monthBody = (
     <>
-      {calendarHeader}
-      <CalendarBody profileReady={Boolean(profile)} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
       <CalendarGrid
         gridDays={gridDays}
         weekdayHeaders={weekdayHeaders}
@@ -734,7 +732,6 @@ function CalendarScreenContent({
             tokens={tokens}
           />
       </CalendarInlineDaySlot>
-      </CalendarBody>
     </>
   );
 
@@ -789,7 +786,7 @@ function CalendarScreenContent({
         loadingLabel={t("common.loading")}
       />
     ),
-    month: null,
+    month: monthBody,
   }[view];
 
   return (
@@ -797,33 +794,24 @@ function CalendarScreenContent({
       <ScreenReaderHeading title={t('nav.calendar')} />
       <CalendarOptions tokens={tokens} onGoogleCalendar={profile ? openGoogleCalendar : undefined} />
 
-      {view === "month" && (
-        <FlatList
-          ref={listRef}
-          style={styles.container}
-          data={EMPTY_LIST}
-          keyExtractor={(_item, index) => String(index)}
-          renderItem={null}
-          ListHeaderComponent={listHeader}
-          ListFooterComponent={calendarMonthFooter(Boolean(profile), profileError, activeError, listFooter)}
-          contentContainerStyle={{ paddingBottom: clearance }}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-      {view !== "month" && (
-        <ScrollView
-          ref={scrollRef}
-          style={styles.container}
-          contentContainerStyle={{ paddingBottom: clearance, ...(view === "week" ? { flex: 1 } : {}) }}
-          scrollEnabled={view !== "week"}
-          showsVerticalScrollIndicator={false}
-        >
+      <FlatList
+        ref={listRef}
+        style={styles.container}
+        data={EMPTY_LIST}
+        keyExtractor={(_item, index) => String(index)}
+        renderItem={null}
+        ListHeaderComponent={<>
           {calendarHeader}
           <CalendarBody profileReady={Boolean(profile)} profileError={profileError} onRetryProfile={onRetryProfile} error={activeError} onRetry={() => void activeRefresh()} tokens={tokens}>
             {viewBody}
           </CalendarBody>
-        </ScrollView>
-      )}
+        </>}
+        ListHeaderComponentStyle={view === 'week' ? styles.container : undefined}
+        ListFooterComponent={view === 'month' ? calendarMonthFooter(Boolean(profile), profileError, activeError, listFooter) : undefined}
+        contentContainerStyle={{ paddingBottom: clearance, ...(view === 'week' ? { flex: 1 } : {}) }}
+        scrollEnabled={view !== 'week'}
+        showsVerticalScrollIndicator={false}
+      />
 
       {isDayDetailOpen && view === 'week' && selectedDay ? (<Sheet
         ref={sheetRef}

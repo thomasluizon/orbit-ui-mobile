@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { format } from 'date-fns'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -13,6 +14,7 @@ vi.mock('@/hooks/use-profile', () => ({
 Element.prototype.scrollIntoView = vi.fn()
 
 import { DateField } from '@/components/ui/date-field'
+import { Sheet } from '@/components/ui/sheet'
 
 describe('DateField', () => {
   beforeEach(() => {
@@ -43,6 +45,17 @@ describe('DateField', () => {
     render(<DateField value="" onChange={vi.fn()} />)
     fireEvent.click(screen.getByLabelText('common.selectDate'))
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+
+  it.each(['2025-06-15', ''])('focuses the roving day on open with value "%s"', async (value) => {
+    render(<Sheet open title="Goal" onClose={vi.fn()}><DateField value={value} onChange={vi.fn()} /></Sheet>)
+    const trigger = screen.getByRole('button', { name: value ? 'common.selectedDate' : 'common.selectDate' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'common.close' })).toHaveFocus())
+    fireEvent.click(trigger)
+
+    const day = document.querySelector<HTMLButtonElement>(`button[data-day="${value || format(new Date(), 'yyyy-MM-dd')}"]`)
+    expect(day).toHaveAttribute('tabindex', '0')
+    await waitFor(() => expect(day).toHaveFocus())
   })
 
   it('has previous and next month navigation', () => {

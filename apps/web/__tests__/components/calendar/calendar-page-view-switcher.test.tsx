@@ -380,6 +380,30 @@ describe('CalendarPage view switcher', () => {
   let requestFixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
   beforeAll(async () => { requestFixture = await createHermeticFixtureRequest() })
 
+  it.each([false, true])('keeps the header controls mounted and focused through keyboard view changes at wide=%s', (wide) => {
+    isWideDesktopValue = wide
+    render(<CalendarPage />)
+    const selector = screen.getByRole('radiogroup', { name: 'calendar.view.switchLabel' })
+    const radios = ['month', 'week', 'range', 'agenda'].map((view) => screen.getByRole('radio', { name: `calendar.view.${view}` }))
+    const previous = screen.getByRole('button', { name: 'common.previousMonth' })
+    const next = screen.getByRole('button', { name: 'common.nextMonth' })
+    const title = previous.nextElementSibling!
+    radios[0]!.focus()
+
+    for (const [from, to, key] of [[0, 1, 'ArrowRight'], [1, 2, 'ArrowRight'], [2, 1, 'ArrowLeft'], [1, 0, 'ArrowLeft'], [0, 3, 'ArrowLeft'], [3, 0, 'ArrowRight']] as const) {
+      fireEvent.keyDown(radios[from]!, { key })
+      expect(screen.getByRole('radiogroup', { name: 'calendar.view.switchLabel' })).toBe(selector)
+      expect(selector.isConnected).toBe(true)
+      screen.getAllByRole('radio').forEach((radio, index) => expect(radio === radios[index]).toBe(true))
+      expect(radios[to]!.isConnected).toBe(true)
+      expect(radios[to]).toHaveAttribute('aria-checked', 'true')
+      expect(radios[to]).toHaveFocus()
+      expect(previous.isConnected).toBe(true)
+      expect(next.isConnected).toBe(true)
+      expect(title.isConnected).toBe(true)
+    }
+  })
+
   it('keeps Semana connected and focused with the real calendar query while the profile is pending', async () => {
     const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
     expect(response.status).toBe(200)

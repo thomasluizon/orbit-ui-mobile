@@ -10,7 +10,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
-import { expectOneFieldIndicator, inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
+import { expectOneFieldIndicator, inspectFocusedControlRings as inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
 
 async function expectCompleteTabIndicator(page: Page, control: Locator, surface: string, enterWith: 'Tab' | 'Shift+Tab' = 'Tab') {
   await control.focus()

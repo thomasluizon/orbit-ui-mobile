@@ -1,3 +1,4 @@
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { __setWindowDimensions } from '@/test-mocks/react-native'
@@ -87,6 +88,23 @@ describe('AboutScreen', () => {
     mocks.isAuthenticated = true
     mocks.nativeVersion = '1.0.0'
     mocks.configVersion = '1.0.0'
+  })
+
+  it.each([600, 840, 1352])('keeps the drawn Sobre width and both fact edges at %i', (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<AboutScreen />) })
+    try {
+      const measured = measureProfileRow(tree.toJSON(), width, 1)
+      for (const testID of ['about-identity', 'about-facts']) {
+        const box = measured.boxes.find((box) => box.testID === testID)!
+        expect(box.left).toBe(16)
+        expect(box.width).toBe(width < 1024 ? width - 32 : 620)
+      }
+      for (const id of ['version', 'account']) {
+        expect(measured.boxes.find((box) => box.testID === `about-fact-${id}-label`)!.left).toBe(16)
+      }
+    } finally { TestRenderer.act(() => tree.unmount()) }
   })
 
   it('shows the installed APK version the API header sends, not the bundled config version', () => {

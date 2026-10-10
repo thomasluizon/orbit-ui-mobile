@@ -1,7 +1,9 @@
+import { StyleSheet, type AppStateStatus } from 'react-native'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import React from 'react'
 import { createRequire } from 'node:module'
 import appJson from '../../app.json'
-import type { AppStateStatus } from 'react-native'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { createInstance } from 'i18next'
@@ -200,7 +202,7 @@ vi.mock('@/components/upgrade/pricing-section', async (importOriginal) => {
 })
 
 async function renderScreen() {
-  let tree: { root: TestNode; unmount: () => void } | undefined
+  let tree: { root: TestNode; unmount: () => void; toJSON: () => Parameters<typeof measureProfileRow>[0] } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<UpgradeScreen />)
     await Promise.resolve()
@@ -213,6 +215,37 @@ function findByType(root: TestNode, type: string) {
 }
 
 describe('UpgradeScreen', () => {
+  it.each([600, 840, 1352].flatMap((width) => ['free', 'stripe', 'play'].map((plan) => ({ width, plan }))))(
+    'uses the drawn $plan card width at $width', async ({ width, plan }) => {
+      __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
+      mocks.renderComposition = true
+      mocks.hasProAccess = plan !== 'free'
+      mocks.profile = createMockProfile({ hasProAccess: mocks.hasProAccess, isTrialActive: false, subscriptionSource: plan === 'play' ? 'play' : 'stripe' })
+      const tree = await renderScreen()
+      try {
+        const rendered = tree.toJSON()
+        const host: Parameters<typeof measureProfileRow>[0] = Array.isArray(rendered)
+          ? { type: 'View', props: {}, children: rendered }
+          : rendered
+        let count = 0
+        function markCards(element: typeof host) {
+          const declared = element.props.style
+          const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {})
+          if (style.borderRadius === 20) element.props.testID = `content-card-${count++}`
+          for (const child of element.children ?? []) if (typeof child !== 'string') markCards(child)
+        }
+        markCards(host)
+        const cards = measureProfileRow(host, width, 1).boxes.filter((box) => box.testID.startsWith('content-card-'))
+        expect(cards.length).toBeGreaterThan(0)
+        const cap = plan === 'free' ? 652 : 560
+        for (const card of [cards[0]!, cards.at(-1)!]) {
+          expect(card.left).toBe(16)
+          expect(card.width).toBe(width < 1024 ? width - 32 : cap)
+        }
+      } finally { TestRenderer.act(() => tree.unmount()) }
+    },
+  )
+
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.appStateListeners.clear()

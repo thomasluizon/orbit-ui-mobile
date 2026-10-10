@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -40,7 +41,7 @@ vi.mock('react-native', async (importOriginal) => {
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 function buildChat(): ChatController {
   return {
-    flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
+    threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
     isTyping: false, streamingMessageId: null, showSuggestions: false,
     sendMessage: vi.fn(), scrollToBottom: vi.fn(), handleBreakdownConfirmed: vi.fn(),
     confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(),

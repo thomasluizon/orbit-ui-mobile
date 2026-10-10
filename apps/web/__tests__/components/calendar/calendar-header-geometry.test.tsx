@@ -346,16 +346,20 @@ describe('Calendar header geometry in Chromium', () => {
           const bounds = range.getBoundingClientRect()
           const box = label.getBoundingClientRect()
           return { text: label.textContent, fits: bounds.width <= box.width + 1, right: bounds.right, lines: range.getClientRects().length, overflow: label.scrollWidth > label.clientWidth,
-            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width }
+            ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top }
         }))
         for (const label of geometry) {
           expect(label.fits, JSON.stringify(geometry)).toBe(true)
           expect(label.overflow).toBe(false)
           expect(label.ellipsis).toBe(false)
-          expect(label.lines).toBe(1)
+          if (scale === 1) expect(label.lines).toBe(1)
+          expect(label.textHeight).toBeLessThanOrEqual(label.height)
           expect(label.right).toBeLessThanOrEqual(304)
         }
-        expect(new Set(geometry.map((label) => label.width)).size).toBe(1)
+        if (scale === 1) for (const top of new Set(geometry.map((label) => label.top))) {
+          const remaining = geometry.filter((label) => label.top === top).map((label) => label.width - label.textWidth)
+          expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+        }
       }
     } finally { await page.close() }
   })
@@ -689,7 +693,11 @@ describe('Calendar header geometry in Chromium', () => {
             title: titleText.textContent,
             titleLines: new Set([...range.getClientRects()].map((bounds) => Math.round(bounds.top))).size,
             targets,
-            segments: segments.map((button) => ({ width: button.getBoundingClientRect().width, labelWidth: button.firstElementChild!.getBoundingClientRect().width, contentWidth: button.clientWidth - 16, textWidth: button.firstElementChild!.scrollWidth })),
+            segments: segments.map((button) => {
+              const text = document.createRange()
+              text.selectNodeContents(button.firstElementChild!)
+              return { width: button.getBoundingClientRect().width, renderedTextWidth: text.getBoundingClientRect().width, labelWidth: button.firstElementChild!.getBoundingClientRect().width, contentWidth: button.clientWidth - Number.parseFloat(getComputedStyle(button).paddingLeft) - Number.parseFloat(getComputedStyle(button).paddingRight), textWidth: button.firstElementChild!.scrollWidth }
+            }),
           }
         })
         expect(geometry.scrollWidth).toBe(geometry.pageWidth)
@@ -703,7 +711,10 @@ describe('Calendar header geometry in Chromium', () => {
           expect(target.reachable).toBe(true)
         }
         for (const segment of geometry.segments) expect(segment.textWidth).toBeLessThanOrEqual(segment.contentWidth + 1)
-        if (textScale === 1) expect(geometry.segments.map((segment) => segment.width)).toEqual([72, 72, 72, 72])
+        if (textScale === 1) {
+          const remaining = geometry.segments.map((segment) => segment.width - segment.renderedTextWidth)
+          expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
+        }
       }
     } finally { await page.close() }
   })

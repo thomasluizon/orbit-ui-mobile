@@ -21,6 +21,16 @@ const TestRenderer: { create(element: React.ReactNode): CalendarTree; act(callba
 
 const source = vi.hoisted(() => ({ loading: false, dayMap: new Map<string, CalendarDayEntry[]>() }))
 
+vi.mock('react-native', async () => {
+  const native = await import('../../test-mocks/react-native')
+  return { ...native, FlatList: React.forwardRef((props: React.ComponentProps<typeof native.FlatList>, ref) => {
+    React.useImperativeHandle(ref, () => ({ scrollToOffset: vi.fn() }))
+    return <native.FlatList {...props}>
+      <native.View style={props.ListHeaderComponentStyle}>{React.isValidElement(props.ListHeaderComponent) ? props.ListHeaderComponent : null}</native.View>
+    </native.FlatList>
+  }) }
+})
+
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useLocalSearchParams: () => ({}) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }, refetch: vi.fn() }) }))
