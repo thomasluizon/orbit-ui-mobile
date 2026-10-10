@@ -1,6 +1,6 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, useWindowDimensions } from 'react-native'
 import type { SegmentedControlOption, SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import { RadioGroup, useRadioGroupItem } from '@/components/ui/radio-row'
 import { createTokensV2 } from '@/lib/theme'
@@ -11,8 +11,6 @@ function SegmentOption<TValue extends string>({
   onChange,
   option,
   selected,
-  fullWidth,
-  columns,
   fontScale,
   tokens,
 }: Readonly<{
@@ -20,8 +18,6 @@ function SegmentOption<TValue extends string>({
   onChange: (value: TValue) => void
   option: SegmentedControlOption<TValue>
   selected: boolean
-  fullWidth: boolean
-  columns: number
   fontScale: number
   tokens: ReturnType<typeof createTokensV2>
 }>) {
@@ -35,7 +31,7 @@ function SegmentOption<TValue extends string>({
     selected,
   })
   return (
-    <Pressable
+    <Pressable focusInset selectionRingWidth={2}
       {...navigationProps}
       ref={elementRef}
       accessibilityRole="radio"
@@ -45,15 +41,13 @@ function SegmentOption<TValue extends string>({
       onPress={onActivate}
       style={({ pressed }) => [
         styles.option,
-        fullWidth ? { width: `${100 / columns}%`, minHeight: 48, paddingHorizontal: 8, borderWidth: 0 } : { flexBasis: 112 * fontScale, flexGrow: 1, flexShrink: 0 },
         selected
-          ? { backgroundColor: tokens.bgHover, borderColor: tokens.primary }
+          ? { backgroundColor: tokens.bgHover }
           : styles.unselected,
         disabled ? styles.disabled : null,
         pressed ? [styles.pressed, { backgroundColor: tokens.bgHover }] : null,
       ]}
     >
-      {fullWidth && selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderWidth: 2, borderColor: tokens.primary, borderRadius: 8 }]} /> : null}
       <Text numberOfLines={fontScale > 1.3 ? undefined : 1} style={[styles.label, { color: selected ? tokens.fg1 : tokens.fg2 }]}>
         {option.label}
       </Text>
@@ -74,7 +68,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
       style={[
         styles.group,
         props.fullWidth ? styles.fullWidth : null,
-        { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
+        { backgroundColor: tokens.bgWell },
       ]}
     >
       {props.options.map((option) => (
@@ -84,8 +78,6 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
           onChange={props.onChange}
           option={option}
           selected={option.value === props.value}
-          fullWidth={Boolean(props.fullWidth)}
-          columns={fontScale > 1.3 ? 2 : props.options.length}
           fontScale={fontScale}
           tokens={tokens}
         />
@@ -98,14 +90,13 @@ const styles = StyleSheet.create({
   group: {
     alignSelf: 'flex-start',
     borderRadius: 12,
-    borderWidth: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
     maxWidth: '100%',
     padding: 4,
   },
-  fullWidth: { alignSelf: 'stretch', width: '100%', padding: 0, gap: 0, borderWidth: 0, flexWrap: 'wrap' },
+  fullWidth: { alignSelf: 'stretch', width: '100%' },
   disabled: {
     opacity: 0.4,
   },
@@ -114,11 +105,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 2,
+    borderColor: 'transparent',
     justifyContent: 'center',
     minHeight: TOUCH_TARGET_MIN,
     minWidth: 0,
-    flexShrink: 1,
-    paddingHorizontal: 12,
+    flexBasis: 'auto',
+    flexGrow: 1,
+    flexShrink: 0,
+    maxWidth: '100%',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   unselected: {
     borderColor: 'transparent',

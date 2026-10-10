@@ -4,10 +4,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile, ThemeMode } from '@orbit/shared/types/profile'
-import { ThemeProvider, useThemeContext, type ThemeContextValue } from '../../lib/theme-provider'
+import { ThemeProvider, type ThemeContextValue } from '../../lib/theme-provider'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
+import { useAppTheme } from '../../lib/use-app-theme'
+
+vi.mock('@/lib/theme-provider', async () => await import('../../lib/theme-provider'))
 
 vi.mock('react-native', async () => ({
   ...await import('../../test-mocks/react-native'),
@@ -40,12 +43,12 @@ async function setup(previous: ThemeMode) {
   let showDestination = () => {}
   function Destination() {
     destination.profile = useProfile({ enabled: false }).profile
-    destination.theme = useThemeContext()
+    destination.theme = useAppTheme()
     return null
   }
   function Navigation() {
-    chooser.current = useThemeContext()
-    renderedThemes.push(chooser.current?.currentTheme)
+    chooser.current = useAppTheme()
+    renderedThemes.push(chooser.current.currentTheme)
     const [mounted, setMounted] = useState(false)
     showDestination = () => setMounted(true)
     return mounted ? <Destination /> : null
@@ -75,6 +78,20 @@ afterEach(async () => {
 })
 
 describe('mobile theme choice across profile consumers', () => {
+  it.each([['dark', 'light'], ['light', 'dark']] as const)('shares %s to %s between two mounted theme hooks', async (previous, chosen) => {
+    const { chooser, destination, mountDestination, flushNotifications } = await setup(previous)
+    await mountDestination()
+    expect(destination.theme?.currentTheme).toBe(previous)
+    await act(() => chooser.current?.applyTheme(chosen))
+    await flushNotifications()
+    expect(chooser.current?.currentTheme).toBe(chosen)
+    expect(destination.theme?.currentTheme).toBe(chosen)
+    await act(() => destination.theme?.toggleTheme())
+    await flushNotifications()
+    expect(chooser.current?.currentTheme).toBe(previous)
+    expect(destination.theme?.currentTheme).toBe(previous)
+  })
+
   it('renders a restored light profile in light from its first frame on a dark system', async () => {
     const { chooser, renderedThemes } = await setup('light')
     expect(renderedThemes).toEqual(['light'])
