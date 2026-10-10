@@ -14,21 +14,22 @@ afterEach(async () => { await i18n.changeLanguage('en') })
 
 function replayTextLayout(tree: ReturnType<typeof TestRenderer.create>, width: number, scale: number) {
   const measured = measureProfileRow(tree.toJSON(), width, scale)
-  for (const text of tree.root.findAllByType('Text')) {
-    if (!text.props.onTextLayout) continue
-    const label = text.props.children as string
-    const available = measured.controls.find((control) => control.labels.includes(label))!.width - 32
-    const style = { ...StyleSheet.flatten(text.props.style), opacity: 1, width: undefined }
+  const texts = tree.root.findAllByType('Text').filter((text: { props: { onTextLayout?: unknown } }) => text.props.onTextLayout).map((text: { props: { onTextLayout: (event: unknown) => void; children: string; style: Parameters<typeof StyleSheet.flatten>[0] } }) => text.props)
+  for (const text of texts) {
+    const label = text.children
+    const available = measured.texts.find((text) => text.label === label)?.width ?? measured.controls.find((control) => control.labels.includes(label))!.width - 32
+    const style = { ...StyleSheet.flatten(text.style), opacity: 1, width: undefined, position: undefined }
     const lines: string[] = []
     let current = ''
     for (const word of label.split(/(?<=\s)/u)) {
       const candidate = current + word
-      const bounds = measureProfileRow({ type: 'Text', props: { style }, children: [candidate] }, 10_000, scale).texts[0]!
+      const bounds = measureProfileRow({ type: 'View', props: { style: { alignItems: 'flex-start' } }, children: [{ type: 'Text', props: { style }, children: [candidate] }] }, 10_000, scale).texts[0]!
       if (current && bounds.width > available) { lines.push(current); current = word }
       else current = candidate
     }
     if (current) lines.push(current)
-    TestRenderer.act(() => text.props.onTextLayout({ nativeEvent: { lines: lines.map((text, index) => ({ text, x: 0, y: index * Number(style.fontSize) * 1.4 * scale, width: available, height: Number(style.fontSize) * 1.4 * scale, ascender: Number(style.fontSize) * scale, descender: 0, baseline: Number(style.fontSize) * scale, capHeight: Number(style.fontSize) * scale, xHeight: Number(style.fontSize) * scale })) } }))
+    const height = Number(style.lineHeight ?? Number(style.fontSize) * 1.4) * scale
+    TestRenderer.act(() => text.onTextLayout({ nativeEvent: { lines: lines.map((text, index) => ({ text, x: 0, y: index * height, width: available, height, ascender: Number(style.fontSize) * scale, descender: 0, capHeight: Number(style.fontSize) * scale, xHeight: Number(style.fontSize) * scale })) } }))
   }
 }
 
