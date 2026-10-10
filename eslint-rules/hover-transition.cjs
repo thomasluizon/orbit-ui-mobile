@@ -3,6 +3,13 @@ const { getAttributeValueNode } = require('./_jsx-strings.cjs')
 const HOVER_VARIANT = /^(?:hover|group-hover(?:\/[^:]+)?)$/
 const MOTION = new Set(['habit-control-motion', 'orbit-pill-action', 'orbit-list-row', 'orbit-list-row-body', 'orbit-list-row-action', 'orbit-menu-item', 'chip'])
 const BACKGROUND_TRANSITIONS = new Set(['transition', 'transition-colors', 'transition-all', 'transition-none'])
+const BREAKPOINTS = ['sm', 'md', 'lg', 'xl', '2xl']
+const VARIANT_ORDER = ['group-hover', 'first', 'last', 'odd', 'even', 'visited', 'checked', 'indeterminate',
+  'placeholder-shown', 'autofill', 'optional', 'required', 'valid', 'invalid', 'user-valid', 'user-invalid',
+  'in-range', 'out-of-range', 'read-only', 'empty', 'focus-within', 'hover', 'focus', 'focus-visible',
+  'active', 'enabled', 'disabled', 'inert', 'aria', 'data', 'motion-safe', 'motion-reduce',
+  'contrast-more', 'contrast-less', ...BREAKPOINTS]
+const MEDIA_VARIANTS = new Set(['motion-safe', 'motion-reduce', 'contrast-more', 'contrast-less', ...BREAKPOINTS])
 
 function combineBranches(nodes) {
   return nodes.reduce((branches, node) => branches.flatMap((branch) =>
@@ -56,7 +63,7 @@ function splitOutsideBrackets(name, separator) {
 function parseClass(name) {
   const segments = splitOutsideBrackets(name, ':')
   const utility = segments.at(-1)
-  return { variants: segments.slice(0, -1), utility: utility.replace(/^!|!$/g, ''), important: utility.startsWith('!') || utility.endsWith('!') }
+  return { name, variants: segments.slice(0, -1), utility: utility.replace(/^!|!$/g, ''), important: utility.startsWith('!') || utility.endsWith('!') }
 }
 
 function setsTransitionProperty(utility) {
@@ -141,9 +148,26 @@ function effectiveClasses(classes, matchesProperty) {
   let candidates = classes.filter(({ utility }) => matchesProperty(utility))
   if (candidates.some(({ important }) => important)) candidates = candidates.filter(({ important }) => important)
   else if (candidates.some(({ inline }) => inline)) candidates = candidates.filter(({ inline }) => inline)
-  const specificity = Math.max(...candidates.map(({ variants }) => variants.length))
-  candidates = candidates.filter(({ variants }) => variants.length === specificity)
-  return candidates
+  const specificity = Math.max(...candidates.map(selectorSpecificity))
+  candidates = candidates.filter((candidate) => selectorSpecificity(candidate) === specificity)
+  const sourceOrder = candidates.map(variantOrder).reduce((latest, order) => order > latest ? order : latest, 0n)
+  candidates = candidates.filter((candidate) => variantOrder(candidate) === sourceOrder)
+  const arbitrary = candidates.filter(({ utility }) => utility.startsWith('[transition-'))
+  if (arbitrary.length > 0) candidates = arbitrary
+  return candidates.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0).slice(-1)
+}
+
+function selectorSpecificity({ variants }) {
+  return variants.reduce((specificity, variant) => specificity + (MEDIA_VARIANTS.has(variant) ? 0
+    : variant.startsWith('[') ? (variant.match(/:(?!:)[\w-]+|\[[^\]]+\]/g) ?? []).length : 1), 0)
+}
+
+function variantOrder({ variants }) {
+  return variants.reduce((order, variant) => {
+    const root = variant.replace(/\/.*$/, '').replace(/^(aria|data)-.*$/, '$1')
+    const index = VARIANT_ORDER.indexOf(root)
+    return order | (1n << BigInt(index < 0 ? VARIANT_ORDER.length : index))
+  }, 0n)
 }
 
 function contextTimingProblem(classes) {
@@ -171,14 +195,26 @@ function timingProblem(classes, hover) {
   const relevant = classes.filter((candidate) => overlapsTarget(candidate, hover)
     && (setsTransitionProperty(candidate.utility) || timingValues(candidate.utility, 'transition-duration', 'duration') !== null
       || timingValues(candidate.utility, 'transition-timing-function', 'ease') !== null))
-  const contexts = [matching, ...relevant.filter((candidate) => !matching.includes(candidate)).map((conditional) =>
+  const contexts = [matching, ...conditionalContexts(relevant, hover).map((conditions) =>
     relevant.filter((candidate) => matching.includes(candidate) || candidate.variants.every((variant) =>
-      conditional.variants.some((contextVariant) => variantCovers(variant, contextVariant)))))]
+      conditions.some((condition) => variantCovers(variant, condition)))))]
   for (const active of contexts) {
     const problem = contextTimingProblem(active)
     if (problem !== null) return problem
   }
   return null
+}
+
+function conditionalContexts(classes, hover) {
+  const variants = [...new Set([...classes, hover].flatMap((candidate) => candidate.variants))]
+  const breakpoints = BREAKPOINTS.filter((breakpoint) => variants.includes(breakpoint))
+  const required = hover.variants.filter((variant) => !BREAKPOINTS.includes(variant) && !HOVER_VARIANT.test(variant))
+  const independent = variants.filter((variant) => !BREAKPOINTS.includes(variant)
+    && !required.includes(variant) && variant !== 'motion-safe')
+  const states = independent.reduce((contexts, variant) => [...contexts, ...contexts.map((conditions) => [...conditions, variant])], [[]])
+  return [[], ...breakpoints.map((_, index) => breakpoints.slice(0, index + 1))].flatMap((width) =>
+    states.map((conditions) => [...required, ...width, ...conditions, 'motion-safe']))
+    .filter((conditions) => hover.variants.filter((variant) => BREAKPOINTS.includes(variant)).every((variant) => conditions.includes(variant)))
 }
 
 function shadowedByInline(candidate, inlineProperties) {
