@@ -355,3 +355,16 @@ describe('i18n locale parity', () => {
   })
 
 })
+
+
+describe('Calendar any-time overflow names', () => {
+  it.each([{ locale: 'en', messages: en, singular: 'habit', plural: 'habits' }, { locale: 'pt-BR', messages: ptBR, singular: 'hábito', plural: 'hábitos' }])('names the hidden habits and includes the visible count in $locale', ({ locale, messages, singular, plural }) => {
+    const label = new IntlMessageFormat(messages.calendar.timeGrid.moreCountLabel, locale)
+    const visible = new IntlMessageFormat(messages.calendar.timeGrid.moreCount, locale)
+    for (const count of [0, 1, 2, 7]) {
+      const accessibleName = String(label.format({ count }))
+      expect(accessibleName.startsWith(String(visible.format({ count })))).toBe(true)
+      expect(accessibleName).toContain(count === 1 ? singular : plural)
+    }
+  })
+})

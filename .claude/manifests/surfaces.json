@@ -824,7 +824,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -838,7 +839,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -852,7 +854,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -866,7 +869,8 @@
       "href": "/profile",
       "ownedFiles": [
         "apps/web/app/(app)/profile/_components/profile-settings-content.tsx",
-        "apps/web/app/(app)/profile/page.tsx"
+        "apps/web/app/(app)/profile/page.tsx",
+        "apps/web/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3479,7 +3483,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -3504,7 +3509,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -3529,7 +3535,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3554,7 +3561,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -3579,7 +3587,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -3604,7 +3613,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "light",
@@ -3629,7 +3639,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -3654,7 +3665,8 @@
         "apps/web/hooks/use-retained-onboarding-guard.ts",
         "apps/web/hooks/use-timezone-auto-sync.ts",
         "apps/web/lib/account-event-connection.tsx",
-        "apps/web/lib/actions/onboarding.ts"
+        "apps/web/lib/actions/onboarding.ts",
+        "apps/web/lib/session-cookie-provider.tsx"
       ],
       "state": "empty",
       "theme": "dark",
@@ -6528,6 +6540,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6559,6 +6572,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6590,6 +6604,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6621,6 +6636,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6652,6 +6668,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6683,6 +6700,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6714,6 +6732,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -6745,6 +6764,7 @@
       "href": "/calendar",
       "ownedFiles": [
         "apps/mobile/app/(tabs)/calendar.tsx",
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-agenda-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
         "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx",
@@ -7001,7 +7021,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -7016,7 +7037,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "light",
@@ -7031,7 +7053,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",
@@ -7046,7 +7069,8 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/profile.tsx",
         "apps/mobile/app/(tabs)/profile/_components/profile-settings-content.tsx",
-        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts"
+        "apps/mobile/app/(tabs)/profile/_components/profile-styles.ts",
+        "apps/mobile/components/profile/profile-settings-frame.tsx"
       ],
       "state": "default",
       "theme": "dark",

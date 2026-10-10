@@ -28,13 +28,14 @@ vi.stubGlobal('fetch', mockFetch)
 
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: {
+  useHeldAccountId: () => 'account-a',
+  useAuthStore: Object.assign((selector: (state: { isAuthenticated: boolean }) => unknown) => selector({ isAuthenticated: true }), {
     getState: () => ({
       logout: boundaryMocks.logout,
       confirmSessionRefreshFailure: boundaryMocks.confirmSessionRefreshFailure,
       recoverSessionRefreshFailure: boundaryMocks.recoverSessionRefreshFailure,
     }),
-  },
+  }),
 }))
 
 vi.mock('next-intl', () => ({
@@ -89,12 +90,7 @@ function mockErrorResponse(
   body: unknown = {},
   headers?: HeadersInit,
 ) {
-  mockFetch.mockResolvedValue({
-    ok: false,
-    status,
-    headers: new Headers(headers),
-    json: () => Promise.resolve(body),
-  })
+  mockFetch.mockResolvedValue(Response.json(body, { status, headers }))
 }
 
 function apiErrorFrom(error: unknown): ApiError {

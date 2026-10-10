@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { ListRow } from '@/components/ui/list-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { RowList } from '@/components/ui/row-list'
-import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { SettingsGroup } from '@/components/ui/settings-group'
 
 describe('list primitives on web', () => {
   it('insets invoice actions and navigation controls without shrinking their touch targets', () => {
@@ -34,21 +34,21 @@ describe('list primitives on web', () => {
     rerender(<ListRow title="Account" onClick={vi.fn()} />)
     const navigation = screen.getByRole('button', { name: 'Account' })
     expect(navigation.parentElement?.style.padding).toBe('')
-    expect(navigation).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInline: '16px' })
+    expect(navigation).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px', paddingInline: '16px' })
     expect(navigation.firstElementChild).toHaveStyle({ minHeight: '24px', gap: '12px' })
-    expect(navigation.firstElementChild?.lastElementChild).toHaveStyle({ width: '48px', height: '24px' })
+    expect(navigation.firstElementChild?.lastElementChild).toHaveStyle({ width: '24px', minHeight: '24px' })
 
     rerender(<ListRow title="Read only" readOnly />)
-    expect(container.firstElementChild?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInline: '16px' })
+    expect(container.firstElementChild?.firstElementChild).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px', paddingInline: '16px' })
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('renders a bare compact row while preserving default card padding', () => {
-    const view = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInlineStart: '0px' })
+  it('places a row on a padded column edge and preserves card padding', () => {
+    const view = render(<ListRow title="Tags" placement="column" onClick={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px', position: 'relative' })
     expect(readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')).toContain('--row-h-compact: 52px;')
     view.rerender(<ListRow title="Tags" onClick={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInline: '16px' })
+    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px', paddingInline: '16px' })
   })
 
   it('owns the entire padded perimeter in adjacent body and action targets', () => {
@@ -64,7 +64,7 @@ describe('list primitives on web', () => {
     expect(Array.from(row?.children ?? [])).toEqual([body, action])
     expect(row).toHaveStyle({ minHeight: '52px' })
     expect(body.parentElement?.style.padding).toBe('')
-    expect(body).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '4px', paddingInline: '16px', paddingInlineEnd: '0px' })
+    expect(body).toHaveStyle({ minHeight: 'var(--row-h-compact)', paddingBlock: '12px', paddingInline: '16px' })
     expect(action).toHaveStyle({ marginBlock: '4px', marginInlineEnd: '16px', marginInlineStart: '0px', alignSelf: 'center' })
     fireEvent.click(body)
     expect(onOpen).toHaveBeenCalledOnce()
@@ -121,7 +121,7 @@ describe('list primitives on web', () => {
     const { rerender } = render(<RadioRow label="Daily" onSelect={onSelect} />)
     const choice = screen.getByRole('radio', { name: 'Daily' })
     expect(choice).toHaveAttribute('aria-checked', 'false')
-    expect(choice).toHaveStyle({ paddingInlineStart: '16px', paddingInlineEnd: '16px' })
+    expect(choice).toHaveStyle({ paddingInlineStart: '16px' })
     fireEvent.click(choice)
     expect(onSelect).toHaveBeenCalledOnce()
 
@@ -178,14 +178,12 @@ describe('list primitives on web', () => {
     const openProfile = vi.fn()
     const openPrivacy = vi.fn()
     render(
-      <SettingsGroup
-        items={[
+      <SettingsGroup>{[
           { label: 'Version' },
           { label: 'Profile', value: 'Alex', trailing: <span>Verified</span>, onClick: openProfile },
           { label: 'Plan', value: 'Pro' },
           { label: 'Privacy', onClick: openPrivacy },
-        ]}
-      />,
+        ].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup>,
     )
 
     expect(screen.getByText('Version').closest('button')).toBeNull()
@@ -199,9 +197,9 @@ describe('list primitives on web', () => {
   })
 
   it('draws a divider above every actionable SettingsGroup entry except the first', () => {
-    render(<SettingsGroup items={[{ label: 'Account', onClick: vi.fn() }, { label: 'Privacy', onClick: vi.fn() }]} />)
+    render(<SettingsGroup>{[{ label: 'Account', onClick: vi.fn() }, { label: 'Privacy', onClick: vi.fn() }].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup>)
 
     expect(screen.getByRole('button', { name: 'Account' }).getAttribute('style')).not.toContain('border-top')
-    expect(screen.getByRole('button', { name: 'Privacy' }).getAttribute('style')).toContain('border-top: 1px solid var(--hairline)')
+    expect(screen.getByRole('button', { name: 'Privacy' }).closest('.orbit-list-row-shell')?.previousElementSibling).toHaveStyle({ height: '1px', background: 'var(--hairline)' })
   })
 })

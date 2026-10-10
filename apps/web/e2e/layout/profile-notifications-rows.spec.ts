@@ -37,14 +37,16 @@ for (const width of [412, 1352]) {
           const bounds = await rows.evaluateAll((elements) => elements.map((element) => {
             const row = element.getBoundingClientRect()
             const control = element.querySelector('[role="switch"]')!.getBoundingClientRect()
+            const track = element.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
             const title = element.querySelector('[data-slot="list-row-title"]')!
             return {
               height: row.height,
               top: row.top,
               bottom: row.bottom,
-              switchRight: control.right,
-              switchInset: row.right - control.right,
+              switchRight: track.right,
+              switchInset: row.right - track.right,
               switchHeight: control.height,
+              trackHeight: track.height,
               titleClipped: title.scrollWidth > title.clientWidth,
             }
           }))
@@ -53,8 +55,9 @@ for (const width of [412, 1352]) {
           expect(deviceBounds!.height).toBe(emailBounds!.height)
           expect(deviceBounds!.switchRight).toBe(emailBounds!.switchRight)
           for (const row of bounds) {
-            expect(row.switchInset).toBe(24)
+            expect(row.switchInset).toBe(16)
             expect(row.switchHeight).toBeGreaterThanOrEqual(44)
+            expect(row.trackHeight).toBe(28)
             expect(row.titleClipped).toBe(false)
           }
           expect(emailBounds!.bottom).toBeLessThan(deviceBounds!.top)

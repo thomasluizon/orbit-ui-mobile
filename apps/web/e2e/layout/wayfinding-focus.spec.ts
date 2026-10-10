@@ -140,8 +140,8 @@ async function inspectDestinations(page: Page) {
 
 async function inspectConversation(page: Page, width: number) {
   await page.goto('/')
-  await page.locator('[data-shell-pinned-slot] [data-open-conversation]').click()
-  const panel = page.locator(`[data-shell-conversation="${width < 1024 ? 'overlay' : 'panel'}"]`)
+  await page.locator(width >= 1024 ? '[data-shell-astra-row]' : '[data-shell-pinned-slot] [data-open-conversation]').click()
+  const panel = page.locator('[data-shell-conversation="overlay"]')
   await expect(panel).toBeVisible()
   await expectWayfindingFocus(page, panel)
   await expectWayfindingFocus(page, panel.locator('[data-composer-root]'))

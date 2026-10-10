@@ -42,7 +42,7 @@ const BAD_TEXT_SOURCE_SITES = [
   },
   {
     name: 'web settings row title',
-    path: 'apps/web/components/ui/settings-row.tsx',
+    path: 'apps/web/components/ui/list-row.tsx',
     pattern: /const titleColor = danger \? 'var\(--status-bad-text\)'/,
   },
   {
@@ -142,7 +142,7 @@ const BAD_TEXT_SOURCE_SITES = [
   },
   {
     name: 'mobile settings row title',
-    path: 'apps/mobile/components/ui/settings-row.tsx',
+    path: 'apps/mobile/components/ui/list-row.tsx',
     pattern: /const titleColor = danger \? tokens\.statusBadText/,
   },
 ] as const

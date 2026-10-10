@@ -107,6 +107,7 @@
     "openIn": "Open in {target}"
   },
   "common": {
+    "showFullText": "Show full text: {name}",
     "options": "Options",
     "backToToday": "Back to today",
     "backToParentHabit": "Back to parent habit",
@@ -386,6 +387,7 @@
   },
   "dates": {
     "today": "Today",
+    "todayWithDate": "Today, {date}",
     "goToToday": "Go to today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
@@ -983,9 +985,7 @@
   },
   "calendar": {
     "agenda": {
-      "today": "Today",
-      "empty": "Nothing scheduled",
-      "timedEntryLabel": "{title}, {time}"
+      "empty": "Nothing scheduled"
     },
     "legend": {
       "loggable": "can log",
@@ -1036,7 +1036,7 @@
       "action": "See Pro"
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
-    "goToDay": "Open this day on Today",
+    "goToDay": "Open in Today",
     "goToCurrentMonth": "Go to current month",
     "goToCurrentWeek": "Go to current week",
     "view": {
@@ -1045,6 +1045,9 @@
       "week": "Week",
       "range": "Range",
       "agenda": "Agenda"
+    },
+    "period": {
+      "goToCurrent": "{period}, go to today"
     },
     "range": {
       "label": "{start} to {end}",
@@ -1060,7 +1063,8 @@
       "rangeMaxDays": "Range limited to {max} days.",
       "empty": "Nothing scheduled",
       "moreLabel": "{count} more",
-      "untimedCount": "{count} without a set time"
+      "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
+      "moreCountLabel": "{count, plural, =0 {+# more habits on this day} one {+# more habit on this day} other {+# more habits on this day}}"
     },
     "status": {
       "completed": "done",
@@ -1634,6 +1638,8 @@
       "retry": "Retry the {count} that failed"
     },
     "operation": {
+      "batchFailed": "Some items could not be saved. Ask Astra to try only the failed items.",
+      "unavailableRecovery": "That didn't work. Ask Astra for a new preview.",
       "unknown": "Astra operation",
       "pendingTitle": "Awaiting confirmation",
       "pending": "Nothing has changed yet",

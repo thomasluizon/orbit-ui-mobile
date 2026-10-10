@@ -123,6 +123,47 @@ describe('Composer', () => {
     expect(within(group).getAllByRole('button')).toHaveLength(3)
   })
 
+  it('remeasures content-hugging suggestions and preserves an evident cut through resize', () => {
+    const observers = new Set<() => void>()
+    const notifyResize = () => observers.forEach(callback => callback())
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(private readonly callback: () => void) { observers.add(callback) }
+      observe() {}
+      disconnect() { observers.delete(this.callback) }
+    })
+    const view = render(<Composer {...props()} />)
+    try {
+      const group = screen.getByRole('group', { name: words.suggestionsLabel })
+      const buttons = within(group).getAllByRole('button')
+      let available = 288
+      let widths = [111, 154, 105]
+      vi.spyOn(group.parentElement!, 'getBoundingClientRect').mockImplementation(() => new DOMRect(0, 0, available, 48))
+      for (const [index, button] of buttons.entries()) {
+        button.style.paddingInlineStart = '12px'
+        button.style.paddingInlineEnd = '12px'
+        vi.spyOn(button.querySelector('[data-suggestion-content]')!, 'getBoundingClientRect')
+          .mockImplementation(() => new DOMRect(0, 0, widths[index]! - 24, 20))
+      }
+      for (const width of [288, 288, 427, 288]) {
+        available = width
+        act(() => notifyResize())
+        expect(group.style.gap).toBe(width === 288 ? '48px' : '8px')
+        for (const button of buttons) {
+          expect(button.style.maxWidth).toBe(`${width - 32}px`)
+          expect(button.style.minWidth).toBe('')
+        }
+      }
+      widths = [180, 200, 160]
+      act(() => notifyResize())
+      expect(group.style.gap).toBe('8px')
+      fireEvent.click(buttons[1]!)
+      expect(screen.getByRole('textbox').closest('[data-composer-root]')).toHaveFocus()
+    } finally {
+      view.unmount()
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('renders no chip row for an empty suggestion list', () => {
     render(<Composer {...props({ suggestions: [] })} />)
     expect(screen.queryByRole('group', { name: words.suggestionsLabel })).not.toBeInTheDocument()

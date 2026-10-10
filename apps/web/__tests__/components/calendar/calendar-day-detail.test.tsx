@@ -43,7 +43,7 @@ vi.mock('next-intl', () => ({
     if (key === 'calendar.dayDetail.completionSummary') {
       return `${String(params?.done)} of ${String(params?.total)} logged`
     }
-    if (key === 'dates.today') return detailLocale.language === 'en' ? en.dates.today : ptBR.dates.today
+    if (key === 'dates.todayWithDate') return (detailLocale.language === 'en' ? en.dates.todayWithDate : ptBR.dates.todayWithDate).replace('{date}', String(params?.date))
     return translations[key] ?? key
   },
   useLocale: () => detailLocale.language,
@@ -596,21 +596,23 @@ describe('CalendarDayDetail', () => {
 
   it('leaves for Today through the panel row with the selected date', () => {
     renderDetail()
-    expect(screen.getByRole('link', { name: 'Open this day on Today' })).toHaveAttribute(
+    const link = screen.getByRole('link', { name: 'Open in Today' })
+    expect(link).toHaveAttribute(
       'href',
       '/?date=2025-06-15',
     )
-    expect(screen.getByText(personalText('Open this day on Today'))).toHaveClass('break-words')
+    expect(link).toHaveClass('orbit-list-row-body')
+    expect(link).toHaveStyle({ paddingInline: '16px', paddingBlock: '12px' })
   })
 
   it('keeps the title, summary and route within a 24px inset card', () => {
     const { container } = renderDetail({ entries: [makeEntry()] })
     const card = container.querySelector('section') as HTMLElement
-    expect(card.style.paddingBlock).toBe('24px')
+    expect(card).toHaveStyle({ padding: '24px' })
     expect(card).toContainElement(screen.getByRole('heading', { level: 2 }))
     expect(card).toContainElement(screen.getByText(personalText('1 of 1 logged')))
-    expect(card).toContainElement(screen.getByRole('link', { name: 'Open this day on Today' }))
-    expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ paddingInline: '16px' })
+    expect(card).toContainElement(screen.getByRole('link', { name: 'Open in Today' }))
+    expect(screen.getByRole('heading', { level: 2 }).parentElement).toHaveStyle({ gap: '4px' })
     expect(screen.getByRole('button', { name: 'Meditate, done' })).toBeInTheDocument()
     expect(screen.queryByRole('switch', { name: 'Show recurring habits' })).not.toBeInTheDocument()
   })

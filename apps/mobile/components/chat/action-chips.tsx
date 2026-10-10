@@ -1,6 +1,8 @@
+import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { buildActionChipsModel } from '@orbit/shared/chat'
 import type { ActionResult } from '@orbit/shared/types/chat'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { Button } from '@/components/ui/pill-button'
 import { ConflictWarning } from './conflict-warning'
@@ -22,11 +24,12 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
       items={model.rows.map((row) => {
         const navigation = row.navigation
         const entityName = row.entityName || (row.status === 'failed' ? undefined : t('chat.unknownEntity'))
+        const label = row.labelKey ? entityName ? t(row.labelKey, { name: entityName }) : t(row.labelKey) : t('chat.action.completed')
+        const personal = Boolean(row.entityName && row.labelKey)
         return {
           id: row.id,
-          label: row.labelKey
-            ? entityName ? t(row.labelKey, { name: entityName }) : t(row.labelKey)
-            : t('chat.action.completed'),
+          label: personal ? <PersonalTextDetails>{label}</PersonalTextDetails> : label,
+          wrapLabel: personal,
           meta: row.status === 'failed' ? t('chat.operation.status.Failed') : undefined,
           status: row.status,
           control: navigation.navigable ? (
@@ -36,9 +39,9 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
           ) : undefined,
         }
       })}
-      actions={model.conflicts.length > 0 ? model.conflicts.map((conflict) => (
+      body={model.conflicts.length > 0 ? <View style={{ gap: 12 }}>{model.conflicts.map((conflict) => (
         <ConflictWarning key={conflict.key} warning={conflict.warning} />
-      )) : undefined}
+      ))}</View> : undefined}
     />
   )
 }

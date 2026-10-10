@@ -1,3 +1,6 @@
+import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
+import { renderedText } from '@/__tests__/support/react-test-renderer'
+import { expandedTextControls, pressTextControl, expectPersonalTextLayout } from '@/__tests__/support/personal-text'
 import { PersonalText } from '@/components/ui/personal-text'
 import { advanceAccountGeneration } from '@/lib/session-epoch'
 import React from 'react'
@@ -41,6 +44,10 @@ interface TestNode {
   props: { [key: string]: unknown; children?: unknown; onClick?: () => void }
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
   findAllByType: (type: string) => TestNode[]
+}
+
+function viewStyle(node: TestNode): ViewStyle {
+  return StyleSheet.flatten(node.props.style ?? {})
 }
 
 function textsOf(root: TestNode): string[] {
@@ -117,6 +124,7 @@ const mocks = vi.hoisted(() => ({
   reducedMotion: false,
   realPressTokens: false,
   realHabitRows: false,
+  realListRows: false,
   theme: 'dark',
 }))
 
@@ -327,7 +335,8 @@ vi.mock('@/components/ui/proposed', () => ({ Proposed: ({ children, label }: { c
 vi.mock('@/components/ui/skeleton', () => ({
   Skeleton: ({ label }: { label: string }) => React.createElement('Skeleton', { label }),
 }))
-vi.mock('@/components/ui/switch', () => ({
+vi.mock('@/components/ui/switch', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/switch')>(),
   Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) => React.createElement('Switch', { testID: label === 'habits.detail.slipAlert' ? 'slip-alert-switch' : label, checked, onChange }),
 }))
 vi.mock('@/components/ui/time-field', async (importOriginal) => {
@@ -341,9 +350,18 @@ vi.mock('@/components/ui/time-field', async (importOriginal) => {
   }),
 })
 })
-vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, description, value, trailing, chevron, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; chevron?: boolean; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, chevron, onClick }, trailing),
-}))
+vi.mock('@/components/ui/list-row', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/list-row')>()
+  return ({
+  ListRow: (props: React.ComponentProps<typeof import('@/components/ui/list-row')['ListRow']>) => {
+    if (mocks.realListRows) return <actual.ListRow {...props} />
+    const { title, description, value, trailing, chevron, onClick, icon, expanded, controls, toggle } = props
+    return title === 'habits.detail.askAstra' ? <actual.ListRow title={title} placement="column" onClick={onClick} /> : React.createElement('ListRow', { title, description, value, chevron, onClick, icon: typeof icon === 'string' ? icon : undefined, expanded, controls, toggle },
+    toggle ? React.createElement('Switch', { testID: title === 'habits.detail.slipAlert' ? 'slip-alert-switch' : title, label: title, checked: toggle.checked, onChange: toggle.onChange }, React.createElement('Text', {}, title)) : onClick ? React.createElement('Pressable', { accessibilityRole: 'button', accessibilityLabel: title, accessibilityState: { expanded }, onPress: onClick }, React.createElement('Text', {}, title)) : null,
+    trailing)
+  },
+})
+})
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, variant, size, loading, onClick, accessibilityRole }: { children?: React.ReactNode; disabled?: boolean; label?: string; variant?: string; size?: string; loading?: boolean; onClick?: () => void; accessibilityRole?: 'button' | 'link' }) => React.createElement('PillButton', { disabled, label, variant, size, loading, onClick, accessibilityRole }, children),
 }))
@@ -523,18 +541,18 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     const target = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === title)[0]!
-    const visibleTitle = target.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
+    const visibleTitle = tree.root.findAllByType(PersonalText).find((node: TestNode) => node.props.unclamped && node.props.children === title)!.findAll((node: TestNode) => node.type === 'Text' && node.props.importantForAccessibility !== 'no-hide-descendants' && node.props.children === title)[0]!
     expect(visibleTitle.props.numberOfLines).toBe(1)
     expect(target.findAllByType('ScrollView')).toHaveLength(0)
     const titleStyle = StyleSheet.flatten(visibleTitle.props.style as { fontSize: number; lineHeight: number })
     expect(titleStyle.lineHeight / titleStyle.fontSize).toBeGreaterThanOrEqual(1.4)
     const header = tree.root.findByProps({ testID: 'habit-detail-header-row' })
-    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
+    const copy = header.findAll((node: TestNode) => node.type === 'View' && viewStyle(node).width === '100%')[0]!
     expect(copy.findAll((node: TestNode) => node === visibleTitle)).toHaveLength(1)
     expect(StyleSheet.flatten(header.props.style)).toEqual({ gap: 12 })
     expect(StyleSheet.flatten(copy.props.style)).toEqual({ width: '100%', minWidth: 0, gap: 4 })
     const views = header.findAll((node: TestNode) => node.type === 'View')
-    const controls = views.find((node: TestNode) => StyleSheet.flatten(node.props.style as ViewStyle).flexDirection === 'row')!
+    const controls = views.find((node: TestNode) => viewStyle(node).flexDirection === 'row')!
     expect(views.indexOf(controls)).toBeLessThan(views.indexOf(copy))
     expect(controls.findAllByType('HabitLogButton')).toHaveLength(1)
     expect(controls.findAllByType('PillButton').map((node: TestNode) => node.props.label)).toContain('habits.detail.rename')
@@ -613,7 +631,7 @@ describe('HabitDetailScreen', () => {
       (node.props.children === mocks.detail!.title || node.props.children === 'habits.detail.screenTitle'))
     expect(pageHeaders).toHaveLength(1)
     expect(pageHeaders[0]!.props.children).toBe(mocks.detail!.title)
-    TestRenderer.act(() => { tree.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress() })
+    TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === mocks.detail!.title)[0]!.props.onPress() })
     const editingHeaders = tree.root.findAll((node: { type: unknown; props: { accessibilityRole?: string; children?: React.ReactNode } }) =>
       typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.children === mocks.detail!.title)
     expect(editingHeaders).toHaveLength(1)
@@ -622,6 +640,7 @@ describe('HabitDetailScreen', () => {
     mocks.realHeaderRing = false
     mocks.reducedMotion = false
     mocks.realPressTokens = false
+    mocks.realListRows = false
     mocks.realHabitRows = false
     mocks.theme = 'dark'
     mocks.metricsError = false
@@ -694,7 +713,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
     expect(textsOf(tree.root)).toContain('habits.detail.noDataYet')
     expect(tree.root.findAllByType('StatTile')).toHaveLength(0)
-    TestRenderer.act(() => tree.unmount())
+    TestRenderer.act(() => tree.update(<></>))
   })
 
   it.each([
@@ -724,17 +743,34 @@ describe('HabitDetailScreen', () => {
     expect(queryClient.getQueryState(habitKeys.metrics('habit-1'))?.status).toBe('error')
     expect(textsOf(tree.root)).toContain('habits.detail.noDataYet')
     expect(tree.root.findAllByType('StatTile')).toHaveLength(0)
-    TestRenderer.act(() => tree.unmount())
+    TestRenderer.act(() => tree.update(<></>))
+  })
+
+  it('owns the details disclosure in ListRow with a leading state glyph', () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const row = tree.root.findAllByType('ListRow').find((node: TestNode) => node.props.title === 'habits.detail.moreDetails')!
+    expect(row.props).toMatchObject({ icon: 'chevron-right', chevron: false, expanded: false, controls: 'habit-detail-fields' })
+    const disclosure = row.findAllByType('Pressable')[0]!
+    expect(disclosure.props.accessibilityState).toMatchObject({ expanded: false })
+    TestRenderer.act(() => disclosure.props.onPress())
+    const opened = tree.root.findAllByType('ListRow').find((node: TestNode) => node.props.title === 'habits.detail.moreDetails')!
+    expect(opened.props).toMatchObject({ icon: 'chevron-down', chevron: false, expanded: true })
+    expect(opened.findAllByType('Pressable')[0]!.props.accessibilityState).toMatchObject({ expanded: true })
   })
 
   it('opens Creation controls seeded from the habit in one disclosure', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const disclosure = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.moreDetails'))!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     expect(tree.root.findAllByProps({ label: 'habits.form.description' })).not.toHaveLength(0)
     expect(tree.root.findAllByProps({ label: 'habits.form.habitTypeAvoid' })).not.toHaveLength(0)
     expect(tree.root.findAllByProps({ label: 'habits.form.exactTime' })).not.toHaveLength(0)
+    const fields = tree.root.findAllByProps({ nativeID: 'habit-detail-fields' })[0]!
+    const columnStyle = StyleSheet.flatten(fields.parent.props.style)
+    const fieldsStyle = StyleSheet.flatten(fields.props.style)
+    expect((columnStyle.gap ?? 0) + (fieldsStyle.paddingTop ?? 0)).toBe(12)
   })
 
   it('waits for the account day before querying an unpinned detail', () => {
@@ -1045,7 +1081,15 @@ describe('HabitDetailScreen', () => {
       typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === title)
     expect(renameControls).toHaveLength(1)
     expect(renameControls[0]!.props.accessibilityHint).toBe('habits.detail.rename')
-    expect(renameControls[0]!.props.style).toMatchObject({ minWidth: 48, paddingVertical: 8, marginVertical: -8 })
+    expect(textsOf(renameControls[0])).toContain(title)
+    expect(StyleSheet.flatten(renameControls[0]!.props.style)).toMatchObject({ minWidth: 48, minHeight: 32, position: 'relative' })
+    expect(renameControls[0]!.props.hitSlop).toEqual({ top: 8, bottom: 8, left: 16, right: 16 })
+    const fill = renameControls[0]!.findAllByType('View').find((node: TestNode) => viewStyle(node).top === -8)!
+    expect(viewStyle(fill)).toMatchObject({ minWidth: 48, minHeight: 48, top: -8, bottom: -8, left: -16, right: -16, borderRadius: 12 })
+    TestRenderer.act(() => { renameControls[0]!.props.onFocus() })
+    expect(viewStyle(fill)).toMatchObject({ outlineWidth: 2, outlineOffset: -6, backgroundColor: createTokensV2('orange', 'dark').bgHover })
+    TestRenderer.act(() => { renameControls[0]!.props.onPress() })
+    expect(tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.value).toBe(title)
   })
 
   it('shows loading feedback and a retry action after a load failure', () => {
@@ -1137,6 +1181,19 @@ describe('HabitDetailScreen', () => {
     expect(mocks.refetch).not.toHaveBeenCalled()
   })
 
+  it.each(['UnbrokenToken'.repeat(24), 'A tag name with many words describing the people and activities I enjoy'])('discloses the full habit detail tag %s', async (name) => {
+    mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: [{ id: 'long-tag', name, color: '#000000' }] })
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    const tags = tree.root.findAll((node) => String(node.type) === 'View' && node.props.testID === 'habit-detail-tags')[0]!
+    const disclosure = expandedTextControls(tags, name, false)[0]!
+    expect(disclosure).toBeDefined()
+    await expectPersonalTextLayout(tree.root, name, 1)
+    await TestRenderer.act(() => pressTextControl(disclosure))
+    expect(expandedTextControls(tags, name, true)).toHaveLength(1)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('shows authoritative tags and linked goals and opens the selected goal', () => {
     mocks.allHabits.set('habit-1', makeScopedParent())
     mocks.scopedHabits.set('habit-1', makeScopedParent())
@@ -1146,7 +1203,7 @@ describe('HabitDetailScreen', () => {
     })
 
     expect(tree!.root.findAll((node: { props: { children?: unknown } }) => node.props.children === 'Focus').length).toBeGreaterThan(0)
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => {
       disclosure!.props.onPress()
     })
@@ -1165,7 +1222,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
+      tree!.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === mocks.detail!.title)[0]!.props.onPress()
     })
     const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
     TestRenderer.act(() => {
@@ -1176,7 +1233,7 @@ describe('HabitDetailScreen', () => {
       await Promise.resolve()
     })
 
-    expect(tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.value).toBeUndefined()
+    expect(tree!.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === mocks.detail!.title)[0]!.props.value).toBeUndefined()
     expect(mocks.update).not.toHaveBeenCalled()
 
     TestRenderer.act(() => {
@@ -1422,7 +1479,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
+      tree!.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === mocks.detail!.title)[0]!.props.onPress()
     })
     const input = tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' })
     TestRenderer.act(() => {
@@ -1465,7 +1522,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     expect(findPillButton(tree.root, 'common.cancel')).toBeUndefined()
     expect(findPillButton(tree.root, 'common.save')).toBeUndefined()
   })
@@ -1511,7 +1568,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     await TestRenderer.act(async () => {
       tree.root.findByProps({ testID: 'offset-reminders' }).props.onToggleReminder()
       await Promise.resolve()
@@ -1603,7 +1660,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     const reminderSwitch = () => tree.root.findByProps({ testID: 'habits.form.reminders' })
     TestRenderer.act(() => reminderSwitch().props.onChange(false))
     expect(reminderSwitch().props.checked).toBe(false)
@@ -1622,7 +1679,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     expect(textsOf(tree.root)).toContain(cap === 'relative' ? 'habits.form.relativeReminderMax' : 'habits.form.scheduledReminderMax')
     expect(textsOf(tree.root)).not.toContain('habits.form.reminderAddTime')
     expect(mocks.update).not.toHaveBeenCalled()
@@ -1632,7 +1689,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     const scheduled = () => tree.root.findByProps({ testID: 'scheduled-reminders' })
     TestRenderer.act(() => scheduled().props.onSetScheduledReminders([{ when: 'same_day', time: '08:00' }]))
     TestRenderer.act(() => scheduled().props.onToggleReminder())
@@ -1652,11 +1709,11 @@ describe('HabitDetailScreen', () => {
     expect(positions.every((position) => position >= 0)).toBe(true)
     expect(positions).toEqual([...positions].sort((first, second) => first - second))
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     const lists = tree.root.findAllByProps({ testID: 'habit-checklist' })
     expect(lists).toHaveLength(1)
     expect(lists[0]!.props.editable).toBe(true)
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     expect(tree.root.findAllByProps({ testID: 'habit-checklist' })).toHaveLength(1)
   })
   it('composes a single 24px gap from the header to the strip with no empty status slot', () => {
@@ -1697,7 +1754,7 @@ describe('HabitDetailScreen', () => {
     expect(tags).toHaveLength(hasTags ? 1 : 0)
     expect(description).toHaveLength(hasDescription ? 1 : 0)
     const header = tree.root.findAllByType('View').find((node: TestNode) => node.props.testID === 'habit-detail-header-row')!
-    const copy = header.findAll((node: TestNode) => node.type === 'View' && StyleSheet.flatten(node.props.style as ViewStyle).width === '100%')[0]!
+    const copy = header.findAll((node: TestNode) => node.type === 'View' && viewStyle(node).width === '100%')[0]!
     let parent = header.parent
     while (typeof parent.type !== 'string') parent = parent.parent
     const slots = parent.findAll((node: { type: unknown; parent: { type: unknown; parent: unknown } | null }) => {
@@ -1774,7 +1831,7 @@ describe('HabitDetailScreen', () => {
     const header = JSON.stringify(tree!.root.findByProps({ testID: 'habit-detail-header-row' }).findAllByType('Text').map((node: { props: { children?: string } }) => node.props.children))
     expect(header).toContain(expected)
     expect(header).not.toContain(excluded)
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
     expect(tree!.root.findByProps({ accessibilityLabel: 'habits.form.exactTime' }).props.value).toBe('19:30')
   })
@@ -1800,12 +1857,35 @@ describe('HabitDetailScreen', () => {
     mocks.detail = { ...makeDetail(), frequencyUnit: null, frequencyQuantity: null }
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
     expect(tree!.root.findAllByProps({ title: 'habits.detail.schedule' })).toHaveLength(0)
   })
 
 
+
+  it.each([412, 840].flatMap((width) => [1, 2].map((scale) => ({ width, scale }))))('measures the full detail owner at $width and text scale $scale', ({ width, scale }) => {
+    mocks.realListRows = true
+    mocks.realPressTokens = true
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: scale })
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const disclosure = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.moreDetails'))!
+    TestRenderer.act(() => disclosure.props.onPress())
+    const geometry = measureProfileRow(tree.toJSON(), width, scale)
+    const rowTitles = geometry.parts.filter((part) => part.slot === 'list-row-title')
+    expect(rowTitles.length).toBeGreaterThanOrEqual(4)
+    const date = geometry.parts.find((part) => part.slot === 'date-row-label')!
+    const icons = geometry.parts.filter((part) => part.slot === 'list-row-icon')
+    expect(date).toBeDefined()
+    for (const icon of icons) expect(icon.left).toBeCloseTo(date.left, 1)
+    for (const body of geometry.parts.filter((part) => part.slot === 'list-row-body')) {
+      expect(body.left).toBeCloseTo(date.left - 16, 1)
+      expect(body.right).toBeLessThanOrEqual(width)
+    }
+    TestRenderer.act(() => tree.unmount())
+  })
 
   it.each(['', 'My draft'])('paints and opens Astra about the habit, preserving draft %s', (draft) => {
     mocks.reducedMotion = draft !== ''
@@ -1815,9 +1895,12 @@ describe('HabitDetailScreen', () => {
     useUIStore.getState().setAstraConversationOpen(false)
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
-    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!
-    expectPressPaint(ask, { fill: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, scale: mocks.reducedMotion ? 1 : 0.96 })
-    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => node.props.accessibilityLabel === 'habits.detail.askAstra')!.props.onPress())
+    const ask = tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!
+    TestRenderer.act(() => ask.props.onPressIn())
+    const fill = tree.root.findAll((node: TestNode) => node.props['data-slot'] === 'list-row-body').find((node: TestNode) => (StyleSheet.flatten(node.props.style) as import('react-native').ViewStyle).left === -16)!
+    expect(StyleSheet.flatten(fill.props.style)).toMatchObject({ backgroundColor: createTokensV2('purple', 'dark').bgHover, borderRadius: 12, left: -16, right: -16 })
+    TestRenderer.act(() => ask.props.onPressOut())
+    TestRenderer.act(() => tree.root.findAllByType('Pressable').find((node: TestNode) => textsOf(node).includes('habits.detail.askAstra'))!.props.onPress())
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
     const prompt = 'habits.detail.askAstraSeedDefault:{"title":"Read"}'
     if (draft) {
@@ -1878,7 +1961,7 @@ describe('HabitDetailScreen', () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
     const disclosure = tree.root.findAll((node: TestNode) => node.type === 'Pressable' && textsOf(node).includes('habits.detail.moreDetails'))[0]!
-    TestRenderer.act(() => disclosure.props.onPress())
+    TestRenderer.act(() => pressTextControl(disclosure))
     TestRenderer.act(() => tree.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
     TestRenderer.act(() => tree.root.findByProps({ testID: 'goal-linking-field' }).props.onToggleGoal('goal-2'))
     await TestRenderer.act(async () => { await Promise.resolve() })
@@ -1907,7 +1990,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
 
     TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'habits.form.exactTime' }).props.onClear())
@@ -1936,7 +2019,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
 
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'scheduled-reminders' }).props.onToggleReminder())
@@ -1966,7 +2049,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
 
 
@@ -1990,7 +2073,7 @@ describe('HabitDetailScreen', () => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
 
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
     expect(tree!.root.findByProps({ title: 'habits.detail.slipAlert' }).props.description).toBe('habits.detail.slipAlertDescription')
     const slipAlert = tree!.root.findByProps({ testID: 'slip-alert-switch' })
@@ -2009,7 +2092,7 @@ describe('HabitDetailScreen', () => {
     })
 
     TestRenderer.act(() => {
-      tree!.root.findByProps({ accessibilityLabel: mocks.detail!.title }).props.onPress()
+      tree!.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityLabel === mocks.detail!.title)[0]!.props.onPress()
     })
     TestRenderer.act(() => {
       tree!.root.findByProps({ accessibilityLabel: 'habits.detail.rename' }).props.onChangeText('Read daily')
@@ -2433,7 +2516,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-29" />)
     })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
 
     expect(tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.value).toBe('10')
@@ -2463,7 +2546,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
     TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'goal-linking-field' }).props.onToggleGoal())
@@ -2481,7 +2564,7 @@ describe('HabitDetailScreen', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
     })
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
 
     expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
@@ -2499,7 +2582,7 @@ describe('HabitDetailScreen', () => {
     })
 
     expect(tree!.root.findAll((node: { props: { children?: unknown } }) => node.props.children === 'Nested focus').length).toBeGreaterThan(0)
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
     expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
     expect(tree!.root.findAllByProps({ title: 'habits.detail.slipAlert' })).toHaveLength(0)
@@ -2513,7 +2596,7 @@ describe('HabitDetailScreen', () => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     })
 
-    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean }; children?: React.ReactNode } }) => node.props.accessibilityState?.expanded === false && renderedText(node.props.children).includes('habits.detail.moreDetails'))[0]
     TestRenderer.act(() => disclosure!.props.onPress())
     TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
     TestRenderer.act(() => tree!.root.findByProps({ testID: 'goal-linking-field' }).props.onToggleGoal())

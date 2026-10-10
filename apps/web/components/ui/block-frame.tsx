@@ -1,5 +1,7 @@
 'use client'
 
+import { ActionRow } from './action-row'
+
 import { useEffect, useRef } from 'react'
 import type {
   BlockFrameItemStatus,
@@ -19,6 +21,8 @@ import {
   ShieldAlert,
   XCircle,
 } from '@/components/ui/icons'
+import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Proposed } from '@/components/ui/proposed'
 
 type StatusViewProps = Readonly<{
@@ -36,9 +40,9 @@ function StatusView({ status, label }: StatusViewProps) {
   const labelColor = status === 'failed' ? 'var(--status-bad-text)' : status === 'done' ? 'var(--fg-1)' : 'var(--fg-2)'
 
   return (
-    <span className="flex shrink-0 items-center gap-1 text-xs" style={{ color: labelColor }}>
-      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={statusColors.iconColor} />
-      <span>{label}</span>
+    <span className="flex max-w-full shrink-0 flex-wrap items-center gap-[4px] text-xs" style={{ color: labelColor }}>
+      <Glyph aria-hidden="true" size={20} strokeWidth={1.5} color={statusColors.iconColor} className="shrink-0" />
+      <span className="max-w-full">{label}</span>
     </span>
   )
 }
@@ -49,7 +53,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
   const isEditable = status == null && frameState !== 'stale' && item.editable !== false
   const row = (
     <div
-      className="flex min-h-[52px] items-center gap-3 p-3"
+      className={`flex min-h-[52px] gap-[12px] p-[12px] ${item.wrapLabel ? 'items-start' : 'items-center'}`}
       data-proposed={item.proposed ? '' : undefined}
       data-status={status}
     >
@@ -63,7 +67,7 @@ function FrameRow(props: ResolvedBlockFrameRow) {
           </div>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex max-w-[60%] shrink-0 flex-wrap items-center gap-[8px]">
         {item.control}
         {isEditable && onEditItem && props.editLabel ? (
           <button
@@ -147,7 +151,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
       ) : null}
       {canRenderActions && frameProps.actions != null ? (
         <fieldset className="contents" disabled={frameProps.state === 'acting'}>
-          {frameProps.actions}
+          <ActionRow>{frameProps.actions}</ActionRow>
         </fieldset>
       ) : null}
     </div>
@@ -170,20 +174,22 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
 
   return (
     <section
-      className="flex max-h-full min-h-0 flex-col gap-6 bg-[var(--bg-card)] p-6 text-[var(--fg-1)]"
+      className="flex max-h-full min-h-0 flex-col gap-6 bg-[var(--bg-card)] text-[var(--fg-1)]"
       data-state={props.state}
       style={{
         borderRadius: PROPOSED_RADIUS.block,
+        padding: 24,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <header className="flex shrink-0 items-center gap-3">
-        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.title}</h3>
-        {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
-          <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
-            {props.count ?? props.items.length}
-          </span>
-        ) : null}
+      <header className={`flex shrink-0 gap-3 ${props.titleMode === 'typed' ? 'min-w-0 flex-col' : 'items-center'}`}>
+        <h3 ref={titleRef} tabIndex={props.focusTitleOnMount ? -1 : undefined} className={props.titleMode === 'typed' ? 'min-w-0 text-base font-medium' : props.wrapTitle ? 'min-w-0 flex-1 break-words text-base font-medium' : 'min-w-0 flex-1 truncate text-base font-medium'}>{props.titleMode === 'typed' ? <PersonalText>{props.title}</PersonalText> : props.title}</h3>
+        <div className="flex shrink-0 items-center justify-end gap-3">
+          {props.count !== null && (props.count !== undefined || props.items.length > 0) ? (
+            <span className="font-mono text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>
+          ) : null}
+          {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly>{props.title}</PersonalTextDetails> : null}
+        </div>
       </header>
       <p role="status" aria-live="polite" className={props.state === 'stale' ? 'text-sm text-[var(--fg-2)]' : 'sr-only'}>
         {props.state === 'stale' ? props.staleMessage : ''}

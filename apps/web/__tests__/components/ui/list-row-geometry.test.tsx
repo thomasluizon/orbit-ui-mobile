@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import postcss from 'postcss'
@@ -10,6 +11,7 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { PROFILE_SUBMENUS } from '@orbit/shared/utils/profile-navigation'
 import { AccountNavigationRow } from '@/app/(app)/profile/_components/account-navigation-row'
 import { ListRow } from '@/components/ui/list-row'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -25,6 +27,133 @@ describe('personal ListRow text in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 1352])('shares the inset, trailing edge and block padding at %s', async (width) => {
+    const markup = renderToStaticMarkup(<ListRow title="Tags" value="3" trailing={<span>Pro</span>} onClick={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${markup}`)
+      const geometry = await page.getByRole('button', { name: /Tags/ }).evaluate((body) => {
+        const style = getComputedStyle(body)
+        const content = body.firstElementChild!
+        const first = content.firstElementChild!.getBoundingClientRect()
+        const last = content.lastElementChild!.getBoundingClientRect()
+        const bounds = body.getBoundingClientRect()
+        return { start: first.left - bounds.left, end: bounds.right - last.right, padding: style.paddingBlock, minimum: style.minHeight, chevronWidth: last.width }
+      })
+      expect(geometry).toEqual({ start: 16, end: 16, padding: '12px', minimum: '52px', chevronWidth: 24 })
+    } finally { await page.close() }
+  })
+
+  it.each((['light', 'dark'] as const).flatMap((mode) => [412, 1352].map((width) => ({ mode, width }))))('matches the column fill, focus and hit bounds in $mode at $width', async ({ mode, width }) => {
+    const markup = renderToStaticMarkup(<ListRow title="Tags" placement="column" onClick={vi.fn()} />)
+    const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><style>${stylesheet}</style><body><button id="focus-start">Start</button><main style="padding:32px">${markup}</main></body></html>`)
+      const control = page.getByRole('button', { name: 'Tags', exact: true })
+      const fill = control.locator('[data-press-fill]')
+      const bounds = (await control.boundingBox())!
+      const painted = (await fill.boundingBox())!
+      expect(painted.x).toBe(bounds.x - 16)
+      expect(painted.width).toBe(bounds.width + 32)
+      expect(painted.height).toBe(bounds.height)
+      await control.evaluate((element) => { element.addEventListener('click', () => element.setAttribute('data-activated', 'true')) })
+      for (const x of [painted.x + 2, painted.x + painted.width - 2]) {
+        await control.evaluate((element) => element.removeAttribute('data-activated'))
+        await page.mouse.click(x, painted.y + painted.height / 2)
+        expect(await control.getAttribute('data-activated')).toBe('true')
+      }
+      await page.mouse.move(0, 0)
+      await page.locator('#focus-start').focus()
+      await page.keyboard.press('Tab')
+      expect(await control.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
+      const focus = await fill.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const body = getComputedStyle(element.parentElement!)
+        return { outline: style.outlineWidth, offset: style.outlineOffset, radius: style.borderRadius, fill: style.backgroundColor, bodyOutline: body.outlineStyle }
+      })
+      expect(focus).toMatchObject({ outline: '2px', offset: '-2px', radius: '12px', bodyOutline: 'none' })
+      await expect.poll(() => fill.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+      await control.evaluate((element) => element.removeAttribute('data-activated'))
+      await page.keyboard.press('Space')
+      expect(await control.getAttribute('data-activated')).toBe('true')
+    } finally { await page.close() }
+  })
+
+  it.each((['light', 'dark'] as const).flatMap((mode) => (['body', 'action'] as const).map((kind) => ({ mode, kind }))))('paints the $kind touch press fill in $mode', async ({ mode, kind }) => {
+    const markup = renderToStaticMarkup(<ListRow title="Open day" description="Selected day" accessibilityLabel="Open day" href="/?date=2026-09-04"
+      action={{ icon: 'chevron-down', label: 'View details', onPress: vi.fn() }} />)
+    const page = await browser.newPage({ viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce' })
+    try {
+      const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}:${value}`).join(';')
+      await page.setContent(`<html class="${mode}" style="${variables}"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${stylesheet}</style><body>${markup}</body></html>`)
+      await page.bringToFront()
+      expect(await page.evaluate(() => matchMedia('(hover: none)').matches)).toBe(true)
+      const session = await page.context().newCDPSession(page)
+      const body = page.getByRole('link', { name: 'Open day' })
+      const action = page.getByRole('button', { name: 'View details' })
+      const control = kind === 'body' ? body : action
+      await control.scrollIntoViewIfNeeded()
+      await control.evaluate((element) => {
+        element.setAttribute('data-test-touch-control', 'true')
+        element.addEventListener('touchstart', () => element.setAttribute('data-test-touch-held', 'true'), { passive: true })
+        for (const event of ['touchend', 'touchcancel']) element.addEventListener(event, (touch) => {
+          touch.preventDefault()
+          element.removeAttribute('data-test-touch-held')
+        }, { passive: false })
+      })
+      const box = (await control.boundingBox())!
+      await session.send('DOM.enable')
+      await session.send('CSS.enable')
+      const { root } = await session.send('DOM.getDocument', { depth: 0 })
+      const { nodeId } = await session.send('DOM.querySelector', { nodeId: root.nodeId, selector: '[data-test-touch-control]' })
+      try {
+        try {
+          await session.send('Input.dispatchTouchEvent', {
+            type: 'touchStart', touchPoints: [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }],
+          })
+          await expect.poll(() => control.getAttribute('data-test-touch-held')).toBe('true')
+        } finally {
+          await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        }
+        await expect.poll(() => control.getAttribute('data-test-touch-held')).toBeNull()
+        await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['active'] })
+        await expect.poll(() => control.evaluate((element) => {
+          const probe = document.createElement('span')
+          probe.style.background = 'var(--bg-hover)'
+          probe.style.position = 'fixed'
+          probe.style.pointerEvents = 'none'
+          document.body.append(probe)
+          const expected = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          return getComputedStyle(element).backgroundColor === expected
+        }), { message: 'touch press paints --bg-hover without hover media support' }).toBe(true)
+        const corners = await control.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius]
+        })
+        if (control === body) {
+          expect(corners).toEqual(['12px', '12px', '12px', '12px'])
+          const secondary = await body.locator('[data-slot="list-row-description"]').evaluate((element) => {
+            const probe = document.createElement('span')
+            probe.style.color = 'var(--fg-2)'
+            document.body.append(probe)
+            const expected = getComputedStyle(probe).color
+            probe.remove()
+            return { color: getComputedStyle(element).color, expected }
+          })
+          expect(secondary.color).toBe(secondary.expected)
+        } else {
+          expect(corners.every((corner) => Number.parseFloat(corner) >= box.width / 2)).toBe(true)
+          expect(await body.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+        }
+      } finally {
+        await session.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] })
+        await session.detach()
+      }
+    } finally { await page.close() }
+  })
 
   it.each([1, 2])('gives the composed account row two-line geometry at %s text scale', async (textScale) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
@@ -43,6 +172,29 @@ describe('personal ListRow text in Chromium', () => {
       expect(measured).toMatchObject({ minimum: 68, paddingTop: '12px', paddingBottom: '12px', fontSize: 14 * textScale, color: 'rgb(119, 119, 119)' })
       if (textScale === 1) expect(Math.abs(measured.height - 68)).toBeLessThanOrEqual(1)
       else expect(measured.height).toBeGreaterThan(68)
+    } finally { await page.close() }
+  })
+
+  it.each([undefined, true, false].flatMap((inset) => ['Ana', 'Ana Silva'].map((name) => ({ inset, name }))))('keeps the personal text start inset $inset for $name without removing other padding', async ({ inset, name }) => {
+    const { container } = render(<div style={{ width: 288 }}>
+      <ListRow title={name} description="a@b.co" textMode="personal" personalExpanded personalTextInsetStart={inset} onClick={vi.fn()} />
+    </div>)
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+      await loadAppFonts(page)
+      const geometry = await page.evaluate(() => {
+        const body = document.querySelector('.orbit-list-row-body')!
+        return ['list-row-title', 'list-row-description'].map((slot) => {
+          const text = document.querySelector(`[data-slot="${slot}"]`)!
+          const range = document.createRange()
+          range.selectNodeContents(text)
+          const padded = text.hasAttribute('data-personal-text-expanded') && text.parentElement!.classList.contains('p-1') ? text.parentElement! : text
+          const style = getComputedStyle(padded)
+          return { inset: range.getBoundingClientRect().left - body.getBoundingClientRect().left, paddingEnd: parseFloat(style.paddingInlineEnd), paddingTop: parseFloat(style.paddingTop), paddingBottom: parseFloat(style.paddingBottom) }
+        })
+      })
+      for (const text of geometry) expect(text).toMatchObject({ inset: inset === false ? 16 : 20, paddingEnd: 4, paddingTop: 0, paddingBottom: 0 })
     } finally { await page.close() }
   })
 

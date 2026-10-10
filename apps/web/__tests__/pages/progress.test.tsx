@@ -393,7 +393,7 @@ describe('ProgressContent', () => {
       const page = await browser.newPage({ viewport: { width, height: 900 } })
       try {
         const { container } = render(
-          <ShellWide items={[]} activeId="progresso" navLabel="Navigation"
+          <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="progresso" navLabel="Navigation"
             conversation={<button>Conversation</button>}
             conversationOpen={panelOpen} conversationLabel="Conversation">
             <ProgressPage />

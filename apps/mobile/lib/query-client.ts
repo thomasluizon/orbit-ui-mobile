@@ -1,4 +1,4 @@
-import { configKeys, configureAccountQueryDefaults, habitKeys, shouldRetryQuery } from '@orbit/shared/query'
+import { configKeys, configureAccountQueryDefaults, habitKeys, shouldRetryQuery, queryRetryDelay } from '@orbit/shared/query'
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
@@ -28,6 +28,7 @@ export const queryClient = new QueryClient({
       staleTime: 1000 * 60 * 5,
       gcTime: 1000 * 60 * 60 * 24,
       retry: shouldRetryQuery,
+      retryDelay: queryRetryDelay,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
     },

@@ -34,6 +34,13 @@ beforeAll(async () => {
 })
 afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
+function expectSwitchAlignment(control: { top: number; height: number; titleTop: number; titleLineHeight: number; rowHeight: number }, scale: number) {
+  if (scale === 1) expect(control.rowHeight).toBe(52)
+  const offset = control.titleTop - control.top
+  const alignment = offset + (control.titleLineHeight - control.height) / 2
+  expect(Math.abs(alignment), JSON.stringify(control)).toBeLessThanOrEqual(1)
+}
+
 const cases = (['pt-BR', 'en'] as const).flatMap((locale) => [320, 360, 384, 412].flatMap((width) => [false, true].flatMap((hasProAccess) => [1, 2].map((scale) => ({ locale, width, hasProAccess, scale })))))
 it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAccess, scale $scale', async ({ locale, width, hasProAccess, scale }) => {
   settings.locale = locale
@@ -49,11 +56,13 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
       const sizes = [...document.querySelectorAll<HTMLElement>('body *')].map((element) => {
         const style = getComputedStyle(element)
         return { element, fontSize: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) }
-      })
+        document.documentElement.style.fontSize = '32px'
+    })
       for (const { element, fontSize, lineHeight } of sizes) {
         element.style.fontSize = `${fontSize * 2}px`
         if (Number.isFinite(lineHeight)) element.style.lineHeight = `${lineHeight * 2}px`
       }
+      document.documentElement.style.fontSize = '32px'
     })
     const measured = await page.evaluate((labels) => {
       const panel = document.querySelector<HTMLElement>('[data-testid="astra-allowance-panel"]')!
@@ -70,7 +79,13 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
         const clipped = rects.some((rect) => rect.left < box.left - 1 || rect.right > box.right + 1 || rect.top < box.top - 1 || rect.bottom > box.bottom + 1)
         return { label, lines: new Set(rects.map((rect) => rect.top)).size, clipped, ellipsis: style.textOverflow === 'ellipsis' || !['none', '0'].includes(style.webkitLineClamp), fontSize: parseFloat(style.fontSize), inset: box.left - panelBox.left }
       })
-      return { gap: settingsBox.top - panelBox.bottom, labels: labelMeasurements, switches: [...document.querySelectorAll('[role="switch"]')].map((control) => ({ name: control.getAttribute('aria-label'), checked: control.getAttribute('aria-checked'), width: control.getBoundingClientRect().width, height: control.getBoundingClientRect().height, top: control.getBoundingClientRect().top, titleTop: control.closest('.orbit-list-row-shell')!.querySelector('[data-slot="list-row-title"]')!.getBoundingClientRect().top })) }
+      return { gap: settingsBox.top - panelBox.bottom, labels: labelMeasurements, switches: [...document.querySelectorAll('[role="switch"]')].map((control) => {
+        const box = control.querySelector('[data-slot="switch-track"]')!.getBoundingClientRect()
+        const row = control.closest('.orbit-list-row-shell')!
+        const titleElement = row.querySelector('[data-slot="list-row-title"]')!
+        const title = titleElement.getBoundingClientRect()
+        return { name: control.getAttribute('aria-label'), checked: control.getAttribute('aria-checked'), width: box.width, height: box.height, top: box.top, titleTop: title.top, titleLineHeight: parseFloat(getComputedStyle(titleElement).lineHeight), rowHeight: row.getBoundingClientRect().height }
+      }) }
     }, labels)
     expect.soft(measured.gap).toBe(24)
     for (const label of measured.labels) {
@@ -81,9 +96,8 @@ it.each(cases)('keeps Astra labels whole in $locale at $width px, Pro $hasProAcc
     expect(measured.switches).toHaveLength(hasProAccess ? 2 : 0)
     if (hasProAccess) for (const control of measured.switches) {
       expect(labels).toContain(control.name)
-      expect(control).toMatchObject({ checked: 'true', width: 48, height: 48 })
-      expect(control.titleTop - control.top).toBeGreaterThanOrEqual(0)
-      expect(control.titleTop - control.top).toBeLessThanOrEqual(4)
+      expect(control).toMatchObject({ checked: 'true', width: 48, height: 28 })
+      expectSwitchAlignment(control, scale)
     }
   } finally { await page.close() }
 })

@@ -7,46 +7,8 @@ import type { CalendarRangeModel } from '@orbit/shared/utils'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
-
-interface CalendarRangeNavigationProps {
-  rangeLabel: string
-  previousRangeLabel: string
-  nextRangeLabel: string
-  onPreviousRange: () => void
-  onNextRange: () => void
-  nextRangeDisabled: boolean
-}
-
-export function CalendarRangeNavigation({ rangeLabel, previousRangeLabel, nextRangeLabel, onPreviousRange, onNextRange, nextRangeDisabled }: Readonly<CalendarRangeNavigationProps>) {
-  return (
-    <div data-testid="calendar-range-navigation" className="flex min-h-12 flex-wrap items-start justify-end gap-3">
-      <p
-        className="flex min-h-12 min-w-0 flex-auto items-center"
-        style={{
-          color: 'var(--fg-2)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '0.875rem',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {rangeLabel}
-      </p>
-      <div className="flex shrink-0 gap-3">
-        <button type="button" aria-label={previousRangeLabel} onClick={onPreviousRange}
-          className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
-          <ChevronLeft size={20} strokeWidth={2} aria-hidden="true" />
-        </button>
-        <button type="button" aria-label={nextRangeLabel} onClick={onNextRange} disabled={nextRangeDisabled}
-          className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] text-[var(--fg-2)] cursor-pointer transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fg-1)] disabled:opacity-40">
-          <ChevronRight size={20} strokeWidth={2} aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-  )
-}
 
 interface CalendarRangeViewProps {
   model: CalendarRangeModel

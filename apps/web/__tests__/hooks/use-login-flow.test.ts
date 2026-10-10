@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   language: 'en',
   translate: (key: string) => key,
   isOnline: true,
+  reducedMotion: true,
   setAuth: vi.fn(),
   showError: vi.fn(),
   push: vi.fn(),
@@ -24,9 +25,10 @@ vi.mock('next-intl', () => ({
   useLocale: () => mocks.language,
 }))
 
-vi.mock('motion/react', () => ({ useReducedMotion: () => true, AnimatePresence: ({ children }: { children: React.ReactNode }) => children, motion: { div: ({ children }: { children: React.ReactNode }) => React.createElement('div', {}, children) } }))
-
-vi.mock('@orbit/shared/theme', async (original) => ({ ...await original<typeof import('@orbit/shared/theme')>(), resolveMotionPreset: () => ({ reducedMotionEnabled: true }) }))
+vi.mock('motion/react', async (original) => ({
+  ...await original<typeof import('motion/react')>(),
+  useReducedMotion: () => mocks.reducedMotion,
+}))
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
@@ -130,6 +132,7 @@ beforeEach(() => {
   mocks.translate = (key: string) => key
   mocks.search = ''
   mocks.isOnline = true
+  mocks.reducedMotion = true
   setNavigatorOnline(true)
   localStorage.clear()
   sessionStorage.clear()
@@ -656,7 +659,7 @@ it.each([
     fireEvent.change(input, { target: { value } })
     if (step === 'email') fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
     await waitFor(() => expect(input).toBeDisabled())
-    away.focus()
+    act(() => away.focus())
     expect(away).toHaveFocus()
     resolveValidation(jsonResponse({ errors }, 400))
     await waitFor(() => expect(input).toBeEnabled())
@@ -699,12 +702,48 @@ it('keeps the general announcement region stable when verification returns email
   fireEvent.change(code, { target: { value: '123456' } })
   const email = await screen.findByRole('textbox', { name: mocks.translate('auth.email') })
   expect(email).toHaveAccessibleDescription('Email failure')
-  expect(email).toHaveFocus()
+  await waitFor(() => expect(email).toHaveFocus())
   expect(email).toHaveValue('user@test.com')
   expect(screen.getByText('Other failure', { exact: false })).toBe(generalRegion)
   expect(generalRegion).toHaveTextContent('Other failure Second failure')
 })
 
+
+it.each([true, false])('recovers email focus after pending verification validation (reduced motion: %s)', async (reducedMotion) => {
+  const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
+  const messages = (await import('@orbit/shared/i18n/en.json')).default
+  mocks.translate = createTranslator({ locale: 'en', messages }) as typeof mocks.translate
+  mocks.reducedMotion = reducedMotion
+  render(React.createElement(React.Fragment, {}, React.createElement(LoginContent), React.createElement('button', {}, 'Another action')))
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user@test.com' } })
+  const generalRegion = screen.getAllByRole('status').at(-1)
+  expect(generalRegion).toBeEmptyDOMElement()
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    fireEvent.click(screen.getByRole('button', { name: mocks.translate('auth.sendCode') }))
+    const code = await screen.findByRole('textbox', { name: mocks.translate('auth.verificationCode') })
+    let resolveValidation!: (response: Response) => void
+    fetchMock.mockImplementationOnce(() => new Promise((resolve) => { resolveValidation = resolve }))
+    fireEvent.change(code, { target: { value: '123456' } })
+    await waitFor(() => expect(code).toBeDisabled())
+    const away = screen.getByRole('button', { name: 'Another action' })
+    act(() => away.focus())
+    expect(away).toHaveFocus()
+    resolveValidation(jsonResponse({ errors: { Email: ['Email failure'], Other: ['Other failure', 'Second failure'] } }, 400))
+    const email = await screen.findByRole('textbox', { name: mocks.translate('auth.email') })
+    await waitFor(() => expect(email).toBeEnabled())
+    expect(code).not.toBeInTheDocument()
+    expect(email).toHaveAccessibleDescription('Email failure')
+    await waitFor(() => expect(email).toHaveFocus())
+    expect(email).toHaveValue(attempt === 0 ? 'user@test.com' : 'corrected@test.com')
+    expect(screen.getByText('Other failure', { exact: false })).toBe(generalRegion)
+    expect(generalRegion).toHaveTextContent('Other failure Second failure')
+    if (attempt === 0) {
+      fireEvent.change(email, { target: { value: 'corrected@test.com' } })
+      expect(email).not.toHaveAttribute('aria-invalid')
+      expect(generalRegion).toBeEmptyDOMElement()
+    }
+  }
+})
 
 it('returns focus to the editable OTP after a pending wrong-code rejection', async () => {
   const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl')
@@ -721,10 +760,10 @@ it('returns focus to the editable OTP after a pending wrong-code rejection', asy
   fireEvent.change(code, { target: { value: '123456' } })
   await waitFor(() => expect(code).toBeDisabled())
   const away = screen.getByRole('button', { name: 'Another action' })
-  away.focus()
+  act(() => away.focus())
   expect(away).toHaveFocus()
   await act(async () => rejectCode())
   await waitFor(() => expect(code).toBeEnabled())
   expect(code).toHaveAttribute('aria-invalid', 'true')
-  expect(code).toHaveFocus()
+  await waitFor(() => expect(code).toHaveFocus())
 })

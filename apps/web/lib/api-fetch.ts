@@ -13,6 +13,8 @@ import {
 import type { ZodType } from 'zod'
 import { responseReportsSessionRefreshFailure } from './session-refresh'
 import { getAccountEventOrigin } from './account-event-origin'
+import { isUpstreamStarting } from '@orbit/shared/query'
+import { wakeUpstream } from './wake-upstream'
 
 /**
  * Centralized API fetch with error categorization. Handles:.
@@ -67,7 +69,7 @@ export class ApiError extends Error {
   status: number
   data: unknown
 
-  constructor(status: number, message: string, data?: unknown) {
+  constructor(status: number, message: string, data?: unknown, public retryAfter?: string | null) {
     super(message)
     this.status = status
     this.data = data
@@ -104,6 +106,14 @@ export async function fetchWithUpgradeGuidance(input: RequestInfo | URL, init?: 
   const selected = typeof document === 'undefined' ? undefined : /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)?.[1]
   headers.set('Accept-Language', resolveRequestLanguage(selected, headers.get('Accept-Language') ?? (typeof navigator === 'undefined' ? null : navigator.language)))
   const response = await fetch(input, { ...init, headers })
+  if (response.status === 503) {
+    const payload: unknown = await response.clone().json().catch(() => null)
+    const error = new ApiError(response.status, 'Upstream service is starting', payload, response.headers.get('retry-after'))
+    if (isUpstreamStarting(error)) {
+      wakeUpstream()
+      throw error
+    }
+  }
   if (response.status === 426) {
     const { useVersionGateStore } = await import('@/stores/version-gate-store')
     useVersionGateStore.getState().markUpgradeRequired(null)
@@ -194,7 +204,9 @@ export async function apiFetch<T>(
     }
 
     const backendMsg = extractBackendError({ data: body })
-    const error = new ApiError(status, backendMsg || getToastTitle(status), body)
+    const error = new ApiError(status, backendMsg || getToastTitle(status), body, res.headers.get('retry-after'))
+
+    if (status === 429 && ['GET', 'HEAD'].includes((options?.method ?? 'GET').toUpperCase())) throw error
 
     const throttled = useThrottleStore.getState().show(status, body)
     if (!throttled && !behavior?.handlesError) reportApiError(error)

@@ -31,11 +31,12 @@ const defaultProps = {
   onCancelled: vi.fn(),
 }
 
+beforeEach(() => {
+  bulkCreate.mockReset()
+  defaultProps.onConfirmed.mockReset()
+})
+
 describe('BreakdownSuggestion', () => {
-  beforeEach(() => {
-    bulkCreate.mockReset()
-    defaultProps.onConfirmed.mockReset()
-  })
 
   it('withholds the batch until the approval sheet is confirmed', async () => {
     bulkCreate.mockResolvedValue(makeBulkCreateResponse(['Success', 'Success']))
@@ -121,6 +122,15 @@ describe('BreakdownSuggestion', () => {
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(2))
     expect(bulkCreate.mock.calls[1]?.[0]).toMatchObject({ habits: [{ title: 'Laundry' }] })
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full parent heading %s', (name) => {
+    const title = `chat.breakdown.title(${JSON.stringify({ name })})`
+    render(<BreakdownSuggestion {...defaultProps} parentName={name} />)
+    const heading = screen.getByRole('heading', { name: title, level: 3 })
+    expect(heading.querySelector('[data-personal-text]')).toHaveAttribute('aria-label', title)
+    fireEvent.click(screen.getByRole('button', { name: `common.showFullText(${JSON.stringify({ name: title })})`, expanded: false }))
+    expect(screen.getByRole('dialog', { name: title })).toBeInTheDocument()
+    expect(bulkCreate).not.toHaveBeenCalled()
+  })
 })
 
 it('keeps complete successful proposal names reachable without editing', async () => {
@@ -130,10 +140,13 @@ it('keeps complete successful proposal names reachable without editing', async (
   expect(screen.getByRole('button', { name: title })).toHaveStyle({ color: 'var(--fg-3)' })
   fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
   fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
-  await waitFor(() => expect(defaultProps.onConfirmed).toHaveBeenCalled())
+  await waitFor(() => expect(screen.getByRole('button', { name: title }).closest('[data-status]')).toHaveAttribute('data-status', 'done'))
+  expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
   const disclosure = screen.getByRole('button', { name: title })
   expect(disclosure).toHaveAttribute('aria-expanded', 'false')
   fireEvent.click(disclosure)
   expect(disclosure).toHaveAttribute('aria-expanded', 'true')
   expect(disclosure.parentElement).toHaveTextContent(title)
+
+
 })

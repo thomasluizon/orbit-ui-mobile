@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next'
 import { getNativePushStatusPresentation, type NativePushRegistrationStatus } from '@orbit/shared/utils'
 import type { NotificationPermissionStatus } from '@/lib/push-notification-permissions'
 import { RowList } from '@/components/ui/row-list'
-import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { RotateCcw } from '@/components/ui/icons'
 import type { AppTokensV2 } from '@/lib/theme'
@@ -105,13 +104,11 @@ export function PushDevicesRow({
     <View accessibilityState={{ busy: loading }}>
     <RowList>
       <View>
-      <ListRow readOnly wrapTitle title={t('profile.settingsRows.alertsOnThisDevice')} chevron={false} trailing={
-        <Switch checked={currentDeviceRegistered} disabled={disabled} onChange={() => {
-          setLimitReached(!currentDeviceRegistered)
-          if (!currentDeviceRegistered && !canEnable) return
-          onToggle()
-        }} label={t('profile.settingsRows.alertsOnThisDevice')} />
-      } />
+      <ListRow wrapTitle title={t('profile.settingsRows.alertsOnThisDevice')} disabled={disabled} chevron={false} toggle={{ checked: currentDeviceRegistered, onChange: () => {
+        setLimitReached(!currentDeviceRegistered)
+        if (!currentDeviceRegistered && !canEnable) return
+        onToggle()
+      } }} />
       {loading ? <Text accessibilityRole="progressbar" accessibilityLabel={t('profile.loading')} style={{ color: tokens.fg3, paddingHorizontal: 16, paddingBottom: 12, fontSize: 14 }}>{t('profile.loading')}</Text> : null}
       <PushDevicesFeedback
         tokens={tokens}

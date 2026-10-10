@@ -6,6 +6,8 @@ import { API } from '@orbit/shared/api'
 import { calendarKeys } from '@orbit/shared/query'
 import { createApiClientError, isCalendarSyncConnectionActive, runCalendarSyncNowWithFeedback } from '@orbit/shared/utils'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
+import { queryClient as productionClient } from '@/lib/query-client'
+import { createMockCalendarSyncEvent } from '@orbit/shared/__tests__/factories'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarAutoSyncState, useRunCalendarSyncNow } from '@/hooks/use-calendar-auto-sync'
 import { CalendarSyncBoundary } from '@/app/(tabs)/calendar/_components/calendar-sync-boundary'
@@ -27,7 +29,8 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-vi.mock('@/components/ui/switch', () => ({
+vi.mock('@/components/ui/switch', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/components/ui/switch')>(),
   Switch: ({ checked, label }: { checked: boolean; label: string }) =>
     React.createElement('SwitchMock', {
       accessibilityLabel: label,
@@ -53,6 +56,40 @@ interface TestNode {
 describe('mobile calendar events reconciliation', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
+  })
+
+  it('keeps calendar events pending through Retry-After and recovers', async () => {
+    productionClient.clear()
+    vi.useFakeTimers()
+    const events = [createMockCalendarSyncEvent()]
+    mocks.apiClient.mockRejectedValueOnce(createApiClientError(429, null, 'Unavailable', '60'))
+      .mockResolvedValue(events)
+    let state: ReturnType<typeof useCalendarEvents> | undefined
+    function Harness() {
+      state = useCalendarEvents({ timeZone: 'UTC' })
+      return null
+    }
+    let tree: TestRenderer.ReactTestRenderer | undefined
+    try {
+      await TestRenderer.act(async () => {
+        tree = TestRenderer.create(<QueryClientProvider client={productionClient}><Harness /></QueryClientProvider>)
+        await Promise.resolve()
+      })
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(59_999) })
+      expect(state?.isPending).toBe(true)
+      expect(state?.isError).toBe(false)
+      expect(mocks.apiClient).toHaveBeenCalledOnce()
+      await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(2) })
+      expect(state?.data).toEqual({ status: 'connected', events })
+      expect(state?.isError).toBe(false)
+    } finally {
+      await TestRenderer.act(async () => {
+        if (tree) (tree as unknown as { unmount: () => void }).unmount()
+        await Promise.resolve()
+      })
+      productionClient.clear()
+      vi.useRealTimers()
+    }
   })
 
   it.each(['CALENDAR_NOT_CONNECTED', 'CALENDAR_RECONNECT_REQUIRED'])(
@@ -108,7 +145,7 @@ describe('mobile calendar events reconciliation', () => {
     })
 
     const findSwitches = () => (tree.root as unknown as TestNode).findAll(
-      (node) => node.type === 'SwitchMock',
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'switch',
     )
     await TestRenderer.act(async () => {
       await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(2))

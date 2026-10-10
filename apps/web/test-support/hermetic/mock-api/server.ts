@@ -6,6 +6,8 @@ import { appConfigSchema } from '@orbit/shared/types/config'
 import { billingDetailsSchema, subscriptionPlansSchema } from '@orbit/shared/types/subscription'
 import { gamificationProfileSchema } from '@orbit/shared/types/gamification'
 import {
+  bulkCreateRequestSchema,
+  bulkCreateResponseSchema,
   createPaginatedSchema,
   habitScheduleItemSchema,
   habitTagSchema,
@@ -194,12 +196,20 @@ function handleCatchAll(method: string, pathname: string, res: ServerResponse): 
 async function handleHabitMutation(req: IncomingMessage, res: ServerResponse, method: string, path: string): Promise<void> {
   const chunks: Buffer[] = []
   for await (const chunk of req) {
-    if (!(chunk instanceof Uint8Array)) throw new Error('Expected a request byte chunk')
+    if (!Buffer.isBuffer(chunk)) throw new Error('Expected a request byte chunk')
     chunks.push(Buffer.from(chunk))
   }
   const text = Buffer.concat(chunks).toString('utf8')
-  habitMutations.push({ method, path, body: text ? JSON.parse(text) as unknown : null })
-  if (method === 'POST') {
+  const body: unknown = text ? JSON.parse(text) : null
+  habitMutations.push({ method, path, body })
+  if (path === '/api/habits/bulk') {
+    const input = bulkCreateRequestSchema.parse(body)
+    sendJson(res, 200, bulkCreateResponseSchema.parse({
+      results: input.habits.map((habit, index) => ({
+        index, status: 'Success', habitId: `layout-imported-${index}`, title: habit.title, error: null, field: null,
+      })),
+    }))
+  } else if (method === 'POST') {
     sendJson(res, 200, logHabitResponseSchema.parse({
       logId: 'layout-log', isFirstCompletionToday: false, currentStreak: 0,
     }))
@@ -216,7 +226,8 @@ function handleHabitTestRequest(req: IncomingMessage, res: ServerResponse, metho
     sendJson(res, 200, habitMutations)
     return true
   }
-  if ((method === 'PUT' && pathname === '/api/habits/reorder') ||
+  if ((method === 'POST' && pathname === '/api/habits/bulk') ||
+      (method === 'PUT' && pathname === '/api/habits/reorder') ||
       (method === 'POST' && /^\/api\/habits\/[^/]+\/log$/.test(pathname))) {
     void handleHabitMutation(req, res, method, pathname).catch(() => {
       sendJson(res, 400, { error: 'Invalid habit mutation fixture' })

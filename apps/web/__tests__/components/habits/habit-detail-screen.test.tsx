@@ -28,6 +28,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import { readExpandedControlGeometry } from '@/e2e/layout/expanded-control-geometry'
 import { readFieldIndicators, readOutlineVisibility } from '@/e2e/layout/focus-indicators'
 
 const mocks = vi.hoisted(() => ({
@@ -174,9 +175,9 @@ vi.mock('@/components/ui/switch', () => ({
   ),
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, description, value, trailing, chevron, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; chevron?: boolean; onClick?: () => void }) => onClick
-    ? <button type="button" data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={onClick}>{title}{trailing}</button>
-    : <div data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
+  ListRow: ({ title, description, value, trailing, chevron, onClick, expanded, controls, toggle }: React.ComponentProps<typeof import('@/components/ui/list-row').ListRow>) => onClick || toggle
+    ? <button type="button" role={toggle ? "switch" : undefined} aria-label={title} aria-checked={toggle?.checked} aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)} onClick={toggle ? () => toggle.onChange(!toggle.checked) : onClick}>{title}{trailing}</button>
+    : <div aria-expanded={expanded} aria-controls={controls} data-testid={`list-row-${title}`} data-description={description} data-value={value} data-chevron={String(chevron)}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/pill-button')>()),
@@ -507,6 +508,9 @@ describe('HabitDetailScreen', () => {
     expect(screen.getByRole('textbox', { name: 'habits.form.description' })).toHaveValue(mocks.detail!.description ?? '')
     expect(screen.getByRole('switch', { name: 'habits.form.habitTypeAvoid' })).toBeInTheDocument()
     expect(screen.getByLabelText('habits.form.exactTime')).toBeInTheDocument()
+    const fields = document.getElementById('habit-detail-fields')!
+    expect(fields.parentElement).toHaveStyle({ gap: '12px' })
+    expect(fields).not.toHaveStyle({ marginTop: '12px' })
   })
 
   it('waits for the account day before querying an unpinned detail', () => {
@@ -888,6 +892,16 @@ describe('HabitDetailScreen', () => {
 
     expect(mocks.allHabitsRefetch).toHaveBeenCalledOnce()
     expect(mocks.refetch).not.toHaveBeenCalled()
+  })
+
+  it.each(['UnbrokenToken'.repeat(24), 'A tag name with many words describing the people and activities I enjoy'])('discloses the full habit detail tag %s', (name) => {
+    mocks.allHabits.set('habit-1', { ...makeScopedParent(), tags: [{ id: 'long-tag', name, color: '#808080' }] })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const tags = document.querySelector('[data-habit-detail-tags]')!
+    const disclosure = within(tags as HTMLElement).getByRole('button', { name, expanded: false })
+    fireEvent.click(disclosure)
+    expect(within(tags as HTMLElement).getByRole('button', { name, expanded: true })).toBeInTheDocument()
+    expect(tags.querySelector('[data-personal-text-expanded]')).not.toBeNull()
   })
 
   it('shows authoritative tags and moves linked goals into the inline details', () => {
@@ -2000,17 +2014,19 @@ describe('HabitDetailScreen', () => {
         await page.setContent(`<style>${stylesheet}:root { ${variables} } body { background: var(--bg); }</style>${container.innerHTML}`)
         const title = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
         const button = title.getByRole('button')
+        expect(await button.textContent()).toBe(mocks.detail!.title)
         expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toEqual([])
         await page.locator('[data-habit-detail-header-row] > div').first().getByRole('button').last().focus()
         await page.keyboard.press('Tab')
         const target = button
         expect(await target.evaluate((element) => element === document.activeElement && element.matches(':focus-visible'))).toBe(true)
         expect(await readFieldIndicators(title, 'h1', { includeDescendants: true })).toHaveLength(1)
-        expect(await readOutlineVisibility(target)).toMatchObject({ width: 2, visible: true, clippedBy: [] })
-        const clearance = await target.evaluate((element) => {
+        expect(await readOutlineVisibility(target, '::before')).toMatchObject({ width: 2, visible: true, clippedBy: [] })
+        const hit = await target.evaluate(readExpandedControlGeometry)
+        expect(hit.edgeHits).toEqual([true, true, true, true])
+        const clearance = await target.evaluate((element, bounds) => {
           const heading = element.closest('h1')!
-          const style = getComputedStyle(element)
-          const bounds = element.getBoundingClientRect()
+          const style = getComputedStyle(element, '::before')
           const summary = heading.nextElementSibling!.getBoundingClientRect()
           const offset = Number.parseFloat(style.outlineOffset)
           const outerEdge = offset + Number.parseFloat(style.outlineWidth)
@@ -2021,7 +2037,7 @@ describe('HabitDetailScreen', () => {
             glyphGap: Math.min(text.left - bounds.left + offset, bounds.right + offset - text.right, text.top - bounds.top + offset, bounds.bottom + offset - text.bottom),
             summaryGap: summary.top - bounds.bottom - outerEdge,
           }
-        })
+        }, hit)
         expect(clearance.glyphGap).toBeGreaterThanOrEqual(2)
         expect(clearance.summaryGap).toBeGreaterThanOrEqual(0)
         await title.focus()
@@ -2037,7 +2053,10 @@ describe('HabitDetailScreen', () => {
       const page = await browser.newPage({ viewport: { width, height: 915 } })
       try {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
-        const geometry = await page.getByRole('heading', { level: 1, name: mocks.detail!.title }).evaluate((heading) => {
+        const heading = page.getByRole('heading', { level: 1, name: mocks.detail!.title })
+        const hit = await heading.getByRole('button').evaluate(readExpandedControlGeometry)
+        expect(hit.edgeHits).toEqual([true, true, true, true])
+        const geometry = await heading.evaluate((heading, hit) => {
           const button = heading.querySelector('button')!
           const summary = heading.nextElementSibling!
           const row = heading.closest('[data-habit-detail-header-row]')!
@@ -2052,11 +2071,11 @@ describe('HabitDetailScreen', () => {
             titleX: text.left,
             summaryX: summary.getBoundingClientRect().left,
             controlsX: controls.getBoundingClientRect().left,
-            hitHeight: button.getBoundingClientRect().height,
+            hitHeight: hit.height,
             rowHeight: row.getBoundingClientRect().height,
             baseHeight: controls.getBoundingClientRect().height + 12 + Math.max(48, lines * lineHeight + 16) - 16 + 4 + summary.getBoundingClientRect().height,
           }
-        })
+        }, hit)
         expect(Math.abs(geometry.titleX - geometry.summaryX)).toBeLessThanOrEqual(1)
         expect(Math.abs(geometry.titleX - geometry.controlsX)).toBeLessThanOrEqual(1)
         expect(geometry.hitHeight).toBeGreaterThanOrEqual(48)
@@ -2110,15 +2129,16 @@ describe('HabitDetailScreen', () => {
         await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
         const geometry = await page.getByRole('heading', { level: 1, name: habitTitle }).evaluate((element) => {
           const button = element.querySelector<HTMLButtonElement>(':scope > button')!
-          const style = getComputedStyle(button)
+          const label = element.querySelector<HTMLElement>('[data-personal-text]')!
+          const style = getComputedStyle(label)
           const fontSize = parseFloat(style.fontSize) * 2
           const lineHeight = parseFloat(style.lineHeight) * 2
-          button.style.fontSize = `${fontSize}px`
-          button.style.lineHeight = `${lineHeight}px`
+          element.style.fontSize = `${fontSize}px`
+          element.style.lineHeight = `${lineHeight}px`
           const range = document.createRange()
-          range.selectNodeContents(button)
+          range.selectNodeContents(label)
           const text = range.getBoundingClientRect()
-          const bounds = button.getBoundingClientRect()
+          const bounds = label.getBoundingClientRect()
           const column = element.closest('[data-habit-detail-content]')!
           const columnStyle = getComputedStyle(column)
           return { whiteSpace: style.whiteSpace, textOverflow: style.textOverflow,

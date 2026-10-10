@@ -1,6 +1,6 @@
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { ActionRow } from '@/components/ui/action-row'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
@@ -93,7 +93,7 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     const details = [unread ? t('chat.recordList.unread') : null, item.detail, item.date ? date.format(new Date(item.date)) : null, itemCount, keyState].filter(Boolean)
     return {
       id: item.id,
-      label: <Text style={{ color: unread ? tokens.fg1 : tokens.fg2, fontFamily: unread ? 'Geist_600SemiBold' : 'Geist_400Regular', fontSize: 14 }}>{item.title}</Text>,
+      label: <PersonalTextDetails textStyle={{ color: unread ? tokens.fg1 : tokens.fg2, fontFamily: unread ? 'Geist_600SemiBold' : 'Geist_400Regular', fontSize: 14 }}>{item.title}</PersonalTextDetails>,
       wrapLabel: true,
       meta: details.join(' · '),
       wrapMeta: true,
@@ -105,6 +105,6 @@ export function RecordListCard({ recordList }: Readonly<{ recordList: RecordList
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.recordList.title.${recordList.kind}`)}
       count={t('chat.recordList.count', { shown: items.length, total: recordList.totalCount })} items={rows}
       body={<View style={{ gap: 8 }} accessibilityLiveRegion="polite">{recordList.totalCount > 20 ? <View><Pressable accessibilityRole="button" onPress={() => filterRef.current?.focus()} style={{ minHeight: TOUCH_TARGET_MIN, justifyContent: 'center' }}><Text style={{ color: tokens.fg2, fontSize: 14 }}>{t('chat.recordList.filter')}</Text></Pressable><TextInput ref={filterRef} accessibilityLabel={t('chat.recordList.filter')} value={query} onChangeText={setQuery} onFocus={() => setFilterFocused(true)} onBlur={() => setFilterFocused(false)} style={recordFilterStyle(tokens, filterFocused)} /></View> : null}{items.length === 0 ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.empty')}</Text> : null}{items.length > 0 && visibleItems.length === 0 ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}><Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.noMatches', { query: query.trim() })}</Text><Button variant="ghost" size="sm" onClick={() => setQuery('')}>{t('chat.recordList.clearFilter')}</Button></View> : null}{recordList.kind === 'templates' && items.some((item) => (item.count ?? 0) > 20) ? <Text style={{ color: tokens.fg3, fontSize: 14 }}>{t('chat.recordList.templateLimit')}</Text> : null}<Text accessibilityRole="summary" style={{ color: tokens.statusBadText, fontSize: 14 }}>{failure ?? ''}</Text></View>}
-      actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><ActionRow>{nextCursor ? <Button variant="ghost" size="sm" loading={loadingMore} onClick={() => void showMore()}>{t('chat.recordList.more')}</Button> : null}{destination ? <Button variant="ghost" size="sm" onClick={() => router.push(destination)}>{t(`chat.recordList.open.${recordList.kind}`)}</Button> : null}</ActionRow></View>} />
+      actions={<>{nextCursor ? <Button variant="ghost" size="sm" loading={loadingMore} onClick={() => void showMore()}>{t('chat.recordList.more')}</Button> : null}{destination ? <Button variant="ghost" size="sm" onClick={() => router.push(destination)}>{t(`chat.recordList.open.${recordList.kind}`)}</Button> : null}</>} />
   </View>
 }

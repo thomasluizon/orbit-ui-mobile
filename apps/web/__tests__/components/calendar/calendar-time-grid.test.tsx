@@ -1,6 +1,5 @@
-import { personalText } from '@/__tests__/support/personal-text'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import { enUS } from 'date-fns/locale'
 
 vi.mock('next-intl', () => ({
@@ -87,26 +86,6 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getByTestId('time-grid-event').querySelector('svg')).not.toBeNull()
   })
 
-  it('paginates and searches untimed entries with an announced count and a recovery action', () => {
-    const col = column(2025, 5, 16)
-    const entries = Array.from({ length: 25 }, (_, index) => makeEntry({ habitId: String(index), title: `Untimed ${index}` }))
-    renderGrid([col], new Map([[col.dateStr, entries]]))
-    fireEvent.click(screen.getByTestId('time-grid-all-day-summary'))
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText(personalText('Untimed 19'))).toBeInTheDocument()
-    expect(within(dialog).queryByText(personalText('Untimed 20'))).toBeNull()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'common.next' }))
-    expect(within(dialog).getByText(personalText('Untimed 24'))).toBeInTheDocument()
-    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('\"shown\":5,\"total\":25')
-    fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'missing' } })
-    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveAttribute('role', 'status')
-    expect(within(dialog).getByText(/calendar.showingCount/)).toHaveTextContent('"total":0')
-    expect(dialog).toHaveTextContent('calendar.entrySearchEmpty:{"query":"missing"}')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'calendar.dayDetail.clearEventSearch' }))
-    expect(within(dialog).getByText(personalText('Untimed 0'))).toBeInTheDocument()
-    expect(within(dialog).getByRole('textbox')).toHaveValue('')
-  })
-
   it('places a timed habit in its hour slot in the correct column', () => {
     const col = column(2025, 5, 16)
     const dayMap = new Map<string, CalendarDayEntry[]>([
@@ -116,9 +95,9 @@ describe('CalendarTimeGrid', () => {
 
     const block = screen.getByTestId('time-grid-event')
     expect(block).toHaveAttribute('data-hour', '8')
-    expect(block).toHaveStyle({ top: '384px', minWidth: '48px', minHeight: '48px' })
+    expect(block).toHaveStyle({ top: '24rem', minWidth: '48px', minHeight: '48px' })
     expect(block).toHaveAccessibleName(/Standup/)
-    expect(block).not.toHaveTextContent('Standup')
+    expect(block).toHaveTextContent('Standup')
     expect(block.querySelector('[data-status]')).not.toBeNull()
     fireEvent.click(block)
     expect(screen.getByRole('dialog')).toHaveTextContent('Standup')
@@ -147,7 +126,7 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.getByTestId('time-grid-all-day-band')).toHaveStyle({
-      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(max(104px, 3.25rem), 1fr))',
+      gridTemplateColumns: 'max(96px, calc(5ch + 16px)) repeat(1, minmax(12rem, 1fr))',
     })
     for (const block of screen.getAllByTestId('time-grid-event')) {
       expect(block).toHaveStyle({ minWidth: '48px' })
@@ -162,8 +141,8 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], dayMap)
 
     expect(screen.queryByTestId('time-grid-event')).toBeNull()
-    expect(screen.getByTestId('time-grid-all-day-summary')).toHaveTextContent('1')
-    expect(screen.getByTestId('time-grid-all-day-summary').closest('[data-testid="time-grid-all-day-band"]')).not.toBeNull()
+    expect(screen.getByTestId('time-grid-all-day-event')).toHaveTextContent('Read')
+    expect(screen.getByTestId('time-grid-all-day-event').closest('[data-testid="time-grid-all-day-band"]')).not.toBeNull()
     expect(screen.getByTestId('time-grid-any-time-label')).toHaveTextContent('No set time')
   })
 
@@ -190,7 +169,7 @@ describe('CalendarTimeGrid', () => {
       const hour = Number(time.slice(0, 2))
       return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`
     })
-    expect(screen.getByText(personalText('8:00 PM'))).toBeInTheDocument()
+    expect(screen.getByText('8:00 PM')).toBeInTheDocument()
   })
 
   it('positions the now line by the account timezone', () => {
@@ -200,7 +179,7 @@ describe('CalendarTimeGrid', () => {
     try {
       renderGrid([today], new Map(), vi.fn(), false, displayTime, 'Pacific/Kiritimati')
 
-      expect(screen.getByRole('img', { name: 'Now' })).toHaveStyle({ top: '24px' })
+      expect(screen.getByRole('img', { name: 'Now' })).toHaveStyle({ top: '1.5rem' })
     } finally {
       vi.useRealTimers()
     }
@@ -236,24 +215,155 @@ describe('CalendarTimeGrid', () => {
     expect(onSelectDay).not.toHaveBeenCalled()
   })
 
-  it('collapses every untimed item into one count row and discloses the full list', () => {
+  it('shows the first untimed name and opens the day for the remainder', () => {
     const onSelectDay = vi.fn()
     const col = column(2025, 5, 16)
-    const entries = Array.from({ length: 8 }, (_, i) =>
-      makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
-    )
-    const dayMap = new Map<string, CalendarDayEntry[]>([[col.dateStr, entries]])
-    renderGrid([col], dayMap, onSelectDay)
+    const entries = Array.from({ length: 3 }, (_, index) => makeEntry({ habitId: String(index), title: `All ${index}` }))
+    renderGrid([col], new Map([[col.dateStr, entries]]), onSelectDay)
+    expect(screen.getByTestId('time-grid-all-day-event')).toHaveTextContent('All 0')
+    const more = screen.getByTestId('time-grid-all-day-more')
+    expect(more).toHaveTextContent('calendar.timeGrid.moreCount:{"count":2}')
+    expect(more).toHaveStyle({ minWidth: '48px' })
+    fireEvent.click(more)
+    expect(onSelectDay).toHaveBeenCalledWith(col.dateStr)
+    fireEvent.click(screen.getByTestId('time-grid-all-day-event'))
+    expect(screen.getByRole('dialog')).toHaveTextContent('All 0')
+  })
 
-    expect(screen.queryByTestId('time-grid-all-day-event')).toBeNull()
-    const summary = screen.getByTestId('time-grid-all-day-summary')
-    expect(summary).toHaveTextContent('8')
-    expect(summary).toHaveStyle({ minHeight: '48px', minWidth: '48px' })
-    fireEvent.click(summary)
-    const dialog = screen.getByRole('dialog')
-    for (const entry of entries) expect(dialog).toHaveTextContent(entry.title)
-    expect(onSelectDay).not.toHaveBeenCalled()
+  it('uses natural short weekdays and only the date accent for today', () => {
+    const col = { ...column(2025, 5, 16), isToday: true }
+    renderGrid([col], new Map())
+    const weekday = within(screen.getByTestId('time-grid-col-header')).getByText('Mon')
+    expect(weekday).toHaveStyle({ color: 'var(--fg-2)' })
+    expect(weekday.style.letterSpacing).toBe('')
+    expect(weekday.className).not.toContain('uppercase')
+    expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ background: 'var(--primary)' })
+  })
 
+  it.each(['none', 'wheel', 'scroll'])('waits for loaded concurrent geometry and respects prior scrolling (input=%s)', (input) => {
+    const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(2026, 9, 5 + index), isToday: index === 3 }))
+    const onSelectDay = vi.fn()
+    const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} isLoading={isLoading} onSelectDay={onSelectDay} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
+    const view = render(grid(new Map(), true))
+    const scroller = screen.getByTestId('time-grid-hour-scroller')
+    const today = screen.getAllByTestId('time-grid-day-column')[3]!
+    const columnWidth = () => Number(/minmax\(([\d.]+)rem/.exec(screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns)![1]) * 16
+    Object.defineProperties(scroller, { clientWidth: { configurable: true, value: 380 }, clientHeight: { configurable: true, value: 400 } })
+    Object.defineProperty(screen.getByTestId('time-grid-any-time-label').parentElement!, 'clientWidth', { configurable: true, value: 96 })
+    Object.defineProperties(today, { offsetLeft: { configurable: true, get: () => 96 + 3 * columnWidth() }, clientWidth: { configurable: true, get: columnWidth } })
+    view.rerender(grid(new Map(), true))
+    expect(scroller.scrollLeft).toBe(0)
+    if (input !== 'none') {
+      scroller.scrollLeft = 88
+      if (input === 'wheel') fireEvent.wheel(scroller, { deltaX: 88 })
+      else fireEvent.scroll(scroller)
+    }
+    const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]])
+    view.rerender(grid(crowded, false))
+    expect(scroller.scrollLeft).toBe(input === 'none' ? 530 : 88)
+    scroller.scrollLeft = 88
+    fireEvent.scroll(scroller)
+    view.rerender(grid(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'third', dueTime: '08:00' })]]]), false))
+    expect(scroller.scrollLeft).toBe(88)
+  })
+
+  it('unpins oversized day lanes and repins at half the viewport after a resize', () => {
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    })
+    let paneHeight = 200
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 400 : this.parentElement?.dataset.testid === 'time-grid-hour-scroller' ? paneHeight : 0
+    })
+    try {
+      renderGrid([column(2025, 5, 16)], new Map())
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      const pane = screen.getByTestId('time-grid-all-day-band').parentElement!
+      expect(pane).toHaveAttribute('data-pinning', 'pinned')
+      expect(body.style.scrollPaddingTop).toBe('200px')
+      paneHeight = 201
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(pane).toHaveAttribute('data-pinning', 'scrolling')
+      expect(body.style.scrollPaddingTop).toBe('0px')
+      expect(body).toContainElement(screen.getAllByTestId('time-grid-hour-label')[0]!)
+      expect(body).toContainElement(screen.getByTestId('time-grid-col-header'))
+      paneHeight = 100
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(pane).toHaveAttribute('data-pinning', 'pinned')
+      expect(body.style.scrollPaddingTop).toBe('100px')
+    } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver) }
+  })
+
+  it.each([178, 126])('reads the loaded DOM before a delayed pane resize notification (height=%s)', (loadedHeight) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    const callbacks: (() => void)[] = []
+    const OriginalResizeObserver = globalThis.ResizeObserver
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { callbacks.push(callback) }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    })
+    let paneHeight = 126
+    const heights = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 300 : this.dataset.testid === 'time-grid-day-pane' ? paneHeight : 0
+    })
+    const columns = [{ ...column(2026, 9, 8), isToday: true }]
+    const grid = (dayMap: Map<string, CalendarDayEntry[]>, isLoading: boolean) => <CalendarTimeGrid columns={columns} dayMap={dayMap} isLoading={isLoading} onSelectDay={vi.fn()} displayTime={displayTime} dateFnsLocale={enUS} allDayLabel="No set time" nowLabel="Now" timeZone="UTC" />
+    try {
+      const view = render(grid(new Map(), true))
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      expect(body.scrollTop).toBe(0)
+      const entries = Array.from({ length: 3 }, (_, index) => makeEntry({ habitId: String(index) }))
+      paneHeight = loadedHeight
+      view.rerender(grid(new Map([[columns[0]!.dateStr, entries]]), false))
+      const pinned = loadedHeight <= 150
+      const visibleHourHeight = 300 - (pinned ? loadedHeight : 0)
+      const visibleNow = 1032 + (pinned ? 0 : loadedHeight) - body.scrollTop
+      expect(visibleNow).toBeGreaterThanOrEqual(0)
+      expect(visibleNow).toBeLessThanOrEqual(visibleHourHeight / 3)
+      expect(screen.getByTestId('time-grid-day-pane')).toHaveAttribute('data-pinning', pinned ? 'pinned' : 'scrolling')
+      const openingOffset = body.scrollTop
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(body.scrollTop).toBe(openingOffset)
+      fireEvent.wheel(body, { deltaY: 120 })
+      body.scrollTop = 600
+      view.rerender(grid(new Map([[columns[0]!.dateStr, entries.slice(0, 1)]]), false))
+      paneHeight = 126
+      act(() => callbacks.forEach((resize) => resize()))
+      expect(body.scrollTop).toBe(600)
+    } finally { heights.mockRestore(); vi.stubGlobal('ResizeObserver', OriginalResizeObserver); vi.useRealTimers() }
+  })
+
+  it('keeps horizontally focused day controls clear of the sticky time gutter', () => {
+    renderGrid([column(2025, 5, 16)], new Map())
+    const gutterWidth = screen.getByTestId('time-grid-all-day-band').style.gridTemplateColumns.split(' repeat(')[0]!
+    expect(screen.getByTestId('time-grid-hour-scroller').style.scrollPaddingLeft).toBe(gutterWidth)
+  })
+
+  it('opens today near now and another week at its earliest morning block', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-08T21:30:00Z'))
+    const viewport = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.dataset.testid === 'time-grid-hour-scroller' ? 400 : this.parentElement?.dataset.testid === 'time-grid-hour-scroller' ? 116 : 0
+    })
+    try {
+      const today = { ...column(2026, 9, 8), isToday: true }
+      const view = renderGrid([today], new Map())
+      const body = screen.getByTestId('time-grid-hour-scroller')
+      fireEvent(body, new Event('resize'))
+      expect(body.scrollTop).toBeGreaterThan(900)
+      view.unmount()
+      const past = column(2026, 9, 1)
+      renderGrid([past], new Map([[past.dateStr, [makeEntry({ dueTime: '05:00' })]]]))
+      expect(screen.getByTestId('time-grid-hour-scroller').scrollTop).toBe(240)
+    } finally { viewport.mockRestore(); vi.useRealTimers() }
   })
 
   it('uses an opaque semantic surface for the pinned any-time pane', () => {
@@ -267,16 +377,16 @@ describe('CalendarTimeGrid', () => {
     expect(band.style.backgroundImage).toBe('')
   })
 
-  it('labels the untimed row with the full localized count', () => {
+  it('labels the remaining untimed habits with the localized count', () => {
     const col = column(2025, 5, 16)
     const entries = Array.from({ length: 8 }, (_, i) =>
       makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
     )
     renderGrid([col], new Map([[col.dateStr, entries]]))
 
-    expect(screen.getByTestId('time-grid-all-day-summary')).toHaveAttribute(
+    expect(screen.getByTestId('time-grid-all-day-more')).toHaveAttribute(
       'aria-label',
-      'calendar.timeGrid.untimedCount:{"count":8}',
+      'calendar.timeGrid.moreCountLabel:{"count":7}',
     )
   })
 

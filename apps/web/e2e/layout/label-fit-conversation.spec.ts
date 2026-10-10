@@ -14,7 +14,7 @@ import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 /** Surface inventory:
- * Web empty conversation overlay and side panel; Android empty conversation.
+ * Web full-screen empty conversation; Android empty conversation.
  * Web and Android conversation composer strips.
  * Web and Android habit detail composer strips.
  */
@@ -39,10 +39,9 @@ async function expectStripEdge(strip: Locator) {
     const host = element.parentElement!.getBoundingClientRect()
     const chips = [...element.querySelectorAll('button')].map(button => button.getBoundingClientRect())
     const partial = chips.find(chip => chip.left < viewport.right && chip.right > viewport.right)
-    const peek = partial ? viewport.right - partial.left : 0
     return Math.abs(host.right - viewport.right) <= 1
       && Math.abs(host.left - viewport.left) <= 1
-      && (element.scrollWidth <= element.clientWidth || (peek >= 16 && peek <= 32))
+      && (element.scrollWidth <= element.clientWidth || (partial !== undefined && viewport.right - partial.left >= 16 && partial.right - viewport.right >= 16))
   })).toBe(true)
   for (const chip of await strip.getByRole('button').all()) {
     await chip.focus()
@@ -74,8 +73,8 @@ for (const width of [320, 360, 384, 412, 1100, 1440]) {
         await page.getByRole('menu', { name: words.habits.listOptions, exact: true })
           .getByRole('menuitem', { name: words.habits.refresh, exact: true }).click()
         await expect(page.getByTestId('habit-row').getByText(title, { exact: true })).toBeVisible()
-        await page.getByRole('button', { name: words.todayAstra.openConversation, exact: true }).click()
-        const conversation = page.locator(`[data-shell-conversation="${width >= 1024 ? 'panel' : 'overlay'}"]`)
+        await page.getByRole('button', { name: width >= 1024 ? words.chat.title : words.todayAstra.openConversation, exact: true }).click()
+        const conversation = page.locator('[data-shell-conversation="overlay"]')
         const empty = conversation.getByRole('feed')
         await markRequiredLabels(empty.getByText(words.chat.empty.title, { exact: true }))
         await expect(empty.getByRole('button')).toHaveCount(0)

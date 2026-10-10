@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import { personalText } from '@/__tests__/support/personal-text'
 import en from '@orbit/shared/i18n/en.json'
@@ -22,8 +22,8 @@ function translateVisible(key: string, values?: Record<string, string | number>)
   return typeof message === 'string' ? new IntlMessageFormat(message, visibleLocale.language).format(values) as string : key
 }
 
-vi.mock('next-intl', () => ({ useLocale: () => visibleLocale.language, useTranslations: () => (key: string, values?: Record<string, string | number>) => {
-  if (visibleLocale.actual) return translateVisible(key, values)
+vi.mock('next-intl', () => ({ useLocale: () => visibleLocale.language, useTranslations: (namespace?: string) => (key: string, values?: Record<string, string | number>) => {
+  if (visibleLocale.actual) return translateVisible(namespace ? `${namespace}.${key}` : key, values)
   if (key === 'chat.preview.diff') return `${values?.field}: from ${values?.old} to ${values?.new}`
   if (key === 'chat.preview.more') return `and ${values?.count} more`
   if (key === 'chat.action.openEntity') return `Open details: ${values?.name}`
@@ -73,6 +73,49 @@ const preview = makePendingAgentOperation({
 })
 
 describe('PendingOperationCard', () => {
+
+  describe.each(['en', 'pt-BR'])('batch recovery in %s', (locale) => {
+    it('retries the same batch after a producer pre-write failure without failing unrun rows', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview(2)
+      const messages = locale === 'en' ? en : ptBR
+      confirm.mockResolvedValueOnce({ ok: true, response: makeBulkCreateExecutionResponse() })
+        .mockResolvedValueOnce({ ok: true, response: makeBulkCreateExecutionResponse(['Success', 'Success']) })
+      const onStateChange = vi.fn()
+      render(<PendingOperationCard pendingOperation={operation} onStateChange={onStateChange} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos' }))
+      const retry = await screen.findByRole('button', { name: messages.common.retry })
+      expect(screen.queryByText(messages.blockFrame.status.failed)).not.toBeInTheDocument()
+      expect(screen.getByText(messages.chat.operationFailed)).toBeInTheDocument()
+      expect(onStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'failed', canRetry: true }))
+      fireEvent.click(retry)
+      await waitFor(() => expect(screen.getAllByText(messages.blockFrame.status.done)).toHaveLength(2))
+      expect(confirm.mock.calls).toEqual([[operation.id], [operation.id]])
+      expect(screen.queryByRole('button', { name: messages.common.retry })).not.toBeInTheDocument()
+    })
+
+    it.each([['Success', 'Failed'], ['Failed', 'Failed']] as const)('shows producer item outcomes %s and %s without retrying a consumed batch', async (first, second) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview(2)
+      const messages = locale === 'en' ? en : ptBR
+      const onOpenTarget = vi.fn()
+      confirm.mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse([first, second]) })
+      render(<PendingOperationCard pendingOperation={operation} onOpenTarget={onOpenTarget} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+      fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos' }))
+      await waitFor(() => expect(screen.getByText(personalText('Habit 2')).closest('[data-status]')).toHaveAttribute('data-status', 'failed'))
+      const firstRow = screen.getByText(personalText('Habit 1')).closest('[data-status]')! as HTMLElement
+      expect(firstRow).toHaveAttribute('data-status', first === 'Success' ? 'done' : 'failed')
+      expect(screen.queryByRole('button', { name: messages.common.retry })).not.toBeInTheDocument()
+      expect(screen.queryByText(messages.chat.operationFailed)).not.toBeInTheDocument()
+      expect(screen.getByText(messages.chat.operation.batchFailed)).toBeInTheDocument()
+      if (first === 'Success') {
+        fireEvent.click(within(firstRow).getByRole('button', { name: translateVisible('chat.action.openEntity', { name: 'Habit 1' }) }))
+        expect(onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
+      }
+    })
+  })
 
   describe.each(['en', 'pt-BR'])('operation approval in %s', (locale) => {
     it.each(['Low', 'Destructive', 'High'] as const)('approves creation directly with %s internal risk', async (riskClass) => {
@@ -255,7 +298,7 @@ describe('PendingOperationCard', () => {
     confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Denied' } } })
     render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ riskClass: 'Low', confirmationRequirement: 'None' })} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
-    await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('chat.operation.status.Denied')).toBeInTheDocument())
   })
 
   it('keeps the completed preview and opens its created habit', async () => {
@@ -283,9 +326,9 @@ describe('PendingOperationCard', () => {
       .mockResolvedValueOnce({ ok: true, response: { operation: { status: 'Succeeded' } } })
     render(<PendingOperationCard pendingOperation={makeHeldHabitMessage().pendingOperations![0]!} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
-    await waitFor(() => expect(screen.getByText('status.failed')).toBeInTheDocument())
-    expect(screen.getByText('chat.operationFailed')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
+    await waitFor(() => expect(screen.getByText('chat.operationFailed')).toBeInTheDocument())
+    expect(screen.queryByText('status.failed')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     await waitFor(() => expect(screen.getByText('status.done')).toBeInTheDocument())
     expect(confirm).toHaveBeenCalledTimes(2)
   })
@@ -294,9 +337,10 @@ describe('PendingOperationCard', () => {
     confirm.mockResolvedValue({ ok: true, response: { operation: { status: 'Failed', summary: 'Habit could not be created.' } } })
     render(<PendingOperationCard pendingOperation={makeHeldHabitMessage().pendingOperations![0]!} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
     fireEvent.click(screen.getByRole('button', { name: 'chat.operation.approve' }))
-    await waitFor(() => expect(screen.getByText('chat.operationFailed')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('chat.operation.unavailableRecovery')).toBeInTheDocument())
     expect(screen.queryByText('Habit could not be created.')).not.toBeInTheDocument()
-    expect(screen.getByText('status.failed')).toBeInTheDocument()
+    expect(screen.queryByText('status.failed')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'common.retry' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'chat.operation.approve' })).not.toBeInTheDocument()
   })
 
@@ -496,6 +540,30 @@ describe('PendingOperationCard', () => {
     act(() => sheetTestControls.completeDismissal())
     expect(screen.queryByRole('textbox', { name: 'stepUp.codeLabel' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'chat.operation.stepUpAction' })).toBeEnabled()
+  })
+
+  it('shows one boolean editor label inside the switch and preserves its draft while saving', async () => {
+    const booleanItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'reminder_enabled', valueType: 'boolean', newValue: 'true', proposedValue: true, isEditable: true }] }
+    let finishRevision!: (result: PendingOperationRevisionResponse) => void
+    revise.mockImplementation(() => new Promise((resolve) => { finishRevision = resolve }))
+    render(<PendingOperationCard pendingOperation={makePendingAgentOperation({ ...preview, items: [booleanItem], changeTargetCount: 1 })} onRevise={revise} onConfirmExecute={confirm} onPrepareStepUp={prepareStepUp} onVerifyStepUp={verifyStepUp} />)
+    fireEvent.click(screen.getByRole('button', { name: 'chat.operation.edit' }))
+    const body = screen.getByRole('dialog', { name: 'chat.operation.editTitle: Run' })
+    const label = 'chat.operation.field.reminder_enabled'
+    expect(within(body).getAllByText(label)).toHaveLength(1)
+    const control = within(body).getByRole('switch', { name: label })
+    expect(within(control).getByText(label)).toBeInTheDocument()
+    expect(control).toBeChecked()
+    fireEvent.click(control)
+    expect(control).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { reminder_enabled: false } }],
+    })
+    expect(control).toBeDisabled()
+    await act(async () => { finishRevision({ ok: false, error: 'invalid_revision' }) })
+    expect(control).toBeEnabled()
+    expect(control).not.toBeChecked()
   })
 
   it('keeps an unsaved edit when switching items', () => {

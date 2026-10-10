@@ -12,14 +12,13 @@ Element.prototype.scrollIntoView = vi.fn()
 
 import {
   CalendarHeader,
-  CalendarWeekNav,
   CalendarLegend,
 } from '@/app/(app)/calendar/_components/calendar-shell'
 
 describe('Calendar shell helpers', () => {
   it.each([
-    [en, ['all logged', 'part done', 'nothing logged', 'can log'], 'Range', 'Open this day on Today', ['Previous range', 'Next range'], ['done', 'not logged', 'indulged', 'resisted']],
-    [ptBR, ['tudo registrado', 'em parte', 'nada registrado', 'pode registrar'], 'Período', 'Abrir este dia no Hoje', ['Período anterior', 'Período seguinte'], ['feito', 'sem registro', 'cedeu', 'resistiu']],
+    [en, ['all logged', 'part done', 'nothing logged', 'can log'], 'Range', 'Open in Today', ['Previous range', 'Next range'], ['done', 'not logged', 'indulged', 'resisted']],
+    [ptBR, ['tudo registrado', 'em parte', 'nada registrado', 'pode registrar'], 'Período', 'Abrir no Hoje', ['Período anterior', 'Período seguinte'], ['feito', 'sem registro', 'cedeu', 'resistiu']],
   ])('uses the drawn calendar words in each locale', (locale, legendWords, rangeWord, dayLink, rangePager, statusWords) => {
     expect([locale.calendar.legend.full, locale.calendar.legend.partial, locale.calendar.legend.none, locale.calendar.legend.loggable]).toEqual(legendWords)
     expect([locale.calendar.dayCell.full, locale.calendar.dayCell.partial, locale.calendar.dayCell.none]).toEqual(legendWords.slice(0, 3))
@@ -104,7 +103,7 @@ describe('Calendar shell helpers', () => {
         onNextMonth={vi.fn()}
         onCurrentMonth={vi.fn()}
         onSelectMonth={vi.fn()}
-        periodNavigation={<CalendarWeekNav weekLabel="Apr 6 to 12" previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} />}
+        period={{ view: 'week', label: "Apr 6 to 12", previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }}
         viewSelector={<div role="group" aria-label="Calendar views" />}
       />,
     )
@@ -122,22 +121,14 @@ describe('Calendar shell helpers', () => {
     const onCurrentWeek = vi.fn()
 
     render(
-      <CalendarWeekNav
-        weekLabel="Jun 16 - 22"
-        previousWeekLabel="common.previousWeek"
-        nextWeekLabel="common.nextWeek"
-        currentWeekLabel="calendar.goToCurrentWeek"
-        onPreviousWeek={onPreviousWeek}
-        onNextWeek={onNextWeek}
-        onCurrentWeek={onCurrentWeek}
-      />,
+      <CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'week', label: "Jun 16 to Jun 22", previousLabel: "common.previousWeek", nextLabel: "common.nextWeek", onPrevious: onPreviousWeek, onNext: onNextWeek, onCurrent: onCurrentWeek }} />,
     )
 
-    expect(screen.getByText('Jun 16 - 22')).toBeInTheDocument()
+    expect(screen.getByText('Jun 16 to Jun 22')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('common.previousWeek'))
     fireEvent.click(screen.getByLabelText('common.nextWeek'))
-    fireEvent.click(screen.getByLabelText('Jun 16 - 22, calendar.goToCurrentWeek'))
+    fireEvent.click(screen.getByLabelText('calendar.period.goToCurrent'))
 
     expect(onPreviousWeek).toHaveBeenCalledTimes(1)
     expect(onNextWeek).toHaveBeenCalledTimes(1)

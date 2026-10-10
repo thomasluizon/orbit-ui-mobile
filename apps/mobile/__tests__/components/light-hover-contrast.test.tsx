@@ -10,9 +10,7 @@ import { HabitLogButton } from '@/components/habits/habit-log-button'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SettingsGroupRow } from '@/components/ui/settings-group'
-import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { Menu } from '@/components/ui/menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
@@ -35,16 +33,17 @@ const cases: { name: string; role: string; element: ReactElement }[] = [
   { name: 'row error', role: 'checkbox', element: <CheckRow label="Checked" checked error="Error" onChange={vi.fn()} /> },
   { name: 'personal row error', role: 'button', element: <CheckRow label="Personal" textMode="personal" onOpenLabel={vi.fn()} checked error="Error" value="Value" onChange={vi.fn()} /> },
   { name: 'list row', role: 'button', element: <ListRow title="Delete" danger description="Description" value="Value" onClick={vi.fn()} /> },
-  { name: 'settings row', role: 'button', element: <SettingsRow label="Delete" danger desc="Description" value="Value" onPress={vi.fn()} /> },
-  { name: 'settings group row', role: 'button', element: <SettingsGroupRow label="Preferences" hint="Value" onPress={vi.fn()} /> },
-  { name: 'settings group value', role: 'button', element: <SettingsGroup items={[{ label: 'Preferences', value: 'Value', onClick: vi.fn() }]} /> },
+  { name: 'settings row', role: 'button', element: <ListRow textMode="label" title="Delete" danger description="Description" value="Value" onClick={vi.fn()} /> },
+  { name: 'settings group row', role: 'button', element: <ListRow textMode="label" title="Preferences" description="Value" onClick={vi.fn()} /> },
+  { name: 'settings group value', role: 'button', element: <SettingsGroup>{[{ label: 'Preferences', value: 'Value', onClick: vi.fn() }].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup> },
   { name: 'search match', role: 'button', element: <SearchResult habit={createMockHabit({ title: 'Walking', emoji: '' })} query="Walk" onOpen={vi.fn()} /> },
   { name: 'menu edit', role: 'menuitem', element: <Menu open presentation="sheet" items={[{ id: 'edit', label: 'Edit' }]} /> },
   { name: 'menu delete', role: 'menuitem', element: <Menu open presentation="sheet" items={[{ id: 'delete', label: 'Delete', destructive: true }]} /> },
 ]
 
 function pressedFill(control: ReactTestInstance): string {
-  const style = control.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
+  const painted = control.findAll((node) => String(node.type) === 'View' && node.props['data-press-fill'] !== undefined)[0] ?? control
+  const style = painted.props.style as StyleProp<ViewStyle> | ((state: { pressed: boolean }) => StyleProp<ViewStyle>)
   const resolved = StyleSheet.flatten(typeof style === 'function' ? style({ pressed: true }) : style)
   return resolved.backgroundColor as string
 }

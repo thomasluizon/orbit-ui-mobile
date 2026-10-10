@@ -6,6 +6,7 @@ import { API } from '@orbit/shared/api'
 import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
 import { z, type ZodType } from 'zod'
 import { observeProxyFailure, type RecordProxyUpstream } from './proxy-failure-log'
+import { normalizeUpstreamResponse } from './upstream-starting-response'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 const accountIntentSchema = z.object({
@@ -80,6 +81,7 @@ async function fetchWithSession<T>(
   schema: ZodType<T> | undefined,
   intendedAccountId: string | null,
   recordUpstream?: RecordProxyUpstream,
+  renderToken?: string,
 ): Promise<T> {
   const accountIntent = intendedAccountId?.startsWith('{')
     ? accountIntentSchema.parse(JSON.parse(intendedAccountId) as unknown)
@@ -95,7 +97,7 @@ async function fetchWithSession<T>(
     'Accept-Language': language,
   })
 
-  let session = await resolveServerSession()
+  let session = renderToken ? { token: renderToken, refreshFailed: false } : await resolveServerSession()
   if (!session.token) {
     throw unauthorizedError(session.refreshFailed)
   }
@@ -107,7 +109,7 @@ async function fetchWithSession<T>(
   })
   recordUpstream?.(res)
 
-  if (res.status === 401 && path !== API.auth.refresh) {
+  if (!renderToken && res.status === 401 && path !== API.auth.refresh) {
     session = await resolveServerSession({ forceRefresh: true })
     if (session.token) {
       assertIntendedAccountStillHolds(session.token, accountIntent.accountId)
@@ -121,9 +123,10 @@ async function fetchWithSession<T>(
     }
   }
 
+  res = await normalizeUpstreamResponse(res)
   if (!res.ok) {
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
-    throw createApiClientError(res.status, error, `Failed with status ${res.status}`)
+    throw createApiClientError(res.status, error, `Failed with status ${res.status}`, res.headers.get('retry-after'))
   }
   if (res.status === 204) return null as T
   const text = await res.text()
@@ -141,6 +144,16 @@ export async function serverAuthFetch<T = unknown>(
   schema?: ZodType<T>,
 ): Promise<T> {
   return fetchWithSession(path, init, schema, null)
+}
+
+export async function serverRenderFetch<T = unknown>(
+  path: string,
+  init: ReadInit = {},
+  schema?: ZodType<T>,
+): Promise<T | null> {
+  const session = await resolveServerSession({ allowRefresh: false })
+  if (!session.token) return null
+  return fetchWithSession(path, init, schema, null, undefined, session.token)
 }
 
 /**
@@ -175,7 +188,7 @@ export async function serverPublicFetch<T = unknown>(
 ): Promise<T | null> {
   const language = await getServerRequestLanguage()
   const appVersion = process.env.APP_VERSION
-  const res = await fetch(`${API_BASE}${path}`, {
+  let res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -185,10 +198,11 @@ export async function serverPublicFetch<T = unknown>(
     },
   })
 
+  res = await normalizeUpstreamResponse(res)
   if (res.status === 404) return null
   if (!res.ok) {
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
-    throw createApiClientError(res.status, error, `Failed with status ${res.status}`)
+    throw createApiClientError(res.status, error, `Failed with status ${res.status}`, res.headers.get('retry-after'))
   }
   const text = await res.text()
   if (!text) return null

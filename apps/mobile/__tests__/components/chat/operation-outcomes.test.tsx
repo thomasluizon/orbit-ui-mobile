@@ -1,7 +1,6 @@
-import React from 'react'
+import { act, create, type ReactTestRenderer, type ReactTestRendererJSON } from 'react-test-renderer'
+import { expectPersonalTextLayout, expandedTextControls, pressTextControl } from '@/__tests__/support/personal-text'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Pressable, Text, View } from 'react-native'
-import type { BlockFrameProps } from '@orbit/shared/contracts/blocks'
 import {
   agentPolicyDenialFixture as denial,
   makeAgentOperationResult,
@@ -14,19 +13,6 @@ import { renderedText } from '../../support/react-test-renderer'
 const TestRenderer = require('react-test-renderer')
 const push = vi.fn()
 vi.mock('expo-router', () => ({ useRouter: () => ({ push }) }))
-vi.mock('@/components/ui/pill-button', () => ({
-  Button: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) =>
-    <Pressable accessibilityRole="button" onPress={onClick}><Text>{children}</Text></Pressable>,
-}))
-vi.mock('@/components/ui/block-frame', () => ({
-  BlockFrame: ({ title, items, actions, irreversibleLabel, confirmNote }: BlockFrameProps) => <View>
-    <Text>{title}</Text>
-    {items.map((item) => <View key={item.id}><Text>{item.label}</Text><Text>{item.meta}</Text><Text>{item.status}</Text>{item.irreversible ? <Text>{irreversibleLabel}</Text> : null}</View>)}
-    {items.some((item) => item.irreversible) ? <Text>{confirmNote}</Text> : null}
-    {actions}
-  </View>,
-}))
-
 describe('OperationOutcomes on mobile', () => {
 
   it.each(['Low', 'Destructive', 'High'] as const)('keeps %s internal risk out of terminal outcome treatment', (riskClass) => {
@@ -45,7 +31,7 @@ describe('OperationOutcomes on mobile', () => {
   beforeEach(() => push.mockReset())
 
   it('renders localized typed outcomes and keeps policy recovery on Profile', () => {
-    let tree: any
+    let tree!: ReactTestRenderer & { toJSON(): ReactTestRendererJSON }
     TestRenderer.act(() => {
       const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [
         makeAgentOperationResult('Succeeded', 1),
@@ -63,13 +49,14 @@ describe('OperationOutcomes on mobile', () => {
     }
     expect(output).not.toContain('chat.operation.outcome.Succeeded')
     expect(output).not.toContain('DeleteAccount')
-    const profile = tree.root.findAll((node: any) => typeof node.props?.onPress === 'function' && renderedText(node.props.children).includes('chat.operation.openProfile'))[0]
-    TestRenderer.act(() => profile.props.onPress())
+    const profile = tree.root.findAll((node: ReactTestRenderer['root']) => String(node.type) === 'Pressable' && typeof node.props.onPress === 'function' && renderedText(node.props.children).includes('chat.operation.openProfile'))[0]
+    expect(tree.root.findAll((node: ReactTestRenderer['root']) => String(node.type) === 'View' && node.props.testID === 'action-row')).toHaveLength(1)
+    TestRenderer.act(() => (profile!.props.onPress as () => void)())
     expect(push).toHaveBeenCalledWith('/profile')
   })
 
   it('renders one policy outcome when the API returns a denial twice', () => {
-    let tree: any
+    let tree!: ReactTestRenderer & { toJSON(): ReactTestRendererJSON }
     const deniedOperation = { ...makeAgentOperationResult('Denied', 1), operationId: denial.operationId }
     TestRenderer.act(() => {
       const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [deniedOperation], policyDenials: [denial] })).outcomes
@@ -78,4 +65,15 @@ describe('OperationOutcomes on mobile', () => {
 
     expect(renderedText(tree.toJSON()).match(/chat\.operation\.outcome\.UnsupportedByPolicy/g)).toHaveLength(1)
   })
+  it.each(['UnbrokenToken'.repeat(24), 'Read extraordinarilyLongWord daily before breakfast with the people in my neighborhood'])('discloses the full operation target %s', async (name) => {
+    const operation = { ...makeAgentOperationResult('Failed', 2), targetName: name }
+    const outcomes = selectMessageOperationBlocks(makeHeldHabitMessage({ pendingOperations: [], operations: [operation] })).outcomes
+    let tree!: ReactTestRenderer
+    await act(() => { tree = create(<OperationOutcomes outcomes={outcomes} />) })
+    await expectPersonalTextLayout(tree.root, name)
+    await act(() => pressTextControl(expandedTextControls(tree.root, name, false)[0]!))
+    expect(expandedTextControls(tree.root, name, true)).toHaveLength(1)
+    await act(() => tree.update(<></>))
+  })
+
 })

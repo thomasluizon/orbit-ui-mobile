@@ -23,8 +23,9 @@ import {
   formatAPIDate,
   formatWeekdayLabels,
   parseAPIDate,
-  formatCalendarWeekLabel,
+  formatCalendarSpanEnds,
   formatCalendarDayTitle,
+  orderCalendarDayEntries,
   filterCalendarSyncEventsByDate,
   isCalendarDayLoggable,
   buildCalendarRangeModel,
@@ -51,7 +52,6 @@ import {
 } from '@/hooks/use-calendar-auto-sync'
 import { useLogHabit } from '@/hooks/use-habits'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -62,7 +62,7 @@ import { CalendarDayEvents } from '@/components/calendar/calendar-day-events'
 import { CalendarImportContent, type CalendarImportActionHandle, type CalendarImportActionState } from '@/components/calendar-sync/calendar-import-content'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
-import { CalendarRangeNavigation, CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
@@ -79,7 +79,6 @@ import { useToday } from '../today-provider'
 import { CalendarOptions } from './_components/calendar-options'
 import {
   CalendarHeader,
-  CalendarWeekNav,
 } from './_components/calendar-shell'
 
 type MonthSlide = 'left' | 'right' | null
@@ -272,6 +271,16 @@ interface CalendarPageContentProps {
 }
 
 
+function calendarPageLayout(view: CalendarView, hasError: boolean, header: ReactNode) {
+  const fillsPage = view === 'week' && !hasError
+  return {
+    viewportProps: { 'data-page-viewport': fillsPage ? '' : undefined },
+    pageClass: fillsPage ? 'relative flex h-full min-h-0 flex-col' : 'relative',
+    contentClass: fillsPage ? 'relative z-[1] flex min-h-0 flex-1 flex-col' : 'relative z-[1]',
+    header: view === 'week' ? <div className="shrink-0">{header}</div> : header,
+  }
+}
+
 // react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function CalendarPageContent({
   profile,
@@ -290,7 +299,6 @@ function CalendarPageContent({
   const locale = useLocale()
   const dateFnsLocale = calendarDateFnsLocale(locale)
   const { displayTime } = useTimeFormat()
-  const { displayWeekdayDate } = useDateFormat()
   const weekStartsOn = profile.weekStartDay
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile.timeZone)
@@ -302,7 +310,7 @@ function CalendarPageContent({
   const logHabit = useLogHabit()
 
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
-  const [weekAnchor, setWeekAnchor] = useState(() => new Date())
+  const [weekAnchor, setWeekAnchor] = useState(() => parseAPIDate(todayKey))
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [agendaOffset, setAgendaOffset] = useState(0)
   const [rangeOffset, setRangeOffset] = useState(0)
@@ -440,7 +448,7 @@ function CalendarPageContent({
     [rangeDayMap, showRecurring],
   )
 
-  const weekLabel = formatCalendarWeekLabel(weekStart, weekEnd, locale)
+  const weekLabel = t('calendar.range.label', formatCalendarSpanEnds(weekStart, weekEnd, locale))
 
   const {
     dayMap: activeDayMap,
@@ -492,8 +500,8 @@ function CalendarPageContent({
   }, [])
   const goToCurrentWeek = useCallback(() => {
     setWeekSlide(null)
-    setWeekAnchor(new Date())
-  }, [])
+    setWeekAnchor(parseAPIDate(todayKey))
+  }, [todayKey])
 
   const openDay = useCallback(
     (dateStr: string) => {
@@ -512,7 +520,7 @@ function CalendarPageContent({
 
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return []
-    return activeDayMap.get(selectedDay) ?? []
+    return orderCalendarDayEntries(activeDayMap.get(selectedDay) ?? [])
   }, [selectedDay, activeDayMap])
 
   const selectedCalendarEvents = useMemo(
@@ -559,7 +567,7 @@ function CalendarPageContent({
 
   const dayDetailTitle = useMemo(() => {
     if (!selectedDay) return ''
-    return formatCalendarDayTitle(selectedDay, locale, todayKey, t('dates.today'))
+    return formatCalendarDayTitle(selectedDay, locale, todayKey, (date) => t('dates.todayWithDate', { date }))
   }, [selectedDay, locale, todayKey, t])
 
   const { monthStats } = useMemo(
@@ -580,13 +588,7 @@ function CalendarPageContent({
 
   const weekdayLabels = useMemo(() => formatWeekdayLabels(locale, weekStartsOn), [locale, weekStartsOn])
 
-  const rangeLabel = useMemo(() => {
-    const pattern = locale === 'pt-BR' ? 'd MMM' : 'MMM d'
-    return t('calendar.range.label', {
-      start: format(rangeModel.start, pattern, { locale: dateFnsLocale }),
-      end: format(rangeModel.end, pattern, { locale: dateFnsLocale }),
-    })
-  }, [dateFnsLocale, locale, rangeModel.end, rangeModel.start, t])
+  const rangeLabel = t('calendar.range.label', formatCalendarSpanEnds(rangeModel.start, rangeModel.end, locale))
 
   const monthStatTiles = useMemo(
     () => [
@@ -666,39 +668,27 @@ function CalendarPageContent({
       onCurrentMonth={goToCurrentMonth}
       onSelectMonth={selectMonth}
       viewSelector={viewSelector}
-      periodNavigation={{ month: undefined, week: <CalendarWeekNav
-        weekLabel={weekLabel}
-        previousWeekLabel={t('common.previousWeek')}
-        nextWeekLabel={t('common.nextWeek')}
-        currentWeekLabel={t('calendar.goToCurrentWeek')}
-        onPreviousWeek={prevWeek}
-        onNextWeek={nextWeek}
-        onCurrentWeek={goToCurrentWeek}
-      />, range: <CalendarRangeNavigation
-        rangeLabel={rangeLabel}
-        previousRangeLabel={t('calendar.range.previous')}
-        nextRangeLabel={t('calendar.range.next')}
-        onPreviousRange={previousRange}
-        onNextRange={nextRange}
-        nextRangeDisabled={rangeOffset === 0}
-      />, agenda: <CalendarWeekNav
-        weekLabel={formatCalendarWeekLabel(agendaStart, agendaEnd, locale)}
-        previousWeekLabel={t('common.previousWeek')}
-        nextWeekLabel={t('common.nextWeek')}
-        currentWeekLabel={t('dates.today')}
-        onPreviousWeek={() => setAgendaOffset((offset) => offset - 1)}
-        onNextWeek={() => setAgendaOffset((offset) => offset + 1)}
-        onCurrentWeek={() => setAgendaOffset(0)}
-      /> }[view]}
+      period={{ month: undefined, week: {
+          view: 'week' as const, label: weekLabel, previousLabel: t('common.previousWeek'), nextLabel: t('common.nextWeek'),
+          onPrevious: prevWeek, onNext: nextWeek, onCurrent: goToCurrentWeek,
+        }, range: {
+          view: 'range' as const, label: rangeLabel, previousLabel: t('calendar.range.previous'), nextLabel: t('calendar.range.next'),
+          onPrevious: previousRange, onNext: nextRange, onCurrent: () => setRangeOffset(0), nextDisabled: rangeOffset === 0,
+        }, agenda: {
+          view: 'agenda' as const, label: t('calendar.range.label', formatCalendarSpanEnds(agendaStart, agendaEnd, locale)), previousLabel: t('common.previousWeek'), nextLabel: t('common.nextWeek'),
+          onPrevious: () => setAgendaOffset((offset) => offset - 1), onNext: () => setAgendaOffset((offset) => offset + 1), onCurrent: () => setAgendaOffset(0),
+        } }[view]}
     />
   )
 
+  const pageLayout = calendarPageLayout(view, Boolean(activeError), calendarHeader)
+
   return (
-    <div className="relative">
+    <div {...pageLayout.viewportProps} className={pageLayout.pageClass}>
       <h1 className="sr-only" tabIndex={-1}>{t('nav.calendar')}</h1>
-      <div className="relative z-[1]">
+      <div className={pageLayout.contentClass}>
         <CalendarOptions onGoogleCalendar={openGoogleCalendar} />
-        {calendarHeader}
+        {pageLayout.header}
 
         {activeError ? (
           <div style={{ padding: '0 16px 16px' }}>
@@ -794,7 +784,6 @@ function CalendarPageContent({
                 startDate={agendaStart}
                 dayMap={displayRangeDayMap}
                 displayTime={displayTime}
-                displayWeekdayDate={displayWeekdayDate}
                 todayKey={todayKey}
                 isLoading={rangeLoading}
                 loadingLabel={t('common.loading')}

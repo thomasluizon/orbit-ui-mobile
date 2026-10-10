@@ -13,6 +13,8 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { useUIStore } from '@/stores/ui-store'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { ChevronRight, Trash2 } from '@/components/ui/icons'
 
 import type { PushPreferenceSnapshot } from '@/hooks/use-push-notification-preferences'
 
@@ -192,11 +194,11 @@ vi.mock('@/components/gamification/streak-badge', () => ({
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleUnreadCount: 0 }) }))
 
 vi.mock('@/app/(app)/profile/_components/fresh-start-modal', () => ({
-  FreshStartModal: () => null,
+  FreshStartModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="profile.freshStart.heading" /> : null,
 }))
 
 vi.mock('@/app/(app)/profile/_components/delete-account-modal', () => ({
-  DeleteAccountModal: () => null,
+  DeleteAccountModal: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="profile.deleteAccount.headingAreYouSure" /> : null,
 }))
 
 vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
@@ -229,6 +231,44 @@ import { ProfileSubscreen } from '@/app/(app)/profile/_components/profile-subscr
 const PROFILE_ROUTES = { account: ProfileAccountRoute, preferences: ProfilePreferencesRoute, astra: ProfileAstraRoute, notifications: ProfileNotificationsRoute }
 
 describe('ProfilePage', () => {
+  it.each([
+    ['profile.settingsRows.editName', 'profile.editName.title'],
+    ['profile.settingsRows.startOver', 'profile.freshStart.heading'],
+    ['profile.settingsRows.deleteAccount', 'profile.deleteAccount.headingAreYouSure'],
+  ] as const)('opens the owned dialog from the %s account action', (label, heading) => {
+    render(<ProfileAccountRoute />)
+    expect(screen.queryByRole('dialog', { name: heading })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: label }))
+    expect(screen.getByRole('dialog', { name: heading })).toBeInTheDocument()
+  })
+
+  it.each(['en', 'pt-BR'].flatMap((locale) => (['account', 'preferences'] as const).map((surface) => ({ locale, surface }))))('renders the drawn subscreen row glyphs in $surface in $locale', ({ locale, surface }) => {
+    translateProMessages(locale as 'en' | 'pt-BR')
+    const Destination = PROFILE_ROUTES[surface]
+    const { container } = render(<Destination />)
+    const reference = render(<div><ProfileNavIcon iconKey="account" /><Trash2 size={24} /><ChevronRight size={24} /></div>).container.querySelectorAll('svg')
+    const rows = container.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])')
+    expect(rows).toHaveLength(4)
+    for (const [index, row] of rows.entries()) {
+      const glyphs = row.querySelectorAll('svg')
+      expect(glyphs, row.textContent!).toHaveLength(surface === 'account' ? 2 : 1)
+      const chevron = glyphs[glyphs.length - 1]!
+      expect(chevron.innerHTML).toBe(reference[2]!.innerHTML)
+      expect(chevron).toHaveAttribute('width', '24')
+      expect(chevron).toHaveAttribute('height', '24')
+      expect(chevron).toHaveAttribute('stroke', 'var(--fg-3)')
+      expect(chevron).toHaveAttribute('aria-hidden', 'true')
+      if (surface === 'account') {
+        expect(glyphs[0]).toHaveAttribute('width', '24')
+        if (index === 0) expect(glyphs[0]!.innerHTML).toBe(reference[0]!.innerHTML)
+        if (index === 3) {
+          expect(glyphs[0]!.innerHTML).toBe(reference[1]!.innerHTML)
+          expect(glyphs[0]!.parentElement!.style.color).toBe('var(--status-bad)')
+        }
+      }
+    }
+  })
+
   describe('destination top inset', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
@@ -239,6 +279,96 @@ describe('ProfilePage', () => {
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
     })
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 412, 1280].flatMap((width) => ['Ana', 'Ana Silva'].flatMap((name) => (['account', 'preferences'] as const).map((surface) => ({ locale, width, surface, name }))))))('aligns subscreen glyphs and preserves labels in $surface in $locale at $width for $name', async ({ locale, width, surface, name }) => {
+      translateProMessages(locale as 'en' | 'pt-BR')
+      mockProfileState.current.profile = createMockProfile({ name, email: 'a@b.co', timeZone: 'America/Sao_Paulo', weekStartDay: 1, uses24HourClock: true })
+      const Destination = PROFILE_ROUTES[surface]
+      const { container } = render(<Destination />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])')).map((row) => {
+          const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+          const range = document.createRange()
+          range.selectNodeContents(title)
+          const icons = Array.from(row.querySelectorAll('svg')).map((icon) => ({ x: icon.getBoundingClientRect().x, width: icon.getBoundingClientRect().width, height: icon.getBoundingClientRect().height }))
+          const description = row.querySelector('[data-slot="list-row-description"]')
+          return { label: title.textContent, titleX: range.getBoundingClientRect().x, available: title.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, icons, overflow: row.scrollWidth > row.clientWidth,
+            descriptionGap: description ? description.getBoundingClientRect().top - title.getBoundingClientRect().bottom : null }
+        }))
+        expect(geometry).toHaveLength(4)
+        for (const row of geometry) {
+          expect(row.icons, row.label!).toHaveLength(surface === 'account' ? 2 : 1)
+          for (const icon of row.icons) expect(icon).toMatchObject({ width: 24, height: 24 })
+          expect.soft(row.titleX, row.label!).toBe(geometry[0]!.titleX)
+          expect.soft(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
+          expect(row.overflow, row.label!).toBe(false)
+          if (row.descriptionGap !== null) expect(row.descriptionGap, row.label!).toBeCloseTo(4, 1)
+          if (surface === 'account') expect(row.icons[0]!.x).toBe(geometry[0]!.icons[0]!.x)
+        }
+      } finally { await page.close() }
+    })
+
+    it.each((['en', 'pt-BR'] as const).flatMap((locale) => [360, 384, 412].map((width) => ({ locale, width }))))('keeps all account action titles whole in $locale at $width px and 2 text scale', async ({ locale, width }) => {
+      translateProMessages(locale)
+      mockProfileState.current.profile = createMockProfile({ name: 'Ana Silva', email: 'a@b.co' })
+      const { container } = render(<ProfileAccountRoute />)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(() => {
+          const rows = Array.from(document.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])'))
+          const defaults = rows.map((row) => row.getBoundingClientRect().height)
+          document.documentElement.style.fontSize = '32px'
+          return rows.map((row, index) => {
+            const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
+            const range = document.createRange()
+            range.selectNodeContents(title)
+            const bounds = title.getBoundingClientRect()
+            const fragments = Array.from(range.getClientRects())
+            const style = getComputedStyle(title)
+            return { label: title.textContent, height: row.getBoundingClientRect().height, defaultHeight: defaults[index]!, fontSize: parseFloat(style.fontSize), clipped: fragments.some((fragment) => fragment.left < bounds.left - 1 || fragment.right > bounds.right + 1 || fragment.bottom > bounds.bottom + 1) }
+          })
+        })
+        expect(geometry).toHaveLength(4)
+        for (const row of geometry) {
+          expect.soft(row.fontSize, row.label!).toBe(34)
+          expect.soft(row.clipped, row.label!).toBe(false)
+          expect.soft(row.height, row.label!).toBeGreaterThan(row.defaultHeight)
+        }
+      } finally { await page.close() }
+    })
+
+    it.each(['en', 'pt-BR'].flatMap((locale) => [320, 412, 1280].map((width) => ({ locale, width }))))('keeps the export title and preparing value readable in $locale at $width', async ({ locale, width }) => {
+      translateProMessages(locale as 'en' | 'pt-BR')
+      mockExportUserData.mockReturnValueOnce(new Promise(() => {}))
+      const messages = locale === 'pt-BR' ? ptBR : en
+      const { container } = render(<ProfileAccountRoute />)
+      fireEvent.click(screen.getByRole('button', { name: messages.profile.settingsRows.export }))
+      expect(mockExportUserData).toHaveBeenCalledOnce()
+      expect(container).toHaveTextContent(messages.dataExport.preparing)
+      const page = await browser.newPage({ viewport: { width, height: 1600 } })
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await loadAppFonts(page)
+        const geometry = await page.evaluate(() => {
+          const row = document.querySelectorAll('.orbit-list-row-shell:has([data-slot="list-row-chevron"])')[1]!
+          return Array.from(row.querySelectorAll<HTMLElement>('[data-slot="list-row-title"], [data-slot="list-row-value"]')).map((text) => {
+            const range = document.createRange()
+            range.selectNodeContents(text)
+            return { label: text.textContent, width: text.getBoundingClientRect().width, textWidth: range.getBoundingClientRect().width, lines: range.getClientRects().length }
+          })
+        })
+        expect(geometry.map(({ label }) => label)).toEqual([messages.profile.settingsRows.export, messages.dataExport.preparing])
+        for (const text of geometry) {
+          expect(text.textWidth, text.label!).toBeLessThanOrEqual(text.width + 1)
+          expect(text.lines, text.label!).toBe(1)
+        }
+      } finally { await page.close() }
+    })
 
     it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 412].flatMap((width) => [1, 2].flatMap((textScale) => ['free', 'trial', 'paid', 'lifetime'].map((plan) => ({ locale, width, textScale, plan }))))))('keeps $plan Perfil rows readable in $locale at $width px and $textScale text scale', async ({ locale, width, textScale, plan }) => {
       translateProMessages(locale as 'en' | 'pt-BR')
@@ -287,7 +417,7 @@ describe('ProfilePage', () => {
           }
           expect(row.height, row.label!).toBeGreaterThanOrEqual(48)
           expect(row.textEdge, row.label!).toBe(rows[0]!.textEdge)
-          expect(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
+          expect.soft(row.textWidth, row.label!).toBeLessThanOrEqual(row.available + 1)
           expect(row.iconWidth, row.label!).toBe(24)
           expect(row.iconHidden, row.label!).toBe(true)
           expect(row.overflow, row.label!).toBe(false)
@@ -380,7 +510,7 @@ describe('ProfilePage', () => {
 
     it.each([320, 412, 600, 840, 1023, 1024, 1352])('insets the first account card at %ipx and preserves the wide shell', async (width) => {
       const { container } = render(
-        <ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
+        <ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}>
           <ProfilePage />
         </ShellWide>,
       )
@@ -394,9 +524,10 @@ describe('ProfilePage', () => {
           const card = document.querySelector('[data-testid="profile-settings-group-you"] .orbit-row-list')!.getBoundingClientRect()
           const row = document.querySelector('[data-root-notification-header]')!.getBoundingClientRect()
           const bell = document.querySelector('[data-root-notification-header] button')!.getBoundingClientRect()
-          return { columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
+          return { columnTop: column.top, columnInset: card.top - column.top, scrollerInset: card.top - scroller.top,
             headerHeight: row.height, trailingInset: scroller.left + scrollElement.clientWidth - bell.right }
         })
+        expect(geometry.columnTop).toBe(0)
         expect(geometry.columnInset).toBe(width < 1024 ? 76 : 32)
         expect(geometry.scrollerInset).toBe(width < 1024 ? 76 : 0)
         expect(geometry.headerHeight).toBe(width < 1024 ? 48 : 0)
@@ -712,7 +843,8 @@ describe('ProfilePage', () => {
     mockPushPreferenceState.current = { supported: false, subscribed: false, permission: '', status: 'checking' }
     render(<ProfileSubscreen screen="notifications" />)
     expect(screen.queryByText('settings.notifications.unsupported')).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).not.toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toBeDisabled()
+    expect(screen.getByRole('switch', { name: 'profile.settingsRows.alertsOnThisDevice' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByTestId('push-status')).toHaveTextContent(/^\s*$/)
     expect(screen.getByTestId('push-status').closest('[aria-busy]')).toHaveAttribute('aria-busy', 'true')
   })
@@ -1283,7 +1415,7 @@ describe('ProfilePage', () => {
 })
 
 it('places the Perfil bell inside the destination scroller and opens Avisos', () => {
-  const { container } = render(<ShellWide items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
+  const { container } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="perfil" navLabel="Navigation" tabBar={<nav>Tabs</nav>}><ProfilePage /></ShellWide>)
   const row = container.querySelector<HTMLElement>('[data-root-notification-header]')!
   expect(container.querySelector('[data-shell-scroller]')).toContainElement(row)
   fireEvent.click(within(row as HTMLElement).getByRole('button', { name: 'notifications.bell' }))

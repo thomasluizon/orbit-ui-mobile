@@ -15,9 +15,7 @@ import { DateField } from '@/components/ui/date-field'
 import { DayCell } from '@/components/dates/day-cell'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SettingsGroupRow } from '@/components/ui/settings-group'
-import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { Menu } from '@/components/ui/menu'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -33,9 +31,9 @@ const cases = [
   { name: 'row error', element: <CheckRow label="Checked" checked error="Error" onChange={() => {}} /> },
   { name: 'personal row error', element: <CheckRow label="Personal" textMode="personal" onOpenLabel={() => {}} checked error="Error" value="Value" onChange={() => {}} /> },
   { name: 'list row', element: <ListRow title="Delete" danger description="Description" value="Value" onClick={() => {}} /> },
-  { name: 'settings row', element: <SettingsRow label="Delete" danger desc="Description" value="Value" onClick={() => {}} /> },
-  { name: 'settings group row', element: <SettingsGroupRow label="Preferences" hint="Value" onClick={() => {}} /> },
-  { name: 'settings group value', element: <SettingsGroup items={[{ label: 'Preferences', value: 'Value', onClick: () => {} }]} /> },
+  { name: 'settings row', element: <ListRow textMode="label" title="Delete" danger description="Description" value="Value" onClick={() => {}} /> },
+  { name: 'settings group row', element: <ListRow textMode="label" title="Preferences" description="Value" onClick={() => {}} /> },
+  { name: 'settings group value', element: <SettingsGroup>{[{ label: 'Preferences', value: 'Value', onClick: () => {} }].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup> },
 ]
 
 describe('rendered light hover contrast', () => {
@@ -212,7 +210,7 @@ describe('rendered light hover contrast', () => {
     }
 
     if (width === 1352) it('keeps the sidebar account email readable', async () => {
-      const { container, unmount } = render(<ShellWide items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
+      const { container, unmount } = render(<ShellWide astraRow={{ label: 'Astra', onOpen: () => {} }} items={[]} activeId="today" navLabel="Navigation" account="Person" accountEmail="person@example.test" />)
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
       try {
         const variables = Object.entries(resolveWebThemeVariables('orange', 'light')).map(([key, value]) => `${key}:${value}`).join(';')
@@ -270,7 +268,7 @@ describe('rendered light hover contrast', () => {
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
         await control.hover()
-        await page.waitForFunction((selector) => getComputedStyle(document.querySelector(selector)!).backgroundColor === 'rgba(9, 9, 11, 0.11)', selector)
+        await page.waitForFunction((selector) => getComputedStyle(document.querySelector(selector)!.querySelector('[data-press-fill]') ?? document.querySelector(selector)!).backgroundColor === 'rgba(9, 9, 11, 0.11)', selector)
         const colors = await control.evaluate((button) => [...button.querySelectorAll<HTMLElement>('*'), button]
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
@@ -298,7 +296,7 @@ describe('rendered light hover contrast', () => {
           .filter((element) => [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()))
           .map((element) => getComputedStyle(element).color))
         expect(pressOnly).toEqual(expectedPressOnly)
-        const pressedBackground = await control.evaluate((button) => getComputedStyle(button).backgroundColor)
+        const pressedBackground = await control.evaluate((button) => getComputedStyle(button.querySelector('[data-press-fill]') ?? button).backgroundColor)
         for (const surface of [neutralColors.light.bg, neutralColors.light.bgElev]) {
           for (const color of pressOnly) {
             expect(contrastOnSurface(color, [surface, pressedBackground])).toBeGreaterThanOrEqual(4.5)

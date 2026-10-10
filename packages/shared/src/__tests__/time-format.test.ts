@@ -6,7 +6,9 @@ import {
   formatLocaleDate,
   formatLocaleDayMonth,
   formatCalendarDayTitle,
+  formatCalendarAgendaHeading,
   formatWeekdayLabels,
+  formatCalendarWeekday,
   formatLocaleDateTime,
   formatLocaleTime,
   resolveSupportedLocale,
@@ -15,6 +17,10 @@ import {
 } from '../utils/locale-format'
 
 describe('locale-format utils', () => {
+  it.each([['pt-BR', 'Seg.'], ['en', 'Mon']])('formats a natural short week header in %s', (locale, label) => {
+    expect(formatCalendarWeekday('2026-10-05', locale)).toBe(label)
+  })
+
   it.each([
     ['en', 1, ['M', 'T', 'W', 'T', 'F', 'S', 'S']],
     ['en', 0, ['S', 'M', 'T', 'W', 'T', 'F', 'S']],
@@ -28,7 +34,7 @@ describe('locale-format utils', () => {
     ['en', 'September 30', 'Today, September 30', 'Tuesday, September 29'],
     ['pt-BR', '30 de setembro', 'Hoje, 30 de setembro', 'Terça-feira, 29 de setembro'],
   ])('formats the drawn date labels in %s', (locale, dateLabel, todayTitle, otherTitle) => {
-    const todayLabel = locale === 'en' ? 'Today' : 'Hoje'
+    const todayLabel = (date: string) => (locale === 'en' ? 'Today, {date}' : 'Hoje, {date}').replace('{date}', date)
     expect(formatLocaleDayMonth('2026-09-30', locale)).toBe(dateLabel)
     expect(formatLocaleDayMonth(new Date(2026, 8, 30), locale)).toBe(dateLabel)
     expect(formatCalendarDayTitle('2026-09-30', locale, '2026-09-30', todayLabel)).toBe(todayTitle)
@@ -39,7 +45,7 @@ describe('locale-format utils', () => {
 
   it.each(['en', 'pt-BR'])('keeps calendar date labels stable across device time zones in %s', (locale) => {
     const originalTimeZone = process.env.TZ
-    const todayLabel = locale === 'en' ? 'Today' : 'Hoje'
+    const todayLabel = (date: string) => (locale === 'en' ? 'Today, {date}' : 'Hoje, {date}').replace('{date}', date)
     const expected = locale === 'en'
       ? ['September 30', 'Today, September 30', 'Tuesday, September 29']
       : ['30 de setembro', 'Hoje, 30 de setembro', 'Terça-feira, 29 de setembro']
@@ -56,6 +62,22 @@ describe('locale-format utils', () => {
       if (originalTimeZone === undefined) delete process.env.TZ
       else process.env.TZ = originalTimeZone
     }
+  })
+
+  it.each([
+    ['en', 'Today, October 5'], ['pt-BR', 'Hoje, 5 de outubro'],
+  ])('builds the day card today title through a complete template in %s', (locale, expected) => {
+    const todayWithDate = (date: string) => (locale === 'en' ? 'Today, {date}' : 'Hoje, {date}').replace('{date}', date)
+    expect(formatCalendarDayTitle('2026-10-05', locale, '2026-10-05', todayWithDate)).toBe(expected)
+  })
+
+  it.each([
+    ['pt-BR', 'Hoje, segunda-feira, 5 de outubro', 'Terça-feira, 6 de outubro'],
+    ['en', 'Today, Monday, October 5', 'Tuesday, October 6'],
+  ])('formats the complete Agenda heading in %s', (locale, todayHeading, otherHeading) => {
+    const template = (date: string) => (locale === 'en' ? 'Today, {date}' : 'Hoje, {date}').replace('{date}', date)
+    expect(formatCalendarAgendaHeading('2026-10-05', locale, '2026-10-05', template)).toBe(todayHeading)
+    expect(formatCalendarAgendaHeading('2026-10-06', locale, '2026-10-05', template)).toBe(otherHeading)
   })
 
   it('formats time for English locale', () => {

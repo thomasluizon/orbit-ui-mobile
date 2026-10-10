@@ -11,8 +11,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { createMockCalendarSyncEvent, createMockHabit } from '@orbit/shared/__tests__/factories'
+import { buildCalendarSyncImportRequest, DESTINATION_ICONS, SHELL_DESTINATION_IDS } from '@orbit/shared/utils'
+import { bulkCreateResponseSchema } from '@orbit/shared/types/habit'
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { tagListSchema } from '@orbit/shared/types/tag'
@@ -69,6 +70,30 @@ describe('label fixture calendars and tags through the hermetic session', () => 
       request.destroy()
     }
   }
+
+  it('returns one successful bulk import result for each requested calendar habit', async () => {
+    const input = buildCalendarSyncImportRequest(['Reading', 'Walking'].map((title, index) =>
+      createMockCalendarSyncEvent({ id: `calendar-event-${index}`, title })))
+    const request = new IncomingMessage(new Socket())
+    request.method = 'POST'
+    request.url = '/api/habits/bulk'
+    request.push(Buffer.from(JSON.stringify(input)))
+    request.push(null)
+    const response = new ServerResponse(request)
+    const end = vi.spyOn(response, 'end').mockReturnValue(response)
+    try {
+      server.emit('request', request, response)
+      await vi.waitFor(() => expect(end).toHaveBeenCalledOnce())
+      expect(response.statusCode).toBe(200)
+      const body = bulkCreateResponseSchema.parse(JSON.parse(String(end.mock.calls[0]?.[0])))
+      expect(body.results).toEqual(input.habits.map((habit, index) => ({
+        index, status: 'Success', habitId: `layout-imported-${index}`, title: habit.title, error: null, field: null,
+      })))
+    } finally {
+      end.mockRestore()
+      request.destroy()
+    }
+  })
 
   it('returns a schema-valid empty list without a calendars claim', () => {
     for (const token of [undefined, mintHermeticJwt(profileFixture)]) {

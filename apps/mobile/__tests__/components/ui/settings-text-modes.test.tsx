@@ -2,23 +2,22 @@ import React from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it } from 'vitest'
 import { StyleSheet } from 'react-native'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SettingsGroupRow } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
 afterEach(__resetTestHostConfig)
 
-describe.each([['SettingsRow', SettingsRow], ['SettingsGroupRow', SettingsGroupRow]] as const)('%s text modes', (_name, Row) => {
+describe.each([['ListRow', ListRow]] as const)('%s text modes', (_name, Row) => {
   it.each([1, 2])('keeps product labels whole at font scale %s', async (fontScale) => {
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale })
     let tree: ReactTestRenderer
-    await act(() => { tree = create(<Row label="Sincronizar calendário" accessory="none" />) })
+    await act(() => { tree = create(<Row title="Sincronizar calendário" textMode="label" onClick={() => {}} chevron={false} />) })
     const label = tree!.root.findAll((node) => String(node.type) === 'Text')[0]!
     expect(label.props.numberOfLines).toBeUndefined()
     const row = tree!.root.findAll((node) => String(node.type) === 'Pressable')[0]!
     const style = StyleSheet.flatten((row.props.style as (state: { pressed: boolean }) => object)({ pressed: false }))
-    expect(style).toMatchObject({ minHeight: 48 })
-    if (fontScale > 1.3) expect(style).toMatchObject({ alignItems: 'flex-start' })
+    expect(style).toMatchObject({ minHeight: 52 })
+    if (fontScale > 1.3) expect(style).toMatchObject({ alignItems: 'center' })
     await act(() => tree!.update(<></>))
   })
 
@@ -26,7 +25,7 @@ describe.each([['SettingsRow', SettingsRow], ['SettingsGroupRow', SettingsGroupR
     __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
     const title = `${'longaddress'.repeat(12)}@example.com`
     let tree: ReactTestRenderer
-    await act(() => { tree = create(<Row label={title} textMode="personal" accessory="none" />) })
+    await act(() => { tree = create(<Row title={title} textMode="personal" chevron={false} />) })
     const label = tree!.root.findAll((node) => String(node.type) === 'Text')[0]!
     expect(label.props.numberOfLines).toBe(1)
     expect(label.props.ellipsizeMode).toBe('tail')

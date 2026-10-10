@@ -14,10 +14,11 @@ import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { calendarEntryOutcome, getAccountDateTime, nowDate } from "@orbit/shared/utils";
+import { calendarEntryOutcome, formatCalendarWeekday, getAccountDateTime, nowDate, orderCalendarDayEntries } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 
 import { X } from '@/components/ui/icons';
+import { PersonalText } from '@/components/ui/personal-text';
 import { StatusRing } from '@/components/ui/status-ring';
 import { CalendarEntryDetails } from './calendar-entry-details';
 
@@ -25,11 +26,10 @@ type Tokens = ReturnType<typeof createTokensV2>;
 
 const HOUR_HEIGHT = 48;
 const DAY_HEIGHT = HOUR_HEIGHT * 24;
-const BLOCK_HEIGHT = 48;
+const BLOCK_HEIGHT = 72;
 const BLOCK_MIN_WIDTH = 48;
 const BLOCK_HORIZONTAL_INSET = 4;
-const BODY_MAX_HEIGHT = 520;
-const MIN_LANE_WIDTH = BLOCK_MIN_WIDTH + BLOCK_HORIZONTAL_INSET;
+const MIN_LANE_WIDTH = 96;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 export interface TimeGridColumn {
@@ -134,7 +134,9 @@ function TimedBlock({
   isFuture,
   tokens,
   t,
+  fontScale,
 }: Readonly<{
+  fontScale: number;
   t: TFunction;
   block: PlacedEntry;
   colWidth: number;
@@ -152,19 +154,21 @@ function TimedBlock({
       accessibilityLabel={t('calendar.entryLabel', { title: block.entry.title, time: displayTime(block.entry.dueTime!), status: t(outcome.labelKey) })}
       style={({ pressed }) => ({
         position: "absolute",
-        top: block.top,
-        minHeight: BLOCK_HEIGHT,
+        top: block.top * fontScale,
+        minHeight: 48,
+        height: 72 * fontScale,
         left:
           (block.lane / block.laneCount) * colWidth +
           BLOCK_HORIZONTAL_INSET / 2,
         width: colWidth / block.laneCount - BLOCK_HORIZONTAL_INSET,
         minWidth: BLOCK_MIN_WIDTH,
         paddingVertical: 4,
-        paddingHorizontal: 8,
+        paddingHorizontal: 4,
         borderRadius: 8,
         overflow: "hidden",
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: 4,
         backgroundColor: pressed
           ? tokens.bgHoverOpaque
           : isFuture
@@ -175,23 +179,33 @@ function TimedBlock({
         transform: [{ scale: pressed ? 0.96 : 1 }],
       })}
     >
+      {({ pressed }) => <>
+      <PersonalText numberOfLines={2} testID="time-grid-event-name" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg1 }}>{block.entry.title}</PersonalText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, width: '100%' }}>
       <View importantForAccessibility="no-hide-descendants">
         <StatusRing status={outcome.status} size={24} label={t(outcome.labelKey)} />
         {outcome.status === 'bad' ? <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}><X size={16} color={tokens.statusBad} strokeWidth={1.5} /></View> : null}
       </View>
+      <Text numberOfLines={1} style={{ flexShrink: 1, fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: pressed ? tokens.fg2 : tokens.fg3 }}>{displayTime(block.entry.dueTime!)}</Text>
+      </View>
+      </>}
     </InsetFocusPressable>
   );
 }
 
-function AllDaySummary({ count, accessibilityLabel, onPress, tokens }: Readonly<{
-  count: number;
+function AllDayChip({ label, accessibilityLabel, onPress, tokens, fontScale, more = false }: Readonly<{
+  label: string;
   accessibilityLabel: string;
   onPress: () => void;
   tokens: Tokens;
+  fontScale: number;
+  more?: boolean;
 }>) {
-  return <InsetFocusPressable testID="time-grid-all-day-summary" accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
-    style={({ pressed }) => ({ minHeight: 48, minWidth: 48, padding: 8, borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: tokens.hairline, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
-    <Text style={{ fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg1 }}>{count}</Text>
+  return <InsetFocusPressable testID={more ? 'time-grid-all-day-more' : 'time-grid-all-day-event'} accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress}
+    style={({ pressed }) => ({ minHeight: Math.max(48, 44.8 * fontScale), minWidth: 48, padding: 0, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? tokens.bgHover : 'transparent' })}>
+    <View style={{ height: 28 * fontScale, width: '100%', paddingHorizontal: 8, borderRadius: 8, backgroundColor: tokens.bgWell, borderWidth: 1, borderColor: tokens.hairline, justifyContent: 'center' }}>
+      <Text numberOfLines={1} ellipsizeMode="tail" style={{ fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16.8, color: tokens.fg2 }}>{label}</Text>
+    </View>
   </InsetFocusPressable>;
 }
 
@@ -229,10 +243,10 @@ function ColumnHeader({
       <Text
         style={[
           styles.colHeaderWeekday,
-          { color: column.isToday ? tokens.primaryText : tokens.fg2 },
+          { color: tokens.fg2 },
         ]}
       >
-        {format(column.date, "EEE", { locale }).toUpperCase()}
+        {formatCalendarWeekday(column.dateStr, language)}
       </Text>
       <View
         style={[
@@ -287,12 +301,19 @@ export function CalendarTimeGrid({
   const { fontScale } = useWindowDimensions();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const headerHeight = Math.max(52, 16 + 4 + 12 * 1.4 * fontScale + 24 * fontScale);
-  const allDayBandHeight = Math.max(48, 16 + 2 + 12 * 1.4 * fontScale) + 16 + 1;
-  const gutterWidth = Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, "0")}:00`).length)) * 12 * 0.7 * fontScale + 16;
+
+  const gutterWidth = Math.max(96, Math.max(...HOURS.map((hour) => displayTime(`${String(hour).padStart(2, "0")}:00`).length)) * 12 * 0.7 * fontScale + 16);
+  const [anyTimeLabelHeight, setAnyTimeLabelHeight] = useState(0);
   const [disclosure, setDisclosure] = useState<{ entries: CalendarDayEntry[]; title: string } | null>(null);
   const bodyScrollRef = useRef<ScrollView>(null);
   const gutterScrollRef = useRef<ScrollView>(null);
+  const columnsScrollRef = useRef<ScrollView>(null);
+  const [bodyHeight, setBodyHeight] = useState(0);
+  const [paneLayout, setPaneLayout] = useState({ height: 0, isLoading });
+  const paneHeight = paneLayout.height;
+  const isPanePinned = paneHeight <= bodyHeight / 2;
   const [viewportWidth, setViewportWidth] = useState(0);
+  const [contentWidth, setContentWidth] = useState(0);
   const [now, setNow] = useState<Date>(() => nowDate());
   const nowMinutes = getAccountDateTime(now, timeZone).minutes;
 
@@ -304,7 +325,7 @@ export function CalendarTimeGrid({
   const perColumn = useMemo(
     () =>
       columns.map((column) => {
-        const entries = dayMap.get(column.dateStr) ?? [];
+        const entries = orderCalendarDayEntries(dayMap.get(column.dateStr) ?? []);
         return {
           column,
           allDay: entries.filter((entry) => !entry.dueTime),
@@ -320,7 +341,7 @@ export function CalendarTimeGrid({
       timed.map(({ laneCount }) => laneCount),
     ),
   );
-  const minColumnWidth = Math.max(60, maxLaneCount * MIN_LANE_WIDTH, 52 * fontScale);
+  const minColumnWidth = Math.max(96, maxLaneCount * MIN_LANE_WIDTH) * fontScale;
 
   const colWidth =
     viewportWidth > 0 && columns.length > 0
@@ -333,15 +354,36 @@ export function CalendarTimeGrid({
       ({ allDay, timed }) => allDay.length === 0 && timed.length === 0,
     );
 
+  const opened = useRef(false);
+  const chipCount = Math.max(1, ...perColumn.map(({ allDay }) => Math.min(2, allDay.length)));
+  const chipHeight = Math.max(48, 44.8 * fontScale);
+  const allDayBandHeight = Math.max(chipCount * chipHeight + (chipCount - 1) * 4, anyTimeLabelHeight) + 16 + 1;
   useEffect(() => {
-    const offset = 7 * HOUR_HEIGHT;
+    if (opened.current || isLoading || paneLayout.isLoading || bodyHeight <= 0 || paneHeight <= 0) return;
+    const firstTop = Math.min(7 * HOUR_HEIGHT, ...perColumn.flatMap(({ timed }) => timed.map(({ top }) => top)));
+    const visibleHourHeight = bodyHeight - (isPanePinned ? paneHeight : 0);
+    if (visibleHourHeight <= 0) return;
+    const offset = Math.max(0, columns.some(({ isToday }) => isToday)
+      ? (nowMinutes / 60) * HOUR_HEIGHT * fontScale - visibleHourHeight / 4
+      : firstTop * fontScale) + (isPanePinned ? 0 : paneHeight);
     scrollViewToY(bodyScrollRef.current, offset);
     scrollViewToY(gutterScrollRef.current, offset);
-  }, []);
+    opened.current = true;
+  }, [bodyHeight, columns, fontScale, isLoading, isPanePinned, nowMinutes, paneHeight, paneLayout.isLoading, perColumn]);
 
   const syncGutter = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollViewToY(gutterScrollRef.current, event.nativeEvent.contentOffset.y);
   };
+
+  const horizontalOpened = useRef(false);
+  useEffect(() => {
+    if (horizontalOpened.current || isLoading || viewportWidth <= 0 || contentWidth < colWidth * columns.length) return;
+    const todayIndex = columns.findIndex(({ isToday }) => isToday);
+    if (todayIndex >= 0) {
+      columnsScrollRef.current?.scrollTo({ x: Math.max(0, todayIndex * colWidth - (viewportWidth - colWidth) / 2), animated: false });
+    }
+    horizontalOpened.current = true;
+  }, [colWidth, columns, contentWidth, isLoading, viewportWidth]);
 
   const onColumnsLayout = (event: LayoutChangeEvent) => {
     setViewportWidth(event.nativeEvent.layout.width);
@@ -349,28 +391,26 @@ export function CalendarTimeGrid({
 
   return (
     <View style={styles.wrap}>
-      <Text testID="time-grid-any-time-label" style={styles.anyTimeLabel}>
-        {allDayLabel}
-      </Text>
       <View testID="calendar-time-grid" style={styles.card}>
         <View style={styles.row}>
           <View style={[styles.gutter, { width: gutterWidth }]}>
-            <View style={[styles.gutterCorner, { height: headerHeight }]} />
-            <View style={[styles.gutterAllDay, { height: allDayBandHeight }]} />
             <ScrollView
               ref={gutterScrollRef}
-              style={{ height: BODY_MAX_HEIGHT }}
+              style={{ flex: 1, minHeight: 0 }}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
+              stickyHeaderIndices={isPanePinned ? [0] : []}
             >
-              <View style={{ height: DAY_HEIGHT + BLOCK_HEIGHT }}>
+              <View style={{ minHeight: paneHeight, backgroundColor: tokens.bgElev }}>
+                <View style={[styles.gutterCorner, { height: headerHeight }]} />
+                <View style={[styles.gutterAllDay, { minHeight: allDayBandHeight }]}><Text testID="time-grid-any-time-label" onLayout={(event) => setAnyTimeLabelHeight(event.nativeEvent.layout.height)} style={styles.anyTimeLabel}>{allDayLabel}</Text></View>
+              </View>
+              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
                 {HOURS.map((hour) => (
                   <Text
                     key={hour}
                     testID="time-grid-hour-label"
-                    style={[styles.hourLabel, { top: hour * HOUR_HEIGHT + 2 }]}
+                    style={[styles.hourLabel, { top: hour * HOUR_HEIGHT * fontScale + 2 }]}
                   >
                     {displayTime(`${String(hour).padStart(2, "0")}:00`)}
                   </Text>
@@ -380,65 +420,70 @@ export function CalendarTimeGrid({
           </View>
 
           <ScrollView
+            ref={columnsScrollRef}
             horizontal
             showsHorizontalScrollIndicator
             style={styles.columnsScroll}
+            contentContainerStyle={{ flexGrow: 1 }}
             onLayout={onColumnsLayout}
+            onContentSizeChange={(width) => setContentWidth(width)}
+            onScrollBeginDrag={() => { horizontalOpened.current = true; }}
           >
             <View style={styles.columnsContent}>
-              <View style={[styles.headerRow, { minHeight: headerHeight }]}>
-                {columns.map((column) => (
-                  <ColumnHeader
-                    key={column.dateStr}
-                    column={column}
-                    colWidth={colWidth}
-                    language={language}
-                    onSelectDay={onSelectDay}
-                    tokens={tokens}
-                    styles={styles}
-                  />
-                ))}
-              </View>
-
-              <View style={[styles.allDayRow, { minHeight: allDayBandHeight }]}>
-                {perColumn.map(({ column, allDay }) => {
-                  return (
-                    <View
-                      key={column.dateStr}
-                      testID="time-grid-all-day"
-                      style={[
-                        styles.allDayCell,
-                        {
-                          width: colWidth,
-                          borderLeftColor: column.isFuture
-                            ? tokens.hairlineGhost
-                            : tokens.hairline,
-                          borderBottomColor: column.isFuture
-                            ? tokens.hairlineGhost
-                            : tokens.hairline,
-                        },
-                      ]}
-                    >
-                      {allDay.length > 0 ? <AllDaySummary
-                        count={allDay.length}
-                        accessibilityLabel={t('calendar.timeGrid.untimedCount', { count: allDay.length })}
-                        onPress={() => setDisclosure({ entries: allDay, title: allDayLabel })}
-                        tokens={tokens}
-                      /> : null}
-                    </View>
-                  );
-                })}
-              </View>
-
               <ScrollView
                 ref={bodyScrollRef}
-                style={{ height: BODY_MAX_HEIGHT }}
-                nestedScrollEnabled
+                style={{ flex: 1, minHeight: 0 }}
+                testID="time-grid-hour-scroller"
+                stickyHeaderIndices={isPanePinned ? [0] : []}
+                onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}
+                onScrollBeginDrag={() => { opened.current = true; }}
                 onScroll={syncGutter}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator
               >
-                <View style={{ flexDirection: "row", height: DAY_HEIGHT + BLOCK_HEIGHT }}>
+                <View key={isLoading ? 'loading' : 'loaded'} testID="time-grid-day-pane" onLayout={(event) => setPaneLayout({ height: event.nativeEvent.layout.height, isLoading })} style={{ backgroundColor: tokens.bgElev }}>
+                  <View style={[styles.headerRow, { minHeight: headerHeight }]}>
+                    {columns.map((column) => (
+                      <ColumnHeader
+                        key={column.dateStr}
+                        column={column}
+                        colWidth={colWidth}
+                        language={language}
+                        onSelectDay={onSelectDay}
+                        tokens={tokens}
+                        styles={styles}
+                      />
+                    ))}
+                  </View>
+
+                  <View style={[styles.allDayRow, { minHeight: allDayBandHeight }]}>
+                    {perColumn.map(({ column, allDay }) => {
+                      return (
+                        <View
+                          key={column.dateStr}
+                          testID="time-grid-all-day"
+                          style={[
+                            styles.allDayCell,
+                            {
+                              width: colWidth,
+                              borderLeftColor: column.isFuture
+                                ? tokens.hairlineGhost
+                                : tokens.hairline,
+                              borderBottomColor: column.isFuture
+                                ? tokens.hairlineGhost
+                                : tokens.hairline,
+                            },
+                          ]}
+                        >
+                          {(allDay.length >= 3 ? allDay.slice(0, 1) : allDay).map((entry) => <AllDayChip key={entry.habitId} label={entry.title} accessibilityLabel={entry.title} onPress={() => setDisclosure({ entries: [entry], title: t('calendar.entryDetails') })} tokens={tokens} fontScale={fontScale} />)}
+                          {allDay.length >= 3 ? <AllDayChip more label={t('calendar.timeGrid.moreCount', { count: allDay.length - 1 })} accessibilityLabel={t('calendar.timeGrid.moreCountLabel', { count: allDay.length - 1 })} onPress={() => onSelectDay(column.dateStr)} tokens={tokens} fontScale={fontScale} /> : null}
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                </View>
+                <View style={{ flexDirection: "row", height: DAY_HEIGHT * fontScale + Math.max(128 * fontScale, bodyHeight * 0.75) }}>
                   {perColumn.map(({ column, timed }) => (
                     <View
                       key={column.dateStr}
@@ -459,7 +504,7 @@ export function CalendarTimeGrid({
                           style={[
                             styles.hourLine,
                             {
-                              top: hour * HOUR_HEIGHT,
+                              top: hour * HOUR_HEIGHT * fontScale,
                               backgroundColor: column.isFuture
                                 ? tokens.hairlineGhost
                                 : tokens.hairline,
@@ -475,6 +520,7 @@ export function CalendarTimeGrid({
                           displayTime={displayTime}
                           onSelect={() => setDisclosure({ entries: [block.entry], title: t('calendar.entryDetails') })}
                           t={t}
+                          fontScale={fontScale}
                           isFuture={column.isFuture}
                           tokens={tokens}
                         />
@@ -487,7 +533,7 @@ export function CalendarTimeGrid({
                           accessibilityLabel={nowLabel}
                           style={[
                             styles.nowLine,
-                            { top: (nowMinutes / 60) * HOUR_HEIGHT },
+                            { top: (nowMinutes / 60) * HOUR_HEIGHT * fontScale },
                           ]}
                         >
                           <View style={styles.nowDot} />
@@ -516,17 +562,22 @@ export function CalendarTimeGrid({
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     wrap: {
-      gap: 4,
+      flex: 1,
+      minHeight: 0,
       paddingHorizontal: 16,
       paddingTop: 0,
       paddingBottom: 16,
     },
     anyTimeLabel: {
+      maxWidth: "100%",
       fontFamily: "Geist_400Regular",
       fontSize: 12,
+      lineHeight: 16.8,
       color: tokens.fg2,
     },
     card: {
+      flex: 1,
+      minHeight: 0,
       borderRadius: 12,
       overflow: "hidden",
       backgroundColor: tokens.bgCard,
@@ -534,15 +585,20 @@ function createStyles(tokens: Tokens) {
       borderColor: tokens.hairline,
     },
     row: {
+      flex: 1,
+      minHeight: 0,
       flexDirection: "row",
     },
     gutter: {
+      minHeight: 0,
     },
     gutterCorner: {
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
     },
     gutterAllDay: {
+      padding: 8,
+      alignItems: "flex-end",
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
     },
@@ -559,9 +615,12 @@ function createStyles(tokens: Tokens) {
       flex: 1,
     },
     columnsContent: {
+      height: "100%",
+      minHeight: 0,
       flexDirection: "column",
     },
     headerRow: {
+      flexShrink: 0,
       flexDirection: "row",
     },
     colHeader: {
@@ -577,8 +636,6 @@ function createStyles(tokens: Tokens) {
     colHeaderWeekday: {
       fontFamily: "GeistMono_500Medium",
       fontSize: 12,
-      letterSpacing: 0.4,
-      textTransform: "uppercase",
     },
     colHeaderDatePill: {
       minWidth: 24,
@@ -592,9 +649,11 @@ function createStyles(tokens: Tokens) {
       fontVariant: ["tabular-nums"],
     },
     allDayRow: {
+      flexShrink: 0,
       flexDirection: "row",
     },
     allDayCell: {
+      gap: 4,
       justifyContent: "center",
       paddingVertical: 8,
       paddingHorizontal: 4,
@@ -605,7 +664,6 @@ function createStyles(tokens: Tokens) {
     },
     dayColumn: {
       position: "relative",
-      height: DAY_HEIGHT + BLOCK_HEIGHT,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,
     },

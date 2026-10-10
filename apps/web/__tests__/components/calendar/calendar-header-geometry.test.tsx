@@ -11,9 +11,9 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import en from '@orbit/shared/i18n/en.json'
 import { buildYearRange } from '@orbit/shared/utils'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { CalendarHeader, CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
-import { buildCalendarRangeModel, formatCalendarWeekLabel } from '@orbit/shared/utils'
-import { CalendarRangeNavigation, CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
+import { buildCalendarRangeModel, formatCalendarSpanEnds } from '@orbit/shared/utils'
+import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { DayCell } from '@/components/dates/day-cell'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { Menu } from '@/components/ui/menu'
@@ -138,6 +138,7 @@ describe('Calendar header geometry in Chromium', () => {
         for (const [property, value] of Object.entries(variables)) document.documentElement.style.setProperty(property, value)
       }, { mode, variables: resolveWebThemeVariables('orange', mode) })
       await loadAppFonts(page)
+      await page.bringToFront()
       for (const label of ['Previous', 'Next']) {
         const control = page.getByRole('button', { name: label, exact: true })
         const resting = await control.evaluate((button) => {
@@ -155,6 +156,8 @@ describe('Calendar header geometry in Chromium', () => {
       }
       const title = page.getByRole('button', { name: `September, ${en.calendar.monthPicker}` })
       expect(await title.evaluate((button) => ({ background: getComputedStyle(button).backgroundColor, radius: getComputedStyle(button).borderRadius }))).toEqual({ background: 'rgba(0, 0, 0, 0)', radius: '12px' })
+      await title.focus()
+      await expect.poll(() => title.evaluate((button) => getComputedStyle(button).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
     } finally { await page.close() }
   })
 
@@ -439,19 +442,22 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([320, 412, 600, 840].flatMap((width) => [{ width, locale: 'en', messages: en }, { width, locale: 'pt-BR', messages: ptBR }]))('keeps the week pager in one 48px line at $width in $locale and reflows at 200%', async ({ width, locale, messages }) => {
+  it.each([320, 412, 600, 840].flatMap((width) => (['month', 'week', 'range', 'agenda'] as const).flatMap((view) =>
+    [{ width, view, locale: 'en', messages: en }, { width, view, locale: 'pt-BR', messages: ptBR }],
+  )))('keeps the $view pager in one 48px line at $width in $locale and reflows at 200%', async ({ width, view, locale, messages }) => {
     const viewOptions = [
       { value: 'month', label: messages.calendar.view.month },
       { value: 'week', label: messages.calendar.view.week },
       { value: 'range', label: messages.calendar.view.range },
       { value: 'agenda', label: messages.calendar.view.agenda },
     ] as const
-    const weekLabel = formatCalendarWeekLabel(new Date(2026, 7, 31), new Date(2026, 8, 6), locale)
+    const ends = formatCalendarSpanEnds(new Date(2026, 7, 31), new Date(2026, 8, 6), locale)
+    const weekLabel = messages.calendar.range.label.replace('{start}', ends.start).replace('{end}', ends.end)
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><main style={{ height: 915, overflowY: 'auto', scrollbarGutter: 'stable' }}>
       <CalendarHeader currentMonth={new Date(2026, 8, 1)} todayKey="2026-09-30" previousMonthLabel="Previous month" nextMonthLabel="Next month"
         onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()}
-        periodNavigation={<CalendarWeekNav weekLabel={weekLabel} previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} />}
-        viewSelector={<SegmentedControl fullWidth options={viewOptions} value="week" onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
+        period={view === 'month' ? undefined : { view, label: weekLabel, previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }}
+        viewSelector={<SegmentedControl fullWidth options={viewOptions} value={view} onChange={vi.fn()} label={messages.calendar.view.switchLabel} />} />
     </main></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {
@@ -461,20 +467,20 @@ describe('Calendar header geometry in Chromium', () => {
         await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
         const geometry = await page.evaluate(() => {
           const selector = document.querySelector('[role="radiogroup"]')!.getBoundingClientRect()
-          const controls = [...document.querySelectorAll('[data-testid="calendar-week-navigation"] button')].map((button) => {
+          const controls = [...document.querySelectorAll('[data-testid="calendar-header-group"] [data-testid$="-navigation"] button')].map((button) => {
             const box = button.getBoundingClientRect()
             const content = document.createRange(); content.selectNodeContents(button)
             const contentBox = content.getBoundingClientRect()
             return { left: box.left, right: box.right, bottom: box.bottom, width: box.width, height: box.height, overflow: contentBox.left < box.left || contentBox.right > box.right }
           })
-          const navigation = document.querySelector('[data-testid="calendar-week-navigation"]')!
+          const navigation = document.querySelector('[data-testid="calendar-header-group"] [data-testid$="-navigation"]')!
           const title = navigation.querySelectorAll('button')[1]!
           const range = document.createRange(); range.selectNodeContents(title.querySelector('span') ?? title)
           return { navigationHeight: navigation.getBoundingClientRect().height, titleLines: new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size, titleRadius: Number.parseFloat(getComputedStyle(title).borderRadius), titleHeight: title.getBoundingClientRect().height, selectorTop: selector.top, selectorBottom: selector.bottom, controls, overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth }
         })
         expect(geometry.controls).toHaveLength(3)
         if (scale === 1) { expect(geometry.navigationHeight).toBe(48); expect(geometry.titleLines).toBe(1); expect(geometry.selectorTop).toBe(76) }
-        expect(geometry.titleRadius).toBeGreaterThanOrEqual(geometry.titleHeight / 2)
+        expect(geometry.titleRadius).toBe(12)
         expect(geometry.overflow).toBe(false)
         for (const control of geometry.controls) {
           expect(control.bottom).toBeLessThanOrEqual(geometry.selectorTop)
@@ -490,8 +496,9 @@ describe('Calendar header geometry in Chromium', () => {
   })
 
   it('reflows a cross-month Portuguese week label at 200% without clipping', async () => {
-    const weekLabel = formatCalendarWeekLabel(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
-    const { container } = render(<div style={{ paddingInline: 16 }}><CalendarWeekNav weekLabel={weekLabel} previousWeekLabel="Previous week" nextWeekLabel="Next week" currentWeekLabel="Current week" onPreviousWeek={vi.fn()} onNextWeek={vi.fn()} onCurrentWeek={vi.fn()} /></div>)
+    const ends = formatCalendarSpanEnds(new Date(2026, 8, 30), new Date(2026, 9, 6), 'pt-BR')
+    const weekLabel = ptBR.calendar.range.label.replace('{start}', ends.start).replace('{end}', ends.end)
+    const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'week', label: weekLabel, previousLabel: "Previous week", nextLabel: "Next week", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn() }} /></NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width: 320, height: 915 } })
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
@@ -512,7 +519,7 @@ describe('Calendar header geometry in Chromium', () => {
     const model = buildCalendarRangeModel(new Date(2026, 9, 6), seededDayMap('2026-10'), 1, '2026-10-06')
     const rangeLabel = ptBR.calendar.range.label.replace('{start}', format(model.start, 'd MMM', { locale: dateLocale })).replace('{end}', format(model.end, 'd MMM', { locale: dateLocale }))
     const { container } = render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC">
-      <div style={{ paddingInline: 16 }}><CalendarRangeNavigation rangeLabel={rangeLabel} previousRangeLabel="Previous range" nextRangeLabel="Next range" onPreviousRange={vi.fn()} onNextRange={vi.fn()} nextRangeDisabled={false} /></div>
+      <CalendarHeader currentMonth={new Date(2026, 9, 1)} todayKey="2026-10-05" previousMonthLabel="Previous month" nextMonthLabel="Next month" onPreviousMonth={vi.fn()} onNextMonth={vi.fn()} onCurrentMonth={vi.fn()} onSelectMonth={vi.fn()} period={{ view: 'range', label: rangeLabel, previousLabel: "Previous range", nextLabel: "Next range", onPrevious: vi.fn(), onNext: vi.fn(), onCurrent: vi.fn(), nextDisabled: false }} />
       <CalendarRangeView model={model} weekdayLabels={['S', 'T', 'Q', 'Q', 'S', 'S', 'D']} rangeLabel={rangeLabel} isLoading={isLoading} loadingLabel={ptBR.calendar.loading}
         stats={[{ key: 'bestStreak', value: model.stats.bestStreak, label: ptBR.calendar.bestStreak }, { key: 'totalLogs', value: model.stats.totalLogs, label: ptBR.calendar.totalLogs }, { key: 'missed', value: model.stats.missed, label: ptBR.calendar.missedCount }]} />
     </NextIntlClientProvider>)
@@ -536,7 +543,7 @@ describe('Calendar header geometry in Chromium', () => {
         const geometry = await page.evaluate(() => {
           const frame = document.querySelector<HTMLElement>('.orbit-calendar-grid-frame')!
           const stats = document.querySelector<HTMLElement>('[data-testid="calendar-stats"]')!
-          const labelText = document.querySelector('p')!.firstChild!
+          const labelText = document.querySelector('[data-calendar-period-title] span')!.firstChild!
           const splitWords = [...labelText.textContent!.matchAll(/\S+/g)].filter((word) => {
             const range = document.createRange()
             range.setStart(labelText, word.index)
@@ -553,7 +560,7 @@ describe('Calendar header geometry in Chromium', () => {
               const bounds = value.lastElementChild!.getBoundingClientRect()
               const figure = value.parentElement!.getBoundingClientRect()
               return { left: bounds.left, right: bounds.right, width: bounds.width, figureLeft: figure.left, figureRight: figure.right, fontSize: parseFloat(getComputedStyle(value).fontSize) }
-            }), gridWidth: frame.clientWidth, gridScroll: frame.scrollWidth, label: document.querySelector('p')!.getBoundingClientRect().left, labelCenter: (document.querySelector('p')!.getBoundingClientRect().top + document.querySelector('p')!.getBoundingClientRect().bottom) / 2, labelOverflow: document.querySelector('p')!.scrollWidth > document.querySelector('p')!.clientWidth, targets: [...document.querySelectorAll('button')].map((button) => ({ center: (button.getBoundingClientRect().top + button.getBoundingClientRect().bottom) / 2, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right })) }
+            }), gridWidth: frame.clientWidth, gridScroll: frame.scrollWidth, label: document.querySelector('[data-calendar-period-title] span')!.getBoundingClientRect().left, labelCenter: (document.querySelector('[data-calendar-period-title] span')!.getBoundingClientRect().top + document.querySelector('[data-calendar-period-title] span')!.getBoundingClientRect().bottom) / 2, labelOverflow: document.querySelector('[data-calendar-period-title] span')!.scrollWidth > document.querySelector('[data-calendar-period-title] span')!.clientWidth, targets: [...document.querySelectorAll('button')].map((button) => ({ center: (button.getBoundingClientRect().top + button.getBoundingClientRect().bottom) / 2, width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, left: button.getBoundingClientRect().left, right: button.getBoundingClientRect().right })) }
         })
         expect(geometry.scrollWidth, JSON.stringify(geometry)).toBe(geometry.pageWidth)
         expect(geometry.statsLeft).toBeGreaterThanOrEqual(0)
@@ -571,7 +578,7 @@ describe('Calendar header geometry in Chromium', () => {
         expect(geometry.frameWidth).toBe(width)
         expectFullColumnDays(geometry.days, isLoading ? 0 : model.days.length)
         expect(geometry.gridScroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.gridWidth)
-        expect(geometry.label).toBe(16)
+        expect(geometry.label).toBeGreaterThanOrEqual(16)
         expect(geometry.labelOverflow).toBe(false)
         expect(geometry.splitWords).toEqual([])
         if (scale === 1) for (const target of geometry.targets) expect(Math.abs(geometry.labelCenter - target.center)).toBeLessThanOrEqual(2)

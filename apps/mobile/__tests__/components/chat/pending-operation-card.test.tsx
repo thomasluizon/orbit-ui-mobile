@@ -1,4 +1,4 @@
-import { makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
+import { makeBulkCreateExecutionResponse, makeCreateHabitsPreview, makeMixedHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
 import { IntlMessageFormat } from 'intl-messageformat'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -78,6 +78,47 @@ beforeEach(() => { vi.clearAllMocks(); __resetTestHostConfig(); visibleLocale.ac
 afterEach(() => sheetTestControls.defer(false))
 
 describe('PendingOperationCard (mobile)', () => {
+  describe.each(['en', 'pt-BR'])('batch recovery in %s', (locale) => {
+    it('retries the same batch after a producer pre-write failure without failing unrun rows', async () => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview(2)
+      const messages = locale === 'en' ? en : ptBR
+      const { tree, handlers } = renderCard(operation)
+      handlers.onConfirmExecute.mockResolvedValueOnce({ ok: true, response: makeBulkCreateExecutionResponse() })
+        .mockResolvedValueOnce({ ok: true, response: makeBulkCreateExecutionResponse(['Success', 'Success']) })
+      await TestRenderer.act(async () => { press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.onPress(); await Promise.resolve() })
+      expect(press(tree, messages.common.retry)).toBeDefined()
+      expect(renderedText(tree.toJSON())).not.toContain(messages.blockFrame.status.failed)
+      expect(renderedText(tree.toJSON())).toContain(messages.chat.operationFailed)
+      await TestRenderer.act(async () => { press(tree, messages.common.retry).props.onPress(); await Promise.resolve() })
+      expect(tree.root.findByProps({ testID: 'block-frame-item-0-done' })).toBeDefined()
+      expect(tree.root.findByProps({ testID: 'block-frame-item-1-done' })).toBeDefined()
+      expect(handlers.onConfirmExecute.mock.calls).toEqual([[operation.id], [operation.id]])
+      expect(press(tree, messages.common.retry)).toBeUndefined()
+    })
+
+    it.each([['Success', 'Failed'], ['Failed', 'Failed']] as const)('shows producer item outcomes %s and %s without retrying a consumed batch', async (first, second) => {
+      visibleLocale.actual = true
+      visibleLocale.language = locale
+      const operation = makeCreateHabitsPreview(2)
+      const messages = locale === 'en' ? en : ptBR
+      const onOpenTarget = vi.fn()
+      const { tree, handlers } = renderCard(operation, undefined, undefined, onOpenTarget)
+      handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: makeBulkCreateExecutionResponse([first, second]) })
+      await TestRenderer.act(async () => { press(tree, locale === 'en' ? 'Create 2 habits' : 'Criar 2 hábitos').props.onPress(); await Promise.resolve() })
+      expect(tree.root.findByProps({ testID: 'block-frame-item-0-' + (first === 'Success' ? 'done' : 'failed') })).toBeDefined()
+      expect(tree.root.findByProps({ testID: 'block-frame-item-1-failed' })).toBeDefined()
+      expect(press(tree, messages.common.retry)).toBeUndefined()
+      expect(renderedText(tree.toJSON())).not.toContain(messages.chat.operationFailed)
+      expect(renderedText(tree.toJSON())).toContain(messages.chat.operation.batchFailed)
+      if (first === 'Success') {
+        TestRenderer.act(() => press(tree, messages.chat.action.open).props.onPress())
+        expect(onOpenTarget).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000020', 'CreateHabit')
+      }
+    })
+  })
+
   describe.each(['en', 'pt-BR'])('operation approval in %s', (locale) => {
     it.each(['Low', 'Destructive', 'High'] as const)('approves creation directly with %s internal risk', async (riskClass) => {
       visibleLocale.actual = true
@@ -524,6 +565,32 @@ describe('PendingOperationCard (mobile)', () => {
     expect(tree.root.findByProps({ accessibilityLabel: 'chat.operation.field.date' }).props.value).toBe('2026-09-30')
   })
 
+  it('shows one boolean editor label inside the switch and preserves its draft while saving', async () => {
+    const booleanItem = { ...firstItem, fields: [{ ...firstItem.fields[0]!, field: 'reminder_enabled', valueType: 'boolean', newValue: 'true', proposedValue: true, isEditable: true }] }
+    let finishRevision!: (result: PendingOperationRevisionResponse) => void
+    const revise = vi.fn<RevisePendingOperation>(() => new Promise((resolve) => { finishRevision = resolve }))
+    const { tree } = renderCard({ ...preview, items: [booleanItem], changeTargetCount: 1 }, revise)
+    TestRenderer.act(() => press(tree, 'chat.operation.edit').props.onPress())
+    const body = tree.root.findByProps({ testID: 'sheet-body-slot' }) as ReactTestInstance
+    const label = 'chat.operation.field.reminder_enabled'
+    expect(body.findAll((node: ReactTestInstance) => node.type === Text && node.props.children === label)).toHaveLength(1)
+    const control = body.findAll((node: ReactTestInstance) => node.type === Pressable)[0]!
+    expect(control.props.accessibilityRole).toBe('switch')
+    expect(control.props.accessibilityLabel).toBe(label)
+    expect(control.findAll((node: ReactTestInstance) => node.type === Text && node.props.children === label).length > 0).toBe(true)
+    expect(control.props.accessibilityState).toMatchObject({ checked: true })
+    TestRenderer.act(() => (control.props.onPress as () => void)())
+    expect(control.props.accessibilityState).toMatchObject({ checked: false })
+    TestRenderer.act(() => press(tree, 'common.save').props.onPress())
+    expect(revise).toHaveBeenCalledWith('pending-1', {
+      previewFingerprint: 'preview-1', items: [{ itemId: 'habit-1', edits: { reminder_enabled: false } }],
+    })
+    expect(control.props.disabled).toBe(true)
+    await TestRenderer.act(async () => { finishRevision({ ok: false, error: 'invalid_revision' }); await Promise.resolve() })
+    expect(control.props.disabled).toBe(false)
+    expect(control.props.accessibilityState).toMatchObject({ checked: false })
+  })
+
   it('uses theme foreground for every editor label and weekday chip', () => {
     const fields = [
       { ...firstItem.fields[0]!, field: 'reminder_enabled', valueType: 'boolean', newValue: 'true' },
@@ -535,7 +602,7 @@ describe('PendingOperationCard (mobile)', () => {
     const foreground = createTokensV2('purple', 'dark').fg1
     for (const label of ['chat.operation.field.reminder_enabled', 'chat.operation.field.days', 'dates.daysLong.monday']) {
       const text = body.findAllByType(Text).find((node: any) => node.props.children === label)
-      expect(text?.props.style).toMatchObject({ color: foreground })
+      expect(StyleSheet.flatten(text?.props.style)).toMatchObject({ color: foreground })
     }
     expect(body.findAllByType(ScrollView)).toHaveLength(0)
   })
@@ -797,9 +864,9 @@ describe('PendingOperationCard (mobile)', () => {
     handlers.onConfirmExecute.mockResolvedValueOnce({ ok: false, error: 'Could not save. Try again.' })
       .mockResolvedValueOnce({ ok: true, response: { operation: { status: 'Succeeded' } } })
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
-    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).not.toContain('status.failed')
     expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
-    await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
+    await TestRenderer.act(async () => { press(tree, 'common.retry').props.onPress(); await Promise.resolve() })
     expect(renderedText(tree.toJSON())).toContain('status.done')
     expect(handlers.onConfirmExecute).toHaveBeenCalledTimes(2)
   })
@@ -808,9 +875,10 @@ describe('PendingOperationCard (mobile)', () => {
     const { tree, handlers } = renderCard(makeHeldHabitMessage().pendingOperations![0], vi.fn())
     handlers.onConfirmExecute.mockResolvedValue({ ok: true, response: { operation: { status: 'Failed', summary: 'Habit could not be created.' } } })
     await TestRenderer.act(async () => { press(tree, 'chat.operation.approve').props.onPress(); await Promise.resolve() })
-    expect(renderedText(tree.toJSON())).toContain('chat.operationFailed')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.unavailableRecovery')
     expect(renderedText(tree.toJSON())).not.toContain('Habit could not be created.')
-    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).not.toContain('status.failed')
+    expect(press(tree, 'common.retry')).toBeUndefined()
     expect(press(tree, 'chat.operation.approve')).toBeUndefined()
   })
 
@@ -880,7 +948,8 @@ describe('PendingOperationCard (mobile)', () => {
       await Promise.resolve()
     })
 
-    expect(renderedText(tree.toJSON())).toContain('status.failed')
+    expect(renderedText(tree.toJSON())).toContain('chat.operation.status.Denied')
+    expect(renderedText(tree.toJSON())).not.toContain('status.failed')
     expect(renderedText(tree.toJSON())).not.toContain('status.done')
   })
 })

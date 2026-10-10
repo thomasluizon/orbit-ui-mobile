@@ -69,3 +69,11 @@ export function calendarEntryOutcome(entry: CalendarDayEntry): {
     ? { status: 'done', labelKey: 'calendar.status.completed' }
     : { status: 'empty', labelKey: 'calendar.status.missed' }
 }
+
+export function orderCalendarDayEntries(entries: readonly CalendarDayEntry[]): CalendarDayEntry[] {
+  return [...entries].sort((first, second) => {
+    if (!first.dueTime) return second.dueTime ? -1 : 0
+    if (!second.dueTime) return 1
+    return first.dueTime.localeCompare(second.dueTime)
+  })
+}

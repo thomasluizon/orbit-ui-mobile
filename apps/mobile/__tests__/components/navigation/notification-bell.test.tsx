@@ -18,6 +18,7 @@ import { NotificationDetailModal } from '@/components/navigation/notification-de
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { createTokensV2 } from '@/lib/theme'
 import { useUIStore } from '@/stores/ui-store'
+import { useHabitCreateNavigationGuard } from '@/hooks/use-habit-create-navigation-guard'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
@@ -29,10 +30,10 @@ void testI18n.use(ICU).init({
 })
 const state = vi.hoisted(() => ({
   notifications: [] as NotificationItem[], unreadCount: 0, isLoading: false, isError: false,
-  locale: 'en', mode: 'dark', pathname: '/', push: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
+  locale: 'en', mode: 'dark', pathname: '/', push: vi.fn(), replace: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
   remove: vi.fn(), clear: vi.fn(),
 }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }), usePathname: () => state.pathname }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push, replace: state.replace }), usePathname: () => state.pathname }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => state.back }))
 vi.mock('react-native-safe-area-context', async () => {
   const { View } = await import('react-native')
@@ -352,6 +353,32 @@ describe('mobile alerts', () => {
     expect(state.push).toHaveBeenCalledWith('/notifications')
     expect(testId(tree, 'notification-count')).toHaveLength(0)
   })
+  it('closes Astra before the header bell opens the inbox', () => {
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = render(<NotificationBell />)
+    press(tree, 'Alerts')
+    expect(useUIStore.getState().astraConversationOpen).toBe(false)
+    expect(state.push).toHaveBeenCalledWith('/notifications')
+  })
+  it.each([false, true])('preserves Astra until guarded bell navigation is confirmed with discard=%s', (discard) => {
+    const onNavigate = vi.fn<(action: () => void) => void>()
+    function GuardedBell() {
+      useHabitCreateNavigationGuard({ active: true, leaving: false, onNavigate })
+      return <NotificationBell />
+    }
+    useUIStore.getState().setAstraConversationOpen(true)
+    const tree = render(<GuardedBell />)
+    press(tree, 'Alerts')
+    expect(onNavigate).toHaveBeenCalledOnce()
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(state.push).not.toHaveBeenCalled()
+    expect(state.replace).not.toHaveBeenCalled()
+    if (discard) {
+      TestRenderer.act(() => onNavigate.mock.calls[0]![0]())
+      expect(useUIStore.getState().astraConversationOpen).toBe(false)
+      expect(state.replace).toHaveBeenCalledExactlyOnceWith('/notifications')
+    }
+  })
   it.each(['dark', 'light'] as const)('keeps a neutral capped count while loading in %s', (mode) => {
     state.mode = mode
     state.unreadCount = 25
@@ -404,14 +431,14 @@ describe('mobile alerts', () => {
     seed(1)
     const tree = render()
     expect(testId(tree, 'notification-unread-dot')).toHaveLength(1)
-    expect(StyleSheet.flatten(testId(tree, 'notification-title')[0]!.props.style)).toMatchObject({ fontFamily: 'Geist_500Medium' })
+    expect(StyleSheet.flatten(testId(tree, 'notification-title').find((node) => node.type === 'Text')!.props.style)).toMatchObject({ fontFamily: 'Geist_500Medium' })
     press(tree, 'Alert 0. unread. Progress')
     expect(state.mark).not.toHaveBeenCalled()
     press(tree, en.notifications.markAsRead)
     refresh(tree)
     expect(testId(tree, 'notification-unread-dot')).toHaveLength(0)
     expect(testId(tree, 'notification-dot-column')).toHaveLength(1)
-    expect(StyleSheet.flatten(testId(tree, 'notification-title')[0]!.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular' })
+    expect(StyleSheet.flatten(testId(tree, 'notification-title').find((node) => node.type === 'Text')!.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular' })
     expect(hosts(tree, 'Pressable', en.notifications.markAsRead)).toHaveLength(0)
   })
   it.each(['en', 'pt-BR'])('announces the title, read state and habit destination in %s', (locale) => {

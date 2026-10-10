@@ -107,6 +107,7 @@
     "openIn": "Abrir em {target}"
   },
   "common": {
+    "showFullText": "Mostrar texto completo: {name}",
     "options": "Opções",
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",
@@ -386,6 +387,7 @@
   },
   "dates": {
     "today": "Hoje",
+    "todayWithDate": "Hoje, {date}",
     "goToToday": "Ir para hoje",
     "yesterday": "Ontem",
     "tomorrow": "Amanhã",
@@ -983,9 +985,7 @@
   },
   "calendar": {
     "agenda": {
-      "today": "Hoje",
-      "empty": "Nada agendado",
-      "timedEntryLabel": "{title}, {time}"
+      "empty": "Nada agendado"
     },
     "legend": {
       "loggable": "pode registrar",
@@ -1036,7 +1036,7 @@
       "action": "Ver o Pro"
     },
     "noHabitsScheduled": "Nenhum hábito estava programado neste dia.",
-    "goToDay": "Abrir este dia no Hoje",
+    "goToDay": "Abrir no Hoje",
     "goToCurrentMonth": "Ir para o mês atual",
     "goToCurrentWeek": "Ir para a semana atual",
     "view": {
@@ -1046,6 +1046,9 @@
       "range": "Período",
       "agenda": "Agenda"
     },
+    "period": {
+      "goToCurrent": "{period}, ir para hoje"
+    },
     "range": {
       "label": "{start} a {end}",
       "previous": "Período anterior",
@@ -1053,14 +1056,15 @@
     },
     "timeGrid": {
       "allDay": "Dia inteiro",
-      "noSetTime": "Sem hora certa",
+      "noSetTime": "Sem horário",
       "now": "Agora",
       "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo.",
       "pickEndHint": "Agora escolha o dia final",
       "rangeMaxDays": "Intervalo limitado a {max} dias.",
       "empty": "Nada agendado",
       "moreLabel": "mais {count}",
-      "untimedCount": "{count} sem horário"
+      "moreCount": "{count, plural, =0 {+0} one {+#} other {+#}}",
+      "moreCountLabel": "{count, plural, =0 {+# outros hábitos neste dia} one {+# outro hábito neste dia} other {+# outros hábitos neste dia}}"
     },
     "status": {
       "completed": "feito",
@@ -1634,6 +1638,8 @@
       "retry": "Tentar os {count} que faltaram"
     },
     "operation": {
+      "batchFailed": "Alguns itens não foram salvos. Peça à Astra para tentar só os que falharam.",
+      "unavailableRecovery": "Não funcionou. Peça uma nova prévia à Astra.",
       "unknown": "Operação da Astra",
       "pendingTitle": "Aguardando confirmação",
       "pending": "Nada mudou ainda",
@@ -1848,7 +1854,7 @@
       "wrapped": "Orbit Wrapped",
       "weekStart": "Semana começa em",
       "theme": "Tema",
-      "export": "Exportar os meus dados",
+      "export": "Exportar dados",
       "signOut": "Sair da conta",
       "startOver": "Começar de novo",
       "deleteAccount": "Apagar a conta",

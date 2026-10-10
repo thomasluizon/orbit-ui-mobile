@@ -63,6 +63,21 @@ describe('profile fetch across the first session check', () => {
     expect(fetchMock).toHaveBeenCalledWith(API.profile.get, expect.anything())
   })
 
+  it('keeps an explicitly disabled query out of loading before session validation', async () => {
+    const queryClient = getQueryClient()
+    queryClient.clear()
+    vi.stubGlobal('fetch', vi.fn())
+    await retireHeldAccount()
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+
+    const { result } = renderHook(() => useProfile({ enabled: false }), { wrapper })
+
+    expect(result.current.isLoading).toBe(false)
+    expect(result.current.isFetching).toBe(false)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('drops the server profile when the mounted hook moves to another account', async () => {
     const queryClient = getQueryClient()
     queryClient.clear()

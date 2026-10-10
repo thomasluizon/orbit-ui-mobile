@@ -388,7 +388,7 @@ describe('habit search', () => {
     expect(await screen.findByText(locale === 'en' ? 'in the name' : 'no nome')).toBeInTheDocument()
     expect(screen.getByText(locale === 'en' ? 'in the description' : 'na descrição')).toBeInTheDocument()
     expect(screen.getByText('“walking”')).toBeInTheDocument()
-    expect(screen.getByText('“Walk to the shop”')).toBeInTheDocument()
+    expect(screen.getByLabelText('“Walk to the shop”')).toHaveTextContent('“Walk to the shop”')
     expect(screen.getByText(locale === 'en' ? '4 habits' : '4 hábitos')).toBeInTheDocument()
     const expectedNames = locale === 'en'
       ? ['Open Walk in the name', 'Open Park run in the description', 'Open Stretch in the tag “walking”', 'Open House routine inside “Walk to the shop”']
@@ -480,7 +480,7 @@ describe('habit search', () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title, isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
     mount()
     fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
-    const disclosure = screen.getByRole('button', { name: title })
+    const disclosure = screen.getByRole('button', { name: en.common.showFullText.replace('{name}', title) })
     disclosure.focus()
     await userEvent.keyboard('{Enter}')
     expect(mocks[page]).not.toHaveBeenCalled()
