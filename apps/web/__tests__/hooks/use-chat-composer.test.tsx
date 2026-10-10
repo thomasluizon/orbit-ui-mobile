@@ -479,6 +479,40 @@ describe('web useChatComposer streaming send', () => {
     vi.useRealTimers()
   })
 
+  it('leaves earlier messages in place when a queued send and later stream reply settle, then resumes on another send', async () => {
+    vi.useFakeTimers()
+    const stream = controlledSseResponse()
+    mocks.fetch.mockResolvedValueOnce(stream.response)
+    const { result } = renderHook(() => useChatComposer())
+    const view = render(<AstraConversation chat={result.current} />)
+    const feed = screen.getByRole('feed')
+    Object.defineProperty(feed, 'scrollHeight', { value: 1400 })
+    Object.defineProperty(feed, 'clientHeight', { value: 500 })
+    feed.scrollTop = 900
+    fireEvent.scroll(feed)
+    let sending!: Promise<void>
+    await act(async () => { sending = result.current.sendMessage('hello'); await Promise.resolve() })
+    feed.scrollTop = 100
+    fireEvent.scroll(feed)
+    vi.mocked(feed.scrollTo).mockClear()
+    await act(async () => {
+      stream.enqueue(frame('{"type":"delta","text":"A reply"}'))
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(feed.scrollTo).not.toHaveBeenCalled()
+    await act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await sending
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(feed.scrollTo).not.toHaveBeenCalled()
+    mocks.fetch.mockResolvedValueOnce(sseResponse(finalFrame(makeChatResponse())))
+    await act(async () => { await result.current.sendMessage('another question'); await vi.advanceTimersByTimeAsync(100) })
+    expect(feed.scrollTo).toHaveBeenCalledWith({ top: 1400, behavior: 'smooth' })
+    view.unmount()
+  })
+
   it.each([
     [true, 'auto'],
     [false, 'smooth'],

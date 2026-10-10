@@ -2,7 +2,7 @@
 
 import { MONTH_GRID_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useState, useId, useRef, useCallback, useMemo, useEffect } from 'react'
+import { useState, useId, useRef, useCallback, useMemo } from 'react'
 import {
   addMonths,
   subMonths,
@@ -50,6 +50,7 @@ export function DateField({
   }
   const dialogLabelId = useId()
   const gridRef = useRef<HTMLTableElement>(null)
+  const initialFocusRef = useRef<HTMLButtonElement>(null)
   const [focusedDate, setFocusedDate] = useState<Date | null>(null)
 
   const selectedDate = value ? parseISO(value) : null
@@ -123,13 +124,6 @@ export function DateField({
   const displayValue = value ? formatLocaleDate(value, locale) : ''
   const selectionLabel = displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')
 
-  useEffect(() => {
-    if (!isOpen) return
-    requestAnimationFrame(() => {
-      gridRef.current?.querySelector<HTMLButtonElement>('button[tabindex="0"]')?.focus()
-    })
-  }, [isOpen])
-
   function focusDayButton(day: Date) {
     setFocusedDate(day)
     if (!isSameMonth(day, viewDate)) setViewDate(day)
@@ -170,7 +164,7 @@ export function DateField({
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </button>
 
-      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} onClose={hidePicker} minimumBodyWidth={7 * MONTH_GRID_TARGET_MIN} virtualizedBody={pickerMode === 'years'}>
+      {isOpen ? <Sheet ref={sheetRef} open title={t('common.selectDate')} initialFocus={initialFocusRef} onClose={hidePicker} minimumBodyWidth={7 * MONTH_GRID_TARGET_MIN} virtualizedBody={pickerMode === 'years'}>
         <div className="flex shrink-0 items-center justify-between mb-2">
           <button
             type="button"
@@ -248,6 +242,7 @@ export function DateField({
                     return (
                       <td key={day.toISOString()} className="p-0">
                         <button
+                          ref={isRoving ? initialFocusRef : undefined}
                           type="button"
                           data-day={format(day, 'yyyy-MM-dd')}
                           style={{ width: '100%' }}
@@ -259,10 +254,11 @@ export function DateField({
                           })}
                           aria-pressed={!!isSelected}
                           aria-current={isToday ? 'date' : undefined}
-                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center overflow-hidden rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                          className="group flex min-h-[var(--month-grid-touch-min)] items-center justify-center rounded-full transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
                           onClick={() => selectDay(day)}
                         >
                           <span
+                            data-selected={isToday || undefined}
                             className={`flex size-8 items-center justify-center rounded-full text-xs transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${
                               isCurrentMonth
                                 ? 'text-[var(--fg-1)]'
@@ -273,7 +269,7 @@ export function DateField({
                                 : ''
                             } ${
                               isToday && !isSelected
-                                ? 'shadow-[inset_0_0_0_1px_var(--primary)]'
+                                ? 'orbit-selection-ring orbit-selection-ring-hairline'
                                 : ''
                             }`}
                           >

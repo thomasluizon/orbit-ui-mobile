@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -27,7 +28,7 @@ const voiceWords = { start: 'Voice', stop: 'Stop', recording: 'Recording', trans
 
 function buildChat(draft: string): ChatController {
   return {
-    chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [],
+    threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [],
     canShowFollowUps: false, isTyping: false, streamingMessageId: null, showSuggestions: true,
     sendMessage: vi.fn(), handleBreakdownConfirmed: vi.fn(), confirmAndExecutePendingOperation: vi.fn(),
     prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(), isOnline: true,

@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 
@@ -75,7 +76,7 @@ describe('ChatEmptyState', () => {
       ...(state === 'atLimit' ? { state, limitReason: 'No messages today' } : { state }),
     } satisfies ComposerProps
     const chat = {
-      chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [], showSuggestions: true,
+      threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(), messages: [], activeSteps: [], showSuggestions: true,
       isTyping: false, streamingMessageId: null, canShowFollowUps: false, sendMessage, composerProps,
     } as unknown as Parameters<typeof AstraConversation>[0]['chat']
     render(<AstraConversation chat={chat} />)

@@ -142,9 +142,9 @@ export function HabitEmojiSelector({
                         role="option"
                         aria-selected={isSelected}
                         aria-label={`${t('habits.form.emoji')}: ${emoji}`}
-                        className={`habit-control-motion grid place-items-center rounded-[12px] hover:bg-[var(--bg-hover)] text-[22px] active:bg-[var(--bg-hover)] active:scale-[0.96] ${
+                        className={`orbit-selection-ring habit-control-motion grid place-items-center rounded-[12px] hover:bg-[var(--bg-hover)] text-[22px] active:bg-[var(--bg-hover)] active:scale-[0.96] ${
                           isSelected
-                            ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_2px_var(--primary)]'
+                            ? 'bg-[rgba(var(--primary-rgb),0.10)]'
                             : 'bg-[var(--bg-field)]'
                         }`}
                         style={{ width: TOUCH_TARGET_MIN, height: TOUCH_TARGET_MIN }}

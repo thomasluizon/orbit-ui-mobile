@@ -9,7 +9,6 @@ interface ChipProps {
   children: ReactNode
   active?: boolean
   onPress?: () => void
-  /** Optional leading slot (e.g. a color dot for `TagChip`). */
   leading?: ReactNode
   /** Accessibility label override. Defaults to the chip text content. */
   accessibilityLabel?: string
@@ -32,6 +31,8 @@ export function Chip({
 
   return (
     <Pressable
+      selectionRingWidth={isPeriod ? 1.5 : 1}
+      selectionRingColor={isPeriod ? tokens.primary : tintFromPrimary(tokens, 0.45)}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -44,7 +45,7 @@ export function Chip({
           styles.chip,
           {
             backgroundColor: active ? pressed ? tokens.bgHover : selectedBackground : pressedBackground,
-            borderColor: active ? isPeriod ? tokens.primary : tintFromPrimary(tokens, 0.45) : tokens.hairline,
+            borderColor: tokens.hairline,
             borderWidth: active && isPeriod ? 1.5 : 1,
           },
           pressed && !active ? styles.chipPressed : null,

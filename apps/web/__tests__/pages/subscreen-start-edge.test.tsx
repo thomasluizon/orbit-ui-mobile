@@ -60,6 +60,13 @@ vi.mock('@/lib/actions/support', () => ({ sendSupportMessage: vi.fn() }))
 
 const cases = ['about', 'support', 'support-success', 'free', 'lapsed', 'stripe', 'play', 'loading', 'load-failed', 'offline'] as const
 
+function expectedFrameWidth(state: typeof cases[number], width: number) {
+  if (state.startsWith('support')) return Math.min(width, width < 768 ? width : 620)
+  if (width < 1024) return Math.min(width, 736)
+  const cap = state === 'about' ? 620 : state === 'free' || state === 'offline' ? 652 : 560
+  return cap + 32
+}
+
 describe('sub-screen start edges in isolated Chromium', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -81,7 +88,7 @@ describe('sub-screen start edges in isolated Chromium', () => {
   })
 
   for (const locale of ['en', 'pt-BR'] as const) {
-    for (const width of [412, 840, 1100, 1352]) {
+    for (const width of [412, 600, 840, 1100, 1352]) {
       it.each(cases)(`starts %s at the header inset with its cap at ${width}px in ${locale}`, async (state) => {
         mocks.locale = locale
         mocks.loading = state === 'loading'
@@ -124,15 +131,15 @@ describe('sub-screen start edges in isolated Chromium', () => {
             }
             if (state === 'about') {
               const body = document.querySelector('[data-testid="about-identity"]')!
-              return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('main > div')!) }
+              return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('[data-testid="about-content"]')!) }
             }
             const body = state === 'support-success'
               ? document.querySelector('h2')! : document.querySelector('form button')!
             return { back: bounds(back), body: bounds(body), box: bounds(document.querySelector('main > div')!) }
           }, state)
           expect.soft(Math.abs(geometry.body.left - geometry.back.left - 8)).toBeLessThanOrEqual(0.5)
-          expect.soft(geometry.box.width).toBe(Math.min(width, state === 'about' || support ? (width < 768 ? width : 620) : state === 'free' || state === 'offline' ? 652 : 560))
-          if (state === 'support') expect(geometry.body.width).toBeLessThanOrEqual(520)
+          expect.soft(geometry.box.width).toBe(expectedFrameWidth(state, width))
+          if (state === 'support') expect(geometry.body.width).toBe(width < 768 ? width - 32 : 520)
         } finally { await page.close(); header.unmount(); view.unmount(); client.clear() }
       })
     }

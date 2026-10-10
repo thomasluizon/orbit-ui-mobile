@@ -735,6 +735,38 @@ describe('mobile useChatComposer', () => {
     })
   })
 
+  it('preserves earlier reading through queued send and stream scrolls until the next send', async () => {
+    vi.useFakeTimers()
+    onTestFinished(() => { vi.useRealTimers() })
+    const stream = controlledSseStreamResponse()
+    mocks.openChatStream.mockResolvedValue(stream.response)
+    const composer = await renderComposer()
+    const scrollToEnd = vi.fn()
+    composer.current.flatListRef.current = { scrollToEnd } as unknown as FlatList<ChatMessage>
+    composer.current.threadScroll.recordScroll(900, 900)
+
+    let send!: Promise<void>
+    TestRenderer.act(() => { send = composer.current.sendMessage('hello') })
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    composer.current.threadScroll.recordScroll(100, 900)
+    TestRenderer.act(() => stream.enqueue(frame('{"type":"delta","text":"First"}')))
+    await TestRenderer.act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    await TestRenderer.act(async () => {
+      stream.enqueue(finalFrame(makeChatResponse()))
+      stream.close()
+      await send
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(scrollToEnd).not.toHaveBeenCalled()
+
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('hello again')
+      await vi.advanceTimersByTimeAsync(100)
+    })
+    expect(scrollToEnd).toHaveBeenCalled()
+  })
+
   it('sends Support entry intent on the first and later requests of that conversation', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()
