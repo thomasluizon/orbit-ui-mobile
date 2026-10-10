@@ -67,6 +67,10 @@ describe('calendar month controls', () => {
 })
 
 describe('calendar events display state', () => {
+  it.each([false, true])('keeps unknown entitlement loading with cached Pro access %s', (enabled) => {
+    expect(resolveCalendarEventsDisplayState({ profileReady: false, enabled, isPending: false, error: null, resultStatus: 'connected' })).toBe('loading')
+  })
+
   it.each([
     ['Pro boundary', false, false, null, undefined, 'pro-boundary'],
     ['request failure', true, false, new Error('Calendar unavailable'), undefined, 'failed'],

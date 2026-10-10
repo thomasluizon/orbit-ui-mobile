@@ -70,7 +70,6 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { plural } from '@/lib/plural'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useUIStore } from '@/stores/ui-store'
 import { useOffline } from '@/hooks/use-offline'
@@ -146,12 +145,12 @@ function CalendarMonthFeedback({
   )
 }
 
-function CalendarDayCardSlot({ loading, label, children }: Readonly<{ loading: boolean; label: string; children: ReactNode }>) {
-  return <div data-testid="calendar-day-card-slot" style={{ paddingInline: 16, paddingBlockStart: 24 }}>{loading ? (
-    <div data-testid="calendar-day-skeleton" className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" style={{ paddingBlock: 24 }}>
-      <Skeleton variant="settings" rows={5} label={label} />
-    </div>
-  ) : children}</div>
+function CalendarDayCardSlot({ children }: Readonly<{ children: ReactNode }>) {
+  return <div data-testid="calendar-day-card-slot" style={{ paddingInline: 16, paddingBlockStart: 24 }}>{children}</div>
+}
+
+function calendarDayLoadingLabel(state: CalendarMonthDisplayState, label: string): string | undefined {
+  return state === 'loading' ? label : undefined
 }
 
 function calendarActionVariant(wide: boolean): 'primary' | 'secondary' {
@@ -339,6 +338,7 @@ function CalendarPageContent({
     })
   }, [closeSheet, router, setIsDayDetailOpen])
   const calendarEventsState = resolveCalendarEventsDisplayState({
+    profileReady: Boolean(profile),
     enabled: hasProAccess,
     isPending: calendarEventsPending,
     error: calendarEventsError,
@@ -685,8 +685,9 @@ function CalendarPageContent({
                     createRefusal={monthDisplayState === 'empty' && showCreateRefusal && !isOnline ? <OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /> : null}
                   />
 
-                  <CalendarDayCardSlot loading={monthDisplayState === 'loading'} label={t('calendar.loading')}>
+                  <CalendarDayCardSlot>
                     <CalendarDayDetail
+                        loadingLabel={calendarDayLoadingLabel(monthDisplayState, t('calendar.loading'))}
                         dateStr={selectedDay}
                         today={todayKey}
                         entries={selectedEntries}
