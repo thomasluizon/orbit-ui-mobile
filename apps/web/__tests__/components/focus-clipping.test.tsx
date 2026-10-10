@@ -16,9 +16,9 @@ import type { ComposerSuggestion, ComposerSuggestions } from '@orbit/shared/cont
 import { HabitRow } from '@/components/habits/habit-row'
 import { SortableHabitItem } from '@/components/habits/habit-list/sortable-habit-item'
 import { Composer } from '@/components/shell/composer'
-import { SettingsGroup } from '@/components/ui/settings-group-list'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { RowList } from '@/components/ui/row-list'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { ListRow } from '@/components/ui/list-row'
 import { Switch } from '@/components/ui/switch'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { revealFocusedControl } from '@/lib/focus-scroll'
@@ -115,9 +115,9 @@ describe('clipped focus perimeters in Chromium', () => {
       <DndContext><SortableContext items={[habit.id]}><div className="habit-panel">
         <SortableHabitItem id={habit.id}><HabitRow habit={habit} actions={{ onDetail: vi.fn(), onLog: vi.fn() }} /></SortableHabitItem>
       </div></SortableContext></DndContext>
-      <SettingsGroup items={[{ label: 'First', onClick: vi.fn() }, { label: 'Last', onClick: vi.fn() }]} />
-      <RowList><SettingsRow label="Settings" onClick={vi.fn()} /></RowList>
-      <RowList><SettingsRow label="Switches"><Switch label="On" checked onChange={vi.fn()} /><Switch label="Off" checked={false} onChange={vi.fn()} /></SettingsRow></RowList>
+      <SettingsGroup>{[{ label: 'First', onClick: vi.fn() }, { label: 'Last', onClick: vi.fn() }].map((item: { label: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }, index) => <ListRow key={index} title={item.label} value={item.value} trailing={item.trailing} readOnly={!item.onClick} onClick={item.onClick} />)}</SettingsGroup>
+      <RowList><ListRow textMode="label" title="Settings" onClick={vi.fn()} /></RowList>
+      <RowList><Switch label="On" checked onChange={vi.fn()} /><Switch label="Off" checked={false} onChange={vi.fn()} /></RowList>
     </>)
     const page = await browser.newPage({ viewport: { width, height: 915 } })
     try {

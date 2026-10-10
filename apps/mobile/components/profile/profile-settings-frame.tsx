@@ -1,4 +1,3 @@
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import type { ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import {
@@ -18,25 +17,6 @@ interface ProfileSettingsFrameProps {
   loadingLabel: string
   labels: GroupLabels
   rows: GroupRows
-}
-
-interface ProfileValueRowProps {
-  label: string
-  value?: ReactNode
-  control: ReactNode
-}
-
-export function ProfileValueRow({ label, value, control }: Readonly<ProfileValueRowProps>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <View testID="profile-value-row" style={styles.valueRow}>
-      <Text style={[styles.valueLabel, { color: tokens.fg1 }]}>{label}</Text>
-      {value != null ? <View style={styles.value}>{value}</View> : null}
-      <View style={styles.control}>{control}</View>
-    </View>
-  )
 }
 
 export function ProfileSettingsFrame({
@@ -82,31 +62,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_500Medium',
     fontSize: 20,
     letterSpacing: -0.2,
-  },
-  valueRow: {
-    minHeight: TOUCH_TARGET_MIN,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 12,
-  },
-  valueLabel: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 120,
-    minWidth: 0,
-    fontFamily: 'Geist_400Regular',
-    fontSize: 17,
-    lineHeight: 22.95,
-  },
-  value: {
-    flexShrink: 0,
-  },
-  control: {
-    flexShrink: 1,
-    maxWidth: '100%',
-    alignItems: 'center',
   },
 })

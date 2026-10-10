@@ -8,8 +8,6 @@ import { StyleSheet, Text, View } from 'react-native'
 import { API } from '@orbit/shared/api'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ListRow } from '@/components/ui/list-row'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
@@ -66,44 +64,9 @@ function MarketingConsentContent({
     )
   }
 
-  const control = (
-    <View
-      pointerEvents={isPending ? 'none' : 'auto'}
-      accessible={isPending}
-      accessibilityRole={isPending ? 'switch' : undefined}
-      accessibilityLabel={isPending ? t('profile.marketingEmails.title') : undefined}
-      accessibilityState={isPending ? { checked: enabled, disabled: true } : undefined}
-    >
-      <View
-        accessibilityElementsHidden={isPending}
-        importantForAccessibility={isPending ? 'no-hide-descendants' : 'auto'}
-      >
-        <Switch
-          checked={enabled}
-          onChange={onChange}
-          label={t('profile.marketingEmails.title')}
-        />
-      </View>
-    </View>
-  )
-  return contained ? (
-    // eslint-disable-next-line local/max-button-words -- Canvas Orbit Perfil line 210 controls this label under D42.
-    <ListRow
-      readOnly
-      title={t('profile.marketingEmails.title')}
-      chevron={false}
-      trailing={control}
-    />
-  ) : (
-    <SettingsRow
-      icon={Mail}
-      label={t('profile.marketingEmails.title')}
-      accessory="none"
-      divider={false}
-    >
-      {control}
-    </SettingsRow>
-  )
+  // eslint-disable-next-line local/max-button-words -- Orbit Perfil draws the marketing-consent switch label.
+  return <ListRow textMode="label" icon={contained ? undefined : <Mail size={24} />} title={t('profile.marketingEmails.title')} chevron={false} toggle={{ checked: enabled, pending: isPending, onChange }} />
+
 }
 
 /** Self-contained "Product updates by email" preference row: reflects and optimistically toggles marketing-email consent through the offline queue, rolling back on error. Never Pro-gated. */

@@ -1,11 +1,7 @@
 import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pressable'
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { buildProfilePickerLabels, buildClockFormatOptions, resolveHourCycle, deriveProfilePreferenceValues } from '@orbit/shared/utils'
-import {
-  ProfileValueRow,
-} from '@/components/profile/profile-settings-frame'
 import { ListRow } from '@/components/ui/list-row'
-import { Switch } from '@/components/ui/switch'
 import { usePreferenceControls } from '@/app/use-preference-controls'
 import { PreferencePickerSheet } from '@/components/profile/preferences-sections'
 import { useSheetHost } from '@/components/ui/sheet'
@@ -65,14 +61,9 @@ function buildPreferenceRows(
     <ListRow key="week-start" compact textMode="label" title={t('profile.settingsRows.weekStart')} value={weekStartLabel} onClick={() => controls.setActivePicker('weekStart')} />,
     <ListRow key="clock" compact textMode="label" title={t('settings.clock.title')} value={profile ? buildClockFormatOptions(t).find((option) => option.value === (resolveHourCycle(profile.uses24HourClock, controls.selectedLanguage) === 'h23' ? '24h' : '12h'))?.label : undefined} onClick={() => controls.setActivePicker('clock')} />,
     <ListRow key="language" compact textMode="label" title={t('profile.language.title')} value={controls.selectedLanguage === 'pt-BR' ? t('profile.language.brazilianPortuguese') : languageLabel} onClick={() => controls.setActivePicker('language')} />,
-    <ProfileValueRow key="theme" label={t('profile.settingsRows.theme')} control={themeChoice} />,
-    <View key="show-general" style={{ paddingHorizontal: 16, paddingVertical: 12, gap: 4 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-        <Text style={{ flex: 1, minWidth: 0, minHeight: TOUCH_TARGET_MIN, textAlignVertical: 'center', color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 23.8 }}>{t('settings.homeScreen.showGeneral')}</Text>
-        <Switch checked={controls.showGeneralOnToday} onChange={(next) => void controls.handleShowGeneralToggle(next)} label={t('settings.homeScreen.showGeneral')} />
-      </View>
-      <Text style={{ color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 }}>{t('settings.homeScreen.showGeneralDesc')}</Text>
-    </View>,
+    <ListRow key="theme" readOnly chevron={false} textMode="label" title={t('profile.settingsRows.theme')} trailing={themeChoice} />,
+    /* eslint-disable-next-line local/max-button-words -- Orbit Perfil draws the general-habits switch label. */
+    <ListRow key="show-general" title={t('settings.homeScreen.showGeneral')} description={t('settings.homeScreen.showGeneralDesc')} toggle={{ checked: controls.showGeneralOnToday, onChange: (next) => void controls.handleShowGeneralToggle(next) }} />,
   ]
 }
 

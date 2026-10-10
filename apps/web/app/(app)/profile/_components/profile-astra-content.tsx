@@ -9,7 +9,6 @@ import { deriveProfileAstraFeatures } from '@orbit/shared/utils'
 import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
-  AstraSettingsSwitch,
   type AstraSettingsController,
   useAstraSettingsController,
 } from '@/components/profile/astra-settings-controller'
@@ -55,9 +54,8 @@ function buildAstraRows(
                 compact
                 textMode="label"
                 title={t(feature.labelKey)}
-                trailing={<AstraSettingsSwitch checked={feature.checked} pending={feature.pending} label={t(feature.labelKey)} onToggle={feature.onToggle} />}
+                toggle={{ checked: feature.checked, pending: feature.pending, onChange: feature.onToggle }}
                 chevron={false}
-                readOnly
               />
             ) : (
               <ListRow key={feature.key} compact textMode="label" icon={icon(Lock)} title={t(feature.labelKey)} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />

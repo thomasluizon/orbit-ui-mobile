@@ -1,10 +1,10 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
 for (const locale of ['en', 'pt-BR'] as const) {
@@ -14,7 +14,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
     for (const count of [0, 1, 3]) {
       test(`keeps the title and meta separated for ${count} keys`, async ({ page, context }) => {
         const profile = profileSchema.parse({ ...profileFixture, language: locale, hasProAccess: true, activeApiKeyCount: count })
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/profile/astra')
         const keys = page.getByTestId('profile-api-keys')
         const messages = locale === 'en' ? en : ptBR

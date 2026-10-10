@@ -22,7 +22,7 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 | Server Actions (mutations) | `app/actions/*.ts` |
 | TanStack Query hooks | `hooks/use-*.ts` |
 | Zustand stores | `stores/*-store.ts` |
-| Primitives (AppBar, SectionLabel, HabitRow, StatusDot, ParentRing, Chip, SettingsRow, ConfirmDialog, RingMotif) | `components/ui/*` + `components/habits/habit-row.tsx` + `components/gamification/ring-motif.tsx` |
+| Primitives (AppBar, SectionLabel, HabitRow, StatusDot, ParentRing, Chip, ListRow, ConfirmDialog, RingMotif) | `components/ui/*` + `components/habits/habit-row.tsx` + `components/gamification/ring-motif.tsx` |
 
 ## State management
 

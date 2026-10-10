@@ -7,6 +7,7 @@
 > - The `Tool and Hook Tests` CI job runs both harness suites on every PR to `main` and `redesign/main`, including changes to their UI producers.
 > - The orchestration core includes queue planning, prompt/worker isolation, delivery verification,
 >   final-head readiness receipts, ticket synchronization, review-thread handling, and teardown.
+> - The Docker registry guard requires explicit image hosts in tracked Dockerfiles.
 > - `verify-delivery.mjs` is the SOLE authority for the word "delivered". A worker's exit code is never evidence.
 > - `run-status.mjs` starts every wakeup with compact observations and the next command.
 > - `list-bot-threads.mjs` makes "the bot review never ran" a verdict. Silence is never read as approval.
@@ -83,6 +84,7 @@ These back required CI checks. They fail a merge.
 | `check-root-allowlist.mjs` | Fails when an undeclared file OR directory exists at the repository root, including ignored and untracked ones. Backs `Root Allowlist`; declarations live in `root-allowlist.json`. | `node tools/check-root-allowlist.mjs [--changed-files-file <path>]` |
 | `check-sonar-paths.mjs` | Fails when a Sonar source, test, exclusion, or inclusion names a missing literal path or source directory prefix. Generated output globs remain valid before a build. Backs `Sonar Paths`. | `node tools/check-sonar-paths.mjs` |
 | `check-workspace-overrides.mjs` | Fails when an npm workspace declares an `overrides` key that npm would ignore. Backs `Root Allowlist`. | `node tools/check-workspace-overrides.mjs` |
+| `check-docker-registries.mjs` | Requires explicit registry hosts in every tracked Dockerfile FROM image, allowing scratch and earlier stages, and disabled provenance on workflow pushes using the docker driver. Backs `Root Allowlist`. | `node tools/check-docker-registries.mjs [--root <path>]` |
 
 ## Architecture map and visual evidence
 

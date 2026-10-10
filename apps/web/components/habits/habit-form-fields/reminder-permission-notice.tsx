@@ -19,7 +19,7 @@ export function ReminderPermissionNotice({ visible, t }: Readonly<ReminderPermis
             target="_blank"
             rel="noopener noreferrer"
             aria-describedby={descriptionId}
-            className="flex touch-manipulation min-h-[48px] items-center rounded-[12px] px-2 py-2 text-xs leading-[1.5] text-[var(--fg-2)] motion-safe:transition-[background-color] motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:duration-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[var(--fg-1)]"
+            className="flex touch-manipulation min-h-[48px] items-center rounded-[12px] px-2 py-2 text-xs leading-[1.5] text-[var(--fg-2)] motion-safe:transition-[background-color] motion-safe:duration-[var(--dur-hover-control)] motion-safe:ease-[var(--ease-standard)] hover:bg-[var(--bg-hover-opaque)] active:bg-[var(--bg-hover-opaque)] motion-safe:active:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[var(--fg-1)]"
           >
             <span className="text-pretty">{t('habits.form.reminderPermissionNeeded')}</span>
           </Link>

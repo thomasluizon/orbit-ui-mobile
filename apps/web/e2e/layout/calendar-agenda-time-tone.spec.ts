@@ -39,7 +39,6 @@ for (const width of [412, 1280]) {
       })
 
       test('uses metadata tone at rest and promotes it on desktop hover', async ({ page, context }) => {
-        await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: calendarMonth }))
         await page.goto('/calendar')

@@ -1,4 +1,6 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
+import { readExpandedControlGeometry } from './expanded-control-geometry'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -6,6 +8,7 @@ import { createPaginatedSchema, habitDetailSchema, habitMetricsSchema, habitSche
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { setLayoutProfileSession } from './profile-session'
 
 const habit = habitDetailSchema.parse({ ...makeHabitDetail(), dueTime: '21:00:00' })
 const schedule = makeHabitScheduleItem({ id: habit.id, title: habit.title, dueTime: habit.dueTime })
@@ -25,7 +28,7 @@ for (const width of [412, 1280]) {
     test.use({ viewport: { width, height: 915 }, timezoneId: 'UTC' })
 
     test('shows minutes and opens the picker at the stored time', async ({ page, context }) => {
-      await page.clock.setFixedTime(new Date('2026-08-28T09:15:00Z'))
+      await setLayoutProfileSession(context, profile)
       await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
       await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
       await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
@@ -34,7 +37,11 @@ for (const width of [412, 1280]) {
       await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(habit.id)}`, (route) => route.fulfill({ json: metrics }))
 
       await page.goto(`/habits/${habit.id}`)
-      await expect(page.locator('[data-habit-detail-content] h1 > button')).toHaveText(habit.title)
+      const title = page.locator('[data-habit-detail-content] h1 > button')
+      await expect(title).toHaveText(habit.title)
+      const hit = await title.evaluate(readExpandedControlGeometry)
+      expect(hit.height).toBeGreaterThanOrEqual(48)
+      expect(hit.edgeHits).toEqual([true, true, true, true])
       await page.getByRole('button', { name: ptBr.habits.detail.moreDetails, exact: true }).click()
       await expect(page.getByRole('textbox', { name: ptBr.habits.form.exactTime, exact: true })).toHaveValue('21:00')
       await page.getByRole('button', { name: `${ptBr.habits.form.exactTime}: ${ptBr.common.selectTime}`, exact: true }).click()

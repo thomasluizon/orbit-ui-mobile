@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Locator } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { makeHabitDetail, makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -89,8 +90,7 @@ for (const width of [600, 1100]) {
         const words = locale === 'en' ? en : ptBR
 
         test('keeps Hoje and habit detail on the habit column edge', async ({ page, context }) => {
-          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-            (route) => route.fulfill({ json: habits }))
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
           await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: schedules.length + habit.children.length } }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))
           await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(habit.id)}`, (route) => route.fulfill({ json: [] }))

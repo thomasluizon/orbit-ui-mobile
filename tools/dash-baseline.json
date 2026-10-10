@@ -38,7 +38,6 @@
   "apps/web/components/habits/habit-row.tsx": 1,
   "apps/web/components/marketing-consent/marketing-consent-prompt.tsx": 1,
   "apps/web/components/ui/select-check.tsx": 1,
-  "apps/web/components/ui/settings-row.tsx": 1,
   "apps/web/components/ui/status-dot-fill.ts": 1,
   "apps/web/components/ui/user-avatar.tsx": 1,
   "apps/web/e2e/support/api.ts": 2,

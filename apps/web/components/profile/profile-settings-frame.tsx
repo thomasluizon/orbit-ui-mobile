@@ -1,6 +1,5 @@
 'use client'
 
-import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
 import type { ReactNode } from 'react'
 import {
@@ -18,32 +17,6 @@ interface ProfileSettingsFrameProps {
   loadingLabel: string
   labels: GroupLabels
   rows: GroupRows
-}
-
-interface ProfileValueRowProps {
-  label: string
-  value?: ReactNode
-  control: ReactNode
-}
-
-export function ProfileValueRow({ label, value, control }: Readonly<ProfileValueRowProps>) {
-  return (
-    <div
-      data-testid="profile-value-row"
-      className="flex flex-wrap items-center"
-      style={{ minHeight: TOUCH_TARGET_MIN, padding: '12px 16px', gap: 12 }}
-    >
-      <span className="min-w-0 font-sans text-[17px] text-[var(--fg-1)]" style={{ flex: '1 1 120px' }}>
-        {label}
-      </span>
-      {value ? (
-        <span className="shrink-0 font-mono text-[12px] text-[var(--fg-3)]">
-          {value}
-        </span>
-      ) : null}
-      <span className="flex max-w-full shrink items-center">{control}</span>
-    </div>
-  )
 }
 
 export function ProfileSettingsFrame({

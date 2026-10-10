@@ -16,7 +16,8 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { PromptQuietAction } from '@/components/ui/prompt-quiet-action'
 import { ActionRow } from '@/components/ui/action-row'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { SettingsGroup } from '@/components/ui/settings-group'
+import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 const STORAGE_KEY = TRIAL_EXPIRED_SEEN_KEY
@@ -146,10 +147,10 @@ export function TrialExpiredModal() {
 
         <SettingsGroup>
           {PAUSED_FEATURES.map((featureKey) => (
-            <SettingsGroupRow
+            <ListRow readOnly textMode="label"
               key={featureKey}
-              label={t(featureKey)}
-              hint={t('trial.expired.paused')}
+              title={t(featureKey)}
+              description={t('trial.expired.paused')}
             />
           ))}
         </SettingsGroup>

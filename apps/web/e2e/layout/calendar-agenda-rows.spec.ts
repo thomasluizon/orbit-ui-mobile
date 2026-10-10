@@ -10,7 +10,7 @@ for (const width of [412, 1100, 1352]) {
     test.describe(`${locale} Agenda rows at ${width}`, () => {
       test.use({ appLocale: locale, viewport: { width, height: 915 } })
       test('orders touching two-line rows with values, status rings and padded fills', async ({ page, context }) => {
-        await prepareAgendaCalendar(page, context, locale)
+        await prepareAgendaCalendar(context, locale)
         await page.goto('/calendar')
         await page.getByRole('radio', { name: words.calendar.view.agenda, exact: true }).click()
         const day = page.getByTestId('calendar-agenda-day').first()

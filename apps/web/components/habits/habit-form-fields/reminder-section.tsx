@@ -1,10 +1,10 @@
+import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { useState, useMemo, type ReactNode } from 'react'
-import { X, Plus, Bell } from '@/components/ui/icons'
+import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_REMINDER_PRESETS } from '@orbit/shared/utils'
 import { AppSelect } from '@/components/ui/app-select'
-import { Switch } from '@/components/ui/switch'
 import { ReminderPermissionNotice } from './reminder-permission-notice'
 import { useReminderPermission } from '@/hooks/use-reminder-permission'
 
@@ -89,22 +89,7 @@ export function ReminderSection({
 
   return (
     <div className={inline ? "flex flex-col gap-3" : "flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]"}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {!inline ? <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" /> : null}
-          <span
-            className="text-[var(--fg-1)]"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500 }}
-          >
-            {label}
-          </span>
-        </div>
-        <Switch
-          checked={reminderEnabled}
-          onChange={permission.toggleReminder}
-          label={label}
-        />
-      </div>
+      <ListRow placement={inline ? "column" : undefined} icon={inline ? undefined : 'bell'} title={label} toggle={{ checked: reminderEnabled, onChange: permission.toggleReminder }} />
       <ReminderPermissionNotice visible={permission.showNotice} t={t} />
       {reminderEnabled && (
         <div className="flex flex-col gap-2">
@@ -119,7 +104,7 @@ export function ReminderSection({
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] -mr-2 -ml-1 rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
+                  className={`grid place-items-center min-h-[var(--touch-min)] min-w-[var(--touch-min)] rounded-full hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${reminderTimes.length + scheduledReminderCount <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--fg-2)]'}`}
                   disabled={reminderTimes.length + scheduledReminderCount <= 1}
                   onClick={() => removeReminder(time)}
                 >
@@ -153,7 +138,7 @@ export function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
+                    className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -201,7 +186,7 @@ export function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-fast)]"
+                  className="flex min-h-[var(--touch-min)] w-full items-center px-3 py-2 text-left rounded-[12px] text-[14px] text-[var(--fg-1)] font-medium enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)]"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}

@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -7,7 +8,7 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 test.use({ viewport: { width: 1352, height: 915 } })
 
@@ -25,12 +26,8 @@ test('keeps both client-rendered delete actions padded on both sides', async ({ 
   const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR' })
   await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
   await setLayoutProfileSession(context, profile)
-  await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-  await context.route(
-    (url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-    (route) => route.fulfill({ json: habitsPage }),
-  )
-  await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
+  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+  await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
 
   await page.goto('/')
   await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
@@ -61,7 +58,7 @@ test('keeps the leading-icon copy pill two pixels tighter at its start', async (
   const finalEvent = chatStreamEventSchema.parse({ type: 'final', response })
   await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
   await setLayoutProfileSession(context, profile)
-  await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
   await context.route(`${LAYOUT_ORIGIN}${API.chat.stream}`, (route) => route.fulfill({
     contentType: 'text/event-stream',
     body: `data: ${JSON.stringify(finalEvent)}\n\n`,

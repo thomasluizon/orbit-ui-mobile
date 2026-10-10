@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
@@ -23,8 +24,7 @@ for (const mode of ['dark', 'light'] as const) {
             id: `proactive-line-habit-${position}`, title: `Caminhar pela praça ${position + 1}`, position, children: [], hasSubHabits: false,
             scheduledDates: [selectedDate],
           }))
-          await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-            (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }))
+          await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items: habits, totalCount: habits.length } }])
           await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: habits.length } }))
           const proactive = createMockNotification({
             url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: `${selectedDate}T12:00:00Z`,

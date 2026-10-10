@@ -4,10 +4,9 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 for (const width of [320, 360, 384, 412]) {
@@ -21,11 +20,10 @@ for (const width of [320, 360, 384, 412]) {
 
       test('keeps every preference title and value whole', async ({ page, context }) => {
         await setLayoutProfileSession(context, profile)
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.profile.get,
-          (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/profile/preferences')
         const surface = page.getByTestId('profile-settings-group-preferences')
-        await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(4)
+        await expect(surface.locator('[data-slot="list-row-title"]')).toHaveCount(6)
         await expect(surface.locator('[data-slot="list-row-value"]')).toHaveCount(4)
         for (const label of [
           words.profile.settingsRows.timezone, profile.timeZone!,
@@ -39,6 +37,9 @@ for (const width of [320, 360, 384, 412]) {
         await expect(surface.getByRole('switch', { name: words.settings.homeScreen.showGeneral, exact: true })).toBeVisible()
         await expectLabelsFit(page, surface)
         for (const row of await surface.locator('.orbit-list-row-body').all()) await expectInteractionFill(row)
+        const choices = surface.getByRole('group', { name: words.profile.settingsRows.theme, exact: true })
+        await expect(choices.getByRole('button')).toHaveCount(2)
+        await expect(choices.locator('button[aria-pressed="true"]')).toHaveCount(1)
       })
     })
   }
