@@ -39,10 +39,9 @@ async function installActionFixtures(context: BrowserContext, profile: Profile) 
     [API.calendar.events, events],
     [API.calendar.autoSyncState, calendarAutoSyncStateSchema.parse({ hasGoogleConnection: true, enabled: true, status: 'Idle', lastSyncedAt: null })],
     [API.calendar.autoSyncSuggestions, []],
-    [API.notifications.list, notifications],
     [API.habits.rescheduleSuggestion(habitId), rescheduleSuggestionResponseSchema.parse({ suggestion: createMockRescheduleSuggestion({ dueDate: '2026-09-05' }), fromCache: false })],
   ]
-  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }, { path: API.habits.list, body: habits }])
+  await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }, { path: API.habits.list, body: habits }, { path: API.notifications.list, body: notifications }])
   for (const [path, response] of responses) {
     await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === path, (route) => route.fulfill({ json: response }))
   }

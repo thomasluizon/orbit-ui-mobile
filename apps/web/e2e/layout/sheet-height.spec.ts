@@ -89,7 +89,7 @@ test('a short confirmation fits its content and keeps its actions above the safe
     }],
     unreadCount: 1,
   })
-  await context.route(new RegExp(`${API.notifications.list}$`), (route) => route.fulfill({ json: notifications }))
+  await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
   await page.goto('/notifications')
   await page.getByRole('button', { name: messages.notifications.options }).click()
   await page.getByRole('menu', { name: messages.notifications.options }).getByRole('menuitem', { name: messages.notifications.deleteAll }).click()

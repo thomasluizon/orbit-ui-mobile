@@ -30,9 +30,7 @@ for (const mode of ['dark', 'light'] as const) {
           const proactive = createMockNotification({
             url: '/chat', body: 'Sua rotina mudou. Vamos conversar?', createdAtUtc: `${selectedDate}T12:00:00Z`,
           })
-          await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({
-            json: notificationsResponseSchema.parse({ items: [proactive], unreadCount: 1 }),
-          }))
+          await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notificationsResponseSchema.parse({ items: [proactive], unreadCount: 1 }) }])
           await page.goto('/')
           const line = page.locator('.today-astra-line')
           await expect(line).toBeVisible()

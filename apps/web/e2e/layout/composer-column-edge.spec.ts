@@ -45,7 +45,7 @@ for (const width of [320, 1280]) {
       test('keeps the toast shadow inside the native gutter clip and Undo reachable', async ({ page, context }) => {
         const notification = createMockNotification({ title: 'Column notice' })
         const notifications = notificationsResponseSchema.parse({ items: [notification], unreadCount: 1 })
-        await context.route(`${LAYOUT_ORIGIN}${API.notifications.list}`, (route) => route.fulfill({ json: notifications }))
+        await setLayoutFixtureSession(context, [{ path: API.notifications.list, body: notifications }])
         await page.goto('/notifications')
         await page.getByRole('button', {
           name: words.notifications.deleteNotification.replace('{title}', notification.title), exact: true,

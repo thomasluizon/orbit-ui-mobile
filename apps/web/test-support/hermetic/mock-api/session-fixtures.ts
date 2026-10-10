@@ -5,6 +5,7 @@ const fixtureSchema = z.object({
   path: z.string(),
   body: z.unknown(),
   query: z.record(z.string(), z.string()).optional(),
+  delayMs: z.number().int().min(0).max(10000).optional(),
   afterMutation: z.object({ method: z.enum(['POST', 'PUT', 'PATCH', 'DELETE']), path: z.string(), body: z.unknown() }).optional(),
 })
 const seedSchema = z.object({ fixtures: z.array(fixtureSchema) })
