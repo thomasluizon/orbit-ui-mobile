@@ -1,3 +1,4 @@
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 import React from 'react'
 import { act } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -81,7 +82,8 @@ for (const locale of ['pt-BR', 'en'] as const) {
     expect(tree!.root.findAllByType(CalendarEntryDetails)).toHaveLength(0)
   })
 
-  it.each([412, 1100, 1352])(`lays out the drawn Agenda rows with real ${locale} messages at %i`, async (width) => {
+  it.each([412, 600, 840, 1100, 1352])(`lays out the drawn Agenda rows with real ${locale} messages at %i`, async (width) => {
+    __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     await i18n.changeLanguage(locale)
     await act(() => { tree = TestRenderer.create(<CalendarAgendaView startDate={parseAPIDate('2026-10-05')} dayMap={dayMap}
       displayTime={createTimeDisplay(locale, true).displayTime} todayKey="2026-10-05" isLoading={false} loadingLabel={i18n.t('common.loading')} />) })
@@ -100,6 +102,11 @@ for (const locale of ['pt-BR', 'en'] as const) {
     expect(tree!.root.findAll((node) => node.type === 'X')).toHaveLength(1)
     expect(tree!.root.findAll((node) => node.type === 'ChevronRight')).toHaveLength(0)
     const measured = measureProfileRow(tree!.toJSON(), width, 1)
+    const days = measured.boxes.filter((box) => box.testID === 'calendar-agenda-day')
+    for (const box of [days[0]!, days.at(-1)!]) {
+      expect(box.left).toBe(16)
+      expect(box.width).toBe(width < 1024 ? width - 32 : 560)
+    }
     const headings = measured.texts.filter((text) => text.label.includes('outubro') || text.label.includes('October'))
     expect(headings[0]!.label).toBe(locale === 'pt-BR' ? 'Hoje, segunda-feira, 5 de outubro' : 'Today, Monday, October 5')
     expect(headings[1]!.label).toBe(locale === 'pt-BR' ? 'Terça-feira, 6 de outubro' : 'Tuesday, October 6')

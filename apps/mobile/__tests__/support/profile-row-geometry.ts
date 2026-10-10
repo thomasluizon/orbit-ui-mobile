@@ -4,7 +4,7 @@ import { Resvg } from '@resvg/resvg-js'
 
 interface HostRow {
   type: string
-  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle }
+  props: { style?: ViewStyle | ((state: { pressed: boolean }) => ViewStyle); numberOfLines?: number; accessibilityLabel?: string; 'data-slot'?: string; contentContainerStyle?: ViewStyle; testID?: string }
   children: (HostRow | string)[] | null
 }
 
@@ -92,6 +92,14 @@ function applyStyle(node: YogaNode, style: ViewStyle) {
     const padding = style[property]
     if (typeof padding === 'number') node.setPadding(edge, padding)
   }
+  for (const [property, edge] of [
+    ['margin', Yoga.EDGE_ALL], ['marginHorizontal', Yoga.EDGE_HORIZONTAL],
+    ['marginVertical', Yoga.EDGE_VERTICAL], ['marginTop', Yoga.EDGE_TOP],
+    ['marginBottom', Yoga.EDGE_BOTTOM], ['marginLeft', Yoga.EDGE_LEFT], ['marginRight', Yoga.EDGE_RIGHT],
+  ] as const) {
+    const margin = style[property]
+    if (typeof margin === 'number') node.setMargin(edge, margin)
+  }
 }
 
 function position(node: YogaNode): { left: number; top: number; right: number; bottom: number; width: number; height: number } {
@@ -105,6 +113,7 @@ function position(node: YogaNode): { left: number; top: number; right: number; b
 export function measureProfileRow(host: HostRow, width: number, scale: number) {
   const config = Yoga.Config.create()
   config.setPointScaleFactor(0)
+  const boxes: { node: YogaNode; testID: string }[] = []
   const parts: { node: YogaNode; slot: string; style: ViewStyle }[] = []
   const texts: { node: YogaNode; label: string; style: TextStyle; limit: number | undefined }[] = []
   const controls: { node: YogaNode; labels: string[]; accessibilityLabel?: string; 'data-slot'?: string }[] = []
@@ -117,6 +126,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
     const style = StyleSheet.flatten(typeof declared === 'function' ? declared({ pressed: false }) : declared ?? {}) as TextStyle & ViewStyle
     if (style.opacity === 0) { node.setWidth(0); node.setHeight(0); return node }
     applyStyle(node, style)
+    if (host.props.testID) boxes.push({ node, testID: host.props.testID })
     if (host.props['data-slot']) parts.push({ node, slot: host.props['data-slot'], style })
     if (host.type === 'Pressable') controls.push({ node, labels: labelsOf(host), accessibilityLabel: host.props.accessibilityLabel })
     const label = (host.children ?? []).filter((child): child is string => typeof child === 'string').join('')
@@ -138,7 +148,7 @@ export function measureProfileRow(host: HostRow, width: number, scale: number) {
   const layout = layoutHost(Array.isArray(host) ? { type: 'View', props: {}, children: host } : host)
   try {
     layout.calculateLayout(width, 'auto', Yoga.DIRECTION_LTR)
-    return { height: layout.getComputedHeight(), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel }) => {
+    return { height: layout.getComputedHeight(), boxes: boxes.map(({ node, testID }) => ({ testID, ...position(node) })), parts: parts.map(({ node, slot, style }) => ({ slot, style, ...position(node) })), controls: controls.map(({ node, labels, accessibilityLabel }) => {
       const bounds = position(node)
       const content = Array.from({ length: node.getChildCount() }, (_, index) => position(node.getChild(index)))
       return { labels, accessibilityLabel, ...bounds, inlineClearance: Math.min(Math.min(...content.map((child) => child.left)) - bounds.left, bounds.right - Math.max(...content.map((child) => child.right))) }

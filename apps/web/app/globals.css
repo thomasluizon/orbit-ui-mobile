@@ -2248,6 +2248,26 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   }
 }
 
+.orbit-content-frame {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 16px;
+}
+
+@media (min-width: 1024px) {
+  .orbit-content-frame {
+    max-width: calc(var(--orbit-content-cap, 560px) + 32px);
+  }
+
+  .orbit-content-frame[data-content-cap="about"] {
+    --orbit-content-cap: 620px;
+  }
+
+  .orbit-content-frame[data-content-cap="pitch"] {
+    --orbit-content-cap: 652px;
+  }
+}
+
 .orbit-day-target {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;

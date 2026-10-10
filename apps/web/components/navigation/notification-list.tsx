@@ -16,7 +16,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
   const t = useTranslations()
   return (
     <ul tabIndex={-1} aria-label={t('notifications.title')} aria-busy={isLoading}
-      className="m-0 flex w-full max-w-[560px] list-none flex-col gap-2 p-4">
+      className="orbit-content-frame m-0 flex list-none flex-col gap-2 py-4">
       {items.length > 0 ? items.map((item) => <NotificationRow key={item.id} item={item} onOpen={onOpen} onDelete={onDelete} />)
         : isLoading ? Array.from({ length: 5 }, (_, index) => (
           <li key={index} aria-hidden="true" className="flex gap-3 rounded-[var(--r-well)] p-4">

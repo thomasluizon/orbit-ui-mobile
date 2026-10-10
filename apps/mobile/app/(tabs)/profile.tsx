@@ -1,3 +1,4 @@
+import { useContentFrameStyle } from '@/hooks/use-content-frame-style'
 import { useRootScrollToTop } from '@/components/shell/root-scroll-context'
 import { RootNotificationHeader } from '@/components/navigation/root-notification-header'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
@@ -16,6 +17,7 @@ import { ProfileSettingsContent } from './profile/_components/profile-settings-c
 export default function ProfileScreen() {
   const scrollRef = useRef<ScrollView>(null)
   useRootScrollToTop('perfil', useCallback(() => scrollRef.current?.scrollTo({ y: 0, animated: false }), []))
+  const contentFrameStyle = useContentFrameStyle()
   const { t } = useTranslation()
   const router = useRouter()
   const { subscription } = useLocalSearchParams<{ subscription?: string }>()
@@ -45,7 +47,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <RootNotificationHeader />
-        <View testID="profile-content" style={styles.scrollContent}>
+        <View testID="profile-content" style={[contentFrameStyle, styles.scrollContent]}>
           {error ? (
             <View style={styles.errorBlock}>
               <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
