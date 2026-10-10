@@ -56,6 +56,13 @@ function calendarHref(search: string, view: CalendarView, dates: CalendarDates):
   return `/calendar?${params}`
 }
 
+function calendarImportReturnHref(search: string): string {
+  const params = new URLSearchParams(search)
+  params.delete('mode')
+  params.delete('import')
+  return params.size ? `/calendar?${params}` : '/calendar'
+}
+
 export function useCalendarNavigation() {
   const router = useRouter()
   const accountGeneration = useAccountGeneration()
@@ -70,16 +77,17 @@ export function useCalendarNavigation() {
   const acceptDates = useAccountBoundRouteRequest(dateRequest)
   const [dates, setDates] = useAccountScopedState(() => readDates(search, acceptDates))
   const [view, setLocalView] = useState(() => readView(params.get('view')))
-  const [observedSearch, setObservedSearch] = useState(search)
-  if (observedSearch !== search) {
-    setObservedSearch(search)
+  const [observedRoute, setObservedRoute] = useState({ search, acceptDates })
+  if (observedRoute.search !== search || observedRoute.acceptDates !== acceptDates) {
+    setObservedRoute({ search, acceptDates })
     setDates(readDates(search, acceptDates))
     setLocalView(readView(params.get('view')))
   }
 
+  const importReturnHref = calendarImportReturnHref(dateRequest ? calendarHref(search, view, dates).split('?')[1]! : search)
   useEffect(() => {
-    if (dateRequest && !acceptDates) router.replace(calendarHref(search, view, dates), { scroll: false })
-  }, [acceptDates, dateRequest, dates, router, search, view])
+    if (dateRequest && !acceptDates) router.replace(importReturnHref, { scroll: false })
+  }, [acceptDates, dateRequest, importReturnHref, router])
 
   const setView = useCallback<Dispatch<SetStateAction<CalendarView>>>((next) => {
     if (getAccountGeneration() !== accountGeneration) return
@@ -99,7 +107,7 @@ export function useCalendarNavigation() {
   }
 
   return {
-    ...dates, view, setView,
+    ...dates, view, setView, importReturnHref,
     setSelectedDay: dateSetter('selectedDay'),
     setWeekAnchor: dateSetter('weekAnchor'),
     setAgendaOffset: dateSetter('agendaOffset'),

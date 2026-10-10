@@ -89,19 +89,11 @@ function calendarDateFnsLocale(locale: string) {
   return locale === 'pt-BR' ? ptBR : enUS
 }
 
-function calendarWithoutImport(search: string): string {
-  const params = new URLSearchParams(search)
-  params.delete('mode')
-  params.delete('import')
-  return params.size ? `/calendar?${params}` : '/calendar'
-}
-
-function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequested: boolean) {
+function useClearStaleCalendarImportRoute(routeRequestKey: string, importRequested: boolean, returnHref: string) {
   const router = useRouter()
-  const search = useSearchParams().toString()
   useEffect(() => {
-    if (routeRequestKey && !importRequested) router.replace(calendarWithoutImport(search))
-  }, [routeRequestKey, importRequested, router, search])
+    if (routeRequestKey && !importRequested) router.replace(returnHref, { scroll: false })
+  }, [routeRequestKey, importRequested, returnHref, router])
 }
 
 function CalendarImportActions({ state, onImport, t }: {
@@ -309,11 +301,10 @@ function CalendarPageContent({
   const importActionRef = useRef<CalendarImportActionHandle>(null)
   const commitCalendarImport = useCallback(() => importActionRef.current?.importSelected(), [])
   const [initialImportEventId, setInitialImportEventId] = useAccountScopedState<string | null>(null)
-  const search = searchParams.toString()
   const reviewRequested = searchParams.get('mode') === 'review'
   const routeRequestKey = calendarImportRouteRequestKey(reviewRequested, searchParams.get('import') === '1')
   const importRequested = useAccountBoundRouteRequest(routeRequestKey)
-  useClearStaleCalendarImportRoute(routeRequestKey, importRequested)
+  useClearStaleCalendarImportRoute(routeRequestKey, importRequested, navigation.importReturnHref)
   const showImportSheet = shouldOpenCalendarImportSheet(hasProAccess, isImportOpen, importRequested)
 
   const openImport = useCallback((eventId: string | null) => {
@@ -329,8 +320,8 @@ function CalendarPageContent({
   const closeImport = useCallback(() => {
     setIsImportOpen(false)
     setInitialImportEventId(null)
-    if (importRequested) router.replace(calendarWithoutImport(search), { scroll: false })
-  }, [importRequested, router, search, setInitialImportEventId, setIsImportOpen])
+    if (importRequested) router.replace(navigation.importReturnHref, { scroll: false })
+  }, [importRequested, navigation.importReturnHref, router, setInitialImportEventId, setIsImportOpen])
   const { data: connectedCalendars } = useCalendars({ enabled: hasProAccess })
   const showEventSource = (connectedCalendars?.length ?? 0) > 1
   const showRecurring = useUIStore((state) => state.calendarShowRecurring)
