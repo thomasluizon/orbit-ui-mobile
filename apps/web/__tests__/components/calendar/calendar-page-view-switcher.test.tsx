@@ -688,6 +688,7 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     expect(calendarDataCalls).toHaveBeenCalledTimes(1)
+    expect(calendarDayDetailProps.calendarEventsState).toBe('loading')
     expect(screen.getAllByRole('progressbar', { name: 'calendar.loading' })).toHaveLength(2)
     expect(screen.getByTestId('calendar-grid-card').querySelector('[role="progressbar"]')).toHaveAttribute('data-cols', '7')
   })

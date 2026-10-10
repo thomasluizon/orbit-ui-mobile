@@ -1416,6 +1416,9 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
 
     expect(state.calendarDataCalls).toHaveBeenCalledTimes(1);
+    const header = renderMonthHeader(tree);
+    expect(calendarDayDetailProps.current?.calendarEventsState).toBe('loading');
+    TestRenderer.act(() => { header.update(<></>); });
     expect(calendarGridProps.current).toMatchObject({ isLoading: true, selectedDay: formatAPIDate(new Date()) });
     expect(tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-grid',

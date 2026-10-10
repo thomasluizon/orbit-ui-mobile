@@ -338,6 +338,7 @@ function CalendarPageContent({
     })
   }, [closeSheet, router, setIsDayDetailOpen])
   const calendarEventsState = resolveCalendarEventsDisplayState({
+    profileReady: Boolean(profile),
     enabled: hasProAccess,
     isPending: calendarEventsPending,
     error: calendarEventsError,
