@@ -1,7 +1,7 @@
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { type ComponentType, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useIsFocused, useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { useSheetHost } from '@/components/ui/sheet'
@@ -125,6 +125,7 @@ export function CreateHabitModal({
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
+  const isFocused = useIsFocused()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
@@ -232,17 +233,21 @@ export function CreateHabitModal({
     onDismiss: () => finishClose(pendingNavigation.current ?? onClose),
   })
   useHabitCreateNavigationGuard({
-    active: open && presentation === 'screen',
+    active: open && presentation === 'screen' && isFocused,
     leaving: leaveAction !== null,
     onNavigate: (action) => {
       pendingNavigation.current = action
       dismissGuard.requestDismiss()
     },
   })
-  useOverlayBack(open && presentation === 'screen', dismissGuard.requestDismiss)
+  useOverlayBack(open && presentation === 'screen' && isFocused, dismissGuard.requestDismiss)
   const navigateToUpgrade = useCallback(() => {
     if (presentation === 'screen') {
-      pendingNavigation.current = () => router.replace('/upgrade')
+      pendingNavigation.current = () => {
+        pendingNavigation.current = null
+        setLeaveAction(null)
+        router.push('/upgrade')
+      }
       dismissGuard.requestDismiss()
       return
     }
