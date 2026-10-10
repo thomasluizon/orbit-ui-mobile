@@ -107,6 +107,16 @@
   transition: background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), transform 150ms var(--ease-out);
 }
 
+.orbit-list-row-shell[data-text-mode="label"]:has([data-slot="list-row-title"][data-row-multiline]) :is([data-slot="list-row-content"], .orbit-list-row-label-content) {
+  align-items: flex-start;
+}
+
+.orbit-list-row-shell[data-text-mode="label"]:has([data-slot="list-row-title"][data-row-multiline]) [data-slot="list-row-value"] {
+  display: flex;
+  align-items: center;
+  min-height: 1.4875rem;
+}
+
 .orbit-list-row-body {
   transition: background-color var(--dur-hover) var(--ease-standard);
 }
