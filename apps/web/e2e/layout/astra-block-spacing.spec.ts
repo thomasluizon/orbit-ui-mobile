@@ -8,6 +8,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { settleAstraTurn } from './astra-block-motion'
 
 for (const width of [412, 600, 1352]) {
   for (const locale of ['en', 'pt-BR'] as const) {
@@ -35,7 +36,7 @@ for (const width of [412, 600, 1352]) {
             const turn = articles.last()
             await expect(turn.locator('section[data-state]')).toHaveCount(scenario.count)
             await expect(conversation.getByRole('feed')).toHaveAttribute('aria-busy', 'false')
-            await page.evaluate(() => document.fonts.ready)
+            await settleAstraTurn(turn)
             const geometry = await turn.evaluate((article, copyLabel) => {
               const bounds = (element: Element) => {
                 const rect = element.getBoundingClientRect()

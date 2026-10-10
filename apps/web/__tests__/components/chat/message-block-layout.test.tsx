@@ -11,6 +11,7 @@ import pt from '@orbit/shared/i18n/pt-BR.json'
 import { makeHeldHabitMessage } from '@orbit/shared/test-support/chat-fixtures'
 import { chatBlockLayoutCases, makeChatBlockLayoutMessage } from '@orbit/shared/test-support/chat-block-layout'
 import { AstraConversation } from '@/components/chat/conversation'
+import { settleAstraTurn } from '@/e2e/layout/astra-block-motion'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
@@ -39,6 +40,41 @@ describe('Astra block layout in Chromium', () => {
   })
   afterEach(cleanup)
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it('settles a newly completed block-only outcome turn before reading its geometry', async () => {
+    const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'outcome')!
+    const chat = {
+      chatContainerRef: createRef<HTMLDivElement>(), messages: [],
+      activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
+      composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
+        words: { placeholder: pt.shell.composer.placeholder, send: pt.shell.composer.send,
+          actions: pt.shell.composer.actions, suggestionsLabel: pt.shell.composer.suggestionsLabel },
+      },
+    } as unknown as ChatController
+    const surface = (controller: ChatController) => <NextIntlClientProvider locale="pt-BR" messages={pt}>
+      <div style={{ height: 915, width: 740 }}><AstraConversation chat={controller} /></div>
+    </NextIntlClientProvider>
+    const { container, rerender } = render(surface(chat))
+    rerender(surface({ ...chat, messages: [makeChatBlockLayoutMessage(scenario, false)] }))
+    const page = await browser.newPage({ viewport: { width: 1352, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}\n.animate-msg-in { animation-play-state: paused; }</style>${container.innerHTML}`)
+      const turn = page.getByRole('article')
+      const starting = await turn.evaluate(article => {
+        const animations = article.getAnimations({ subtree: true })
+        for (const animation of animations) animation.currentTime = 0
+        return { count: animations.length,
+          offset: article.querySelector('section[data-state]')!.getBoundingClientRect().top - article.getBoundingClientRect().top }
+      })
+      expect(starting.count).toBe(1)
+      expect(starting.offset).toBeCloseTo(8, 1)
+      await turn.evaluate(article => { for (const animation of article.getAnimations({ subtree: true })) animation.play() })
+      await settleAstraTurn(turn)
+      expect(await turn.evaluate(article =>
+        article.querySelector('section[data-state]')!.getBoundingClientRect().top - article.getBoundingClientRect().top,
+      )).toBeCloseTo(0, 1)
+    } finally { await page.close() }
+  })
 
   it.each(cases)('spaces $kind at $width in $locale with prose=$prose', async ({ width, locale, scenario, prose }) => {
     const messages = locale === 'en' ? en : pt

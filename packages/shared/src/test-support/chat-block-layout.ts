@@ -15,7 +15,7 @@ const clarification = makeClarificationPreviewMessage().actions![0]!
 export const chatBlockLayoutCases = [
   { kind: 'preview', count: 2, fields: { pendingOperations: [preview, { ...preview, id: 'second-preview' }] } },
   { kind: 'clarification', count: 2, fields: { actions: [clarification, { ...clarification,
-    clarificationRequest: { ...clarification.clarificationRequest!, operationId: '00000000-0000-0000-0000-000000000002' },
+    clarificationRequest: { ...clarification.clarificationRequest!, operationId: '00000000-0000-4000-8000-000000000002' },
   }] } },
   { kind: 'breakdown', count: 2, fields: { actions: [1, 2].map(index => makeActionResult({
     type: 'SuggestBreakdown', status: 'Suggestion', entityId: `breakdown-${index}`, suggestedSubHabits: breakdownSubHabits,
