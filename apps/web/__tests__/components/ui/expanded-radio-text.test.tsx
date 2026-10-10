@@ -49,6 +49,8 @@ describe('expanded RadioRow personal text in Chromium', () => {
                 root.dataset.firstFrameTabIndex = scroller?.getAttribute('tabindex') ?? 'missing';
               });
             }, []);
+            if (composition === 'expandedStack') return <ListRow title={label} description={label} textMode="personal" personalExpanded onClick={() => {}} accessibilityLabel={label} />;
+            if (composition === 'plainStack') return <ListRow title={label} description={label} wrapTitle onClick={() => {}} accessibilityLabel={label} />;
             if (composition === 'support') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><SupportReplyEmail email={label} /></NextIntlClientProvider>;
             if (composition === 'habit') return <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC"><HabitRow habit={createMockHabit({ title: label })} selectMode selected hasChildren childProgress={{ done: 0, total: 2 }} meta={['0 of 2', { kind: 'overdue', label: 'Overdue' }]} /></NextIntlClientProvider>;
             if (composition === 'settingsMetadata') return <ListRow accessibilityLabel={label} title={label} textMode="personal" description="Details" trailing={<span>Value</span>} />;
@@ -90,6 +92,28 @@ describe('expanded RadioRow personal text in Chromium', () => {
     await page.evaluate(() => new Promise<void>((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(() => resolveFrame()))))
     return page
   }
+
+  it.each(['expandedStack', 'plainStack'])('uses readable leading for three-line $composition text and compacts again when widened', async (composition) => {
+    const label = 'Pessoa com um nome completo escrito no próprio perfil e uma descrição longa que continua em várias linhas'
+    const page = await mount(label, 'light', composition)
+    try {
+      for (const slot of ['list-row-title', 'list-row-description']) {
+        const text = page.locator(`[data-slot="${slot}"]`)
+        await expect.poll(() => text.evaluate((element) => {
+          const style = getComputedStyle(element)
+          return parseFloat(style.lineHeight) / parseFloat(style.fontSize)
+        })).toBeGreaterThanOrEqual(1.4)
+        expect(await text.evaluate((element) => element.getBoundingClientRect().height / parseFloat(getComputedStyle(element).lineHeight))).toBeGreaterThan(2)
+      }
+      await page.setViewportSize({ width: 2000, height: 915 })
+      for (const slot of ['list-row-title', 'list-row-description']) {
+        await expect.poll(() => page.locator(`[data-slot="${slot}"]`).evaluate((element) => {
+          const style = getComputedStyle(element)
+          return parseFloat(style.lineHeight) / parseFloat(style.fontSize)
+        })).toBe(1.25)
+      }
+    } finally { await page.close() }
+  })
 
   const cases = labels.flatMap((label) => (['light', 'dark'] as const).map((mode) => ({ label, mode })))
   it.each(cases)('keeps all four sides of the focused outline clear in $mode for $label', async ({ label, mode }) => {

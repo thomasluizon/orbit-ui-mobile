@@ -2,9 +2,9 @@
 
 import { TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 
-import { useId, useState, type MouseEventHandler, type ReactNode } from 'react'
+import { useId, useRef, useState, type ComponentProps, type MouseEventHandler, type ReactNode } from 'react'
 import Link from 'next/link'
-import { PersonalText } from '@/components/ui/personal-text'
+import { PersonalText, useReadableLineHeight } from '@/components/ui/personal-text'
 import { PersonalTextAction } from '@/components/ui/personal-text-action'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronDown, ChevronRight } from '@/components/ui/icons'
@@ -33,7 +33,8 @@ function descriptionClass(textMode: WebListRowProps['textMode'], wrapTitle: WebL
   return wrapTitle ? 'break-words' : undefined
 }
 
-function titleLineHeight(textMode: WebListRowProps['textMode'], wrapTitle: WebListRowProps['wrapTitle']) {
+function titleLineHeight(textMode: WebListRowProps['textMode'], wrapTitle: WebListRowProps['wrapTitle'], description: WebListRowProps['description']) {
+  if (description) return 1.25
   return textMode === 'label' || wrapTitle ? 1.4 : 1.25
 }
 
@@ -50,14 +51,19 @@ function titleClass(textMode: WebListRowProps['textMode'], wrapTitle: boolean | 
   return textMode === 'label' || wrapTitle ? 'break-words' : 'truncate'
 }
 
+function PlainRowText({ children, style, ...props }: Readonly<Omit<ComponentProps<'span'>, 'children'> & { children: string }>) {
+  const textRef = useRef<HTMLSpanElement>(null)
+  const lineHeight = useReadableLineHeight(textRef, children, style)
+  return <span {...props} ref={textRef} style={{ ...style, lineHeight }}>{children}</span>
+}
+
 function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrapValue, danger, trailing, value, readOnly, toggle, personalExpanded, personalTextInsetStart }: Readonly<Pick<WebListRowProps, 'title' | 'textMode' | 'titleTranslate' | 'wrapTitle' | 'description' | 'wrapValue' | 'danger' | 'trailing' | 'compact' | 'value' | 'readOnly' | 'toggle' | 'personalExpanded' | 'personalTextInsetStart'>>) {
-  const Title = textMode === 'personal' ? PersonalText : 'span'
-  const Description = textMode === 'personal' ? PersonalText : 'span'
+  const Title = textMode === 'personal' ? PersonalText : PlainRowText
+  const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
-  const personalStackPadding = personalExpanded && description ? 0 : undefined
   return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
-    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value)), paddingBlock: personalStackPadding, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
-    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: 1.4, paddingBlock: personalStackPadding, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
+    <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value), description), paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
+    {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: 1.25, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
   </span>
 }
 

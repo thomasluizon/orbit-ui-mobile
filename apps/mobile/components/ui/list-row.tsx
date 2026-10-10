@@ -5,7 +5,7 @@ import { InsetFocusPressable as Pressable } from '@/components/ui/inset-focus-pr
 import Animated from 'react-native-reanimated'
 import type { ReactNode, Ref } from 'react'
 import { cloneElement, isValidElement, useState } from 'react'
-import { Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { Pressable as NativePressable, StyleSheet, Text, View, useWindowDimensions, type TextProps } from 'react-native'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { SwitchTrack } from '@/components/ui/switch'
@@ -56,12 +56,21 @@ function personalTextProps(textMode: ListRowProps['textMode'], expanded: boolean
   return textMode === 'personal' ? { expanded } : {}
 }
 
+function PlainRowText({ style, onTextLayout, ...props }: Readonly<TextProps>) {
+  const [long, setLong] = useState(false)
+  const flattened = StyleSheet.flatten(style ?? {})
+  return <Text {...props} style={[style, long ? { lineHeight: Math.max(flattened.lineHeight ?? 0, (flattened.fontSize ?? 14) * 1.4) } : null]} onTextLayout={(event) => {
+    setLong(event.nativeEvent.lines.length >= 3)
+    onTextLayout?.(event)
+  }} />
+}
+
 function RowTextContent({ title, textMode, wrapTitle, description, value, wrapValue, trailing, readOnly, toggle, titleColor, valueColor, personalExpanded, valueTextMode }: Readonly<Pick<ListRowProps, 'title' | 'textMode' | 'wrapTitle' | 'description' | 'value' | 'wrapValue' | 'trailing' | 'compact' | 'readOnly' | 'toggle' | 'personalExpanded' | 'valueTextMode'> & { titleColor: string; valueColor: string }>) {
-  const Title = textMode === 'personal' ? PersonalText : Text
-  const Description = textMode === 'personal' ? PersonalText : Text
+  const Title = textMode === 'personal' ? PersonalText : PlainRowText
+  const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly)
   const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null, toggle ? { minHeight: 28 } : null]}>
-    <Title data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)), { color: titleColor }]}>{title}</Title>
+    <Title data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, !description ? wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)) : null, { color: titleColor }]}>{title}</Title>
     {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
@@ -213,7 +222,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
   wrappedTitle: { lineHeight: 23.8 },
   chevron: { width: 24, minHeight: 24, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
-  description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
+  description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 17.5 },
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16.8, letterSpacing: 0.24, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
   wrappedValue: { flexShrink: 0, maxWidth: '100%' },
   trailing: { flexShrink: 0 },
