@@ -37,7 +37,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
     }
   })
   return (
-    <div className="mt-2 w-full md:max-w-[65ch]">
+    <div className="w-full">
       <BlockFrame state="resting" title={t('chat.goalList.title')} items={items} body={items.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.goalList.empty')}</p> : undefined} actions={(
         <>
           {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
