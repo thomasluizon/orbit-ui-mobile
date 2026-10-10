@@ -13,6 +13,11 @@ if (typeof HTMLElement !== 'undefined') {
     configurable: true,
     value: vi.fn(),
   })
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    writable: true,
+    configurable: true,
+    value: vi.fn(),
+  })
 }
 
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {

@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import React from 'react'
 import { View } from 'react-native'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -29,7 +30,7 @@ vi.mock('@/components/shell/composer', () => ({ Composer: () => <View testID="co
 const renderer = require('react-test-renderer') as typeof import('react-test-renderer')
 type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 const chat = {
-  flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
+  threadScroll: createChatThreadScroll(), flatListRef: { current: null }, messages: [], activeSteps: [], canShowFollowUps: false,
   isTyping: false, streamingMessageId: null, showSuggestions: true,
   sendMessage: vi.fn(), scrollToBottom: vi.fn(), composerProps: { suggestions: [] },
 } as unknown as ChatController
