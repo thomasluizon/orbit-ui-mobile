@@ -7,11 +7,16 @@ import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { expectFullTouchTarget } from './press-shape-helpers'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
-const dates = Array.from({ length: 7 }, (_, index) => `2026-10-${String(5 + index).padStart(2, '0')}`)
+const dates = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date(LAYOUT_FIXED_TIME)
+  date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7 + index)
+  return date.toISOString().slice(0, 10)
+})
 const untimedNames = ['Sweep-Supercalifragilisticexpialidocious-Token-Habit', 'Organizar as anotações e preparar a próxima semana com calma', 'Evitar doces']
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: [
@@ -30,9 +35,8 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
     test.describe(`${locale} week pattern at ${viewport.width}x${viewport.height}`, () => {
       const profile = profileSchema.parse({ ...profileFixture, language: locale, timeZone: 'UTC', weekStartDay: 1 })
       test.use({ appLocale: locale, viewport, layoutProfile: profile })
-      test.beforeEach(async ({ context, page }) => {
+      test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile)
-        await page.clock.setFixedTime(new Date('2026-10-08T21:30:00Z'))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: calendarMonth }))
       })
@@ -68,8 +72,8 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
           .filter((node) => [...node.childNodes].some((child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim()))
           .every((node) => Number.parseFloat(getComputedStyle(node).fontSize) >= 12))).toBe(true)
 
-        const monday = grid.locator('[data-testid="time-grid-all-day"][data-date="2026-10-05"]')
-        const tuesday = grid.locator('[data-testid="time-grid-all-day"][data-date="2026-10-06"]')
+        const monday = grid.locator(`[data-testid="time-grid-all-day"][data-date="${dates[0]}"]`)
+        const tuesday = grid.locator(`[data-testid="time-grid-all-day"][data-date="${dates[1]}"]`)
         await expect(monday.locator('button')).toHaveCount(0)
         await expect(tuesday.getByTestId('time-grid-all-day-event')).toHaveCount(1)
         await expect(tuesday.getByTestId('time-grid-all-day-event')).toHaveAccessibleName(untimedNames[0]!)
@@ -87,8 +91,8 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
           const style = getComputedStyle(weekday)
           return style.textTransform === 'none' && ['normal', '0px'].includes(style.letterSpacing)
         }))).toBe(true)
-        expect(await grid.getByTestId('time-grid-col-header').evaluateAll((headers) => {
-          const monday = headers[0]!, today = headers[3]!
+        expect(await grid.getByTestId('time-grid-col-header').evaluateAll((headers, todayIndex) => {
+          const monday = headers[0]!, today = headers[todayIndex]!
           const probe = document.createElement('span')
           probe.style.backgroundColor = 'var(--primary)'
           today.append(probe)
@@ -96,7 +100,7 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
           probe.remove()
           return getComputedStyle(today.firstElementChild!).color === getComputedStyle(monday.firstElementChild!).color
             && [...today.querySelectorAll('*')].filter((element) => getComputedStyle(element).backgroundColor === primary).length === 1
-        })).toBe(true)
+        }, dates.indexOf(LAYOUT_FIXED_TIME.slice(0, 10)))).toBe(true)
 
         for (const cell of await grid.getByTestId('time-grid-all-day').all()) {
           for (const chip of await cell.locator('button').all()) await expectFullTouchTarget(chip, 8)

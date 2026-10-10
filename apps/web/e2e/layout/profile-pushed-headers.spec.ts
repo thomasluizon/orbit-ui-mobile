@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type Page } from '@playwright/test'
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
 import { API } from '@orbit/shared/api'
@@ -5,7 +6,6 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
 async function openProfile(page: Page) {
@@ -111,7 +111,7 @@ for (const width of [320, 412, 600, 1280, 1352]) {
             subscriptionSource: 'stripe',
             subscriptionInterval: 'yearly',
           })
-          await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+          await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
           await openProfile(page)
           await page.getByRole('link', { name: messages.profile.groups.astra, exact: true }).click()
           await page.getByRole('link', { name: messages.profile.allowance.manageSubscription, exact: true }).click()

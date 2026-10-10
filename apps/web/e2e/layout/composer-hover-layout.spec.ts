@@ -1,10 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import en from '@orbit/shared/i18n/en.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { hoverSettledComposerControl } from './composer-hover-state'
 
 for (const width of [412, 1280]) {
@@ -14,7 +14,7 @@ for (const width of [412, 1280]) {
       const profile = profileSchema.parse({ ...profileFixture, themePreference: theme,
         aiMessagesUsed: profileFixture.aiMessagesLimit })
       await setLayoutProfileSession(context, profile)
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       await page.goto('/')
       if (width >= 1024) await page.locator('[data-shell-astra-row]').click()
       const composer = page.locator(width >= 1024

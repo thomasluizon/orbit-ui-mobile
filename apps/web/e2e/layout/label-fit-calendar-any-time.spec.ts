@@ -7,11 +7,16 @@ import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
-const dates = Array.from({ length: 7 }, (_, index) => `2026-10-${String(5 + index).padStart(2, '0')}`)
+const dates = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date(LAYOUT_FIXED_TIME)
+  date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7 + index)
+  return date.toISOString().slice(0, 10)
+})
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: [null, null, null, '08:00', '21:00'].map((dueTime, index) => makeHabitScheduleItem({
     id: `label-fit-${index}`, title: `Organizar as anotações e preparar a semana ${index}`, dueTime,
@@ -24,9 +29,8 @@ for (const width of [320, 412, 1352]) {
     test.describe(`${locale} calendar any-time label at ${width}px`, () => {
       const profile = profileSchema.parse({ ...profileFixture, language: locale, timeZone: 'UTC', weekStartDay: 1 })
       test.use({ appLocale: locale, viewport: { width, height: 915 }, layoutProfile: profile })
-      test.beforeEach(async ({ context, page }) => {
+      test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile)
-        await page.clock.setFixedTime(new Date('2026-10-08T12:00:00Z'))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: calendarMonth }))
       })

@@ -8,7 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { expectLabelsFit, markRequiredLabels, markUserText } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const day = '2026-09-04'
@@ -62,7 +62,7 @@ for (const width of [320, 360, 384, 412, 600]) {
       test.use({ appLocale: locale, layoutProfile: profile, viewport: { width, height: 915 } })
       test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, profile)
-        await context.route(new RegExp(`${API.habits.list}[?]`), (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
       })
 
       for (const textScale of [1, 2]) {

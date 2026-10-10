@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/en.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
@@ -8,7 +9,7 @@ import { chatStreamEventSchema } from '@orbit/shared/types/chat'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { expectOneFieldIndicator, inspectFocusedRing, readOutlineVisibility } from './focus-indicators'
 
 async function expectCompleteTabIndicator(page: Page, control: Locator, surface: string, enterWith: 'Tab' | 'Shift+Tab' = 'Tab') {
@@ -55,7 +56,7 @@ for (const width of [412, 1352] as const) {
       test.beforeEach(async ({ context }) => {
         const profile = profileSchema.parse({ ...profileFixture, themePreference: mode, language: 'en' })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         const items = Array.from({ length: 12 }, (_, index) => makeHabitScheduleItem({
           id: `focus-habit-${index}`, title: `Habit ${index}`, position: index, isGeneral: true,
           children: [], hasSubHabits: false,
@@ -65,7 +66,7 @@ for (const width of [412, 1352] as const) {
         parent.children = [0, 1].map((index) => ({ ...child, id: `focus-child-${index}`, title: `Child ${index}`, isGeneral: true, isCompleted: false, children: [] }))
         parent.hasSubHabits = true
         const habits = createPaginatedSchema(habitScheduleItemSchema).parse({ ...emptyHabitsPageFixture, items, totalCount: items.length })
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: items.length } }))
       })
 

@@ -6,9 +6,15 @@ import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
+import { LAYOUT_FIXED_TIME } from './clock.mjs'
 import { setLayoutProfileSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
+const dates = Array.from({ length: 7 }, (_, index) => {
+  const date = new Date(LAYOUT_FIXED_TIME)
+  date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7 + index)
+  return date.toISOString().slice(0, 10)
+})
 const calendarMonth = calendarMonthResponseSchema.parse({
   habits: [
     ['Caminhar pelo bairro depois do trabalho', '09:00', '10:00'],
@@ -17,8 +23,8 @@ const calendarMonth = calendarMonthResponseSchema.parse({
     ['Conversar com os amigos', null, null],
   ].map(([title, dueTime, dueEndTime], index) => makeHabitScheduleItem({
     id: `week-scroll-habit-${index}`, title: title!, dueTime, dueEndTime,
-    children: [], hasSubHabits: false, dueDate: '2026-10-05',
-    scheduledDates: ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11'],
+    children: [], hasSubHabits: false, dueDate: dates[0]!,
+    scheduledDates: dates,
   })),
   logs: {},
 })
@@ -82,9 +88,8 @@ for (const viewport of [{ width: 1352, height: 726 }, { width: 1100, height: 726
     test.describe(`Week scroll at ${viewport.width}x${viewport.height} in ${themeMode}`, () => {
       const themedProfile = profileSchema.parse({ ...profile, themePreference: themeMode })
       test.use({ appLocale: 'pt-BR', viewport, layoutProfile: themedProfile })
-      test.beforeEach(async ({ context, page }) => {
+      test.beforeEach(async ({ context }) => {
         await setLayoutProfileSession(context, themedProfile)
-        await page.clock.setFixedTime(new Date('2026-10-08T21:30:00Z'))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: calendarMonth }))
       })

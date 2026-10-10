@@ -1,10 +1,10 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { expectLabelsFit, markRequiredLabels } from './label-fit-contract'
 import { expectInteractionFill } from './label-interaction-fill'
 import { test } from './upgrade-fixtures'
@@ -23,7 +23,7 @@ for (const width of [320, 360, 384, 412]) {
           viewport: { width, height: 915 }, layoutProfile: profile,
         })
         test.beforeEach(async ({ context }) => {
-          await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+          await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         })
 
         test('keeps allowance and feature titles whole with matching group spacing', async ({ page }) => {
