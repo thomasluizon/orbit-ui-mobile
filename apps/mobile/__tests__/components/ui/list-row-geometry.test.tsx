@@ -8,6 +8,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import en from '@orbit/shared/i18n/en.json'
 import { ProfilePreferencesContent } from '@/app/(tabs)/profile/_components/profile-preferences-content'
 import { ListRow } from '@/components/ui/list-row'
+import { Badge } from '@/components/ui/badge'
 import { measureProfileRow } from '../../support/profile-row-geometry'
 import { __resetTestHostConfig, __setWindowDimensions } from '../../../test-mocks/react-native'
 
@@ -160,6 +161,53 @@ describe('label control first-line alignment', () => {
       const switchTrack = resized.parts.find((part) => part.slot === 'switch-track')!
       expect(short.lines).toBe(1)
       expect(Math.abs(short.top + short.height / 2 - switchTrack.top - switchTrack.height / 2)).toBeLessThanOrEqual(1)
+    } finally { await act(() => tree.update(<></>)) }
+  })
+})
+
+
+describe('label mode transitions', () => {
+  it.each([en, ptBR])('clears label alignment when a wrapped toggle becomes a gated row', async (words) => {
+    __setWindowDimensions({ width: 320, height: 915, scale: 1, fontScale: 2 })
+    const title = words.habits.detail.slipAlert
+    const description = words.habits.detail.slipAlertDescription
+    const locked = <ListRow title={title} description={description} trailing={<Badge>{words.habits.detail.proGate}</Badge>} onClick={vi.fn()} />
+    let changed!: Tree
+    let fresh!: Tree
+    await act(() => {
+      changed = create(<ListRow title={title} description={description} toggle={{ checked: true, onChange: vi.fn() }} />) as Tree
+      fresh = create(locked) as Tree
+    })
+    try {
+      await replayLabelLayout(changed, 200, 2)
+      expect(measureProfileRow(changed.toJSON(), 200, 2).texts[0]!.lines).toBeGreaterThan(1)
+      await act(() => changed.update(locked))
+      await replayLabelLayout(changed, 200, 2)
+      await replayLabelLayout(fresh, 200, 2)
+      const transitioned = measureProfileRow(changed.toJSON(), 200, 2)
+      const original = measureProfileRow(fresh.toJSON(), 200, 2)
+      const changedControl = transitioned.parts.find((part) => part.slot === 'list-row-trailing')!
+      const freshControl = original.parts.find((part) => part.slot === 'list-row-trailing')!
+      expect(changedControl.top).toBeCloseTo(freshControl.top, 4)
+      expect(transitioned.height).toBeCloseTo(original.height, 4)
+    } finally { await act(() => { changed.update(<></>); fresh.update(<></>) }) }
+  })
+})
+
+describe('single-line label accessories', () => {
+  it.each([en, ptBR].flatMap((words) => ['value', 'description'].map((kind) => ({ words, kind }))))('centres enlarged icons and chevrons beside a $kind', async ({ words, kind }) => {
+    __setWindowDimensions({ width: 1352, height: 915, scale: 1, fontScale: 2 })
+    const title = words.profile.settingsRows.theme
+    let tree!: Tree
+    await act(() => { tree = create(<ListRow textMode="label" title={title} icon="home" value={kind === 'value' ? words.profile.settingsRows.theme : undefined} description={kind === 'description' ? words.settings.homeScreen.showGeneral : undefined} onClick={vi.fn()} />) as Tree })
+    try {
+      await replayLabelLayout(tree, 740, 2)
+      const geometry = measureProfileRow(tree.toJSON(), 740, 2)
+      const label = geometry.texts.find((text) => text.label === title)!
+      expect(label.lines).toBe(1)
+      const accessories = geometry.parts.filter((part) => part.slot === 'list-row-icon' || part.slot === 'list-row-chevron')
+      expect(accessories).toHaveLength(2)
+      for (const accessory of accessories) expect(Math.abs(label.top + label.height / 2 - accessory.top - accessory.height / 2), accessory.slot).toBeLessThanOrEqual(1)
     } finally { await act(() => tree.update(<></>)) }
   })
 })

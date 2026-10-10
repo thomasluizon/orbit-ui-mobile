@@ -2,7 +2,7 @@
 
 **At a glance:** ListRow consumers whose inline values, badges, chevrons or switches share the label alignment contract on web and Android.
 
-At the default text size, the label and inline accessory share a vertical centre. When the label wraps at accessibility text sizes, the accessory aligns to the first line. Toggle rows also use label mode even when their consumers omit `textMode`. Both adapters own this behavior in `components/ui/list-row.tsx`; consumers inherit it without individual offsets.
+At the default text size, the label and inline accessory share a vertical centre. When the label wraps at accessibility text sizes, the accessory aligns to the first line. Toggle rows also use label mode even when their consumers omit `textMode`. Trailing controls stay inline while their labels wrap; text values retain their supporting-line flow. Description and value rows keep leading accessories on the title line. Both adapters own this behavior in `components/ui/list-row.tsx`; consumers inherit it without individual offsets.
 
 | Surface | Rows | Web owner | Android owner |
 | --- | --- | --- | --- |

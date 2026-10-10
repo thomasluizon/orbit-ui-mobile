@@ -1,3 +1,4 @@
+import { bundleProfileSettings } from '@/__tests__/support/profile-settings-browser'
 import { personalText } from '@/__tests__/support/personal-text'
 import React from 'react'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -273,11 +274,13 @@ describe('ProfilePage', () => {
     let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
     let stylesheet: string
+    let profileSettingsScript: string
     registerChromeLaunchHook(beforeAll, async (launch) => { browserLaunch = launch; browser = await launch })
     beforeAll(async () => {
       const source = resolve(process.cwd(), 'app/globals.css')
       stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
-    })
+      profileSettingsScript = bundleProfileSettings()
+    }, 30_000)
     afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
     it.each(['en', 'pt-BR'].flatMap((locale) => [320, 412, 1280].flatMap((width) => ['Ana', 'Ana Silva'].flatMap((name) => (['account', 'preferences'] as const).map((surface) => ({ locale, width, surface, name }))))))('aligns subscreen glyphs and preserves labels in $surface in $locale at $width for $name', async ({ locale, width, surface, name }) => {
@@ -377,10 +380,15 @@ describe('ProfilePage', () => {
         isTrialActive: plan === 'trial', isLifetimePro: plan === 'lifetime',
         trialEndsAt: plan === 'trial' ? '2099-10-09T12:00:00Z' : null,
       })
-      const { container } = render(<ProfilePage />)
       const page = await browser.newPage({ viewport: { width, height: 1600 } })
       try {
-        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.setContent(`<style>${stylesheet}</style><div id="root"></div>`)
+        await page.locator('#root').evaluate((root, { locale, profile }) => {
+          root.dataset.locale = locale
+          root.dataset.profile = JSON.stringify(profile)
+        }, { locale, profile: mockProfileState.current.profile })
+        await page.addScriptTag({ content: profileSettingsScript })
+        await page.locator('.orbit-list-row-shell').first().waitFor()
         await loadAppFonts(page)
         await page.evaluate((scale) => {
           for (const element of document.querySelectorAll<HTMLElement>('.orbit-list-row-shell span')) {
@@ -388,6 +396,10 @@ describe('ProfilePage', () => {
             element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) * scale}px`
           }
         }, textScale)
+        await page.waitForFunction(() => Array.from(document.querySelectorAll<HTMLElement>('[data-slot="list-row-title"]')).every((title) => {
+          const wrapped = title.getBoundingClientRect().height > parseFloat(getComputedStyle(title).lineHeight) + 0.5
+          return title.closest('.orbit-list-row-shell')?.getAttribute('data-text-mode') !== 'label' || wrapped === title.hasAttribute('data-row-multiline')
+        }))
         const rows = await page.evaluate(() => Array.from(document.querySelectorAll('.orbit-list-row-shell')).map((row) => {
           const title = row.querySelector<HTMLElement>('[data-slot="list-row-title"]')!
           const range = document.createRange()

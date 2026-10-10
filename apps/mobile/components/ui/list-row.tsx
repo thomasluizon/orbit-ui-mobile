@@ -26,6 +26,10 @@ function hasSupportingLine({ description, textMode, value }: Readonly<Pick<ListR
   return !!description || (textMode === 'personal' && !!value)
 }
 
+function alignsFirstLine({ textMode, description, value, toggle, trailing, readOnly }: Readonly<Pick<ListRowProps, 'textMode' | 'description' | 'value' | 'toggle' | 'trailing' | 'readOnly'>>) {
+  return !!toggle || (textMode === 'label' && !!(description || value || (trailing && !readOnly)))
+}
+
 function getBodyStyle(hasDescription: boolean, column: boolean) {
   return [styles.body, column ? styles.columnBody : styles.insetBody, hasDescription ? styles.descriptionBody : null]
 }
@@ -48,8 +52,8 @@ function getTextBlockStyle(textMode: ListRowProps['textMode'], wrapValue: ListRo
   return [styles.textBlock, wrapValue ? styles.wrappedTextBlock : textMode === 'label' ? styles.labelTextBlock : null]
 }
 
-function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNode, value: ListRowProps['value'], readOnly: ListRowProps['readOnly']) {
-  return readOnly === true && textMode === 'label' && Boolean(trailing) && !value
+function hasInlineControl(textMode: ListRowProps['textMode'], trailing: ReactNode, value: ListRowProps['value'], keepsInline: boolean) {
+  return keepsInline && textMode === 'label' && Boolean(trailing) && !value
 }
 
 function personalTextProps(textMode: ListRowProps['textMode'], expanded: boolean | undefined) {
@@ -69,14 +73,14 @@ function RowTextContent({ title, textMode, wrapTitle, description, value, wrapVa
   const Title = textMode === 'personal' ? PersonalText : PlainRowText
   const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const { fontScale } = useWindowDimensions()
-  const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly)
+  const keepsControlInline = !!toggle || hasInlineControl(textMode, trailing, value, readOnly === true || labelWrapped)
   const titleLine = <Title onTextLayout={textMode === 'label' ? onTitleLayout : undefined} data-slot="list-row-title" {...personalTextProps(textMode, personalExpanded)} numberOfLines={titleLineLimit(textMode, wrapTitle)} ellipsizeMode="tail" style={[styles.title, textMode === 'label' || !description ? wrappedTitleStyle(textMode, wrapTitle || (textMode === 'personal' && !!value)) : null, { color: titleColor }]}>{title}</Title>
   const text = <View style={[getTextBlockStyle(textMode, wrapValue), keepsControlInline ? styles.labelControlText : null, toggle ? { minHeight: 28 } : null]}>
     {toggle ? <View style={{ minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' }}>{titleLine}</View> : titleLine}
     {description ? <Description data-slot="list-row-description" {...personalTextProps(textMode, personalExpanded)} ellipsizeMode="tail" style={[styles.description, textMode === 'label' ? styles.wrappedDescription : null, { color: valueColor }]}>{description}</Description> : null}
   </View>
   const rowValue = <RowValue personal={valueTextMode === 'personal'} expanded={personalExpanded} value={value} wrap={wrapValue === true || textMode === 'label'} color={valueColor} />
-  return useArrangedRowText({ textMode, wrapValue, trailing, value }, text, rowValue, keepsControlInline, labelWrapped || !!toggle)
+  return useArrangedRowText({ textMode, wrapValue, trailing, value }, text, rowValue, keepsControlInline, labelWrapped || alignsFirstLine({ textMode, description, value, toggle, trailing, readOnly }))
 }
 
 function useArrangedRowText({ textMode, wrapValue, trailing, value }: Readonly<Pick<ListRowProps, 'textMode' | 'wrapValue' | 'trailing' | 'value'>>, text: ReactNode, rowValue: ReactNode, keepsControlInline: boolean, labelWrapped: boolean) {
@@ -84,7 +88,7 @@ function useArrangedRowText({ textMode, wrapValue, trailing, value }: Readonly<P
   if (textMode === 'personal') return <View style={{ flex: 1, minWidth: 0, gap: 4 }}>{text}{rowValue}</View>
   if (!wrapValue && textMode !== 'label') return <>{text}{rowValue}</>
   const trailingStyle = textMode === 'label' ? { minHeight: Math.max(keepsControlInline ? 28 : 24, 23.8 * fontScale), justifyContent: 'center' as const } : null
-  return <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null, labelWrapped ? styles.firstLineContent : null]}>{text}{labelWrapped && value ? <View style={{ minHeight: 23.8 * fontScale, justifyContent: 'center' }}>{rowValue}</View> : rowValue}{textMode === 'label' && trailing ? <View data-slot="list-row-trailing" style={[styles.trailing, trailingStyle]}>{trailing}</View> : null}</View>
+  return <View style={[styles.wrappedContent, textMode === 'label' ? styles.labelContent : null, keepsControlInline ? styles.labelControlContent : null, labelWrapped ? styles.firstLineContent : null]}>{text}{textMode === 'label' && value ? <View style={{ minHeight: 23.8 * fontScale, justifyContent: 'center' }}>{rowValue}</View> : rowValue}{textMode === 'label' && trailing ? <View data-slot="list-row-trailing" style={[styles.trailing, trailingStyle]}>{trailing}</View> : null}</View>
 }
 
 function renderLeadingIcon(icon: ListRowProps['icon'], color: string) {
@@ -152,11 +156,16 @@ function RowControl({ ref, props, bodyStyle, interaction, tokens, children }: Re
 }
 
 function rowContentStyle(props: ListRowProps, trailing: ReactNode, labelWrapped: boolean) {
-  return labelWrapped || props.toggle || (props.textMode !== 'label' && props.wrapTitle && trailing) ? styles.firstLineContent : null
+  return labelWrapped || alignsFirstLine(props) || (props.textMode !== 'label' && props.wrapTitle && trailing) ? styles.firstLineContent : null
 }
 
 function rowAccessory(props: ListRowProps) {
   return props.toggle ? <SwitchTrack checked={props.toggle.checked} pending={props.toggle.pending} /> : props.trailing
+}
+
+function accessoryLineStyle(props: ListRowProps, labelWrapped: boolean, fontScale: number) {
+  if (!labelWrapped && !alignsFirstLine(props)) return null
+  return { minHeight: Math.max(props.toggle ? 28 : 24, 23.8 * fontScale), justifyContent: 'center' as const }
 }
 
 function RowAction({ action, hasDescription, reducedMotion, tokens }: Readonly<{ action: ListRowProps['action']; hasDescription: boolean; reducedMotion: boolean; tokens: ReturnType<typeof createTokensV2> }>) {
@@ -175,7 +184,8 @@ function RowAction({ action, hasDescription, reducedMotion, tokens }: Readonly<{
 export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Ref<View> }>) {
   const { props: disclosedProps, ChevronIcon } = useRowDisclosure(original)
   const props = disclosedProps.toggle ? { ...disclosedProps, textMode: 'label' as const } : disclosedProps
-  const [labelWrapped, setLabelWrapped] = useState(false)
+  const [measuredLabelWrapped, setLabelWrapped] = useState(false)
+  const labelWrapped = props.textMode === 'label' && measuredLabelWrapped
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { icon, description, danger = false, action, chevron = true, disabled = false, readOnly = false } = props
@@ -187,7 +197,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
   const bodyStyle = getBodyStyle(hasSupportingLine(props), column)
   const rowTrailing = rowAccessory(props)
   const { fontScale } = useWindowDimensions()
-  const switchLine = props.toggle || labelWrapped ? { minHeight: Math.max(28, 23.8 * fontScale), justifyContent: 'center' as const } : null
+  const switchLine = accessoryLineStyle(props, labelWrapped, fontScale)
   const body: ReactNode = (
     <AnimatedContent data-slot="list-row-content" style={[reducedMotion ? null : PRESS_TRANSITION, styles.bodyContent, rowContentStyle(props, rowTrailing, labelWrapped), interaction.pressed && !reducedMotion ? { transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
@@ -197,7 +207,7 @@ export function ListRow({ ref, ...original }: Readonly<ListRowProps & { ref?: Re
       ) : null}
       <RowTextContent {...props} labelWrapped={labelWrapped} onTitleLayout={(event) => setLabelWrapped(event.nativeEvent.lines.length > 1)} trailing={rowTrailing} titleColor={titleColor} valueColor={interaction.highlighted ? tokens.fg2 : tokens.fg3} />
       {rowTrailing && props.textMode !== 'label' ? <View data-slot="list-row-trailing" style={[styles.trailing, switchLine]}>{rowTrailing}</View> : null}
-      {!readOnly && !props.toggle && chevron ? <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={[styles.chevron, labelWrapped ? switchLine : null]}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.5} /></View> : null}
+      {!readOnly && !props.toggle && chevron ? <View data-slot="list-row-chevron" importantForAccessibility="no-hide-descendants" style={[styles.chevron, switchLine]}><ChevronIcon size={24} color={tokens.fg3} strokeWidth={1.5} /></View> : null}
     </AnimatedContent>
   )
 

@@ -111,7 +111,13 @@
   align-items: flex-start;
 }
 
-.orbit-list-row-shell[data-text-mode="label"]:has([data-slot="list-row-title"][data-row-multiline]) [data-slot="list-row-value"] {
+.orbit-list-row-shell[data-text-mode="label"]:has([data-slot="list-row-title"][data-row-multiline]) .orbit-list-row-label-content:has([data-slot="list-row-trailing"]):not(:has([data-slot="list-row-value"])) {
+  flex-wrap: nowrap;
+  --orbit-list-row-text-basis: 0px;
+  --orbit-list-row-text-shrink: 1;
+}
+
+.orbit-list-row-shell[data-text-mode="label"] [data-slot="list-row-value"] {
   display: flex;
   align-items: center;
   min-height: 1.4875rem;

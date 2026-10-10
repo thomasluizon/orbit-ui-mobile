@@ -21,6 +21,10 @@ function hasSupportingLine({ description, textMode, value }: Readonly<Pick<WebLi
   return !!description || (textMode === 'personal' && !!value)
 }
 
+function alignsFirstLine({ textMode, description, value, toggle, trailing, readOnly }: Readonly<Pick<WebListRowProps, 'textMode' | 'description' | 'value' | 'toggle' | 'trailing' | 'readOnly'>>) {
+  return !!toggle || (textMode === 'label' && !!(description || value || (trailing && !readOnly)))
+}
+
 function getBodyStyle(hasDescription: boolean, column: boolean) {
   return { minHeight: hasDescription ? 'var(--row-h)' : 'var(--row-h-compact)', paddingBlock: 12, ...(column ? { position: 'relative' as const } : { paddingInline: 16 }) }
 }
@@ -40,7 +44,7 @@ function titleLineHeight(textMode: WebListRowProps['textMode'], wrapTitle: WebLi
 }
 
 function textBlockStyle(textMode: WebListRowProps['textMode'], wrapValue: WebListRowProps['wrapValue'], inlineControl: boolean, switchRow: boolean) {
-  return { gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: inlineControl ? 0 : 'auto', flexShrink: inlineControl ? 1 : 0, maxWidth: '100%', minHeight: switchRow ? 28 : 24, justifyContent: 'center' } : {}) }
+  return { gap: 4, ...(wrapValue ? { flexBasis: 'auto', flexShrink: 0, maxWidth: '100%' } : textMode === 'label' ? { flexBasis: inlineControl ? 0 : 'var(--orbit-list-row-text-basis, auto)', flexShrink: inlineControl ? 1 : 'var(--orbit-list-row-text-shrink, 0)', maxWidth: '100%', minHeight: switchRow ? 28 : 24, justifyContent: 'center' } : {}) }
 }
 
 function personalTextProps(textMode: WebListRowProps['textMode'], expanded: boolean | undefined) {
@@ -63,7 +67,7 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
   const Description = textMode === 'personal' ? PersonalText : PlainRowText
   const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   const titleLine = <Title {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-title" translate={titleTranslate} className={titleClass(textMode, wrapTitle)} style={{ fontFamily: 'var(--font-sans)', fontSize: '1.0625rem', fontWeight: 400, lineHeight: titleLineHeight(textMode, wrapTitle || (textMode === 'personal' && !!value), description), paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{title}</Title>
-  return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle), ...(readOnly && textMode === 'label' && trailing && !value ? { flexBasis: 0, flexShrink: 1 } : {}) }}>
+  return <span className="flex min-w-0 flex-1 flex-col" style={{ color: titleColor, ...textBlockStyle(textMode, wrapValue, !!toggle || (readOnly === true && !!trailing && !value), !!toggle) }}>
     {toggle ? <span className="flex items-center" style={{ minHeight: 'max(28px, 1.4875rem)' }}>{titleLine}</span> : titleLine}
     {description ? <Description {...personalTextProps(textMode, personalExpanded)} data-slot="list-row-description" className={descriptionClass(textMode, wrapTitle)} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', fontFamily: 'var(--font-sans)', fontSize: '0.875rem', lineHeight: textMode === 'label' ? 1.4 : 1.25, paddingInlineStart: personalTextInsetStart === false ? 0 : undefined }}>{description}</Description> : null}
   </span>
@@ -72,11 +76,11 @@ function RowText({ title, textMode, titleTranslate, wrapTitle, description, wrap
 function RowValue({ value, textMode, wrapValue, valueTextMode, personalExpanded }: Readonly<Pick<WebListRowProps, 'value' | 'textMode' | 'wrapValue' | 'valueTextMode' | 'personalExpanded'>>) {
   if (!value) return null
   if (valueTextMode === 'personal') return <PersonalText expanded={personalExpanded} data-slot="list-row-value" className="t-meta min-w-0" style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</PersonalText>
-  return <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{value}</span>
+  return <span data-slot="list-row-value" className={`t-meta shrink-0 ${textMode === 'label' ? 'max-w-full break-words' : wrapValue ? 'max-w-full break-words' : 'max-w-[50%] truncate'}`} style={{ color: 'var(--orbit-list-row-secondary, var(--fg-3))', lineHeight: 1.4 }}>{textMode === 'label' ? <span className="min-w-0 max-w-full">{value}</span> : value}</span>
 }
 
-function getContentStyle(textMode: WebListRowProps['textMode'], hasWrappedControl: boolean, switchRow: boolean) {
-  return switchRow || (textMode !== 'label' && hasWrappedControl)
+function getContentStyle(textMode: WebListRowProps['textMode'], hasWrappedControl: boolean, firstLine: boolean) {
+  return firstLine || (textMode !== 'label' && hasWrappedControl)
     ? { minHeight: 24, gap: 12, alignItems: 'flex-start' }
     : { minHeight: 24, gap: 12 }
 }
@@ -106,7 +110,7 @@ function RowBody(props: Readonly<WebListRowProps>) {
 }
 
 function labelContentStyle(props: WebListRowProps) {
-  return props.toggle ? { alignItems: 'flex-start' } : {}
+  return alignsFirstLine(props) ? { alignItems: 'flex-start' } : {}
 }
 
 function RowTextAndValue(props: Readonly<WebListRowProps & { rowValue: ReactNode; rowTrailing: ReactNode }>) {
@@ -153,7 +157,7 @@ export function ListRow(original: Readonly<WebListRowProps>) {
   const props = disclosedProps.toggle ? { ...disclosedProps, textMode: 'label' as const } : disclosedProps
   const { accessibilityLabel, action, chevron = true, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span data-slot="list-row-content" id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing, !!props.toggle)}>{body}{!readOnly && !props.toggle && chevron ? <span data-slot="list-row-chevron" className="flex shrink-0 items-center justify-center" style={{ width: 24, minHeight: props.textMode === 'label' ? 'max(24px, 1.4875rem)' : 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.5} /></span> : null}</span>
+  const content = <span data-slot="list-row-content" id={contentId} className="flex min-w-0 flex-1 items-center" style={getContentStyle(props.textMode, !!props.wrapTitle && !!props.trailing, alignsFirstLine(props))}>{body}{!readOnly && !props.toggle && chevron ? <span data-slot="list-row-chevron" className="flex shrink-0 items-center justify-center" style={{ width: 24, minHeight: props.textMode === 'label' ? 'max(24px, 1.4875rem)' : 24 }}><Chevron aria-hidden="true" focusable="false" size={24} color="var(--fg-3)" strokeWidth={1.5} /></span> : null}</span>
   const bodyStyle = getBodyStyle(hasSupportingLine(props), props.placement === 'column')
 
   const actionBody = rowControl(props, content, bodyStyle)
