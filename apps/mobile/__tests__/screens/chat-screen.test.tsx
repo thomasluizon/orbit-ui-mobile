@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildComposerChips } from '@orbit/shared/chat'
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { toComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import { Composer } from '@/components/shell/composer'
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   setAstraConversationOpen: vi.fn(),
   router: { push: vi.fn() },
   composer: {
+    threadScroll: null as ReturnType<typeof createChatThreadScroll> | null,
     flatListRef: { current: null },
     messages: [] as ChatMessage[],
     isTyping: false,
@@ -207,6 +209,7 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.speechError = null
     mocks.composer.streamingMessageId = null
     mocks.composer.flatListRef.current = null
+    mocks.composer.threadScroll = createChatThreadScroll()
     mocks.composer.composerProps.state = 'atLimit'
     mocks.composer.composerProps.suggestions = []
     useChatStore.getState().setContextualSuggestion(null)
@@ -225,7 +228,7 @@ describe('ChatScreen composer recoveries', () => {
     expect(findByType(avoidingView!, 'FlatList') === undefined).toBe(showSuggestions)
   })
 
-  it('keeps the mounted conversation at the last message and restores its scroll offset', async () => {
+  it('keeps the mounted conversation at the newest content when the keyboard closes', async () => {
     vi.stubGlobal('requestAnimationFrame', (callback: (time: number) => void) => {
       callback(0)
       return 0
@@ -239,20 +242,25 @@ describe('ChatScreen composer recoveries', () => {
     const composer = findByType(tree.root, 'Composer')
 
     await TestRenderer.act(async () => {
-      ;(feed?.props.onScroll as (event: unknown) => void)({ nativeEvent: { contentOffset: { y: 180 } } })
+      ;(feed?.props.onContentSizeChange as (width: number, height: number) => void)(412, 680)
+      ;(feed?.props.onScroll as (event: unknown) => void)({ nativeEvent: {
+        contentOffset: { x: 0, y: 180 }, contentSize: { width: 412, height: 680 }, layoutMeasurement: { width: 412, height: 500 },
+      } })
       ;(composer?.props.onInputFocus as () => void)()
       __emitKeyboardEvent('keyboardDidShow', { endCoordinates: { screenY: 400, height: 400 } })
       ;(feed?.props.onLayout as () => void)()
       await Promise.resolve()
     })
     expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
+    scrollToEnd.mockClear()
 
     await TestRenderer.act(async () => {
       __emitKeyboardEvent('keyboardDidHide')
       ;(feed?.props.onLayout as () => void)()
       await Promise.resolve()
     })
-    expect(scrollToOffset).toHaveBeenCalledWith({ offset: 180, animated: false })
+    expect(scrollToEnd).toHaveBeenCalledExactlyOnceWith({ animated: false })
+    expect(scrollToOffset).not.toHaveBeenCalled()
     vi.unstubAllGlobals()
   })
 
@@ -357,6 +365,13 @@ describe('ChatScreen composer recoveries', () => {
 
     const feed = findByType(tree.root, 'FlatList')
     expect(feed?.props.accessibilityState).toEqual({ busy: true })
+    const scrollToEnd = vi.fn()
+    mocks.composer.flatListRef.current = { scrollToEnd } as never
+    TestRenderer.act(() => {
+      const contentChanged = feed?.props.onContentSizeChange as (() => void)
+      contentChanged()
+    })
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false })
     TestRenderer.act(() => {
       const contentChanged = feed?.props.onContentSizeChange as (() => void)
       contentChanged()

@@ -25,7 +25,7 @@ export default function ProfilePage() {
       <div className="flex flex-col pt-4 lg:pt-0" style={{ gap: 12 }}>
         <h1 className="sr-only" tabIndex={-1}>{t('nav.profile')}</h1>
         {error ? (
-          <p className="px-4 text-center font-sans text-[14px] text-[var(--status-bad-text)]">
+          <p className="orbit-content-frame text-center font-sans text-[14px] text-[var(--status-bad-text)]">
             {process.env.NODE_ENV === 'development' && error instanceof Error
               ? error.message
               : t('errors.loadProfile')}

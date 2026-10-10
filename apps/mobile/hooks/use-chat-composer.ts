@@ -34,6 +34,7 @@ import type {
 import type { Profile } from "@orbit/shared/types/profile";
 import {
   CHAT_DRAFT_STORAGE_KEY,
+  createChatThreadScroll,
   classifySendFailure,
   sendInConversation,
   invalidateAgentQueries,
@@ -185,6 +186,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
   } = useSpeechToText();
 
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const [threadScroll] = useState(createChatThreadScroll);
   const prefersReducedMotion = usePrefersReducedMotion();
   const prefersReducedMotionRef = useRef(prefersReducedMotion);
   useEffect(() => {
@@ -275,9 +277,9 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: !prefersReducedMotionRef.current });
+      if (threadScroll.isFollowing()) flatListRef.current?.scrollToEnd({ animated: !prefersReducedMotionRef.current });
     }, 100);
-  }, []);
+  }, [threadScroll]);
 
   const handleExecutedOperation = useCallback(
     async (response: AgentExecuteOperationResponse) => {
@@ -663,6 +665,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => sendInConversation(useUIStore.getState(), async () => {
+      threadScroll.followLatest();
       activeStepsRef.current = [];
       setActiveSteps([]);
       setSendError(null);
@@ -685,7 +688,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
 
       return runStreamingSend(attempted);
     }),
-    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
+    [addMessage, runStreamingSend, scrollToBottom, setIsTyping, threadScroll],
   );
 
   const sendMessage = useCallback(
@@ -917,6 +920,7 @@ export function useChatComposer({ isOnline, offlineTitle, pathname = "/", select
     canShowFollowUps: isOnline && !isSending && !atMessageLimit && profile != null,
     isOnline,
     flatListRef,
+    threadScroll,
     messages,
     isTyping,
     isSending,

@@ -146,6 +146,47 @@ function renderedAncestorHeight(node: TestNode): number | undefined {
 }
 
 describe("CalendarTimeGrid (mobile)", () => {
+  it.each([412, 600, 1100, 1352].flatMap((width) => ['en', 'pt-BR'].map((language) => ({ width, language }))))('keeps drawn week columns and complete short names in $language at $width', ({ width, language }) => {
+    const title = language === 'pt-BR' ? 'Revisar notas' : 'Review notes';
+    const words = language === 'pt-BR' ? ptBR : en;
+    const columns = Array.from({ length: 7 }, (_, index) => column(`2026-10-${String(5 + index).padStart(2, '0')}`));
+    for (const { fontScale, laneCount } of [1, 2].flatMap((fontScale) => [1, 2, 3].map((laneCount) => ({ fontScale, laneCount })))) {
+      vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale });
+      const entries = [
+        ...Array.from({ length: laneCount }, (_, index) => makeEntry({ habitId: `timed-${index}`, title, dueTime: '08:00' })),
+        makeEntry({ habitId: 'short-chip', title }),
+        makeEntry({ habitId: 'long-chip', title: 'Sweep-Supercalifragilisticexpialidocious-Token-Habit' }),
+      ];
+      const tree = renderGrid(columns, new Map(columns.map(({ dateStr }) => [dateStr, entries])), vi.fn(), false, displayTime, 'UTC', tokens, language, words.calendar.timeGrid.noSetTime);
+      const horizontal = tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
+      const viewportWidth = width - 32 - 96;
+      TestRenderer.act(() => horizontal.props.onLayout({ nativeEvent: { layout: { width: viewportWidth, height: 400 } } }));
+      const expectedWidth = Math.max(192, laneCount * 96) * fontScale;
+      for (const testID of ['time-grid-col-header', 'time-grid-all-day', 'time-grid-day-column']) {
+        const hosts = hostsByTestID(tree, testID);
+        expect(hosts).toHaveLength(7);
+        for (const host of hosts) expect(resolveStyle(host.props.style).width).toBe(expectedWidth);
+      }
+      expect(7 * expectedWidth).toBeGreaterThan(viewportWidth);
+      expect(horizontal.props.showsHorizontalScrollIndicator).toBe(true);
+      const label = hostsByTestID(tree, 'time-grid-any-time-label')[0]!;
+      const gutter = hostParent(hostParent(hostParent(hostParent(label))));
+      if (fontScale === 1) expect(resolveStyle(gutter.props.style).width).toBe(96);
+      else expect(Number(resolveStyle(gutter.props.style).width)).toBeGreaterThanOrEqual(96);
+      expect(gutter.props.children.type).toBe(ReactNative.ScrollView);
+      expect(gutter.props.children.props.scrollEnabled).toBe(false);
+      const font = require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="64"><text y="32" font-family="Geist" font-size="${12 * fontScale}">${title}</text></svg>`;
+      const bounds = new Resvg(svg, { font: { fontFiles: [font], loadSystemFonts: false } }).getBBox()!;
+      for (const block of hostsByTestID(tree, 'time-grid-event')) {
+        const style = resolveStyle(block.props.style);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(Number(style.width) - 2 * Number(style.paddingHorizontal) - 2 * Number(style.borderWidth));
+      }
+      const cellStyle = resolveStyle(hostsByTestID(tree, 'time-grid-all-day')[0]!.props.style);
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(expectedWidth - 2 * Number(cellStyle.paddingHorizontal) - Number(cellStyle.borderLeftWidth) - 18);
+    }
+  });
+
   for (const [language, words] of [['en', en], ['pt-BR', ptBR]] as const) {
     it.each([320, 360, 384, 412, 1352])(`fits the ${language} any-time label on one line at font scale 1 and %ipx`, (width) => {
       vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 915, scale: 1, fontScale: 1 });
@@ -247,7 +288,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
     expect(resolveStyle(hostsByTestID(tree, "time-grid-event")[0]!.props.style)).toMatchObject({
       top: 384,
-      width: 92,
+      width: 188,
       minHeight: 48,
     });
     expect(textValuesWithin(tree, "time-grid-event")).toContain("Standup");
@@ -368,20 +409,20 @@ describe("CalendarTimeGrid (mobile)", () => {
       const horizontal = () => tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
       TestRenderer.act(() => {
         horizontal().props.onLayout({ nativeEvent: { layout: { width: 284, height: 400 } } });
-        horizontal().props.onContentSizeChange(672, 400);
+        horizontal().props.onContentSizeChange(1344, 400);
       });
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(0);
-      const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]]);
+      const crowded = new Map([[columns[3]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' }), makeEntry({ habitId: 'third', dueTime: '08:00' })]]]);
       const update = (dayMap: Map<string, CalendarDayEntry[]>) => TestRenderer.act(() => tree.update(
         <CalendarTimeGrid columns={columns} dayMap={dayMap} onSelectDay={vi.fn()} displayTime={displayTime} language="en" allDayLabel="No set time" nowLabel="Now" isLoading={false} t={translate} tokens={tokens} timeZone="UTC" />,
       ));
       if (dragged) TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
       update(crowded);
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(0);
-      TestRenderer.act(() => horizontal().props.onContentSizeChange(1344, 400));
-      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual(dragged ? [] : [[{ x: 530, animated: false }]]);
+      TestRenderer.act(() => horizontal().props.onContentSizeChange(2016, 400));
+      expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual(dragged ? [] : [[{ x: 866, animated: false }]]);
       TestRenderer.act(() => horizontal().props.onScrollBeginDrag());
-      update(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'third', dueTime: '08:00' })]]]));
+      update(new Map([[columns[3]!.dateStr, [...crowded.get(columns[3]!.dateStr)!, makeEntry({ habitId: 'fourth', dueTime: '08:00' })]]]));
       TestRenderer.act(() => horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 400 } } }));
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toHaveLength(dragged ? 0 : 1);
     } finally { __setScrollToImpl(() => {}); }
@@ -464,9 +505,9 @@ describe("CalendarTimeGrid (mobile)", () => {
   });
 
   it.each([
-    { movement: 'native clamp', offset: 388, contentWidth: 672, expected: 372 },
-    { movement: 'upward input below the maximum', offset: 350, contentWidth: 672, expected: 350 },
-    { movement: 'input to the end', offset: 1116, contentWidth: 1400, expected: 1116 },
+    { movement: 'native clamp', offset: 1060, contentWidth: 1344, expected: 1044 },
+    { movement: 'upward input below the maximum', offset: 1000, contentWidth: 1344, expected: 1000 },
+    { movement: 'input to the end', offset: 1788, contentWidth: 2072, expected: 1788 },
   ])("keeps horizontal opening ownership after $movement", ({ offset, contentWidth, expected }) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-08T21:30:00Z'));
@@ -478,22 +519,22 @@ describe("CalendarTimeGrid (mobile)", () => {
     });
     try {
       const columns = Array.from({ length: 7 }, (_, index) => ({ ...column(`2026-10-${String(5 + index).padStart(2, '0')}`), isToday: index === 6 }));
-      const crowded = new Map([[columns[6]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' })]]]);
+      const crowded = new Map([[columns[6]!.dateStr, [makeEntry({ habitId: 'first', dueTime: '08:00' }), makeEntry({ habitId: 'second', dueTime: '08:00' }), makeEntry({ habitId: 'third', dueTime: '08:00' })]]]);
       const tree = renderGrid(columns, crowded);
       const horizontal = () => tree.root.findAll((node) => node.type === 'ScrollView' && node.props.horizontal)[0]!;
       const body = () => hostsByTestID(tree, 'time-grid-hour-scroller')[0]!;
       const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
       TestRenderer.act(() => {
         horizontal().props.onLayout({ nativeEvent: { layout: { width: 284, height: 400 } } });
-        horizontal().props.onContentSizeChange(1344, 400);
-        body().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 400 } } });
-        pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 300 } } });
+        horizontal().props.onContentSizeChange(2016, 400);
+        body().props.onLayout({ nativeEvent: { layout: { width: 2016, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 2016, height: 300 } } });
       });
-      expect(horizontalOffset).toBe(1060);
+      expect(horizontalOffset).toBe(1730);
       expect(verticalOffset).toBe(1232);
       TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: {
-        contentOffset: { x: 1060, y: 0 },
-        contentSize: { width: 1344, height: 400 },
+        contentOffset: { x: 1730, y: 0 },
+        contentSize: { width: 2016, height: 400 },
         layoutMeasurement: { width: 284, height: 400 },
       } }));
       TestRenderer.act(() => {
@@ -508,12 +549,12 @@ describe("CalendarTimeGrid (mobile)", () => {
         <CalendarTimeGrid columns={columns} dayMap={new Map()} onSelectDay={vi.fn()} displayTime={displayTime} language="en" allDayLabel="No set time" nowLabel="Now" isLoading={false} t={translate} tokens={tokens} timeZone="UTC" />,
       ));
       TestRenderer.act(() => {
-        horizontal().props.onContentSizeChange(672, 400);
+        horizontal().props.onContentSizeChange(1344, 400);
         horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 400 } } });
-        pane().props.onLayout({ nativeEvent: { layout: { width: 672, height: 100 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 100 } } });
       });
       expect(horizontalOffset).toBe(expected);
-      expect(verticalOffset).toBe(expected === 372 ? 957 : 1232);
+      expect(verticalOffset).toBe(expected === 1044 ? 957 : 1232);
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }
   });
 
@@ -566,21 +607,21 @@ describe("CalendarTimeGrid (mobile)", () => {
       const pane = () => hostsByTestID(tree, 'time-grid-day-pane')[0]!;
       TestRenderer.act(() => {
         horizontal().props.onLayout({ nativeEvent: { layout: { width: 284, height: 400 } } });
-        horizontal().props.onContentSizeChange(672, 400);
-        body().props.onLayout({ nativeEvent: { layout: { width: 672, height: 400 } } });
-        pane().props.onLayout({ nativeEvent: { layout: { width: 672, height: 300 } } });
+        horizontal().props.onContentSizeChange(1344, 400);
+        body().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 400 } } });
+        pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 300 } } });
       });
-      const horizontalOffset = todayIndex === 0 ? 0 : 388;
+      const horizontalOffset = todayIndex === 0 ? 0 : 1060;
       expect(scrollTo.mock.calls.filter(([offset]) => 'x' in offset)).toEqual([[{ x: horizontalOffset, animated: false }]]);
-      TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: horizontalOffset, y: 0 }, contentSize: { width: 672, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
+      TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: horizontalOffset, y: 0 }, contentSize: { width: 1344, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
       scrollTo.mockClear();
-      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 672, height: 100 } } }));
+      TestRenderer.act(() => pane().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 100 } } }));
       expect(scrollTo.mock.calls.filter(([offset]) => 'y' in offset)).toEqual([[{ y: 957, animated: false }], [{ y: 957, animated: false }]]);
-      TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: 100, y: 0 }, contentSize: { width: 672, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
+      TestRenderer.act(() => horizontal().props.onScroll({ nativeEvent: { contentOffset: { x: 100, y: 0 }, contentSize: { width: 1344, height: 400 }, layoutMeasurement: { width: 284, height: 400 } } }));
       scrollTo.mockClear();
       TestRenderer.act(() => {
         horizontal().props.onLayout({ nativeEvent: { layout: { width: 300, height: 300 } } });
-        body().props.onLayout({ nativeEvent: { layout: { width: 672, height: 300 } } });
+        body().props.onLayout({ nativeEvent: { layout: { width: 1344, height: 300 } } });
       });
       expect(scrollTo).not.toHaveBeenCalled();
     } finally { vi.useRealTimers(); __setScrollToImpl(() => {}); }

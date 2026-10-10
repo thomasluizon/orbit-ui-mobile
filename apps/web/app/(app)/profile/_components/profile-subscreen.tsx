@@ -27,9 +27,9 @@ export function ProfileSubscreen({ screen }: Readonly<{ screen: ProfileSubmenuId
   const { profile, isLoading, error, refetch, patchProfile } = useProfile()
   const submenu = PROFILE_SUBMENUS.find((entry) => entry.id === screen)!
   const Content = CONTENT[screen]
-  return <div className="w-full max-w-[560px] min-w-0">
+  return <div className="w-full min-w-0">
     <PageHeader title={t(submenu.labelKey)} backLabel={t('common.backToProfile')} onBack={() => router.replace('/profile')} />
-    <div className="flex min-w-0 flex-col p-4" style={{ gap: 12 }} data-testid={`profile-settings-group-${screen}`}>
+    <div className="orbit-content-frame flex flex-col py-4" style={{ gap: 12 }} data-testid={`profile-settings-group-${screen}`}>
       {isLoading ? <Skeleton variant="settings" rows={8} label={t('profile.loading')} /> : error ? <ErrorState message={t('errors.loadProfile')} action={<PillButton variant="ghost" onClick={() => void refetch()}>{t('common.retry')}</PillButton>} /> : <Content profile={profile} patchProfile={patchProfile} />}
     </div>
   </div>

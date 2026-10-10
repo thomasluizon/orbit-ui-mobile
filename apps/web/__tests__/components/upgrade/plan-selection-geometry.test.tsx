@@ -63,7 +63,7 @@ describe('Pro tier geometry in Chromium', () => {
   const compactCases = [320, 360, 384, 412].flatMap((width) => (['en', 'pt-BR'] as const)
     .map((locale) => ({ width, locale })))
 
-  it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }])('fills the content column with equal period segments at $width in $locale', async ({ width, locale }) => {
+  it.each([...compactCases, { width: 1440, locale: 'en' }, { width: 1440, locale: 'pt-BR' }])('shares remaining width between label-based period segments at $width in $locale', async ({ width, locale }) => {
     const messages = locale === 'en' ? en : ptBR
     const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><Pricing coupon={false} /></NextIntlClientProvider>)
     await waitForLoadedTiers(container)
@@ -76,7 +76,9 @@ describe('Pro tier geometry in Chromium', () => {
         const column = group.parentElement!.getBoundingClientRect()
         const segments = [...group.querySelectorAll('[role="radio"]')].map((segment) => {
           const box = segment.getBoundingClientRect()
-          return { width: box.width, top: box.top, height: box.height }
+          const range = document.createRange()
+          range.selectNodeContents(segment.querySelector('span')!)
+          return { width: box.width, labelWidth: range.getBoundingClientRect().width, top: box.top, height: box.height }
         })
         return { width: bounds.width, columnWidth: column.width, segments }
       })
@@ -84,7 +86,8 @@ describe('Pro tier geometry in Chromium', () => {
       expect(geometry.width).toBeCloseTo(width >= 1024 ? 320 : width - 32, 0)
       expect(geometry.width).toBeCloseTo(geometry.columnWidth, 0)
       expect(geometry.segments[0]!.top).toBeCloseTo(geometry.segments[1]!.top, 0)
-      expect(geometry.segments[0]!.width).toBeCloseTo(geometry.segments[1]!.width, 0)
+      const remaining = geometry.segments.map((segment) => segment.width - segment.labelWidth)
+      expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
       for (const segment of geometry.segments) expect(segment.height).toBeGreaterThanOrEqual(48)
     } finally { await page.close() }
   })

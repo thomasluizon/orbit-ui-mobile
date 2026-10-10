@@ -25,17 +25,13 @@ export function ProfileSettingsFrame({
   labels,
   rows,
 }: Readonly<ProfileSettingsFrameProps>) {
-  if (isLoading) {
-    return <Skeleton variant="settings" rows={8} label={loadingLabel} />
-  }
-
   return (
     <div
       data-testid="profile-settings-groups"
-      className="flex w-full max-w-[560px] flex-col px-4"
+      className="orbit-content-frame flex flex-col"
       style={{ gap: 32 }}
     >
-      {PROFILE_SETTINGS_GROUPS.map((group) => (
+      {isLoading ? <Skeleton variant="settings" rows={8} label={loadingLabel} /> : PROFILE_SETTINGS_GROUPS.map((group) => (
         <section
           key={group.id}
           data-testid={`profile-settings-group-${group.id}`}

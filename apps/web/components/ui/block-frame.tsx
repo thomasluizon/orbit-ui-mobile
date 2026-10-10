@@ -161,7 +161,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
 export function BlockFrame(props: Readonly<BlockFrameProps>) {
   const titleRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
-    if (props.focusTitleOnMount) titleRef.current?.focus()
+    if (props.focusTitleOnMount) titleRef.current?.focus({ preventScroll: true })
   }, [props.focusTitleOnMount])
   const missingLabels = findMissingBlockFrameLabels(props)
   if (process.env.NODE_ENV !== 'production' && missingLabels.length > 0) {

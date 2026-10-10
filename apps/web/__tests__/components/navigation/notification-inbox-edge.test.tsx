@@ -28,7 +28,7 @@ vi.mock('@/hooks/use-session-reset', () => ({ useResetOnAccountChange: () => {} 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => '/notifications' }))
 
-const cases = [412, 840, 1100, 1352].flatMap((width) => (['en', 'pt-BR'] as const)
+const cases = [412, 600, 840, 1100, 1352].flatMap((width) => (['en', 'pt-BR'] as const)
   .flatMap((locale) => states.map((state) => ({ width, locale, state }))))
 
 describe('Avisos content edge in Chromium', () => {
@@ -55,10 +55,14 @@ describe('Avisos content edge in Chromium', () => {
         const list = document.querySelector('ul')!
         const back = Array.from(document.querySelectorAll('button')).find((button) => button.getAttribute('aria-label') === backLabel)!
         return { backLeft: back.getBoundingClientRect().left, listWidth: list.getBoundingClientRect().width,
-          rowLeft: list.firstElementChild!.getBoundingClientRect().left }
+          rowLeft: list.firstElementChild!.getBoundingClientRect().left,
+          firstWidth: list.firstElementChild!.getBoundingClientRect().width,
+          lastWidth: list.lastElementChild!.getBoundingClientRect().width }
       }, words.common.back)
       expect(Math.abs(geometry.rowLeft - geometry.backLeft - 8)).toBeLessThanOrEqual(0.5)
-      expect(geometry.listWidth).toBe(Math.min(width, 560))
+      expect(geometry.listWidth).toBe(width < 1024 ? Math.min(width, 740) : 592)
+      expect(geometry.firstWidth).toBe(width < 1024 ? Math.min(width, 740) - 32 : 560)
+      expect(geometry.lastWidth).toBe(geometry.firstWidth)
     } finally { await page.close() }
   })
 })

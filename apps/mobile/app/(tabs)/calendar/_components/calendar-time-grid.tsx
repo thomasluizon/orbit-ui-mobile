@@ -31,6 +31,7 @@ const BLOCK_HEIGHT = 72;
 const BLOCK_MIN_WIDTH = 48;
 const BLOCK_HORIZONTAL_INSET = 4;
 const MIN_LANE_WIDTH = 96;
+const MIN_COLUMN_WIDTH = 192;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 export interface TimeGridColumn {
@@ -342,7 +343,7 @@ export function CalendarTimeGrid({
       timed.map(({ laneCount }) => laneCount),
     ),
   );
-  const minColumnWidth = Math.max(96, maxLaneCount * MIN_LANE_WIDTH) * fontScale;
+  const minColumnWidth = Math.max(MIN_COLUMN_WIDTH, maxLaneCount * MIN_LANE_WIDTH) * fontScale;
 
   const colWidth =
     viewportWidth > 0 && columns.length > 0

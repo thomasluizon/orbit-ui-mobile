@@ -178,7 +178,7 @@ function createStyles(tokens: AppTokens) {
     days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
     day: { overflow: 'hidden', alignItems: 'center', borderRadius: radius.full, height: TOUCH_TARGET_MIN, justifyContent: 'center', width: TOUCH_TARGET_MIN },
     dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
-    daySelected: { backgroundColor: tokens.primaryDim, borderColor: tokens.primary, borderWidth: 1.5 },
+    daySelected: { backgroundColor: tokens.primaryDim },
     dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
     dayTextSelected: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -219,7 +219,7 @@ function ScheduleCorrections({ days, daily = false, dayOptions, quantity, showCo
         {dayOptions.map((day) => {
           const selected = daily || days.includes(day.value)
           return (
-            <Pressable key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
+            <Pressable focusInset selectionRingWidth={1.5} key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
               <Text style={selected ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
             </Pressable>
           )

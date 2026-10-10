@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -27,7 +28,7 @@ type ChatController = Parameters<typeof AstraConversation>[0]['chat']
 
 function createChat(withTrace = false): ChatController {
   return {
-    chatContainerRef: createRef<HTMLDivElement>(),
+    threadScroll: createChatThreadScroll(), scrollToBottom: vi.fn(), chatContainerRef: createRef<HTMLDivElement>(),
     messages: [{ id: 'answer', role: 'ai', timestamp: new Date(),
       ...buildChatFinalMessageFields(finalResponse, withTrace ? [{ domain: 'habits', access: 'read' }] : []) }],
     activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null,

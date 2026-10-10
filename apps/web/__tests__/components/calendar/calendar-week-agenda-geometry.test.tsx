@@ -3,6 +3,7 @@ import { buildCalendarDayMap, createTimeDisplay } from '@orbit/shared/utils'
 import { expectInteractionFill } from '@/e2e/layout/label-interaction-fill'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { NextIntlClientProvider } from 'next-intl'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
@@ -50,6 +51,64 @@ describe('Week and agenda geometry in Chromium', () => {
     stylesheet = (await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })).css
   })
   afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+  it.each([412, 600, 1100, 1352].flatMap((width) => locales.map((settings) => ({ width, ...settings }))))('keeps drawn week columns and complete short names in $locale at $width', async ({ width, locale, messages, dateLocale }) => {
+    const shortName = locale === 'pt-BR' ? 'Revisar notas' : 'Review notes'
+    const columns = Array.from({ length: 7 }, (_, index) => ({ date: new Date(2026, 9, 5 + index), dateStr: `day-${index}`, isToday: index === 3, isFuture: index > 3 }))
+    const entries = [
+      { ...entry, title: shortName },
+      { ...entry, habitId: 'long-timed', dueTime: '18:00' },
+      { ...entry, habitId: 'short-chip', title: shortName, dueTime: null },
+      { ...entry, habitId: 'long-chip', title: 'Sweep-Supercalifragilisticexpialidocious-Token-Habit', dueTime: null },
+    ]
+    const markup = renderToStaticMarkup(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
+      <CalendarTimeGrid columns={columns} dayMap={new Map(columns.map(({ dateStr }) => [dateStr, entries]))}
+        onSelectDay={vi.fn()} displayTime={timeLabel} dateFnsLocale={dateLocale}
+        allDayLabel={messages.calendar.timeGrid.noSetTime} nowLabel={messages.calendar.timeGrid.now} timeZone="UTC" />
+    </NextIntlClientProvider>)
+    const page = await browser.newPage({ viewport: { width, height: 915 } })
+    try {
+      await page.setContent(`<style>${stylesheet}</style><div style="height:100vh;display:flex;flex-direction:column">${markup}</div>`)
+      await loadAppFonts(page)
+      for (const scale of [1, 2]) {
+        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+        const geometry = await page.evaluate((shortName) => {
+          const scroller = document.querySelector<HTMLElement>('[data-time-grid-scroller]')!
+          scroller.scrollLeft = 0
+          const gutter = document.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!
+          const gutterStart = gutter.getBoundingClientRect().left
+          const widths = (testId: string) => [...document.querySelectorAll(`[data-testid="${testId}"]`)].map((node) => node.getBoundingClientRect().width)
+          const names = [...document.querySelectorAll<HTMLElement>('[data-personal-text], [data-testid="time-grid-all-day-event"] > span > span')].map((name) => {
+            const bounds = name.getBoundingClientRect()
+            const range = document.createRange(); range.selectNodeContents(name)
+            const rects = [...range.getClientRects()]
+            const style = getComputedStyle(name)
+            return { text: name.textContent, complete: rects.every((rect) => rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 && rect.bottom <= bounds.bottom + 1),
+              clamp: style.webkitLineClamp, ellipsis: style.textOverflow, overflow: name.scrollWidth > name.clientWidth }
+          })
+          scroller.scrollLeft = scroller.scrollWidth
+          return { columns: widths('time-grid-day-column'), headers: widths('time-grid-col-header'), cells: widths('time-grid-all-day'),
+            shortNames: names.filter(({ text }) => text === shortName), longNames: names.filter(({ text }) => text !== shortName),
+            gutterWidth: gutter.getBoundingClientRect().width, gutterStart, gutterEnd: gutter.getBoundingClientRect().left,
+            travel: scroller.scrollLeft, viewport: scroller.clientWidth, content: scroller.scrollWidth,
+            page: document.documentElement.clientWidth, pageScroll: document.documentElement.scrollWidth }
+        }, shortName)
+        expect(geometry.columns).toHaveLength(7)
+        for (const columnWidth of geometry.columns) expect(columnWidth).toBeGreaterThanOrEqual(192 * scale)
+        expect(geometry.headers).toEqual(geometry.columns)
+        expect(geometry.cells).toEqual(geometry.columns)
+        expect(geometry.pageScroll).toBe(geometry.page)
+        expect(geometry.content).toBeGreaterThan(geometry.viewport)
+        expect(geometry.travel).toBeGreaterThan(0)
+        expect(geometry.gutterEnd).toBe(geometry.gutterStart)
+        if (scale === 1) expect(geometry.gutterWidth).toBe(96)
+        expect(geometry.shortNames).toHaveLength(14)
+        expect(geometry.shortNames.every(({ complete }) => complete)).toBe(true)
+        expect(geometry.longNames.filter(({ clamp }) => clamp === '2')).toHaveLength(7)
+        expect(geometry.longNames.filter(({ ellipsis, overflow }) => ellipsis === 'ellipsis' && overflow)).toHaveLength(7)
+      }
+    } finally { await page.close() }
+  })
 
   it.each(['dark', 'light'] as const)('keeps the named chip at 28 inside its 48 hit area in %s', async (theme) => {
     const { container } = render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
@@ -162,6 +221,7 @@ describe('Week and agenda geometry in Chromium', () => {
           expect(summary.right).toBeLessThanOrEqual(summary.parent.right)
         }
         for (const column of geometry.columns) {
+          expect(column.width).toBeGreaterThanOrEqual(192 * scale)
           for (const target of column.targets) {
             expect(target.name).toBe(longTitle)
             expect(target.rings).toBe(1)

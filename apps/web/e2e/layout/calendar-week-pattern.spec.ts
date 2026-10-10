@@ -30,7 +30,7 @@ const calendarMonth = calendarMonthResponseSchema.parse({
   logs: {},
 })
 
-for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726 }, { width: 840, height: 726 }, { width: 412, height: 640 }]) {
+for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726 }, { width: 840, height: 726 }, { width: 600, height: 726 }, { width: 412, height: 640 }]) {
   for (const [locale, words] of [['pt-BR', ptBR], ['en', en]] as const) {
     test.describe(`${locale} week pattern at ${viewport.width}x${viewport.height}`, () => {
       const profile = profileSchema.parse({ ...profileFixture, language: locale, timeZone: 'UTC', weekStartDay: 1 })
@@ -39,6 +39,65 @@ for (const viewport of [{ width: 1352, height: 706 }, { width: 1100, height: 726
         await setLayoutProfileSession(context, profile)
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: calendarMonth }))
+      })
+
+      test('keeps 192 day columns, complete short names and a pinned gutter', async ({ page, context }) => {
+        const shortName = locale === 'pt-BR' ? 'Revisar notas' : 'Review notes'
+        const longName = 'Sweep-Supercalifragilisticexpialidocious-Token-Habit'
+        const shortNameCalendar = calendarMonthResponseSchema.parse({
+          habits: [[shortName, null], [shortName, '08:00'], [longName, null], ['Organizar as anotações e preparar a próxima semana com calma', '18:00']]
+            .map(([title, dueTime], index) => makeHabitScheduleItem({
+              id: `week-width-${index}`, title: title!, dueTime, children: [], hasSubHabits: false,
+              dueDate: dates[0]!, scheduledDates: dates,
+            })),
+          logs: {},
+        })
+        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
+          (route) => route.fulfill({ json: shortNameCalendar }))
+        await page.goto('/calendar')
+        await page.getByRole('radio', { name: words.calendar.view.week, exact: true }).click()
+        const grid = page.getByTestId('calendar-time-grid')
+        await expect(grid.getByTestId('time-grid-event')).toHaveCount(14)
+        await page.evaluate(() => document.fonts.ready)
+        for (const scale of [1, 2]) {
+          await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
+          await expect.poll(() => grid.getByTestId('time-grid-day-column').evaluateAll((columns, scale) =>
+            columns.length === 7 && columns.every((column) => column.getBoundingClientRect().width >= 192 * scale), scale)).toBe(true)
+          const geometry = await grid.evaluate((element, shortName) => {
+            const scroller = element.querySelector<HTMLElement>('[data-testid="time-grid-hour-scroller"]')!
+            scroller.scrollTop = 0
+            scroller.scrollLeft = 0
+            const gutter = element.querySelector('[data-testid="time-grid-any-time-label"]')!.parentElement!
+            const start = gutter.getBoundingClientRect()
+            const widths = (testId: string) => [...element.querySelectorAll(`[data-testid="${testId}"]`)].map((node) => node.getBoundingClientRect().width)
+            const names = [...element.querySelectorAll<HTMLElement>('[data-personal-text], [data-testid="time-grid-all-day-event"] > span > span')].map((name) => {
+              const bounds = name.getBoundingClientRect()
+              const range = document.createRange(); range.selectNodeContents(name)
+              return { title: name.textContent, complete: [...range.getClientRects()].every((rect) => rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1 && rect.bottom <= bounds.bottom + 1),
+                clamp: getComputedStyle(name).webkitLineClamp, ellipsis: getComputedStyle(name).textOverflow, overflow: name.scrollWidth > name.clientWidth }
+            })
+            scroller.scrollLeft = scroller.scrollWidth
+            const horizontalOwners = []
+            for (let node: HTMLElement | null = scroller; node; node = node.parentElement) {
+              if (['auto', 'scroll'].includes(getComputedStyle(node).overflowX) && node.scrollWidth > node.clientWidth + 1) horizontalOwners.push(node.dataset.testid)
+            }
+            return { columns: widths('time-grid-day-column'), headers: widths('time-grid-col-header'), cells: widths('time-grid-all-day'),
+              shortNames: names.filter(({ title }) => title === shortName), longNames: names.filter(({ title }) => title !== shortName),
+              gutterWidth: start.width, gutterStart: start.left, gutterEnd: gutter.getBoundingClientRect().left, horizontalOwners,
+              travel: scroller.scrollLeft, page: document.documentElement.clientWidth, pageScroll: document.documentElement.scrollWidth }
+          }, shortName)
+          expect(geometry.headers).toEqual(geometry.columns)
+          expect(geometry.cells).toEqual(geometry.columns)
+          expect(geometry.shortNames).toHaveLength(14)
+          expect(geometry.shortNames.every(({ complete }) => complete)).toBe(true)
+          expect(geometry.longNames.filter(({ clamp }) => clamp === '2')).toHaveLength(7)
+          expect(geometry.longNames.filter(({ ellipsis, overflow }) => ellipsis === 'ellipsis' && overflow)).toHaveLength(7)
+          expect(geometry.horizontalOwners).toEqual(['time-grid-hour-scroller'])
+          expect(geometry.gutterEnd).toBe(geometry.gutterStart)
+          if (scale === 1) expect(geometry.gutterWidth).toBe(96)
+          expect(geometry.travel).toBeGreaterThan(0)
+          expect(geometry.pageScroll).toBe(geometry.page)
+        }
       })
 
       test('names entries, keeps day lanes reachable and opens at now', async ({ page }) => {

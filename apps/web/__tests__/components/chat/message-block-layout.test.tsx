@@ -1,3 +1,4 @@
+import { createChatThreadScroll } from '@orbit/shared/hooks'
 import { createRef } from 'react'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
@@ -44,7 +45,7 @@ describe('Astra block layout in Chromium', () => {
   it.each(['finish', 'cancel', 'replace'] as const)('settles a newly completed block-only outcome turn after %s before reading its geometry', async mode => {
     const scenario = chatBlockLayoutCases.find(scenario => scenario.kind === 'outcome')!
     const chat = {
-      chatContainerRef: createRef<HTMLDivElement>(), messages: [],
+      threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(), messages: [],
       activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
       composerProps: { state: 'idle', value: '', onChangeValue: vi.fn(), onSend: vi.fn(), suggestions: [],
         words: { placeholder: pt.shell.composer.placeholder, send: pt.shell.composer.send,
@@ -98,7 +99,7 @@ describe('Astra block layout in Chromium', () => {
   it.each(cases)('spaces $kind at $width in $locale with prose=$prose', async ({ width, locale, scenario, prose }) => {
     const messages = locale === 'en' ? en : pt
     const chat = {
-      chatContainerRef: createRef<HTMLDivElement>(),
+      threadScroll: createChatThreadScroll(), chatContainerRef: createRef<HTMLDivElement>(),
       messages: [makeHeldHabitMessage({ id: 'previous', content: 'Review the routine.', pendingOperations: [] }), makeChatBlockLayoutMessage(scenario, prose)],
       activeSteps: [], showSuggestions: false, isTyping: false, streamingMessageId: null, canShowFollowUps: false,
       sendMessage: vi.fn(), confirmAndExecutePendingOperation: vi.fn(), prepareStepUpForBubble: vi.fn(), verifyStepUpForBubble: vi.fn(),
