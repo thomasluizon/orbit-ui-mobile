@@ -34,6 +34,7 @@ export default function TermsPage() {
   return (
     <LegalDocumentLayout
       title={t('terms.title')}
+      headerTitle={t('terms.headerTitle')}
       lastUpdated={t('terms.lastUpdated')}
       sections={useTermsSections()}
       closingNote={{ id: 'contact', title: t('terms.contact.title'), paragraphs: [t('terms.contact.body')] }}

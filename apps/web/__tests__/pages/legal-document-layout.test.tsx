@@ -27,6 +27,7 @@ const cases = [
   {
     Page: PrivacyPage,
     key: 'privacy',
+    titles: { en: ['Privacy', 'Privacy policy'], 'pt-BR': ['Privacidade', 'Política de privacidade'] },
     sectionKeys: [
       'intro',
       'controller',
@@ -47,6 +48,7 @@ const cases = [
   {
     Page: TermsPage,
     key: 'terms',
+    titles: { en: ['Terms', 'Terms of use'], 'pt-BR': ['Termos', 'Termos de uso'] },
     sectionKeys: [
       'intro',
       'provider',
@@ -90,7 +92,7 @@ describe.each([
       .toHaveTextContent('Unable to save')
   })
 
-  it.each(cases)('renders $key through the shared measured layout', ({ Page, key, sectionKeys }) => {
+  it.each(cases)('renders $key through the shared measured layout', ({ Page, key, sectionKeys, titles }) => {
     navigation.pathname = `/${key}`
     const document = messages[key] as DocumentMessages
     const { container } = render(
@@ -114,7 +116,13 @@ describe.each([
     expect(container.querySelectorAll('main')).toHaveLength(1)
     expect(layout).toHaveClass('min-w-0')
     expect(layout!.querySelector('[data-legal-document-content]')).toHaveClass('min-w-0', 'px-4')
-    expect(layout).toHaveTextContent(document.title)
+    const [headerTitle, documentTitle] = titles[locale as keyof typeof titles]
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(headerTitle)
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(headerTitle)
+    expect(layout!.querySelector('[data-legal-document-content] header')!.firstElementChild)
+      .toHaveTextContent(documentTitle)
+    expect(screen.getAllByText(documentTitle, { exact: true })).toHaveLength(1)
+    expect(document.title).toBe(messages.about[key])
     expect(layout).toHaveTextContent(document.lastUpdated)
     expect(closingNote).toHaveTextContent(document.contact.title)
     expect(closingNote).toHaveTextContent(document.contact.body)

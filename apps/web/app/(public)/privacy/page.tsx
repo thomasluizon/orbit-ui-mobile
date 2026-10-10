@@ -61,6 +61,7 @@ export default function PrivacyPage() {
   return (
     <LegalDocumentLayout
       title={t('privacy.title')}
+      headerTitle={t('privacy.headerTitle')}
       lastUpdated={t('privacy.lastUpdated')}
       sections={usePrivacySections()}
       closingNote={{ id: 'contact', title: t('privacy.contact.title'), paragraphs: [t('privacy.contact.body')] }}

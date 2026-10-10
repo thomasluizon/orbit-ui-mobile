@@ -2195,7 +2195,8 @@
   },
   "privacy": {
     "close": "Fechar política de privacidade",
-    "title": "Política de Privacidade",
+    "title": "Política de privacidade",
+    "headerTitle": "Privacidade",
     "lastUpdated": "Última atualização: setembro de 2026",
     "intro": {
       "title": "Introdução",
@@ -3418,7 +3419,8 @@
   },
   "terms": {
     "close": "Fechar termos de serviço",
-    "title": "Termos de Serviço",
+    "title": "Termos de uso",
+    "headerTitle": "Termos",
     "lastUpdated": "Última atualização: Junho de 2026",
     "intro": {
       "title": "Acordo",
