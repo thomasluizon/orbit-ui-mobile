@@ -16,7 +16,7 @@ export function DaySummaryCard({ daySummary }: Readonly<{ daySummary: DaySummary
     : [{ id: 'due', label: t('chat.daySummary.doneOfDue', { done: daySummary.done, due: daySummary.due }) }]
   rows.push({ id: 'overdue', label: t('chat.daySummary.overdue'), control: <span className="tabular-nums">{daySummary.overdueCount}</span> })
   rows.push({ id: 'streak', label: t('chat.daySummary.streak'), control: <span className="tabular-nums">{daySummary.currentStreak}</span> })
-  return <div className="mt-2 w-full md:max-w-[65ch]">
+  return <div className="w-full">
     <BlockFrame state="resting" title={t('chat.daySummary.title')} count={null} items={rows}
       body={daySummary.due > 0 && daySummary.completionRate != null
         ? <ProgressRing value={daySummary.completionRate} label={t('chat.daySummary.ring', { done: daySummary.done, due: daySummary.due })} />

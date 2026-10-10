@@ -1,4 +1,5 @@
-import { test, expect, type APIRequestContext } from '@playwright/test'
+import { expect, type APIRequestContext } from '@playwright/test'
+import { test } from './layout-test'
 import { z } from 'zod'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -8,7 +9,7 @@ import { reorderHabitsRequestSchema } from '@orbit/shared/types/habit'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const selectedDate = '2026-09-04'
 const mutationJournalUrl = 'http://127.0.0.1:5099/_test/habit-mutations'
@@ -37,13 +38,11 @@ for (const width of [412, 1280]) {
     await page.setViewportSize({ width, height: 915 })
     const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR' })
     await setLayoutProfileSession(context, profile)
-    await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-    await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-      (route) => route.fulfill({ json: { ...emptyHabitsPageFixture, items, totalCount: items.length } }))
+    await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+    await setLayoutFixtureSession(context, [{ path: API.habits.list, body: { ...emptyHabitsPageFixture, items, totalCount: items.length } }])
     await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: 5 } }))
     const cleared = await request.delete(mutationJournalUrl)
     expect(cleared.ok()).toBe(true)
-    await page.clock.setFixedTime(new Date(`${selectedDate}T12:00:00Z`))
     await page.goto('/')
     const list = page.locator('[data-habit-list]')
     const rows = list.getByTestId('habit-row')

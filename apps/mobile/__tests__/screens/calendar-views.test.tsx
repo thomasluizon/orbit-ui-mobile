@@ -1,16 +1,24 @@
 import { format as formatDate } from 'date-fns/format'
 import { ptBR as portugueseDates } from 'date-fns/locale/pt-BR'
 import React from "react";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
+import type { Profile } from '@orbit/shared/types/profile'
+import { useAuthStore } from '@/stores/auth-store'
+import { createHermeticFixtureRequest } from '../../../web/test-support/hermetic/fixture-request'
+import { profileFixture } from '../../../web/test-support/hermetic/mock-api/fixtures/profile'
+
 import * as timeFormatHook from '@/hooks/use-time-format'
 import { RootScrollProvider } from '@/components/shell/root-scroll-context'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
-import { __setWindowDimensions, __setScrollToImpl } from '../../test-mocks/react-native'
+import { __setWindowDimensions, __setScrollToImpl, __setTouchMode, __focusHost, __getFocusedNativeTag } from '../../test-mocks/react-native'
 
 import en from "@orbit/shared/i18n/en.json";
 import ptBR from "@orbit/shared/i18n/pt-BR.json";
 import { addDays, differenceInCalendarDays } from "date-fns";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCalendarMonthModel,
   buildHabitCreateHref,
@@ -20,12 +28,12 @@ import {
   parseAPIDate,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 
 import { useUIStore } from '@/stores/ui-store';
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { expectSmallSheetActions } from '@/__tests__/support/sheet-slots'
-import { advanceAccountGeneration } from '@/lib/session-epoch';
+import { advanceAccountGeneration, advanceSessionEpoch } from '@/lib/session-epoch';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from '@/components/ui/list-row'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -38,7 +46,7 @@ vi.mock('react-native', async (importOriginal) => {
   const native = await importOriginal<typeof import('react-native')>()
   return { ...native, FlatList: React.forwardRef((props: React.ComponentProps<typeof native.FlatList>, ref) => {
     React.useImperativeHandle(ref, () => ({ scrollToOffset: rootScrollMocks.scrollToOffset }))
-    return <native.FlatList {...props} />
+    return <native.FlatList {...props}>{React.isValidElement(props.ListHeaderComponent) ? props.ListHeaderComponent : null}{React.isValidElement(props.ListFooterComponent) ? props.ListFooterComponent : null}</native.FlatList>
   }) }
 })
 
@@ -50,6 +58,10 @@ const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 function getMockAccountDateKey(): string {
   return formatAPIDateInTimeZone(new Date(), MOCK_ACCOUNT_TIME_ZONE);
 }
+
+const heldQueries = vi.hoisted((): { enabled: boolean; profileRequest: Promise<Profile> | null; calendarResponse: unknown } => ({ enabled: false, profileRequest: null, calendarResponse: undefined }))
+vi.mock('@/lib/i18n', () => ({ i18n: { language: 'en', changeLanguage: vi.fn() } }))
+vi.mock('@/lib/api-client', () => ({ apiClient: (path: string) => path === API.profile.get ? heldQueries.profileRequest : Promise.resolve(heldQueries.calendarResponse) }))
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
@@ -146,13 +158,14 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-profile", () => ({
-  useProfile: () => ({
+vi.mock("@/hooks/use-profile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-profile')>()
+  return { useProfile: () => heldQueries.enabled ? actual.useProfile() : ({
     profile: state.profile,
     error: state.profileError,
     refetch: state.profileRefetch,
-  }),
-}));
+  }) };
+});
 
 vi.mock("@/hooks/use-time-format", () => ({
   useTimeFormat: () => createTimeDisplay(state.language, state.language !== 'en'),
@@ -203,8 +216,11 @@ vi.mock("@/hooks/use-horizontal-swipe", () => ({
   }),
 }));
 
-vi.mock("@/hooks/use-habits", () => ({
+vi.mock("@/hooks/use-habits", async () => {
+  const actual = await import('@/hooks/use-calendar-data')
+  return ({
   useCalendarData: (month: Date) => {
+    if (heldQueries.enabled) return actual.useCalendarData(month)
     state.calendarDataCalls(month)
     return ({
       dayMap: state.monthMap,
@@ -215,6 +231,7 @@ vi.mock("@/hooks/use-habits", () => ({
     })
   },
   useCalendarRange: (start: Date, end: Date, enabled: boolean) => {
+    if (heldQueries.enabled) return actual.useCalendarRange(start, end, enabled)
     state.calendarRangeCalls(start, end, enabled);
     return {
       dayMap: state.rangeMap,
@@ -225,7 +242,8 @@ vi.mock("@/hooks/use-habits", () => ({
     };
   },
   useLogHabit: () => ({ mutate: vi.fn() }),
-}));
+});
+});
 
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({ currentScheme: "purple", currentTheme: "dark" }),
@@ -391,7 +409,238 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
   ]);
 }
 
+class CalendarRenderBoundary extends React.Component<{ children: React.ReactNode; onError: (error: Error) => void }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: Error) { this.props.onError(error) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+
 describe("CalendarScreen views (mobile)", () => {
+  let requestFixture: Awaited<ReturnType<typeof createHermeticFixtureRequest>>
+  beforeAll(async () => { requestFixture = await createHermeticFixtureRequest() })
+
+  it('keeps Semana mounted and focused with the real calendar query while the profile is pending', async () => {
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    useAuthStore.setState({ isAuthenticated: true })
+    __setTouchMode(false)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const reportedError = vi.fn()
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><CalendarRenderBoundary onError={reportedError}><CalendarScreen /></CalendarRenderBoundary></QueryClientProvider>) })
+    const findRadio = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith('segment-week-'))[0]!
+    try {
+      TestRenderer.act(() => { findRadio().props.onPress() })
+      const radio = findRadio()
+      expect(radio).toBeDefined()
+      TestRenderer.act(() => { __focusHost(radio.props.__nativeTag) })
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body)
+        expect(reportedError).not.toHaveBeenCalled()
+        expect(findRadio()).toBe(radio)
+      })
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
+      await TestRenderer.act(() => { resolveProfile(profileFixture) })
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-day-skeleton')).toHaveLength(0)
+      })
+      expect(reportedError).not.toHaveBeenCalled()
+      expect(findRadio()).toBe(radio)
+      expect(__getFocusedNativeTag()).toBe(radio.props.__nativeTag)
+    } finally {
+      TestRenderer.act(() => tree.update(<></>))
+      queryClient.clear()
+      heldQueries.enabled = false
+      useAuthStore.setState({ isAuthenticated: false })
+      __setTouchMode(true)
+    }
+  })
+
+  it.each(['month', 'range'] as const)('keeps the %s body mounted when the held profile resolves', async (view) => {
+    const response = requestFixture(`${API.habits.calendarMonth}?dateFrom=2026-09-01&dateTo=2026-09-30`)
+    expect(response.status).toBe(200)
+    heldQueries.calendarResponse = response.body
+    let resolveProfile!: (profile: Profile) => void
+    heldQueries.profileRequest = new Promise((resolve) => { resolveProfile = resolve })
+    heldQueries.enabled = true
+    useAuthStore.setState({ isAuthenticated: true })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    let tree!: Tree
+    TestRenderer.act(() => { tree = TestRenderer.create(<QueryClientProvider client={queryClient}><CalendarScreen /></QueryClientProvider>) })
+    const findHost = (testID: string) => tree.root.findAll((node) => node.type === 'View' && node.props.testID === testID)[0]
+    const findGrid = () => findHost('calendar-grid') ?? findHost('month-grid-7-columns')
+    try {
+      pressView(tree, view)
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(queryClient.getQueriesData({ queryKey: habitKeys.calendarPrefix() })[0]?.[1]).toEqual(response.body)
+      })
+      expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('pending')
+      const grid = findGrid()
+      expect(grid).toBeDefined()
+      const figures = findHost('calendar-stats')
+      expect(figures).toBeDefined()
+      const daySlot = view === 'month' ? findHost('calendar-day-card-slot') : null
+      await TestRenderer.act(() => { resolveProfile(profileFixture) })
+      await vi.waitFor(async () => {
+        await TestRenderer.act(async () => {})
+        expect(queryClient.getQueryState(profileKeys.detail())?.status).toBe('success')
+        expect(findHost('calendar-day-skeleton')).toBeUndefined()
+      })
+      expect.soft(findGrid() === grid).toBe(true)
+      expect.soft(findHost('calendar-stats') === figures).toBe(true)
+      if (daySlot) expect.soft(findHost('calendar-day-card-slot') === daySlot).toBe(true)
+    } finally {
+      TestRenderer.act(() => tree.update(<></>))
+      queryClient.clear()
+      heldQueries.enabled = false
+      useAuthStore.setState({ isAuthenticated: false })
+    }
+  })
+
+  it.each(['week', 'range', 'agenda'])('resets the %s period only on account replacement', (view) => {
+    const profile = { weekStartDay: 1 as const, timeZone: 'UTC', hasProAccess: false };
+    state.profile = profile;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      pressView(tree, view);
+      const bounds = () => state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate);
+      const initialPeriod = bounds();
+      const header = tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]!;
+      const radio = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]!;
+      const next = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === (view === 'range' ? 'calendar.range.previous' : 'common.nextWeek'))[0]!;
+      TestRenderer.act(() => { next.props.onPress(); });
+      const browsedPeriod = bounds();
+      expect(browsedPeriod).not.toEqual(initialPeriod);
+
+      state.profile = undefined;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(bounds()).toEqual(browsedPeriod);
+      TestRenderer.act(() => { advanceSessionEpoch(); });
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(bounds()).toEqual(browsedPeriod);
+
+      state.profile = undefined;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); advanceAccountGeneration(); });
+      expect(bounds()).toEqual(initialPeriod);
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(bounds()).toEqual(initialPeriod);
+      expect(tree.root.findAll((node) => node.type === 'View' && node.props.testID === 'calendar-header-group')[0]).toBe(header);
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]).toBe(radio);
+      expect(radio.props.accessibilityState.checked).toBe(true);
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
+  it.each(['agenda', 'week'] as const)('clears the %s entry details on account replacement while preserving same-account recovery', (view) => {
+    const profile = { weekStartDay: 1 as const, timeZone: 'UTC', hasProAccess: false };
+    state.profile = profile;
+    const title = 'Previous account private habit';
+    state.rangeMap = new Map([[formatAPIDate(new Date()), [makeEntry({ title, dueTime: '09:00' })]]]);
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      pressView(tree, view);
+      const radio = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]!;
+      const entry = tree.root.findAll((node) => node.type === 'Pressable' && (view === 'week' ? node.props.testID === 'time-grid-event' : node.props.accessibilityLabel?.startsWith(`${title},`)))[0]!;
+      expect(entry).toBeDefined();
+      TestRenderer.act(() => { entry.props.onPress(); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(1);
+      expect(hostTexts(tree)).toContain(title);
+
+      state.profile = undefined;
+      state.rangeMap = new Map();
+      state.monthMap = new Map();
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      TestRenderer.act(() => { advanceSessionEpoch(); });
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(1);
+      expect(hostTexts(tree)).toContain(title);
+
+      state.profile = undefined;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      TestRenderer.act(() => { advanceAccountGeneration(); });
+      expect.soft(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(0);
+      expect.soft(hostTexts(tree)).not.toContain(title);
+      state.profile = profile;
+      TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+      expect.soft(tree.root.findAll((node) => node.type === 'Sheet').length).toBe(0);
+      expect.soft(hostTexts(tree)).not.toContain(title);
+      expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0] === radio).toBe(true);
+      expect(radio.props.accessibilityState.checked).toBe(true);
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
+  it('closes the previous account day sheet and resets its selected day on account replacement', () => {
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    try {
+      pressView(tree, 'week');
+      const week = tree.root.findAll((node) => typeof node.type === 'function' && node.type.name === 'CalendarWeekView')[0]!;
+      TestRenderer.act(() => { week.props.onSelectDay('2026-09-10'); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1);
+      TestRenderer.act(() => { advanceSessionEpoch(); tree.update(<CalendarScreen />); });
+      expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1);
+      expect(calendarDayDetailProps.current?.selectedDate).toBe('2026-09-10');
+
+      TestRenderer.act(() => { advanceAccountGeneration(); });
+      expect.soft(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0);
+      pressView(tree, 'month');
+      expect(calendarGridProps.current!.selectedDay).toBe(formatAPIDate(new Date()));
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+    }
+  });
+
+  it.each(['month', 'week', 'range', 'agenda'])('keeps the %s frame mounted and its inset equal when the profile resolves', (view) => {
+    state.profile = undefined;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const findHost = (testID: string) => tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === testID)[0]!;
+    const findRadio = () => tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID?.startsWith(`segment-${view}-`))[0]!;
+    TestRenderer.act(() => { findRadio().props.onPress(); });
+    const radio = findRadio();
+    const header = findHost('calendar-header-group');
+    const heading = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0]!;
+    const options = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0]!;
+    const topInset = () => {
+      type InsetNode = TestNode & { parent: InsetNode | null };
+      const host = findHost('calendar-header-group') as InsetNode;
+      let inset = Number(StyleSheet.flatten<ViewStyle>(host.props.style).paddingTop ?? 0);
+      for (let ancestor = host.parent; ancestor; ancestor = ancestor.parent) {
+        if (typeof ancestor.type !== 'string') continue;
+        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.style).paddingTop ?? 0);
+        inset += Number(StyleSheet.flatten<ViewStyle>(ancestor.props.contentContainerStyle).paddingTop ?? 0);
+      }
+      return inset;
+    };
+    const loadingInset = topInset();
+    state.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false };
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    expect.soft(findRadio() === radio).toBe(true);
+    expect.soft(findHost('calendar-header-group') === header).toBe(true);
+    expect.soft(tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')[0] === heading).toBe(true);
+    expect.soft(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.options')[0] === options).toBe(true);
+    expect.soft(topInset()).toBe(loadingInset);
+    expect.soft(topInset()).toBe(12);
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it.each([320, 412, 600, 840])('keeps all view switches aligned with 24 dp body clearance at %i dp', (width) => {
     __setWindowDimensions({ width, height: 900, scale: 1, fontScale: 1 });
     type Host = Parameters<typeof measureProfileRow>[0] & { props: { testID?: string } };
@@ -446,6 +695,33 @@ describe("CalendarScreen views (mobile)", () => {
       expect.soft(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(['2026-10-05', '2026-10-11']);
       TestRenderer.act(() => current().props.onPress());
       expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(['2026-09-28', '2026-10-04']);
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+      if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ');
+      else process.env.TZ = previousZone;
+      vi.useRealTimers();
+      clock.mockRestore();
+    }
+  });
+
+  it.each([false, true])('uses profile today after loading while preserving explicit week navigation: %s', (navigated) => {
+    const clock = vi.spyOn(timeFormatHook, 'useTimeFormat').mockReturnValue({ ...createTimeDisplay('en', false), displayTime: (time) => time ?? '' });
+    const previousZone = process.env.TZ;
+    process.env.TZ = 'UTC';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-05T00:30:00Z'));
+    state.profile = undefined;
+    let tree!: Tree;
+    try {
+      TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+      pressView(tree, 'week');
+      if (navigated) {
+        const next = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'common.nextWeek')[0]!;
+        TestRenderer.act(() => next.props.onPress());
+      }
+      state.profile = { weekStartDay: 1, timeZone: 'America/Sao_Paulo', hasProAccess: true };
+      TestRenderer.act(() => tree.update(<CalendarScreen />));
+      expect(state.calendarRangeCalls.mock.lastCall!.slice(0, 2).map(formatAPIDate)).toEqual(navigated ? ['2026-10-12', '2026-10-18'] : ['2026-09-28', '2026-10-04']);
     } finally {
       TestRenderer.act(() => tree.update(<></>));
       if (previousZone === undefined) Reflect.deleteProperty(process.env, 'TZ');
@@ -1140,7 +1416,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
 
     expect(state.calendarDataCalls).toHaveBeenCalledTimes(1);
-    expect(calendarGridProps.current).toMatchObject({ isLoading: true, selectedDay: null });
+    expect(calendarGridProps.current).toMatchObject({ isLoading: true, selectedDay: formatAPIDate(new Date()) });
     expect(tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-grid',
     )).toHaveLength(35);
@@ -1736,8 +2012,9 @@ describe("CalendarScreen views (mobile)", () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
     scrollTo.mockClear()
+    rootScrollMocks.scrollToOffset.mockClear()
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
-    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })
+    expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     TestRenderer.act(() => tree.unmount())
     __setScrollToImpl(() => {})
   })
@@ -1750,6 +2027,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => { tree = TestRenderer.create(<RootScrollProvider><CalendarScreen /><DestinationTabBar pathname="/calendar" /></RootScrollProvider>) })
     if (view !== 'month') pressView(tree, view)
     scrollTo.mockClear()
+    rootScrollMocks.scrollToOffset.mockClear()
     TestRenderer.act(() => { tree.root.findAll((node: TestNode) => node.type === 'Pressable' && node.props.accessibilityRole === 'tab' && node.props.accessibilityState?.selected)[0]!.props.onPress() })
     if (view === 'month') expect(rootScrollMocks.scrollToOffset).toHaveBeenCalledExactlyOnceWith({ offset: 0, animated: false })
     else expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 0, animated: false })

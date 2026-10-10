@@ -1,3 +1,4 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
@@ -12,6 +13,7 @@ import { recapResponseSchema } from '@orbit/shared/types/gamification'
 import { buildRecapRequestUrl } from '@orbit/shared/utils'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { expectFullTouchTarget, expectHoverOnHitArea } from './press-shape-helpers'
+import { expectDayCircleHover } from './calendar-day-circle-helpers'
 import { expectInteractionFill } from './label-interaction-fill'
 
 const habit = habitScheduleItemSchema.parse(makeHabitScheduleItem({
@@ -112,7 +114,7 @@ for (const width of [412, 1280] as const) {
 
     test('fills habit, menu, day, and segmented control hit areas', async ({ page, context }) => {
       await context.route(new RegExp(`${API.habits.get(habit.id)}$`), (route) => route.fulfill({ json: habitDetailSchema.parse({ ...makeHabitDetail(), ...habit }) }))
-      await context.route(new RegExp(`${API.habits.list}[?]`), (route) => route.fulfill({ json: habitsPage }))
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
       await context.route(new RegExp(`${API.habits.calendarMonth}[?]`), (route) => route.fulfill({ json: calendarMonth }))
       await page.goto('/?date=2026-09-04')
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
@@ -160,7 +162,7 @@ for (const width of [412, 1280] as const) {
       await monthPicker.getByRole('button', { pressed: true }).click()
       await monthPicker.getByRole('button', { name: ptBr.calendar.thisMonth, exact: true }).click()
       await expectHoverOnHitArea(page.locator('[role="radio"]:not([data-selected])').first(), 8)
-      await expectHoverOnHitArea(page.locator('button[data-testid^="calendar-day-select-"]').first(), 'pill')
+      await expectDayCircleHover(page.locator('button[data-testid^="calendar-day-select-"]').first())
     })
 
     test('fills checklist, reminder, and date-picker targets', async ({ page }) => {

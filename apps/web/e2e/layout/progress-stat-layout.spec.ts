@@ -8,7 +8,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 const goals = paginatedGoalResponseSchema.parse({
@@ -75,7 +75,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
           isTrialActive: true, trialEndsAt: '2026-09-18T12:00:00Z', canViewGamification: true,
         })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
         const metrics = createMockRetrospectiveMetrics({
           completionRate: 38,

@@ -30,6 +30,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import { PageHeader } from '@/components/ui/page-header'
@@ -80,16 +81,9 @@ function UpgradeContent({
   )
 }
 
-function getUpgradeBackLabelKey(from: string | string[] | undefined): string {
-  const route = Array.isArray(from) ? from[0] : from
-  const labels: Record<string, string> = {
-    '/': 'nav.today', '/(tabs)': 'nav.today', '/calendar': 'nav.calendar',
-    '/progress': 'nav.progress', '/profile': 'nav.profile',
-    '/profile/astra': 'profile.groups.astra',
-    '/about': 'about.title', '/wrapped': 'wrapped.title',
-  }
-  if (route?.startsWith('/habits/')) return 'habits.detail.screenTitle'
-  return labels[route ?? '/profile'] ?? 'nav.profile'
+function upgradeContentCap(state: SubscriptionScreenState, content: SubscriptionScreenContent, hasLapsedNotice: boolean): 560 | 652 {
+  const isPitch = state !== 'loading' && state !== 'load-failed' && !hasLapsedNotice && content === 'pitch'
+  return isPitch ? 652 : 560
 }
 
 export default function UpgradeScreen() {
@@ -137,7 +131,7 @@ export default function UpgradeScreen() {
   const returningFromBillingRef = useRef(false)
   const [prevProcessing, setPrevProcessing] = useState(false)
   const fallbackRoute = getUpgradeFallbackRoute(from, '/profile')
-  const upgradeBackLabelKey = getUpgradeBackLabelKey(from)
+  const backLabel = useBackLabel(typeof fallbackRoute === 'string' ? fallbackRoute : fallbackRoute.pathname)
 
   if (prevProcessing !== playBilling.isProcessing) {
     setPrevProcessing(playBilling.isProcessing)
@@ -170,8 +164,7 @@ export default function UpgradeScreen() {
     portalState,
   })
   const { lapsedNoticeStatus, titleKey } = resolveUpgradeHeader(status, model, showPitch)
-  const isPitch = model.state !== 'loading' && model.state !== 'load-failed' && !lapsedNoticeStatus && model.content === 'pitch'
-  const contentFrameStyle = useContentFrameStyle(isPitch ? 652 : 560)
+  const contentFrameStyle = useContentFrameStyle(upgradeContentCap(model.state, model.content, Boolean(lapsedNoticeStatus)))
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -300,7 +293,7 @@ export default function UpgradeScreen() {
       <PageHeader
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
-        backLabel={t('common.backToDestination', { destination: t(upgradeBackLabelKey) })}
+        backLabel={backLabel}
       />
 
       <ScrollView

@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
@@ -9,7 +10,7 @@ import { retrospectiveResponseSchema } from '@orbit/shared/types/gamification'
 import { buildRetrospectiveRequestUrl } from '@orbit/shared/utils/retrospective'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const goals = paginatedGoalResponseSchema.parse({
   items: [createMockGoal()], page: 1, pageSize: 100, totalCount: 1, totalPages: 1,
@@ -26,7 +27,7 @@ for (const width of [320, 344, 360, 411, 412]) {
           ...profileFixture, language: locale, hasProAccess: true, canViewGamification: true,
         })
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await context.route(`${LAYOUT_ORIGIN}${API.goals.list}?*`, (route) => route.fulfill({ json: goals }))
         const weeklyConsistency = Array(7).fill(0) as number[]
         weeklyConsistency[0] = 100

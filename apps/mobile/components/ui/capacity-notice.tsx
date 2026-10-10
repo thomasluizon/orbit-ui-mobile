@@ -11,7 +11,7 @@ export function CapacityNotice({ message, body, action }: Readonly<CapacityNotic
   return (
     <View style={[styles.container, { backgroundColor: tokens.bgWell }]} testID="capacity-notice">
       <Text style={[styles.message, { color: tokens.fg1 }]}>{message}</Text>
-      {body ? <Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text> : null}
+      {body ? <Text style={[styles.body, { color: tokens.fg2 }]}>{body}</Text> : null}
       {action ? <View testID="capacity-notice-action">{action}</View> : null}
     </View>
   )

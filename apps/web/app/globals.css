@@ -2036,7 +2036,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   max-width: 560px;
   padding: 64px 16px 32px;
   color: var(--fg-1);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .error-surface--in-shell {
   max-width: none;
@@ -2060,6 +2060,7 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   font-size: 16px;
   line-height: 1.55;
   color: var(--fg-2);
+  overflow-wrap: anywhere;
   text-wrap: pretty;
 }
 @media (min-width: 64rem) {
@@ -2247,4 +2248,42 @@ button.chip:not(:disabled).chip-filled:active { background: var(--primary-presse
   .orbit-content-frame[data-content-cap="pitch"] {
     --orbit-content-cap: 652px;
   }
+}
+
+.orbit-day-target {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.orbit-day-target::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.orbit-day-target:focus-visible {
+  outline: none;
+  --day-focus-ring: inset 0 0 0 2px var(--primary);
+}
+
+@media (forced-colors: active) {
+  .orbit-day-target:focus-visible {
+    --day-focus-ring: none;
+  }
+
+  .orbit-day-target:focus-visible .orbit-day-circle > [data-day-position-ring] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+.orbit-day-well { background: var(--bg-well); }
+.orbit-day-selected { background: var(--selection-bg); }
+
+.orbit-day-target:active .orbit-day-well { background: transparent; }
+.orbit-day-target:active [data-press-fill] { opacity: 1; }
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-day-target:hover .orbit-day-well { background: transparent; }
+  .orbit-day-target:hover [data-press-fill] { opacity: 1; }
 }

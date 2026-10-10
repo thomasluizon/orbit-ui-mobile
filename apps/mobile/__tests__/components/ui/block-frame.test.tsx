@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as ReactNative from 'react-native'
 import { AccessibilityInfo, Pressable, StyleSheet, Text, type ViewStyle, type TextStyle } from 'react-native'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { PersonalTextDetails } from '@/components/ui/personal-text-details'
 import { Button } from '@/components/ui/pill-button'
 
 vi.mock('react-i18next', () => ({
@@ -115,6 +116,22 @@ afterEach(() => {
 })
 
 describe('BlockFrame on mobile', () => {
+  it('keeps typed labels beside their trailing actions and aligns growing rows to the first line', () => {
+    const name = 'Read the books I chose to learn about all the places and people around the world before breakfast every morning'
+    const tree = render(<BlockFrame {...frame({ items: [{
+      id: 'typed', wrapLabel: true, wrapMeta: true,
+      label: <PersonalTextDetails>{name}</PersonalTextDetails>,
+      meta: 'Every day', control: <Pressable accessibilityLabel="Remove item"><Text>Remove</Text></Pressable>,
+    }] })} />)
+    const row = tree.root.find((node) => node.type === 'View' && prop(node, 'testID') === 'block-frame-item-typed-pending')
+    const style = StyleSheet.flatten(prop<ViewStyle>(row, 'style'))
+    expect(style.flexDirection).toBe('row')
+    expect(style.alignItems).toBe('flex-start')
+    expect(row.findByProps({ accessibilityLabel: name })).toBeDefined()
+    expect(row.findByProps({ accessibilityLabel: 'Remove item' })).toBeDefined()
+    void act(() => tree.unmount())
+  })
+
   it('moves accessibility focus to a preview heading after layout', () => {
     const findNode = vi.spyOn(ReactNative, 'findNodeHandle').mockReturnValue(42)
     const focus = vi.fn()

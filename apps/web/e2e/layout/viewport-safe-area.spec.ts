@@ -1,3 +1,5 @@
+import { settleAnimations } from './settle-animations'
+import { setLayoutFixtureSession } from './profile-session'
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import messages from '@orbit/shared/i18n/en.json'
@@ -23,8 +25,7 @@ async function installLongToday(context: BrowserContext) {
   const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
     items, page: 1, pageSize: items.length, totalCount: items.length, totalPages: 1,
   })
-  await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-    (route) => route.fulfill({ json: habits }))
+  await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
   await context.route(`${LAYOUT_ORIGIN}${API.habits.count}`, (route) => route.fulfill({ json: { count: items.length } }))
 }
 
@@ -87,7 +88,7 @@ for (const width of [320, 412, 600]) {
         }
         const skip = page.getByRole('link', { name: messages.common.skipToContent })
         await skip.focus()
-        await skip.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
+        await skip.evaluate(settleAnimations)
         await expectInsideInsets(skip, top, bottom)
         expect((await skip.boundingBox())!.y).toBe(Math.max(16, top))
         expect((await header.boundingBox())!.y).toBe(top)
@@ -167,7 +168,7 @@ for (const inset of [0, 44]) {
       if (inset === 0) { expect(column.x).toBe(52); expect(column.width).toBe(740) }
       const skip = page.getByRole('link', { name: messages.common.skipToContent })
       await skip.focus()
-      await skip.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
+      await skip.evaluate(settleAnimations)
       await expectSafeBounds(skip)
       expect((await skip.boundingBox())!.x).toBe(Math.max(16, inset))
       const shell = (await page.locator('[data-shell="wide"]').boundingBox())!

@@ -49,7 +49,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   })
 
   return (
-    <div className="mt-2 w-full md:max-w-[65ch]">
+    <div className="w-full">
       <BlockFrame state="resting" title={t(habitList.scope === 'all' ? 'chat.habitList.allTitle' : 'chat.habitList.title')} count={habitList.items.length === 0 ? null : t('chat.habitList.count', { shown: visibleItems.length, total: habitList.items.length })} items={rows} body={habitList.items.length === 0 ? (
         <p className="text-sm text-[var(--fg-3)]">{t(habitList.scope === 'all' ? 'chat.habitList.allEmpty' : 'chat.habitList.todayEmpty')}</p>
       ) : undefined} actions={visibleItems.length < habitList.items.length ? (

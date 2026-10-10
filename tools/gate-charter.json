@@ -344,6 +344,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  "eslint-rules/no-rejecting-animation-wait.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "eslint-rules/no-scroll-listener-motion.cjs": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -444,12 +449,22 @@
       }
     ]
   },
+  "tools/check-docker-registries.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   "tools/check-gate-charter.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
   },
   "tools/check-gradients.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-hermetic-web-build.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"

@@ -197,12 +197,29 @@ export function Screen() { return <section className="bg-[var(--bg-elev)]"><Noti
       const repository = stageProducerRepository(`unsafe-${label}-${promoted}`, paths)
       stageUnsafeEmptyTrack(repository)
       const cssPath = join(repository, "apps/web/app/globals.css")
-      if (promoted) writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n.light button:hover { --track-empty: var(--fg-3); --status-empty: var(--track-empty); }")
-      check("check-surface-scope.mjs", `measures the real ${label} canvas hover with promotion ${promoted}`, ["--root", repository], {
+      if (promoted) writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n.light button:hover, .light button:active { --track-empty: var(--fg-3); --status-empty: var(--track-empty); }")
+      check("check-surface-scope.mjs", `measures the real ${label} canvas hover and press with promotion ${promoted}`, ["--root", repository], {
         status: promoted ? 0 : 1,
         ...(promoted ? {} : { stderr: /--track-empty on hover, light ratio 2\.995, GRAPHIC floor 3\.00/ }),
       })
     }
+  }
+  const hoverOnlyPromotion = stageProducerRepository("partial-day-hover-only-promotion", ["apps/web/components/dates/day-cell.tsx"])
+  stageUnsafeEmptyTrack(hoverOnlyPromotion)
+  const hoverOnlyCss = join(hoverOnlyPromotion, "apps/web/app/globals.css")
+  writeFileSync(hoverOnlyCss, readFileSync(hoverOnlyCss, "utf8") + "\n.light button:hover { --track-empty: var(--fg-3); --status-empty: var(--track-empty); }")
+  check("check-surface-scope.mjs", "rejects a partial-day press track corrected only on hover", ["--root", hoverOnlyPromotion], {
+    status: 1, stderr: /--track-empty on hover, light ratio 2\.995, GRAPHIC floor 3\.00/,
+  })
+  for (const [label, background, status] of [["replacement", "transparent", 0], ["composited", "var(--bg-well)", 1]]) {
+    const repository = stageProducerRepository(`partial-day-${label}-stack`, ["apps/web/components/dates/day-cell.tsx"])
+    const cssPath = join(repository, "apps/web/app/globals.css")
+    const overrides = ["hover", "active"].map((phase) => `.orbit-day-target:${phase} .orbit-day-well { background: ${background}; }`).join("\n")
+    writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n" + overrides)
+    check("check-surface-scope.mjs", `reads the CSS partial-day ${label} stack across the component boundary`, ["--root", repository], {
+      status,
+      ...(status === 1 ? { stderr: /--track-empty on well \+ hover, light ratio 2\.809, GRAPHIC floor 3\.00/ } : {}),
+    })
   }
   const producerCases = [
     { label: "partial-day", paths: ["apps/web/components/dates/day-cell.tsx"], path: "apps/web/components/dates/day-cell.tsx", before: 'stroke="var(--status-empty)"', after: 'stroke="var(--fg-4)"' },
@@ -212,9 +229,29 @@ export function Screen() { return <section className="bg-[var(--bg-elev)]"><Noti
     const good = stageProducerRepository(`actual-${producer.label}`, producer.paths)
     check("check-surface-scope.mjs", `accepts the shipped composition: ${producer.label}`, ["--root", good], { status: 0 })
     const bad = stageProducerRepository(`broken-${producer.label}`, producer.paths, producer)
-    check("check-surface-scope.mjs", `rejects a removed foreground correction: ${producer.label}`, ["--root", bad], {
+    const result = check("check-surface-scope.mjs", `rejects a removed foreground correction: ${producer.label}`, ["--root", bad], {
       status: 1, stderr: /--fg-4 on hover, .*GRAPHIC floor 3\.00/,
     })
+    if (producer.label === "partial-day") {
+      T("check-surface-scope.mjs: retains the partial-day resting well measurement", /--fg-4 on well, .*GRAPHIC floor 3\.00/.test(result.stderr), result.stderr)
+      for (const [label, disabledStates, painted] of [
+        ["hover-only", ["active"], true],
+        ["press-only", ["hover"], true],
+        ["hidden-fill", ["hover", "active"], false],
+      ]) {
+        const repository = stageProducerRepository(`partial-day-${label}`, producer.paths, producer)
+        const cssPath = join(repository, "apps/web/app/globals.css")
+        const compositing = ["hover", "active"].map((state) => `.orbit-day-target:${state} .orbit-day-well { background: var(--bg-well); }`).join("\n")
+        writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n" + compositing)
+        const overrides = disabledStates.map((state) => `.orbit-day-target:${state} [data-press-fill] { opacity: 0 !important; }`).join("\n")
+        writeFileSync(cssPath, readFileSync(cssPath, "utf8") + "\n" + overrides)
+        const result = check("check-surface-scope.mjs", `rejects the real partial-day ${label} foreground`, ["--root", repository], {
+          status: 1, stderr: /--fg-4 on well, .*GRAPHIC floor 3\.00/,
+        })
+        T(`check-surface-scope.mjs: measures only visible CSS partial-day fills: ${label}`,
+          /--fg-4 on well \+ hover, .*GRAPHIC floor 3\.00/.test(result.stderr) === painted, result.stderr)
+      }
+    }
   }
   const producerText = stageProducerRepository("actual-text-promotion", ["apps/web/components/navigation/bottom-tab-bar.tsx"])
   const producerCss = join(producerText, "apps/web/app/globals.css")

@@ -4,8 +4,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
 
 for (const width of [412, 1352]) {
@@ -17,7 +16,7 @@ for (const width of [412, 1352]) {
         test(`aligns answered email consent ${consent} with the device switch`, async ({ page, context }) => {
           const profile = profileSchema.parse({ ...profileFixture, language: locale, marketingEmailConsent: consent })
           await setLayoutProfileSession(context, profile)
-          await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+          await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
           await page.goto('/profile/notifications')
           const messages = locale === 'en' ? en : ptBR
           const group = page.getByTestId('profile-settings-group-notifications')

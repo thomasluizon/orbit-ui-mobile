@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "next build --webpack",
+    "build:hermetic": "node scripts/build-hermetic.mjs",
     "start": "next start",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:smoke": "playwright test --project=smoke",
     "test:layout": "playwright test --project=layout",
+    "pretest:layout": "node ../../tools/check-hermetic-web-build.mjs",
     "perf": "cd ../.. && lhci autorun --config apps/web/lighthouserc.json && node apps/web/perf/report-lcp.mjs",
     "clean": "rm -rf .next"
   },
@@ -31,7 +33,7 @@
     "html-to-image": "^1.11.13",
     "marked": "^18.0.5",
     "motion": "^12.42.2",
-    "next": "^16.3.6",
+    "next": "^16.3.8",
     "next-intl": "^4.13.1",
     "posthog-js": "^1.434.15",
     "qrcode": "^1.5.4",

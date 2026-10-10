@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useAccountScopedState } from '@/hooks/use-session-reset'
 import { CalendarEntryDetails } from './calendar-entry-details'
 import { addDays, eachDayOfInterval } from 'date-fns'
 import { useLocale, useTranslations } from 'next-intl'
@@ -30,7 +30,7 @@ export function CalendarAgendaView({
 }: Readonly<CalendarAgendaViewProps>) {
   const t = useTranslations()
   const locale = useLocale()
-  const [selectedEntry, setSelectedEntry] = useState<CalendarDayEntry | null>(null)
+  const [selectedEntry, setSelectedEntry] = useAccountScopedState<CalendarDayEntry | null>(null)
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) })
 
   return (

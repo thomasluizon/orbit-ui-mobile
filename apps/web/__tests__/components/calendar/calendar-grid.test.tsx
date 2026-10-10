@@ -205,7 +205,7 @@ describe('CalendarGrid', () => {
         currentMonth={currentMonth}
         dayMap={emptyMap}
         onSelectDay={onSelectDay}
-        rangeStart="2025-06-15"
+        selectedDateStr="2025-06-15"
       />,
     )
 
@@ -231,40 +231,18 @@ describe('CalendarGrid', () => {
     )
 
     const oldBoundary = document.querySelector('[data-calendar-date="2025-06-08"]')
-    expect(oldBoundary).toHaveStyle({ background: 'var(--bg-well)' })
+    expect(oldBoundary?.querySelector('[data-day-circle]')).toHaveClass('orbit-day-well')
 
     todaySource.value = '2025-06-16'
     rerender(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />)
 
-    expect(oldBoundary).toHaveStyle({ background: 'transparent' })
+    expect(oldBoundary?.querySelector('[data-day-circle]')).not.toHaveClass('orbit-day-well')
     const newBoundary = document.querySelector('[data-calendar-date="2025-06-16"]')
-    expect(newBoundary).toHaveStyle({
-      background: 'var(--bg-well)',
-    })
+    expect(newBoundary?.querySelector('[data-day-circle]')).toHaveClass('orbit-day-well')
     expect(oldBoundary?.querySelector('button')).not.toHaveAttribute('aria-current')
     expect(newBoundary?.querySelector('button')).toHaveAttribute('aria-current', 'date')
   })
 
-  it('keeps range picking free from the write window', () => {
-    const onSelectDay = vi.fn()
-    render(
-      <CalendarGrid
-        currentMonth={currentMonth}
-        dayMap={emptyMap}
-        onSelectDay={onSelectDay}
-        interaction="range-picker"
-        rangeStart="2025-06-20"
-      />,
-    )
-
-    const futureDay = document.querySelector('[data-calendar-date="2025-06-20"]')!
-    const futureButton = futureDay.querySelector('button')!
-    expect(futureButton).toHaveAttribute('aria-pressed', 'true')
-    expect(document.querySelector('[data-calendar-date="2025-06-15"] button'))
-      .toHaveAccessibleName(/calendar\.dayCell\.readOnly/)
-    fireEvent.click(futureButton)
-    expect(onSelectDay).toHaveBeenCalledWith('2025-06-20')
-  })
 
   it('does not reserve a sixth row for a five-week month', () => {
     render(<CalendarGrid currentMonth={new Date(2026, 8, 1)} dayMap={emptyMap} onSelectDay={vi.fn()} />)
@@ -280,7 +258,8 @@ describe('CalendarGrid', () => {
     const skeleton = screen.getByRole('progressbar')
     expect(skeleton).toHaveAttribute('data-cols', '7')
     expect(skeleton).toHaveAttribute('data-rows', '6')
-    expect(screen.queryByTestId('month-grid-header')).not.toBeInTheDocument()
+    expect(screen.getByTestId('month-grid-header')).toHaveStyle({ opacity: 0 })
+    expect(screen.getByTestId('month-grid-header')).toHaveAttribute('aria-hidden', 'true')
     expect(container.querySelector('[data-outcome]')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
@@ -315,7 +294,7 @@ describe('CalendarGrid', () => {
     expect(todayCell).toBeInTheDocument()
   })
 
-  it('keeps selected and future presentation on the month-grid wrapper', () => {
+  it('keeps the slot transparent and delegates selected presentation to DayCell', () => {
     const { container } = render(
       <CalendarGrid
         currentMonth={currentMonth}
@@ -326,14 +305,13 @@ describe('CalendarGrid', () => {
     )
 
     const selectedSlot = container.querySelector('[data-calendar-date="2025-06-15"]')
-    expect(selectedSlot).toHaveStyle({
-      background: 'var(--selection-bg)',
-      boxShadow: 'inset 0 0 0 2px var(--primary)',
-    })
+    expect(selectedSlot?.querySelector('[data-day-circle]')).toHaveClass('orbit-day-selected')
+    expect(selectedSlot?.querySelector('[data-day-position-ring]')).toHaveStyle({ boxShadow: 'var(--day-focus-ring, inset 0 0 0 2px var(--primary))' })
+    expect(selectedSlot?.getAttribute('style')).not.toContain('background')
     expect(selectedSlot?.querySelector('[data-selected]')).not.toBeInTheDocument()
     const futureSlot = container.querySelector('[data-calendar-date="2025-06-20"]')
     expect(futureSlot?.querySelector('[data-outcome]')).not.toBeInTheDocument()
-    expect(futureSlot?.querySelector('[role="img"] > span')).toHaveStyle({ color: 'var(--fg-2)' })
+    expect(futureSlot?.querySelector('[data-day-future-numeral]')).toHaveStyle({ color: 'var(--fg-2)' })
   })
 
   it('derives the full outcome when all entries are complete', () => {
@@ -386,7 +364,7 @@ describe('CalendarGrid', () => {
       />,
     )
     const fullCell = container.querySelector('[data-outcome="full"]')
-    expect(fullCell?.firstElementChild).toHaveStyle({ background: 'var(--fg-1)' })
+    expect(fullCell?.querySelector('[data-day-disc]')).toHaveStyle({ background: 'var(--fg-1)' })
   })
 
   it('disables non-current-month days', () => {
@@ -402,37 +380,6 @@ describe('CalendarGrid', () => {
     expect(outsideCells[0]).toHaveAttribute('aria-hidden', 'true')
   })
 
-  it('marks in-range days when range endpoints are provided', () => {
-    const { container } = render(
-      <CalendarGrid
-        currentMonth={currentMonth}
-        dayMap={emptyMap}
-        onSelectDay={vi.fn()}
-        rangeStart="2025-06-16"
-        rangeEnd="2025-06-18"
-      />,
-    )
-    const inRange = container.querySelectorAll('[data-in-range="true"]')
-    expect(inRange).toHaveLength(3)
-  })
 
-  it('paints a selected range endpoint with one selection tint and keeps its ring', () => {
-    const { container } = render(
-      <CalendarGrid
-        currentMonth={currentMonth}
-        dayMap={emptyMap}
-        onSelectDay={vi.fn()}
-        rangeStart="2025-06-16"
-        rangeEnd="2025-06-18"
-      />,
-    )
-    const endpoint = container.querySelector('[data-calendar-date="2025-06-16"]')
 
-    expect(endpoint).toHaveStyle({
-      background: 'var(--selection-bg)',
-      boxShadow: 'inset 0 0 0 2px var(--primary)',
-    })
-    expect(endpoint?.querySelector('[data-selected]')).not.toBeInTheDocument()
-    expect(endpoint?.querySelector('[style*="--selection-bg"]')).not.toBeInTheDocument()
-  })
 })

@@ -28,6 +28,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useStripeCheckout } from '@/hooks/use-stripe-checkout'
 import { useStripeCheckoutReturn } from '@/hooks/use-stripe-checkout-return'
 import { useBilling } from '@/hooks/use-billing'
+import { useBackLabel } from '@/hooks/use-back-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useOffline } from '@/hooks/use-offline'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
@@ -50,6 +51,7 @@ export default function UpgradePage() {
   const from = useSearchParams().get('from')
   const fallbackRoute = from === '/profile/astra' ? from : '/profile'
   const goBackOrFallback = useGoBackOrFallback()
+  const backLabel = useBackLabel(fallbackRoute)
   const { showSuccess, showPersistentError } = useAppToast()
   const { isOnline } = useOffline()
   const heldAccountId = useHeldAccountId()
@@ -248,7 +250,7 @@ export default function UpgradePage() {
   return (
     <div className="flex flex-col">
       <PageHeader
-        backLabel={fallbackRoute === '/profile/astra' ? t('common.backToDestination', { destination: t('profile.groups.astra') }) : t('common.backToProfile')}
+        backLabel={backLabel}
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={titleKey ? t(titleKey) : ''}
         titleTranslate={titleKey === 'upgrade.pitchTitle' ? 'no' : undefined}

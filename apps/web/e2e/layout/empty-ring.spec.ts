@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
@@ -9,7 +10,7 @@ import { profileSchema } from '@orbit/shared/types/profile'
 import { emptyHabitsPageFixture } from '../../test-support/hermetic/mock-api/fixtures/collections'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
 import { LAYOUT_ORIGIN } from '../support/env'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 
 const selectedDate = '2026-09-04'
 const leaf = habitDetailSchema.parse({ ...makeHabitDetail(), title: 'Ler', children: [] })
@@ -60,15 +61,13 @@ for (const width of [412, 1280]) {
         const profile = profileSchema.parse({ ...profileFixture, language: 'pt-BR', themePreference: mode })
         await context.addCookies([{ name: 'i18n_locale', value: 'pt-BR', url: LAYOUT_ORIGIN }])
         await setLayoutProfileSession(context, profile)
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list,
-          (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(leaf.id)}`, (route) => route.fulfill({ json: leaf }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.logs(leaf.id)}`, (route) => route.fulfill({ json: [] }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.metrics(leaf.id)}`, (route) => route.fulfill({ json: metrics }))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list,
           (route) => route.fulfill({ json: goals }))
-        await page.clock.setFixedTime(new Date(`${selectedDate}T12:00:00Z`))
       })
 
       test('the unlogged leaf header uses the bare empty status ring', async ({ page }) => {

@@ -51,7 +51,8 @@ vi.mock('react-native-safe-area-context', () => ({
     }]} />
   },
 }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), dismissTo: vi.fn() }), useLocalSearchParams: () => ({}) }))
+vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined, useRouter: () => ({ push: vi.fn(), replace: vi.fn(), dismissTo: vi.fn() }), useLocalSearchParams: () => ({}) }))
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => ({ currentScheme: 'orange', currentTheme: 'dark', surfaces: { screen: { backgroundColor: createTokensV2().bg } } }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile(), isLoading: true, refetch: vi.fn(() => Promise.resolve({ data: createMockProfile() })), patchProfile: vi.fn() }) }))
 vi.mock('@/hooks/use-notification-inbox', () => ({ useNotificationInbox: () => ({ visibleNotifications: [], notifications: [], visibleUnreadCount: 0, pendingDeleteIds: [], isLoading: true }) }))
@@ -83,7 +84,7 @@ const renderer = require('react-test-renderer') as typeof import('react-test-ren
 const recap = createMockRecap()
 const tokens = createTokensV2()
 const noop = () => {}
-const legalProps = { title: 'Legal', lastUpdated: 'Version', sections: [], closingNote: { id: 'closing', title: 'Closing', paragraphs: [] }, backLabel: 'Back', onBack: noop }
+const legalProps = { title: 'Legal document', headerTitle: 'Legal', lastUpdated: 'Version', sections: [], closingNote: { id: 'closing', title: 'Closing', paragraphs: [] }, backLabel: 'Back', onBack: noop }
 
 const surfaces: { name: string; content: () => ReactElement; modal?: boolean; aligned?: boolean; standalone?: boolean; headerOffset?: number }[] = [
   { name: 'FlowShell for habit detail and step-up', content: () => <FlowShell nav={false} header={<Text accessibilityRole="header">Flow</Text>}><View /></FlowShell>, aligned: true },

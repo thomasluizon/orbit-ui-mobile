@@ -1,5 +1,6 @@
 import { completeInstallOnboarding } from './install-onboarding'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
+import { test } from './layout-test'
 import { API } from '@orbit/shared/api'
 import { SHELL_CONTENT_MAX_WIDTH } from '@orbit/shared/theme'
 import en from '@orbit/shared/i18n/en.json'
@@ -8,7 +9,7 @@ import { calendarMonthResponseSchema, createPaginatedSchema, habitDetailSchema, 
 import { goalSchema, paginatedGoalResponseSchema } from '@orbit/shared/types/goal'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { loadAppFonts } from '../../__tests__/support/app-fonts'
 
 const fixtureDate = '2026-09-04'
@@ -94,7 +95,6 @@ for (const { width, height } of windows) {
       test(`${name} centres content without overflow or clipped chrome`, async ({ page, context }) => {
         await context.addCookies([{ name: 'i18n_locale', value: 'en', url: LAYOUT_ORIGIN }])
         await setLayoutProfileSession(context, profileFixture)
-        await page.clock.setFixedTime(new Date(`${fixtureDate}T12:00:00Z`))
         const habits = createPaginatedSchema(habitScheduleItemSchema).parse({
           items: Array.from({ length: 12 }, (_, index) => makeHabitScheduleItem({
             id: `foldable-habit-${index}`, title: `${'Read a longer book chapter '.repeat(4)}${index}`,
@@ -102,7 +102,7 @@ for (const { width, height } of windows) {
           })),
           page: 1, pageSize: 200, totalCount: 12, totalPages: 1,
         })
-        await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.list, (route) => route.fulfill({ json: habits }))
+        await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habits }])
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth, (route) => route.fulfill({ json: calendarMonthResponseSchema.parse({ habits: habits.items, logs: {} }) }))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.goals.list, (route) => route.fulfill({ json: goals }))
         await context.route(`${LAYOUT_ORIGIN}${API.habits.get(habit.id)}`, (route) => route.fulfill({ json: habit }))

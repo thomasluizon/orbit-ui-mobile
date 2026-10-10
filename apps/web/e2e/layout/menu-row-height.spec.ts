@@ -1,13 +1,13 @@
+import { settleAnimations } from './settle-animations'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { makeHabitScheduleItem } from '@orbit/shared/test-support/habit-detail-fixtures'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { setLayoutProfileSession } from './profile-session'
+import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { resolveWebThemeVariables } from '../../lib/theme-dom'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { restPointerOutside } from './pointer-rest'
 import { test } from './upgrade-fixtures'
 
@@ -32,14 +32,12 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
     test.use({ appLocale: 'pt-BR', viewport: { width, height: 915 } })
 
     test('keeps habit and list menu rows at their presentation height', async ({ page, context }) => {
-      await context.route(new RegExp(`${API.habits.list}[?]`),
-        (route) => route.fulfill({ json: habitsPage }))
+      await setLayoutFixtureSession(context, [{ path: API.habits.list, body: habitsPage }])
       const profile = profileSchema.parse({
         ...profileFixture, themePreference: mode, language: 'pt-BR',
       })
       await setLayoutProfileSession(context, profile)
-      await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`,
-        (route) => route.fulfill({ json: profile }))
+      await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
       await page.goto('/?date=2026-09-03')
       await expect(page.locator('html')).toHaveClass(new RegExp(mode))
       await page.getByRole('button', { name: ptBr.habits.listOptions }).click()
@@ -77,7 +75,7 @@ for (const { width, mode } of [412, 1280].flatMap((width) =>
       await expect(destructive).not.toHaveCSS('background-color', restingFill)
       await expect(destructive).toHaveCSS('transform', 'none')
       await page.mouse.down()
-      await destructive.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)))
+      await destructive.evaluate(settleAnimations)
       await expect(destructive).toHaveCSS('background-color', hoverFill)
       await expect(icon).toHaveCSS('color', iconColour)
       await expect(label).toHaveCSS('color', labelColour)

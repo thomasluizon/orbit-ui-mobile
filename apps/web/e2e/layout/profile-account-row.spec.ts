@@ -1,8 +1,8 @@
+import { setLayoutFixtureSession } from './profile-session'
 import { expect } from '@playwright/test'
 import { API } from '@orbit/shared/api'
 import { profileSchema } from '@orbit/shared/types/profile'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
-import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
 
 for (const locale of ['en', 'pt-BR'] as const) {
@@ -12,7 +12,7 @@ for (const locale of ['en', 'pt-BR'] as const) {
 
       test('uses the two-line height, padding and email type', async ({ page, context }) => {
         const profile = profileSchema.parse({ ...profileFixture, language: locale, name: 'Ana', email: 'a@b.co' })
-        await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
+        await setLayoutFixtureSession(context, [{ path: API.profile.get, body: profile }])
         await page.goto('/profile')
         const row = page.getByTestId('profile-settings-group-you').locator('.orbit-list-row-body').first()
         const email = row.locator('[data-slot="list-row-description"]')

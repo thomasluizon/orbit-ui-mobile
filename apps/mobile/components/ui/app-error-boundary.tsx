@@ -28,7 +28,7 @@ export function AppErrorScreen({ error, retry, standalone = false }: Readonly<{ 
   }
   const screen = (
     <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={styles.root} testID={countdown ? 'throttle-screen' : 'failure-screen'}>
-      <Text accessibilityRole="header" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{i18n.t(countdown ? 'errorScreen.throttleTitle' : 'errorScreen.title')}</Text>
+      <Text accessibilityRole="header" textBreakStrategy="simple" android_hyphenationFrequency="none" style={[styles.title, width >= 1024 && styles.titleWide, { color: tokens.fg1 }]}>{i18n.t(countdown ? 'errorScreen.throttleTitle' : 'errorScreen.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{i18n.t(countdown ? 'errorScreen.throttleBody' : 'errorScreen.body')}</Text>
       {countdown ? <Text accessibilityRole="timer" style={[styles.countdown, { color: tokens.fg1 }]}>{countdown.label}</Text> : null}
       <PillButton variant={waiting ? 'ghost' : 'primary'} disabled={waiting} loading={retrying} onClick={handleRetry}>{i18n.t('errorScreen.retry')}</PillButton>

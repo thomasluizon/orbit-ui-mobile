@@ -44,7 +44,7 @@ const habitMocks = vi.hoisted(() => ({ validateAll: vi.fn(), createHabit: vi.fn(
 vi.mock('react-hook-form', () => ({
   useWatch: ({ name }: { name: string }) => name === 'title' ? 'Test Habit' : name === 'scheduledReminders' ? [] : undefined,
 }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock('expo-router', () => ({ useIsFocused: () => true, useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: habitMocks.createHabit, isPending: false }),
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),

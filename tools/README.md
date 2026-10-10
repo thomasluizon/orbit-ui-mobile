@@ -7,6 +7,7 @@
 > - The `Tool and Hook Tests` CI job runs both harness suites on every PR to `main` and `redesign/main`, including changes to their UI producers.
 > - The orchestration core includes queue planning, prompt/worker isolation, delivery verification,
 >   final-head readiness receipts, ticket synchronization, review-thread handling, and teardown.
+> - The Docker registry guard requires explicit image hosts in tracked Dockerfiles.
 > - `verify-delivery.mjs` is the SOLE authority for the word "delivered". A worker's exit code is never evidence.
 > - `run-status.mjs` starts every wakeup with compact observations and the next command.
 > - `list-bot-threads.mjs` makes "the bot review never ran" a verdict. Silence is never read as approval.
@@ -73,6 +74,7 @@ These back required CI checks. They fail a merge.
 | `check-dashes.mjs` | Fails on an em dash or en dash in a changed file, a PR title, or a PR body. Backs `Dash Ban`. Its baseline may only shrink and cannot name missing files. | `node tools/check-dashes.mjs --files <path>... \| --check-baseline \| --write-baseline \| --text "<string>"` |
 | `check-timeless.mjs` | Rejects machine paths, owner attributions, dated anecdotes and long code comments. Backs `Timeless Text`; reviewed exceptions live in `tools/timeless-allowlist.json`. | `node tools/check-timeless.mjs --all \| --base <ref> \| --staged \| --hook` |
 | `check-gate-charter.mjs` | Enforces the closed gate registry, declared pull request scopes, snapshot regeneration commands and sourced constants. Backs `Gate Charter`. | `node tools/check-gate-charter.mjs` |
+| `check-hermetic-web-build.mjs` | Rejects production or staging API hosts in every file under `apps/web/.next/static` before hermetic layout and perf runs. Refuses missing or empty client output. | `node tools/check-hermetic-web-build.mjs [--build-dir <path>]` |
 | `check-gradients.mjs` | Fails on decorative gradients in web or mobile source while allowing the named functional masks, calendar lines, loading indicator, and SVG mock. Backs `Design Token Guard`. | `node tools/check-gradients.mjs` |
 | `check-surface-scope.mjs` | Derives permitted text and graphic surfaces from shipped theme values, then fails when web or mobile uses a declared color token below its role floor. Runs as the report-only `Surface Scope Report` check until its findings are resolved. | `node tools/check-surface-scope.mjs` |
 | `check-lockup-crop.mjs` | Asserts `design/brand/orbit-lockup.svg`'s viewBox equals its ink within 1e-6, solving each path's real bounds from the curve extrema and applying the serialized transforms. It reads the committed bytes, because a generator asserting its own pre-rounded floats passed while the written file clipped. It FAILS CLOSED on a CLOSED SET: only `svg`, `title`, `desc`, `g` and `path` are known, each with an enumerated attribute whitelist, and only `M L H V C Q Z` path commands and a translate plus optional uniform scale. Every other element, attribute, command or transform is an error, never a skip, so an unmodelled paint attribute cannot make it report an exact crop over geometry it never measured. | `node tools/check-lockup-crop.mjs [--file <path>]` |
@@ -83,6 +85,7 @@ These back required CI checks. They fail a merge.
 | `check-root-allowlist.mjs` | Fails when an undeclared file OR directory exists at the repository root, including ignored and untracked ones. Backs `Root Allowlist`; declarations live in `root-allowlist.json`. | `node tools/check-root-allowlist.mjs [--changed-files-file <path>]` |
 | `check-sonar-paths.mjs` | Fails when a Sonar source, test, exclusion, or inclusion names a missing literal path or source directory prefix. Generated output globs remain valid before a build. Backs `Sonar Paths`. | `node tools/check-sonar-paths.mjs` |
 | `check-workspace-overrides.mjs` | Fails when an npm workspace declares an `overrides` key that npm would ignore. Backs `Root Allowlist`. | `node tools/check-workspace-overrides.mjs` |
+| `check-docker-registries.mjs` | Requires explicit registry hosts in every tracked Dockerfile FROM image, allowing scratch and earlier stages, and disabled provenance on workflow pushes using the docker driver. Backs `Root Allowlist`. | `node tools/check-docker-registries.mjs [--root <path>]` |
 
 ## Architecture map and visual evidence
 

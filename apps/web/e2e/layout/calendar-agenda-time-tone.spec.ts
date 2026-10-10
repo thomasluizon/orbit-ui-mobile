@@ -39,7 +39,6 @@ for (const width of [412, 1280]) {
       })
 
       test('uses metadata tone at rest and promotes it on desktop hover', async ({ page, context }) => {
-        await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
         await context.route((url) => url.origin === LAYOUT_ORIGIN && url.pathname === API.habits.calendarMonth,
           (route) => route.fulfill({ json: calendarMonth }))
         await page.goto('/calendar')
@@ -56,12 +55,11 @@ for (const width of [412, 1280]) {
 
         if (width === 1280) {
           await row.hover()
-          await page.evaluate(() => new Promise<void>((resolve) => {
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-          }))
-          const hovered = await timePaint(time, '--fg-2')
-          expect(hovered.actual).toBe(hovered.expected)
-          expect(hovered.actual).not.toBe(resting.actual)
+          await expect(async () => {
+            const hovered = await timePaint(time, '--fg-2')
+            expect(hovered.actual).toBe(hovered.expected)
+            expect(hovered.actual).not.toBe(resting.actual)
+          }).toPass({ timeout: 3000 })
         }
       })
     })

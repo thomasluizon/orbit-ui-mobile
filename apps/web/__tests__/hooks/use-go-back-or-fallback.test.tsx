@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => {
   return {
     router,
     useRouter: vi.fn(() => router),
-    canGoBackInAppHistory: vi.fn(() => false),
     dismissTopOverlay: vi.fn(() => false),
   }
 })
@@ -21,15 +20,12 @@ vi.mock('next/navigation', () => ({
   useRouter: mocks.useRouter,
 }))
 
-vi.mock('@/lib/app-navigation-history', () => ({
-  canGoBackInAppHistory: mocks.canGoBackInAppHistory,
-}))
-
 vi.mock('@/lib/overlay-stack', () => ({
   dismissTopOverlay: mocks.dismissTopOverlay,
 }))
 
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { updateAppNavigationHistory } from '@/lib/app-navigation-history'
 
 type GoBackOrFallback = (
   fallbackRoute: string,
@@ -61,8 +57,8 @@ describe('useGoBackOrFallback', () => {
     mocks.router.replace.mockClear()
     mocks.router.push.mockClear()
     mocks.useRouter.mockClear()
-    mocks.canGoBackInAppHistory.mockReset()
-    mocks.canGoBackInAppHistory.mockReturnValue(false)
+    sessionStorage.clear()
+    history.replaceState({}, '', '/upgrade')
     mocks.dismissTopOverlay.mockReset()
     mocks.dismissTopOverlay.mockReturnValue(false)
 
@@ -88,7 +84,8 @@ describe('useGoBackOrFallback', () => {
   })
 
   it('uses router.back when app history says navigation can go back', async () => {
-    mocks.canGoBackInAppHistory.mockReturnValue(true)
+    updateAppNavigationHistory('/calendar', 'init')
+    updateAppNavigationHistory('/upgrade', 'push')
     const goBackOrFallback = renderHookHarness()
 
     goBackOrFallback('/profile')

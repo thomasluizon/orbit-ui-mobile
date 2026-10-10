@@ -6,17 +6,16 @@ import { useQuery } from '@tanstack/react-query'
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
-import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
+import { calendarMonthResponseSchema } from '@orbit/shared/types/habit'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {
   const query = useQuery({
     queryKey: habitKeys.calendar(rangeStart, rangeEnd),
-    queryFn: () =>
-      apiClient<CalendarMonthResponse>(
-        `${API.habits.calendarMonth}?dateFrom=${rangeStart}&dateTo=${rangeEnd}`,
-      ),
+    queryFn: async () => calendarMonthResponseSchema.parse(await apiClient<unknown>(
+      `${API.habits.calendarMonth}?dateFrom=${rangeStart}&dateTo=${rangeEnd}`,
+    )),
     staleTime: QUERY_STALE_TIMES.habits,
     enabled,
   })

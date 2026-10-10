@@ -9,6 +9,7 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { createInstance } from 'i18next'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { StackRouter, TabRouter, CommonActions, StackActions } from 'expo-router/build/react-navigation/routers'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
 import UpgradeScreen from '@/app/upgrade'
@@ -54,6 +55,9 @@ const mocks = vi.hoisted(() => ({
   billingError: false,
   lapseReason: null as 'canceled' | 'payment_failed' | 'expired' | null,
   subscriptionEndedAtUtc: null as string | null,
+  realNavigation: false,
+  navigationState: null as ReturnType<ReturnType<typeof StackRouter>['getInitialState']> | null,
+  router: { canDismiss: vi.fn(() => false), dismiss: vi.fn(), dismissTo: vi.fn(), push: vi.fn() },
   goBack: vi.fn(),
   refetchPlans: vi.fn(() => Promise.resolve()),
   refetchBilling: vi.fn(() => Promise.resolve()),
@@ -89,6 +93,8 @@ vi.mock('expo-constants', () => ({ default: { get expoConfig() { return mocks.ex
 
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ from: mocks.from }),
+  useRouter: () => mocks.router,
+  useRootNavigationState: () => mocks.navigationState,
 }))
 
 vi.mock('react-native', async (importOriginal) => {
@@ -111,9 +117,10 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mocks.isOnline }),
 }))
-vi.mock('@/hooks/use-go-back-or-fallback', () => ({
-  useGoBackOrFallback: () => mocks.goBack,
-}))
+vi.mock('@/hooks/use-go-back-or-fallback', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/use-go-back-or-fallback')>()
+  return { useGoBackOrFallback: () => mocks.realNavigation ? actual.useGoBackOrFallback() : mocks.goBack }
+})
 vi.mock('@/hooks/use-billing', () => ({
   useBilling: () => ({
     billing: mocks.billing,
@@ -250,6 +257,9 @@ describe('UpgradeScreen', () => {
     mocks.locale = 'en'
     vi.stubEnv('ORBIT_APP_VARIANT', 'production')
     mocks.expoConfig = createConfig()
+    mocks.realNavigation = false
+    mocks.navigationState = null
+    mocks.router.canDismiss.mockReturnValue(false)
     mocks.from = undefined
     mocks.hasProAccess = false
     mocks.trialDaysLeft = 5
@@ -271,6 +281,58 @@ describe('UpgradeScreen', () => {
     mocks.subscriptionEndedAtUtc = null
     mocks.playBilling.isProcessing = false
     mocks.playBilling.errorKey = ''
+  })
+
+  describe.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }])('back destination in $locale', ({ locale, messages }) => {
+    it.each([
+      { source: 'profile', from: undefined, destination: messages.nav.profile },
+      { source: 'profile/astra', from: '/profile/astra', destination: messages.profile.groups.astra },
+      { source: 'calendar', from: undefined, destination: messages.nav.calendar },
+      { source: 'habits/new', from: undefined, destination: messages.habits.form.newHabit },
+      { source: 'index', from: '/', destination: messages.nav.today },
+      { source: 'calendar', from: '/profile/astra', destination: messages.nav.calendar },
+      { source: 'chat', from: undefined, destination: messages.chat.title },
+      { source: null, from: undefined, destination: messages.nav.profile },
+      { source: null, from: '/profile/astra', destination: messages.profile.groups.astra },
+    ])('names and returns to $source with from=$from', async ({ source, from, destination }) => {
+      mocks.realNavigation = true
+      mocks.renderComposition = true
+      mocks.from = from
+      await testI18n.changeLanguage(locale)
+      const router = StackRouter({ initialRouteName: source ? '(tabs)' : 'upgrade' })
+      const options = { routeNames: ['(tabs)', 'profile/astra', 'habits/new', 'chat', 'upgrade'], routeParamList: {}, routeGetIdList: {} }
+      let state = router.getInitialState(options)
+      if (source) {
+        if (source === 'profile' || source === 'calendar' || source === 'index') {
+          const tabs = TabRouter({ initialRouteName: source })
+          state = { ...state, routes: [{ ...state.routes[0]!, state: tabs.getInitialState({ routeNames: ['index', 'calendar', 'progress', 'profile'], routeParamList: {}, routeGetIdList: {} }) }] }
+        } else {
+          state = router.getRehydratedState(router.getStateForAction(state, CommonActions.navigate(source), options)!, options)
+        }
+        state = router.getRehydratedState(router.getStateForAction(state, StackActions.push('upgrade'), options)!, options)
+      }
+      mocks.router.dismiss.mockImplementation(() => {
+        state = router.getRehydratedState(router.getStateForAction(state, StackActions.pop(), options)!, options)
+      })
+      mocks.navigationState = state
+      mocks.router.canDismiss.mockReturnValue(Boolean(source))
+      const tree = await renderScreen()
+      const label = source === 'profile' || (!source && !from)
+        ? messages.common.backToProfile
+        : source === 'index' ? messages.common.backToToday : messages.common.backToDestination.replace('{destination}', destination)
+      const back = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)[0]!
+      expect(back, label).toBeDefined()
+      await TestRenderer.act(() => { (back.props.onPress as () => void)() })
+      if (source) {
+        expect(mocks.router.dismiss).toHaveBeenCalledExactlyOnceWith()
+        expect(mocks.router.dismissTo).not.toHaveBeenCalled()
+        const restored = state.routes[state.index]!
+        expect(restored.state ? restored.state.routes[restored.state.index ?? 0]!.name : restored.name).toBe(source)
+      } else {
+        expect(mocks.router.dismissTo).toHaveBeenCalledExactlyOnceWith(from || '/profile')
+        expect(mocks.router.dismiss).not.toHaveBeenCalled()
+      }
+    })
   })
 
   describe.each([

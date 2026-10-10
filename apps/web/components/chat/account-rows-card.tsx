@@ -79,7 +79,7 @@ export function AccountRowsCard({ accountRows }: Readonly<{ accountRows: Account
   }
 
   const referral = accountRows.kind === 'referral'
-  return <div className="mt-2 w-full md:max-w-[65ch]">
+  return <div className="w-full">
     <BlockFrame state={failure ? 'partiallyFailed' : 'resting'} title={t(`chat.account.title.${accountRows.kind}`)} count={null} items={[]}
       body={<div className="flex flex-col gap-3">
         <SettingsGroup>{rows}</SettingsGroup>

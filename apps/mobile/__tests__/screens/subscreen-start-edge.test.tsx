@@ -23,7 +23,9 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }), useLocalSearchParams: () => ({}) }))
+vi.mock('expo-router', () => ({
+  useRootNavigationState: () => undefined,
+  useRouter: () => ({ push: vi.fn() }), useLocalSearchParams: () => ({}) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: createMockProfile() }) }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.online }) }))
