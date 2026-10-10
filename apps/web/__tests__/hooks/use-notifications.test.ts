@@ -67,7 +67,10 @@ describe('useNotifications', () => {
   })
 
   it('paints server notifications before a delayed browser response and retains real count updates', async () => {
-    const initialNotifications = { items: [createMockNotification({ isRead: false })], unreadCount: 15 }
+    const initialNotifications = {
+      notifications: { items: [createMockNotification({ isRead: false })], unreadCount: 15 },
+      updatedAt: Date.now(),
+    }
     let finishRequest!: (response: Response) => void
     mockFetch.mockReturnValue(new Promise<Response>((resolve) => { finishRequest = resolve }))
     const queryClient = createQueryClient()

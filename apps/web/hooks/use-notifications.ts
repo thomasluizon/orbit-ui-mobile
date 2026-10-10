@@ -80,7 +80,8 @@ export function useNotifications() {
   const query = useQuery({
     queryKey: notificationKeys.lists(),
     queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list, notificationsResponseSchema),
-    initialData: initialNotifications,
+    initialData: initialNotifications?.notifications,
+    initialDataUpdatedAt: initialNotifications?.updatedAt,
     staleTime: QUERY_STALE_TIMES.notifications,
   })
 

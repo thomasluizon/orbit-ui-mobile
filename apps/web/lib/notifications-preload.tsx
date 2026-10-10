@@ -4,10 +4,15 @@ import { createContext, useState, type ReactNode } from 'react'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 import { useAccountGeneration } from '@/hooks/use-session-reset'
 
-export const PreloadedNotificationsContext = createContext<NotificationsResponse | undefined>(undefined)
+export interface PreloadedNotifications {
+  notifications: NotificationsResponse
+  updatedAt: number
+}
+
+export const PreloadedNotificationsContext = createContext<PreloadedNotifications | undefined>(undefined)
 
 export function NotificationsPreload({ initialNotifications, children }: Readonly<{
-  initialNotifications: NotificationsResponse | null
+  initialNotifications: PreloadedNotifications | null
   children?: ReactNode
 }>) {
   const accountGeneration = useAccountGeneration()

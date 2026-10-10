@@ -38,7 +38,7 @@ describe('root bell count geometry in Chromium', () => {
 
   it('renders the inline count in server markup before a browser request can move the sibling', async () => {
     const markup = renderToString(<NextIntlClientProvider locale="pt-BR" messages={ptBR}>
-      <NotificationsPreload initialNotifications={{ items: [], unreadCount: 15 }}>
+      <NotificationsPreload initialNotifications={{ notifications: { items: [], unreadCount: 15 }, updatedAt: Date.now() }}>
         <QueryClientProvider client={createQueryClient()}>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button data-sibling="" style={{ width: 48 }}>Opções</button>
