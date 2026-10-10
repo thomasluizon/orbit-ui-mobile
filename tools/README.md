@@ -142,6 +142,10 @@ is what makes landing on login a positive claim.
 
 ## Harness self-test
 
+`check-hermetic-web-build.mjs` scans `apps/web/.next/static` before hermetic layout runs and
+rejects production or staging API hosts. Run `node tools/check-hermetic-web-build.mjs`
+after building, or pass `--build-dir <path>` to check another Next output directory.
+
 | Tool | What it does | Usage |
 |---|---|---|
 | `test-tools.mjs` | Executes every tool in this directory against its contract and fails on any tool with no coverage entry. Review-only evidence is not sufficient: a harness that is read but never run is how a gate reports green over work that never happened. | `node tools/test-tools.mjs` |
